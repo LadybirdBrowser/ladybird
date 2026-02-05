@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+@namespace s "http://www.w3.org/2000/svg";
+
+body * {
+    border: 1px solid black;
+}
+a {
+    width: 100px;
+}
+|a {
+    width: 200px !important;
+}
+*|a {
+    height: 100px;
+    font-size: 40px;
+}
+s|a {
+    font-size: 80px;
+}
+</style>
+<svg><a><text x="20" y="80">Hello</text></a></svg>
+<math><a>Hello</a></math>
+<div><a>Hello</a></div>

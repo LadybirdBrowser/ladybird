@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const session = await navigator.xr.requestSession("inline");
+        session.addEventListener("end", () => {
+            println("Session ended as requested.");
+            done();
+        });
+        session.end();
+        // Since end() might need to shut down XR devices and stuff, let's give it 10 seconds to send the event.
+        setTimeout(done, 10_000);
+    });
+</script>

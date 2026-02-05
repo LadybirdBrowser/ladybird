@@ -1,0 +1,29 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 166 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 150 0+0+8] children: inline
+      frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 300x150] baseline: 150
+      SVGSVGBox <svg> at [8,8] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] [SVG] children: inline
+        TextNode <#text> (not painted)
+        SVGSVGBox <svg> at [18,8] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] [SVG] children: inline
+          TextNode <#text> (not painted)
+          SVGGeometryBox <rect> at [27.5,17.5] [0+0+0 101 0+0+0] [0+0+0 101 0+0+0] children: not-inline
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        SVGSVGBox <svg> at [208,23] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] [SVG] children: inline
+          TextNode <#text> (not painted)
+          SVGGeometryBox <rect> at [217.5,32.5] [0+0+0 101 0+0+0] [0+0+0 101 0+0+0] children: not-inline
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x166]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x150]
+      SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150] overflow: [8,8 500x165]
+        SVGSVGPaintable (SVGSVGBox<svg>) [18,8 300x150]
+          SVGPathPaintable (SVGGeometryBox<rect>) [27.5,17.5 101x101]
+        SVGSVGPaintable (SVGSVGBox<svg>) [208,23 300x150]
+          SVGPathPaintable (SVGGeometryBox<rect>) [217.5,32.5 101x101]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x166] [children: 0] (z-index: auto)

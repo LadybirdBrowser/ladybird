@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div contenteditable="true">foobar</div>
+<script>
+    test(() => {
+        const selection = getSelection();
+        const reportSelection = () => {
+            if (selection.rangeCount === 0) {
+                println('No range.');
+                return;
+            }
+            const range = selection.getRangeAt(0);
+            println(`${range.startContainer.nodeName} ${range.startOffset} - ${range.endContainer.nodeName} ${range.endOffset}`);
+        };
+
+        var divElm = document.querySelector('div');
+        divElm.addEventListener('input', (e) => println('input triggered'));
+
+        // Put cursor between 'foo' and 'bar'
+        selection.setBaseAndExtent(divElm.childNodes[0], 3, divElm.childNodes[0], 3);
+
+        // Insert text
+        document.execCommand('insertText', false, 'baz');
+        reportSelection();
+
+        // Insert Unicode
+        document.execCommand('insertText', false, '🙂');
+        reportSelection();
+
+        println(divElm.innerHTML);
+    });
+</script>

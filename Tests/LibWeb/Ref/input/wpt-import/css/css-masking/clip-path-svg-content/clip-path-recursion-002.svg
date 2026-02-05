@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:html="http://www.w3.org/1999/xhtml"
+	 xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="testmeta">
+	<title>CSS Masking: clipPath recursion 2</title>
+	<html:link rel="author" title="Dirk Schulze" href="mailto:dschulze@adobe.com"/>
+	<html:link rel="help" href="http://www.w3.org/TR/css-masking-1/#svg-clipping-paths"/>
+	<html:link rel="help" href="http://www.w3.org/TR/css-masking-1/#ClipPathElement"/>
+	<html:link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path-svg-content/reference/clip-path-recursion-002-ref.svg" />
+	<metadata class="flags">svg</metadata>
+  <desc class="assert">
+    A clipPath recursion counts as invalid clipping path.
+  </desc>
+</g>
+<defs>
+	<rect x="50" y="150" width="50" height="50" id="rect" fill="none" clip-path="url(#clipPath_1)"/>
+</defs>
+<clipPath id="clipPath_0">
+	<rect x="50" width="50" height="50" clip-path="url(#clipPath_0)"/>
+</clipPath>
+<clipPath id="clipPath_1">
+	<use xlink:href="#rect"/>
+</clipPath>
+<rect x="50" width="100" height="100" fill="red" clip-path="url(#clipPath_0)"/>
+<rect x="50" y="150" width="100" height="100" fill="red" clip-path="url(#clipPath_1)"/>
+</svg>

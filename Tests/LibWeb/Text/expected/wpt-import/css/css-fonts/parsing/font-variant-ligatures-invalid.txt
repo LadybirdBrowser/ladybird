@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['font-variant-ligatures'] = "none normal" should not set the property value
+Pass	e.style['font-variant-ligatures'] = "normal common-ligatures" should not set the property value
+Pass	e.style['font-variant-ligatures'] = "common-ligatures no-common-ligatures" should not set the property value
+Pass	e.style['font-variant-ligatures'] = "discretionary-ligatures no-discretionary-ligatures" should not set the property value
+Pass	e.style['font-variant-ligatures'] = "historical-ligatures no-historical-ligatures" should not set the property value
+Pass	e.style['font-variant-ligatures'] = "contextual no-contextual" should not set the property value

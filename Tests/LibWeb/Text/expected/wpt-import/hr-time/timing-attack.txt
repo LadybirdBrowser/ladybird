@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	The recommended minimum resolution of the Performance interface has been set to 100 microseconds for cross-origin isolated contexts.

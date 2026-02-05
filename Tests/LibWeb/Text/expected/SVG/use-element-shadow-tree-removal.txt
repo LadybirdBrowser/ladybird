@@ -1,0 +1,3 @@
+Initial shadow children: 1
+After removal shadow children: 0
+PASS: No stack overflow from deep recursion

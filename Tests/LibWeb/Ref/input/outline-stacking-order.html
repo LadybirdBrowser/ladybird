@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/outline-stacking-order-ref.html">
+<style>
+    .outlined {
+        margin: 10px;
+        width: 50px;
+        height: 50px;
+        background: blue;
+        outline: 10px solid lime;
+    }
+
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 80px;
+        height: 80px;
+        background: red;
+        z-index: 1;
+    }
+</style>
+<div class="outlined"></div>
+<div class="overlay"></div>

@@ -1,0 +1,58 @@
+<meta charset="utf-8">
+<title>CSSNumericValue.parse tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => CSSNumericValue.parse('%#('));
+}, 'Parsing an invalid string throws SyntaxError');
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => CSSNumericValue.parse('auto'));
+}, 'Parsing a string with a non numeric token throws SyntaxError');
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => CSSNumericValue.parse('1 2'));
+}, 'Parsing a string with left over numeric tokens throws SyntaxError');
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => CSSNumericValue.parse('calc(calc(1px * 2s) + 3%)'));
+}, 'Parsing a calc with incompatible units throws a SyntaxError');
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => CSSNumericValue.parse('1xyz'));
+}, 'Parsing a <dimension-token> with invalid units throws a SyntaxError');
+
+test(() => {
+  assert_style_value_equals(new CSSUnitValue(1, 'px'), CSSNumericValue.parse(' 1px  '));
+}, 'Parsing ignores surrounding spaces');
+
+test(() => {
+  const expected = new CSSMathMin(CSS.px(10), CSS.percent(10));
+  assert_style_value_equals(expected, CSSNumericValue.parse('min(10px, 10%)'));
+}, 'Parsing min() is successful');
+
+test(() => {
+  const expected = new CSSMathMax(CSS.px(10), CSS.percent(10));
+  assert_style_value_equals(expected, CSSNumericValue.parse('max(10px, 10%)'));
+}, 'Parsing max() is successful');
+
+test(() => {
+  const expected = new CSSMathClamp(CSS.px(10), CSS.percent(10), CSS.px(20));
+  assert_style_value_equals(expected, CSSNumericValue.parse('clamp(10px, 10%, 20px)'));
+}, 'Parsing clamp() is successful');
+
+test(() => {
+  const expected = new CSSMathSum(...[1, 2, 3].map(x => new CSSMathMin(CSS.number(x))));
+  assert_style_value_equals(expected.toString(), 'calc(min(1) + min(2) + min(3))');
+}, 'Parsing sum of multiple min() is successful');
+
+test(() => {
+  const expected = new CSSMathProduct(...[1, 2, 3].map(x => new CSSMathMin(CSS.number(x))));
+  assert_style_value_equals(expected.toString(), 'calc(min(1) * min(2) * min(3))');
+}, 'Parsing product of multiple min() is successful');
+</script>

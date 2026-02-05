@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+    <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <filter>
+            <feGaussianBlur stdDeviation="125" id="gb1" />
+            <feGaussianBlur stdDeviation="50 100.1" id="gb2" />
+            <feGaussianBlur stdDeviation="" id="gb3" />
+            <feGaussianBlur id="gb4" />
+            <feGaussianBlur stdDeviation="1 2 3" id="gb5" />
+            <feGaussianBlur id="gm" />
+        </filter>
+    </svg>
+</body>
+<script>
+test(() => {
+    for (let id of ['gb1', 'gb2', 'gb3', 'gb4', 'gb5']) {
+        const gb = document.getElementById(id);
+        println(`${id} stdDeviationX: ${gb.stdDeviationX.baseVal} stdDeviationY: ${gb.stdDeviationY.baseVal}`);
+    }
+
+    const gm = document.getElementById('gm');
+    gm.stdDeviationX.baseVal = '50';
+    println(`gm stdDeviationX: ${gm.stdDeviationX.baseVal} stdDeviationY: ${gm.stdDeviationY.baseVal}`);
+    gm.stdDeviationY.baseVal = '3';
+    println(`gm stdDeviationX: ${gm.stdDeviationX.baseVal} stdDeviationY: ${gm.stdDeviationY.baseVal}`);
+    gm.stdDeviationX.baseVal = '2';
+    gm.stdDeviationY.baseVal = '';
+    println(`gm stdDeviationX: ${gm.stdDeviationX.baseVal} stdDeviationY: ${gm.stdDeviationY.baseVal}`);
+});
+</script>

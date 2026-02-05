@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	can use ShadowRoot as options for attachShadow
+Pass	can use ShadowRoot in document fragment as options for attachShadow

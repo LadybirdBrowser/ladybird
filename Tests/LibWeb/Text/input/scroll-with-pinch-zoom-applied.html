@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        overflow: scroll;
+    }
+
+    .spacer {
+        height: 3000px;
+        background: linear-gradient(to bottom, red, blue);
+    }
+</style>
+<div class="spacer"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const vv = window.visualViewport;
+        const scrollDelta = 100;
+
+        println(`Initial: pageTop=${vv.pageTop}, scale=${vv.scale}`);
+
+        // First, zoom in
+        vv.addEventListener("resize", function onResize() {
+            vv.removeEventListener("resize", onResize);
+
+            println(`After zoom: pageTop=${vv.pageTop}, scale=${vv.scale}, offsetTop=${vv.offsetTop}`);
+
+            const pageTopBefore = vv.pageTop;
+
+            // Scroll down
+            internals.wheel(100, 100, 0, scrollDelta);
+
+            // Poll for changes since scroll events may not fire for visual viewport panning
+            requestAnimationFrame(() => {
+                const pageTopAfter = vv.pageTop;
+                const scrolled = pageTopAfter - pageTopBefore;
+
+                println(`pageTop changed by: ${scrolled}`);
+
+                // The scroll amount should be approximately equal to the requested delta
+                // Allow small tolerance for floating point
+                if (Math.abs(scrolled - scrollDelta) < 1) {
+                    println("PASS");
+                } else {
+                    println(`FAIL: Expected scroll of ${scrollDelta}, got ${scrolled}`);
+                }
+                done();
+            });
+        });
+
+        requestAnimationFrame(() => {
+            // Zoom in (scale increases with positive delta)
+            internals.pinch(100, 100, 0.5);
+        });
+    });
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body></body>
+<script>
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    const iframeDocument = iframe.contentDocument;
+
+    iframeDocument.open();
+    iframeDocument.write(
+        "<!DOCTYPE html><html><head><title>Iframe Content</title></head><body>"
+    );
+    iframeDocument.write("<h1>Hello</h1>");
+    iframeDocument.write("<p>from iframe</p>");
+    iframeDocument.write("</body></html>");
+    iframeDocument.close();
+
+    test(() => {
+        println("PASS (didn't crash)");
+    })
+</script>

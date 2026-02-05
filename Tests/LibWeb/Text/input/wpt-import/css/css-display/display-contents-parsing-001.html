@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tests that the 'contents' value for the 'display' property is correctly parsed</title>
+<link rel="help" href="https://drafts.csswg.org/css-display/#box-generation">
+<link rel="author" href="mailto:ecobos@igalia.com" title="Emilio Cobos Álvarez">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .contents {
+    display: contents;
+  }
+
+  .contents-then-block {
+    display: contents;
+    display: block;
+  }
+
+  .content {
+    display: content;
+  }
+</style>
+<div class="contents" id="contentsElement"></div>
+<div class="content" id="bogusContentsElement"></div>
+<div class="contents-then-block" id="contentsThenBlockElement"></div>
+<script>
+test(function() {
+  var contentsElement = document.getElementById("contentsElement");
+  var bogusContentsElement = document.getElementById("bogusContentsElement");
+  var contentsThenBlockElement = document.getElementById("contentsThenBlockElement");
+
+  assert_equals(getComputedStyle(contentsElement).getPropertyValue("display"), "contents");
+  assert_equals(getComputedStyle(bogusContentsElement).getPropertyValue("display"), "block");
+  assert_equals(getComputedStyle(contentsThenBlockElement).getPropertyValue("display"), "block");
+
+  var element = document.createElement("div");
+  document.body.appendChild(element);
+  assert_equals(getComputedStyle(element).getPropertyValue("display"), "block");
+  element.style.display = "contents";
+  assert_equals(getComputedStyle(element).getPropertyValue("display"), "contents");
+  element.style.display = "block";
+  assert_equals(getComputedStyle(element).getPropertyValue("display"), "block");
+});
+</script>

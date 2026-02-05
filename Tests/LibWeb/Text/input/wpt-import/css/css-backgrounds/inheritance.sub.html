@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Backgrounds and Borders properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#property-index">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-4/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="reference"></div>
+<!-- container and target are used by the functions in inheritance-testcommon.js -->
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  #reference {
+    column-rule-style: dotted; /* Avoid column-rule-width computed style 0px */
+    column-rule-width: medium;
+  }
+  #container {
+    border-style: solid; /* Avoid border-*-width computed style 0px */
+  }
+  #target {
+    border-style: solid; /* Avoid border-*-width computed style 0px */
+  }
+</style>
+<script>
+const transparentColor = 'rgba(0, 0, 0, 0)'; // https://www.w3.org/TR/css-color-3/#transparent
+const mediumWidth = '3px'; // https://www.w3.org/TR/css-backgrounds-3/#valdef-line-width-medium
+const currentColor = 'rgb(2, 3, 4)';
+container.style.color = currentColor;
+
+
+// assert_not_inherited accepts: property name, expected initial value, another value the property supports.
+assert_not_inherited('background-attachment', 'scroll', 'fixed');
+assert_not_inherited('background-clip', 'border-box', 'padding-box');
+assert_not_inherited('background-color', transparentColor, 'rgb(42, 53, 64)');
+assert_not_inherited('background-image', 'none', 'url("https://wpt.live/")');
+assert_not_inherited('background-origin', 'padding-box', 'content-box');
+assert_not_inherited('background-position', '0% 0%', '10px 20px');
+assert_not_inherited('background-position-x', '0%', '10px');
+assert_not_inherited('background-position-y', '0%', '20px');
+assert_not_inherited('background-repeat', 'repeat', 'space round');
+assert_not_inherited('background-size', 'auto', 'contain');
+
+assert_not_inherited('border-bottom-color', currentColor, 'rgb(42, 53, 64)');
+assert_not_inherited('border-bottom-left-radius', '0px', '5px 7%');
+assert_not_inherited('border-bottom-right-radius', '0px', '5px 7%');
+assert_not_inherited('border-bottom-style', 'none', 'dashed');
+assert_not_inherited('border-bottom-width', mediumWidth, '10px');
+
+assert_not_inherited('border-image-outset', '0', '1px 2px 3px 4px');
+assert_not_inherited('border-image-repeat', 'stretch', 'repeat round');
+assert_not_inherited('border-image-slice', '100%', '1% 2% 3% 4% fill');
+assert_not_inherited('border-image-source', 'none', 'url("https://wpt.live/")');
+assert_not_inherited('border-image-width', '1', '1px 2px 3px 4px');
+
+assert_not_inherited('border-left-color', currentColor, 'rgb(42, 53, 64)');
+assert_not_inherited('border-left-style', 'none', 'dashed');
+assert_not_inherited('border-left-width', mediumWidth, '10px');
+
+assert_not_inherited('border-right-color', currentColor, 'rgb(42, 53, 64)');
+assert_not_inherited('border-right-style', 'none', 'dashed');
+assert_not_inherited('border-right-width', mediumWidth, '10px');
+
+assert_not_inherited('border-top-color', currentColor, 'rgb(42, 53, 64)');
+assert_not_inherited('border-top-left-radius', '0px', '5px 7%');
+assert_not_inherited('border-top-right-radius', '0px', '5px 7%');
+assert_not_inherited('border-top-style', 'none', 'dashed');
+assert_not_inherited('border-top-width', mediumWidth, '10px');
+
+assert_not_inherited('box-shadow', 'none', 'rgb(42, 53, 64) 1px 2px 3px 4px');
+</script>
+</body>
+</html>

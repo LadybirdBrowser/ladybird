@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	XMLHttpRequest: setRequestHeader() value argument checks
+Pass	XMLHttpRequest: setRequestHeader() value argument checks 1
+Pass	XMLHttpRequest: setRequestHeader() value argument checks 2
+Pass	XMLHttpRequest: setRequestHeader() value argument checks 3
+Pass	Omitted value argument

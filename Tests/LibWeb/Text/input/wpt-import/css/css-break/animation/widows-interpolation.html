@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>widows interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-break-3/#widows-orphans">
+<meta name="assert" content="widows supports animation by computed value type">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  widows: 30;
+}
+.target {
+  widows: 10;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'widows',
+  from: neutralKeyframe,
+  to: '20',
+}, [
+  {at: -3, expect: '1'},
+  {at: -2.5, expect: '1'},
+  {at: -0.5, expect: '5'},
+  {at: 0, expect: '10'},
+  {at: 0.3, expect: '13'},
+  {at: 0.6, expect: '16'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '25'},
+]);
+
+test_interpolation({
+  property: 'widows',
+  from: 'initial',
+  to: '20',
+}, [
+  {at: -3, expect: '1'},
+  {at: -2.5, expect: '1'},
+  {at: -0.5, expect: '1'},
+  {at: 0, expect: '2'},
+  {at: 0.3, expect: '7'},
+  {at: 0.6, expect: '13'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '29'},
+]);
+
+test_interpolation({
+  property: 'widows',
+  from: 'inherit',
+  to: '20',
+}, [
+  {at: -3, expect: '60'},
+  {at: -2.5, expect: '55'},
+  {at: -0.5, expect: '35'},
+  {at: 0, expect: '30'},
+  {at: 0.3, expect: '27'},
+  {at: 0.6, expect: '24'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '15'},
+]);
+
+test_interpolation({
+  property: 'widows',
+  from: 'unset',
+  to: '20',
+}, [
+  {at: -3, expect: '60'},
+  {at: -2.5, expect: '55'},
+  {at: -0.5, expect: '35'},
+  {at: 0, expect: '30'},
+  {at: 0.3, expect: '27'},
+  {at: 0.6, expect: '24'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '15'},
+]);
+
+test_interpolation({
+  property: 'widows',
+  from: '10',
+  to: '20'
+}, [
+  {at: -3.0, expect: '1'},
+  {at: -2.5, expect: '1'},
+  {at: -0.5, expect: '5'},
+  {at: 0, expect: '10'},
+  {at: 0.3, expect: '13'},
+  {at: 0.6, expect: '16'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '25'}
+]);
+
+test_interpolation({
+  property: 'widows',
+  from: '2',
+  to: '4'
+}, [
+  {at: -3.0, expect: '1'},
+  {at: -2.5, expect: '1'},
+  {at: -0.5, expect: '1'},
+  {at: 0, expect: '2'},
+  {at: 0.3, expect: '3'},
+  {at: 0.6, expect: '3'},
+  {at: 1, expect: '4'},
+  {at: 1.5, expect: '5'}
+]);
+</script>

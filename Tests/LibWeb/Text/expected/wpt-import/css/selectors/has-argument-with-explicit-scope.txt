@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	:has(:scope) matches expected elements on scope1
+Pass	:has(:scope .c) matches expected elements on scope1
+Pass	:has(.a :scope) matches expected elements on scope1
+Pass	.a:has(:scope) .c matches expected elements on scope1
+Pass	.a:has(:scope) .c and :is(.a :scope .c) returns same elements on scope1
+Pass	.a:has(:scope) .c matches expected elements on scope2
+Pass	.a:has(:scope) .c and :is(.a :scope .c) returns same elements on scope2
+Pass	.c:has(:is(:scope .d)) matches expected elements on scope1
+Pass	.c:has(:is(:scope .d)) and :scope .c:has(.d) returns same elements on scope1
+Pass	.c:has(:is(:scope .d)) and .c:has(.d) returns same elements on scope1
+Pass	.c:has(:is(:scope .d)) matches expected elements on scope2
+Pass	.c:has(:is(:scope .d)) and :scope .c:has(.d) returns same elements on scope2
+Pass	.c:has(:is(:scope .d)) and .c:has(.d) returns same elements on scope2

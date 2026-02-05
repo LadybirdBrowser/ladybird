@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>Tests values that are invalid at parse time for the anchor() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-pos">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+
+<script>
+// anchor() can only be used in inset properties
+test_invalid_value('margin-top', 'anchor(--foo top)');
+test_invalid_value('height', 'anchor(--foo top)');
+test_invalid_value('font-size', 'anchor(--foo top)');
+
+// Invalid parameter format
+test_invalid_value('top', 'anchor(--foo, top)');
+test_invalid_value('top', 'anchor(--foo top,)');
+test_invalid_value('top', 'anchor(--foo top bottom)');
+test_invalid_value('top', 'anchor(--foo top, 10px 20%)');
+test_invalid_value('top', 'anchor(--foo top, 10px, 20%)');
+test_invalid_value('top', 'anchor(2 * 20%)');
+test_invalid_value('top', 'anchor((2 * 20%))');
+
+// Anchor name must be a dashed ident
+test_invalid_value('top', 'anchor(foo top)');
+test_invalid_value('top', 'anchor(top foo)');
+
+// Invalid anchor side values
+test_invalid_value('top', 'anchor(--foo height)');
+test_invalid_value('top', 'anchor(--foo 10em)');
+test_invalid_value('top', 'anchor(--foo 100s)');
+
+// Invalid fallback values
+test_invalid_value('top', 'anchor(--foo top, 1)');
+test_invalid_value('top', 'anchor(--foo top, 100s)');
+test_invalid_value('top', 'anchor(--foo top, bottom)');
+test_invalid_value('top', 'anchor(--foo top, anchor(bar top))');
+test_invalid_value('top', 'anchor(--foo top, anchor-size(bar height))');
+test_invalid_value('top', 'anchor(--foo top, auto');
+
+// Invalid anchor values in calc tree
+test_invalid_value('top', 'calc(anchor(foo top) + 10px + 10%)');
+test_invalid_value('top', 'calc(10px + 100 * anchor(--foo top, anchor(bar bottom)))');
+test_invalid_value('top', 'min(anchor(--foo top), anchor(--bar bottom), anchor-size(baz height))');
+</script>

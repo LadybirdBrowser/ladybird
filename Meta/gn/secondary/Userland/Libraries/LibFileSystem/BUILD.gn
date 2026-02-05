@@ -1,0 +1,14 @@
+shared_library("LibFileSystem") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "FileSystem.cpp",
+    "FileSystem.h",
+    "TempFile.cpp",
+    "TempFile.h",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore:minimal",
+  ]
+  output_name = "filesystem"
+}

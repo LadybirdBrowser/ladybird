@@ -1,0 +1,2 @@
+::-webkit-scrollbar-thumb
+::-webkit-scrollbar-thumb:hover

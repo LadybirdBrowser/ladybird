@@ -1,0 +1,303 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: not-inline
+      BlockContainer <div.a> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <span> at [8,8] [0+0+0 72.140625 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.34375x18] baseline: 13.796875
+              "a"
+          frag 1 from TextNode start: 0, length: 1, rect: [75.578125,8 4.5625x18] baseline: 13.796875
+              "i"
+          InlineNode <(anonymous)> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <span> at [17.34375,8] [0+0+0 58.234375 0+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [17.34375,8 9.46875x18] baseline: 13.796875
+                "b"
+            frag 1 from TextNode start: 0, length: 1, rect: [66.28125,8 9.296875x18] baseline: 13.796875
+                "h"
+            InlineNode <(anonymous)> (not painted)
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            InlineNode <span> at [26.8125,8] [0+0+0 39.46875 0+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [26.8125,8 8.890625x18] baseline: 13.796875
+                  "c"
+              frag 1 from TextNode start: 0, length: 1, rect: [58.71875,8 7.5625x18] baseline: 13.796875
+                  "g"
+              InlineNode <(anonymous)> (not painted)
+                TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+              InlineNode <span> at [35.703125,8] [0+0+0 23.015625 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [35.703125,8 7.859375x18] baseline: 13.796875
+                    "d"
+                frag 1 from TextNode start: 0, length: 1, rect: [52.28125,8 6.4375x18] baseline: 13.796875
+                    "f"
+                InlineNode <(anonymous)> (not painted)
+                  TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+                InlineNode <span> at [43.5625,8] [0+0+0 8.71875 0+0+0] [0+0+0 18 0+0+0]
+                  frag 0 from TextNode start: 0, length: 1, rect: [43.5625,8 8.71875x18] baseline: 13.796875
+                      "e"
+                  InlineNode <(anonymous)> (not painted)
+                    TextNode <#text> (not painted)
+                  TextNode <#text> (not painted)
+                  InlineNode <(anonymous)> (not painted)
+                    TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+                InlineNode <(anonymous)> (not painted)
+                  TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+              InlineNode <(anonymous)> (not painted)
+                TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            InlineNode <(anonymous)> (not painted)
+              TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <(anonymous)> (not painted)
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.b> at [8,26] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <span> at [8,26] [0+0+0 130.578125 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [13.84375,26 9.34375x18] baseline: 13.796875
+              "a"
+          frag 1 from TextNode start: 0, length: 1, rect: [128.171875,26 4.5625x18] baseline: 13.796875
+              "i"
+          InlineNode <(anonymous)> at [8,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [8,26 5.84375x18] baseline: 13.796875
+                "“"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <span> at [23.1875,26] [0+0+0 104.984375 0+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [29.03125,26 9.46875x18] baseline: 13.796875
+                "b"
+            frag 1 from TextNode start: 0, length: 1, rect: [113.03125,26 9.296875x18] baseline: 13.796875
+                "h"
+            InlineNode <(anonymous)> at [23.1875,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [23.1875,26 5.84375x18] baseline: 13.796875
+                  "‘"
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            InlineNode <span> at [38.5,26] [0+0+0 74.53125 0+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [44.34375,26 8.890625x18] baseline: 13.796875
+                  "c"
+              frag 1 from TextNode start: 0, length: 1, rect: [99.625,26 7.5625x18] baseline: 13.796875
+                  "g"
+              InlineNode <(anonymous)> at [38.5,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [38.5,26 5.84375x18] baseline: 13.796875
+                    "‘"
+                TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+              InlineNode <span> at [53.234375,26] [0+0+0 46.390625 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [59.078125,26 7.859375x18] baseline: 13.796875
+                    "d"
+                frag 1 from TextNode start: 0, length: 1, rect: [87.34375,26 6.4375x18] baseline: 13.796875
+                    "f"
+                InlineNode <(anonymous)> at [53.234375,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+                  frag 0 from TextNode start: 0, length: 1, rect: [53.234375,26 5.84375x18] baseline: 13.796875
+                      "‘"
+                  TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+                InlineNode <span> at [66.9375,26] [0+0+0 20.40625 0+0+0] [0+0+0 18 0+0+0]
+                  frag 0 from TextNode start: 0, length: 1, rect: [72.78125,26 8.71875x18] baseline: 13.796875
+                      "e"
+                  InlineNode <(anonymous)> at [66.9375,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+                    frag 0 from TextNode start: 0, length: 1, rect: [66.9375,26 5.84375x18] baseline: 13.796875
+                        "‘"
+                    TextNode <#text> (not painted)
+                  TextNode <#text> (not painted)
+                  InlineNode <(anonymous)> at [81.5,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+                    frag 0 from TextNode start: 0, length: 1, rect: [81.5,26 5.84375x18] baseline: 13.796875
+                        "’"
+                    TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+                InlineNode <(anonymous)> at [93.78125,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+                  frag 0 from TextNode start: 0, length: 1, rect: [93.78125,26 5.84375x18] baseline: 13.796875
+                      "’"
+                  TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+              InlineNode <(anonymous)> at [107.1875,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [107.1875,26 5.84375x18] baseline: 13.796875
+                    "’"
+                TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            InlineNode <(anonymous)> at [122.328125,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [122.328125,26 5.84375x18] baseline: 13.796875
+                  "’"
+              TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <(anonymous)> at [132.734375,26] [0+0+0 5.84375 0+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [132.734375,26 5.84375x18] baseline: 13.796875
+                "”"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.c> at [8,44] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <span> at [8,44] [0+0+0 140.234375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [13.484375,44 9.34375x18] baseline: 13.796875
+              "a"
+          frag 1 from TextNode start: 0, length: 1, rect: [138.859375,44 4.5625x18] baseline: 13.796875
+              "i"
+          InlineNode <(anonymous)> at [8,44] [0+0+0 5.484375 0+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [8,44 5.484375x18] baseline: 13.796875
+                "("
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <span> at [22.828125,44] [0+0+0 116.03125 0+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [30.453125,44 9.46875x18] baseline: 13.796875
+                "b"
+            frag 1 from TextNode start: 0, length: 1, rect: [121.90625,44 9.296875x18] baseline: 13.796875
+                "h"
+            InlineNode <(anonymous)> at [22.828125,44] [0+0+0 7.625 0+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [22.828125,44 7.625x18] baseline: 13.796875
+                  "{"
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            InlineNode <span> at [39.921875,44] [0+0+0 81.984375 0+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [46.875,44 8.890625x18] baseline: 13.796875
+                  "c"
+              frag 1 from TextNode start: 0, length: 1, rect: [107.125,44 7.5625x18] baseline: 13.796875
+                  "g"
+              InlineNode <(anonymous)> at [39.921875,44] [0+0+0 6.953125 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [39.921875,44 6.953125x18] baseline: 13.796875
+                    "["
+                TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+              InlineNode <span> at [55.765625,44] [0+0+0 51.359375 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [62.71875,44 7.859375x18] baseline: 13.796875
+                    "d"
+                frag 1 from TextNode start: 0, length: 1, rect: [93.46875,44 6.4375x18] baseline: 13.796875
+                    "f"
+                InlineNode <(anonymous)> at [55.765625,44] [0+0+0 6.953125 0+0+0] [0+0+0 18 0+0+0]
+                  frag 0 from TextNode start: 0, length: 1, rect: [55.765625,44 6.953125x18] baseline: 13.796875
+                      "["
+                  TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+                InlineNode <span> at [70.578125,44] [0+0+0 22.890625 0+0+0] [0+0+0 18 0+0+0]
+                  frag 0 from TextNode start: 0, length: 1, rect: [77.53125,44 8.71875x18] baseline: 13.796875
+                      "e"
+                  InlineNode <(anonymous)> at [70.578125,44] [0+0+0 6.953125 0+0+0] [0+0+0 18 0+0+0]
+                    frag 0 from TextNode start: 0, length: 1, rect: [70.578125,44 6.953125x18] baseline: 13.796875
+                        "["
+                    TextNode <#text> (not painted)
+                  TextNode <#text> (not painted)
+                  InlineNode <(anonymous)> at [86.25,44] [0+0+0 7.21875 0+0+0] [0+0+0 18 0+0+0]
+                    frag 0 from TextNode start: 0, length: 1, rect: [86.25,44 7.21875x18] baseline: 13.796875
+                        "]"
+                    TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+                InlineNode <(anonymous)> at [99.90625,44] [0+0+0 7.21875 0+0+0] [0+0+0 18 0+0+0]
+                  frag 0 from TextNode start: 0, length: 1, rect: [99.90625,44 7.21875x18] baseline: 13.796875
+                      "]"
+                  TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+              InlineNode <(anonymous)> at [114.6875,44] [0+0+0 7.21875 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [114.6875,44 7.21875x18] baseline: 13.796875
+                    "]"
+                TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            InlineNode <(anonymous)> at [131.203125,44] [0+0+0 7.65625 0+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [131.203125,44 7.65625x18] baseline: 13.796875
+                  "}"
+              TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <(anonymous)> at [143.421875,44] [0+0+0 4.8125 0+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [143.421875,44 4.8125x18] baseline: 13.796875
+                ")"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,62] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x54]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,8 784x18]
+        PaintableWithLines (InlineNode<SPAN>) [8,8 72.140625x18]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>) [17.34375,8 58.234375x18]
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode<SPAN>) [26.8125,8 39.46875x18]
+              TextPaintable (TextNode<#text>)
+              PaintableWithLines (InlineNode<SPAN>) [35.703125,8 23.015625x18]
+                TextPaintable (TextNode<#text>)
+                PaintableWithLines (InlineNode<SPAN>) [43.5625,8 8.71875x18]
+                  TextPaintable (TextNode<#text>)
+                TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
+      PaintableWithLines (BlockContainer<DIV>.b) [8,26 784x18]
+        PaintableWithLines (InlineNode<SPAN>) [8,26 130.578125x18]
+          PaintableWithLines (InlineNode(anonymous)) [8,26 5.84375x18]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>) [23.1875,26 104.984375x18]
+            PaintableWithLines (InlineNode(anonymous)) [23.1875,26 5.84375x18]
+              TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode<SPAN>) [38.5,26 74.53125x18]
+              PaintableWithLines (InlineNode(anonymous)) [38.5,26 5.84375x18]
+                TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+              PaintableWithLines (InlineNode<SPAN>) [53.234375,26 46.390625x18]
+                PaintableWithLines (InlineNode(anonymous)) [53.234375,26 5.84375x18]
+                  TextPaintable (TextNode<#text>)
+                TextPaintable (TextNode<#text>)
+                PaintableWithLines (InlineNode<SPAN>) [66.9375,26 20.40625x18]
+                  PaintableWithLines (InlineNode(anonymous)) [66.9375,26 5.84375x18]
+                    TextPaintable (TextNode<#text>)
+                  TextPaintable (TextNode<#text>)
+                  PaintableWithLines (InlineNode(anonymous)) [81.5,26 5.84375x18]
+                    TextPaintable (TextNode<#text>)
+                TextPaintable (TextNode<#text>)
+                PaintableWithLines (InlineNode(anonymous)) [93.78125,26 5.84375x18]
+                  TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+              PaintableWithLines (InlineNode(anonymous)) [107.1875,26 5.84375x18]
+                TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode(anonymous)) [122.328125,26 5.84375x18]
+              TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode(anonymous)) [132.734375,26 5.84375x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
+      PaintableWithLines (BlockContainer<DIV>.c) [8,44 784x18]
+        PaintableWithLines (InlineNode<SPAN>) [8,44 140.234375x18]
+          PaintableWithLines (InlineNode(anonymous)) [8,44 5.484375x18]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>) [22.828125,44 116.03125x18]
+            PaintableWithLines (InlineNode(anonymous)) [22.828125,44 7.625x18]
+              TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode<SPAN>) [39.921875,44 81.984375x18]
+              PaintableWithLines (InlineNode(anonymous)) [39.921875,44 6.953125x18]
+                TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+              PaintableWithLines (InlineNode<SPAN>) [55.765625,44 51.359375x18]
+                PaintableWithLines (InlineNode(anonymous)) [55.765625,44 6.953125x18]
+                  TextPaintable (TextNode<#text>)
+                TextPaintable (TextNode<#text>)
+                PaintableWithLines (InlineNode<SPAN>) [70.578125,44 22.890625x18]
+                  PaintableWithLines (InlineNode(anonymous)) [70.578125,44 6.953125x18]
+                    TextPaintable (TextNode<#text>)
+                  TextPaintable (TextNode<#text>)
+                  PaintableWithLines (InlineNode(anonymous)) [86.25,44 7.21875x18]
+                    TextPaintable (TextNode<#text>)
+                TextPaintable (TextNode<#text>)
+                PaintableWithLines (InlineNode(anonymous)) [99.90625,44 7.21875x18]
+                  TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+              PaintableWithLines (InlineNode(anonymous)) [114.6875,44 7.21875x18]
+                TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode(anonymous)) [131.203125,44 7.65625x18]
+              TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode(anonymous)) [143.421875,44 4.8125x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,62 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x70] [children: 0] (z-index: auto)

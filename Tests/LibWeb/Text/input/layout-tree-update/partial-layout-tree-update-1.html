@@ -1,0 +1,37 @@
+<!doctype html>
+<style>
+    * {
+        outline: 1px solid black;
+    }
+    #foo {
+        width: max-content;
+        display: flex;
+    }
+</style>
+<script src="../include.js"></script>
+<body>
+    <div id="foo">
+        <template shadowrootmode="open">
+            <style>
+                div {
+                    outline: 1px solid black;
+                    width: 100px;
+                    height: 100px;
+                }
+            </style>
+            <div id="a">a</div>
+            <div id="b">b</div>
+        </template>
+    </div>
+</body>
+<script>
+    test(() => {
+        const a = foo.shadowRoot.getElementById("a");
+        const b = foo.shadowRoot.getElementById("b");
+        println(getComputedStyle(foo).width);
+        a.remove();
+        println(getComputedStyle(foo).width);
+        b.remove();
+        println(getComputedStyle(foo).width);
+    });
+</script>

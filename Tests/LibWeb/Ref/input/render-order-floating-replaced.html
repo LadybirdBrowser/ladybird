@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="match" href="../expected/render-order-floating-replaced-ref.html" />
+    <style>
+.square {
+  width: 64px;
+  height: 64px;
+  float: left;
+}
+
+div.square {
+  background: green;
+  display: inline-block;
+}
+
+.row { clear: both; }
+.row > :nth-child(2) { margin-left: -32px; }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <img class="square" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12P4z8AAAAMBAQAY3Y2wAAAAAElFTkSuQmCC" />
+      <div class="square"></div>
+    </div>
+    <div class="row">
+      <div class="square"></div>
+      <img class="square" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12P4z8AAAAMBAQAY3Y2wAAAAAElFTkSuQmCC" />
+    </div>
+  </body>
+</html>

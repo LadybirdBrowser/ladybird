@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	.inline-flex 1
+Pass	.inline-flex 2
+Pass	.inline-flex 3
+Pass	.inline-flex 4
+Pass	.inline-flex 5
+Pass	.inline-flex 6
+Pass	.inline-flex 7
+Pass	.inline-flex 8

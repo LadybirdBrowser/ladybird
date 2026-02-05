@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        width: 200px;
+        height: 200px;
+    }
+    .item {
+        background: lightyellow;
+    }
+    .with-margin {
+        margin: 10px;
+    }
+    .with-horizontal-margin {
+        margin-left: 5px;
+        margin-right: 15px;
+    }
+    .with-vertical-margin {
+        margin-top: 8px;
+        margin-bottom: 12px;
+    }
+</style>
+<div class="grid">
+    <div class="item">no margin</div>
+    <div class="item with-margin">10px margin</div>
+    <div class="item with-horizontal-margin">h margins</div>
+    <div class="item with-vertical-margin">v margins</div>
+</div>

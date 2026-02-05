@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['border-image-source'] = "none" should set the property value
+Pass	e.style['border-image-source'] = "url(\"http://www.example.com/\")" should set the property value

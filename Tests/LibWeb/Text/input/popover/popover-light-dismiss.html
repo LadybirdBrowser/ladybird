@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    [popover] {
+        /* Position most popovers at the bottom-right, out of the way */
+        inset: auto;
+        bottom: 0;
+        right: 0;
+    }
+
+    [popover]::backdrop {
+        /* This should *not* affect anything: */
+        pointer-events: auto;
+    }
+
+    #p1 {
+        top: 50px;
+    }
+
+    #p2 {
+        top: 120px;
+    }
+</style>
+
+<button id=b1t popovertarget='p1'>Popover 1</button>
+<button id=b1s popovertarget='p1' popovertargetaction=show>Popover 1</button>
+<span id=outside>Outside all popovers</span>
+<div popover id=p1>
+    <span id=inside1>Inside popover 1</span>
+    <button id=b2 popovertarget='p2' popovertargetaction=show>Popover 2</button>
+    <span id=inside1after>Inside popover 1 after button</span>
+    <div popover id=p2>
+        <span id=inside2>Inside popover 2</span>
+    </div>
+</div>
+
+<script>
+    click = function (element) {
+        const boundingRect = element.getBoundingClientRect();
+        const centerPoint = {
+            x: boundingRect.left + boundingRect.width / 2,
+            y: boundingRect.top + boundingRect.height / 2
+        };
+        internals.click(centerPoint.x, centerPoint.y);
+    };
+
+    test(() => {
+        println("p1 open: " + p1.matches(":popover-open") + " (should be false)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be false)");
+
+        println("Opening p1");
+        click(b1t);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be true)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be false)");
+
+        println("Opening p2");
+        click(b2);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be true)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be true)");
+
+        println("Clicking p2");
+        click(p2);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be true)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be true)");
+
+        println("Clicking p1");
+        click(p1);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be true)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be false)");
+
+        println("Clicking p1's show invoker");
+        click(b1s);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be true)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be false)");
+
+        println("Clicking p1's toggle invoker");
+        click(b1t);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be false)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be false)");
+
+        println("Re-opening both popovers");
+        click(b1t);
+        click(b2);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be true)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be true)");
+
+        println("Clicking outside both popovers");
+        click(outside);
+
+        println("p1 open: " + p1.matches(":popover-open") + " (should be false)");
+        println("p2 open: " + p2.matches(":popover-open") + " (should be false)");
+    });
+</script>

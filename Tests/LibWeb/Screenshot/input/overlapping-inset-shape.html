@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/overlapping-inset-shape.html" />
+<style>
+    .outer {
+        width: 130px;
+        height: 80px;
+        display: inline-block;
+        background-color: grey;
+    }
+
+    .inner {
+        height: 100%;
+        background-color: black;
+        clip-path: inset(10px 100% 100% 10px);
+    }
+</style>
+<div class="outer">
+    <div class="inner"></div>
+</div>

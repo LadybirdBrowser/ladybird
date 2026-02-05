@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/issues/8904">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<button id=b1>button 1</button>
+<button id=b2>button 2</button>
+<div id=host>
+  <template shadowrootmode=open>
+    <button>button in shadowroot outside dialog</button>
+  </template>
+</div>
+<dialog id=mydialog>
+  <button id=b3>button in dialog</button>
+  <div id=dialoghost>
+    <template shadowrootmode=open>
+      <button>button in shadowroot in dialog</button>
+    </template>
+  </div>
+</dialog>
+
+<div id=host2>
+  <template shadowrootmode=open>
+    <dialog>
+      <slot></slot>
+    </dialog>
+  </template>
+  <button id=host2button>button</button>
+</div>
+
+<dialog id=mydialog2>hello world</dialog>
+
+<script>
+test(() => {
+  b1.focus();
+  mydialog.show();
+  b2.focus();
+  mydialog.close();
+  assert_equals(document.activeElement, b2);
+}, 'Focus should not be restored if the currently focused element is not inside the dialog.');
+
+test(() => {
+  const shadowbutton = host.shadowRoot.querySelector('button');
+  b2.focus();
+  mydialog.show();
+  shadowbutton.focus();
+  mydialog.close();
+  assert_equals(document.activeElement, host, 'document.activeElement should point at the shadow host.');
+  assert_equals(host.shadowRoot.activeElement, shadowbutton, 'The button in the shadowroot should remain focused.');
+}, 'Focus restore should not occur when the focused element is in a shadowroot outside of the dialog.');
+
+test(() => {
+  const shadowbutton = dialoghost.shadowRoot.querySelector('button');
+  b2.focus();
+  mydialog.show();
+  shadowbutton.focus();
+  mydialog.close();
+  assert_equals(document.activeElement, b2);
+}, 'Focus restore should occur when the focused element is in a shadowroot inside the dialog.');
+
+test(() => {
+  const dialog = host2.shadowRoot.querySelector('dialog');
+  b2.focus();
+  dialog.show();
+  host2button.focus();
+  dialog.close();
+  assert_equals(document.activeElement, b2);
+}, 'Focus restore should occur when the focused element is slotted into a dialog.');
+
+test(() => {
+  b1.focus();
+  const dialog = document.getElementById('mydialog2');
+  dialog.showModal();
+  dialog.blur();
+  assert_equals(document.activeElement, document.body,
+    'Focus should return to the body when calling dialog.blur().');
+  dialog.close();
+  assert_equals(document.activeElement, b1,
+    'Focus should be restored to the previously focused element.');
+}, 'Focus restore should always occur for modal dialogs.');
+</script>

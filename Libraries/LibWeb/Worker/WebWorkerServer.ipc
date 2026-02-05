@@ -1,0 +1,22 @@
+#include <LibURL/URL.h>
+#include <LibIPC/File.h>
+#include <LibWeb/Bindings/AgentType.h>
+#include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+
+endpoint WebWorkerServer {
+
+    start_worker(URL::URL url,
+                 Web::Bindings::WorkerType type,
+                 Web::Bindings::RequestCredentials credentials,
+                 String name,
+                 Web::HTML::TransferDataEncoder message_port,
+                 Web::HTML::SerializedEnvironmentSettingsObject outside_settings,
+                 Web::Bindings::AgentType agent_type,
+                 Optional<URL::URL> document_url_if_started_by_window_fixme) =|
+
+    close_worker() =|
+
+    handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) =|
+}

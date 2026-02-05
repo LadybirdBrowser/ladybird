@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#dom-propertydescriptor-initialvalue" />
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#register-a-custom-property" />
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#substitution" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./resources/utils.js"></script>
+<div id=target></div>
+<script>
+
+function test_initial_value(reg, expected) {
+    let suffix = reg.inherits === true ? ', inherits' : '';
+    test(function(){
+        let name = generate_property(reg);
+        let actual = getComputedStyle(target).getPropertyValue(name);
+        assert_equals(actual, expected);
+    }, `Initial value for ${reg.syntax} correctly computed [${reg.initialValue}${suffix}]`);
+}
+
+test_initial_value({ syntax: '<length>', initialValue: 'calc(10px + 15px)' }, '25px');
+test_initial_value({ syntax: '<length>', initialValue: '1in' }, '96px');
+test_initial_value({ syntax: '<length>', initialValue: '2.54cm' }, '96px');
+test_initial_value({ syntax: '<length>', initialValue: '25.4mm' }, '96px');
+test_initial_value({ syntax: '<length>', initialValue: '6pc' }, '96px');
+test_initial_value({ syntax: '<length>', initialValue: '72pt' }, '96px');
+test_initial_value({ syntax: '<percentage>', initialValue: 'calc(10% + 20%)' }, '30%');
+test_initial_value({ syntax: '<length-percentage>', initialValue: 'calc(1in + 10% + 4px)' }, 'calc(10% + 100px)');
+test_initial_value({ syntax: '<color>', initialValue: 'pink', inherits: true }, 'rgb(255, 192, 203)');
+test_initial_value({ syntax: '<color>', initialValue: 'purple' }, 'rgb(128, 0, 128)');
+test_initial_value({ syntax: '<transform-function>', initialValue: 'rotate(42deg)' }, 'rotate(42deg)');
+test_initial_value({ syntax: '<transform-list>', initialValue: 'scale(calc(2 + 2))' }, 'scale(4)');
+test_initial_value({ syntax: '<transform-list>', initialValue: 'scale(calc(2 + 1)) translateX(calc(3px + 1px))' }, 'scale(3) translateX(4px)');
+test_initial_value({ syntax: '<url>', initialValue: 'url(a)' },
+    `url("${new URL('a', document.baseURI)}")`);
+test_initial_value({ syntax: '<url>+', initialValue: 'url(a) url(a)' },
+    `url("${new URL('a', document.baseURI)}") url("${new URL('a', document.baseURI)}")`);
+
+// Test that the initial value of the custom property 'reg' is successfully
+// substituted into 'property'.
+function test_substituted_value(reg, property, expected) {
+    let inherits_text = reg.inherits === true ? 'inherited' : 'non-inherited';
+    test(function(){
+        try {
+            let name = generate_property(reg);
+            target.style = `${property}:var(${name});`;
+            assert_equals(getComputedStyle(target).getPropertyValue(property), expected);
+        } finally {
+            target.style = '';
+        }
+    }, `Initial ${inherits_text} value can be substituted [${reg.initialValue}, ${property}]`);
+}
+
+test_substituted_value({ syntax: '<color>', initialValue: 'purple', inherits: true }, 'color', 'rgb(128, 0, 128)');
+test_substituted_value({ syntax: '<color>', initialValue: 'pink' }, 'background-color', 'rgb(255, 192, 203)');
+
+// Registered properties shall substitute as a token sequence equivalent to
+// their computed value.
+test_substituted_value({ syntax: 'foo', initialValue: '\tfoo\t' }, '--x', 'foo');
+test_substituted_value({ syntax: '<angle>', initialValue: '\t1turn' }, '--x', '360deg');
+test_substituted_value({ syntax: '<color>', initialValue: ' pink ' }, '--x', 'rgb(255, 192, 203)');
+test_substituted_value({ syntax: '<custom-ident>', initialValue: '\ttest' }, '--x', 'test');
+test_substituted_value({ syntax: '<integer>', initialValue: 'calc(20 + 20 + 10)' }, '--x', '50');
+test_substituted_value({ syntax: '<length-percentage>', initialValue: '\tcalc(13% + 37px)' }, '--x', 'calc(13% + 37px)');
+test_substituted_value({ syntax: '<length>', initialValue: 'calc(10px + 15px)' }, '--x', '25px');
+test_substituted_value({ syntax: '<number>', initialValue: 'calc(13 + 37)' }, '--x', '50');
+test_substituted_value({ syntax: '<percentage>', initialValue: 'calc(13% + 37%)' }, '--x', '50%');
+test_substituted_value({ syntax: '<time>', initialValue: '2000ms' }, '--x', '2s');
+test_substituted_value({ syntax: '<transform-function>', initialValue: 'scale(calc(2 + 2))' }, '--x', 'scale(4)');
+test_substituted_value({ syntax: '<transform-list>', initialValue: 'scale(calc(2 + 2)) translateX(calc(3px + 1px))' }, '--x', 'scale(4) translateX(4px)');
+
+</script>

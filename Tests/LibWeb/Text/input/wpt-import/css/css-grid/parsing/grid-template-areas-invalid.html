@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-template-areas with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-areas">
+<meta name="assert" content="grid-template-areas supports only the grammar 'none | <string>+'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("grid-template-areas", "auto");
+test_invalid_value("grid-template-areas", 'none "first"');
+test_invalid_value("grid-template-areas", '"first" none');
+test_invalid_value("grid-template-areas", '""');
+test_invalid_value("grid-template-areas", '" "');
+test_invalid_value("grid-template-areas", '"." ""');
+test_invalid_value("grid-template-areas", '"." " "');
+test_invalid_value("grid-template-areas", '"first" ""');
+test_invalid_value("grid-template-areas", '"first" "" "second"');
+test_invalid_value("grid-template-areas", '"first" " "');
+test_invalid_value("grid-template-areas", '"" none');
+</script>
+</body>
+</html>

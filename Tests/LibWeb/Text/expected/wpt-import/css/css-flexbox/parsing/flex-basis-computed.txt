@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Property flex-basis value '1px'
+Pass	Property flex-basis value '400%'
+Pass	Property flex-basis value 'auto'
+Pass	Property flex-basis value 'content'
+Pass	Property flex-basis value 'fit-content'
+Pass	Property flex-basis value 'min-content'
+Pass	Property flex-basis value 'max-content'
+Pass	Property flex-basis value 'calc(10px + 0.5em)'
+Pass	Property flex-basis value 'calc(10px - 0.5em)'
+Pass	Property flex-basis value 'calc(10%)'
+Pass	Property flex-basis value 'calc(0% + 10px)'
+Pass	Property flex-basis value 'calc(10% + 0px)'

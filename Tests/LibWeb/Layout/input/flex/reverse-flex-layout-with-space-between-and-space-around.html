@@ -1,0 +1,20 @@
+<!doctype html><style>
+    .outer {
+        display: flex;
+        width: 150px;
+        height: 150px;
+        justify-content: space-around;
+        background: pink;
+    }
+    .row { flex-direction: row; }
+    .row-reverse { flex-direction: row-reverse; }
+    .column { flex-direction: column; }
+    .column-reverse { flex-direction: column-reverse; }
+    .inner {
+        background: orange;
+    }
+</style>
+<div class="outer row"><div class="inner">Well</div><div class="inner">hello</div><div class="inner">friends</div></div>
+<div class="outer row-reverse"><div class="inner">Well</div><div class="inner">hello</div><div class="inner">friends</div></div>
+<div class="outer column"><div class="inner">Well</div><div class="inner">hello</div><div class="inner">friends</div></div>
+<div class="outer column-reverse"><div class="inner">Well</div><div class="inner">hello</div><div class="inner">friends</div></div>

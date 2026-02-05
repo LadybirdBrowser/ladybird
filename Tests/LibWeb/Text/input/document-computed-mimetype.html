@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const encodings = ['utf-8', 'utf-16be', 'utf-16le', 'x-user-defined'];
+
+        let receivedMessages = [];
+        const dumpMessages = () => {
+            receivedMessages.sort((a, b) => a.encoding.localeCompare(b.encoding));
+            for (const receivedMessage of receivedMessages) {
+                println(`Encoding: ${receivedMessage.encoding} mapped to characterSet: ${receivedMessage.characterSet}`);
+            }
+        };
+
+        addEventListener("message", (event) => {
+            receivedMessages.push(event.data);
+            if (receivedMessages.length == encodings.length) {
+                dumpMessages();
+                done();
+            }
+        }, false);
+
+        const httpServer = httpTestServer();
+        for (let encoding of encodings) {
+            const url = await httpServer.createEcho("GET", `/document-computed-mimetype-test-${encoding}`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "text/html",
+                },
+                body: `<!doctype html><meta charset="${encoding}"><script>parent.postMessage({"encoding": "${encoding}", "characterSet": document.characterSet}, "*")<\/script>`,
+            });
+
+            const frame = document.createElement("iframe");
+            frame.src = url;
+            document.body.appendChild(frame);
+        }
+    });
+</script>

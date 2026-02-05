@@ -1,0 +1,344 @@
+{
+  "builtin-baseline": "2fa7118fb2ce0c27ab73e08ab1991f4cb67af880",
+  "dependencies": [
+    {
+      "name": "angle",
+      "platform": "osx",
+      "features": [
+        "metal"
+      ]
+    },
+    {
+      "name": "angle",
+      "platform": "linux | windows | android | bsd"
+    },
+    {
+      "name": "cpptrace",
+      "platform": "linux | windows | osx"
+    },
+    {
+      "name": "curl",
+      "default-features": false,
+      "features": [
+        "brotli",
+        "non-http",
+        "http2",
+        "http3",
+        "openssl",
+        "websockets",
+        "zstd"
+      ]
+    },
+    {
+      "name": "dbus",
+      "default-features": false,
+      "platform": "linux | freebsd"
+    },
+    {
+      "name": "dirent",
+      "platform": "windows"
+    },
+    "fast-float",
+    {
+      "name": "ffmpeg",
+      "features": [
+        "avcodec",
+        "avformat",
+        "swresample",
+        "dav1d",
+        "openh264",
+        "opus",
+        "webp",
+        "theora",
+        "vorbis",
+        "vpx",
+        "zlib"
+      ]
+    },
+    {
+      "name": "fontconfig",
+      "platform": "linux | bsd | osx"
+    },
+    {
+      "name": "harfbuzz",
+      "platform": "linux | bsd | windows",
+      "features": [
+        "freetype",
+        "icu"
+      ]
+    },
+    {
+      "name": "harfbuzz",
+      "platform": "osx",
+      "features": [
+        "coretext",
+        "icu"
+      ]
+    },
+    "icu",
+    "libjpeg-turbo",
+    "libjxl",
+    {
+      "name": "libpng",
+      "features": [
+        "apng"
+      ]
+    },
+    {
+      "name": "libproxy",
+      "platform": "!(android | bsd)"
+    },
+    {
+      "name": "libavif",
+      "features": [
+        "dav1d"
+      ]
+    },
+    "libtommath",
+    {
+      "name": "libwebp",
+      "features": [
+        "anim",
+        "libwebpmux",
+        "simd"
+      ]
+    },
+    {
+      "name": "mman",
+      "platform": "windows"
+    },
+    "libxml2",
+    "openssl",
+    {
+      "name": "qtbase",
+      "platform": "freebsd",
+      "default-features": false,
+      "features": [
+        "dbus",
+        "doubleconversion",
+        "fontconfig",
+        "freetype",
+        "gui",
+        "icu",
+        "jpeg",
+        "network",
+        "opengl",
+        "pcre2",
+        "png",
+        "thread",
+        "vulkan",
+        "widgets",
+        "xcb",
+        "xcb-xlib",
+        "xlib",
+        "xrender",
+        "zstd"
+      ]
+    },
+    {
+      "name": "qtbase",
+      "platform": "windows",
+      "default-features": false,
+      "features": [
+        "doubleconversion",
+        "freetype",
+        "gui",
+        "icu",
+        "jpeg",
+        "network",
+        "opengl",
+        "pcre2",
+        "png",
+        "thread",
+        "vulkan",
+        "widgets",
+        "zstd"
+      ]
+    },
+    {
+      "name": "pthread",
+      "platform": "windows"
+    },
+    {
+      "name": "sdl3",
+      "default-features": false
+    },
+    "simdjson",
+    "simdutf",
+    {
+      "name": "skia",
+      "platform": "osx",
+      "default-features": false,
+      "features": [
+        "metal",
+        "fontconfig",
+        "harfbuzz",
+        "icu"
+      ]
+    },
+    {
+      "name": "skia",
+      "platform": "windows",
+      "default-features": false,
+      "features": [
+        "freetype",
+        "harfbuzz",
+        "icu",
+        "vulkan"
+      ]
+    },
+    {
+      "name": "skia",
+      "platform": "linux | bsd",
+      "default-features": false,
+      "features": [
+        "freetype",
+        "fontconfig",
+        "harfbuzz",
+        "icu",
+        "vulkan"
+      ]
+    },
+    {
+      "name": "skia",
+      "platform": "android",
+      "default-features": false,
+      "features": [
+        "vulkan"
+      ]
+    },
+    "sqlite3",
+    "vulkan",
+    {
+      "name": "tiff",
+      "features": [
+        "zstd"
+      ]
+    },
+    "vulkan-headers",
+    "woff2",
+    "zlib"
+  ],
+  "overrides": [
+    {
+      "name": "angle",
+      "version": "chromium_7258#0"
+    },
+    {
+      "name": "cpptrace",
+      "version": "1.0.2"
+    },
+    {
+      "name": "curl",
+      "version": "8.16.0#0"
+    },
+    {
+      "name": "dav1d",
+      "version": "1.5.1#0"
+    },
+    {
+      "name": "dbus",
+      "version": "1.16.2#2"
+    },
+    {
+      "name": "dirent",
+      "version": "1.26#0"
+    },
+    {
+      "name": "fast-float",
+      "version": "8.1.0#0"
+    },
+    {
+      "name": "ffmpeg",
+      "version": "7.1.1#5"
+    },
+    {
+      "name": "fontconfig",
+      "version": "2.15.0#4"
+    },
+    {
+      "name": "harfbuzz",
+      "version": "10.2.0#0"
+    },
+    {
+      "name": "icu",
+      "version": "78.1#1"
+    },
+    {
+      "name": "libjpeg-turbo",
+      "version": "3.1.1#0"
+    },
+    {
+      "name": "libjxl",
+      "version": "0.11.1#3"
+    },
+    {
+      "name": "libpng",
+      "version": "1.6.50#0"
+    },
+    {
+      "name": "libproxy",
+      "version": "0.4.18#3"
+    },
+    {
+      "name": "libtommath",
+      "version": "1.3.0#2"
+    },
+    {
+      "name": "libavif",
+      "version": "1.3.0#1"
+    },
+    {
+      "name": "libwebp",
+      "version": "1.6.0#1"
+    },
+    {
+      "name": "libxml2",
+      "version": "2.13.8#1"
+    },
+    {
+      "name": "mman",
+      "version": "git-f5ff813#5"
+    },
+    {
+      "name": "nghttp2",
+      "version": "1.68.0#1"
+    },
+    {
+      "name": "openssl",
+      "version": "3.5.3#0"
+    },
+    {
+      "name": "qtbase",
+      "version": "6.10.0#1"
+    },
+    {
+      "name": "sdl3",
+      "version": "3.2.28#0"
+    },
+    {
+      "name": "simdjson",
+      "version": "4.2.4#0"
+    },
+    {
+      "name": "simdutf",
+      "version": "7.4.0#0"
+    },
+    {
+      "name": "skia",
+      "version": "144#0"
+    },
+    {
+      "name": "sqlite3",
+      "version": "3.50.4#0"
+    },
+    {
+      "name": "woff2",
+      "version": "1.0.2#5"
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.1"
+    }
+  ]
+}

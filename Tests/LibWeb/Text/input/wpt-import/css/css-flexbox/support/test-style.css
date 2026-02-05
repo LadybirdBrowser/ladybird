@@ -1,0 +1,18 @@
+      #test01, #test02, #test03{
+        width: 50px;
+        height: 50px;
+        text-align:center;
+        font-size: 20px;
+      }
+      #test{
+        background: #ff0000;
+      }
+      #test01{
+        background: #7FFF00;
+      }
+      #test02{
+        background: #00FFFF;
+      }
+      #test03{
+        background: #4169E1;
+      }

@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>The end: DOMContentLoaded and defer scripts</title>
+<link rel=help href="https://html.spec.whatwg.org/multipage/#the-end">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var dcl;
+var t = async_test(function() {
+  dcl = false;
+  document.addEventListener("DOMContentLoaded", function(e) {
+    dcl = true;
+  });
+});
+</script>
+<script defer src=support/DOMContentLoaded-defer.js></script>

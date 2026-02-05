@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['shape-outside'] = "inset(0px, 1px)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(0px round 0px, 1px)" should not set the property value
+Pass	e.style['shape-outside'] = "inset()" should not set the property value
+Pass	e.style['shape-outside'] = "inset(123)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(1% 2% 3% 4% 5%)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(round 0)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(0px round)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(0px round 123)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(0px round 1% 2% 3% 4% 5%)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(0px round / 1px)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(10px round -20px)" should not set the property value
+Pass	e.style['shape-outside'] = "inset(30% round -40%)" should not set the property value

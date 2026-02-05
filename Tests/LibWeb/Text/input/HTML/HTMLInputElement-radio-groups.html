@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const container = document.createElement("div");
+        container.innerHTML =
+            `<form>
+                <input type="radio" name="group1" id="radio1" checked>
+                <input type="radio" name="group1" id="radio2">
+            </form>`;
+
+        const radio1 = container.querySelector("#radio1");
+        const radio2 = container.querySelector("#radio2");
+
+        println(`Radio button 1 initial checkedness: ${radio1.checked}`);
+        println(`Radio button 2 initial checkedness: ${radio2.checked}`);
+
+        radio2.checked = true;
+
+        println(`Radio button 1 checkedness: ${radio1.checked}`);
+        println(`Radio button 2 checkedness: ${radio2.checked}`);
+    });
+</script>

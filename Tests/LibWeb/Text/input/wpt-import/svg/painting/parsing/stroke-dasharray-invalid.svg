@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>SVG Painting: parsing stroke-dasharray with invalid values</title>
+  <metadata>
+    <h:link rel="help" href="https://svgwg.org/svg2-draft/painting.html#StrokeDasharrayProperty"/>
+    <h:meta name="assert" content="stroke-dasharray supports only the grammar 'none | dasharray'"/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_invalid_value("stroke-dasharray", "auto");
+test_invalid_value("stroke-dasharray", "none 10px");
+test_invalid_value("stroke-dasharray", "20px / 30px");
+test_invalid_value("stroke-dasharray", "-40px");
+test_invalid_value("stroke-dasharray", "calc(2px + 3)");
+test_invalid_value("stroke-dasharray", "calc(10% + 5)");
+test_invalid_value("stroke-dasharray", "calc(40 + calc(3px + 6%))");
+
+  ]]></script>
+</svg>

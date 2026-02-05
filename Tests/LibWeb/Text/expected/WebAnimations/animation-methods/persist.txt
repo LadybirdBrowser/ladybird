@@ -1,0 +1,4 @@
+persist() sets animation's replaceState to persist
+persist() undoes the Document removal effects: true
+Animations are properly replaced when covered by another animation
+persist() keeps an animation from being replaced

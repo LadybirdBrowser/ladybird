@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	#1 Reinitialize the default imports
+Pass	#2 Reinitialize the default imports
+Pass	#3 Test that WebAssembly instantiation succeeds
+Pass	#4 Test that WebAssembly instantiation succeeds

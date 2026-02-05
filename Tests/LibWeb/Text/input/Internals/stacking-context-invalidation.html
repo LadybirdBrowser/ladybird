@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<div id="test-opacity" class="box"></div>
+<div id="test-transform" class="box"></div>
+<div id="test-filter" class="box"></div>
+<div id="test-isolation" class="box"></div>
+<script>
+    test(() => {
+        const opacityEl = document.getElementById("test-opacity");
+        const transformEl = document.getElementById("test-transform");
+        const filterEl = document.getElementById("test-filter");
+        const isolationEl = document.getElementById("test-isolation");
+
+        // Helper to check if element has its own stacking context
+        function hasStackingContext(dump, selector) {
+            return dump.includes(`<DIV>#${selector}`);
+        }
+
+        println("=== Test 1: Opacity 1 -> 0.5 (should create SC) ===");
+        let dump1 = internals.dumpStackingContextTree();
+        println(`Before: opacity element has SC = ${hasStackingContext(dump1, "test-opacity")}`);
+
+        opacityEl.style.opacity = "0.5";
+        let dump2 = internals.dumpStackingContextTree();
+        println(`After opacity=0.5: opacity element has SC = ${hasStackingContext(dump2, "test-opacity")}`);
+
+        println("");
+        println("=== Test 2: Opacity 0.5 -> 0.3 (SC should persist, no rebuild needed) ===");
+        opacityEl.style.opacity = "0.3";
+        let dump3 = internals.dumpStackingContextTree();
+        println(`After opacity=0.3: opacity element has SC = ${hasStackingContext(dump3, "test-opacity")}`);
+
+        println("");
+        println("=== Test 3: Opacity 0.3 -> 1 (should remove SC) ===");
+        opacityEl.style.opacity = "1";
+        let dump4 = internals.dumpStackingContextTree();
+        println(`After opacity=1: opacity element has SC = ${hasStackingContext(dump4, "test-opacity")}`);
+
+        println("");
+        println("=== Test 4: Transform none -> translateX(10px) (should create SC) ===");
+        let dump5 = internals.dumpStackingContextTree();
+        println(`Before: transform element has SC = ${hasStackingContext(dump5, "test-transform")}`);
+
+        transformEl.style.transform = "translateX(10px)";
+        let dump6 = internals.dumpStackingContextTree();
+        println(`After transform=translateX(10px): transform element has SC = ${hasStackingContext(dump6, "test-transform")}`);
+
+        println("");
+        println("=== Test 5: Transform translateX(10px) -> translateX(20px) (SC should persist) ===");
+        transformEl.style.transform = "translateX(20px)";
+        let dump7 = internals.dumpStackingContextTree();
+        println(`After transform=translateX(20px): transform element has SC = ${hasStackingContext(dump7, "test-transform")}`);
+
+        println("");
+        println("=== Test 6: Transform translateX(20px) -> none (should remove SC) ===");
+        transformEl.style.transform = "none";
+        let dump8 = internals.dumpStackingContextTree();
+        println(`After transform=none: transform element has SC = ${hasStackingContext(dump8, "test-transform")}`);
+
+        println("");
+        println("=== Test 7: Filter none -> blur(1px) (should create SC) ===");
+        let dump9 = internals.dumpStackingContextTree();
+        println(`Before: filter element has SC = ${hasStackingContext(dump9, "test-filter")}`);
+
+        filterEl.style.filter = "blur(1px)";
+        let dump10 = internals.dumpStackingContextTree();
+        println(`After filter=blur(1px): filter element has SC = ${hasStackingContext(dump10, "test-filter")}`);
+
+        println("");
+        println("=== Test 8: Filter blur(1px) -> none (should remove SC) ===");
+        filterEl.style.filter = "none";
+        let dump11 = internals.dumpStackingContextTree();
+        println(`After filter=none: filter element has SC = ${hasStackingContext(dump11, "test-filter")}`);
+
+        println("");
+        println("=== Test 9: Isolation auto -> isolate (should create SC) ===");
+        let dump12 = internals.dumpStackingContextTree();
+        println(`Before: isolation element has SC = ${hasStackingContext(dump12, "test-isolation")}`);
+
+        isolationEl.style.isolation = "isolate";
+        let dump13 = internals.dumpStackingContextTree();
+        println(`After isolation=isolate: isolation element has SC = ${hasStackingContext(dump13, "test-isolation")}`);
+
+        println("");
+        println("=== Test 10: Isolation isolate -> auto (should remove SC) ===");
+        isolationEl.style.isolation = "auto";
+        let dump14 = internals.dumpStackingContextTree();
+        println(`After isolation=auto: isolation element has SC = ${hasStackingContext(dump14, "test-isolation")}`);
+    });
+</script>

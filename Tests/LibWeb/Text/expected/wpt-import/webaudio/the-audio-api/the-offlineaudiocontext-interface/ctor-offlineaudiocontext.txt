@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 44 tests
+
+44 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "basic"
+Pass	Executing "options-1"
+Pass	Executing "options-2"
+Pass	Executing "options-3"
+Pass	Audit report
+Pass	> [basic] Old-style constructor
+Pass	  new OfflineAudioContext(3) threw TypeError: "Not an object of type OfflineAudioContextOptions".
+Pass	  new OfflineAudioContext(3, 42) threw TypeError: "Overload resolution failed".
+Pass	  context = new OfflineAudioContext(3, 42, 12345) did not throw an exception.
+Pass	  context.length is equal to 42.
+Pass	  context.sampleRate is equal to 12345.
+Pass	  context.destination.channelCount is equal to 3.
+Pass	  context.destination.channelCountMode is equal to explicit.
+Pass	  context.destination.channelInterpretation is equal to speakers.
+Pass	< [basic] All assertions passed. (total 8 assertions)
+Pass	> [options-1] Required options
+Pass	  new OfflineAudioContext() threw TypeError: "Overload resolution failed".
+Pass	  new OfflineAudioContext({}) threw TypeError: "Required property length is missing or undefined".
+Pass	  new OfflineAudioContext({"length":42}) threw TypeError: "Required property sampleRate is missing or undefined".
+Pass	  new OfflineAudioContext({"sampleRate":12345}) threw TypeError: "Required property length is missing or undefined".
+Pass	  c2 = new OfflineAudioContext({"length":42,"sampleRate":12345}) did not throw an exception.
+Pass	  c2.destination.channelCount is equal to 1.
+Pass	  c2.length is equal to 42.
+Pass	  c2.sampleRate is equal to 12345.
+Pass	  c2.destination.channelCountMode is equal to explicit.
+Pass	  c2.destination.channelInterpretation is equal to speakers.
+Pass	< [options-1] All assertions passed. (total 10 assertions)
+Pass	> [options-2] Invalid options
+Pass	  new OfflineAudioContext({"length":42,"sampleRate":8000,"numberOfChannels":33}) threw NotSupportedError: "Number of channels is greater than allowed range".
+Pass	  new OfflineAudioContext({"length":0,"sampleRate":8000}) threw NotSupportedError: "Length of buffer must be at least 1".
+Pass	  new OfflineAudioContext({"length":1,"sampleRate":1}) threw NotSupportedError: "Sample rate is outside of allowed range".
+Pass	< [options-2] All assertions passed. (total 3 assertions)
+Pass	> [options-3] Valid options
+Pass	  c = new OfflineAudioContext{"length":1,"sampleRate":8000}) did not throw an exception.
+Pass	  c.length is equal to 1.
+Pass	  c.sampleRate is equal to 8000.
+Pass	  c.destination.channelCount is equal to 1.
+Pass	  c.destination.channelCountMode is equal to explicit.
+Pass	  c.destination.channelCountMode is equal to speakers.
+Pass	  c = new OfflineAudioContext{"length":1,"sampleRate":8000,"numberOfChannels":7}) did not throw an exception.
+Pass	  c.destination.channelCount is equal to 7.
+Pass	< [options-3] All assertions passed. (total 8 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 4 tasks ran successfully.

@@ -1,0 +1,16 @@
+#import <DOM/Attr.idl>
+
+// https://dom.spec.whatwg.org/#interface-namednodemap
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface NamedNodeMap {
+    readonly attribute unsigned long length;
+
+    getter Attr? item(unsigned long index);
+    getter Attr? getNamedItem([FlyString] DOMString qualifiedName);
+    Attr? getNamedItemNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+
+    [CEReactions] Attr? setNamedItem(Attr attr);
+    [CEReactions] Attr? setNamedItemNS(Attr attr);
+    [CEReactions] Attr removeNamedItem([FlyString] DOMString qualifiedName);
+    [CEReactions] Attr removeNamedItemNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+};

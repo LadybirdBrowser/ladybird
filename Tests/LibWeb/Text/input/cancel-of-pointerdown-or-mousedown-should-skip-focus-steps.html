@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<button id="test-button" style="width: 100px; height: 100px">Test button</button>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const button = document.getElementById("test-button");
+
+        const eventsToLog = [
+            "mousedown",
+            "mouseup",
+            "click",
+            "dblclick",
+            "pointerdown",
+            "pointerup",
+            "focus",
+            "blur",
+            "focusin",
+            "focusout",
+        ];
+
+        eventsToLog.forEach(type => {
+            button.addEventListener(type, event => {
+                if (type === "pointerdown" || type === "mousedown") event.preventDefault();
+                println(`${type}`, {
+                    key: event.key,
+                    code: event.code,
+                    button: event.button,
+                    pointerType: event.pointerType,
+                    eventPhase: event.eventPhase,
+                    timeStamp: event.timeStamp,
+                });
+                if (type === "click") done();
+            });
+        });
+
+        internals.click(50, 50);
+    });
+</script>

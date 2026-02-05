@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	invalid: @keyframes none { }
+Pass	invalid: @keyframes default { }
+Pass	invalid: @keyframes initial { }
+Pass	invalid: @keyframes inherit { }
+Pass	invalid: @keyframes unset { }
+Pass	invalid: @keyframes revert { }
+Pass	invalid: @keyframes revert-layer { }
+Pass	invalid: @keyframes 12 { }
+Pass	invalid: @keyframes -12 { }
+Pass	invalid: @keyframes 12foo { }
+Pass	invalid: @keyframes foo.bar { }
+Pass	invalid: @keyframes one two { }
+Pass	invalid: @keyframes one, two { }
+Pass	invalid: @keyframes one, initial { }
+Pass	invalid: @keyframes one, inherit { }
+Pass	invalid: @keyframes one, unset { }
+Pass	invalid: @keyframes default, two { }
+Pass	invalid: @keyframes revert, three { }
+Pass	invalid: @keyframes revert-layer, four { }

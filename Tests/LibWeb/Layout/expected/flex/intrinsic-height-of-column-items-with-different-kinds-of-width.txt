@@ -1,0 +1,74 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 146 0+1+0] [BFC] children: not-inline
+    Box <body> at [10,10] flex-container(column) [8+1+0 780 0+1+8] [8+1+0 128 0+1+8] [FFC] children: not-inline
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.px> at [11,11] flex-item [0+1+0 200 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
+        Box <div.inner> at [12,12] flex-container(row) [0+1+0 198 0+1+0] [0+1+0 18 0+1+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [12,12] flex-item [0+0+0 19.125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 2, rect: [12,12 19.125x18] baseline: 13.796875
+                "px"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.percentage> at [11,33] flex-item [0+1+0 50 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
+        Box <div.inner> at [12,34] flex-container(row) [0+1+0 48 0+1+0] [0+1+0 18 0+1+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [12,34] flex-item [0+0+0 86.671875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 10, rect: [12,34 86.671875x18] baseline: 13.796875
+                "percentage"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.fit-content> at [11,55] flex-item [0+1+0 88.765625 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
+        Box <div.inner> at [12,56] flex-container(row) [0+1+0 86.765625 0+1+0] [0+1+0 18 0+1+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [12,56] flex-item [0+0+0 86.765625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 11, rect: [12,56 86.765625x18] baseline: 13.796875
+                "fit content"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.max-content> at [11,77] flex-item [0+1+0 102.15625 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
+        Box <div.inner> at [12,78] flex-container(row) [0+1+0 100.15625 0+1+0] [0+1+0 18 0+1+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [12,78] flex-item [0+0+0 100.15625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 11, rect: [12,78 100.15625x18] baseline: 13.796875
+                "max content"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.min-content> at [11,99] flex-item [0+1+0 62.90625 0+1+0] [0+1+0 38 0+1+0] [BFC] children: not-inline
+        Box <div.inner> at [12,100] flex-container(row) [0+1+0 60.90625 0+1+0] [0+1+0 36 0+1+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [12,100] flex-item [0+0+0 60.90625 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 3, rect: [12,100 26.375x18] baseline: 13.796875
+                "min"
+            frag 1 from TextNode start: 4, length: 7, rect: [12,118 60.90625x18] baseline: 13.796875
+                "content"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x148]
+    PaintableBox (Box<BODY>) [9,9 782x130]
+      PaintableWithLines (BlockContainer<DIV>.px) [10,10 202x22]
+        PaintableBox (Box<DIV>.inner) [11,11 200x20]
+          PaintableWithLines (BlockContainer(anonymous)) [12,12 19.125x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.percentage) [10,32 52x22]
+        PaintableBox (Box<DIV>.inner) [11,33 50x20]
+          PaintableWithLines (BlockContainer(anonymous)) [12,34 86.671875x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.fit-content) [10,54 90.765625x22]
+        PaintableBox (Box<DIV>.inner) [11,55 88.765625x20]
+          PaintableWithLines (BlockContainer(anonymous)) [12,56 86.765625x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.max-content) [10,76 104.15625x22]
+        PaintableBox (Box<DIV>.inner) [11,77 102.15625x20]
+          PaintableWithLines (BlockContainer(anonymous)) [12,78 100.15625x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.min-content) [10,98 64.90625x40]
+        PaintableBox (Box<DIV>.inner) [11,99 62.90625x38]
+          PaintableWithLines (BlockContainer(anonymous)) [12,100 60.90625x36]
+            TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x146] [children: 0] (z-index: auto)

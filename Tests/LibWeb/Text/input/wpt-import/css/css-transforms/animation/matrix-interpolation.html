@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Matrix interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#interpolation-of-3d-matrices">
+<meta name="assert" content="When interpolating between two matrices, each matrix is decomposed into the corresponding translation, rotation, scale, skew and (for a 3D matrix) perspective values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<body>
+<script>
+// Test interpolation of quaternions when the dot product is -1.
+//
+// We need to be particularly careful not to use a rotate function with a zero
+// angle since the handling of zero angle rotations may change in future as per:
+//
+//   https://github.com/w3c/csswg-drafts/issues/3236
+//
+// For rotateY(360deg) we should get a quaternion of:
+//    [ 0, sin(2 * PI / 2), 0, cos(2 * PI / 2) ]
+//  = [ 0, 0, 0, -1 ]
+//
+// For rotateX(720deg) we should get a quaternion of:
+//    [ 0, 0, sin(4 * PI / 2), cos(4 * PI / 2) ]
+//  = [ 0, 0, 0, 1 ]
+//
+// Dot product = 0 * 0 + 0 * 0 + 0 * 0 + 1 * -1 = -1
+test_interpolation(
+  {
+    property: 'transform',
+    from: 'rotateY(360deg)',
+    to: 'rotateX(720deg)',
+  },
+  [{ at: 0.5, expect: 'matrix(1, 0, 0, 1, 0, 0)' }]
+);
+</script>
+</body>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-sizes">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item"
+  title="Case E">
+<meta name="assert"
+  content="aspect-ratio item gets correct flex base during intrinsic sizing, where a too-small flex base will cause the container to be too small." />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<style>
+  .grandchild {
+    float: left;
+    width: 10px;
+    height: 200px;
+  }
+
+</style>
+
+<p>Main point of this test is that the container width is 100px, not 80px.</p>
+
+<div
+  style="display: flex; flex-flow: column wrap; width: max-content; height: 100px; outline: 1px solid; position: relative;"
+  data-expected-width="100">
+  <!-- flex base size during layout for intrinsic sizing should be 100 because that's fit-content width (20px) * aspect-ratio, in case E. If flex base size is too small, then the second item will end up on the first line, causing the container to be only 80px wide.
+  flex base size during real layout will be 50px because then the 10% will be resolvable and this will fall into case B. -->
+  <div
+    style="width: 10%; aspect-ratio: 1/5; min-height: 0px; flex: 0 0 auto; background: orange;"
+    data-expected-height="50" data-offset-x="0">
+    <div class="grandchild"></div>
+    <div class="grandchild" data-offset-y="200"></div>
+  </div>
+  <div style="width: 80px; flex: 0 0 1px; min-height: 0px; background: grey;"
+    data-offset-x="0">
+  </div>
+</div>
+
+<script>
+  checkLayout('body > div');
+</script>

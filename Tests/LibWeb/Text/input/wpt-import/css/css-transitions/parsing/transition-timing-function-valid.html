@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transitions: parsing transition-timing-function with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#propdef-transition-timing-function">
+<link rel="help" href="https://drafts.csswg.org/css-easing-1/#typedef-timing-function">
+<meta name="assert" content="transition-timing-function supports the full grammar '<timing-function> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("transition-timing-function", "linear");
+test_valid_value("transition-timing-function", "linear(0 0%, 0.5 50%, 1 100%)");
+test_valid_value("transition-timing-function", "linear(0 0%, 10 10%, 10 50%, 25.4 75%, 100 100%)");
+test_valid_value("transition-timing-function", "linear(0 0%, 1 100%)");
+
+test_valid_value("transition-timing-function", "ease");
+test_valid_value("transition-timing-function", "ease-in");
+test_valid_value("transition-timing-function", "ease-out");
+test_valid_value("transition-timing-function", "ease-in-out");
+test_valid_value("transition-timing-function", "cubic-bezier(0.1, 0.2, 0.8, 0.9)");
+test_valid_value("transition-timing-function", "cubic-bezier(0, -2, 1, 3)");
+test_valid_value("transition-timing-function", "cubic-bezier(0, 0.7, 1, 1.3)");
+
+test_valid_value("transition-timing-function", "step-start", "steps(1, start)");
+test_valid_value("transition-timing-function", "step-end", "steps(1)");
+test_valid_value("transition-timing-function", "steps(4)");
+test_valid_value("transition-timing-function", "steps(4, start)");
+test_valid_value("transition-timing-function", "steps(2, end)", "steps(2)");
+test_valid_value("transition-timing-function", "steps(2, jump-start)");
+test_valid_value("transition-timing-function", "steps(2, jump-end)", "steps(2)");
+test_valid_value("transition-timing-function", "steps(2, jump-both)");
+test_valid_value("transition-timing-function", "steps(2, jump-none)");
+test_valid_value("transition-timing-function", "steps(sibling-index(), jump-none)");
+
+test_valid_value("transition-timing-function", "linear, ease, linear");
+</script>
+</body>
+</html>

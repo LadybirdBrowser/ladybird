@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/namespaces.js"></script>
+<script src="support/passthroughpolicy.js"></script>
+<script src="support/script-messages.js"></script>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#enforcement-in-scripts">
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<!-- This test modifies the source of a new (initially disconnected)
+     HTMLScriptElement by various DOM APIs and verifies whether it will
+     remain trustworthy. This can be done by checking whether the script
+     is actually executed after insertion, because this page enforces
+     Trusted Types without defining any default policy. -->
+<div id="container"></div>
+<script>
+  promise_test(async t => {
+    let message = await script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+    assert_equals(message, "RUN");
+  }, "The HTMLScriptElement is initially trusted.");
+
+  promise_test(async t => {
+    await promise_rejects_js(t, TypeError, script_messages_for(_ => {
+      document.createElement("script").innerText = LOG_RUN_MESSAGE;
+    }), "TrustedScript required.");
+    let message = await script_message_for(_ => {
+      let script = document.createElement("script");
+      script.innerText = passthroughpolicy.createScript(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+    assert_equals(message, "RUN");
+  }, "Script source set via TrustedScript sink HTMLScriptElement.innerText keeps trustworthiness.");
+
+  promise_test(async t => {
+    let script = document.createElement("script");
+    Object.getOwnPropertyDescriptor(HTMLElement.prototype, "innerText").set.call(script, LOG_RUN_MESSAGE);
+    assert_equals(script.innerText, LOG_RUN_MESSAGE, "TrustedScript not required.");
+    await no_script_message_for(_ => {
+      container.appendChild(script);
+    });
+  }, "Script source set via HTMLElement.innerText drops trustworthiness.");
+
+  promise_test(async t => {
+    await promise_rejects_js(t, TypeError, script_messages_for(_ => {
+      document.createElement("script").textContent = LOG_RUN_MESSAGE;
+    }), "TrustedScript required.");
+    let message = await script_message_for(_ => {
+      let script = document.createElement("script");
+      script.textContent = passthroughpolicy.createScript(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+    assert_equals(message, "RUN");
+  }, "Script source set via TrustedScript sink HTMLScriptElement.textContent keeps trustworthiness.");
+
+  promise_test(async t => {
+    let script = document.createElement("script");
+    Object.getOwnPropertyDescriptor(Node.prototype, "textContent").set.call(script, LOG_RUN_MESSAGE);
+    assert_equals(script.textContent, LOG_RUN_MESSAGE, "TrustedScript not required.");
+    await no_script_message_for(_ => {
+      container.appendChild(script);
+    });
+  }, "Script source set Node.textContent drops trustworthiness.");
+
+  promise_test(async t => {
+    await promise_rejects_js(t, TypeError, script_messages_for(_ => {
+      document.createElement("script").text = LOG_RUN_MESSAGE;
+    }), "TrustedScript required.");
+    let message = await script_message_for(_ => {
+      let script = document.createElement("script");
+      script.text = passthroughpolicy.createScript(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+    assert_equals(message, "RUN");
+  }, "Script source set via TrustedScript sink HTMLScriptElement.text keeps trustworthiness.");
+
+  promise_test(async t => {
+    await promise_rejects_js(t, TypeError, script_messages_for(_ => {
+      document.createElement("script").innerHTML = LOG_RUN_MESSAGE;
+    }), "TrustedHTML required.");
+    await no_script_message_for(_ => {
+      let script = document.createElement("script");
+      script.innerHTML = passthroughpolicy.createHTML(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+  }, "Script source set via TrustedHTML sink Element.innerHTML drops trustworthiness.");
+
+  promise_test(async t => {
+    await promise_rejects_js(t, TypeError, script_messages_for(_ => {
+      document.createElement("script").setHTMLUnsafe(LOG_RUN_MESSAGE);
+    }), "TrustedHTML required.");
+    await no_script_message_for(_ => {
+      let script = document.createElement("script");
+      script.setHTMLUnsafe(passthroughpolicy.createHTML(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Script source set via TrustedHTML sink Element.setHTMLUnsafe() drops trustworthiness.");
+
+  if (HTMLScriptElement.prototype.setHTML) {
+    promise_test(async t => {
+      // https://wicg.github.io/sanitizer-api/#set-and-filter-html
+      let script = document.createElement("script");
+      script.setHTML(LOG_RUN_MESSAGE);
+      assert_equals(script.text, "");
+    }, "Script source cannot be set via Element.setHTML().");
+  }
+
+  promise_test(async t => {
+    let message = await script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE};;;`);
+      script.firstChild.splitText(3);
+      container.appendChild(script);
+    });
+    assert_equals(message, "RUN");
+  }, "Splitting script source via Text.splitText() keeps trustworthiness.");
+
+  promise_test(async t => {
+    let message = await script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE};;;`);
+      script.firstChild.splitText(3);
+      script.normalize();
+      container.appendChild(script);
+    });
+    assert_equals(message, "RUN");
+  }, "Normalizing script source via Element.normalize() keeps trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.nodeValue = LOG_RUN_MESSAGE;
+      container.appendChild(script);
+    });
+  }, "Script source set via Node.nodeValue drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.data = LOG_RUN_MESSAGE;
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.data drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.appendData(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.appendData() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.insertData(0, LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.insertData() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.replaceData(0, 0, LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.replaceData() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`//${LOG_RUN_MESSAGE}`);
+      script.firstChild.deleteData(0, 2);
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.deleteData() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.before(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.before() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.after(LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.after() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`;;;${LOG_RUN_MESSAGE}`);
+      script.firstChild.splitText(3);
+      script.firstChild.remove();
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.remove() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.firstChild.replaceWith(document.createTextNode(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Setting script source via CharacterData.replaceWith() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.appendChild(document.createTextNode(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Setting script source via Node.appendChild() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.insertBefore(document.createTextNode(LOG_RUN_MESSAGE), script.firstChild);
+      container.appendChild(script);
+    });
+  }, "Setting script source via Node.insertBefore() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.replaceChild(document.createTextNode(LOG_RUN_MESSAGE), script.firstChild);
+      container.appendChild(script);
+    });
+  }, "Setting script source via Node.replaceChild() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`;;;${LOG_RUN_MESSAGE}`);
+      script.firstChild.splitText(3);
+      script.removeChild(script.firstChild);
+      container.appendChild(script);
+    });
+  }, "Setting script source via Node.removeChild() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.prepend(document.createTextNode(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Setting script source via Element.prepend() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.append(document.createTextNode(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Setting script source via Element.append() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.replaceChildren(document.createTextNode(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Setting script source via Element.replaceChildren() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      let text = document.createTextNode(LOG_RUN_MESSAGE);
+      // Per https://dom.spec.whatwg.org/#move, step 1, moveBefore requires
+      // the two nodes to have the same shadow-including root.
+      let root = document.createElement("div");
+      root.appendChild(script);
+      root.appendChild(text);
+      script.moveBefore(text, script.firstChild);
+      container.appendChild(script);
+    });
+  }, "Setting script source via Element.moveBefore() drops trustworthiness.");
+
+  promise_test(async t => {
+    await promise_rejects_js(t, TypeError, script_messages_for(_ => {
+      document.createElement("script").insertAdjacentHTML("afterbegin", LOG_RUN_MESSAGE);
+    }), "TrustedHTML required.");
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.insertAdjacentHTML("afterbegin", passthroughpolicy.createHTML(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.insertAdjacentHTML("beforeend", passthroughpolicy.createHTML(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Setting script source via TrustedHTML sink Node.insertAdjacentHTML() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.insertAdjacentText("afterbegin", LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      script.insertAdjacentText("beforeend", LOG_RUN_MESSAGE);
+      container.appendChild(script);
+    });
+  }, "Setting script source via Node.insertAdjacentText() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`;`);
+      let range = new Range();
+      range.selectNode(script.firstChild);
+      range.insertNode(document.createTextNode(LOG_RUN_MESSAGE));
+      container.appendChild(script);
+    });
+  }, "Setting script source via Range.insertNode() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`//;;;${LOG_RUN_MESSAGE}`);
+      script.firstChild.splitText(2);
+      let range = new Range();
+      range.setStart(script.firstChild, 0);
+      range.setEnd(script.lastChild, 3);
+      range.deleteContents();
+      container.appendChild(script);
+    });
+  }, "Setting script source via Range.deleteContents() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE}`);
+      let clone = script.cloneNode(true);
+      container.appendChild(clone);
+    });
+  }, "Cloning a script via Node.cloneNode() drops trustworthiness.");
+
+  promise_test(async t => {
+    await no_script_message_for(_ => {
+      let div = document.createElement("div");
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE}`);
+      div.appendChild(script);
+      let range = new Range();
+      range.selectNode(script);
+      let documentFragment = range.cloneContents();
+      container.appendChild(documentFragment.firstElementChild);
+    });
+  }, "Cloning a script via Range.cloneContents() drops trustworthiness.");
+</script>
+</body>

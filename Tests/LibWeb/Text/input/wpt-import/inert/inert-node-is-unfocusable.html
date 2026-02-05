@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>inert nodes are unfocusable</title>
+    <link rel="author" title="Alice Boxhall" href="aboxhall@chromium.org">
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+  </head>
+<body id="body" tabindex="1">
+  <button id="focusable">Outside of inert container</button>
+  <button inert id="inert">Inert button</button>
+  <div inert id="container">
+    <input id="text" type="text">
+    <input id="datetime" type="datetime">
+    <input id="color" type="color">
+    <select id="select">
+        <optgroup id="optgroup">
+            <option id="option">Option</option>
+        </optgroup>
+    </select>
+    <div id="contenteditable-div" contenteditable>I'm editable</div>
+    <span id="tabindex-span" tabindex="0">I'm tabindexed.</div>
+    <embed id="embed" type="application/x-blink-test-plugin" width=100 height=100></embed>
+    <a id="anchor" href="">Link</a>
+  </div>
+<script>
+function testFocus(element, expectFocus) {
+    focusedElement = null;
+    element.addEventListener('focus', function() { focusedElement = element; }, false);
+    element.focus();
+    theElement = element;
+    assert_equals(focusedElement === theElement, expectFocus);
+}
+
+function testTree(element, expectFocus, excludeCurrent) {
+    if (element.nodeType == Node.ELEMENT_NODE && !excludeCurrent)
+        testFocus(element, expectFocus);
+    if (element.tagName === "SELECT")
+        return;
+    var childNodes = element.childNodes;
+    for (var i = 0; i < childNodes.length; i++)
+        testTree(childNodes[i], expectFocus);
+}
+
+
+test(function() {
+    testFocus(document.getElementById('focusable'), true);
+}, "Button outside of inert container is focusable.");
+
+test(function() {
+    testFocus(document.getElementById('inert'), false);
+}, "Button with inert atribute is unfocusable.");
+
+test(function() {
+    testTree(document.getElementById('container'), false);
+}, "All focusable elements inside inert subtree are unfocusable");
+
+test(function() {
+    assert_false(document.getElementById("focusable").inert, "Inert not set explicitly is false")
+    assert_true(document.getElementById("inert").inert, "Inert set explicitly is true");
+    assert_true(document.getElementById("container").inert, "Inert set on container is true");
+}, "Can get inert via property");
+
+test(function() {
+    assert_false(document.getElementById("text").inert, "Elements inside of inert subtrees return false when getting inert");
+}, "Elements inside of inert subtrees return false when getting 'inert'");
+
+test(function() {
+    document.getElementById('focusable').inert = true;
+    testFocus(document.getElementById('focusable'), false);
+    document.getElementById('inert').inert = false;
+    testFocus(document.getElementById('inert'), true);
+    document.getElementById('container').inert = false;
+    testTree(document.getElementById('container'), true, true);
+}, "Setting inert via property correctly modifies inert state");
+</script>
+</body>
+</html>

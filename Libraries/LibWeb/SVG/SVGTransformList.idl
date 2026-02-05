@@ -1,0 +1,21 @@
+#import <SVG/SVGTransform.idl>
+
+// https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGTransformList
+[Exposed=Window]
+interface SVGTransformList {
+    readonly attribute unsigned long length;
+    readonly attribute unsigned long numberOfItems;
+
+    undefined clear();
+    SVGTransform initialize(SVGTransform newItem);
+    getter SVGTransform getItem(unsigned long index);
+    SVGTransform insertItemBefore(SVGTransform newItem, unsigned long index);
+    SVGTransform replaceItem(SVGTransform newItem, unsigned long index);
+    SVGTransform removeItem(unsigned long index);
+    SVGTransform appendItem(SVGTransform newItem);
+    setter undefined (unsigned long index, SVGTransform newItem);
+
+  // Additional methods not common to other list interfaces.
+    [FIXME] SVGTransform createSVGTransformFromMatrix(optional DOMMatrix2DInit matrix = {});
+    [FIXME] SVGTransform? consolidate();
+};

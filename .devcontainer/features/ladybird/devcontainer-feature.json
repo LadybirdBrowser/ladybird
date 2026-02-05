@@ -1,0 +1,30 @@
+{
+    "name": "Ladybird Development",
+    "id": "ladybird",
+    "version": "2.0.1",
+    "description": "Enable development of Ladybird libraries and applications",
+    "options": {
+        "distro": {
+            "type": "string",
+            "proposals": [
+                "ubuntu",
+                "fedora",
+                "arch",
+                "alpine"
+            ],
+            "default": "ubuntu",
+            "description": "Select the base distribution for the container"
+        },
+        "llvm_version": {
+            "type": "string",
+            "proposals": [
+                18,
+                19,
+                20,
+                "trunk"
+            ],
+            "default": 20,
+            "description": "Select LLVM compiler version to use"
+        }
+    }
+}

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	img 1
+Pass	img 2
+Pass	img 3
+Pass	img 4

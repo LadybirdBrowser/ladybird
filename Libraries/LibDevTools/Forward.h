@@ -1,0 +1,48 @@
+/*
+ * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibDevTools/Export.h>
+
+namespace DevTools {
+
+class Actor;
+class AccessibilityActor;
+class AccessibilityNodeActor;
+class AccessibilityWalkerActor;
+class Connection;
+class ConsoleActor;
+class CSSPropertiesActor;
+class DeviceActor;
+class DevToolsDelegate;
+class DevToolsServer;
+class FrameActor;
+class HighlighterActor;
+class InspectorActor;
+class LayoutInspectorActor;
+class NetworkEventActor;
+class NetworkParentActor;
+class NodeActor;
+class PageStyleActor;
+class ParentAccessibilityActor;
+class PreferenceActor;
+class ProcessActor;
+class RootActor;
+class StyleSheetsActor;
+class TabActor;
+class TargetConfigurationActor;
+class ThreadActor;
+class ThreadConfigurationActor;
+class WalkerActor;
+class WatcherActor;
+
+struct CSSProperty;
+struct Node;
+struct ProcessDescription;
+struct TabDescription;
+
+}

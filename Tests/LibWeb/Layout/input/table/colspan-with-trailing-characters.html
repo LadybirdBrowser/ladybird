@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Colspan relaxed parsing</title>
+    <style>
+        table, td {
+            border: 1px solid black;
+            border-spacing: 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <table border="1">
+        <tr>
+            <th>Header 1</th>
+            <th>Header 2</th>
+            <th>Header 3</th>
+        </tr>
+        <tr>
+            <td colspan="3">Cell 1</td>
+        </tr>
+        <tr>
+            <td colspan="3foo">Cell 2</td>
+        </tr>
+        <tr>
+            <td>Cell 3</td>
+            <td>Cell 4</td>
+            <td>Cell 5</td>
+        </tr>
+    </table>
+</body>
+</html>

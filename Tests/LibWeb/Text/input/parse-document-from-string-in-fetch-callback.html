@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<head>
+    <script src="include.js"></script>
+    <link href="file://does-not-exists.css" rel="stylesheet" />
+</head>
+<script>
+    asyncTest(done => {
+        fetch("parse-document-from-string-in-fetch-callback.html")
+            .then(response => {
+                return response.text()
+            })
+            .then(text => {
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(text, 'text/html');
+                println(newDoc.body.innerHTML);
+                done();
+            });
+    });
+</script>
+<body>hello!</body>

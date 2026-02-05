@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	el-table
+Pass	el-caption
+Pass	el-tr-thead
+Pass	el-th
+Pass	el-tr-tbody
+Pass	el-th-in-row
+Pass	el-td

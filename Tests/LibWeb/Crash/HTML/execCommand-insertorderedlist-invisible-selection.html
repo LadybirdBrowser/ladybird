@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<div contenteditable=""> </div>
+<script>
+const div = document.querySelector("[contenteditable]");
+const range = document.createRange();
+range.setStart(div, 0);
+range.setEnd(div, 1);
+document.getSelection().addRange(range);
+document.execCommand("insertorderedlist", false, "");
+</script>

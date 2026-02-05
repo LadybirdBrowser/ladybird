@@ -1,0 +1,1 @@
+PASS: Exception thrown 'TypeError: Wrapped value must be primitive or a function object, got [object Promise]'

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<body><p id="p1"><b>Hello💨</b>😮 World</p>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const p1 = document.getElementById("p1");
+        const hello = p1.firstChild.firstChild;
+        const world = p1.lastChild;
+        const range = document.createRange();
+        range.setStart(hello, 2);
+        range.setEnd(world, 5);
+        println(range.toString());
+    });
+</script>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<style type='text/css'>
+.test { text-transform: capitalize; }
+</style>
+</head>
+
+<script src="../include.js"></script>
+<body>
+<div class="test" lang="nl">ijsland</div>
+<div class="test" lang="en">ijsland</div>
+<div>IJsland</div>
+
+<script>
+    test(() => {
+        var elements = document.getElementsByClassName('test');
+        for (var i = 0; i < elements.length; i++) {
+            println(elements[i].innerText);
+        }
+    });
+</script>
+</body>
+
+</html>

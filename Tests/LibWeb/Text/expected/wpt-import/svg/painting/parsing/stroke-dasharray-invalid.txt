@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['stroke-dasharray'] = "auto" should not set the property value
+Pass	e.style['stroke-dasharray'] = "none 10px" should not set the property value
+Pass	e.style['stroke-dasharray'] = "20px / 30px" should not set the property value
+Pass	e.style['stroke-dasharray'] = "-40px" should not set the property value
+Pass	e.style['stroke-dasharray'] = "calc(2px + 3)" should not set the property value
+Pass	e.style['stroke-dasharray'] = "calc(10% + 5)" should not set the property value
+Pass	e.style['stroke-dasharray'] = "calc(40 + calc(3px + 6%))" should not set the property value

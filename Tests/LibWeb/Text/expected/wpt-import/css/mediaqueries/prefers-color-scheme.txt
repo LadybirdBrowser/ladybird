@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	Should be known: '(prefers-color-scheme)'
+Pass	Should be known: '(prefers-color-scheme: light)'
+Pass	Should be known: '(prefers-color-scheme: dark)'
+Pass	Should be parseable: '(prefers-color-scheme: 0)'
+Pass	Should be unknown: '(prefers-color-scheme: 0)'
+Pass	Should be parseable: '(prefers-color-scheme: none)'
+Pass	Should be unknown: '(prefers-color-scheme: none)'
+Pass	Should be parseable: '(prefers-color-scheme: 10px)'
+Pass	Should be unknown: '(prefers-color-scheme: 10px)'
+Pass	Should be parseable: '(prefers-color-scheme: dark 0)'
+Pass	Should be unknown: '(prefers-color-scheme: dark 0)'
+Pass	Should be parseable: '(prefers-color-scheme: dark light)'
+Pass	Should be unknown: '(prefers-color-scheme: dark light)'
+Pass	Should be parseable: '(prefers-color-scheme: light/dark)'
+Pass	Should be unknown: '(prefers-color-scheme: light/dark)'
+Pass	Should be parseable: '(prefers-color-scheme: no-preference)'
+Pass	Should be unknown: '(prefers-color-scheme: no-preference)'
+Pass	Check that prefer-color-scheme evaluates to true in the boolean context

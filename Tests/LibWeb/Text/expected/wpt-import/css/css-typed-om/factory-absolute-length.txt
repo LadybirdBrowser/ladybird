@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	CSS.cm() produces cm length
+Pass	CSS.mm() produces mm length
+Pass	CSS.Q() produces q length
+Pass	CSS.in() produces in length
+Pass	CSS.pt() produces pt length
+Pass	CSS.pc() produces pc length
+Pass	CSS.px() produces px length

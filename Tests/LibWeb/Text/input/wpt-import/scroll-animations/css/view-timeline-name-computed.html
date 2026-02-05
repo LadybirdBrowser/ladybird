@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#view-timeline-name">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+</head>
+<style>
+  #outer { view-timeline-name: --foo, --bar; }
+  #target { view-timeline-name: --faz; }
+</style>
+<div id=outer>
+  <div id=target></div>
+</div>
+<script>
+test_computed_value('view-timeline-name', 'initial', 'none');
+test_computed_value('view-timeline-name', 'inherit', '--foo, --bar');
+test_computed_value('view-timeline-name', 'unset', 'none');
+test_computed_value('view-timeline-name', 'revert', 'none');
+test_computed_value('view-timeline-name', 'none');
+test_computed_value('view-timeline-name', '--foo');
+test_computed_value('view-timeline-name', '--foo, --bar');
+test_computed_value('view-timeline-name', '--bar, --foo');
+test_computed_value('view-timeline-name', '--a, --b, --c, --D, --e');
+test_computed_value('view-timeline-name', 'none, none');
+test_computed_value('view-timeline-name', '--a, --b, --c, none, --d, --e');
+
+test(() => {
+  let style = getComputedStyle(document.getElementById('target'));
+  assert_not_equals(Array.from(style).indexOf('view-timeline-name'), -1);
+}, 'The view-timeline-name property shows up in CSSStyleDeclaration enumeration');
+
+test(() => {
+  let style = document.getElementById('target').style;
+  assert_not_equals(style.cssText.indexOf('view-timeline-name'), -1);
+}, 'The view-timeline-name property shows up in CSSStyleDeclaration.cssText');
+</script>

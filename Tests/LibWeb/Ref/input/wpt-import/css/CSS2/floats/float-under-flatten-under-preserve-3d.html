@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#float-position">
+<link rel="help" href="https://crbug.com/1298871">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="transform-style: preserve-3d">
+  <div style="background: red; width: 100px; height: 100px">
+    <div style="float: left; background: green; width: 100px; height: 100px"></div>
+  </div>
+</div>

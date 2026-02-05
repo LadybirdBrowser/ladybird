@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html is="my-html">
+<head>
+<meta charset="utf-8">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/custom-elements.html#element-definition">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body is="my-body">
+<div id="container"></div>
+<script>
+let testData = [
+  {tag: 'a', interface: 'HTMLAnchorElement'},
+  {tag: 'abbr', interface: 'HTMLElement'},
+  {tag: 'address', interface: 'HTMLElement'},
+  {tag: 'area', interface: 'HTMLAreaElement'},
+  {tag: 'article', interface: 'HTMLElement'},
+  {tag: 'aside', interface: 'HTMLElement'},
+  {tag: 'audio', interface: 'HTMLAudioElement'},
+  {tag: 'b', interface: 'HTMLElement'},
+  {tag: 'base', interface: 'HTMLBaseElement'},
+  {tag: 'bdi', interface: 'HTMLElement'},
+  {tag: 'bdo', interface: 'HTMLElement'},
+  {tag: 'blockquote', interface: 'HTMLQuoteElement'},
+  {tag: 'body', interface: 'HTMLBodyElement', parsing: 'document'},
+  {tag: 'br', interface: 'HTMLBRElement'},
+  {tag: 'button', interface: 'HTMLButtonElement'},
+  {tag: 'canvas', interface: 'HTMLCanvasElement'},
+  {tag: 'caption', interface: 'HTMLTableCaptionElement', parsing: 'table'},
+  {tag: 'cite', interface: 'HTMLElement'},
+  {tag: 'code', interface: 'HTMLElement'},
+  {tag: 'col', interface: 'HTMLTableColElement', parsing: 'table'},
+  {tag: 'colgroup', interface: 'HTMLTableColElement', parsing: 'table'},
+  {tag: 'data', interface: 'HTMLDataElement'},
+  {tag: 'dd', interface: 'HTMLElement'},
+  {tag: 'del', interface: 'HTMLModElement'},
+  {tag: 'details', interface: 'HTMLDetailsElement'},
+  {tag: 'dfn', interface: 'HTMLElement'},
+  {tag: 'div', interface: 'HTMLDivElement'},
+  {tag: 'dl', interface: 'HTMLDListElement'},
+  {tag: 'dt', interface: 'HTMLElement'},
+  {tag: 'em', interface: 'HTMLElement'},
+  {tag: 'embed', interface: 'HTMLEmbedElement'},
+  {tag: 'fieldset', interface: 'HTMLFieldSetElement'},
+  {tag: 'figcaption', interface: 'HTMLElement'},
+  {tag: 'figure', interface: 'HTMLElement'},
+  {tag: 'footer', interface: 'HTMLElement'},
+  {tag: 'form', interface: 'HTMLFormElement'},
+  {tag: 'h1', interface: 'HTMLHeadingElement'},
+  {tag: 'h2', interface: 'HTMLHeadingElement'},
+  {tag: 'h3', interface: 'HTMLHeadingElement'},
+  {tag: 'h4', interface: 'HTMLHeadingElement'},
+  {tag: 'h5', interface: 'HTMLHeadingElement'},
+  {tag: 'h6', interface: 'HTMLHeadingElement'},
+  {tag: 'header', interface: 'HTMLElement'},
+  {tag: 'hgroup', interface: 'HTMLElement'},
+  {tag: 'hr', interface: 'HTMLHRElement'},
+  {tag: 'html', interface: 'HTMLHtmlElement', parsing: 'document'},
+  {tag: 'i', interface: 'HTMLElement'},
+  {tag: 'iframe', interface: 'HTMLIFrameElement'},
+  {tag: 'img', interface: 'HTMLImageElement'},
+  {tag: 'input', interface: 'HTMLInputElement'},
+  {tag: 'ins', interface: 'HTMLModElement'},
+  {tag: 'kbd', interface: 'HTMLElement'},
+  {tag: 'label', interface: 'HTMLLabelElement'},
+  {tag: 'legend', interface: 'HTMLLegendElement'},
+  {tag: 'li', interface: 'HTMLLIElement'},
+  {tag: 'link', interface: 'HTMLLinkElement'},
+  {tag: 'main', interface: 'HTMLElement'},
+  {tag: 'map', interface: 'HTMLMapElement'},
+  {tag: 'mark', interface: 'HTMLElement'},
+  {tag: 'menu', interface: 'HTMLMenuElement'},
+  {tag: 'meta', interface: 'HTMLMetaElement'},
+  {tag: 'meter', interface: 'HTMLMeterElement'},
+  {tag: 'nav', interface: 'HTMLElement'},
+  {tag: 'noscript', interface: 'HTMLElement'},
+  {tag: 'object', interface: 'HTMLObjectElement'},
+  {tag: 'ol', interface: 'HTMLOListElement'},
+  {tag: 'optgroup', interface: 'HTMLOptGroupElement'},
+  {tag: 'option', interface: 'HTMLOptionElement'},
+  {tag: 'output', interface: 'HTMLOutputElement'},
+  {tag: 'p', interface: 'HTMLParagraphElement'},
+  {tag: 'param', interface: 'HTMLParamElement'},
+  {tag: 'picture', interface: 'HTMLPictureElement'},
+  {tag: 'pre', interface: 'HTMLPreElement'},
+  {tag: 'progress', interface: 'HTMLProgressElement'},
+  {tag: 'q', interface: 'HTMLQuoteElement'},
+  {tag: 'rp', interface: 'HTMLElement'},
+  {tag: 'rt', interface: 'HTMLElement'},
+  {tag: 'ruby', interface: 'HTMLElement'},
+  {tag: 's', interface: 'HTMLElement'},
+  {tag: 'samp', interface: 'HTMLElement'},
+  {tag: 'script', interface: 'HTMLScriptElement'},
+  {tag: 'section', interface: 'HTMLElement'},
+  {tag: 'select', interface: 'HTMLSelectElement'},
+  {tag: 'small', interface: 'HTMLElement'},
+  {tag: 'source', interface: 'HTMLSourceElement'},
+  {tag: 'span', interface: 'HTMLSpanElement'},
+  {tag: 'strong', interface: 'HTMLElement'},
+  {tag: 'style', interface: 'HTMLStyleElement'},
+  {tag: 'sub', interface: 'HTMLElement'},
+  {tag: 'summary', interface: 'HTMLElement'},
+  {tag: 'sup', interface: 'HTMLElement'},
+  {tag: 'table', interface: 'HTMLTableElement'},
+  {tag: 'tbody', interface: 'HTMLTableSectionElement', parsing: 'table'},
+  {tag: 'td', interface: 'HTMLTableCellElement', parsing: 'table'},
+  {tag: 'template', interface: 'HTMLTemplateElement'},
+  {tag: 'textarea', interface: 'HTMLTextAreaElement'},
+  {tag: 'tfoot', interface: 'HTMLTableSectionElement', parsing: 'table'},
+  {tag: 'th', interface: 'HTMLTableCellElement', parsing: 'table'},
+  {tag: 'thead', interface: 'HTMLTableSectionElement', parsing: 'table'},
+  {tag: 'time', interface: 'HTMLTimeElement'},
+  {tag: 'title', interface: 'HTMLTitleElement'},
+  {tag: 'tr', interface: 'HTMLTableRowElement', parsing: 'table'},
+  {tag: 'track', interface: 'HTMLTrackElement'},
+  {tag: 'u', interface: 'HTMLElement'},
+  {tag: 'ul', interface: 'HTMLUListElement'},
+  {tag: 'var', interface: 'HTMLElement'},
+  {tag: 'video', interface: 'HTMLVideoElement'},
+  {tag: 'wbr', interface: 'HTMLElement'},
+];
+// HTMLDataListElement isn't implemented by all major browsers yet.
+if (window.HTMLDataListElement) {
+  testData.push({tag: 'datalist', interface: 'HTMLDataListElement'});
+}
+// HTMLDialogElement isn't implemented by all major browsers yet.
+if (window.HTMLDialogElement) {
+  testData.push({tag: 'dialog', interface: 'HTMLDialogElement'});
+}
+// HTMLSlotElement isn't implemented by all major browsers yet.
+if (window.HTMLSlotElement) {
+  testData.push({tag: 'slot', interface: 'HTMLSlotElement'});
+}
+
+for (const t of testData) {
+  test(() => {
+    let name = 'my-' + t.tag;
+    let klass = eval(`(class extends ${t.interface} {})`);
+    customElements.define(name, klass, { extends: t.tag });
+
+    test(() => {
+      let customized = new klass();
+      assert_equals(customized.constructor, klass);
+      assert_equals(customized.cloneNode().constructor, klass,
+                    'Cloning a customized built-in element should succeed.');
+    }, `${t.tag}: Operator 'new' should instantiate a customized built-in element`);
+
+    test(() => {
+      let customized = document.createElement(t.tag, { is: name });
+      assert_equals(customized.constructor, klass);
+      assert_equals(customized.cloneNode().constructor, klass,
+                    'Cloning a customized built-in element should succeed.');
+    }, `${t.tag}: document.createElement() should instantiate a customized built-in element`);
+
+    if (t.parsing == 'document') {
+      let test = async_test(`${t.tag}: document parser should instantiate a customized built-in element`);
+      window.addEventListener('load', test.step_func_done(() => {
+        let customized = document.querySelector(t.tag);
+        assert_equals(customized.constructor, klass);
+        assert_equals(customized.cloneNode().constructor, klass,
+                      'Cloning a customized built-in element should succeed.');
+      }));
+      return;
+    }
+    test(() => {
+      let container = document.getElementById('container');
+      if (t.parsing == 'table') {
+        container.innerHTML = `<table><${t.tag} is="${name}" id="${name}">`;
+      } else {
+        container.innerHTML = `<${t.tag} is="${name}" id="${name}">`;
+      }
+      let customized = document.getElementById(name);
+      assert_equals(customized.constructor, klass);
+      assert_equals(customized.cloneNode().constructor, klass,
+                    'Cloning a customized built-in element should succeed.');
+    }, `${t.tag}: innerHTML should instantiate a customized built-in element`);
+
+  }, `${t.tag}: Define a customized built-in element`);
+}
+</script>
+</body>
+</html>

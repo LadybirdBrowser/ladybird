@@ -1,0 +1,80 @@
+#import <HTML/HTMLElement.idl>
+#import <HTML/HTMLFormControlsCollection.idl>
+
+// https://html.spec.whatwg.org/multipage/forms.html#attr-form-autocomplete
+[MissingValueDefault=on, InvalidValueDefault=on]
+enum Autocomplete {
+    "on",
+    "off"
+};
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-enctype
+[MissingValueDefault=application/x-www-form-urlencoded, InvalidValueDefault=application/x-www-form-urlencoded]
+enum EnctypeAttribute {
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain"
+};
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-method
+[MissingValueDefault=get, InvalidValueDefault=get]
+enum MethodAttribute {
+    "get",
+    "post",
+    "dialog"
+};
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-formenctype
+[InvalidValueDefault=application/x-www-form-urlencoded]
+enum FormEnctypeAttribute {
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain"
+};
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-formmethod
+[InvalidValueDefault=get]
+enum FormMethodAttribute {
+    "get",
+    "post",
+    "dialog"
+};
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selectionmode
+enum SelectionMode {
+    "select",
+    "start",
+    "end",
+    "preserve"
+};
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmlformelement
+[Exposed=Window, LegacyOverrideBuiltIns, LegacyUnenumerableNamedProperties]
+interface HTMLFormElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect=accept-charset] attribute DOMString acceptCharset;
+    [CEReactions] attribute USVString action;
+    [CEReactions, Enumerated=Autocomplete, Reflect] attribute DOMString autocomplete;
+    [CEReactions, Enumerated=EnctypeAttribute, Reflect] attribute DOMString enctype;
+    [CEReactions, Enumerated=EnctypeAttribute, Reflect=enctype] attribute DOMString encoding;
+    [CEReactions, Enumerated=MethodAttribute, Reflect] attribute DOMString method;
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect=novalidate] attribute boolean noValidate;
+    [CEReactions, Reflect] attribute DOMString target;
+    [CEReactions, Reflect] attribute DOMString rel;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+
+    [SameObject] readonly attribute HTMLFormControlsCollection elements;
+    readonly attribute unsigned long length;
+    getter Element (unsigned long index);
+    getter (RadioNodeList or Element) (DOMString name);
+
+    undefined submit();
+    undefined requestSubmit(optional HTMLElement? submitter = null);
+    [CEReactions] undefined reset();
+    boolean checkValidity();
+    boolean reportValidity();
+
+};

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: Column height with padding</title>
+<link href="support/flexbox.css" rel="stylesheet">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#valdef-flex-direction-column">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#item-margins">
+<meta name="assert" content="This test checks that height of flex container works with padding">
+<style>
+.flexbox {
+    background-color: green;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<p>You should see a green rectangle, 40px high.</p>
+
+<div class="flexbox column" data-expected-height="40">
+  <div id="child" data-expected-height="40"></div>
+</div>
+
+<script>
+document.getElementById('child').offsetHeight;
+document.getElementById('child').style.padding = "20px";
+</script>

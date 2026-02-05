@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['text-underline-offset'] = "from-font" should not set the property value
+Pass	e.style['text-underline-offset'] = "otto" should not set the property value
+Pass	e.style['text-underline-offset'] = "asdlflj" should not set the property value
+Pass	e.style['text-underline-offset'] = "-10" should not set the property value
+Pass	e.style['text-underline-offset'] = "60002020" should not set the property value
+Pass	e.style['text-underline-offset'] = "!@#$%^&" should not set the property value
+Pass	e.style['text-underline-offset'] = "10e2" should not set the property value
+Pass	e.style['text-underline-offset'] = "from font" should not set the property value

@@ -1,0 +1,33 @@
+HTMLAllCollection
+typeof document.all = undefined
+equal to undefined = true
+equal to null = true
+strictly equal to undefined = false
+strictly equal to null = false
+is an html collection = true
+length = 9
+out of range (9)  = undefined
+out of range (-1) = undefined
+item #0 = [object HTMLHtmlElement], id = '', name = 'undefined'
+item #1 = [object HTMLHeadElement], id = '', name = 'undefined'
+item #2 = [object HTMLBodyElement], id = '', name = 'undefined'
+item #3 = [object HTMLFormElement], id = '', name = ''
+item #4 = [object HTMLInputElement], id = 'formcontrol', name = 'one'
+item #5 = [object HTMLInputElement], id = 'formcontrol', name = 'two'
+item #6 = [object HTMLScriptElement], id = '', name = 'undefined'
+item #7 = [object HTMLScriptElement], id = '', name = 'undefined'
+item #8 = [object HTMLPreElement], id = 'out', name = 'undefined'
+From good string index = [object HTMLInputElement], name = one
+From bad string index = undefined
+[object HTMLInputElement], name one
+[object HTMLInputElement], name two
+undefined
+[object HTMLCollection], length = 2
+first = [object HTMLInputElement]
+second = [object HTMLInputElement]
+namedItem('one') = [object HTMLInputElement]
+namedItem('1') = null
+namedItem('not in list') = null
+item() = null
+item('1') = [object HTMLHeadElement]
+namedItem(2) = [object HTMLBodyElement]

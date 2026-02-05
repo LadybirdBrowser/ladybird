@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+  test(() => {
+    let e = document.createElement("div")
+    e.setAttribute("foo", "bar")
+    let attr = e.getAttributeNode("foo")
+    let clone = attr.cloneNode()
+
+    function dumpAttr(name, attr) {
+      println(name + ": " + attr)
+      println(name + ".ownerElement: " + attr.ownerElement)
+      println(name + ".namespaceURI: " + attr.namespaceURI)
+      println(name + ".localName: " + attr.localName)
+      println(name + ".name: " + attr.name)
+      println(name + ".value: " + attr.value)
+      println(name + ".specified: " + attr.specified)
+      println("")
+    }
+
+    dumpAttr("attr", attr)
+    dumpAttr("clone", clone)
+
+    println("attr === clone -> " + (attr === clone))
+    println("attr.isEqualNode(clone) -> " + attr.isEqualNode(clone))
+
+    e.setAttribute("baz", "bux")
+    let other = e.getAttributeNode("baz")
+    println("attr.isEqualNode(other) -> " + attr.isEqualNode(other))
+  });
+</script>

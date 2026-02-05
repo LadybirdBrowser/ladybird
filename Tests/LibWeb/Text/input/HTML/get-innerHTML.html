@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<div id="id1">
+  <ol reversed xml:myattribute></ol>
+  <ol xmlns:somename></ol>
+  <svg xmlns="http://www.w3.org/2000/svg">
+    <script xlink:href="test"></script>
+    <script href="test"></script>
+    <script id="script" madeup:thing="test"></script>
+  </svg>
+  <label xml:lang="en-US" class="struct"></label>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        document.getElementById('script').setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns", "5");
+        println(document.getElementById('id1').innerHTML);
+    });
+</script>

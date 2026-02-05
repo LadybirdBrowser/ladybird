@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/resize-stacking-order-ref.html" />
+<style>
+    .resizable {
+        margin: 10px;
+        width: 50px;
+        height: 50px;
+        background: blue;
+    }
+
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 80px;
+        height: 80px;
+        background: red;
+        z-index: 1;
+    }
+</style>
+<textarea class="resizable"></textarea>
+<div class="overlay"></div>

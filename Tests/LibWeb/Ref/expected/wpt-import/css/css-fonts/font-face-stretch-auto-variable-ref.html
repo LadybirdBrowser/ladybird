@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8"/>
+<title>CSS Test: Support for font-stretch: auto in @font-face</title>
+<style>
+    @font-face {
+        font-family: "Roboto";
+        src: url('../../../../input/wpt-import/css/css-fonts/support/fonts/RobotoExtremo-VF.subset.ttf') format('truetype');
+        font-display: swap;
+        font-style: normal;
+        font-stretch: 75% 125%;
+    }
+    .stretch50 {
+        font-family: "Roboto";
+        font-size: 3em;
+        font-variation-settings: 'wdth' 50;
+    }
+    .stretch75 {
+        font-family: "Roboto";
+        font-size: 3em;
+        font-variation-settings: 'wdth' 75;
+    }
+    .stretch87 {
+        font-family: "Roboto";
+        font-size: 3em;
+        font-variation-settings: 'wdth' 87.5;
+    }
+    .stretch100 {
+        font-family: "Roboto";
+        font-size: 3em;
+        font-variation-settings: 'wdth' 100;
+    }
+    .stretch112 {
+        font-family: "Roboto";
+        font-size: 3em;
+        font-variation-settings: 'wdth' 112.5;
+    }
+    .stretch125 {
+        font-family: "Roboto";
+        font-size: 3em;
+        font-variation-settings: 'wdth' 125;
+    }
+    .stretch200 {
+        font-family: "Roboto";
+        font-size: 3em;
+        font-variation-settings: 'wdth' 200;
+    }
+</style>
+
+<p class="stretch50">text</p>
+<p class="stretch75">text</p>
+<p class="stretch87">text</p>
+<p class="stretch100">text</p>
+<p class="stretch112">text</p>
+<p class="stretch125">text</p>
+<p class="stretch200">text</p>

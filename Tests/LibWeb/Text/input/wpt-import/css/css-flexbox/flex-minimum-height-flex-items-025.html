@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<link rel="author" title="dgrogan@chromium.org" href="mailto:dgrogan@chromium.org" />
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto" />
+<link rel="bookmark" href="https://crbug.com/1033476">
+<meta name="assert" content="Column flex item's height does not influence its min-height content size suggestion in a varitey of scenarios.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.outer-column-flexbox {
+  display: flex;
+  flex-direction: column;
+  width: 100px;
+  margin-bottom: 10px; /* Just for visually spacing things out */
+}
+</style>
+
+<body onload="checkLayout('.outer-column-flexbox > div');">
+
+<div id=log></div>
+
+<p>Test passes if there is a sequence of filled green squares.</p>
+
+<!-- %height of descendant is not resolved against specified height for purposes of min-content sizing. -->
+<div class=outer-column-flexbox>
+  <div style="flex-basis: 100px; height: 200px;" data-expected-height=100>
+    <div style="height: 100%; background: green;" data-expected-height=100></div>
+  </div>
+</div>
+
+<!-- Same as above, but with an orthogonal writing mode flex item. -->
+<div class=outer-column-flexbox>
+  <div style="flex-basis: 100px; height: 200px; width: 100px; writing-mode: vertical-rl;" data-expected-height=100>
+    <div style="height: 100%; background: green;" data-expected-height=100></div>
+  </div>
+</div>
+
+<!-- Same as #1 but with a grid child of the flex item. -->
+<div class=outer-column-flexbox>
+  <div style="flex-basis: 100px; height: 200px;" data-expected-height=100>
+    <div style="display: grid; height: 100%; background: green" data-expected-height=100></div>
+  </div>
+</div>
+
+<!-- Same as #1 but with a table child of the flex item that has a >0 intrinsic block size. -->
+<div class=outer-column-flexbox>
+  <div style="flex-basis: 100px; height: 200px;" data-expected-height=100>
+    <table data-expected-height=100 style="height: 100%; width: 100%; background: green">
+      <td>
+        <div style="height: 50px;"></div>
+      </td>
+    </table>
+  </div>
+</div>

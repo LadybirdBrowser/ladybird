@@ -1,0 +1,6 @@
+initial, window.getSelection().toString() is ""
+after selecting foo, window.getSelection().toString() is "foo"
+after selecting bar, window.getSelection().toString() is "bar"
+after unselecting bar, window.getSelection().toString() is ""
+after selecting 'z' from normal text input, window.getSelection().toString() is "z"
+after selecting 'boo' from password input, window.getSelection().toString() is "•••"

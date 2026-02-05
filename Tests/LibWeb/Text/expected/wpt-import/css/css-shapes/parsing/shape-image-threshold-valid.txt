@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['shape-image-threshold'] = "12.5" should set the property value
+Pass	e.style['shape-image-threshold'] = "-7" should set the property value
+Pass	e.style['shape-image-threshold'] = "-100%" should set the property value
+Pass	e.style['shape-image-threshold'] = "50%" should set the property value
+Pass	e.style['shape-image-threshold'] = "300%" should set the property value

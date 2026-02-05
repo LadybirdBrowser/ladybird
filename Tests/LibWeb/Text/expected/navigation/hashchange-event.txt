@@ -1,0 +1,2 @@
+hashchange oldURL.hash= newURL.hash=#test
+hashchange oldURL.hash=#test newURL.hash=#done

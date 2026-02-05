@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>:has() invalidation for sibling insertion and removal</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+#subject1:has(+ #sibling1_1 + #sibling1_2) { color: red }
+#subject2:has(+ #sibling2_2) { color: green }
+#subject3:has(+ #sibling3_1 + #sibling3_2 > #siblingchild3_2_1) { color: blue }
+#subject4:has(+ #sibling4_2 > #siblingchild4_2_1) { color: yellow }
+#subject5:has(+ #sibling5_1 + #sibling5_2) { color: red }
+#subject6:has(+ #sibling6_2) { color: green }
+#subject7:has(+ #sibling7_1 + #sibling7_2 > #siblingchild7_2_1) { color: blue }
+#subject8:has(+ #sibling8_2 > #siblingchild8_2_1) { color: yellow }
+#subject9:has(+ #sibling9_1 + #sibling9_2 ~ #sibling9_3) { color: red }
+#subject10:has(+ #sibling10_2 ~ #sibling10_3) { color: green }
+#subject11:has(+ #sibling11_1 + #sibling11_2 ~ #sibling11_3 > #siblingchild11_3_1) { color: blue }
+#subject12:has(+ #sibling12_2 ~ #sibling12_3 > #siblingchild12_3_1) { color: yellow }
+.sibling13:has(~ .sibling13) { color: green }
+#subject14:has(~ #sibling14_1 ~ #sibling14_2 ~ #sibling14_3) { color: green }
+</style>
+
+<main id="main">
+  <div id="parent1">
+    <div id="subject1"></div>
+    <div id="sibling1_2"></div>
+    <div id="sibling1_3"></div>
+  </div>
+  <div id="parent2">
+    <div id="subject2"></div>
+    <div id="sibling2_1"></div>
+    <div id="sibling2_2"></div>
+    <div id="sibling2_3""></div>
+  </div>
+  <div id="parent3">
+    <div id="subject3"></div>
+    <div id="sibling3_2">
+      <div id="siblingchild3_2_1"></div>
+    </div>
+    <div id="sibling3_3"></div>
+  </div>
+  <div id="parent4">
+    <div id="subject4"></div>
+    <div id="sibling4_1"></div>
+    <div id="sibling4_2">
+      <div id="siblingchild4_2_1"></div>
+    </div>
+    <div id="sibling4_3"></div>
+  </div>
+  <div id="parent5">
+    <div id="subject5"></div>
+    <div id="sibling5_1"></div>
+    <div id="sibling5_2"></div>
+    <div id="sibling5_3""></div>
+  </div>
+  <div id="parent6">
+    <div id="subject6"></div>
+    <div id="sibling6_2"></div>
+    <div id="sibling6_3"></div>
+  </div>
+  <div id="parent7">
+    <div id="subject7"></div>
+    <div id="sibling7_1"></div>
+    <div id="sibling7_2">
+      <div id="siblingchild7_2_1"></div>
+    </div>
+    <div id="sibling7_3"></div>
+  <div id="parent8">
+    <div id="subject8"></div>
+    <div id="sibling8_2">
+      <div id="siblingchild8_2_1"></div>
+    </div>
+    <div id="sibling8_3"></div>
+  </div>
+  <div id="parent9">
+    <div id="subject9"></div>
+    <div id="sibling9_2"></div>
+    <div id="sibling9_3"></div>
+    <div id="sibling9_4"></div>
+  </div>
+  <div id="parent10">
+    <div id="subject10"></div>
+    <div id="sibling10_1"></div>
+    <div id="sibling10_2"></div>
+    <div id="sibling10_3""></div>
+    <div id="sibling10_4""></div>
+  </div>
+  <div id="parent11">
+    <div id="subject11"></div>
+    <div id="sibling11_2"></div>
+    <div id="sibling11_3">
+      <div id="siblingchild11_3_1"></div>
+    </div>
+    <div id="sibling11_4"></div>
+  </div>
+  <div id="parent12">
+    <div id="subject12"></div>
+    <div id="sibling12_1"></div>
+    <div id="sibling12_2"></div>
+    <div id="sibling12_3">
+      <div id="siblingchild12_3_1"></div>
+    </div>
+    <div id="sibling12_4"></div>
+  </div>
+  <div id="parent13">
+    <div class="sibling13"></div>
+    <div id="subject13" class="sibling13"></div>
+  </div>
+  <div id="parent14">
+    <div id="subject14"></div>
+    <div id="sibling14_1"></div>
+    <div id="sibling14_2"></div>
+    <div id="sibling14_3"></div>
+  </div>
+</main>
+<script>
+
+const grey = 'rgb(128, 128, 128)';
+const red = 'rgb(255, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+const blue = 'rgb(0, 0, 255)';
+const yellow = 'rgb(255, 255, 0)';
+
+function testColor(test_name, element, color) {
+  test(function() {
+    assert_equals(getComputedStyle(element).color, color);
+  }, test_name);
+}
+
+function insertBefore(parent, reference, child_id) {
+  var child = document.createElement("div");
+  child.id = child_id;
+  parent.insertBefore(child, reference);
+}
+
+testColor(`subject1: initial color should be ${grey}`, subject1, grey);
+insertBefore(parent1, sibling1_2, "sibling1_1");
+testColor(`subject1: color after #sibling1_1 inserted should be ${red}`,
+          subject1, red);
+
+testColor(`subject2: initial color should be ${grey}`, subject2, grey);
+sibling2_1.remove();
+testColor(`subject2: color after #sibling2_1 removed should be ${green}`,
+          subject2, green);
+
+testColor(`subject3: initial color should be ${grey}`, subject3, grey);
+insertBefore(parent3, sibling3_2, "sibling3_1");
+testColor(`subject3: color after #sibling3_1 inserted should be ${blue}`,
+          subject3, blue);
+
+testColor(`subject4: initial color should be ${grey}`, subject4, grey);
+sibling4_1.remove();
+testColor(`subject4: color after #sibling4_1 removed should be ${yellow}`,
+          subject4, yellow);
+
+testColor(`subject5: initial color should be ${red}`, subject5, red);
+sibling5_1.remove();
+testColor(`subject5: color after #sibling5_1 removed should be ${grey}`,
+          subject5, grey);
+
+testColor(`subject6: initial color should be ${green}`, subject6, green);
+insertBefore(parent6, sibling6_2, "sibling6_1");
+testColor(`subject6: color after #sibling6_1 inserted should be ${grey}`,
+          subject6, grey);
+
+testColor(`subject7: initial color should be ${blue}`, subject7, blue);
+sibling7_1.remove();
+testColor(`subject7: color after #sibling7_1 removed should be ${grey}`,
+          subject7, grey);
+
+testColor(`subject8: initial color should be ${yellow}`, subject8, yellow);
+insertBefore(parent8, sibling8_2, "sibling8_1");
+testColor(`subject8: color after #sibling8_1 inserted should be ${grey}`,
+          subject8, grey);
+
+testColor(`subject9: initial color should be ${grey}`, subject9, grey);
+insertBefore(parent9, sibling9_2, "sibling9_1");
+testColor(`subject9: color after #sibling9_1 inserted should be ${red}`,
+          subject1, red);
+
+testColor(`subject10: initial color should be ${grey}`, subject10, grey);
+sibling10_1.remove();
+testColor(`subject10: color after #sibling10_1 removed should be ${green}`,
+          subject10, green);
+
+testColor(`subject11: initial color should be ${grey}`, subject11, grey);
+insertBefore(parent11, sibling11_2, "sibling11_1");
+testColor(`subject11: color after #sibling11_1 inserted should be ${blue}`,
+          subject11, blue);
+
+testColor(`subject12: initial color should be ${grey}`, subject12, grey);
+sibling12_1.remove();
+testColor(`subject12: color after #sibling12_1 removed should be ${yellow}`,
+          subject12, yellow);
+
+testColor(`subject13: initial color should be ${grey}`, subject13, grey);
+const d = document.createElement("div");
+d.classList.add("sibling13");
+parent13.appendChild(d);
+testColor(`subject13: color after #sibling12_1 removed should be ${green}`,
+          subject13, green);
+
+testColor(`subject14: initial color should be ${green}`, subject14, green);
+sibling14_2.remove();
+testColor(`subject14: color after #sibling14_2 removed should be ${grey}`, subject14, grey);
+</script>

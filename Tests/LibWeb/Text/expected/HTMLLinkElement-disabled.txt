@@ -1,0 +1,12 @@
+link.disabled initial value: true
+document.styleSheets.length initial value: 0
+background color when link is disabled: rgba(0, 0, 0, 0)
+onload event fired
+link.disabled: false
+document.styleSheets.length: 1
+background color: rgb(0, 128, 0)
+sheet.ownerNode is link element: true
+document.styleSheets.length after link disabled again: 0
+link.disabled after link disabled again: true
+background color after link disabled again: rgba(0, 0, 0, 0)
+sheet.ownerNode is null: true

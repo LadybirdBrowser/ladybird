@@ -1,0 +1,5 @@
+WebAssembly.instantiateStreaming
+Hello from wasm!!!!!!
+WebAssembly.compileStreaming
+Hello from wasm!!!!!!
+Sanity check

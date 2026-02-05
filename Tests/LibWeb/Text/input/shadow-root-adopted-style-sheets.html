@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #test {
+        border: 10px solid black;
+    }
+</style>
+<my-custom-element></my-custom-element>
+<script>
+    test(() => {
+        class MyCustomElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadow = this.attachShadow({ mode: 'open' });
+
+                const test = document.createElement('div');
+                test.setAttribute('id', 'test');
+
+                const sheet = new CSSStyleSheet();
+                sheet.replaceSync(`
+                #test {
+                    width: 100px;
+                    height: 100px;
+                    background-color: magenta;
+                    border: 2px solid greenyellow;
+                }`);
+
+                shadow.adoptedStyleSheets = [sheet];
+                shadow.appendChild(test);
+
+                const testComputedStyle = getComputedStyle(test);
+                println(`border of #test = (${testComputedStyle.getPropertyValue("border")})`);
+            }
+        }
+
+        customElements.define('my-custom-element', MyCustomElement);
+    });
+</script>

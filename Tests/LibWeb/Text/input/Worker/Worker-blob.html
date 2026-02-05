@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const workerScript = `
+            self.onmessage = function(evt) {
+                self.postMessage('WHF! :^)');
+            };
+        `;
+        const blob = new Blob([workerScript], { type: 'application/javascript' });
+        const workerScriptURL = URL.createObjectURL(blob);
+        const worker = new Worker(workerScriptURL);
+
+        worker.onmessage = function(evt) {
+            println('Message received from worker: ' + JSON.stringify(evt.data));
+            done();
+        };
+
+        // Send a message to the worker
+        worker.postMessage('Hello from main script');
+    });
+</script>

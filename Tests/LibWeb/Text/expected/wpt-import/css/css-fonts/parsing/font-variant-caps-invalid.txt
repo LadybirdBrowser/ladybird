@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['font-variant-caps'] = "auto" should not set the property value
+Pass	e.style['font-variant-caps'] = "normal unicase" should not set the property value

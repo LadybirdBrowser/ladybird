@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let observer = new MutationObserver(function() {});
+        observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+
+        let div = document.createElement("div");
+        document.body.appendChild(div);
+        div.remove();
+        println("PASS! (Didn't crash)");
+    });
+</script>

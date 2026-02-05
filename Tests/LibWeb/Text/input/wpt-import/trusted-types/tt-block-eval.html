@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+</head>
+<body>
+<script>
+  trustedTypes.createPolicy("default", {createScript: _ => null});
+
+  test(t => {
+    let a = 0;
+    assert_throws_js(EvalError, _ => {
+      eval('a="hello there"');
+    });
+    assert_equals(a, 0);
+  }, "eval blocks if the default policy rejects a value.");
+</script>

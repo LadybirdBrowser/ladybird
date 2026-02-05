@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="http://www.w3.org/TR/mediaqueries-5/#display-mode" />
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+<script>
+  query_should_be_known("(display-mode)");
+  query_should_be_known("(display-mode: standalone)");
+  query_should_be_known("(display-mode: browser)");
+  query_should_be_known("(display-mode: minimal-ui)");
+  query_should_be_known("(display-mode: fullscreen)");
+  query_should_be_known("(display-mode: picture-in-picture)");
+
+  query_should_be_unknown("(display-mode: 0)");
+  query_should_be_unknown("(display-mode: none)");
+  query_should_be_unknown("(display-mode: random)");
+  query_should_be_unknown("(display-mode: 10px)");
+  query_should_be_unknown("(display-mode: 1%)");
+
+  test(() => {
+    let booleanContext = window.matchMedia("(display-mode)");
+    assert_true(booleanContext.matches);
+  }, "Check that display-mode evaluates to true in the boolean context");
+</script>

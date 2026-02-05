@@ -1,0 +1,57 @@
+<!doctype html>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#get-a-value-from-a-stylepropertymap">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#valdef-width-auto">
+<meta name="assert" content="Tests computed StylePropertyMap.get of auto minimum sizes." />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<div style="display: flex;">
+  <div id="flex-inflow"></div>
+  <div id="flex-absolute" style="position: absolute;"></div>
+</div>
+<div style="display: grid;">
+  <div id="grid-inflow"></div>
+  <div id="grid-absolute" style="position: absolute;"></div>
+</div>
+<div id="block-inflow"></div>
+<div id="block-absolute" style="position: absolute;"></div>
+<script>
+'use strict';
+
+test(t => {
+  const targetMap = document.getElementById('flex-inflow').computedStyleMap();
+  assert_style_value_equals(targetMap.get('min-width'), new CSSKeywordValue('auto'));
+  assert_style_value_equals(targetMap.get('min-height'), new CSSKeywordValue('auto'));
+}, 'An inflow flex-item computed StylePropertyMap.get reports the auto minimum size correctly.');
+
+test(t => {
+  const targetMap = document.getElementById('flex-absolute').computedStyleMap();
+  assert_style_value_equals(targetMap.get('min-width'), new CSSKeywordValue('auto'));
+  assert_style_value_equals(targetMap.get('min-height'), new CSSKeywordValue('auto'));
+}, 'An absolute flex-child computed StylePropertyMap.get reports the auto minimum size correctly.');
+
+test(t => {
+  const targetMap = document.getElementById('grid-inflow').computedStyleMap();
+  assert_style_value_equals(targetMap.get('min-width'), new CSSKeywordValue('auto'));
+  assert_style_value_equals(targetMap.get('min-height'), new CSSKeywordValue('auto'));
+}, 'An inflow grid-item computed StylePropertyMap.get reports the auto minimum size correctly.');
+
+test(t => {
+  const targetMap = document.getElementById('grid-absolute').computedStyleMap();
+  assert_style_value_equals(targetMap.get('min-width'), new CSSKeywordValue('auto'));
+  assert_style_value_equals(targetMap.get('min-height'), new CSSKeywordValue('auto'));
+}, 'An absolute grid-child computed StylePropertyMap.get reports the auto minimum size correctly.');
+
+test(t => {
+  const targetMap = document.getElementById('block-inflow').computedStyleMap();
+  assert_style_value_equals(targetMap.get('min-width'), new CSSKeywordValue('auto'));
+  assert_style_value_equals(targetMap.get('min-height'), new CSSKeywordValue('auto'));
+}, 'An inflow block computed StylePropertyMap.get reports the auto minimum size correctly.');
+
+test(t => {
+  const targetMap = document.getElementById('block-absolute').computedStyleMap();
+  assert_style_value_equals(targetMap.get('min-width'), new CSSKeywordValue('auto'));
+  assert_style_value_equals(targetMap.get('min-height'), new CSSKeywordValue('auto'));
+}, 'An absolute block computed StylePropertyMap.get reports the auto minimum size correctly.');
+
+</script>

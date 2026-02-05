@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function checkHighWaterMarkForClass(cls, object) {
+            try {
+                const strat = new cls(object);
+                println(`'${JSON.stringify(object)}' => ${strat.highWaterMark}`);
+            } catch (e) {
+                println(`'${JSON.stringify(object)}' => Exception raised of ${e.constructor.name}`);
+            }
+        }
+
+        for (cls of [
+            CountQueuingStrategy,
+            ByteLengthQueuingStrategy,
+        ]) {
+            println("======================================")
+            println(cls.name)
+            println("======================================")
+            for (strat of [
+                { highWaterMark: 2 },
+                { highWaterMark: -1 },
+                { badKey: -1 },
+                {},
+                "string instead",
+                { highWaterMark: "wrongType" },
+                { highWaterMark: {} },
+            ]) {
+                checkHighWaterMarkForClass(cls, strat);
+            }
+        }
+    });
+</script>

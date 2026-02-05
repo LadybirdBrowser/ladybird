@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	EvalError thrown if the callback of the default policy throws an error (eval).
+Pass	EvalError thrown if the callback of the default policy throws an error (new Function).

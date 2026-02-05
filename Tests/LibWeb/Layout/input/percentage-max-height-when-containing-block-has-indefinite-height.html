@@ -1,0 +1,32 @@
+<!DOCTYPE html><style>
+* {
+    border: 1px solid black;
+}
+.formatting-context > div {
+    max-height: 100%;
+    background-color: orange;
+}
+.inline.formatting-context > div {
+    display: inline;
+}
+.block {
+    display: block flow-root;
+}
+.inline {
+    display: block flow-root;
+}
+.flex {
+    display: block flex;
+}
+.grid {
+    display: block grid;
+}
+.table {
+    display: block table;
+}
+</style>
+<div class="block formatting-context"><div>block</div></div>
+<div class="inline formatting-context"><div>inline</div></div>
+<div class="flex formatting-context"><div>flex</div></div>
+<div class="grid formatting-context"><div>grid</div></div>
+<div class="table formatting-context"><div>table</div></div>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment Test: computed value of normal on *-gap properties</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#column-row-gap">
+<meta assert="The computed value of [row-|column-]?gap is normal for all elements it applies to. Checking explicitely because earlier version of the spec called for 0px in some cases.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#col,
+#grid,
+#flex {
+  /* Not using the shorthand because that's not what we're interested in,
+     and there are implementations that support column-gap without supporting the shorthand */
+  colum-gap: normal;
+  row-gap: normal;
+  float: right; /* for shrinkwrap*/
+}
+#col {
+  column-count: 2;
+  column-width: 50px;
+}
+#grid {
+  display: grid;
+  grid-template-columns: 50px 50px;
+  grid-template-rows: 50px 50px;
+}
+#flex {
+  display: flex;
+}
+#flex * { width: 50px; height: 50px;}
+</style>
+<body>
+  <div id="log"></div>
+
+  <div id=col></div>
+  <div id=grid></div>
+  <div id=flex><span></span><span></span></div>
+
+  <script>
+    test(
+      function(){
+        var target = document.getElementById("col");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "colum-gap:normal computes to normal on multicol elements");
+    test(
+      function(){
+        var target = document.getElementById("col");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+      }, "row-gap:normal computes to normal on multicol elements");
+    test(
+      function(){
+        var target = document.getElementById("grid");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "colum-gap:normal computes to normal on grid");
+    test(
+      function(){
+        var target = document.getElementById("grid");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+      }, "row-gap:normal computes to normal on grid");
+    test(
+      function(){
+        var target = document.getElementById("flex");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "colum-gap:normal (main axis) computes to normal on flexbox");
+    test(
+      function(){
+        var target = document.getElementById("flex");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+      }, "row-gap:normal (cross axis) computes to normal on flexbox");
+  </script>
+</body>

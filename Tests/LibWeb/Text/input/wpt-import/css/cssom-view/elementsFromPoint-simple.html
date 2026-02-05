@@ -1,0 +1,131 @@
+<!DOCTYPE HTML>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/elementsFromPoint.js"></script>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+}
+body {
+    height: 500px;
+}
+#simpleDiv {
+    width: 200px;
+    height: 200px;
+    background-color: rgba(0,0,255,0.5);
+}
+#divWithPseudo {
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    width: 100px;
+    height: 100px;
+    background-color: rgba(255,0,0,0.5);
+}
+#divWithPseudo::before {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    width: 100px;
+    height: 100px;
+    content: "::before";
+    background-color: rgba(255,0,0,0.5);
+    z-index: 9999;
+}
+#divBetweenPseudo {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 100px;
+    height: 100px;
+    background-color: rgba(0,255,0,0.5);
+}
+#withMargin {
+    margin-top: -15px;
+    width: 200px;
+    height: 200px;
+    background-color: rgba(0,0,0,0.5);
+}
+#inlineSpan {
+    float: right;
+    background-color: yellow;
+    width: 100px;
+    height: 1em;
+}
+#noPointerEvents {
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    width: 100px;
+    height: 300px;
+    background-color: rgba(0,0,0,0.1);
+    pointer-events: none;
+}
+#threeD {
+    position: absolute;
+    transform: translate3d(-100px, -100px, 10px);
+    left: 140px;
+    top: 140px;
+    width: 200px;
+    height: 50px;
+    background-color: rgba(255,255,255,0.5);
+}
+</style>
+<div id="simpleDiv"></div>
+<div id="divWithPseudo"></div>
+<div id="divBetweenPseudo"></div>
+<div id="withMargin"><span id="inlineSpan"></span></div>
+<div id="noPointerEvents"></div>
+<div id="threeD"></div>
+<script>
+var body = document.body;
+var html = document.documentElement;
+test(function() {
+    checkElementsFromPointFourCorners('document', 'simpleDiv',
+        [simpleDiv, body, html],
+        [simpleDiv, body, html],
+        [withMargin, simpleDiv, body, html],
+        [divBetweenPseudo, inlineSpan, withMargin, simpleDiv, body, html]);
+}, "elementsFromPoint for each corner of a simple div");
+
+test(function() {
+    checkElementsFromPointFourCorners('document', 'divWithPseudo',
+        [threeD, divWithPseudo, simpleDiv, body, html],
+        [threeD, divWithPseudo, simpleDiv, body, html],
+        [divWithPseudo, simpleDiv, body, html],
+        [divWithPseudo, divBetweenPseudo, divWithPseudo, simpleDiv, body, html]);
+}, "elementsFromPoint for each corner of a div that has a pseudo-element");
+
+test(function() {
+    checkElementsFromPointFourCorners('document', 'divBetweenPseudo',
+        [divWithPseudo, divBetweenPseudo, divWithPseudo, simpleDiv, body, html],
+        [divBetweenPseudo, simpleDiv, body, html],
+        [divBetweenPseudo, inlineSpan, withMargin, simpleDiv, body, html],
+        [divBetweenPseudo, inlineSpan, withMargin, simpleDiv, body, html]);
+}, "elementsFromPoint for each corner of a div that is between another div and its pseudo-element");
+
+test(function() {
+    checkElementsFromPointFourCorners('document', 'withMargin',
+        [withMargin, simpleDiv, body, html],
+        [divBetweenPseudo, inlineSpan, withMargin, simpleDiv, body, html],
+        [withMargin, body, html],
+        [withMargin, body, html]);
+}, "elementsFromPoint for each corner of a div that has a margin");
+
+test(function() {
+    checkElementsFromPointFourCorners('document', 'noPointerEvents',
+        [threeD, divWithPseudo, simpleDiv, body, html],
+        [threeD, divWithPseudo, simpleDiv, body, html],
+        [withMargin, body, html],
+        [withMargin, body, html]);
+}, "elementsFromPoint for each corner of a div with pointer-events:none");
+
+test(function() {
+    checkElementsFromPointFourCorners('document', 'threeD',
+        [threeD, simpleDiv, body, html],
+        [threeD, body, html],
+        [threeD, simpleDiv, body, html],
+        [threeD, body, html]);
+}, "elementsFromPoint for each corner of a div with a 3d transform");
+</script>

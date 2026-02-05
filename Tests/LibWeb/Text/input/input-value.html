@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<input id="text" type="text" />
+<input id="hidden" type="hidden" />
+<input id="button" type="button" />
+<input id="checkbox" type="checkbox" />
+<input id="file" type="file" />
+<script src="include.js"></script>
+<script>
+    const testInput = (id) => {
+        let input = document.getElementById(id);
+
+        try {
+            input.value = "pass";
+            println(`${id}: "${input.value}"`);
+        } catch (e) {
+            println(`${id}: "${input.value}" (threw exception)`);
+        }
+    };
+
+    test(() => {
+        testInput("text");
+        testInput("hidden");
+        testInput("button");
+        testInput("checkbox");
+        testInput("file");
+    });
+</script>

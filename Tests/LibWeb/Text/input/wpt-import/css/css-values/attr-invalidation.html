@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: attr() invalidation</title>
+<meta name="assert" content="Test attr() invalidation">
+<link rel="help" href="https://drafts.csswg.org/css-values/#attr-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  div {
+    width: attr(data-foo type(<length>));
+  }
+</style>
+
+<html>
+  <body>
+    <div id="div" data-foo="10px"></div>
+  </body>
+</html>
+
+<script>
+  setup({ single_test: true });
+  let elem = document.getElementById("div");
+  let old_width = window.getComputedStyle(elem).getPropertyValue("width");
+  elem.setAttribute("data-foo", "30px");
+  let new_width = window.getComputedStyle(elem).getPropertyValue("width");
+  assert_not_equals(new_width, old_width);
+  done();
+</script>

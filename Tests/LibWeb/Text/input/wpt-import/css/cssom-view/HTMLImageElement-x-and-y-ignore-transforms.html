@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:mrobinson@igalia.com.org">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlimageelement-interface">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1676952">
+<title>CSS OM View Test: HTMLImageElement's 'x' and 'y' property values should ignore transforms</title>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+.transformed {
+    transform: translate(40px, 40px);
+}
+</style>
+
+<div id="container">
+    <img id="image" src="../../images/green.png">
+</div>
+
+<script>
+  test(() => {
+    const unTransformedX = image.x;
+    const unTransformedY = image.y;
+
+    container.classList.add("transformed");
+
+    assert_equals(unTransformedX, image.x);
+    assert_equals(unTransformedY, image.y);
+  }, `HTMLImageElement's 'x' and 'y' property values ignore transforms`);
+</script>

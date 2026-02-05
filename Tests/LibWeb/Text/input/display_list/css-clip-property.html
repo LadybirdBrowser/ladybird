@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .clipped {
+        position: absolute;
+        clip: rect(10px, 100px, 80px, 20px);
+        width: 150px;
+        height: 150px;
+        background: purple;
+    }
+</style>
+<div class="clipped">CSS Clip Property</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

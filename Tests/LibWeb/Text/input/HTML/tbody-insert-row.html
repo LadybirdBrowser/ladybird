@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<table><tbody id="tbody"><tr></tr></tbody></table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        tbody.insertRow(0);
+        println(tbody.rows.length)
+        println(tbody.rows[0])
+        println(tbody.rows[1])
+        println("PASS (didn't crash)");
+    });
+</script>

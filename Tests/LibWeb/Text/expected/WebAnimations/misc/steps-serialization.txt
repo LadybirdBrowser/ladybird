@@ -1,0 +1,10 @@
+Input: steps(1, jump-none), Computed: ease
+Input: steps(1, start), Computed: steps(1, start)
+Input: steps(1), Computed: steps(1)
+Input: steps(4, jump-both), Computed: steps(4, jump-both)
+Input: steps(2, jump-start), Computed: steps(2, jump-start)
+Input: steps(3, end), Computed: steps(3)
+Input: steps(5, start), Computed: steps(5, start)
+Input: steps(6, jump-none), Computed: steps(6, jump-none)
+Input: steps(10, jump-both), Computed: steps(10, jump-both)
+Input: steps(1, jump-end), Computed: steps(1)

@@ -1,0 +1,13 @@
+// https://html.spec.whatwg.org/multipage/popover.html#attr-popovertargetaction
+[MissingValueDefault=toggle, InvalidValueDefault=toggle]
+enum PopoverTargetActionAttribute {
+    "toggle",
+    "show",
+    "hide"
+};
+
+// https://html.spec.whatwg.org/multipage/popover.html#popovertargetattributes
+interface mixin PopoverTargetAttributes {
+    [Reflect=popovertarget, CEReactions] attribute Element? popoverTargetElement;
+    [Reflect=popovertargetaction, Enumerated=PopoverTargetActionAttribute, CEReactions] attribute DOMString popoverTargetAction;
+};

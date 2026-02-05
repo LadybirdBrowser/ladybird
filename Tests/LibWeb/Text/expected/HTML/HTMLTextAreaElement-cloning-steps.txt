@@ -1,0 +1,1 @@
+Cloned textarea value: PASS

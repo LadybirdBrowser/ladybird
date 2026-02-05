@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+before
+<div id="for-deletion">
+    <div>should</div>
+    <div>be</div>
+    <div>gone</div>
+</div>
+after
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.getElementById("for-deletion");
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.deleteContents();
+        println(document.body.innerText);
+    });
+</script>

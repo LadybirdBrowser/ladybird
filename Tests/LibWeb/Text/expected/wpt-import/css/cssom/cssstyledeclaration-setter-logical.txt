@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	newly set declaration should be after all declarations in the same logical property group but have different logical kind

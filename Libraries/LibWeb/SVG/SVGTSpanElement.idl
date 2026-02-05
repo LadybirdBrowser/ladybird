@@ -1,0 +1,6 @@
+#import <SVG/SVGTextPositioningElement.idl>
+
+// https://svgwg.org/svg2-draft/text.html#InterfaceSVGTSpanElement
+[Exposed=Window]
+interface SVGTSpanElement : SVGTextPositioningElement {
+};

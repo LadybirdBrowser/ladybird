@@ -1,0 +1,35 @@
+#include <LibCore/Proxy.h>
+#include <LibHTTP/Cache/CacheMode.h>
+#include <LibHTTP/Header.h>
+#include <LibURL/URL.h>
+#include <RequestServer/CacheLevel.h>
+
+endpoint RequestServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+    connect_new_client() => (IPC::File client_socket)
+    connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
+
+    // use_tls: enable DNS over TLS
+    set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) =|
+    set_use_system_dns() =|
+
+    // Test if a specific protocol is supported, e.g "http"
+    is_supported_protocol(ByteString protocol) => (bool supported)
+
+    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Core::ProxyData proxy_data) =|
+    stop_request(u64 request_id) => (bool success)
+    set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
+
+    ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) =|
+
+    estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) =|
+    remove_cache_entries_accessed_since(UnixDateTime since) =|
+
+    // Websocket Connection API
+    websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers) =|
+    websocket_send(u64 websocket_id, bool is_text, ByteBuffer data) =|
+    websocket_close(u64 websocket_id, u16 code, ByteString reason) =|
+    websocket_set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
+
+}

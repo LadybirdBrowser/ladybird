@@ -1,0 +1,68 @@
+#import <HTML/HTMLCanvasElement.idl>
+#import <HTML/Canvas/CanvasCompositing.idl>
+#import <HTML/Canvas/CanvasDrawImage.idl>
+#import <HTML/Canvas/CanvasDrawPath.idl>
+#import <HTML/Canvas/CanvasFillStrokeStyles.idl>
+#import <HTML/Canvas/CanvasFilters.idl>
+#import <HTML/Canvas/CanvasImageData.idl>
+#import <HTML/Canvas/CanvasImageSmoothing.idl>
+#import <HTML/Canvas/CanvasPath.idl>
+#import <HTML/Canvas/CanvasPathDrawingStyles.idl>
+#import <HTML/Canvas/CanvasTextDrawingStyles.idl>
+#import <HTML/Canvas/CanvasRect.idl>
+#import <HTML/Canvas/CanvasSettings.idl>
+#import <HTML/Canvas/CanvasShadowStyles.idl>
+#import <HTML/Canvas/CanvasState.idl>
+#import <HTML/Canvas/CanvasText.idl>
+#import <HTML/Canvas/CanvasTransform.idl>
+#import <HTML/Canvas/CanvasUserInterface.idl>
+
+// FIXME: This should be in CanvasSettings.idl but then it is not exported
+// https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
+enum PredefinedColorSpace { "srgb", "display-p3" };
+// https://html.spec.whatwg.org/multipage/canvas.html#canvascolortype
+enum CanvasColorType { "unorm8", "float16" };
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2dsettings
+dictionary CanvasRenderingContext2DSettings {
+    boolean alpha = true;
+    boolean desynchronized = false;
+    PredefinedColorSpace colorSpace = "srgb";
+    CanvasColorType colorType = "unorm8";
+    boolean willReadFrequently = false;
+};
+
+enum ImageSmoothingQuality { "low", "medium", "high" };
+
+// FIXME: This should be in CanvasPathDrawingStyles.idl but then it is not exported
+enum CanvasLineCap { "butt", "round", "square" };
+enum CanvasLineJoin { "round", "bevel", "miter" };
+
+// FIXME: This should be in CanvasTextDrawingStyles.idl but then it is not exported
+enum CanvasTextAlign { "start", "end", "left", "right", "center" };
+enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic", "bottom" };
+enum CanvasDirection { "ltr", "rtl", "inherit" };
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2d
+[Exposed=Window]
+interface CanvasRenderingContext2D {
+    [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
+};
+
+CanvasRenderingContext2D includes CanvasSettings;
+CanvasRenderingContext2D includes CanvasState;
+CanvasRenderingContext2D includes CanvasTransform;
+CanvasRenderingContext2D includes CanvasCompositing;
+CanvasRenderingContext2D includes CanvasImageSmoothing;
+CanvasRenderingContext2D includes CanvasFillStrokeStyles;
+CanvasRenderingContext2D includes CanvasShadowStyles;
+CanvasRenderingContext2D includes CanvasFilters;
+CanvasRenderingContext2D includes CanvasRect;
+CanvasRenderingContext2D includes CanvasDrawPath;
+CanvasRenderingContext2D includes CanvasUserInterface;
+CanvasRenderingContext2D includes CanvasText;
+CanvasRenderingContext2D includes CanvasDrawImage;
+CanvasRenderingContext2D includes CanvasImageData;
+CanvasRenderingContext2D includes CanvasPathDrawingStyles;
+CanvasRenderingContext2D includes CanvasTextDrawingStyles;
+CanvasRenderingContext2D includes CanvasPath;

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['animation-composition'] = "auto" should not set the property value
+Pass	e.style['animation-composition'] = "add replace" should not set the property value
+Pass	e.style['animation-composition'] = "add, initial" should not set the property value
+Pass	e.style['animation-composition'] = "initial, add" should not set the property value

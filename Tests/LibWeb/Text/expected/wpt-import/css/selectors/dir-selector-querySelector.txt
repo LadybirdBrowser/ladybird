@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	:dir() allows any ident value but strings other than ltr/rtl don't match
+Pass	:dir() requires exactly an ident argument
+Pass	:dir() works in compound selectors
+Pass	:dir() works in complex selectors

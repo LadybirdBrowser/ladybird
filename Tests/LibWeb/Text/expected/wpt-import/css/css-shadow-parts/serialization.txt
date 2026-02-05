@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Escape start parenthesis in ::part name.
+Pass	Escape start space in ::part name.
+Pass	Collapse spaces in ::part names list.

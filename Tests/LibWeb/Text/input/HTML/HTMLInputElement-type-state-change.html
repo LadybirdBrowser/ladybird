@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const testData = [
+            { initialType: "text", newType: "email", initialValue: "  test  " },
+            { initialType: "text", newType: "URL", initialValue: "  test  " },
+            { initialType: "hidden", newType: "text", initialValue: "  t\re\nst  " },
+            { initialType: "hidden", newType: "search", initialValue: "  t\re\nst  " },
+            { initialType: "hidden", newType: "tel", initialValue: "  t\re\nst  " },
+            { initialType: "hidden", newType: "password", initialValue: "  t\re\nst  " },
+            { initialType: "hidden", newType: "email", initialValue: "  t\re\nst  " },
+            { initialType: "hidden", newType: "URL", initialValue: "   t\re\nst  " },
+            { initialType: "text", newType: "number", initialValue: "123.45" },
+            { initialType: "text", newType: "number", initialValue: "not-a-number" },
+            { initialType: "text", newType: "date", initialValue: "not-a-date" },
+            { initialType: "text", newType: "date", initialValue: "2024-09-10" },
+            { initialType: "text", newType: "date", initialValue: "2024--09--10" },
+            { initialType: "text", newType: "datetime-local", initialValue: "not-a-local-datetime" },
+            { initialType: "text", newType: "datetime-local", initialValue: "2024-09-10 23:59" },
+            { initialType: "text", newType: "datetime-local", initialValue: "2024-09-10T23:59" },
+            { initialType: "text", newType: "datetime-local", initialValue: "2024--09--10TT23::59" },
+            { initialType: "text", newType: "month", initialValue: "not-a-month" },
+            { initialType: "text", newType: "month", initialValue: "2024-09" },
+            { initialType: "text", newType: "month", initialValue: "2024--09" },
+            { initialType: "text", newType: "week", initialValue: "not-a-week" },
+            { initialType: "text", newType: "week", initialValue: "2024-W26" },
+            { initialType: "text", newType: "week", initialValue: "2024--W26" },
+            { initialType: "text", newType: "time", initialValue: "not-a-time" },
+            { initialType: "text", newType: "time", initialValue: "23:59:59" },
+            { initialType: "text", newType: "time", initialValue: "23::59::59" },
+        ];
+        for (const { initialType, newType, initialValue } of testData) {
+            const inputElement = document.createElement("input");
+            inputElement.type = initialType;
+            inputElement.value = initialValue;
+            inputElement.type = newType;
+            const initialValueForDisplay = initialValue.replace("\r", "\\r").replace("\n", "\\n");
+            const mutatedValue = inputElement.value.replace("\r", "\\r").replace("\n", "\\n");
+            println(`Changing type from "${initialType}" to "${newType}" changes value from "${initialValueForDisplay}" to "${mutatedValue}"`);
+        }
+    });
+</script>

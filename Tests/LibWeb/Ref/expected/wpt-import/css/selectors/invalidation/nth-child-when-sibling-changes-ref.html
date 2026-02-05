@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :nth-child(... of class) when sibling changes</title>
+<link rel="author" title="Steinar H. Gunderson" href="sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<div>
+  <p>Ignored</p>
+  <p>Odd; used to be green, should not be since no sibling</p>
+  <p>Even, so should not be green</p>
+  <p>Odd, but no sibling, so should not be green</p>
+  <p>Even, so should not be green</p>
+  <p>Ignored</p>
+  <p style="color: green">Odd, should be green</p>
+</div>

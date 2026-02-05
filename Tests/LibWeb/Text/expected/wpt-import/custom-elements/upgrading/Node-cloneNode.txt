@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Node.prototype.cloneNode(false) must be able to clone a custom element
+Pass	Node.prototype.cloneNode(false) must be able to clone as a autonomous custom element when it contains is attribute
+Pass	Node.prototype.cloneNode(false) must be able to clone a custom element inside an iframe
+Pass	Node.prototype.cloneNode(true) must be able to clone a descendent custom element
+Pass	Node.prototype.cloneNode(true) must set parentNode, previousSibling, and nextSibling before upgrading custom elements
+Pass	HTMLElement constructor must throw an TypeError when the top of the construction stack is marked AlreadyConstructed due to a custom element constructor constructing itself after super() call
+Pass	HTMLElement constructor must throw an TypeError when the top of the construction stack is marked AlreadyConstructed due to a custom element constructor constructing itself before super() call
+Pass	Upgrading a custom element must throw TypeError when the custom element's constructor returns another element
+Pass	Inserting an element must not try to upgrade a custom element when it had already failed to upgrade once

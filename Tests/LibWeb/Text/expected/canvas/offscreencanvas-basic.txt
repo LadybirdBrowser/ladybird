@@ -1,0 +1,3 @@
+{"w":10,"h":10}
+normal normal 20px SerenitySans
+normal normal 20px SerenitySans

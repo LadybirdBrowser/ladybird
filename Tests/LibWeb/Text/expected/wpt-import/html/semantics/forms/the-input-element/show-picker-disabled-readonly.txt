@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 44 tests
+
+44 Pass
+Pass	input[type=button] showPicker() throws when disabled
+Pass	input[type=checkbox] showPicker() throws when disabled
+Pass	input[type=color] showPicker() throws when disabled
+Pass	input[type=date] showPicker() throws when disabled
+Pass	input[type=datetime-local] showPicker() throws when disabled
+Pass	input[type=email] showPicker() throws when disabled
+Pass	input[type=file] showPicker() throws when disabled
+Pass	input[type=hidden] showPicker() throws when disabled
+Pass	input[type=image] showPicker() throws when disabled
+Pass	input[type=month] showPicker() throws when disabled
+Pass	input[type=number] showPicker() throws when disabled
+Pass	input[type=password] showPicker() throws when disabled
+Pass	input[type=radio] showPicker() throws when disabled
+Pass	input[type=range] showPicker() throws when disabled
+Pass	input[type=reset] showPicker() throws when disabled
+Pass	input[type=search] showPicker() throws when disabled
+Pass	input[type=submit] showPicker() throws when disabled
+Pass	input[type=tel] showPicker() throws when disabled
+Pass	input[type=text] showPicker() throws when disabled
+Pass	input[type=time] showPicker() throws when disabled
+Pass	input[type=url] showPicker() throws when disabled
+Pass	input[type=week] showPicker() throws when disabled
+Pass	input[type=button] showPicker() doesn't throw when readonly
+Pass	input[type=checkbox] showPicker() doesn't throw when readonly
+Pass	input[type=color] showPicker() doesn't throw when readonly
+Pass	input[type=date] showPicker() throws when readonly
+Pass	input[type=datetime-local] showPicker() throws when readonly
+Pass	input[type=email] showPicker() throws when readonly
+Pass	input[type=file] showPicker() doesn't throw when readonly
+Pass	input[type=hidden] showPicker() doesn't throw when readonly
+Pass	input[type=image] showPicker() doesn't throw when readonly
+Pass	input[type=month] showPicker() throws when readonly
+Pass	input[type=number] showPicker() throws when readonly
+Pass	input[type=password] showPicker() throws when readonly
+Pass	input[type=radio] showPicker() doesn't throw when readonly
+Pass	input[type=range] showPicker() doesn't throw when readonly
+Pass	input[type=reset] showPicker() doesn't throw when readonly
+Pass	input[type=search] showPicker() throws when readonly
+Pass	input[type=submit] showPicker() doesn't throw when readonly
+Pass	input[type=tel] showPicker() throws when readonly
+Pass	input[type=text] showPicker() throws when readonly
+Pass	input[type=time] showPicker() throws when readonly
+Pass	input[type=url] showPicker() throws when readonly
+Pass	input[type=week] showPicker() throws when readonly

@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	ChaCha20-Poly1305 encryption with empty additional data, empty data
+Pass	ChaCha20-Poly1305 decryption with empty additional data, empty data
+Pass	ChaCha20-Poly1305 encryption with empty additional data, short data
+Pass	ChaCha20-Poly1305 decryption with empty additional data, short data
+Pass	ChaCha20-Poly1305 encryption with empty additional data, medium data
+Pass	ChaCha20-Poly1305 decryption with empty additional data, medium data
+Pass	ChaCha20-Poly1305 encryption with empty additional data, long data
+Pass	ChaCha20-Poly1305 decryption with empty additional data, long data
+Pass	ChaCha20-Poly1305 encryption with short additional data, empty data
+Pass	ChaCha20-Poly1305 decryption with short additional data, empty data
+Pass	ChaCha20-Poly1305 encryption with short additional data, short data
+Pass	ChaCha20-Poly1305 decryption with short additional data, short data
+Pass	ChaCha20-Poly1305 encryption with short additional data, medium data
+Pass	ChaCha20-Poly1305 decryption with short additional data, medium data
+Pass	ChaCha20-Poly1305 encryption with short additional data, long data
+Pass	ChaCha20-Poly1305 decryption with short additional data, long data
+Pass	ChaCha20-Poly1305 encryption with medium additional data, empty data
+Pass	ChaCha20-Poly1305 decryption with medium additional data, empty data
+Pass	ChaCha20-Poly1305 encryption with medium additional data, short data
+Pass	ChaCha20-Poly1305 decryption with medium additional data, short data
+Pass	ChaCha20-Poly1305 encryption with medium additional data, medium data
+Pass	ChaCha20-Poly1305 decryption with medium additional data, medium data
+Pass	ChaCha20-Poly1305 encryption with medium additional data, long data
+Pass	ChaCha20-Poly1305 decryption with medium additional data, long data
+Pass	ChaCha20-Poly1305 round-trip encrypt/decrypt
+Pass	ChaCha20-Poly1305 decryption with wrong additional data should fail
+Pass	ChaCha20-Poly1305 decryption with wrong IV should fail
+Pass	ChaCha20-Poly1305 encryption with invalid IV size should fail

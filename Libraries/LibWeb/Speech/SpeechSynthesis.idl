@@ -1,0 +1,25 @@
+#import <DOM/EventTarget.idl>
+#import <HTML/Window.idl>
+#import <Speech/SpeechSynthesisUtterance.idl>
+#import <Speech/SpeechSynthesisVoice.idl>
+
+// https://wicg.github.io/speech-api/#speechsynthesis
+[Exposed=Window]
+interface SpeechSynthesis : EventTarget {
+    readonly attribute boolean pending;
+    readonly attribute boolean speaking;
+    readonly attribute boolean paused;
+
+    attribute EventHandler onvoiceschanged;
+
+    [FIXME] undefined speak(SpeechSynthesisUtterance utterance);
+    [FIXME] undefined cancel();
+    [FIXME] undefined pause();
+    [FIXME] undefined resume();
+    sequence<SpeechSynthesisVoice> getVoices();
+};
+
+// https://wicg.github.io/speech-api/#tts-section
+partial interface Window {
+    [SameObject] readonly attribute SpeechSynthesis speechSynthesis;
+};

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-realm XPath evaluator</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+  function toArray(result) {
+  var a = [];
+  while (true) {
+    var node = result.iterateNext();
+    if (node === null) break;
+    a.push(node);
+  }
+  return a;
+}
+
+var html_ns = "http://www.w3.org/1999/xhtml";
+var xml_doc = document.implementation.createDocument(html_ns, "html");
+var html_doc = document.implementation.createHTMLDocument();
+
+promise_test(async (t) => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "/common/dummy.xml";
+  document.body.appendChild(iframe);
+  await new Promise(resolve => {
+    iframe.addEventListener("load", resolve, {once: true});
+  });
+  t.add_cleanup(() => iframe.remove());
+  const iframe_expression = iframe.contentDocument.createExpression("//html");
+  assert_array_equals(toArray(iframe_expression.evaluate(xml_doc)), []);
+}, "expression from realm with XML associated document, context node in XML document, no namespace resolver");
+
+promise_test(async (t) => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "/common/dummy.xml";
+  document.body.appendChild(iframe);
+  await new Promise(resolve => {
+    iframe.addEventListener("load", resolve, {once: true});
+  });
+  t.add_cleanup(() => iframe.remove());
+  const iframe_expression = iframe.contentDocument.createExpression("//html");
+  assert_array_equals(toArray(iframe_expression.evaluate(html_doc)), [html_doc.documentElement]);
+}, "expression from realm with XML associated document, context node in HTML document, no namespace resolver");
+
+promise_test(async (t) => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "/common/blank.html";
+  document.body.appendChild(iframe);
+  await new Promise(resolve => {
+    iframe.addEventListener("load", resolve, {once: true});
+  });
+  t.add_cleanup(() => iframe.remove());
+  const iframe_expression = iframe.contentDocument.createExpression("//html");
+  assert_array_equals(toArray(iframe_expression.evaluate(xml_doc)), []);
+}, "expression from realm with HTML associated document, context node in XML document, no namespace resolver");
+
+promise_test(async (t) => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "/common/blank.html";
+  document.body.appendChild(iframe);
+  await new Promise(resolve => {
+    iframe.addEventListener("load", resolve, {once: true});
+  });
+  t.add_cleanup(() => iframe.remove());
+  const iframe_expression = iframe.contentDocument.createExpression("//html");
+  assert_array_equals(toArray(iframe_expression.evaluate(html_doc)), [html_doc.documentElement]);
+}, "expression from realm with HTML associated document, context node in HTML document, no namespace resolver");
+</script>

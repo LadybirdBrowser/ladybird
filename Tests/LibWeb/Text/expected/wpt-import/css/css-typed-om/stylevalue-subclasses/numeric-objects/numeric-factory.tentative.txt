@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 34 tests
+
+34 Pass
+Pass	CSS.number returns a CSSUnitValue with correct value and unit
+Pass	CSS.percent returns a CSSUnitValue with correct value and unit
+Pass	CSS.em returns a CSSUnitValue with correct value and unit
+Pass	CSS.ex returns a CSSUnitValue with correct value and unit
+Pass	CSS.ch returns a CSSUnitValue with correct value and unit
+Pass	CSS.ic returns a CSSUnitValue with correct value and unit
+Pass	CSS.rem returns a CSSUnitValue with correct value and unit
+Pass	CSS.lh returns a CSSUnitValue with correct value and unit
+Pass	CSS.rlh returns a CSSUnitValue with correct value and unit
+Pass	CSS.vw returns a CSSUnitValue with correct value and unit
+Pass	CSS.vh returns a CSSUnitValue with correct value and unit
+Pass	CSS.vi returns a CSSUnitValue with correct value and unit
+Pass	CSS.vb returns a CSSUnitValue with correct value and unit
+Pass	CSS.vmin returns a CSSUnitValue with correct value and unit
+Pass	CSS.vmax returns a CSSUnitValue with correct value and unit
+Pass	CSS.cm returns a CSSUnitValue with correct value and unit
+Pass	CSS.mm returns a CSSUnitValue with correct value and unit
+Pass	CSS.Q returns a CSSUnitValue with correct value and unit
+Pass	CSS.in returns a CSSUnitValue with correct value and unit
+Pass	CSS.pt returns a CSSUnitValue with correct value and unit
+Pass	CSS.pc returns a CSSUnitValue with correct value and unit
+Pass	CSS.px returns a CSSUnitValue with correct value and unit
+Pass	CSS.deg returns a CSSUnitValue with correct value and unit
+Pass	CSS.grad returns a CSSUnitValue with correct value and unit
+Pass	CSS.rad returns a CSSUnitValue with correct value and unit
+Pass	CSS.turn returns a CSSUnitValue with correct value and unit
+Pass	CSS.s returns a CSSUnitValue with correct value and unit
+Pass	CSS.ms returns a CSSUnitValue with correct value and unit
+Pass	CSS.Hz returns a CSSUnitValue with correct value and unit
+Pass	CSS.kHz returns a CSSUnitValue with correct value and unit
+Pass	CSS.dpi returns a CSSUnitValue with correct value and unit
+Pass	CSS.dpcm returns a CSSUnitValue with correct value and unit
+Pass	CSS.dppx returns a CSSUnitValue with correct value and unit
+Pass	CSS.fr returns a CSSUnitValue with correct value and unit

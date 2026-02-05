@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Fail
+Details
+Result	Test Name	MessageFail	The popover should be bottom left positioned	
+Fail	The popover should be top left positioned	
+Fail	The popover should be bottom right positioned	
+Fail	The popover should be top right positioned	

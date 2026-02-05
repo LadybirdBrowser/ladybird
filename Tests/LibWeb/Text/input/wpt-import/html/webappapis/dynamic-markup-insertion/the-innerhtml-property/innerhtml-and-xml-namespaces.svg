@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="1000px">
+  <title>innerHTML setter and XML namespaces</title>
+  <metadata>
+    <h:link rel="help" href="https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#the-innerhtml-property"/>
+  </metadata>
+  <h:script src="../../../../resources/testharness.js"/>
+  <h:script src="../../../../resources/testharnessreport.js"/>
+
+  <foreignObject>
+    <h:body>
+      <h:div/>
+      <g/>
+      <element xmlns=""/>
+      <element xmlns="https://example.org/ns"/>
+
+      <h:script><![CDATA[
+      "use strict";
+
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const XHTML_NS = "http://www.w3.org/1999/xhtml";
+
+      const body = document.querySelector("body");
+      const prefixedContainer = body.firstElementChild;
+      const unprefixedContainer = prefixedContainer.nextElementSibling;
+      const noDefaultNsContainer = unprefixedContainer.nextElementSibling;
+      const newDefaultNsContainer = noDefaultNsContainer.nextElementSibling;
+
+      test(() => {
+        assert_equals(prefixedContainer.namespaceURI, XHTML_NS);
+        assert_true(prefixedContainer.isDefaultNamespace(SVG_NS));
+        assert_equals(unprefixedContainer.namespaceURI, SVG_NS);
+        assert_true(unprefixedContainer.isDefaultNamespace(SVG_NS));
+        assert_equals(noDefaultNsContainer.namespaceURI, null);
+        assert_true(noDefaultNsContainer.isDefaultNamespace(""));
+        assert_equals(newDefaultNsContainer.namespaceURI, "https://example.org/ns");
+        assert_true(newDefaultNsContainer.isDefaultNamespace("https://example.org/ns"));
+      }, "prerequisites");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e></e>";
+        assert_equals(prefixedContainer.firstChild.namespaceURI, SVG_NS);
+      }, "default namespace applies to children of namespaced element");
+
+      test(() => {
+        unprefixedContainer.innerHTML = "<e></e>";
+        assert_equals(unprefixedContainer.firstChild.namespaceURI, SVG_NS);
+      }, "default namespace applies to children of default-namespaced element");
+
+      test(() => {
+        noDefaultNsContainer.innerHTML = "<e></e>";
+        assert_equals(noDefaultNsContainer.firstChild.namespaceURI, null);
+      }, "default namespace applies to children of non-namespaced element");
+
+      test(() => {
+        newDefaultNsContainer.innerHTML = "<e></e>";
+        assert_equals(newDefaultNsContainer.firstChild.namespaceURI, "https://example.org/ns");
+      }, "default namespace applies to children of namespaced element with new default namespace");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e><h:span></h:span></e>";
+        assert_equals(prefixedContainer.firstChild.firstChild.namespaceURI, XHTML_NS);
+      }, "namespace prefix applies to children of namespaced element");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e><h:span><f></f></h:span></e>";
+        assert_equals(prefixedContainer.firstChild.firstChild.firstChild.namespaceURI, SVG_NS);
+      }, "default namespace prefix applies to descendants of namespaced element");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e><f xmlns=''><g></g></f></e>";
+        assert_equals(prefixedContainer.firstChild.firstChild.namespaceURI, null);
+      }, "unsetting default namespace works inside parse of fragment (on element)");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e><f xmlns=''><g></g></f></e>";
+        assert_equals(prefixedContainer.firstChild.firstChild.firstChild.namespaceURI, null);
+      }, "unsetting default namespace works inside parse of fragment (on child of element)");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e><f xmlns=''><g></g></f><h/></e>";
+        assert_equals(prefixedContainer.firstChild.firstChild.firstChild.namespaceURI, null);
+        assert_equals(prefixedContainer.firstChild.lastChild.namespaceURI, SVG_NS);
+      }, "default namespace applied to sibling of namespace-resetting element in parse of fragment.");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e><h:f xmlns:h='https://example.com/new-h'><g><h:d></h:d></g></h:f></e>";
+        assert_equals(prefixedContainer.firstChild.firstChild.namespaceURI, "https://example.com/new-h");
+        assert_equals(prefixedContainer.firstChild.firstChild.firstChild.namespaceURI, SVG_NS);
+        assert_equals(prefixedContainer.firstChild.firstChild.firstChild.firstChild.namespaceURI, "https://example.com/new-h");
+      }, "declaring namespace with prefix inside of fragment parsed by innerHTML");
+
+      test(() => {
+        prefixedContainer.innerHTML = "<e><f xmlns='https://example.com/new-default'><h:g><d></d></h:g></f></e>";
+        assert_equals(prefixedContainer.firstChild.firstChild.namespaceURI, "https://example.com/new-default");
+        assert_equals(prefixedContainer.firstChild.firstChild.firstChild.namespaceURI, XHTML_NS);
+        assert_equals(prefixedContainer.firstChild.firstChild.firstChild.firstChild.namespaceURI, "https://example.com/new-default");
+      }, "declaring default namespace inside of fragment parsed by innerHTML");
+
+      ]]></h:script>
+    </h:body>
+  </foreignObject>
+</svg>

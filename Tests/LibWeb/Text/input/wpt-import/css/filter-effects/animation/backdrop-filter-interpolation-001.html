@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>backdrop-filter interpolation</title>
+    <link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+    <meta name="assert" content="Matching lists interpolate.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+      .parent {
+        backdrop-filter: hue-rotate(30deg);
+      }
+      .target {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        background-color: green;
+        color: white;
+        margin-right: 2px;
+        backdrop-filter: hue-rotate(10deg);
+      }
+      .expected {
+        margin-right: 20px;
+      }
+      .test {
+        padding-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'hue-rotate(0deg) blur(6px)',
+        to: 'hue-rotate(180deg) blur(10px)'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-90deg) blur(4px)'},
+        {at: 0, expect: 'hue-rotate(0deg) blur(6px)'},
+        {at: 0.25, expect: 'hue-rotate(45deg) blur(7px)'},
+        {at: 0.5, expect: 'hue-rotate(90deg) blur(8px)'},
+        {at: 1, expect: 'hue-rotate(180deg) blur(10px)'},
+        {at: 1.5, expect: 'hue-rotate(270deg) blur(12px)'}
+      ]);
+
+      // Matching lists with differing units:
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'hue-rotate(80deg) blur(6mm)',
+        to: 'hue-rotate(100grad) blur(1cm)'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(75deg) blur(4mm)'},
+        {at: 0, expect: 'hue-rotate(80deg) blur(6mm)'},
+        {at: 0.25, expect: 'hue-rotate(82.5deg) blur(7mm)'},
+        {at: 0.5, expect: 'hue-rotate(85deg) blur(8mm)'},
+        {at: 1, expect: 'hue-rotate(90deg) blur(10mm)'},
+        {at: 1.5, expect: 'hue-rotate(95deg) blur(12mm)'}
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: neutralKeyframe,
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(5deg)'},
+        {at: 0, expect: 'hue-rotate(10deg)'},
+        {at: 0.3, expect: 'hue-rotate(13deg)'},
+        {at: 0.6, expect: 'hue-rotate(16deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(25deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'initial',
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-10deg)'},
+        {at: 0, expect: 'hue-rotate(0deg)'},
+        {at: 0.3, expect: 'hue-rotate(6deg)'},
+        {at: 0.6, expect: 'hue-rotate(12deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(30deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'inherit',
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(35deg)'},
+        {at: 0, expect: 'hue-rotate(30deg)'},
+        {at: 0.3, expect: 'hue-rotate(27deg)'},
+        {at: 0.6, expect: 'hue-rotate(24deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(15deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'unset',
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-10deg)'},
+        {at: 0, expect: 'hue-rotate(0deg)'},
+        {at: 0.3, expect: 'hue-rotate(6deg)'},
+        {at: 0.6, expect: 'hue-rotate(12deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(30deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none',
+        to: 'hue-rotate(180deg)'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-90deg)'},
+        {at: 0, expect: 'hue-rotate(0deg)'},
+        {at: 0.25, expect: 'hue-rotate(45deg)'},
+        {at: 0.5, expect: 'hue-rotate(90deg)'},
+        {at: 1, expect: 'hue-rotate(180deg)'},
+        {at: 1.5, expect: 'hue-rotate(270deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'hue-rotate(180deg)',
+        to: 'none'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(270deg)'},
+        {at: 0, expect: 'hue-rotate(180deg)'},
+        {at: 0.25, expect: 'hue-rotate(135deg)'},
+        {at: 0.5, expect: 'hue-rotate(90deg)'},
+        {at: 1, expect: 'hue-rotate(0deg)'},
+        {at: 1.5, expect: 'hue-rotate(-90deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'drop-shadow(0px 0px 0px currentcolor)',
+        to: 'drop-shadow(20px 10px green)'
+      }, [
+        {at: -1, expect: 'drop-shadow(-20px -10px white)'},
+        {at: 0, expect: 'drop-shadow(0px 0px 0px currentcolor)'},
+        {at: 0.5, expect: 'drop-shadow(10px 5px #80C080)'},
+        {at: 1, expect: 'drop-shadow(20px 10px green)'},
+        {at: 1.5, expect: 'drop-shadow(30px 15px #004100)'}
+      ]);
+
+      test_no_interpolation({
+        property: 'backdrop-filter',
+        from: 'url("#svgfilter")',
+        to: 'blur(5px)',
+      });
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'initial', // lacuna is 0
+        to: 'sepia(1)'
+      }, [
+        {at: -1, expect: 'sepia(0)'}, // Negative values are not allowed.
+        {at: 0, expect: 'sepia(0)'},
+        {at: 0.5, expect: 'sepia(0.5)'},
+        {at: 1, expect: 'sepia(1)'},
+        {at: 1.5, expect: 'sepia(1)'} // Should clamp values to 1.
+      ]);
+    </script>
+  </body>
+</html>

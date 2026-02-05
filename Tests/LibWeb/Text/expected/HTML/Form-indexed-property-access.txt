@@ -1,0 +1,14 @@
+form.length: 12
+elements.length: 12
+form[0].name: foo
+form[1].name: bar
+form[2].name: baz
+form[3].name: qux
+form[4].name: quux
+form[5].name: corge
+form[6].name: foo2
+form[7].name: bar2
+form[8].name: baz2
+form[9].name: qux2
+form[10].name: quux2
+form[11].name: corge2

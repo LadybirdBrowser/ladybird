@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <title>XMLHttpRequest: setRequestHeader() name argument checks</title>
+    <meta charset="utf-8">
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <link rel="help" href="https://xhr.spec.whatwg.org/#the-setrequestheader()-method" data-tested-assertations="/following::ol/li[3]" />
+  </head>
+  <body>
+    <div id="log"></div>
+<!--
+       CHAR           = <any US-ASCII character (octets 0 - 127)>
+       CTL            = <any US-ASCII control character
+                        (octets 0 - 31) and DEL (127)>
+       SP             = <US-ASCII SP, space (32)>
+       HT             = <US-ASCII HT, horizontal-tab (9)>
+       token          = 1*<any CHAR except CTLs or separators>
+       separators     = "(" | ")" | "<" | ">" | "@"
+                      | "," | ";" | ":" | "\" | <">
+                      | "/" | "[" | "]" | "?" | "="
+                      | "{" | "}" | SP | HT
+       field-name     = token
+-->
+    <script>
+      function try_name(name) {
+        test(function() {
+          var client = new XMLHttpRequest()
+          client.open("GET", "...")
+          assert_throws_dom("SyntaxError", function() { client.setRequestHeader(name, 'x-value') })
+        }, "setRequestHeader should throw with header name " + format_value(invalid_headers[i]) + ".")
+      }
+      function try_byte_string(name) {
+        test(function() {
+          var client = new XMLHttpRequest()
+          client.open("GET", "...")
+          assert_throws_js(TypeError, function() { client.setRequestHeader(name, 'x-value') })
+        }, "setRequestHeader should throw with header name " + format_value(invalid_byte_strings[i]) + ".")
+      }
+      var invalid_headers = ["(", ")", "<", ">", "@", ",", ";", ":", "\\",
+                             "\"", "/", "[", "]", "?", "=", "{", "}", " ",
+                             /* HT already tested in the loop below */
+                             "\u007f", "", "t\rt", "t\nt", "t: t", "t:t",
+                             "t<t", "t t", " tt", ":tt", "\ttt", "\vtt", "t\0t",
+                             "t\"t", "t,t", "t;t", "()[]{}", "a?B", "a=B"]
+      var invalid_byte_strings = ["ﾃｽﾄ", "X-ﾃｽﾄ"]
+      for (var i = 0; i < 32; ++i) {
+        invalid_headers.push(String.fromCharCode(i))
+      }
+      for (var i = 0; i < invalid_headers.length; ++i) {
+        try_name(invalid_headers[i])
+      }
+      for (var i = 0; i < invalid_byte_strings.length; ++i) {
+        try_byte_string(invalid_byte_strings[i])
+      }
+
+    </script>
+  </body>
+</html>

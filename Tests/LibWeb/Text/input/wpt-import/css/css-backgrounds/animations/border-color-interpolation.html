@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-color interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-color">
+<meta name="assert" content="border-color supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  border-color: white;
+}
+.target {
+  width: 50px;
+  height: 50px;
+  background-color: blue;
+  display: inline-block;
+  border: 12px solid;
+  border-color: darkblue;
+}
+.expected {
+  background-color: green;
+  margin-right: 2px;
+}
+</style>
+
+<body></body>
+
+<script>
+// As per https://bugzilla.mozilla.org/show_bug.cgi?id=137688, Firefox does not
+// support getComputedStyle for shorthands. As such, we have one test for this
+// which explicitly checks the shorthand variant, but most tests use one of the
+// longhands instead.
+function compareNotEmpty(actual, expected) {
+  assert_equals(actual, expected);
+  assert_not_equals(actual, '');
+}
+
+test_interpolation({
+  property: 'border-color',
+  from: 'rgb(20, 30, 40) rgb(40, 50, 60)',
+  to: 'rgb(10, 20, 30) rgb(40, 50, 60) rgb(30, 40, 50) rgb(50, 60, 70)',
+  comparisonFunction: compareNotEmpty,
+}, [
+  {at: -0.3, expect: 'rgb(23, 33, 43) rgb(40, 50, 60) rgb(17, 27, 37) rgb(37, 47, 57)'},
+  {at: 0, expect: 'rgb(20, 30, 40) rgb(40, 50, 60)'},
+  {at: 0.3, expect: 'rgb(17, 27, 37) rgb(40, 50, 60) rgb(23, 33, 43) rgb(43, 53, 63)'},
+  {at: 0.6, expect: 'rgb(14, 24, 34) rgb(40, 50, 60) rgb(26, 36, 46) rgb(46, 56, 66)'},
+  {at: 1, expect: 'rgb(10, 20, 30) rgb(40, 50, 60) rgb(30, 40, 50) rgb(50, 60, 70)'},
+  {at: 1.5, expect: 'rgb(5, 15, 25) rgb(40, 50, 60) rgb(35, 45, 55) rgb(55, 65, 75)'},
+]);
+
+test_interpolation({
+  property: 'border-top-color',
+  from: neutralKeyframe,
+  to: 'orange',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 181)'},
+  {at: 0, expect: 'rgb(0, 0, 139)'},
+  {at: 0.3, expect: 'rgb(77, 50, 97)'},
+  {at: 0.6, expect: 'rgb(153, 99, 56)'},
+  {at: 1, expect: 'rgb(255, 165, 0)'},
+  {at: 1.5, expect: 'rgb(255, 248, 0)'},
+]);
+
+test_interpolation({
+  property: 'border-top-color',
+  from: 'initial',
+  to: 'orange',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0)'},
+  {at: 0, expect: 'rgb(0, 0, 0)'},
+  {at: 0.3, expect: 'rgb(77, 50, 0)'},
+  {at: 0.6, expect: 'rgb(153, 99, 0)'},
+  {at: 1, expect: 'rgb(255, 165, 0)'},
+  {at: 1.5, expect: 'rgb(255, 248, 0)'},
+]);
+
+test_interpolation({
+  property: 'border-top-color',
+  from: 'inherit',
+  to: 'orange',
+}, [
+  {at: -0.3, expect: 'rgb(255, 255, 255)'},
+  {at: 0, expect: 'rgb(255, 255, 255)'},
+  {at: 0.3, expect: 'rgb(255, 228, 179)'},
+  {at: 0.6, expect: 'rgb(255, 201, 102)'},
+  {at: 1, expect: 'rgb(255, 165, 0)'},
+  {at: 1.5, expect: 'rgb(255, 120, 0)'},
+]);
+
+test_interpolation({
+  property: 'border-top-color',
+  from: 'unset',
+  to: 'orange',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0)'},
+  {at: 0, expect: 'rgb(0, 0, 0)'},
+  {at: 0.3, expect: 'rgb(77, 50, 0)'},
+  {at: 0.6, expect: 'rgb(153, 99, 0)'},
+  {at: 1, expect: 'rgb(255, 165, 0)'},
+  {at: 1.5, expect: 'rgb(255, 248, 0)'},
+]);
+
+test_interpolation({
+  property: 'border-top-color',
+  from: 'white',
+  to: 'orange'
+}, [
+  {at: -0.3, expect: 'white'},
+  {at: 0, expect: 'white'},
+  {at: 0.3, expect: 'rgb(255, 228, 179)'},
+  {at: 0.6, expect: 'rgb(255, 201, 102)'},
+  {at: 1, expect: 'orange'},
+  {at: 1.5, expect: 'rgb(255, 120, 0)'},
+]);
+
+</script>

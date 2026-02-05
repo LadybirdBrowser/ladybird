@@ -1,0 +1,19 @@
+<!doctype html>
+<title>Appending from the parser after adopting in an XML document doesn't miss notifications</title>
+<link rel="match" href="../../../../../expected/wpt-import/html/the-xhtml-syntax/parsing-xhtml-documents/adopt-while-parsing-001-ref.html">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1511329">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<style>
+  html, body { margin: 0 }
+</style>
+<script>
+  // If we don't get notified of the <div> insertion, the PASS text will never appear.
+  function parsingInterrupted() {
+    let frameDoc = document.querySelector("iframe").contentDocument;
+    let root = frameDoc.documentElement;
+    document.documentElement.appendChild(root);
+    root.offsetTop;
+  }
+</script>
+<iframe src="support/adopt-while-parsing.xhtml"></iframe>

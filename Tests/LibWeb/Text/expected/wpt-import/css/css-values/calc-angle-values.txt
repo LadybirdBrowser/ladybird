@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	addition of 2 angle units: deg plus deg
+Pass	addition of 2 angle units: deg plus rad
+Pass	addition of 2 angle units: deg plus grad
+Pass	addition of 2 angle units: deg plus turn
+Pass	addition of 2 angle units: rad plus rad
+Pass	addition of 2 angle units: rad plus grad
+Pass	addition of 2 angle units: rad plus turn
+Pass	addition of 2 angle units: grad plus grad
+Pass	addition of 2 angle units: grad plus turn
+Pass	subtraction of angle unit: deg minus deg
+Pass	subtraction of angle unit: deg minus rad
+Pass	subtraction of angle unit: deg minus grad
+Pass	subtraction of angle unit: deg minus turn
+Pass	subtraction of angle unit: rad minus rad
+Pass	subtraction of angle unit: rad minus grad
+Pass	subtraction of angle unit: rad minus turn
+Pass	subtraction of angle unit: grad minus grad
+Pass	subtraction of angle unit: grad minus turn
+Pass	multiplication of angle unit: deg multiplied by int
+Pass	multiplication of angle unit: int multiplied by rad
+Pass	multiplication of angle unit: grad multiplied by int
+Pass	multiplication of angle unit: int multiplied by turn
+Pass	division of angle unit: deg divided by int
+Pass	division of angle unit: rad divided by int
+Pass	division of angle unit: grad divided by int
+Pass	division of angle unit: turn divided by int
+Pass	conversion of angle unit: grad into deg

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Invalid percent-encoded UTF-8 byte should decode as U+FFFD
+Pass	Percent-encoded UTF-8 BOM followed by invalid UTF-8 byte should decode as U+FEFF U+FFFD
+Pass	Percent-encoded UTF-8 byte sequence for U+FFFD should decode as U+FFFD

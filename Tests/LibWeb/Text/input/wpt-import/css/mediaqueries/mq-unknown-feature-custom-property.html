@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Media Queries Test: Custom property name as media feature name</title>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#mq-syntax">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id="media_sheet">
+  @media (--FOO: bar) {}
+</style>
+<script>
+  test(() => {
+    assert_equals(media_sheet.sheet.cssRules[0].conditionText, "(--FOO: bar)")
+  }, "Serialization of <mf-name> : <mf-value> with custom property feature name and ident value");
+</script>

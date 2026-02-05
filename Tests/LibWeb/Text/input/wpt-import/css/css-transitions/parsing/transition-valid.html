@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transitions: parsing transition with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#transition-shorthand-property">
+<meta name="assert" content="transition supports the full grammar '<single-transition> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <single-transition> = [ none | <single-transition-property> ] ||
+// <time> || <easing-function> || <time>
+test_valid_value("transition", "1s");
+test_valid_value("transition", "cubic-bezier(0, -2, 1, 3)");
+test_valid_value("transition", "1s -3s");
+test_valid_value("transition", "none");
+test_valid_value("transition", "top");
+
+test_valid_value("transition", "1s -3s cubic-bezier(0, -2, 1, 3) top", "top 1s cubic-bezier(0, -2, 1, 3) -3s");
+test_valid_value("transition", "1s -3s, cubic-bezier(0, -2, 1, 3) top", "1s -3s, top cubic-bezier(0, -2, 1, 3)");
+
+test_valid_value("transition", "all");
+test_valid_value("transition", "all 1s", "1s");
+
+test_valid_value("transition", "initial", "initial");
+
+// TODO: Add test with a single negative time.
+// TODO: Add test with a single timing-function keyword.
+</script>
+</body>
+</html>

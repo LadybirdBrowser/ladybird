@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	e.style['view-transition-name'] = "default" should not set the property value
+Pass	e.style['view-transition-name'] = "none none" should not set the property value
+Pass	e.style['view-transition-name'] = "\"none\"" should not set the property value
+Pass	e.style['view-transition-name'] = "\"foo\"" should not set the property value
+Pass	e.style['view-transition-name'] = "foo foo" should not set the property value
+Pass	e.style['view-transition-name'] = "bar bar" should not set the property value
+Pass	e.style['view-transition-name'] = "baz baz" should not set the property value
+Pass	e.style['view-transition-name'] = "#fff" should not set the property value
+Pass	e.style['view-transition-name'] = "12px" should not set the property value
+Pass	e.style['view-transition-name'] = "12em" should not set the property value
+Pass	e.style['view-transition-name'] = "12%" should not set the property value

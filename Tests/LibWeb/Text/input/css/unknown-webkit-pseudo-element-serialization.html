@@ -1,0 +1,14 @@
+<!DOCTYPE html><style type="text/css">
+  .d-none,
+  .oops::-webkit-asDF {
+    display: none !important;
+  }
+</style><div class="d-none">should not be displayed</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let rules = document.styleSheets[0].cssRules;
+        let rule = rules.item(0);
+        println(rule.selectorText);
+    });
+</script>

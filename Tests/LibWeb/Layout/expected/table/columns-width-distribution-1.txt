@@ -1,0 +1,40 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 132 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 116 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+        Box <table.ambox> at [9,9] table-box [0+1+0 782 0+1+0] [0+1+0 114 0+1+0] [TFC] children: not-inline
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          Box <tbody> at [11,11] table-row-group [0+0+0 778 0+0+0] [0+0+0 110 0+0+0] children: not-inline
+            Box <tr> at [11,11] table-row [0+0+0 778 0+0+0] [0+0+0 110 0+0+0] children: not-inline
+              BlockContainer <td.mbox-image> at [12,41] table-cell [0+0+1 50 1+0+0] [0+0+30 50 30+0+0] [BFC] children: not-inline
+                BlockContainer <div.mbox-image-div> at [12,41] [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+              BlockContainer <td.mbox-text> at [66,12] table-cell [0+0+1 722 1+0+0] [0+0+1 108 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x18] baseline: 13.796875
+                    "In a scene set in a lawyer's office, the lawyer sits alone and bounces a rubber ball"
+                frag 1 from TextNode start: 86, length: 84, rect: [66,30 695.5625x18] baseline: 13.796875
+                    "against the wall. They receive a call from their assistant who expresses frustration"
+                frag 2 from TextNode start: 171, length: 85, rect: [66,48 703.125x18] baseline: 13.796875
+                    "over a packed waiting room and the lawyer's lack of clients. The lawyer then looks at"
+                frag 3 from TextNode start: 257, length: 81, rect: [66,66 695.90625x18] baseline: 13.796875
+                    "some papers from a large envelope, which turn out to be divorce papers from their"
+                frag 4 from TextNode start: 339, length: 84, rect: [66,84 670.515625x18] baseline: 13.796875
+                    "significant other. Finally, the lawyer instructs their assistant to send in the next"
+                frag 5 from TextNode start: 424, length: 7, rect: [66,102 47.21875x18] baseline: 13.796875
+                    "client."
+                TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x132]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x116]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 784x116]
+        PaintableBox (Box<TABLE>.ambox) [8,8 784x116]
+          PaintableBox (Box<TBODY>) [11,11 778x110]
+            PaintableBox (Box<TR>) [11,11 778x110]
+              PaintableWithLines (BlockContainer<TD>.mbox-image) [11,11 52x110]
+                PaintableWithLines (BlockContainer<DIV>.mbox-image-div) [12,41 50x50]
+              PaintableWithLines (BlockContainer<TD>.mbox-text) [65,11 724x110]
+                TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x132] [children: 0] (z-index: auto)

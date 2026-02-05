@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSSOM View —— scrollParent test</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .scroller {
+    overflow: scroll;
+    border: 1px solid blue;
+  }
+  .scroller {
+    height: 150px;
+  }
+  .target {
+    background: repeating-linear-gradient(30deg, white 0px, white 30px, green 30px, green 60px);
+    height: 1000px;
+  }
+  .spacer {
+    background: repeating-linear-gradient(-30deg, white 0px, white 30px, blue 30px, blue 60px);
+    height: 1000px;
+  }
+
+</style>
+<script>
+var closedShadowRoot = null;
+class BaseComponent extends HTMLElement {
+  constructor(mode = 'open') {
+    super();
+    const shadowRoot = this.attachShadow({ mode });
+    shadowRoot.innerHTML = `
+        <style>
+          .shadow-scroller {
+            overflow: scroll;
+            height: 50px;
+            border: 1px solid black;
+          }
+        </style>
+
+        <div>
+          <div class="shadow-scroller">
+            <slot><p>No description.</p></slot>
+          </div>
+        </div>
+    `;
+    if (mode == 'closed') {
+      closedShadowRoot = shadowRoot;
+    }
+  }
+}
+class HiddenComponent extends BaseComponent {
+  constructor() { super('closed'); }
+}
+class OpenComponent extends BaseComponent {
+  constructor() { super('open'); }
+}
+customElements.define('hidden-component', HiddenComponent);
+customElements.define('open-component', OpenComponent);
+</script>
+
+<div id="outerScroller" class="scroller">
+  <div class="spacer">
+    <hidden-component id="shadowComponent">
+      <div>
+        <div id="closedInnerElement" class="target"></div>
+      </div>
+    </hidden-component>
+    <open-component id="openShadowComponent">
+      <div>
+        <div id="openInnerElement" class="target"></div>
+      </div>
+    </open-component>
+  </div>
+</div>
+
+<script>
+test(() => {
+  assert_equals(closedInnerElement.scrollParent, outerScroller);
+}, "scrollParent skips intermediate closed shadow tree nodes");
+
+test(() => {
+  assert_equals(openInnerElement.scrollParent, outerScroller);
+}, "scrollParent skips intermediate open shadow tree nodes");
+
+test(() => {
+  assert_equals(closedShadowRoot.querySelector('div').scrollParent, outerScroller);
+}, "scrollParent from inside closed shadow tree");
+
+test(() => {
+  assert_equals(openShadowComponent.shadowRoot.querySelector('div').scrollParent, outerScroller);
+}, "scrollParent from inside open shadow tree");
+</script>
+</body>
+</html>

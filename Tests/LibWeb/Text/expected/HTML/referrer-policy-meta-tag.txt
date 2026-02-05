@@ -1,0 +1,6 @@
+Referrer with referrer policy no-referrer: null
+Referrer with referrer policy empty: null
+Referrer with referrer policy origin: http://127.0.0.1/
+Referrer with referrer policy strict-origin: http://127.0.0.1/
+Referrer with referrer policy unsafe-url: http://127.0.0.1/referrer-policy-meta-tag/iframe
+Referrer with referrer policy always: http://127.0.0.1/referrer-policy-meta-tag/iframe

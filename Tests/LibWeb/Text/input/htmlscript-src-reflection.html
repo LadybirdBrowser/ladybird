@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const script = document.createElement("script");
+        script.src = "./dummy.js"; // not appended/loaded; we only check the getter resolution
+        const value = script.src;
+
+        // Print booleans so expected output is stable.
+        const is_string = typeof value === "string";
+        println(`is_string = ${is_string}`);
+
+        // Must be absolute per spec: has a scheme like "file:" or "http:"
+        let has_protocol = false;
+        try { has_protocol = !!new URL(value).protocol; } catch {}
+        println(`has_protocol = ${has_protocol}`);
+
+        // Should end with the filename we set.
+        const ends_with = value.endsWith("/dummy.js");
+        println(`ends_with_dummy = ${ends_with}`);
+    });
+</script>

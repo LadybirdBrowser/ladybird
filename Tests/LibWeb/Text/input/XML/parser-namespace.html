@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const xhr = new XMLHttpRequest();
+        xhr.responseType = "document";
+        xhr.open("GET", "data:text/xml,<?xml version='1.0'?><random xmlns=\"some.random/namespace\"><inner/></random>", true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4 || xhr.status !== 200)
+                return;
+            let xml = xhr.responseXML;
+            const expected = "some.random/namespace";
+            if (xml.documentElement.namespaceURI == expected && xml.documentElement.childNodes[0].namespaceURI == expected)
+                println("PASS");
+            else
+                println("FAIL");
+            done();
+        };
+        xhr.send();
+    });
+</script>

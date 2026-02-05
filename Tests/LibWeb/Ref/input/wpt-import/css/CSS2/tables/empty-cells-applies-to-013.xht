@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Empty-cells and 'display: table-column-group' elements</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#propdef-empty-cells" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#empty-cells" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/reference/no-red-on-blank-page-ref.xht" />
+        <meta name="assert" content="Empty-cells does not apply to 'display: table-column-group' elements." />
+        <style type="text/css">
+            #table
+            {
+                display: table;
+                table-layout: fixed;
+            }
+            .tr
+            {
+                display: table-row;
+            }
+            .td
+            {
+                color: white;
+                display: table-cell;
+            }
+            #test
+            {
+                background: red;
+                border: 5px solid red;
+                display: table-column-group;
+                empty-cells: hide;
+                height: 1em;
+                width: 1em;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is no red visible on the page.</p>
+        <div id="table">
+            <div class="tr">
+                <div id="test"></div>
+                <div class="td">XXXXX</div>
+            </div>
+            <div class="tr">
+                <div class="td">XXXXX</div>
+                <div class="td">XXXXX</div>
+            </div>
+        </div>
+    </body>
+</html>

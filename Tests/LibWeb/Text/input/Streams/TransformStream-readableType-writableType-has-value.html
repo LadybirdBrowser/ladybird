@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            new TransformStream({
+                readableType: 'bytes',
+            });
+        } catch (e) {
+            println(`'readableType' => Exception raised of ${e.constructor.name}`);
+        }
+        try {
+            new TransformStream({
+                writableType: 'bytes',
+            });
+        } catch (e) {
+            println(`'writableType' => Exception raised of ${e.constructor.name}`);
+        }
+    });
+</script>

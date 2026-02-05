@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const xmlDocument = new DOMParser().parseFromString(`<xml></xml>`, "application/xml");
+        const cdata = xmlDocument.createCDATASection("Test CDATA");
+        const assignedSlot = cdata.assignedSlot;
+        println("PASS (didn't crash)")
+    });
+</script>

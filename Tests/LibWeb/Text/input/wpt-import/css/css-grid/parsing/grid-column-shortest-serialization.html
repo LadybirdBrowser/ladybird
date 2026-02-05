@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#placement-shorthands"/>
+<meta name="assert" content="grid-column computed value should be the shortest serialization possible"/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("grid-column", "auto / auto", "auto");
+test_computed_value("grid-column", "auto", "auto");
+test_computed_value("grid-column", "10 / auto", "10");
+test_computed_value("grid-column", "10", "10");
+test_computed_value("grid-column", "-10 / auto", "-10");
+test_computed_value("grid-column", "-10", "-10");
+test_computed_value("grid-column", "first / first", "first");
+test_computed_value("grid-column", "first", "first");
+test_computed_value("grid-column", "span 2 / auto", "span 2");
+test_computed_value("grid-column", "span 2", "span 2");
+test_computed_value("grid-column", "2 first / auto", "2 first");
+test_computed_value("grid-column", "2 first", "2 first");
+test_computed_value("grid-column", "span first / auto", "span first");
+test_computed_value("grid-column", "span first", "span first");
+test_computed_value("grid-column", "span 2 first / auto", "span 2 first");
+test_computed_value("grid-column", "span 2 first", "span 2 first");
+</script>
+</body>
+</html>

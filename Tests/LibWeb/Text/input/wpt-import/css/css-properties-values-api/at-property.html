@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#at-property-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./resources/utils.js"></script>
+<div id="outer">
+  <div id="target"></div>
+</div>
+<script>
+
+// Parsing:
+
+let uppercase_first = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+let to_camel_case = (x) => x.split('-')[0] + x.split('-').slice(1).map(uppercase_first).join('');
+
+function get_cssom_descriptor_value(rule, descriptor) {
+  switch (descriptor) {
+    case 'syntax':
+      return rule.syntax;
+    case 'inherits':
+      return rule.inherits;
+    case 'initial-value':
+      return rule.initialValue;
+    default:
+      assert_true(false, 'Should not reach here');
+      return null;
+  }
+}
+
+// Test that for the given descriptor (e.g. 'syntax'), the specified value
+// will yield the expected_value when observed using CSSOM. If the expected_value
+// is omitted, it is the same as the specified value.
+function test_descriptor(descriptor, specified_value, expected_value, other_descriptors) {
+  // Try and build a valid @property form the specified descriptor.
+  let at_property = { [to_camel_case(descriptor)]: specified_value };
+
+  // If extra values are specified in other_descriptors, just use them.
+  if (typeof(other_descriptors) !== 'unspecified') {
+    for (let name in other_descriptors) {
+      if (other_descriptors.hasOwnProperty(name)) {
+        if (name == descriptor) {
+          throw `Unexpected ${name} in other_descriptors`;
+        }
+        at_property[to_camel_case(name)] = other_descriptors[name];
+      }
+    }
+  }
+
+  if (!('syntax' in at_property)) {
+    // The syntax descriptor is required. Use the universal one as a fallback.
+    // https://drafts.css-houdini.org/css-properties-values-api-1/#the-syntax-descriptor
+    at_property.syntax = '"*"';
+  }
+  if (!('inherits' in at_property)) {
+    // The inherits descriptor is required. Make it true as a fallback.
+    // https://drafts.css-houdini.org/css-properties-values-api-1/#inherits-descriptor
+    at_property.inherits = true;
+  }
+  if (!at_property.syntax.match(/^"\s*\*\s*"$/) &&
+      !('initialValue' in at_property)) {
+    // The initial-value is required for non-universal syntax.
+    // Pick a computationally independent value that follows specified syntax.
+    // https://drafts.css-houdini.org/css-properties-values-api-1/#the-syntax-descriptor
+    at_property.initialValue = (() => {
+      let first_syntax_component = specified_value
+        .replace(/^"(.*)"$/, '$1') // unquote
+        .replace(/[\s\uFEFF\xA0]+/g, ' ') // collapse whitespaces
+        .match(/^[^|\#\+]*/)[0] // pick first component
+        .trim();
+       switch (first_syntax_component) {
+         case '<color>': return 'blue';
+         case '<length>': return '42px';
+         default:
+           if (first_syntax_component.startsWith('<')) {
+             throw `Unsupported data type name '${first_syntax_component}'`;
+           }
+           return first_syntax_component; // <custom-ident>
+       }
+    })();
+  }
+
+  if (expected_value === null) {
+    test_with_at_property(at_property, (name, rule) => {
+      assert_true(!rule);
+    }, `Attribute '${descriptor}' makes the @property rule invalid for [${specified_value}]`);
+  } else {
+    if (typeof(expected_value) === 'undefined')
+      expected_value = specified_value;
+    test_with_at_property(at_property, (name, rule) => {
+      assert_equals(get_cssom_descriptor_value(rule, descriptor), expected_value);
+    }, `Attribute '${descriptor}' returns expected value for [${specified_value}]`);
+  }
+}
+
+// syntax
+test_descriptor('syntax', '"<color>"', '<color>');
+test_descriptor('syntax', '"<color> | none"', '<color> | none');
+test_descriptor('syntax', '"<color># | <image> | none"', '<color># | <image> | none');
+test_descriptor('syntax', '"foo | <length>#"', 'foo | <length>#');
+test_descriptor('syntax', '"foo | bar | baz"', 'foo | bar | baz');
+test_descriptor('syntax', '"notasyntax"', 'notasyntax');
+
+// syntax: universal
+for (const syntax of ["*", " * ", "* ", "\t*\t"]) {
+  test_descriptor('syntax', `"${syntax}"`, syntax);
+}
+
+// syntax: <color> value
+test_descriptor('syntax', '"red"', "red"); // treated as <custom-ident>.
+test_descriptor('syntax', '"rgb(255, 0, 0)"', null);
+
+// syntax: missing quotes
+test_descriptor('syntax', '<color>', null);
+test_descriptor('syntax', 'foo | bar', null);
+
+// syntax: invalid <custom-ident>
+// https://drafts.csswg.org/css-values-4/#custom-idents
+for (const syntax of
+  ["default",
+   "initial",
+   "inherit",
+   "unset",
+   "revert",
+   "revert-layer",
+  ]) {
+  test_descriptor('syntax', `"${syntax}"`, null);
+  test_descriptor('syntax', `"${uppercase_first(syntax)}"`, null);
+}
+
+// syntax: pipe between components
+test_descriptor('syntax', '"foo bar"', null, {'initial-value': 'foo bar'});
+test_descriptor('syntax', '"Foo <length>"', null, {'initial-value': 'Foo 42px'});
+test_descriptor('syntax', '"foo, bar"', null, {'initial-value': 'foo, bar'});
+test_descriptor('syntax', '"<length> <percentage>"', null, {'initial-value': '42px 100%'});
+
+// syntax: leading bar
+test_descriptor('syntax', '"|<length>"', null, {'initial-value': '42px'});
+
+// initial-value
+test_descriptor('initial-value', '10px');
+test_descriptor('initial-value', 'rgb(1, 2, 3)');
+test_descriptor('initial-value', 'red');
+test_descriptor('initial-value', 'foo');
+test_descriptor('initial-value', 'foo(){}');
+
+// initial-value: not computationally independent
+test_descriptor('initial-value', '3em', null, {'syntax': '"<length>"'});
+test_descriptor('initial-value', 'var(--x)', null);
+
+// inherits
+test_descriptor('inherits', 'true', true);
+test_descriptor('inherits', 'false', false);
+
+test_descriptor('inherits', 'none', null);
+test_descriptor('inherits', '0', null);
+test_descriptor('inherits', '1', null);
+test_descriptor('inherits', '"true"', null);
+test_descriptor('inherits', '"false"', null);
+test_descriptor('inherits', 'calc(0)', null);
+
+test_with_style_node('@property foo { }', (node) => {
+  assert_equals(node.sheet.rules.length, 0);
+}, 'Invalid property name does not parse [foo]');
+
+test_with_style_node('@property -foo { }', (node) => {
+  assert_equals(node.sheet.rules.length, 0);
+}, 'Invalid property name does not parse [-foo]');
+
+// Applying @property rules
+
+function test_applied(syntax, initial, inherits, expected) {
+  test_with_at_property({
+    syntax: `"${syntax}"`,
+    initialValue: initial,
+    inherits: inherits
+  }, (name, rule) => {
+    let actual = getComputedStyle(target).getPropertyValue(name);
+    assert_equals(actual, expected);
+  }, `Rule applied [${syntax}, ${initial}, ${inherits}]`);
+}
+
+function test_not_applied(syntax, initial, inherits) {
+  test_with_at_property({
+    syntax: `"${syntax}"`,
+    initialValue: initial,
+    inherits: inherits
+  }, (name, rule) => {
+    let actual = getComputedStyle(target).getPropertyValue(name);
+    assert_equals(actual, '');
+  }, `Rule not applied [${syntax}, ${initial}, ${inherits}]`);
+}
+
+// syntax, initialValue, inherits, expected
+test_applied('*', 'foo(){}', false, 'foo(){}');
+test_applied('<angle>', '42deg', false, '42deg');
+test_applied('<angle>', '1turn', false, '360deg');
+test_applied('<color>', 'green', false, 'rgb(0, 128, 0)');
+test_applied('<color>', 'rgb(1, 2, 3)', false, 'rgb(1, 2, 3)');
+test_applied('<image>', 'url("http://a/")', false, 'url("http://a/")');
+test_applied('<integer>', '5', false, '5');
+test_applied('<length-percentage>', '10px', false, '10px');
+test_applied('<length-percentage>', '10%', false, '10%');
+test_applied('<length-percentage>', 'calc(10% + 10px)', false, 'calc(10% + 10px)');
+test_applied('<length>', '10px', false, '10px');
+test_applied('<number>', '2.5', false, '2.5');
+test_applied('<percentage>', '10%', false, '10%');
+test_applied('<resolution>', '50dppx', false, '50dppx');
+test_applied('<resolution>', '96dpi', false, '1dppx');
+test_applied('<time>', '10s', false, '10s');
+test_applied('<time>', '1000ms', false, '1s');
+test_applied('<transform-function>', 'rotateX(0deg)', false, 'rotateX(0deg)');
+test_applied('<transform-list>', 'rotateX(0deg)', false, 'rotateX(0deg)');
+test_applied('<transform-list>', 'rotateX(0deg) translateX(10px)', false, 'rotateX(0deg) translateX(10px)');
+test_applied('<url>', 'url("http://a/")', false, 'url("http://a/")');
+
+test_applied("<string>", "'foo bar'", false, '"foo bar"');
+test_applied("<string>", " 'foo bar' ", false, '"foo bar"');
+test_applied("<string>", `'"foo" bar'`, false, '"\\"foo\\" bar"');
+test_applied("<string>", '"bar baz"', false, '"bar baz"');
+test_applied("<string>", `"bar 'baz'"`, false, `"bar 'baz'"`);
+test_applied("<string>+", "'foo' 'bar'", false, '"foo" "bar"');
+test_applied("<string>#", "'foo', 'bar'", false, '"foo", "bar"');
+test_applied("<string>+ | <string>#", "'foo' 'bar'", false, '"foo" "bar"');
+test_applied("<string>+ | <string>#", " 'foo' 'bar'", false, '"foo" "bar"');
+test_applied("<string>+ | <string>#", `'foo' "bar"`, false, '"foo" "bar"');
+test_applied("<string># | <string>+", "'foo', 'bar'", false, '"foo", "bar"');
+test_applied("<string># | <string>+", "'foo', 'bar' ", false, '"foo", "bar"');
+test_applied("<string># | <string>+", `"foo", 'bar'`, false, '"foo", "bar"');
+
+test_not_applied("<string>", "1px", false);
+test_not_applied("<string>", "foo", false);
+test_not_applied("<string>", "calc(1 + 2)", false);
+test_not_applied("<string>", "rgb(255, 99, 71)", false);
+test_not_applied("<string>", "'foo' 2px", false);
+
+// inherits: true/false
+test_applied('<color>', 'tomato', false, 'rgb(255, 99, 71)');
+test_applied('<color>', 'tomato', true, 'rgb(255, 99, 71)');
+
+test_with_at_property({ syntax: '"*"', inherits: true }, (name, rule) => {
+  try {
+    outer.style.setProperty(name, 'foo');
+    let actual = getComputedStyle(target).getPropertyValue(name);
+    assert_equals(actual, 'foo');
+  } finally {
+    outer.style = '';
+  }
+}, 'Rule applied for "*", even with no initial value');
+
+test_not_applied(undefined, 'green', false);
+test_not_applied('<color>', undefined, false);
+test_not_applied('<color>', 'green', undefined);
+test_not_applied('<gandalf>', 'grey', false);
+test_not_applied('gandalf', 'grey', false);
+test_not_applied('<color>', 'notacolor', false);
+test_not_applied('<length>', '10em', false);
+
+test_not_applied('<transform-function>', 'translateX(1em)', false);
+test_not_applied('<transform-function>', 'translateY(1lh)', false);
+test_not_applied('<transform-list>', 'rotate(10deg) translateX(1em)', false);
+test_not_applied('<transform-list>', 'rotate(10deg) translateY(1lh)', false);
+
+// Inheritance
+
+test_with_at_property({
+  syntax: '"<length>"',
+  inherits: false,
+  initialValue: '0px'
+}, (name, rule) => {
+  try {
+    outer.style = `${name}: 40px`;
+    assert_equals(getComputedStyle(outer).getPropertyValue(name), '40px');
+    assert_equals(getComputedStyle(target).getPropertyValue(name), '0px');
+  } finally {
+    outer.style = '';
+  }
+}, 'Non-inherited properties do not inherit');
+
+test_with_at_property({
+  syntax: '"<length>"',
+  inherits: true,
+  initialValue: '0px'
+}, (name, rule) => {
+  try {
+    outer.style = `${name}: 40px`;
+    assert_equals(getComputedStyle(outer).getPropertyValue(name), '40px');
+    assert_equals(getComputedStyle(target).getPropertyValue(name), '40px');
+  } finally {
+    outer.style = '';
+  }
+}, 'Inherited properties inherit');
+
+// Initial values
+
+test_with_at_property({
+  syntax: '"<color>"',
+  inherits: true,
+  initialValue: 'green'
+}, (name, rule) => {
+  try {
+    target.style = `--x:var(${name})`;
+    assert_equals(getComputedStyle(target).getPropertyValue(name), 'rgb(0, 128, 0)');
+  } finally {
+    target.style = '';
+  }
+}, 'Initial values substituted as computed value');
+
+test_with_at_property({
+  syntax: '"<length>"',
+  inherits: false,
+  initialValue: undefined
+}, (name, rule) => {
+  try {
+    target.style = `${name}: calc(1px + 1px);`;
+    assert_equals(getComputedStyle(target).getPropertyValue(name), 'calc(1px + 1px)');
+  } finally {
+    target.style = '';
+  }
+}, 'Non-universal registration are invalid without an initial value');
+
+test_with_at_property({
+  syntax: '"*"',
+  inherits: false,
+  initialValue: undefined
+}, (name, rule) => {
+  try {
+    // If the registration suceeded, ${name} does *not* inherit, and hence
+    // the computed value on 'target' should be empty.
+    outer.style = `${name}: calc(1px + 1px);`;
+    assert_equals(getComputedStyle(target).getPropertyValue(name), '');
+  } finally {
+    outer.style = '';
+  }
+}, 'Initial value may be omitted for universal registration');
+
+</script>

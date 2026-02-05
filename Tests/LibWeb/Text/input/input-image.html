@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script type="text/javascript">
+    const SOURCES = ["../../Assets/120.png", "file:///i-do-no-exist-i-swear.png"];
+
+    const runTest = source => {
+        let input = document.createElement("input");
+        input.type = "image";
+        input.alt = "submit";
+
+        return new Promise((resolve, reject) => {
+            input.addEventListener("load", () => {
+                const filename = input.src.split('/').pop();
+                resolve(`${filename} loaded`);
+            });
+            input.addEventListener("error", () => {
+                resolve(`${input.src} failed`);
+            });
+
+            input.setAttribute("src", source);
+        });
+    };
+
+    asyncTest(done => {
+        let promises = SOURCES.map(source => runTest(source));
+
+        Promise.allSettled(promises)
+            .then(results => results.map(result => result.value))
+            .then(results => results.sort())
+            .then(results => results.forEach(println))
+            .finally(done);
+    });
+</script>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            try {
+                println(`${testCounter}. ${JSON.stringify(part())}`);
+            } catch (e) {
+                println(`${testCounter}. Exception: ${e.name}`);
+            }
+            testCounter++;
+        }
+
+        // 1. Input date get value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.value = '2023-12-11';
+            return input.valueAsDate;
+        });
+
+        // 2. Input date invalid get value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.value = 'invalid';
+            return input.valueAsDate;
+        });
+
+        // 3. Input time get value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.value = '19:46';
+            return input.valueAsDate;
+        });
+
+        // 4. Input time get value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.value = '19:46:19';
+            return input.valueAsDate;
+        });
+
+        // 5. Input time invalid get value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.value = 'invalid';
+            return input.valueAsDate;
+        });
+
+        // 6. Input date set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.valueAsDate = new Date(0);
+            return input.value;
+        });
+
+        // 7. Input date set value as date (non-UTC time zone)
+        testPart(() => {
+            const originalTimeZone = internals.setTimeZone('America/New_York');
+
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.valueAsDate = new Date(0);
+            const result = input.value;
+
+            internals.setTimeZone(originalTimeZone);
+            return result;
+        });
+
+        // 8. Input date set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.valueAsDate = new Date(1702320457860);
+            return input.value;
+        });
+
+        // 9. Input date set value as date (non-UTC time zone)
+        testPart(() => {
+            const originalTimeZone = internals.setTimeZone('Europe/Paris');
+
+            const input = document.createElement('input');
+            input.type = "date";
+            input.valueAsDate = new Date(1702320457860);
+            const result = input.value;
+
+            internals.setTimeZone(originalTimeZone);
+            return result;
+        });
+
+        // 10. Input date invalid set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.valueAsDate = {};
+            return input.value;
+        });
+
+        // 11. Input date null set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.valueAsDate = null;
+            return input.value;
+        });
+
+        // 12. Input time set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.valueAsDate = new Date(1702320457000);
+            return input.value;
+        });
+
+        // 13. Input time set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.valueAsDate = new Date(1702320457100);
+            return input.value;
+        });
+
+        // 14. Input time set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.valueAsDate = new Date(1702320457864.5);
+            return input.value;
+        });
+
+        // 15. Input time invalid set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.valueAsDate = {};
+            return input.value;
+        });
+
+        // 16. Input time null set value as date
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.valueAsDate = null;
+            return input.value;
+        });
+    });
+</script>

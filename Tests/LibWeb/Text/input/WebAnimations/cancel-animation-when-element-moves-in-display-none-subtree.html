@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+<head>
+    <style>
+        .animated-box {
+            width: 50px;
+            height: 50px;
+            background-color: coral;
+            animation: move 2s linear infinite;
+        }
+
+        @keyframes move {
+            0% {
+                transform: translateX(0);
+            }
+
+            50% {
+                transform: translateX(100px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .hidden-container {
+            display: none;
+        }
+    </style>
+    <script src="../include.js"></script>
+</head>
+
+<body>
+
+    <div id="visible-container">
+        <div class="animated-box" id="animated-box"></div>
+    </div>
+
+    <div id="hidden-container" class="hidden-container">
+    </div>
+
+    <script>
+        asyncTest(done => {
+            requestAnimationFrame(() => {
+                const animatedBox = document.getElementById('animated-box');
+                const hiddenContainer = document.getElementById('hidden-container');
+                const animationsCountBefore = document.getAnimations().length;
+                hiddenContainer.appendChild(animatedBox);
+                const animationsCountAfter = document.getAnimations().length;
+                println('Animations count before: ' + animationsCountBefore);
+                println('Animations count after: ' + animationsCountAfter);
+                done();
+            });
+        });
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 39 tests
+
+36 Pass
+3 Fail
+Pass	e.style['filter'] = "none" should set the property value
+Pass	e.style['filter'] = "blur(100px)" should set the property value
+Pass	e.style['filter'] = "blur(0)" should set the property value
+Pass	e.style['filter'] = "blur()" should set the property value
+Pass	e.style['filter'] = "brightness(0)" should set the property value
+Pass	e.style['filter'] = "brightness(300%)" should set the property value
+Pass	e.style['filter'] = "brightness()" should set the property value
+Pass	e.style['filter'] = "contrast(0)" should set the property value
+Pass	e.style['filter'] = "contrast(300%)" should set the property value
+Pass	e.style['filter'] = "contrast()" should set the property value
+Pass	e.style['filter'] = "drop-shadow(1px 2px)" should set the property value
+Pass	e.style['filter'] = "drop-shadow(1px 2px 3px)" should set the property value
+Pass	e.style['filter'] = "drop-shadow(0 0 0)" should set the property value
+Pass	e.style['filter'] = "drop-shadow(rgb(4, 5, 6) 1px 2px)" should set the property value
+Pass	e.style['filter'] = "drop-shadow(1px 2px rgb(4, 5, 6))" should set the property value
+Pass	e.style['filter'] = "drop-shadow(rgba(4, 5, 6, 0.75) 1px 2px 3px)" should set the property value
+Pass	e.style['filter'] = "grayscale(0)" should set the property value
+Pass	e.style['filter'] = "grayscale(300%)" should set the property value
+Pass	e.style['filter'] = "grayscale(calc(300%))" should set the property value
+Pass	e.style['filter'] = "grayscale(calc(101% * sign(1em - 1px)))" should set the property value
+Pass	e.style['filter'] = "grayscale()" should set the property value
+Pass	e.style['filter'] = "hue-rotate(90deg)" should set the property value
+Pass	e.style['filter'] = "hue-rotate(0)" should set the property value
+Pass	e.style['filter'] = "hue-rotate()" should set the property value
+Pass	e.style['filter'] = "invert(0)" should set the property value
+Pass	e.style['filter'] = "invert(300%)" should set the property value
+Pass	e.style['filter'] = "invert()" should set the property value
+Pass	e.style['filter'] = "opacity(0)" should set the property value
+Pass	e.style['filter'] = "opacity(300%)" should set the property value
+Pass	e.style['filter'] = "opacity()" should set the property value
+Pass	e.style['filter'] = "saturate(0)" should set the property value
+Pass	e.style['filter'] = "saturate(300%)" should set the property value
+Pass	e.style['filter'] = "saturate()" should set the property value
+Pass	e.style['filter'] = "sepia(0)" should set the property value
+Pass	e.style['filter'] = "sepia(300%)" should set the property value
+Pass	e.style['filter'] = "sepia()" should set the property value
+Fail	e.style['filter'] = "url(picture.svg#f)" should set the property value
+Fail	e.style['filter'] = "url(\"https://www.example.com/picture.svg#f\")" should set the property value
+Fail	e.style['filter'] = "blur(10px) url(\"picture.svg#f\") contrast(20) brightness(30)" should set the property value

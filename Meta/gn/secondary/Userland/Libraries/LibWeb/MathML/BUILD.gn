@@ -1,0 +1,8 @@
+source_set("MathML") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "MathMLElement.cpp",
+    "TagNames.cpp",
+  ]
+}

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Implicit nesting</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<style>
+  .test {
+    background-color: green;
+    width: 30px;
+    height: 30px;
+    display: grid;
+  }
+
+  body * + * {
+    margin-top: 8px;
+  }
+</style>
+<body>
+  <p>Tests pass if <strong>block is green</strong></p>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+</body>

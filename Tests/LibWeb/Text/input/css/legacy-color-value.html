@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function checkColor(color) {
+            document.body.bgColor = color;
+            const computedStyle = getComputedStyle(document.body);
+            const bgcolor = computedStyle.backgroundColor;
+            println(`'${color}' => ${bgcolor}`);
+        }
+
+        for (color of [
+            "red",
+            "#408080",
+            "transparent",
+            " GreeN 	",
+            "cafe",
+            "",
+            "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", // longer than 128 chars of hex
+            "#emoji above U+FFFF 🙃",
+        ]) {
+            checkColor(color);
+        }
+    });
+</script>

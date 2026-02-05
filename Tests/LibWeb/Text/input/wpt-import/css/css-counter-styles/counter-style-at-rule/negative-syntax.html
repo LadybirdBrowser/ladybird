@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-negative">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_negative(value) {
+  test_valid_counter_style_descriptor('negative', value);
+}
+
+function test_invalid_negative(value) {
+  test_invalid_counter_style_descriptor('negative', value);
+}
+
+// <symbol> <symbol>?
+
+test_valid_negative('"X"');
+test_valid_negative('"X" "X"');
+test_invalid_negative('"X" "X" "X"');
+
+</script>

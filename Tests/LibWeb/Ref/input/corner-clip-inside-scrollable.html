@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/corner-clip-inside-scrollable-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    .box {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+
+    .inner-box {
+        width: 100px;
+        height: 100px;
+        background-color: magenta;
+    }
+
+    #scroll {
+        overflow: scroll;
+        width: 200px;
+        height: 200px;
+        border: 1px solid black;
+    }
+</style>
+<div id="scroll">
+    <div class="box" id="a"><div class="inner-box" id="aa"></div></div>
+    <div class="box" id="b"><div class="inner-box" id="bb"></div></div>
+    <div class="box" id="c"><div class="inner-box" id="cc"></div></div>
+</div>
+<script>
+    const scroll = document.getElementById("scroll");
+    scroll.scrollTop = 100;
+</script>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes test {
+        from {
+            background-color: green;
+        }
+        to {
+            background-color: yellow;
+        }
+    }
+
+    #animated {
+        width: 100px;
+        height: 100px;
+        background-color: green;
+        animation: test 2s infinite;
+    }
+</style>
+<div id="animated">This is a animated div</div>
+<script>
+    const animationCount = document.getElementById("animated").getAnimations().length;
+    test(() => {
+        println(`animation count: ${animationCount}`);
+    });
+</script>

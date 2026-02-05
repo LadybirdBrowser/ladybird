@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Active during success handlers
+Pass	Active during success listeners
+Pass	Active during error handlers
+Pass	Active during error listeners

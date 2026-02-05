@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Property border-inline-start-width value 'calc(10px + 0.5em)'
+Pass	Property border-inline-start-width value 'calc(10px - 0.5em)'
+Pass	Property border-inline-start-width value 'thin'
+Pass	Property border-inline-start-width value 'medium'
+Pass	Property border-inline-end-width value 'calc(10px + 0.5em)'
+Pass	Property border-inline-end-width value 'calc(10px - 0.5em)'
+Pass	Property border-inline-end-width value 'thick'
+Pass	Property border-inline-width value '10px'
+Pass	Property border-inline-width value '10px 20px'
+Pass	Property border-inline-width value '10px 10px'
+Pass	width is zero if the border block style is none or hidden

@@ -1,0 +1,3 @@
+background color initial value: rgba(0, 0, 0, 0)
+background color after preferred style sheet enabled: rgb(255, 0, 0)
+background color after alternate style sheet enabled: rgb(0, 128, 0)

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const CHUNK1 = "abcdefghijklmnopqrstuvwxyz";
+    const CHUNK2 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const CHUNK3 = "0123456789!@#$%^&*()-=_+,<";
+
+    const readStream = (stream, name) => {
+        const reader = stream.getReader();
+
+        return new Promise((resolve, reject) => {
+            const processText = ({ done, value }) => {
+                if (done) {
+                    println(`${name}: Done!`);
+                    resolve();
+                    return;
+                }
+
+                println(`${name}: ${value}`);
+
+                return reader.read().then(processText);
+            };
+
+            reader.read().then(processText);
+        });
+    };
+
+    asyncTest(done => {
+        const stream = new ReadableStream({
+            start(controller) {
+                pullCount = 0;
+            },
+
+            pull(controller) {
+                ++pullCount;
+
+                if (pullCount == 1) {
+                    controller.enqueue(CHUNK1);
+                } else if (pullCount == 2) {
+                    controller.enqueue(CHUNK2);
+                } else if (pullCount == 3) {
+                    controller.enqueue(CHUNK3);
+                } else {
+                    controller.close();
+                }
+            },
+
+            cancel() {},
+        });
+
+        const teed = stream.tee();
+
+        readStream(teed[0], "stream1").then(() => {
+            readStream(teed[1], "stream2").then(done);
+        });
+    });
+</script>

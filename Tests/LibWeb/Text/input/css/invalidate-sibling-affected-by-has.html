@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        min-height: 50px;
+        min-width: 50px;
+        margin: 5px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        color: grey;
+    }
+
+    #parent {
+        border: 2px solid black;
+        padding: 10px;
+    }
+
+    .blue {
+        background-color: #eef;
+    }
+
+    .f_has_scope {
+        background-color: #efe;
+        border: 2px dotted green;
+    }
+
+    .invalid {
+        background-color: #ffc;
+        border: 2px solid orange;
+    }
+
+    .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) {
+        color: blue;
+        background-color: #ccf;
+        border: 2px solid blue;
+    }
+</style>
+<div id="parent">
+    <div class="p"></div>
+    <div id="previous" class="f_has_scope"></div>
+    <div id="has_scope" class="blue"></div>
+    <div id="indirect_next" class="g"></div>
+</div>
+<script>
+    test(() => {
+        const blue = document.getElementById("has_scope");
+        println(`background-color before: ${getComputedStyle(blue).backgroundColor}`);
+
+        let insertBefore = document.getElementById("previous");
+        let parent = insertBefore.parentElement;
+
+        let div = document.createElement("div");
+        div.classList.add("invalid");
+
+        parent.insertBefore(div, insertBefore);
+
+        println(`background-color after: ${getComputedStyle(blue).backgroundColor}`);
+    });
+</script>

@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+29 Pass
+3 Fail
+Pass	e.style['width'] = "random(0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(--foo, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(auto, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(--foo element-shared, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(auto element-shared, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(element-shared --foo, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(element-shared auto, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(fixed 0.5, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(--foo, 0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(auto, 0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(--foo element-shared, 0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(auto element-shared, 0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(element-shared --foo, 0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(element-shared auto, 0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(fixed 0.5, 0px, 100px, 50px)" should set the property value
+Pass	e.style['width'] = "random(10px, 20%)" should set the property value
+Pass	e.style['width'] = "random(100px, 0px)" should set the property value
+Pass	e.style['width'] = "random(-100px, -10px)" should set the property value
+Pass	e.style['width'] = "random(-100px, -10px, -5px)" should set the property value
+Pass	e.style['width'] = "random(1em, 200rem)" should set the property value
+Fail	e.style['width'] = "random(10 * 100px, 200em / 2)" should set the property value
+Pass	e.style['width'] = "random(fixed calc(2 / 4), 0px, 100px)" should set the property value
+Pass	e.style['width'] = "calc(2 * random(0px, 100px))" should set the property value
+Fail	e.style['max-lines'] = "random(25, 50)" should set the property value
+Fail	e.style['max-lines'] = "random(25, 50, 5)" should set the property value
+Pass	e.style['scale'] = "random(0.5, 2.5)" should set the property value
+Pass	e.style['scale'] = "random(0.5, 2.5, 0.1)" should set the property value
+Pass	e.style['rotate'] = "random(25deg, 1turn)" should set the property value
+Pass	e.style['rotate'] = "random(25deg, 1turn, 5deg)" should set the property value
+Pass	e.style['transition-delay'] = "random(25ms, 50s)" should set the property value
+Pass	e.style['transition-delay'] = "random(25ms, 50s, 5s)" should set the property value

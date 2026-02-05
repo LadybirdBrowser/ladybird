@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/issues/9799">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+
+<select>
+  <option class=one>one</option>
+  <div id=div1>
+    <option class=two>two</option>
+    <div>
+      <option class=three>three</option>
+    </div>
+    <option class=four>four</option>
+  </div>
+  <div>
+    <option class=five>five</option>
+  </div>
+  <div id=div2>
+    <option class=six>six</option>
+  </div>
+</select>
+
+<script>
+const select = document.querySelector('select');
+
+function runTest() {
+  const wrapperDiv = document.getElementById('div1');
+  const firstOption = select.querySelector('option.one');
+  const secondOption = select.querySelector('option.two');
+  const thirdOption = select.querySelector('option.three');
+  const fourthOption = select.querySelector('option.four');
+  const fifthOption = select.querySelector('option.five');
+  const sixthOption = select.querySelector('option.six');
+  const selectChildDiv = document.getElementById('div2');
+
+  assert_equals(select.length, 6, 'select.length');
+  assert_equals(select.options.length, 6, 'select.options.length');
+  assert_equals(select.options[0], firstOption, 'select.options[0]');
+  assert_equals(select.options[1], secondOption, 'select.options[1]');
+  assert_equals(select.options[2], thirdOption, 'select.options[2]');
+  assert_equals(select.options[3], fourthOption, 'select.options[3]');
+  assert_equals(select.options[4], fifthOption, 'select.options[4]');
+  assert_equals(select.options[5], sixthOption, 'select.options[5]');
+
+  assert_equals(select.value, 'one', 'initial select.value');
+  select.value = 'two';
+  assert_equals(select.value, 'two', 'select.value after modifying');
+
+  fourthOption.remove();
+  assert_equals(select.length, 5, 'select.length after removing an option');
+  assert_equals(select.options.length, 5, 'select.options.length after removing an option');
+  assert_equals(select.options[0], firstOption, 'select.options[0] after removing an option');
+  assert_equals(select.options[1], secondOption, 'select.options[1] after removing an option');
+  assert_equals(select.options[2], thirdOption, 'select.options[0] after removing an option');
+  assert_equals(select.options[3], fifthOption, 'select.options[1] after removing an option');
+  assert_equals(select.options[4], sixthOption, 'select.options[1] after removing an option');
+
+  wrapperDiv.appendChild(fourthOption);
+  assert_equals(select.length, 6, 'select.length after re-adding an option');
+  assert_equals(select.options.length, 6, 'select.options.length after re-adding an option');
+  assert_equals(select.options[0], firstOption, 'select.options[0] after re-adding an option');
+  assert_equals(select.options[1], secondOption, 'select.options[1] after re-adding an option');
+  assert_equals(select.options[2], thirdOption, 'select.options[2] after re-adding an option');
+  assert_equals(select.options[3], fourthOption, 'select.options[2] after re-adding an option');
+  assert_equals(select.options[4], fifthOption, 'select.options[2] after re-adding an option');
+  assert_equals(select.options[5], sixthOption, 'select.options[2] after re-adding an option');
+
+  selectChildDiv.appendChild(fourthOption);
+  assert_equals(select.length, 6, 'select.length after moving option to child div');
+  assert_equals(select.options.length, 6, 'select.options.length after moving option to child div');
+  assert_equals(select.options[0], firstOption, 'select.options[0] after moving option to child div');
+  assert_equals(select.options[1], secondOption, 'select.options[1] after moving option to child div');
+  assert_equals(select.options[2], thirdOption, 'select.options[2] after moving option to child div');
+  assert_equals(select.options[3], fifthOption, 'select.options[3] after moving option to child div');
+  assert_equals(select.options[4], sixthOption, 'select.options[4] after moving option to child div');
+  assert_equals(select.options[5], fourthOption, 'select.options[5] after moving option to child div');
+
+  // reset back to normal for the next test
+  wrapperDiv.appendChild(fourthOption);
+  select.value = 'one';
+}
+
+test(() => {
+  runTest();
+}, 'Option elements should work if they are a descendant of a selects wrapper div.');
+
+test(() => {
+  select.setAttribute('multiple', '');
+  runTest();
+}, 'Options in wrapper div should still work when the multiple attribute is added.');
+
+test(() => {
+  select.innerHTML = select.innerHTML;
+  select.value = 'one';
+  runTest();
+}, 'Options in wrapper div in multiple should work after re-parsing and re-attaching.');
+</script>

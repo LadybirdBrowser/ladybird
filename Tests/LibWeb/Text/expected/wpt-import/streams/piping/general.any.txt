@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Piping must lock both the ReadableStream and WritableStream
+Pass	Piping finishing must unlock both the ReadableStream and WritableStream
+Pass	pipeTo must check the brand of its ReadableStream this value
+Pass	pipeTo must check the brand of its WritableStream argument
+Pass	pipeTo must fail if the ReadableStream is locked, and not lock the WritableStream
+Pass	pipeTo must fail if the WritableStream is locked, and not lock the ReadableStream
+Pass	Piping from a ReadableStream from which lots of chunks are synchronously readable
+Pass	Piping from a ReadableStream for which a chunk becomes asynchronously readable after the pipeTo
+Pass	an undefined rejection from pull should cause pipeTo() to reject when preventAbort is true
+Pass	an undefined rejection from pull should cause pipeTo() to reject when preventAbort is false
+Pass	an undefined rejection from write should cause pipeTo() to reject when preventCancel is true
+Pass	an undefined rejection from write should cause pipeTo() to reject when preventCancel is false
+Pass	pipeTo() should reject if an option getter grabs a writer
+Pass	pipeTo() promise should resolve if null is passed

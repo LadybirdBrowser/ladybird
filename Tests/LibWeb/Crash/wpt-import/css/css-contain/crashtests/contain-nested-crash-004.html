@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1439692">
+<style>
+body, fieldset { contain: strict; }
+</style>
+<script>
+function crash() {
+  document.body.offsetTop;
+  document.body.appendChild(document.createElement("fieldset"));
+}
+</script>
+<body onload="crash()">

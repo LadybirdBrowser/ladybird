@@ -1,0 +1,24 @@
+margins for #just-margin:
+marginTop: 5px
+marginRight: 10px
+marginBottom: 5px
+marginLeft: 10px
+
+margins for #margin-before:
+marginTop: 20px
+marginRight: 10px
+marginBottom: 5px
+marginLeft: 10px
+
+margins for #margin-after:
+marginTop: 5px
+marginRight: 10px
+marginBottom: 5px
+marginLeft: 10px
+
+margins for #margin-repeated:
+marginTop: 7px
+marginRight: 5px
+marginBottom: 10px
+marginLeft: 5px
+

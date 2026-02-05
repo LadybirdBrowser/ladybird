@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        {
+            const ws = new WebSocket('wss://websocket-echo.app.ladybird.org');
+
+            ws.onopen = () => {
+            };
+            ws.onmessage = () => {
+            };
+            ws.onerror = () => {
+            };
+        }
+
+        setTimeout(() => {
+            internals.gc();
+            println("PASS! (Didn't crash)");
+            done();
+        }, 0);
+    });
+</script>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-template-rows with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-rows">
+<meta name="assert" content="grid-template-rows supports the full grammar 'none | <track-list> | <auto-track-list>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("grid-template-rows", "none");
+
+// track-size <fixed-breadth> = <length-percentage> | <flex> | min-content | max-content | auto
+test_valid_value("grid-template-rows", '10px');
+test_valid_value("grid-template-rows", '20%');
+test_valid_value("grid-template-rows", 'calc(-0.5em + 10px)');
+test_valid_value("grid-template-rows", 'calc(0.5em + 10px)');
+test_valid_value("grid-template-rows", 'calc(30% + 40vw)');
+test_valid_value("grid-template-rows", '5fr');
+test_valid_value("grid-template-rows", 'min-content');
+test_valid_value("grid-template-rows", 'max-content');
+test_valid_value("grid-template-rows", 'auto');
+
+// track-size minmax( <inflexible-breadth> , <track-breadth> )
+test_valid_value("grid-template-rows", 'minmax(10px, auto)');
+test_valid_value("grid-template-rows", 'minmax(20%, max-content)');
+test_valid_value("grid-template-rows", 'minmax(calc(-0.5em + 10px), min-content)');
+test_valid_value("grid-template-rows", 'minmax(calc(0.5em + 10px), 5fr)');
+test_valid_value("grid-template-rows", 'minmax(calc(30% + 40vw), 10px)');
+test_valid_value("grid-template-rows", 'minmax(min-content, 20%)');
+test_valid_value("grid-template-rows", 'minmax(max-content, calc(-0.5em + 10px))');
+test_valid_value("grid-template-rows", 'minmax(auto, calc(0.5em + 10px))');
+
+// track-size fit-content( <length-percentage> )
+test_valid_value("grid-template-rows", 'fit-content(10px)');
+test_valid_value("grid-template-rows", 'fit-content(20%)');
+test_valid_value("grid-template-rows", 'fit-content(calc(-0.5em + 10px))');
+test_valid_value("grid-template-rows", 'fit-content(calc(0.5em + 10px))');
+test_valid_value("grid-template-rows", 'fit-content(calc(30% + 40vw))');
+
+// <track-repeat> = repeat( [ <positive-integer> ] , [ <line-names>? <track-size> ]+ <line-names>? )
+
+test_valid_value("grid-template-rows", 'repeat(1, [] 10px [])', 'repeat(1, 10px)');
+
+// 'repeat(1, [one two] 20%)' in Blink, Firefox
+// '[one two] 20%' in Safari, Edge 18
+test_valid_value("grid-template-rows", 'repeat(1, [one two] 20%)');
+
+// 'repeat(2, minmax(10px, auto))' in Blink, Firefox, Edge 18
+// 'minmax(10px, auto) minmax(10px, auto)' in Safari
+test_valid_value("grid-template-rows", 'repeat(2, minmax(10px, auto))');
+
+test_valid_value("grid-template-rows", 'repeat(2, fit-content(20%) [three four] 30px 40px [five six])');
+
+// <track-list> = [ <line-names>? [ <track-size> | <track-repeat> ] ]+ <line-names>?
+test_valid_value("grid-template-rows", 'min-content repeat(5, minmax(10px, auto))');
+test_valid_value("grid-template-rows", '[] 150px [] 1fr []', '150px 1fr');
+
+// <auto-repeat> = repeat( [ auto-fill | auto-fit ] , [ <line-names>? <fixed-size> ]+ <line-names>? )
+test_valid_value("grid-template-rows", 'repeat(auto-fill, 10px)');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, [one] 20%)');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(30px, 5fr) [two])');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, [three] minmax(max-content, 6em) [four])');
+
+// <auto-track-list> =
+// [ <line-names>? [ <fixed-size> | <fixed-repeat> ] ]* <line-names>?
+// <auto-repeat>
+// [ <line-names>? [ <fixed-size> | <fixed-repeat> ] ]* <line-names>?
+
+test_valid_value("grid-template-rows", '[one] repeat(2, minmax(10px, auto)) [two] 30px [three] repeat(auto-fill, 10px) 40px [four five] repeat(2, minmax(10px, auto)) [six]');
+</script>
+</body>
+</html>

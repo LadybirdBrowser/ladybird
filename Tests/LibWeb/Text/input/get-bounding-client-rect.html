@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style type="text/css">
+    #box {
+        margin-top: 500px;
+        padding-top: 100px;
+        background-color: navy;
+        width: 100%;
+        height: 50px;
+    }
+</style>
+<div id="box"></div>
+<a id="inline">inline</a>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const box_rect = document.getElementById("box").getBoundingClientRect();
+        println(JSON.stringify(box_rect));
+
+        const inline_rect = document.getElementById("inline").getBoundingClientRect();
+        println(JSON.stringify(inline_rect));
+    });
+</script>

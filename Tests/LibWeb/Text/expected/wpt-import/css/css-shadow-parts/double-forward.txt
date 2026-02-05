@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Part in inner host is forwarded through the middle host for styling by document style sheet

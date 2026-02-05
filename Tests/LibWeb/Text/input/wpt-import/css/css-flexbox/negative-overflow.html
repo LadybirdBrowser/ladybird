@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: align-items: center/flex-end and bottom padding.</title>
+<link rel="stylesheet" href="support/flexbox.css" >
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#align-items-property">
+<meta name="assert" content="This test ensures that flexbox containers with 'align-items: center|flex-end' and 'overflow: auto/scroll' have no extra bottom padding."/>
+<style>
+.flexbox {
+    overflow: auto;
+    height: 50px;
+    width: 50px;
+    background-color: red;
+    position: relative;
+}
+
+.vertical-padding {
+    padding-top: 5px;
+    padding-bottom: 10px;
+    background-color: lime;
+}
+
+.vertical-border {
+    border-top: 2px solid black;
+    border-bottom: 8px solid lightblue;
+}
+
+.flexbox > div {
+    width: 100%;
+    height: 100px;
+    background-color: green;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+window.onload = function() {
+    checkLayout('.flexbox');
+
+    // Make failures more obvious by showing the red background that should have been clipped.
+    Array.prototype.forEach.call(document.querySelectorAll(".flexbox"), function(element) {
+        element.scrollTop = 1000;
+    });
+};
+</script>
+</head>
+<body>
+<div id=log></div>
+
+<div class="flexbox align-items-flex-end" data-expected-scroll-height="50">
+    <div></div>
+</div>
+
+<div class="flexbox align-items-flex-end" data-expected-scroll-height="150">
+    <div></div>
+    <div style="position: absolute; left: 0; top: 50px;"></div>
+</div>
+
+<div class="flexbox align-items-center" data-expected-scroll-height="75">
+    <div></div>
+</div>
+
+<div class="flexbox" data-expected-scroll-height="100">
+    <div></div>
+</div>
+
+<div class="flexbox wrap-reverse" data-expected-scroll-height="200">
+    <div></div>
+    <div></div>
+</div>
+
+<div class="flexbox align-items-flex-end vertical-padding" data-expected-scroll-height="65">
+    <div></div>
+</div>
+
+<div class="flexbox align-items-flex-end vertical-padding vertical-border" data-expected-scroll-height="65">
+    <div></div>
+</div>
+
+<div class="flexbox align-items-center vertical-padding" data-expected-scroll-height="90">
+    <div></div>
+</div>
+
+<div class="flexbox vertical-padding" data-expected-scroll-height="115">
+    <div></div>
+</div>
+
+<div class="flexbox vertical-padding vertical-border" data-expected-scroll-height="115">
+    <div></div>
+</div>
+
+<div class="flexbox wrap-reverse vertical-padding" data-expected-scroll-height="215">
+    <div></div>
+    <div></div>
+</div>
+</body>
+</html>

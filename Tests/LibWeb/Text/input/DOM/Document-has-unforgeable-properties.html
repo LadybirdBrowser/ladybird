@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const unforgeableProperties = [
+            "location",
+        ];
+
+        const documents = [
+            document,
+            new Document(),
+            document.implementation.createDocument("http://www.w3.org/1999/xhtml", null, null),
+            document.implementation.createDocument("http://www.w3.org/2000/svg", null, null),
+            document.implementation.createDocument(null, null, null),
+            document.implementation.createHTMLDocument(),
+        ];
+
+        for (const document of documents) {
+            const documentPrototype = Object.getPrototypeOf(document);
+
+            for (const property of unforgeableProperties) { 
+                println(`${property} exists on document itself: ${Object.hasOwn(document, property)}`);
+                println(`${property} does not exist on LocationPrototype: ${!Object.hasOwn(documentPrototype, property)}`);
+                
+                const propertyDescriptor = Object.getOwnPropertyDescriptor(document, property);
+                println(`${property} descriptor is not undefined: ${propertyDescriptor !== undefined}`);
+                println(`${property} enumerable: ${propertyDescriptor.enumerable}`);
+                println(`${property} configurable: ${propertyDescriptor.configurable}`);
+                println(`${property} writable: ${propertyDescriptor.writable}`);
+            }
+        }
+    });
+</script>

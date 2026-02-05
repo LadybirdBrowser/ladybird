@@ -1,0 +1,46 @@
+valueAsNumber getter:
+number: 100
+range: 100
+hidden: NaN
+text: NaN
+search: NaN
+tel: NaN
+url: NaN
+email: NaN
+password: NaN
+date: NaN
+month: NaN
+week: NaN
+time: NaN
+datetime-local: NaN
+color: NaN
+checkbox: NaN
+radio: NaN
+file: NaN
+submit: NaN
+image: NaN
+reset: NaN
+button: NaN
+valueAsNumber setter:
+number did not throw: 100
+range did not throw: 100
+hidden threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+text threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+search threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+tel threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+url threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+email threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+password threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+date did not throw: 0
+month did not throw: 100
+week did not throw: -259200000
+time did not throw: 100
+datetime-local did not throw: 100
+color threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+checkbox threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+radio threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+file threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+submit threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+image threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+reset threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+button threw exception: InvalidStateError: valueAsNumber: Invalid input type used

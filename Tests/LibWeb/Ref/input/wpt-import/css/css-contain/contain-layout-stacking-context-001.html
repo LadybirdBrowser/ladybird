@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<title>'contain: layout' establishes stacking context.</title>
+<link rel="author" title="Psychpsyo" href="mailto:psychpsyo@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#x43">
+<link rel="help" href="https://drafts.csswg.org/css-contain/#containment-layout">
+<link rel="match" href="../../../../expected/wpt-import/css/css-contain/contain-paint-stacking-context-001-ref.html">
+<style>
+  div {
+    width: 100px;
+    height: 100px;
+  }
+  #front {
+    background-color: green;
+    /* makes a stacking context and puts this on top */
+    position: absolute;
+    z-index: 10;
+  }
+  #back {
+    contain: layout;
+  }
+  #notOnTop {
+    background-color: red;
+    /* z-index is higher than on #front, but this should still be covered up because it is inside #back, which has 'contain: layout' */
+    position: absolute;
+    z-index: 1000;
+  }
+</style>
+<div id="front"></div>
+<div id="back">
+  <div id="notOnTop"></div>
+</div>
+Test succeeds if there is no red.

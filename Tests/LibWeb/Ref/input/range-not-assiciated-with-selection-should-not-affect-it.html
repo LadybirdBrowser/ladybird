@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <link
+        rel="match"
+        href="../expected/range-not-assiciated-with-selection-should-not-affect-it-ref.html"
+    />
+    <body>
+        <p id="text">This is a simple sentence used to test range and selection rectangles.</p>
+        <script>
+            const textNode = document.getElementById("text").firstChild;
+
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+
+            const selRange = document.createRange();
+            selRange.setStart(textNode, 5);
+            selRange.setEnd(textNode, 16);
+            sel.addRange(selRange);
+
+            requestAnimationFrame(() => {
+                const otherRange = document.createRange();
+                otherRange.setStart(textNode, 0);
+                otherRange.setEnd(textNode, 0);
+
+                // Requesting client rects on a range not associated with selection should not affect selection
+                otherRange.getClientRects();
+
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        </script>
+    </body>
+</html>

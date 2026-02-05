@@ -1,0 +1,8 @@
+Exception thrown when calling replaceSync() on non-constructed stylesheet: NotAllowedError
+Number of CSS rules after replaceSync(): 2
+Rule: .test { font-size: 14px; }
+Rule: .test2 { font-size: 16px; }
+cssRules returns the same object before and after replaceSync(): true
+@import rule should be not appear below:
+Rule: .test { padding: 100px; }
+Calling replaceSync() while the disallow modification flag set throws: NotAllowedError

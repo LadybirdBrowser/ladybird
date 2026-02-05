@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: child-indexed pseudo classes in :has() argument</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #container ~ div { color: grey }
+  #container:has(:only-child) ~ #only_child { color: red }
+  #container:has(.orange:first-child) ~ #first_child { color: orange }
+  #container:has(.yellow:first-child) ~ #first_child { color: yellow }
+  #container:has(.green:first-child) ~ #first_child { color: green }
+  #container:has(.orange:last-child) ~ #last_child { color: orange }
+  #container:has(.yellow:last-child) ~ #last_child { color: yellow }
+  #container:has(.green:last-child) ~ #last_child { color: green }
+  #container:has(.orange:nth-child(3n)) ~ #nth_child_3n { color: orange }
+  #container:has(.yellow:nth-child(3n)) ~ #nth_child_3n { color: yellow }
+  #container:has(.green:nth-child(3n)) ~ #nth_child_3n { color: green }
+  #container:has(.orange:nth-child(3n+1)) ~ #nth_child_3n_1 { color: orange }
+  #container:has(.yellow:nth-child(3n+1)) ~ #nth_child_3n_1 { color: yellow }
+  #container:has(.green:nth-child(3n+1)) ~ #nth_child_3n_1 { color: green }
+  #container:has(.orange:nth-child(3n+2)) ~ #nth_child_3n_2 { color: orange }
+  #container:has(.yellow:nth-child(3n+2)) ~ #nth_child_3n_2 { color: yellow }
+  #container:has(.green:nth-child(3n+2)) ~ #nth_child_3n_2 { color: green }
+  #container:has(.orange:nth-child(3n)) ~ #nth_child_3n { color: orange }
+  #container:has(.yellow:nth-child(3n)) ~ #nth_child_3n { color: yellow }
+  #container:has(.green:nth-child(3n)) ~ #nth_child_3n { color: green }
+</style>
+<div id="container">
+</div>
+<div id="only_child"></div>
+<div id="first_child"></div>
+<div id="last_child"></div>
+<div id="nth_child_3n_1"></div>
+<div id="nth_child_3n_2"></div>
+<div id="nth_child_3n"></div>
+<script>
+const grey = "rgb(128, 128, 128)";
+const red = "rgb(255, 0, 0)";
+const orange = "rgb(255, 165, 0)";
+const yellow = "rgb(255, 255, 0)";
+const green = "rgb(0, 128, 0)";
+
+function testColors(test_name,
+                    only_child_color,
+                    first_child_color,
+                    last_child_color,
+                    nth_child_3n_1_color,
+                    nth_child_3n_2_color,
+                    nth_child_3n_color) {
+  test(function() {
+      assert_equals(getComputedStyle(only_child).color, only_child_color);
+  }, test_name + ": #only_child");
+  test(function() {
+      assert_equals(getComputedStyle(first_child).color, first_child_color);
+  }, test_name + ": #first_child");
+  test(function() {
+      assert_equals(getComputedStyle(last_child).color, last_child_color);
+  }, test_name + ": #last_child");
+  test(function() {
+      assert_equals(getComputedStyle(nth_child_3n_1).color, nth_child_3n_1_color);
+  }, test_name + ": #nth_child_3n_1");
+  test(function() {
+      assert_equals(getComputedStyle(nth_child_3n_2).color, nth_child_3n_2_color);
+  }, test_name + ": #nth_child_3n_2");
+  test(function() {
+      assert_equals(getComputedStyle(nth_child_3n).color, nth_child_3n_color);
+  }, test_name + ": #nth_child_3n");
+}
+
+testColors("Initial colors", grey, grey, grey, grey, grey, grey);
+
+let div1 = document.createElement("div");
+div1.id = "div1";
+div1.classList.add("green");
+container.insertBefore(div1, container.firstChild);
+testColors("Prepend #div1.green", red, green, green, green, grey, grey);
+
+let div2 = document.createElement("div");
+div2.id = "div2";
+div2.classList.add("yellow");
+container.insertBefore(div2, container.firstChild);
+testColors("Prepend #div2.yellow", grey, yellow, green, yellow, green, grey);
+
+let div3 = document.createElement("div");
+div3.id = "div3";
+div3.classList.add("orange");
+container.insertBefore(div3, container.firstChild);
+testColors("Prepend #div3.orange", grey, orange, green, orange, yellow, green);
+
+let div4 = document.createElement("div");
+div4.id = "div4";
+container.insertBefore(div4, container.firstChild);
+testColors("Prepend #div4", grey, grey, green, green, orange, yellow);
+
+let div5 = document.createElement("div");
+div5.id = "div5";
+container.insertBefore(div5, container.firstChild);
+testColors("Prepend #div5", grey, grey, green, yellow, green, orange);
+
+div1.remove();
+testColors("Remove #div1", grey, grey, yellow, yellow, grey, orange);
+
+div2.remove();
+testColors("Remove #div2", grey, grey, orange, grey, grey, orange);
+
+div3.remove();
+testColors("Remove #div3", grey, grey, grey, grey, grey, grey);
+
+div4.remove();
+testColors("Remove #div4", red, grey, grey, grey, grey, grey);
+
+div5.remove();
+testColors("Remove #div5", grey, grey, grey, grey, grey, grey);
+</script>

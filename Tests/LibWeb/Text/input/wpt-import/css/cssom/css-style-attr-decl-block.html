@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="author" title="Xidorn Quan" href="mailto:me@upsuper.org">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#css-declaration-blocks">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+function createTestElement(style) {
+  let wrapper = document.createElement("div");
+  wrapper.innerHTML = `<div id="test" style="${style}"></div>`;
+  return wrapper.querySelector("#test");
+}
+
+test(function() {
+  let elem = createTestElement("z-index: 10;");
+  assert_equals(elem.style.cssText, "z-index: 10;");
+}, "Style attribute should create CSS declaration block based on its content");
+
+test(function() {
+  let elem = createTestElement("z-index: 20;");
+  let style = elem.style;
+  assert_equals(style.cssText, "z-index: 20;");
+  function assert_css_text(value, action) {
+    assert_equals(style.cssText, value, "CSS declaration block after " + action);
+  }
+  elem.setAttribute("style", "z-index: 21;");
+  assert_css_text("z-index: 21;", "changing the style attribute");
+  elem.removeAttribute("style");
+  assert_css_text("", "removing the style attribute");
+  elem.setAttribute("style", "position: absolute;");
+  assert_css_text("position: absolute;", "adding style attribute again");
+}, "Changes to style attribute should reflect on CSS declaration block");
+
+test(function() {
+  let elem = createTestElement("z-index: 30;");
+  let style = elem.style;
+  assert_equals(style.cssText, "z-index: 30;");
+  function assert_attr(value, action) {
+    assert_equals(elem.getAttribute("style"), value, "style attribute after " + action);
+  }
+  style.setProperty("z-index", "31");
+  assert_attr("z-index: 31;", "changing property in CSS declaration block");
+  style.removeProperty("z-index");
+  assert_attr("", "removing property from CSS declaration block");
+  style.setProperty("position", "absolute");
+  assert_attr("position: absolute;", "adding property to CSS declaration block");
+  style.cssText = "z-index: 32;";
+  assert_attr("z-index: 32;", "changing cssText");
+  style.cssText = "z-index: 33; invalid";
+  assert_attr("z-index: 33;", "changing cssText to a partial invalid value");
+}, "Changes to CSS declaration block should reflect on style attribute");
+
+test(function() {
+  let elem = createTestElement("z-index: 40;");
+  let style = elem.style;
+  assert_equals(style.cssText, "z-index: 40;");
+  // Create an observer for the element.
+  let observer = new MutationObserver(function() {});
+  observer.observe(elem, {attributes: true, attributeOldValue: true});
+  function assert_record_with_old_value(oldValue, action) {
+    let records = observer.takeRecords();
+    assert_equals(records.length, 1, "number of mutation records after " + action);
+    let record = records[0];
+    assert_equals(record.type, "attributes", "mutation type after " + action);
+    assert_equals(record.attributeName, "style", "mutated attribute after " + action);
+    assert_equals(record.oldValue, oldValue, "old value after " + action);
+  }
+  style.setProperty("z-index", "41");
+  assert_record_with_old_value("z-index: 40;", "changing property in CSS declaration block");
+  style.cssText = "z-index: 42;";
+  assert_record_with_old_value("z-index: 41;", "changing cssText");
+  style.cssText = "z-index: 42;";
+  assert_record_with_old_value("z-index: 42;", "changing cssText with the same content");
+  style.removeProperty("z-index");
+  assert_record_with_old_value("z-index: 42;", "removing property from CSS declaration block");
+  // Mutation to shorthand properties should also trigger only one mutation record.
+  style.setProperty("margin", "1px");
+  assert_record_with_old_value("", "adding shorthand property to CSS declaration block");
+  style.removeProperty("margin");
+  assert_record_with_old_value("margin: 1px;", "removing shorthand property from CSS declaration block");
+  // Final sanity check.
+  assert_equals(elem.getAttribute("style"), "");
+}, "Changes to CSS declaration block should queue mutation record for style attribute");
+
+test(function() {
+  let elem = createTestElement("z-index: 50; invalid");
+  let style = elem.style;
+  assert_equals(style.cssText, "z-index: 50;");
+  // Create an observer for the element.
+  let observer = new MutationObserver(function() {});
+  observer.observe(elem, {attributes: true});
+  function assert_no_record(action) {
+    let records = observer.takeRecords();
+    assert_equals(records.length, 0, "expect no record after " + action);
+  }
+  style.setProperty("z-index", "invalid");
+  assert_no_record("setting invalid value to property");
+  // Longhand property.
+  style.removeProperty("position");
+  assert_no_record("removing non-existing longhand property");
+  style.setProperty("position", "");
+  assert_no_record("setting empty string to non-existing longhand property");
+  // Shorthand property.
+  style.removeProperty("margin");
+  assert_no_record("removing non-existing shorthand property");
+  style.setProperty("margin", "");
+  assert_no_record("setting empty string to non-existing shorthand property");
+  // Check that the value really isn't changed.
+  assert_equals(elem.getAttribute("style"), "z-index: 50; invalid",
+                "style attribute after removing non-existing properties");
+}, "Removing non-existing property or setting invalid value on CSS declaration block shouldn't queue mutation record");
+
+test(function() {
+  let elem = createTestElement("background-image: url(./);");
+  let style = elem.style;
+  let base = document.createElement("base");
+  base.href = "/";
+  document.body.appendChild(elem);
+  let originalComputedValue = getComputedStyle(elem).backgroundImage;
+  document.head.appendChild(base);
+  this.add_cleanup(() => {
+    document.head.removeChild(base);
+    document.body.removeChild(elem);
+  });
+  style.setProperty("background-color", "green");
+  assert_equals(getComputedStyle(elem).backgroundImage, originalComputedValue,
+                "getComputedStyle(elem).backgroundImage after setting background-color");
+  style.setProperty("background-image", "url(./)");
+  assert_not_equals(getComputedStyle(elem).backgroundImage, originalComputedValue,
+                    "getComputedStyle(elem).backgroundImage after setting background-image");
+}, "Changes to CSS declaration block after a base URL change");
+
+test(function() {
+  let e1 = document.createElement('div');
+  let e2 = document.createElement('div');
+  document.body.append(e1, e2);
+  this.add_cleanup(() => {
+    e1.remove();
+    e2.remove();
+  });
+  e1.style.cssText = "all:revert;border-bottom-left-radius:1px;";
+  e2.style.cssText = "all:unset;border-bottom-left-radius:1px;";
+  let processed = e1.style.cssText.split(';')
+    .map(x => x.replace(/revert$/, 'unset')).join(';');
+  assert_equals(processed, e2.style.cssText);
+}, "Expansion of all:unset and all:revert treated identically");
+</script>

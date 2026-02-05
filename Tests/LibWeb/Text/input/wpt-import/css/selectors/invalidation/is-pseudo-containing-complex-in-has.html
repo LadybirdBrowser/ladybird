@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :is() in :has() argument</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div { color: grey }
+.red:has(#descendant:is(.a_has_scope .b)) { color: red }
+.orangered:has(#descendant:is(.a_descendant .b)) #descendant { color: orangered }
+.darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next { color: darkred }
+.pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child { color: pink }
+.green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) { color: green }
+.lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant { color: lightgreen }
+.darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next { color: darkgreen }
+.yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child { color: yellowgreen }
+.blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) { color: blue }
+.skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant { color: skyblue }
+.lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next { color: lightblue }
+.darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child { color: darkblue }
+.yellow:has(~ #indirect_next:is(.h_has_scope .i)) { color: yellow }
+.ivory:has(~ #indirect_next:is(.h_descendant .i)) #descendant { color: ivory }
+.greenyellow:has(~ #indirect_next:is(.h_indirect_next .i)) ~ #indirect_next { color: greenyellow }
+.khaki:has(~ #indirect_next:is(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child { color: khaki }
+.purple:has(~ #indirect_next:is(.p + .j_has_scope ~ .k .l)) { color: purple }
+.violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant { color: violet }
+.orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next { color: orchid }
+.plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child { color: plum }
+.orange:has(#descendant:is(:is(.m, .n) .o)) { color: orange }
+</style>
+<div>
+  <div class="p"></div>
+  <div id="parent_previous"></div>
+  <div id="parent" class="d k">
+    <div class="p"></div>
+    <div id="previous"></div>
+    <div class="p"></div>
+    <div id="has_scope" class="d">
+      <div class="p"></div>
+      <div id="child_previous"></div>
+      <div id="child" class="d">
+        <div id="descendant" class="b e o"></div>
+      </div>
+    </div>
+    <div class="p"></div>
+    <div id="direct_next"></div>
+    <div id="indirect_next" class="g i l">
+      <div id="indirect_next_child"></div>
+    </div>
+  </div>
+</div>
+<script>
+const grey = "rgb(128, 128, 128)";
+const red = "rgb(255, 0, 0)";
+const orangered = "rgb(255, 69, 0)";
+const darkred = "rgb(139, 0, 0)";
+const pink = "rgb(255, 192, 203)";
+const green = "rgb(0, 128, 0)";
+const lightgreen = "rgb(144, 238, 144)";
+const darkgreen = "rgb(0, 100, 0)";
+const yellowgreen = "rgb(154, 205, 50)";
+const blue = "rgb(0, 0, 255)";
+const skyblue = "rgb(135, 206, 235)";
+const lightblue = "rgb(173, 216, 230)";
+const darkblue = "rgb(0, 0, 139)";
+const yellow = "rgb(255, 255, 0)";
+const ivory = "rgb(255, 255, 240)";
+const greenyellow = "rgb(173, 255, 47)";
+const khaki = "rgb(240, 230, 140)";
+const purple = "rgb(128, 0, 128)";
+const violet = "rgb(238, 130, 238)";
+const orchid = "rgb(218, 112, 214)";
+const plum = "rgb(221, 160, 221)";
+const orange = "rgb(255, 165, 0)";
+
+function addClass(element, class_name) {
+  element.classList.add(class_name);
+}
+
+function removeClass(element, class_name) {
+  element.classList.remove(class_name);
+}
+
+function testClassChange(operation, class_name, element_id,
+                         selector, matches_result,
+                         subject_id, subject_color) {
+  let element = document.getElementById(element_id);
+  assert_equals(element ? element.id : "", element_id);
+  let subject = document.getElementById(subject_id);
+  assert_equals(subject ? subject.id : "", subject_id);
+  let message_prefix = [
+      "[", selector, "]",
+      ["#", element.id, ".classList.",
+       (operation == addClass ? "add" : "remove"),
+       "('", class_name, "')"].join(""),
+      ": "].join(" ");
+  operation(element, class_name);
+  test(function() {
+      assert_equals(subject.matches(selector), matches_result);
+  }, message_prefix + "check matches (" + matches_result + ")");
+  test(function() {
+      assert_equals(getComputedStyle(subject).color, subject_color);
+  }, message_prefix + "check #" + subject_id + " color");
+}
+
+function testSiblingInsertionRemoval(class_name, insert_before_id, selector,
+                                     subject_id,
+                                     insertion_matches_result,
+                                     insertion_subject_color,
+                                     removal_matches_result,
+                                     removal_subject_color) {
+  let insert_before = document.getElementById(insert_before_id);
+  assert_equals(insert_before ? insert_before.id : "", insert_before_id);
+  let parent = insert_before.parentElement;
+  let subject = document.getElementById(subject_id);
+  assert_equals(subject ? subject.id : "", subject_id);
+  let message_prefix = [
+      "[", selector, "]",
+      ["insert/remove .",
+       class_name, " before #", insert_before.id, ")"].join(""),
+      ": "].join(" ");
+
+  let div = document.createElement("div");
+  div.classList.add(class_name);
+
+  parent.insertBefore(div, insert_before);
+  test(function() {
+      assert_equals(subject.matches(selector), insertion_matches_result);
+  }, message_prefix + "(insertion) check matches (" +
+     insertion_matches_result + ")");
+  test(function() {
+      assert_equals(getComputedStyle(subject).color, insertion_subject_color);
+  }, message_prefix + "(insertion) check #" + subject_id + " color");
+
+  div.remove();
+  test(function() {
+      assert_equals(subject.matches(selector), removal_matches_result);
+  }, message_prefix + "(removal) check matches (" +
+     removal_matches_result + ")");
+  test(function() {
+      assert_equals(getComputedStyle(subject).color, removal_subject_color);
+  }, message_prefix + "(removal) check #" + subject_id + " color");
+}
+
+assert_equals(getComputedStyle(has_scope).color, grey);
+
+let selector = ".red:has(#descendant:is(.a_has_scope .b))";
+testClassChange(addClass, "red", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "a_has_scope", "parent", selector, true, "has_scope", red);
+testClassChange(removeClass, "a_has_scope", "parent", selector, false, "has_scope", grey);
+testClassChange(addClass, "a_has_scope", "has_scope", selector, true, "has_scope", red);
+testClassChange(removeClass, "a_has_scope", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "a_has_scope", "child", selector, true, "has_scope", red);
+testClassChange(removeClass, "a_has_scope", "child", selector, false, "has_scope", grey);
+testClassChange(removeClass, "red", "has_scope", selector, false, "has_scope", grey);
+
+selector = ".orangered:has(#descendant:is(.a_descendant .b)) #descendant";
+testClassChange(addClass, "orangered", "has_scope", selector, false, "descendant", grey);
+testClassChange(addClass, "a_descendant", "parent", selector, true, "descendant", orangered);
+testClassChange(removeClass, "a_descendant", "parent", selector, false, "descendant", grey);
+testClassChange(addClass, "a_descendant", "has_scope", selector, true, "descendant", orangered);
+testClassChange(removeClass, "a_descendant", "has_scope", selector, false, "descendant", grey);
+testClassChange(addClass, "a_descendant", "child", selector, true, "descendant", orangered);
+testClassChange(removeClass, "a_descendant", "child", selector, false, "descendant", grey);
+testClassChange(removeClass, "orangered", "has_scope", selector, false, "descendant", grey);
+
+selector = ".darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next";
+testClassChange(addClass, "darkred", "has_scope", selector, false, "indirect_next", grey);
+testClassChange(addClass, "a_indirect_next", "parent", selector, true, "indirect_next", darkred);
+testClassChange(removeClass, "a_indirect_next", "parent", selector, false, "indirect_next", grey);
+testClassChange(addClass, "a_indirect_next", "has_scope", selector, true, "indirect_next", darkred);
+testClassChange(removeClass, "a_indirect_next", "has_scope", selector, false, "indirect_next", grey);
+testClassChange(addClass, "a_indirect_next", "child", selector, true, "indirect_next", darkred);
+testClassChange(removeClass, "a_indirect_next", "child", selector, false, "indirect_next", grey);
+testClassChange(removeClass, "darkred", "has_scope", selector, false, "indirect_next", grey);
+
+selector = ".pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child";
+testClassChange(addClass, "pink", "has_scope", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "a_indirect_next_child", "parent", selector, true, "indirect_next_child", pink);
+testClassChange(removeClass, "a_indirect_next_child", "parent", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "a_indirect_next_child", "has_scope", selector, true, "indirect_next_child", pink);
+testClassChange(removeClass, "a_indirect_next_child", "has_scope", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "a_indirect_next_child", "child", selector, true, "indirect_next_child", pink);
+testClassChange(removeClass, "a_indirect_next_child", "child", selector, false, "indirect_next_child", grey);
+testClassChange(removeClass, "pink", "has_scope", selector, false, "indirect_next_child", grey);
+
+selector = ".green:has(#descendant:is(.p + .c_has_scope ~ .d .e))";
+testClassChange(addClass, "green", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "c_has_scope", "parent_previous", selector, true, "has_scope", green);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "has_scope", false, grey, true, green);
+testClassChange(removeClass, "c_has_scope", "parent_previous", selector, false, "has_scope", grey);
+testSiblingInsertionRemoval("c_has_scope", "parent_previous", selector, "has_scope", true, green, false, grey);
+testClassChange(addClass, "c_has_scope", "previous", selector, true, "has_scope", green);
+testSiblingInsertionRemoval("invalid", "previous", selector, "has_scope", false, grey, true, green);
+testClassChange(removeClass, "c_has_scope", "previous", selector, false, "has_scope", grey);
+testSiblingInsertionRemoval("c_has_scope", "previous", selector, "has_scope", true, green, false, grey);
+testClassChange(addClass, "c_has_scope", "child_previous", selector, true, "has_scope", green);
+testSiblingInsertionRemoval("invalid", "child_previous", selector, "has_scope", false, grey, true, green);
+testClassChange(removeClass, "c_has_scope", "child_previous", selector, false, "has_scope", grey);
+testSiblingInsertionRemoval("c_has_scope", "child_previous", selector, "has_scope", true, green, false, grey);
+testClassChange(removeClass, "green", "has_scope", selector, false, "has_scope", grey);
+
+selector = ".lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant";
+testClassChange(addClass, "lightgreen", "has_scope", selector, false, "descendant", grey);
+testClassChange(addClass, "c_descendant", "parent_previous", selector, true, "descendant", lightgreen);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "descendant", false, grey, true, lightgreen);
+testClassChange(removeClass, "c_descendant", "parent_previous", selector, false, "descendant", grey);
+testSiblingInsertionRemoval("c_descendant", "parent_previous", selector, "descendant", true, lightgreen, false, grey);
+testClassChange(addClass, "c_descendant", "previous", selector, true, "descendant", lightgreen);
+testSiblingInsertionRemoval("invalid", "previous", selector, "descendant", false, grey, true, lightgreen);
+testClassChange(removeClass, "c_descendant", "previous", selector, false, "descendant", grey);
+testSiblingInsertionRemoval("c_descendant", "previous", selector, "descendant", true, lightgreen, false, grey);
+testClassChange(addClass, "c_descendant", "child_previous", selector, true, "descendant", lightgreen);
+testSiblingInsertionRemoval("invalid", "child_previous", selector, "descendant", false, grey, true, lightgreen);
+testClassChange(removeClass, "c_descendant", "child_previous", selector, false, "descendant", grey);
+testSiblingInsertionRemoval("c_descendant", "child_previous", selector, "descendant", true, lightgreen, false, grey);
+testClassChange(removeClass, "lightgreen", "has_scope", selector, false, "descendant", grey);
+
+selector = ".darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next";
+testClassChange(addClass, "darkgreen", "has_scope", selector, false, "indirect_next", grey);
+testClassChange(addClass, "c_indirect_next", "parent_previous", selector, true, "indirect_next", darkgreen);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "indirect_next", false, grey, true, darkgreen);
+testClassChange(removeClass, "c_indirect_next", "parent_previous", selector, false, "indirect_next", grey);
+testSiblingInsertionRemoval("c_indirect_next", "parent_previous", selector, "indirect_next", true, darkgreen, false, grey);
+testClassChange(addClass, "c_indirect_next", "previous", selector, true, "indirect_next", darkgreen);
+testSiblingInsertionRemoval("invalid", "previous", selector, "indirect_next", false, grey, true, darkgreen);
+testClassChange(removeClass, "c_indirect_next", "previous", selector, false, "indirect_next", grey);
+testSiblingInsertionRemoval("c_indirect_next", "previous", selector, "indirect_next", true, darkgreen, false, grey);
+testClassChange(addClass, "c_indirect_next", "child_previous", selector, true, "indirect_next", darkgreen);
+testSiblingInsertionRemoval("invalid", "child_previous", selector, "indirect_next", false, grey, true, darkgreen);
+testClassChange(removeClass, "c_indirect_next", "child_previous", selector, false, "indirect_next", grey);
+testSiblingInsertionRemoval("c_indirect_next", "child_previous", selector, "indirect_next", true, darkgreen, false, grey);
+testClassChange(removeClass, "darkgreen", "has_scope", selector, false, "indirect_next", grey);
+
+selector = ".yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child";
+testClassChange(addClass, "yellowgreen", "has_scope", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "c_indirect_next_child", "parent_previous", selector, true, "indirect_next_child", yellowgreen);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "indirect_next_child", false, grey, true, yellowgreen);
+testClassChange(removeClass, "c_indirect_next_child", "parent_previous", selector, false, "indirect_next_child", grey);
+testSiblingInsertionRemoval("c_indirect_next_child", "parent_previous", selector, "indirect_next_child", true, yellowgreen, false, grey);
+testClassChange(addClass, "c_indirect_next_child", "previous", selector, true, "indirect_next_child", yellowgreen);
+testSiblingInsertionRemoval("invalid", "previous", selector, "indirect_next_child", false, grey, true, yellowgreen);
+testClassChange(removeClass, "c_indirect_next_child", "previous", selector, false, "indirect_next_child", grey);
+testSiblingInsertionRemoval("c_indirect_next_child", "previous", selector, "indirect_next_child", true, yellowgreen, false, grey);
+testClassChange(addClass, "c_indirect_next_child", "child_previous", selector, true, "indirect_next_child", yellowgreen);
+testSiblingInsertionRemoval("invalid", "child_previous", selector, "indirect_next_child", false, grey, true, yellowgreen);
+testClassChange(removeClass, "c_indirect_next_child", "child_previous", selector, false, "indirect_next_child", grey);
+testSiblingInsertionRemoval("c_indirect_next_child", "child_previous", selector, "indirect_next_child", true, yellowgreen, false, grey);
+testClassChange(removeClass, "yellowgreen", "has_scope", selector, false, "indirect_next_child", grey);
+
+selector = ".blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g))";
+testClassChange(addClass, "blue", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "f_has_scope", "previous", selector, true, "has_scope", blue);
+testSiblingInsertionRemoval("invalid", "previous", selector, "has_scope", false, grey, true, blue);
+testClassChange(removeClass, "f_has_scope", "previous", selector, false, "has_scope", grey);
+testSiblingInsertionRemoval("f_has_scope", "previous", selector, "has_scope", true, blue, false, grey);
+testClassChange(addClass, "f_has_scope", "has_scope", selector, true, "has_scope", blue);
+testClassChange(removeClass, "f_has_scope", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "f_has_scope", "direct_next", selector, true, "has_scope", blue);
+testSiblingInsertionRemoval("invalid", "direct_next", selector, "has_scope", false, grey, true, blue);
+testClassChange(removeClass, "f_has_scope", "direct_next", selector, false, "has_scope", grey);
+testSiblingInsertionRemoval("f_has_scope", "direct_next", selector, "has_scope", true, blue, false, grey);
+testClassChange(removeClass, "blue", "has_scope", selector, false, "has_scope", grey);
+
+selector = ".skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant";
+testClassChange(addClass, "skyblue", "has_scope", selector, false, "descendant", grey);
+testClassChange(addClass, "f_descendant", "previous", selector, true, "descendant", skyblue);
+testSiblingInsertionRemoval("invalid", "previous", selector, "descendant", false, grey, true, skyblue);
+testClassChange(removeClass, "f_descendant", "previous", selector, false, "descendant", grey);
+testSiblingInsertionRemoval("f_descendant", "previous", selector, "descendant", true, skyblue, false, grey);
+testClassChange(addClass, "f_descendant", "has_scope", selector, true, "descendant", skyblue);
+testClassChange(removeClass, "f_descendant", "has_scope", selector, false, "descendant", grey);
+testClassChange(addClass, "f_descendant", "direct_next", selector, true, "descendant", skyblue);
+testSiblingInsertionRemoval("invalid", "direct_next", selector, "descendant", false, grey, true, skyblue);
+testClassChange(removeClass, "f_descendant", "direct_next", selector, false, "descendant", grey);
+testSiblingInsertionRemoval("f_descendant", "direct_next", selector, "descendant", true, skyblue, false, grey);
+testClassChange(removeClass, "skyblue", "has_scope", selector, false, "descendant", grey);
+
+selector = ".lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next";
+testClassChange(addClass, "lightblue", "has_scope", selector, false, "indirect_next", grey);
+testClassChange(addClass, "f_indirect_next", "previous", selector, true, "indirect_next", lightblue);
+testSiblingInsertionRemoval("invalid", "previous", selector, "indirect_next", false, grey, true, lightblue);
+testClassChange(removeClass, "f_indirect_next", "previous", selector, false, "indirect_next", grey);
+testSiblingInsertionRemoval("f_indirect_next", "previous", selector, "indirect_next", true, lightblue, false, grey);
+testClassChange(addClass, "f_indirect_next", "has_scope", selector, true, "indirect_next", lightblue);
+testClassChange(removeClass, "f_indirect_next", "has_scope", selector, false, "indirect_next", grey);
+testClassChange(addClass, "f_indirect_next", "direct_next", selector, true, "indirect_next", lightblue);
+testSiblingInsertionRemoval("invalid", "direct_next", selector, "indirect_next", false, grey, true, lightblue);
+testClassChange(removeClass, "f_indirect_next", "direct_next", selector, false, "indirect_next", grey);
+testSiblingInsertionRemoval("f_indirect_next", "direct_next", selector, "indirect_next", true, lightblue, false, grey);
+testClassChange(removeClass, "lightblue", "has_scope", selector, false, "indirect_next", grey);
+
+selector = ".darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child";
+testClassChange(addClass, "darkblue", "has_scope", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "f_indirect_next_child", "previous", selector, true, "indirect_next_child", darkblue);
+testSiblingInsertionRemoval("invalid", "previous", selector, "indirect_next_child", false, grey, true, darkblue);
+testClassChange(removeClass, "f_indirect_next_child", "previous", selector, false, "indirect_next_child", grey);
+testSiblingInsertionRemoval("f_indirect_next_child", "previous", selector, "indirect_next_child", true, darkblue, false, grey);
+testClassChange(addClass, "f_indirect_next_child", "has_scope", selector, true, "indirect_next_child", darkblue);
+testClassChange(removeClass, "f_indirect_next_child", "has_scope", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "f_indirect_next_child", "direct_next", selector, true, "indirect_next_child", darkblue);
+testSiblingInsertionRemoval("invalid", "direct_next", selector, "indirect_next_child", false, grey, true, darkblue);
+testClassChange(removeClass, "f_indirect_next_child", "direct_next", selector, false, "indirect_next_child", grey);
+testSiblingInsertionRemoval("f_indirect_next_child", "direct_next", selector, "indirect_next_child", true, darkblue, false, grey);
+testClassChange(removeClass, "darkblue", "has_scope", selector, false, "indirect_next_child", grey);
+
+selector = ".yellow:has(~ #indirect_next:is(.h_has_scope .i))"
+testClassChange(addClass, "yellow", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "h_has_scope", "parent", selector, true, "has_scope", yellow);
+testClassChange(removeClass, "h_has_scope", "parent", selector, false, "has_scope", grey);
+testClassChange(removeClass, "yellow", "has_scope", selector, false, "has_scope", grey);
+
+selector = ".ivory:has(~ #indirect_next:is(.h_descendant .i)) #descendant";
+testClassChange(addClass, "ivory", "has_scope", selector, false, "descendant", grey);
+testClassChange(addClass, "h_descendant", "parent", selector, true, "descendant", ivory);
+testClassChange(removeClass, "h_descendant", "parent", selector, false, "descendant", grey);
+testClassChange(removeClass, "ivory", "has_scope", selector, false, "descendant", grey);
+
+selector = ".greenyellow:has(~ #indirect_next:is(.h_indirect_next .i)) ~ #indirect_next";
+testClassChange(addClass, "greenyellow", "has_scope", selector, false, "indirect_next", grey);
+testClassChange(addClass, "h_indirect_next", "parent", selector, true, "indirect_next", greenyellow);
+testClassChange(removeClass, "h_indirect_next", "parent", selector, false, "indirect_next", grey);
+testClassChange(removeClass, "greenyellow", "has_scope", selector, false, "indirect_next", grey);
+
+selector = ".khaki:has(~ #indirect_next:is(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child";
+testClassChange(addClass, "khaki", "has_scope", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "h_indirect_next_child", "parent", selector, true, "indirect_next_child", khaki);
+testClassChange(removeClass, "h_indirect_next_child", "parent", selector, false, "indirect_next_child", grey);
+testClassChange(removeClass, "khaki", "has_scope", selector, false, "indirect_next_child", grey);
+
+selector = ".purple:has(~ #indirect_next:is(.p + .j_has_scope ~ .k .l))"
+testClassChange(addClass, "purple", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "j_has_scope", "parent_previous", selector, true, "has_scope", purple);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "has_scope", false, grey, true, purple);
+testClassChange(removeClass, "j_has_scope", "parent_previous", selector, false, "has_scope", grey);
+testSiblingInsertionRemoval("j_has_scope", "parent_previous", selector, "has_scope", true, purple, false, grey);
+testClassChange(removeClass, "purple", "has_scope", selector, false, "has_scope", grey);
+
+selector = ".violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant";
+testClassChange(addClass, "violet", "has_scope", selector, false, "descendant", grey);
+testClassChange(addClass, "j_descendant", "parent_previous", selector, true, "descendant", violet);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "descendant", false, grey, true, violet);
+testClassChange(removeClass, "j_descendant", "parent_previous", selector, false, "descendant", grey);
+testSiblingInsertionRemoval("j_descendant", "parent_previous", selector, "descendant", true, violet, false, grey);
+testClassChange(removeClass, "violet", "has_scope", selector, false, "descendant", grey);
+
+selector = ".orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next";
+testClassChange(addClass, "orchid", "has_scope", selector, false, "indirect_next", grey);
+testClassChange(addClass, "j_indirect_next", "parent_previous", selector, true, "indirect_next", orchid);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "indirect_next", false, grey, true, orchid);
+testClassChange(removeClass, "j_indirect_next", "parent_previous", selector, false, "indirect_next", grey);
+testSiblingInsertionRemoval("j_indirect_next", "parent_previous", selector, "indirect_next", true, orchid, false, grey);
+testClassChange(removeClass, "orchid", "has_scope", selector, false, "indirect_next", grey);
+
+selector = ".plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child";
+testClassChange(addClass, "plum", "has_scope", selector, false, "indirect_next_child", grey);
+testClassChange(addClass, "j_indirect_next_child", "parent_previous", selector, true, "indirect_next_child", plum);
+testSiblingInsertionRemoval("invalid", "parent_previous", selector, "indirect_next_child", false, grey, true, plum);
+testClassChange(removeClass, "j_indirect_next_child", "parent_previous", selector, false, "indirect_next_child", grey);
+testSiblingInsertionRemoval("j_indirect_next_child", "parent_previous", selector, "indirect_next_child", true, plum, false, grey);
+testClassChange(removeClass, "plum", "has_scope", selector, false, "indirect_next_child", grey);
+
+selector = ".orange:has(#descendant:is(:is(.m, .n) .o))";
+testClassChange(addClass, "orange", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "m", "parent", selector, true, "has_scope", orange);
+testClassChange(removeClass, "m", "parent", selector, false, "has_scope", grey);
+testClassChange(addClass, "n", "parent", selector, true, "has_scope", orange);
+testClassChange(removeClass, "n", "parent", selector, false, "has_scope", grey);
+testClassChange(addClass, "m", "has_scope", selector, true, "has_scope", orange);
+testClassChange(removeClass, "m", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "n", "has_scope", selector, true, "has_scope", orange);
+testClassChange(removeClass, "n", "has_scope", selector, false, "has_scope", grey);
+testClassChange(addClass, "m", "child", selector, true, "has_scope", orange);
+testClassChange(removeClass, "m", "child", selector, false, "has_scope", grey);
+testClassChange(addClass, "n", "child", selector, true, "has_scope", orange);
+testClassChange(removeClass, "n", "child", selector, false, "has_scope", grey);
+testClassChange(removeClass, "orange", "has_scope", selector, false, "has_scope", grey);
+</script>

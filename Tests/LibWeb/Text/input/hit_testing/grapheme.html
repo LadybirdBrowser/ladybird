@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<textarea id="text">
+hello 👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻
+</textarea>
+<script>
+    test(() => {
+        const content = text.textContent.trim();
+
+        const click = (x, y) => {
+            internals.click(x, y);
+
+            const remainingText = content.substr(text.selectionStart);
+            println(`Click [${x}, ${y}]: position=${text.selectionStart} text="${remainingText}"`);
+        };
+
+        click(13, 20);
+        click(16, 20);
+        click(52, 20);
+        click(57, 20);
+        click(85, 20);
+        click(90, 20);
+    });
+</script>

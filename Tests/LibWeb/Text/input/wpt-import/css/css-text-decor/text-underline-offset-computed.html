@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: parsing text-underline-offset computed values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#underline-offset">
+<meta name="assert" content="text-underline-offset computed value is as specified.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("text-underline-offset", "auto");
+test_computed_value("text-underline-offset", "calc(10px - 8px)", "2px");
+
+test_computed_value("text-underline-offset", "32px", "32px");
+test_computed_value("text-underline-offset", "2em", "32px");
+test_computed_value("text-underline-offset", "200%", "200%");
+
+test_computed_value("text-underline-offset", "calc(2em - 0px)", "32px");
+test_computed_value("text-underline-offset", "calc(200% - 0px)", "200%");
+test_computed_value("text-underline-offset", "calc(0.5em - 0px)", "8px");
+test_computed_value("text-underline-offset", "calc(50% - 0px)", "50%");
+
+test_computed_value("text-underline-offset", "calc(2em - 8px)", "24px");
+test_computed_value("text-underline-offset", "calc(2em - 0.5em)", "24px");
+test_computed_value("text-underline-offset", "calc(2em - 50%)", "calc(-50% + 32px)");
+
+test_computed_value("text-underline-offset", "calc(200% - 8px)");
+test_computed_value("text-underline-offset", "calc(200% - 0.5em)", "calc(200% - 8px)");
+test_computed_value("text-underline-offset", "calc(200% - 50%)", "150%");
+</script>
+</body>
+</html>

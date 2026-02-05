@@ -1,0 +1,6 @@
+input[type=text] value: PASS
+input[type=search] value: PASS
+input[type=tel] value: PASS
+input[type=url] value: PASS
+input[type=email] value: PASS
+input[type=password] value: PASS

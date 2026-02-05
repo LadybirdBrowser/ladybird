@@ -1,0 +1,5 @@
+Inserting import rules after style rule throws: HierarchyRequestError
+Inserting namespace rules after style rule throws: HierarchyRequestError
+Inserting namespace rules before import rule throws: HierarchyRequestError
+Inserting style rules before import rule throws: HierarchyRequestError
+Inserting style rules before namespace rule throws: HierarchyRequestError

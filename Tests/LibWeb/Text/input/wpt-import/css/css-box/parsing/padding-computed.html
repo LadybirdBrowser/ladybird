@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS basic box model: getComputedStyle().padding</title>
+<link rel="help" href="https://drafts.csswg.org/css-box-3/#propdef-padding">
+<link rel="help" href="https://drafts.csswg.org/cssom/#resolved-values">
+<meta name="assert" content="padding resolved value is an absolute length.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #container {
+    will-change: transform; /* containing block for #target */
+    width: 200px;
+  }
+  #parent {
+    width: 0px;
+  }
+  #target {
+    position: absolute;
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="parent">
+    <div id="target"></div>
+  </div>
+</div>
+<script>
+test_computed_value("padding", "10px");
+test_computed_value("padding", "10px 20px 30px 40px");
+
+test_computed_value("padding-top", "10px");
+test_computed_value("padding-right", "20px");
+test_computed_value("padding-bottom", "30px");
+test_computed_value("padding-left", "40px");
+
+test_computed_value("padding", "20%", "40px");
+test_computed_value("padding", "10px 20% 30% 40px", "10px 40px 60px");
+test_computed_value("padding-right", "20%", "40px");
+
+test_computed_value('padding-top', 'calc(10% - 40px)', '0px');
+test_computed_value('padding-right', 'calc(10% + 40px)', '60px');
+test_computed_value('padding-bottom', 'calc(10px - 0.5em)', '0px');
+test_computed_value('padding-left', 'calc(10px + 0.5em)', '30px');
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<a href="mailto:contact@ladybird.org">please don't crash</a>
+<script>
+asyncTest(done => {
+    document.querySelector('a').click();
+
+    // The crash happened asynchronously, so we wait for a small amount of time before passing the test.
+    setTimeout(() => {
+        println('PASS (did not crash)');
+        done();
+    }, 100);
+});
+</script>

@@ -1,0 +1,18 @@
+<!doctype html>
+<link rel="match" href="../expected/css-attr-typed-ref.html" />
+<style>
+    div {
+        width: 100px;
+        height: 20px;
+        border: 1px solid black;
+    }
+    .string::before {
+        content: attr(foo raw-string);
+    }
+    .px {
+        width: attr(foo px);
+    }
+</style>
+<div class="string" foo="WHF!"></div>
+<div class="string" foo=""></div>
+<div class="px" foo="200"></div>

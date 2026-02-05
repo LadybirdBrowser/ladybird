@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Test (Selectors): Script focus without any previous user interaction matches :focus-visible</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<style>
+  #warning {
+    display: none;
+    background: red;
+  }
+
+  @supports not selector(:focus-visible) {
+    #instructions {
+      display: none;
+    }
+
+    #warning {
+      display: block;
+    }
+  }
+
+  :focus-visible {
+    outline: solid thick green;
+  }
+
+  :focus:not(:focus-visible) {
+    background-color: red;
+  }
+</style>
+
+<p>This test checks that a script focus when the user hasn't interacted with the page yet, always matches <code>:focus-visible</code>.</p>
+<ol id="instructions">
+  <li>If the element that says "Focused" has a red background then the test result is FAILURE, if it has a green outline then the test result is SUCCESS.</li>
+</ol>
+<p id="warning">Your user-agent does not support <code>:focus-visible</code> pseudo-class, please SKIP this test.</p>
+
+<div id="target" tabindex="0">Focused</div>
+
+<script>
+  // Check that :focus-visible is supported.
+  test_valid_selector(':focus-visible');
+
+  async_test(function(t) {
+    target.addEventListener("focus", t.step_func_done(function() {
+      assert_equals(getComputedStyle(target).outlineColor, "rgb(0, 128, 0)", `outlineColor for ${target.tagName}#${target.id} should be green`);
+      assert_not_equals(getComputedStyle(target).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${target.tagName}#${target.id} should NOT be red`);
+    }));
+  }, "Script focus without any previous user interaction matches :focus-visible");
+
+  target.focus();
+</script>

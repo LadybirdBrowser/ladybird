@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            font-style: oblique calc(sign(1em - 1px) * 1rad);
+        }
+    </style>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            println(getComputedStyle(foo).fontStyle);
+        });
+    </script>
+</html>

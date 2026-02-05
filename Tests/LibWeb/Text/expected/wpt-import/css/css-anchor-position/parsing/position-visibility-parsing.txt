@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 30 tests
+
+30 Pass
+Pass	e.style['position-visibility'] = "initial" should set the property value
+Pass	e.style['position-visibility'] = "inherit" should set the property value
+Pass	e.style['position-visibility'] = "unset" should set the property value
+Pass	e.style['position-visibility'] = "revert" should set the property value
+Pass	e.style['position-visibility'] = "always" should set the property value
+Pass	e.style['position-visibility'] = "anchors-valid" should set the property value
+Pass	e.style['position-visibility'] = "anchors-visible" should set the property value
+Pass	e.style['position-visibility'] = "no-overflow" should set the property value
+Pass	e.style['position-visibility'] = "anchors-valid anchors-visible" should set the property value
+Pass	e.style['position-visibility'] = "anchors-valid no-overflow" should set the property value
+Pass	e.style['position-visibility'] = "anchors-visible anchors-valid" should set the property value
+Pass	e.style['position-visibility'] = "anchors-visible no-overflow" should set the property value
+Pass	e.style['position-visibility'] = "no-overflow anchors-valid" should set the property value
+Pass	e.style['position-visibility'] = "no-overflow anchors-visible" should set the property value
+Pass	e.style['position-visibility'] = "anchors-valid anchors-visible no-overflow" should set the property value
+Pass	e.style['position-visibility'] = "anchors-valid no-overflow anchors-visible" should set the property value
+Pass	e.style['position-visibility'] = "anchors-visible anchors-valid no-overflow" should set the property value
+Pass	e.style['position-visibility'] = "anchors-visible no-overflow anchors-valid" should set the property value
+Pass	e.style['position-visibility'] = "no-overflow anchors-valid anchors-visible" should set the property value
+Pass	e.style['position-visibility'] = "no-overflow anchors-visible anchors-valid" should set the property value
+Pass	e.style['position-visibility'] = "foobar" should not set the property value
+Pass	e.style['position-visibility'] = "always foobar" should not set the property value
+Pass	e.style['position-visibility'] = "always anchors-valid" should not set the property value
+Pass	e.style['position-visibility'] = "always anchors-visible" should not set the property value
+Pass	e.style['position-visibility'] = "always no-overflow" should not set the property value
+Pass	e.style['position-visibility'] = "always anchors-valid no-overflow" should not set the property value
+Pass	e.style['position-visibility'] = "always anchors-valid anchors-visible no-overflow" should not set the property value
+Pass	e.style['position-visibility'] = "no-overflow foobar" should not set the property value
+Pass	e.style['position-visibility'] = "anchors-valid no-overflow foobar" should not set the property value
+Pass	e.style['position-visibility'] = "anchors-valid no-overflow anchors-valid anchors-visible" should not set the property value

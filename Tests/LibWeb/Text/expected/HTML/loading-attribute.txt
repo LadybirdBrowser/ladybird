@@ -1,0 +1,14 @@
+img loading initial value: eager
+img loading value after setting to "invalid": eager
+img loading value after setting to "lazy": lazy
+img loading value after setting to null: eager
+img loading value after setting to "LAZY": lazy
+img loading value after setting to "": eager
+img loading value after calling removeAttribute: eager
+iframe loading initial value: eager
+iframe loading value after setting to "invalid": eager
+iframe loading value after setting to "lazy": lazy
+iframe loading value after setting to null: eager
+iframe loading value after setting to "LAZY": lazy
+iframe loading value after setting to "": eager
+iframe loading value after calling removeAttribute: eager

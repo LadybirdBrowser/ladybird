@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['flex-flow'] = "column nowrap" should set the property value
+Pass	e.style['flex-flow'] = "nowrap column" should set the property value
+Pass	e.style['flex-flow'] = "wrap row-reverse" should set the property value
+Pass	e.style['flex-flow'] = "nowrap" should set the property value
+Pass	e.style['flex-flow'] = "row nowrap" should set the property value
+Pass	e.style['flex-flow'] = "wrap" should set the property value
+Pass	e.style['flex-flow'] = "row wrap" should set the property value

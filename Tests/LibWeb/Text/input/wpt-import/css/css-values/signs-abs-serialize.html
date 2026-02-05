@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#sign-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-serialize">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/serialize-testcommon.js"></script>
+<div id=target></div>
+<script>
+function test_serialization(t,s,c) {
+    test_specified_serialization('transform', `scale(${t})`, `scale(calc(${c}))`);
+}
+
+test_serialization(
+    'abs(1)',
+    'calc(1)',
+    '1');
+test_serialization(
+    'sign(.1)',
+    'calc(1)',
+    '1');
+
+test_serialization(
+    'abs(1 + 2 + 3)',
+    'calc(6)',
+    '6');
+test_serialization(
+    'sign(1 + 2 + 3)',
+    'calc(1)',
+    '1');
+
+test_serialization(
+    'calc(abs(1) + abs(2))',
+    'calc(3)',
+    '3');
+test_serialization(
+    'calc(sign(.1) + sign(.2))',
+    'calc(2)',
+    '2');
+
+test_serialization(
+    'calc(1 + abs(1))',
+    'calc(2)',
+    '2');
+test_serialization(
+    'calc(sign(.1) + 1)',
+    'calc(2)',
+    '2');
+
+test_serialization(
+    'calc(abs(inFinity))',
+    'calc(inFinity)',
+    'infinity');
+
+test_serialization(
+    'calc(abs(infinity))',
+    'calc(infinity)',
+    'infinity');
+test_serialization(
+    'calc(sign(infinity))',
+    'calc(1)',
+    '1');
+test_serialization(
+    'abs(infinity)',
+    'calc(infinity)',
+    'infinity');
+
+test_serialization(
+    'calc(abs(-infinity))',
+    'calc(infinity)',
+    'infinity');
+test_serialization(
+    'calc(sign(-1 * infinity))',
+    'calc(-1)',
+    '-1');
+
+test_serialization(
+  'calc(sign(-1 * NaN))',
+  'calc(NaN)',
+  'NaN');
+
+test_serialization(
+  'calc(sign(1 * NaN))',
+  'calc(NaN)',
+  'NaN');
+</script>

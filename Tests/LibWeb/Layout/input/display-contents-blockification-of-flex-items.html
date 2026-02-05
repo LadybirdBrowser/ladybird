@@ -1,0 +1,28 @@
+<!doctype html>
+<style type="text/css">
+  * {
+    outline: 1px solid black;
+  }
+  .flex {
+    display: flex;
+  }
+</style>
+<div class="flex">
+  163
+  <slot>
+    <foo-a
+      ><foo-b
+        ><template shadowrootmode="open">
+          <style>
+            :host {
+              display: flex;
+              border: 5px solid orange;
+            }
+          </style>
+          <slot></slot>
+        </template>
+        Share
+      </foo-b></foo-a
+    ></slot
+  >
+</div>

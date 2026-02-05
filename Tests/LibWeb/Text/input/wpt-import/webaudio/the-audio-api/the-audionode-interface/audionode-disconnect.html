@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audionode-disconnect.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // Task 1: test disconnect() method.
+      audit.define('disconnect()', (task, should) => {
+
+        // Connect a source to multiple gain nodes, each connected to the
+        // destination. Then disconnect the source. The expected output should
+        // be all zeros since the source was disconnected.
+        let context = new OfflineAudioContext(1, 128, 44100);
+        let source = context.createBufferSource();
+        let buffer1ch = createConstantBuffer(context, 128, [1]);
+        let gain1 = context.createGain();
+        let gain2 = context.createGain();
+        let gain3 = context.createGain();
+
+        source.buffer = buffer1ch;
+
+        source.connect(gain1);
+        source.connect(gain2);
+        source.connect(gain3);
+        gain1.connect(context.destination);
+        gain2.connect(context.destination);
+        gain3.connect(context.destination);
+        source.start();
+
+        // This disconnects everything.
+        source.disconnect();
+
+        context.startRendering()
+            .then(function(buffer) {
+
+              // With everything disconnected, the result should be zero.
+              should(buffer.getChannelData(0), 'Channel #0')
+                  .beConstantValueOf(0);
+
+            })
+            .then(() => task.done());
+      });
+
+      // Task 2: test disconnect(output) method.
+      audit.define('disconnect(output)', (task, should) => {
+
+        // Create multiple connections from each output of a ChannelSplitter
+        // to a gain node. Then test if disconnecting a single output of
+        // splitter is actually disconnected.
+        let context = new OfflineAudioContext(1, 128, 44100);
+        let source = context.createBufferSource();
+        let buffer3ch = createConstantBuffer(context, 128, [1, 2, 3]);
+        let splitter = context.createChannelSplitter(3);
+        let sum = context.createGain();
+
+        source.buffer = buffer3ch;
+
+        source.connect(splitter);
+        splitter.connect(sum, 0);
+        splitter.connect(sum, 1);
+        splitter.connect(sum, 2);
+        sum.connect(context.destination);
+        source.start();
+
+        // This disconnects the second output.
+        splitter.disconnect(1);
+
+        context.startRendering()
+            .then(function(buffer) {
+
+              // The rendered channel should contain 4. (= 1 + 0 + 3)
+              should(buffer.getChannelData(0), 'Channel #0')
+                  .beConstantValueOf(4);
+
+            })
+            .then(() => task.done());
+      });
+
+      // Task 3: test disconnect(AudioNode) method.
+      audit.define('disconnect(AudioNode)', (task, should) => {
+
+        // Connect a source to multiple gain nodes. Then test if disconnecting a
+        // single destination selectively works correctly.
+        let context = new OfflineAudioContext(1, 128, 44100);
+        let source = context.createBufferSource();
+        let buffer1ch = createConstantBuffer(context, 128, [1]);
+        let gain1 = context.createGain();
+        let gain2 = context.createGain();
+        let gain3 = context.createGain();
+        let orphan = context.createGain();
+
+        source.buffer = buffer1ch;
+
+        source.connect(gain1);
+        source.connect(gain2);
+        source.connect(gain3);
+        gain1.connect(context.destination);
+        gain2.connect(context.destination);
+        gain3.connect(context.destination);
+        source.start();
+
+        source.disconnect(gain2);
+
+        context.startRendering()
+            .then(function(buffer) {
+
+              // The |sum| gain node should produce value 2. (1 + 0 + 1 = 2)
+              should(buffer.getChannelData(0), 'Channel #0')
+                  .beConstantValueOf(2);
+
+            })
+            .then(() => task.done());
+      });
+
+      // Task 4: test disconnect(AudioNode, output) method.
+      audit.define('disconnect(AudioNode, output)', (task, should) => {
+
+        // Connect a buffer with 2 channels with each containing 1 and 2
+        // respectively to a ChannelSplitter, then connect the splitter to 2
+        // gain nodes as shown below:
+        //   (1) splitter#0 => gain1
+        //   (2) splitter#0 => gain2
+        //   (3) splitter#1 => gain2
+        // Then disconnect (2) and verify if the selective disconnection on a
+        // specified output of the destination node works correctly.
+        let context = new OfflineAudioContext(1, 128, 44100);
+        let source = context.createBufferSource();
+        let buffer2ch = createConstantBuffer(context, 128, [1, 2]);
+        let splitter = context.createChannelSplitter(2);
+        let gain1 = context.createGain();
+        let gain2 = context.createGain();
+
+        source.buffer = buffer2ch;
+
+        source.connect(splitter);
+        splitter.connect(gain1, 0);  // gain1 gets channel 0.
+        splitter.connect(gain2, 0);  // gain2 sums channel 0 and 1.
+        splitter.connect(gain2, 1);
+        gain1.connect(context.destination);
+        gain2.connect(context.destination);
+        source.start();
+
+        splitter.disconnect(gain2, 0);  // Now gain2 gets [2]
+
+        context.startRendering()
+            .then(function(buffer) {
+
+              // The sum of gain1 and gain2 should produce value 3. (= 1 + 2)
+              should(buffer.getChannelData(0), 'Channel #0')
+                  .beConstantValueOf(3);
+
+            })
+            .then(() => task.done());
+      });
+
+      // Task 5: test disconnect(AudioNode, output, input) method.
+      audit.define('disconnect(AudioNode, output, input)', (task, should) => {
+
+        // Create a 3-channel buffer with [1, 2, 3] in each channel and then
+        // pass it through a splitter and a merger. Each input/output of the
+        // splitter and the merger is connected in a sequential order as shown
+        // below.
+        //   (1) splitter#0 => merger#0
+        //   (2) splitter#1 => merger#1
+        //   (3) splitter#2 => merger#2
+        // Then disconnect (3) and verify if each channel contains [1] and [2]
+        // respectively.
+        let context = new OfflineAudioContext(3, 128, 44100);
+        let source = context.createBufferSource();
+        let buffer3ch = createConstantBuffer(context, 128, [1, 2, 3]);
+        let splitter = context.createChannelSplitter(3);
+        let merger = context.createChannelMerger(3);
+
+        source.buffer = buffer3ch;
+
+        source.connect(splitter);
+        splitter.connect(merger, 0, 0);
+        splitter.connect(merger, 1, 1);
+        splitter.connect(merger, 2, 2);
+        merger.connect(context.destination);
+        source.start();
+
+        splitter.disconnect(merger, 2, 2);
+
+        context.startRendering()
+            .then(function(buffer) {
+
+              // Each channel should have 1, 2, and 0 respectively.
+              should(buffer.getChannelData(0), 'Channel #0')
+                  .beConstantValueOf(1);
+              should(buffer.getChannelData(1), 'Channel #1')
+                  .beConstantValueOf(2);
+              should(buffer.getChannelData(2), 'Channel #2')
+                  .beConstantValueOf(0);
+
+            })
+            .then(() => task.done());
+      });
+
+      // Task 6: exception checks.
+      audit.define('exceptions', (task, should) => {
+        let context = new OfflineAudioContext(2, 128, 44100);
+        let gain1 = context.createGain();
+        let splitter = context.createChannelSplitter(2);
+        let merger = context.createChannelMerger(2);
+        let gain2 = context.createGain();
+        let gain3 = context.createGain();
+
+        // Connect a splitter to gain nodes and merger so we can test the
+        // possible ways of disconnecting the nodes to verify that appropriate
+        // exceptions are thrown.
+        gain1.connect(splitter);
+        splitter.connect(gain2, 0);
+        splitter.connect(gain3, 1);
+        splitter.connect(merger, 0, 0);
+        splitter.connect(merger, 1, 1);
+        gain2.connect(gain3);
+        gain3.connect(context.destination);
+        merger.connect(context.destination);
+
+        // There is no output #2. An exception should be thrown.
+        should(function() {
+          splitter.disconnect(2);
+        }, 'splitter.disconnect(2)').throw(DOMException, 'IndexSizeError');
+
+        // Disconnecting the output already disconnected should not throw.
+        should(function() {
+          splitter.disconnect(1);
+          splitter.disconnect(1);
+        }, 'Disconnecting a connection twice').notThrow();
+
+        // gain1 is not connected gain2. An exception should be thrown.
+        should(function() {
+          gain1.disconnect(gain2);
+        }, 'gain1.disconnect(gain2)').throw(DOMException, 'InvalidAccessError');
+
+        // gain1 and gain3 are not connected. An exception should be thrown.
+        should(function() {
+          gain1.disconnect(gain3);
+        }, 'gain1.disconnect(gain3)').throw(DOMException, 'InvalidAccessError');
+
+        // There is no output #2 in the splitter. An exception should be thrown.
+        should(function() {
+          splitter.disconnect(gain2, 2);
+        }, 'splitter.disconnect(gain2, 2)').throw(DOMException, 'IndexSizeError');
+
+        // The splitter and gain1 are not connected. An exception should be
+        // thrown.
+        should(function() {
+          splitter.disconnect(gain1, 0);
+        }, 'splitter.disconnect(gain1, 0)').throw(DOMException, 'InvalidAccessError');
+
+        // The splitter output #0 and the gain3 output #0 are not connected. An
+        // exception should be thrown.
+        should(function() {
+          splitter.disconnect(gain3, 0, 0);
+        }, 'splitter.disconnect(gain3, 0, 0)').throw(DOMException, 'InvalidAccessError');
+
+        // The output index is out of bound. An exception should be thrown.
+        should(function() {
+          splitter.disconnect(merger, 3, 0);
+        }, 'splitter.disconnect(merger, 3, 0)').throw(DOMException, 'IndexSizeError');
+
+        task.done();
+      });
+
+      audit.define('disabled-outputs', (task, should) => {
+        // See crbug.com/656652
+        let context = new OfflineAudioContext(2, 1024, 44100);
+        let g1 = context.createGain();
+        let g2 = context.createGain();
+        g1.connect(g2);
+        g1.disconnect(g2);
+        let g3 = context.createGain();
+        g2.connect(g3);
+        g1.connect(g2);
+        context.startRendering()
+            .then(function() {
+              // If we make it here, we passed.
+              should(true, 'Disabled outputs handled')
+                  .message('correctly', 'inccorrectly');
+            })
+            .then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,2 @@
+url("image.svg")
+url(image.svg)

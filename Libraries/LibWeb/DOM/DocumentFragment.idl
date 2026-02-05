@@ -1,0 +1,16 @@
+#import <DOM/Element.idl>
+#import <DOM/HTMLCollection.idl>
+#import <DOM/Node.idl>
+#import <DOM/NodeList.idl>
+#import <DOM/ParentNode.idl>
+
+// https://dom.spec.whatwg.org/#documentfragment
+[Exposed=Window]
+interface DocumentFragment : Node {
+    constructor();
+
+    // https://dom.spec.whatwg.org/#interface-nonelementparentnode
+    Element? getElementById(DOMString id);
+};
+
+DocumentFragment includes ParentNode;

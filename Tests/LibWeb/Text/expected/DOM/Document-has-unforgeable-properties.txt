@@ -1,0 +1,36 @@
+location exists on document itself: true
+location does not exist on LocationPrototype: true
+location descriptor is not undefined: true
+location enumerable: true
+location configurable: false
+location writable: undefined
+location exists on document itself: true
+location does not exist on LocationPrototype: true
+location descriptor is not undefined: true
+location enumerable: true
+location configurable: false
+location writable: undefined
+location exists on document itself: true
+location does not exist on LocationPrototype: true
+location descriptor is not undefined: true
+location enumerable: true
+location configurable: false
+location writable: undefined
+location exists on document itself: true
+location does not exist on LocationPrototype: true
+location descriptor is not undefined: true
+location enumerable: true
+location configurable: false
+location writable: undefined
+location exists on document itself: true
+location does not exist on LocationPrototype: true
+location descriptor is not undefined: true
+location enumerable: true
+location configurable: false
+location writable: undefined
+location exists on document itself: true
+location does not exist on LocationPrototype: true
+location descriptor is not undefined: true
+location enumerable: true
+location configurable: false
+location writable: undefined

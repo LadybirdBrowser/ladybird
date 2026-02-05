@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function escapeWhitespace(str) {
+            return str
+                .replace(/\t/g, '\\t')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
+        }
+
+        function printURL(url) {
+            println(`protocol => '${url.protocol}'`);
+            println(`username => '${url.username}'`);
+            println(`password => '${url.password}'`);
+            println(`host => '${url.host}'`);
+            println(`hostname => '${url.hostname}'`);
+            println(`port => '${url.port}'`);
+            println(`pathname => '${url.pathname}'`);
+            println(`search => '${url.search}'`);
+            println(`searchParams => '${url.searchParams}'`);
+            println(`hash => '${url.hash}'`);
+        }
+
+        const urls = [
+            { input: 'ftp://serenityos.org:21' },
+            { input: 'http://[0:1:0:1:0:1:0:1]' },
+            { input: 'http://[1:0:1:0:1:0:1:0]' },
+            { input: 'http://[1:1:0:0:1:0:0:0]/' },
+            { input: 'unknown://serenityos.org:0' },
+            { input: 'http://serenityos.org/cat?dog#meow"woof' },
+            { input: '/hello', base: 'file://friends/' },
+            { input: '//d:/..', base: 'file:///C:/a/b' },
+            { input: 'file://a%C2%ADb/p' },
+            { input: 'http://user%20name:pa%40ss%3Aword@www.ladybird.org' },
+            { input: 'h\tt\nt\rp://h\to\ns\rt:9\t0\n0\r0/p\ta\nt\rh?q\tu\ne\rry#f\tr\na\rg' },
+            { input: '  \t', base: 'http://ladybird.org/foo/bar' },
+            { input: '/c:/foo/bar', base: 'file:///c:/baz/qux' },
+            { input: '', base: 'file:///test?test#test' },
+            { input: '??a=b&c=d', base: 'http://example.org/foo/bar' },
+            { input: 'http://example.com/\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF?\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF' },
+            { input: 'irc://127.0.0.1:6667' },
+        ];
+
+        for (url of urls) {
+            if (url.base === undefined)
+                println(`new URL('${escapeWhitespace(url.input)}', ${url.base})`);
+            else
+                println(`new URL('${escapeWhitespace(url.input)}', '${escapeWhitespace(url.base)}')`);
+
+            printURL(new URL(url.input, url.base));
+        }
+
+        println('=========================================');
+
+        for (url of urls) {
+            if (url.base === undefined)
+                println(`URL.parse('${escapeWhitespace(url.input)}', ${url.base})`);
+            else
+                println(`URL.parse('${escapeWhitespace(url.input)}', '${escapeWhitespace(url.base)}')`);
+
+            printURL(URL.parse(url.input, url.base));
+        }
+    });
+</script>

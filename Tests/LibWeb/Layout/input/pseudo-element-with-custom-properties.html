@@ -1,0 +1,15 @@
+<!DOCTYPE html><style>
+* {
+    font: 20px SerenitySans;
+}
+.hello::before {
+    position: absolute;
+    height: 100px;
+    width: 100px;
+    --wide: 500px;
+    width: var(--wide);
+    --bg: orange;
+    background: var(--bg);
+    content: "";
+}
+</style><div class="hello">

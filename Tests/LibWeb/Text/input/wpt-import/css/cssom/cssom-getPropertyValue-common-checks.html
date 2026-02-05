@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Common serialization checks for all properties</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue">
+
+<div id="element"></div>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+const element = document.getElementById("element");
+const { style } = element;
+const computedStyle = getComputedStyle(element);
+const cssProperties = new Set();
+const cssShorthands = new Map();
+const cssShorthandsForLonghand = new Map();
+const cssLonghands = new Set();
+const cssAliases = new Map();
+const initialValues = new Map();
+
+setup(function() {
+  for (let obj = style; obj; obj = Reflect.getPrototypeOf(obj)) {
+    for (let name of Object.getOwnPropertyNames(obj)) {
+      const property = name.replace(/[A-Z]/g, c => "-" + c.toLowerCase());
+      if (CSS.supports(property, "initial")) {
+        cssProperties.add(property);
+      }
+    }
+  }
+  for (let property of cssProperties) {
+    style.cssText = "";
+    style.setProperty(property, "initial");
+    if (style.length > 1) {
+      cssShorthands.set(property, [...style]);
+      for (let longhand of style) {
+        if (cssShorthandsForLonghand.has(longhand)) {
+          cssShorthandsForLonghand.get(longhand).add(property);
+        } else {
+          cssShorthandsForLonghand.set(longhand, new Set([property]));
+        }
+      }
+    } else if (style.length === 1) {
+      if (property === style[0]) {
+        cssLonghands.add(property);
+      } else {
+        cssAliases.set(property, style[0]);
+      }
+    }
+  }
+});
+
+test(function() {
+  const bad = [];
+  for (let property of cssProperties) {
+    style.cssText = "";
+    style.setProperty(property, "initial");
+    const result = style.getPropertyValue(property);
+    if (result !== "initial") {
+      bad.push([property, result]);
+    }
+  }
+  assert_array_equals(bad, []);
+}, "All properties can serialize 'initial'");
+
+test(function() {
+  for (let longhand of cssLonghands) {
+    element.style.setProperty(longhand, "initial");
+  }
+  const bad = [];
+  for (let property of cssProperties) {
+    const result = computedStyle.getPropertyValue(property);
+    if (CSS.supports(property, result)) {
+      initialValues.set(property, result);
+    } else if (property !== "all") {
+      bad.push([property, result]);
+    }
+  }
+  assert_array_equals(bad, []);
+}, "All properties (except 'all') can serialize their initial value (computed)");
+
+test(function() {
+  const bad = [];
+  for (let [property, value] of initialValues) {
+    style.cssText = "";
+    style.setProperty(property, value);
+    const result = style.getPropertyValue(property);
+    if (!CSS.supports(property, result) && property !== "all") {
+      bad.push([property, value, result]);
+    }
+  }
+  assert_array_equals(bad, []);
+}, "All properties (except 'all') can serialize their initial value (specified)");
+
+test(function() {
+  const bad = [];
+  for (let [shorthand, longhands] of cssShorthands) {
+    style.cssText = "";
+    for (let longhand of longhands) {
+      style.setProperty(longhand, "initial");
+    }
+    const result = style.getPropertyValue(shorthand);
+    if (result !== "initial") {
+      bad.push([shorthand, result]);
+    }
+  }
+  assert_array_equals(bad, []);
+}, "All shorthands can serialize their longhands set to 'initial'");
+
+test(function() {
+  const bad = [];
+  outerloop:
+  for (let [shorthand, longhands] of cssShorthands) {
+    style.cssText = "";
+    for (let longhand of longhands) {
+      if (!initialValues.has(longhand)) {
+        continue outerloop;
+      }
+      style.setProperty(longhand, initialValues.get(longhand));
+    }
+    const result = style.getPropertyValue(shorthand);
+    if (!CSS.supports(shorthand, result) && shorthand !== "all") {
+      bad.push([shorthand, result]);
+    }
+  }
+  assert_array_equals(bad, []);
+}, "All shorthands (except 'all') can serialize their longhands set to their initial value");
+
+test(function() {
+  const bad = [];
+  for (let [alias, target] of cssAliases) {
+    style.cssText = "";
+    style.setProperty(target, "initial");
+    const result = style.getPropertyValue(alias);
+    if (result !== "initial") {
+      bad.push([alias, result]);
+    }
+  }
+  assert_array_equals(bad, []);
+}, "All aliases can serialize target property set to 'initial'");
+
+test(function() {
+  const bad = [];
+  for (let [alias, target] of cssAliases) {
+    if (!initialValues.has(target)) {
+      continue;
+    }
+    style.cssText = "";
+    style.setProperty(target, initialValues.get(target));
+    const result = style.getPropertyValue(alias);
+    if (!CSS.supports(alias, result)) {
+      bad.push([alias, result]);
+    }
+  }
+  assert_array_equals(bad, []);
+}, "All aliases can serialize target property set to its initial value");
+
+test(function() {
+  const bad = [];
+  for (let [shorthand, longhands] of cssShorthands) {
+    for (let longhand of longhands) {
+      style.cssText = "";
+      style.setProperty(shorthand, "initial");
+      style.setProperty(longhand, "inherit");
+      const result = style.getPropertyValue(shorthand);
+      if (result !== "") {
+        bad.push([shorthand, longhand, result]);
+      }
+    }
+  }
+  assert_array_equals(bad, []);
+}, "Can't serialize shorthand when longhands are set to different css-wide keywords");
+
+test(function() {
+  const bad = [];
+  for (let [shorthand, longhands] of cssShorthands) {
+    for (let longhand of longhands) {
+      style.cssText = "";
+      style.setProperty(shorthand, "initial");
+      style.setProperty(longhand, "initial", "important");
+      const result = style.getPropertyValue(shorthand);
+      if (result !== "") {
+        bad.push([shorthand, longhand, result]);
+      }
+    }
+  }
+  assert_array_equals(bad, []);
+}, "Can't serialize shorthand when longhands have different priority");
+
+test(function() {
+  const bad = [];
+  for (let [shorthand, longhands] of cssShorthands) {
+    for (let longhand of longhands) {
+      style.cssText = "";
+      style.setProperty(shorthand, "initial");
+      style.removeProperty(longhand);
+      const result = style.getPropertyValue(shorthand);
+      if (result !== "") {
+        bad.push([shorthand, longhand, result]);
+      }
+    }
+  }
+  assert_array_equals(bad, []);
+}, "Can't serialize shorthand set to 'initial' when some longhand is missing");
+
+test(function() {
+  const bad = [];
+  for (let [shorthand, longhands] of cssShorthands) {
+    if (initialValues.has(shorthand)) {
+      for (let longhand of longhands) {
+        style.cssText = "";
+        style.setProperty(shorthand, initialValues.get(shorthand));
+        style.removeProperty(longhand);
+        const result = style.getPropertyValue(shorthand);
+        if (result !== "") {
+          bad.push([shorthand, longhand, result]);
+        }
+      }
+    }
+  }
+  assert_array_equals(bad, []);
+}, "Can't serialize shorthand set to initial value when some longhand is missing");
+</script>

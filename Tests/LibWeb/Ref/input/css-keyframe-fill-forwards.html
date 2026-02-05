@@ -1,0 +1,21 @@
+<!doctype html>
+<link rel="match" href="../expected/css-keyframe-fill-forwards-ref.html" />
+<style>
+    #foo {
+        width: 100px;
+        height: 100px;
+        animation: anim 1s linear forwards;
+    }
+    @keyframes anim {
+        from {
+            background-color: red;
+        }
+        to {
+            background-color: blue;
+        }
+    }
+</style>
+<div id="foo"></div>
+<script>
+    document.getElementById("foo").getAnimations()[0].currentTime = 1500;
+</script>

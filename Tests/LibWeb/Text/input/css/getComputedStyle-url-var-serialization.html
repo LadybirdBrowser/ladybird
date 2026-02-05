@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    :root {
+        --test-url: url('https://ladybird.org/');
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.documentElement);
+        println(`style.getPropertyValue("--test-url") = ${style.getPropertyValue("--test-url")}`);
+    });
+</script>

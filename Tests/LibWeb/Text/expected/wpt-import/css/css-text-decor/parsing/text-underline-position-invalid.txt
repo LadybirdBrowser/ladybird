@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['text-underline-position'] = "auto under" should not set the property value
+Pass	e.style['text-underline-position'] = "auto from-font" should not set the property value
+Pass	e.style['text-underline-position'] = "left auto" should not set the property value
+Pass	e.style['text-underline-position'] = "left right" should not set the property value
+Pass	e.style['text-underline-position'] = "right under left" should not set the property value
+Pass	e.style['text-underline-position'] = "under from-font" should not set the property value

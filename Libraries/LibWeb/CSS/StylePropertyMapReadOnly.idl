@@ -1,0 +1,16 @@
+#import <CSS/CSSStyleValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymapreadonly
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface StylePropertyMapReadOnly {
+    // FIXME: iterable<USVString, sequence<CSSStyleValue>>;
+    (undefined or CSSStyleValue) get(USVString property);
+    sequence<CSSStyleValue> getAll(USVString property);
+    boolean has(USVString property);
+    readonly attribute unsigned long size;
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#computed-stylepropertymapreadonly-objects
+partial interface Element {
+    [SameObject] StylePropertyMapReadOnly computedStyleMap();
+};

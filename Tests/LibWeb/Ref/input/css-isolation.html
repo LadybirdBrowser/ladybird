@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-isolation.html" />
+<style>
+  .outer {
+    isolation:isolate;
+    position: absolute;
+  }
+  .inner {
+    width: 100px;
+    height: 100px;
+  }
+</style>
+<div class="outer">
+    <div class="inner" style="background-color:red; position:relative; z-index:1;"></div>
+</div>
+<div class="outer">
+    <div class="inner" style="background-color:green;"></div>
+</div>

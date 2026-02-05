@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 27 tests
+
+21 Pass
+6 Fail
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim" should set the property value
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim initial" should not set the property value
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim 2000" should not set the property value
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim scroll()" should not set the property value
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim view()" should not set the property value
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim --timeline" should not set the property value
+Pass	Property animation value '1s linear 1s 2 reverse forwards paused anim'
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-delay
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-direction
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-duration
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-fill-mode
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-iteration-count
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-name
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-play-state
+Fail	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-range-end
+Fail	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-range-start
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-timeline
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should set animation-timing-function
+Pass	e.style['animation'] = "1s linear 1s 2 reverse forwards paused anim1,\n   1s linear 1s 2 reverse forwards paused anim2,\n   1s linear 1s 2 reverse forwards paused anim3" should not set unrelated longhands
+Pass	Animation shorthand can not represent non-initial timelines (specified)
+Pass	Animation shorthand can not represent non-initial timelines (computed)
+Fail	Animation shorthand can not represent non-initial animation-range-start (specified)
+Fail	Animation shorthand can not represent non-initial animation-range-start (computed)
+Fail	Animation shorthand can not represent non-initial animation-range-end (specified)
+Fail	Animation shorthand can not represent non-initial animation-range-end (computed)
+Pass	Animation shorthand can not be represented with same list length (specified)
+Pass	Animation shorthand can be represented with same list length (computed)

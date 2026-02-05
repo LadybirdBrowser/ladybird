@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Constructing sheet with custom base URL ueses that URL for CSS rules
+Pass	Constructing sheet with relative URL adds to the constructor document's base URL
+Pass	Constructing sheet with invalid base URL throws a NotAllowedError

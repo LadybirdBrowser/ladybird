@@ -1,0 +1,21 @@
+input.labels.length: 1
+input.labels[0] === label: true
+input.labels always returns the same object: true
+meter.labels.length: 1
+meter.labels[0] === label: true
+meter.labels always returns the same object: true
+output.labels.length: 1
+output.labels[0] === label: true
+output.labels always returns the same object: true
+progress.labels.length: 1
+progress.labels[0] === label: true
+progress.labels always returns the same object: true
+select.labels.length: 1
+select.labels[0] === label: true
+select.labels always returns the same object: true
+textarea.labels.length: 1
+textarea.labels[0] === label: true
+textarea.labels always returns the same object: true
+input.labels returns null if input type is hidden: true
+input.labels.length after input type is changed from hidden: 1
+input.labels[0] === label after input type is changed from hidden: true

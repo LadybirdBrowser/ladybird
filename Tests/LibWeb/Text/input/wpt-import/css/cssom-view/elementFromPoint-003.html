@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Checking whether dynamic changes to visibility interact correctly with
+  table anonymous boxes</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<style>
+#overlay {
+  display: table;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+  z-index: 999
+}
+
+#wrapper { position: relative; }
+</style>
+<div id=log></div>
+<div id="wrapper">
+  <div id="overlay"><div></div></div>
+  <div id="target">Some text</div>
+</div>
+<script>
+  test(function() {
+    // Make sure we have boxes constructed already.
+    document.body.offsetWidth;
+    var overlay = document.querySelector("#overlay");
+    overlay.insertBefore(document.createElement("div"), overlay.firstChild);
+    overlay.appendChild(document.createElement("div"));
+    // Make sure we have boxes constructed for those inserts/appends
+    document.body.offsetWidth;
+    overlay.firstChild.nextSibling.remove();
+    var t = document.querySelector("#target");
+    var rect = t.getBoundingClientRect();
+    var hit = document.elementFromPoint(rect.x + rect.width/2,
+                                        rect.y + rect.height/2);
+    assert_equals(hit, t.previousElementSibling,
+                  "Should hit the overlay first.");
+    t.previousElementSibling.style.visibility = "hidden";
+    hit = document.elementFromPoint(rect.x + rect.width/2,
+                                    rect.y + rect.height/2);
+    assert_equals(hit, t,
+                  "Should hit our target now that the overlay is hidden.");
+  });
+</script>

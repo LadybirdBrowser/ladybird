@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	A new CSS animation is initially play-pending
+Pass	Animation returns correct playState when paused
+Pass	Animation.playState updates when paused by script
+Pass	Animation.playState updates when resumed by setting style
+Pass	Animation returns correct playState when canceled

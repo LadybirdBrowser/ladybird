@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>Flex gaps</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#main-alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align/#gaps">
+<meta name="assert" content="Button elements with display: flex honor gaps." />
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.button {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  padding: 0;
+  background: green;
+  width: 100px;
+  row-gap: 20px;
+}
+
+.item {
+  height: 40px;
+}
+
+#reference-overlapped-red {
+  position: absolute;
+  background-color: red;
+  width: 100px;
+  height: 100px;
+  z-index: -1;
+}
+</style>
+
+<div id=reference-overlapped-red></div>
+
+<button class=button data-expected-height=100>
+  <div class=item></div>
+  <div class=item></div>
+</button>
+
+<script>
+checkLayout('.button');
+</script>

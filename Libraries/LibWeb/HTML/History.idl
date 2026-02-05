@@ -1,0 +1,15 @@
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#scrollrestoration
+enum ScrollRestoration { "auto", "manual" };
+
+// https://html.spec.whatwg.org/multipage/history.html#the-history-interface
+[Exposed=Window]
+interface History {
+    readonly attribute unsigned long length;
+    attribute ScrollRestoration scrollRestoration;
+    readonly attribute any state;
+    undefined go(optional long delta = 0);
+    undefined back();
+    undefined forward();
+    undefined pushState(any data, DOMString unused, optional USVString? url = null);
+    undefined replaceState(any data, DOMString unused, optional USVString? url = null);
+};

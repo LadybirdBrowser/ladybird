@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-stretch">
+<link rel="match" href="../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="grid with inline-size containment, and min-height will still distribute extra space to auto rows">
+<style>
+grid {
+    display: grid;
+    min-height: 100px;
+    grid-template-rows: auto;
+    contain: inline-size;
+}
+.absolute {
+    position: absolute;
+}
+.align-end {
+    align-self: end;
+}
+.item {
+    width: 100px;
+    height: 50px;
+    background-color: green;
+}
+</style>
+</head>
+<body>
+    <p>Test passes if there is a filled green square.</p>
+    <grid>
+        <div class="absolute item"></div>
+        <div class="item align-end"></div>
+    </grid>
+</body>
+</html>

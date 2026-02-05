@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selector Invalidation: Invalidate :has() as result of insertion/removal</title>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+#subject:has(+ #next_sibling) { color: red; }
+#prev_sibling:has(+ #subject + #next_sibling) { color: green; }
+</style>
+
+<main id=main>
+  <div id=prev_sibling></div>
+  <div id=subject></div>
+  <div id=blocks_match></div>
+  <div id=next_sibling></div>
+</main>
+
+<script>
+const grey = 'rgb(128, 128, 128)';
+const red = 'rgb(255, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+
+function testColors(test_name, subject_color, prev_sibling_color) {
+    test(function() {
+        assert_equals(getComputedStyle(subject).color, subject_color);
+        assert_equals(getComputedStyle(prev_sibling).color, prev_sibling_color);
+    }, test_name);
+}
+
+testColors('Initial colors', grey, grey);
+
+const d = blocks_match;
+d.remove();
+
+testColors('Matches after #blocks_match removed', red, green);
+subject.after(d);
+
+testColors('Does not match after #blocks_match added', grey, grey);
+</script>

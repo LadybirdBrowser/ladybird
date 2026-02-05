@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    .scroll-container {
+        width: 500px;
+        overflow-x: scroll;
+        white-space: nowrap;
+        background-color: #f0f0f0;
+        display: flex;
+        border: 5px solid yellowgreen;
+    }
+
+    .section {
+        flex: 0 0 1000px;
+        height: 200px;
+        background-color: orangered;
+    }
+
+    .sticky-element {
+        position: sticky;
+        left: 0;
+        background-color: blueviolet;
+        flex: 0 0 300px;
+        height: 200px;
+        line-height: 200px;
+        color: white;
+    }
+</style>
+<div class="scroll-container" id="a">
+    <div class="section" style="flex-basis: 200px"></div>
+    <div class="sticky-element"></div>
+</div>
+<div class="scroll-container" id="b">
+    <div class="section" style="flex-basis: 100px"></div>
+    <div class="sticky-element"></div>
+    <div class="section" style="flex-basis: 100px"></div>
+</div>
+<div class="scroll-container" id="c">
+    <div class="section"></div>
+</div>

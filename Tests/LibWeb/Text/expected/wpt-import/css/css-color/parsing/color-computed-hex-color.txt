@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Property color value '#fff' [Valid 3-digit hex]
+Pass	Property color value '#ffff' [Valid 4-digit hex]
+Pass	Property color value '#ffffff' [Valid 6-digit hex]
+Pass	Property color value '#ffffffff' [Valid 8-digit hex]
+Pass	Property color value '#FFCc99' [Valid 6-digit hex]
+Pass	Property color value '#369' [Valid 3-digit hex]

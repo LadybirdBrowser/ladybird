@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	select.remove(n) should work
+Pass	select.options.remove(n) should work
+Pass	remove() should work on select elements.
+Pass	Element#remove() should work on select elements.

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../Text/input/include.js"></script>
+<script>
+    const TEST_SERVER_SET_INVALID_COOKIE = "X-Ladybird-Set-Invalid-Cookie";
+
+    const ACCESS_CONTROL_ALLOW_HEADERS = [TEST_SERVER_SET_INVALID_COOKIE].join(", ");
+    const ACCESS_CONTROL_EXPOSE_HEADERS = ["Set-Cookie"].join(", ");
+
+    const server = httpTestServer();
+
+    async function createRequest(path) {
+        await server.createEcho("OPTIONS", path, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Headers": ACCESS_CONTROL_ALLOW_HEADERS,
+                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Origin": location.origin,
+            },
+        });
+
+        return server.createEcho("GET", path, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Origin": location.origin,
+                "Access-Control-Expose-Headers": ACCESS_CONTROL_EXPOSE_HEADERS,
+            },
+            reflect_headers_in_body: true,
+        });
+    }
+
+    (async () => {
+        let url = await createRequest("/invalid-cookie");
+
+        await fetch(url, {
+            method: "GET",
+            credentials: "include",
+            mode: "cors",
+            headers: {
+                [TEST_SERVER_SET_INVALID_COOKIE]: "1",
+            }
+        });
+    })();
+</script>

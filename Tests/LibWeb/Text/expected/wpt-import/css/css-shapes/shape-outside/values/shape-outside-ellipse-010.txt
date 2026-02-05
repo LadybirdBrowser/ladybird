@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	ellipse(farthest-side calc(10in) at 50% 50%) - inline style
+Pass	ellipse(farthest-side calc(10in + 20px) at 50% 50%) - inline style
+Pass	ellipse(farthest-side calc(30%) at 50% 50%) - inline style
+Pass	ellipse(farthest-side calc(100%/4) at 50% 50%) - inline style
+Pass	ellipse(farthest-side calc(25%*3) at 50% 50%) - inline style
+Pass	ellipse(farthest-side calc(25%*3 - 10in) at 50% 50%) - inline style
+Pass	ellipse(farthest-side calc((12.5%*6 + 10in) / 4) at 50% 50%) - inline style
+Pass	ellipse(calc(10in) calc(10in) at 50% 50%) - inline style
+Pass	ellipse(calc(10in + 20px) calc(10in + 20px) at 50% 50%) - inline style
+Pass	ellipse(calc(30%) calc(30%) at 50% 50%) - inline style
+Pass	ellipse(calc(100%/4) calc(100%/4) at 50% 50%) - inline style
+Pass	ellipse(calc(25%*3) calc(25%*3) at 50% 50%) - inline style
+Pass	ellipse(calc(25%*3 - 10in) calc(25%*3 - 10in) at 50% 50%) - inline style
+Pass	ellipse(calc((12.5%*6 + 10in) / 4) calc((12.5%*6 + 10in) / 4) at 50% 50%) - inline style
+Pass	ellipse(farthest-side calc(10in) at 50% 50%) - computed style
+Pass	ellipse(farthest-side calc(10in + 20px) at 50% 50%) - computed style
+Pass	ellipse(farthest-side calc(30%) at 50% 50%) - computed style
+Pass	ellipse(farthest-side calc(100%/4) at 50% 50%) - computed style
+Pass	ellipse(farthest-side calc(25%*3) at 50% 50%) - computed style
+Pass	ellipse(farthest-side calc(25%*3 - 10in) at 50% 50%) - computed style
+Pass	ellipse(farthest-side calc((12.5%*6 + 10in) / 4) at 50% 50%) - computed style
+Pass	ellipse(calc(10in) calc(10in) at 50% 50%) - computed style
+Pass	ellipse(calc(10in + 20px) calc(10in + 20px) at 50% 50%) - computed style
+Pass	ellipse(calc(30%) calc(30%) at 50% 50%) - computed style
+Pass	ellipse(calc(100%/4) calc(100%/4) at 50% 50%) - computed style
+Pass	ellipse(calc(25%*3) calc(25%*3) at 50% 50%) - computed style
+Pass	ellipse(calc(25%*3 - 10in) calc(25%*3 - 10in) at 50% 50%) - computed style
+Pass	ellipse(calc((12.5%*6 + 10in) / 4) calc((12.5%*6 + 10in) / 4) at 50% 50%) - computed style

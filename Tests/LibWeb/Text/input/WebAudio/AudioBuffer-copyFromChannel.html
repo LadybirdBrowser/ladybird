@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Create an empty AudioBuffer
+        let audioBuffer = new AudioBuffer({
+            numberOfChannels: 2,
+            length: 7,
+            sampleRate: 8000,
+        });
+
+        // Fill channel 0 with 5
+        let channel0Data = audioBuffer.getChannelData(0);
+        for (let i = 0; i < channel0Data.length; i++) {
+            channel0Data[i] = 5;
+        }
+
+        // Fill channel 1 with 2
+        let channel1Data = audioBuffer.getChannelData(1);
+        for (let i = 0; i < channel1Data.length; i++) {
+            channel1Data[i] = 2;
+        }
+
+        // Copy into out of range channel
+        try {
+            let errorBuffer = new Float32Array(channel0Data.length);
+            audioBuffer.copyFromChannel(errorBuffer, 2);
+        } catch (e) {
+            println(`Error calling copyFromChannel: ${e}`);
+        }
+
+        // Copy into a non-Float32Array
+        try {
+            let notFloatArray = new Uint8Array(channel0Data.length);
+            audioBuffer.copyFromChannel(notFloatArray, 1, 2);
+        } catch (e) {
+            println(`Error calling copyFromChannel: ${e}`);
+        }
+
+        // Copy full channel
+        let fullBuffer = new Float32Array(channel0Data.length);
+        println(fullBuffer);
+        audioBuffer.copyFromChannel(fullBuffer, 0);
+        println(fullBuffer);
+
+        // Copy channel 0 into buffer with bigger size
+        let biggerBuffer = new Float32Array(channel0Data.length + 3);
+        println(biggerBuffer);
+        audioBuffer.copyFromChannel(biggerBuffer, 0);
+        println(biggerBuffer);
+
+        // Copy channel into buffer with offset
+        audioBuffer.copyFromChannel(biggerBuffer, 1, 2);
+        println(biggerBuffer);
+
+        // Copy channel into buffer with offset bigger than channel size.
+        audioBuffer.copyFromChannel(biggerBuffer, 1, channel1Data.length + 1);
+        println(biggerBuffer);
+
+        // Copy channel into detached buffer (no crash)
+        let detachedBuffer = new Float32Array(channel0Data.length);
+        const transferred = detachedBuffer.buffer.transfer();
+        audioBuffer.copyFromChannel(detachedBuffer, 0);
+        println("Done.");
+    });
+</script>

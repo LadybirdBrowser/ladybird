@@ -1,0 +1,22 @@
+#import <SVG/SVGAnimatedEnumeration.idl>
+#import <SVG/SVGAnimatedNumber.idl>
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEMorphologyElement
+[Exposed=Window]
+interface SVGFEMorphologyElement : SVGElement {
+
+    // Morphology Operators
+    const unsigned short SVG_MORPHOLOGY_OPERATOR_UNKNOWN = 0;
+    const unsigned short SVG_MORPHOLOGY_OPERATOR_ERODE = 1;
+    const unsigned short SVG_MORPHOLOGY_OPERATOR_DILATE = 2;
+
+    readonly attribute SVGAnimatedString in1;
+    [ImplementedAs=operator_for_bindings] readonly attribute SVGAnimatedEnumeration operator;
+    readonly attribute SVGAnimatedNumber radiusX;
+    readonly attribute SVGAnimatedNumber radiusY;
+};
+
+SVGFEMorphologyElement includes SVGFilterPrimitiveStandardAttributes;

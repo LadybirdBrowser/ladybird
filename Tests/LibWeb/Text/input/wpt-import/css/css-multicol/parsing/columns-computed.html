@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout: getComputedStyle().columns</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-columns">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#propdef-columns">
+<meta name="assert" content="The 'columns' shorthand property computes to the correct serialization of its component values, with lengths made absolute.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+<script>
+  test_computed_value("columns", "auto");
+
+  test_computed_value("columns", "0.25em", "10px");
+  test_computed_value("columns", "2", "2");
+  test_computed_value("columns", "0.25em 2", "10px 2");
+  test_computed_value("columns", "2 0.25em", "10px 2");
+  test_computed_value("columns", "0.25em auto", "10px");
+  test_computed_value("columns", "auto 0.25em", "10px");
+  test_computed_value("columns", "2 auto", "2");
+  test_computed_value("columns", "auto 2", "2");
+
+  test_computed_value("columns", "auto / 2.5em", "auto / 100px");
+  test_computed_value("columns", "0.25em / 2.5em", "10px / 100px");
+  test_computed_value("columns", "2 / 2.5em", "2 / 100px");
+  test_computed_value("columns", "0.25em 2 / 2.5em", "10px 2 / 100px");
+  test_computed_value("columns", "2 0.25em / 2.5em", "10px 2 / 100px");
+  test_computed_value("columns", "0.25em auto / 2.5em", "10px / 100px");
+  test_computed_value("columns", "auto 0.25em / 2.5em", "10px / 100px");
+  test_computed_value("columns", "2 auto / 2.5em", "2 / 100px");
+  test_computed_value("columns", "auto 2 / 2.5em", "2 / 100px");
+
+  test_computed_value("columns", "auto / auto", "auto");
+  test_computed_value("columns", "0.25em / auto", "10px");
+  test_computed_value("columns", "2 / auto", "2");
+  test_computed_value("columns", "0.25em 2 / auto", "10px 2");
+  test_computed_value("columns", "2 0.25em / auto", "10px 2");
+  test_computed_value("columns", "0.25em auto / auto", "10px");
+  test_computed_value("columns", "auto 0.25em / auto", "10px");
+  test_computed_value("columns", "2 auto / auto", "2");
+  test_computed_value("columns", "auto 2 / auto", "2");
+</script>

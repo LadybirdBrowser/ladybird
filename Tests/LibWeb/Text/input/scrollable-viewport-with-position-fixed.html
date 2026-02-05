@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #main {
+        background: red;
+    }
+    #side {
+        background: green;
+        position: fixed;
+        right: -200px;
+        width: 200px;
+    }
+</style>
+<div id="main">bar</div>
+<div id="side">foo</div>
+<script>
+    test(() => {
+        document.querySelector('#side').scrollIntoView();
+        println(JSON.stringify(document.querySelector('#main').getBoundingClientRect()));
+    });
+</script>

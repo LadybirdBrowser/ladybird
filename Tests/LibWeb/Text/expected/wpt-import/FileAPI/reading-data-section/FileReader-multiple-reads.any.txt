@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	test FileReader InvalidStateError exception for readAsText
+Pass	test FileReader InvalidStateError exception for readAsDataURL
+Pass	test FileReader InvalidStateError exception for readAsArrayBuffer
+Pass	test FileReader InvalidStateError exception in onloadstart event for readAsArrayBuffer
+Pass	test FileReader no InvalidStateError exception in loadend event handler for readAsArrayBuffer
+Pass	test abort and restart in onloadstart event for readAsText

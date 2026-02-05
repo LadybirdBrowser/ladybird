@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<style>
+    #a {
+        background-image: radial-gradient(at center center, red, blue);
+    }
+
+    #b {
+        background-image: radial-gradient(at 50% 50%, red, blue);
+    }
+
+    #c {
+        background-image: radial-gradient(at left 50% top 50%, red, blue);
+    }
+
+    #d {
+        background-image: radial-gradient(at right 50% bottom 50%, red, blue);
+    }
+
+    #e {
+        background-image: radial-gradient(at calc(50%) calc(50%), red, blue);
+    }
+
+    #f {
+        background-image: radial-gradient(at calc(sign(1em - 1px) * 50%) calc(sign(1em - 1px) * 50%), red, blue);
+    }
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<div id="c"></div>
+<div id="d"></div>
+<div id="e"></div>
+<div id="f"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const rule of document.styleSheets[0].cssRules) {
+            println(rule.cssText);
+        }
+
+        println("Computed:");
+
+        for (const el of [a, b, c, d, e, f]) {
+            println(`#${el.id}: ${getComputedStyle(el).backgroundImage}`);
+        }
+    });
+</script>

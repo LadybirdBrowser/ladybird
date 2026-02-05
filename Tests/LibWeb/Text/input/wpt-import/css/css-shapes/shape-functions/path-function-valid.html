@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing the path() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-path">
+<meta name="assert" content="Tests parsing of the path() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("clip-path", "path(evenodd, 'M10,10h80v80h-80zM25,25h50v50h-50z')", "path(evenodd, \"M 10 10 h 80 v 80 h -80 Z M 25 25 h 50 v 50 h -50 Z\")");
+test_valid_value("clip-path", "path(evenodd, 'M10,10h80v80h-80zM25,25h50v50h-50')", "path(evenodd, \"M 10 10 h 80 v 80 h -80 Z M 25 25 h 50 v 50 h -50\")");
+</script>
+</body>
+</html>

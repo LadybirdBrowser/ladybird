@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>CSS Typed OM: Don't crash when calling get() with unrepresentable shorthand</title>
+<link rel="help" href="https://crbug.com/364443014">
+<style>
+  div {
+    border: 1px solid black;
+    border-left: 42px dashed red;
+  }
+</style>
+<p>PASS if no crash.</p>
+<div id=div>div</div>
+<script>
+  div.computedStyleMap().get('border');
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property clip-path value 'path(nonzero, 'M10,10h80v80h-80zM25,25h50v50h-50z')'
+Pass	Property clip-path value 'path(evenodd, 'M10,10h80v80h-80zM25,25h50v50h-50z')'
+Pass	Property clip-path value 'path(evenodd, 'M10,10h80v80h-80zM25,25h50v50h-50')'

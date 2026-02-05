@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 3: getComputedStyle().color</title>
+<link rel="help" href="https://www.w3.org/TR/css-color-3/#foreground">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  #container {
+    color: rgb(255, 0, 0);
+  }
+</style>
+<script>
+test_computed_value("color", "currentcolor", "rgb(255, 0, 0)");
+test_computed_value("color", "transparent", "rgba(0, 0, 0, 0)");
+test_computed_value("color", "red", "rgb(255, 0, 0)");
+test_computed_value("color", "magenta", "rgb(255, 0, 255)");
+test_computed_value("color", "#234", "rgb(34, 51, 68)");
+test_computed_value("color", "#FEDCBA", "rgb(254, 220, 186)");
+test_computed_value("color", "rgb(2, 3, 4)");
+test_computed_value("color", "rgb(100%, 0%, 0%)", "rgb(255, 0, 0)");
+test_computed_value("color", "rgba(2, 3, 4, 0.5)");
+test_computed_value("color", "rgba(2, 3, 4, 50%)", "rgba(2, 3, 4, 0.5)");
+test_computed_value("color", "hsl(120, 100%, 50%)", "rgb(0, 255, 0)");
+test_computed_value("color", "hsla(120, 100%, 50%, 0.25)", "rgba(0, 255, 0, 0.25)");
+test_computed_value("color", "rgb(-2, 3, 4)", "rgb(0, 3, 4)");
+test_computed_value("color", "rgb(100, 200, 300)", "rgb(100, 200, 255)");
+test_computed_value("color", "rgb(20, 10, 0, -10)", "rgba(20, 10, 0, 0)");
+test_computed_value("color", "rgb(100%, 200%, 300%)", "rgb(255, 255, 255)");
+</script>
+</body>
+</html>

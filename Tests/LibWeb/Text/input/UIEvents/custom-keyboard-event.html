@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter}. ${JSON.stringify(part())}`);
+            testCounter++;
+        }
+
+        // 1. Creating a KeyboardEvent
+        testPart(() => new KeyboardEvent('keydown', { key: 'W' }).key);
+
+        // 2. Creating a KeyboardEvent with modifier
+        testPart(() => new KeyboardEvent('keydown', { altKey: true }).getModifierState('Alt'));
+
+        // 3. Creating a KeyboardEvent with modifier
+        testPart(() => new KeyboardEvent('keydown', { modifierFnLock: true }).getModifierState('FnLock'));
+
+        // 4. Creating a KeyboardEvent with modifier
+        testPart(() => new KeyboardEvent('keydown', { modifierHyper: true }).getModifierState('Hyper'));
+    });
+</script>

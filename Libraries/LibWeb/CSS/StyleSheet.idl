@@ -1,0 +1,20 @@
+#import <CSS/CSSStyleSheet.idl>
+#import <CSS/MediaList.idl>
+#import <DOM/Element.idl>
+
+// https://drafts.csswg.org/cssom/#stylesheet
+[Exposed=Window]
+interface StyleSheet {
+
+    readonly attribute CSSOMString type;
+    readonly attribute USVString? href;
+
+    // FIXME: readonly attribute (Element or ProcessingInstruction)? ownerNode;
+    readonly attribute Element? ownerNode;
+
+    readonly attribute CSSStyleSheet? parentStyleSheet;
+    [ImplementedAs=title_for_bindings] readonly attribute DOMString? title;
+    [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
+    attribute boolean disabled;
+
+};

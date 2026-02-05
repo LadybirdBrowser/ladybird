@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-axis">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<style>
+  #outer { scroll-timeline-axis: inline; }
+  #target { scroll-timeline-axis: y; }
+</style>
+<div id="outer">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value('scroll-timeline-axis', 'initial', 'block');
+test_computed_value('scroll-timeline-axis', 'inherit', 'inline');
+test_computed_value('scroll-timeline-axis', 'unset', 'block');
+test_computed_value('scroll-timeline-axis', 'revert', 'block');
+test_computed_value('scroll-timeline-axis', 'block');
+test_computed_value('scroll-timeline-axis', 'inline');
+test_computed_value('scroll-timeline-axis', 'y');
+test_computed_value('scroll-timeline-axis', 'x');
+test_computed_value('scroll-timeline-axis', 'block, inline');
+test_computed_value('scroll-timeline-axis', 'inline, block');
+test_computed_value('scroll-timeline-axis', 'block, y, x, inline');
+test_computed_value('scroll-timeline-axis', 'inline, inline, inline, inline');
+
+test(() => {
+  let style = getComputedStyle(document.getElementById('target'));
+  assert_not_equals(Array.from(style).indexOf('scroll-timeline-axis'), -1);
+}, 'The scroll-timeline-axis property shows up in CSSStyleDeclaration enumeration');
+
+test(() => {
+  let style = document.getElementById('target').style;
+  assert_not_equals(style.cssText.indexOf('scroll-timeline-axis'), -1);
+}, 'The scroll-timeline-axis property shows up in CSSStyleDeclaration.cssText');
+
+</script>

@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	cancelling the readable side should call transformer.cancel()
+Pass	cancelling the readable side should reject if transformer.cancel() throws
+Pass	aborting the writable side should call transformer.abort()
+Pass	aborting the writable side should reject if transformer.cancel() throws
+Pass	closing the writable side should reject if a parallel transformer.cancel() throws
+Pass	readable.cancel() and a parallel writable.close() should reject if a transformer.cancel() calls controller.error()
+Pass	writable.abort() and readable.cancel() should reject if a transformer.cancel() calls controller.error()
+Pass	readable.cancel() should not call cancel() when flush() is already called from writable.close()
+Pass	readable.cancel() should not call cancel() again when already called from writable.abort()
+Pass	writable.close() should not call flush() when cancel() is already called from readable.cancel()
+Pass	writable.abort() should not call cancel() again when already called from readable.cancel()

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: parsing rotate with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-rotate">
+<meta name="assert" content="rotate supports the full grammar 'none | <number>{3}? <angle>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// https://drafts.csswg.org/css-transforms-2/#individual-transform-serialization
+
+// Serialize as the keyword none if and only if none was originally specified.
+test_valid_value("rotate", "none");
+
+// If a 2d rotation is specified, the property must serialize as just an <angle>.
+test_valid_value("rotate", "0deg");
+
+// If a 3d rotation is specified, the property must serialize with an axis specified.
+test_valid_value("rotate", "100 200 300 400grad");
+test_valid_value("rotate", "400grad 100 200 300", "100 200 300 400grad");
+test_valid_value("rotate", "0 0 0 400grad", "0 0 0 400grad");
+
+// If the axis is parallel with the x or y axis, it must serialize as the appropriate keyword.
+test_valid_value("rotate", "x 400grad");
+test_valid_value("rotate", "400grad x", "x 400grad");
+test_valid_value("rotate", "0.5 0 0 400grad", "x 400grad");
+test_valid_value("rotate", "1 0 0 400grad", "x 400grad");
+
+test_valid_value("rotate", "y 400grad");
+test_valid_value("rotate", "400grad y", "y 400grad");
+test_valid_value("rotate", "0 0.5 0 400grad", "y 400grad");
+test_valid_value("rotate", "0 1 0 400grad", "y 400grad");
+
+// If the axis is parallel with the z axis the property must serialize as just an <angle>.
+test_valid_value("rotate", "400grad");
+test_valid_value("rotate", "400grad z", "400grad");
+test_valid_value("rotate", "0 0 0.5 400grad", "400grad");
+test_valid_value("rotate", "0 0 1 400grad", "400grad");
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Logical Properties: flow-relative border-radius</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com" />
+<link rel="help" href="https://drafts.csswg.org/css-logical-1/#border-radius-properties">
+<meta name="assert" content="This test checks the interaction of the flow-relative border-*-radius properties with the physical ones in different writing modes." />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script type="module">
+import {runTests, createCornerPropertyGroup} from "./resources/test-box-properties.js";
+runTests(createCornerPropertyGroup("border-*-radius", {
+  type: "length",
+  prerequisites: {"border-style": "solid"},
+}));
+</script>

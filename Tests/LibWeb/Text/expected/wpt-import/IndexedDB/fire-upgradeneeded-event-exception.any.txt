@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Exception in upgradeneeded handler
+Pass	Exception in upgradeneeded listener
+Pass	Exception in upgradeneeded "handleEvent" lookup
+Pass	Exception in upgradeneeded due to non-callable "handleEvent"
+Pass	Exception in second upgradeneeded listener
+Pass	Exception in first upgradeneeded listener, tx active in second

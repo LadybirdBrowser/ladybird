@@ -1,0 +1,146 @@
+<!doctype html>
+<title>Selectors: syntax of case-sensitivity attribute selector</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#attribute-case">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style></style>
+<div id=log></div>
+<div id=test foo="BAR" baz="quux"></div>
+<iframe id="quirks" src="resources/syntax-quirks.html"></iframe>
+<iframe id="xml" src="resources/syntax-xml.xhtml"></iframe>
+<script>
+setup({explicit_done:true});
+var valid = [
+  "[foo='BAR'] /* sanity check (valid) */",
+  "[baz='quux'] /* sanity check (valid) */",
+  // Case-insensitive selectors.
+  "[foo='bar' i]",
+  "[foo='bar' I]",
+  "[foo=bar i]",
+  '[foo="bar" i]',
+  "[foo='bar'i]",
+  "[foo='bar'i ]",
+  "[foo='bar' i ]",
+  "[foo='bar' /**/ i]",
+  "[foo='bar' i /**/ ]",
+  "[foo='bar'/**/i/**/]",
+  "[foo=bar/**/i]",
+  "[foo='bar'\ti\t] /* \\t */",
+  "[foo='bar'\ni\n] /* \\n */",
+  "[foo='bar'\ri\r] /* \\r */",
+  "[foo='bar' \\i]",
+  "[foo='bar' \\69]",
+  "[foo='bar' \\49]",
+  "[foo~='bar' i]",
+  "[foo^='bar' i]",
+  "[foo$='bar' i]",
+  "[foo*='bar' i]",
+  "[foo|='bar' i]",
+  "[|foo='bar' i]",
+  "[*|foo='bar' i]",
+  // Case-sensitive selectors.
+  "[baz='quux' s]",
+  "[baz='quux' S]",
+  "[baz=quux s]",
+  '[baz="quux" s]',
+  "[baz='quux's]",
+  "[baz='quux's ]",
+  "[baz='quux' s ]",
+  "[baz='quux' /**/ s]",
+  "[baz='quux' s /**/ ]",
+  "[baz='quux'/**/s/**/]",
+  "[baz=quux/**/s]",
+  "[baz='quux'\ts\t] /* \\t */",
+  "[baz='quux'\ns\n] /* \\n */",
+  "[baz='quux'\rs\r] /* \\r */",
+  "[baz='quux' \\s]",
+  "[baz='quux' \\73]",
+  "[baz='quux' \\53]",
+  "[baz~='quux' s]",
+  "[baz^='quux' s]",
+  "[baz$='quux' s]",
+  "[baz*='quux' s]",
+  "[baz|='quux' s]",
+  "[|baz='quux' s]",
+  "[*|baz='quux' s]",
+];
+var invalid = [
+  "[foo[ /* sanity check (invalid) */",
+  "[foo='bar' i i]",
+  "[foo i ='bar']",
+  "[foo= i 'bar']",
+  "[i foo='bar']",
+  "[foo='bar' i\u0000] /* \\0 */",
+  "[foo='bar' \u0130]",
+  "[foo='bar' \u0131]",
+  "[foo='bar' ii]",
+  "[foo='bar' ij]",
+  "[foo='bar' j]",
+  "[foo='bar' \\\\i]",
+  "[foo='bar' \\\\69]",
+  "[foo='bar' i()]",
+  "[foo='bar' i ()]",
+  "[foo='bar' () i]",
+  "[foo='bar' (i)]",
+  "[foo='bar' i []]",
+  "[foo='bar' [] i]",
+  "[foo='bar' [i]]",
+  "[foo='bar' i {}]",
+  "[foo='bar' {} i]",
+  "[foo='bar' {i}]",
+  "[foo='bar' 1i]",
+  "[foo='bar' 1]",
+  "[foo='bar' 'i']",
+  "[foo='bar' url(i)]",
+  "[foo='bar' ,i]",
+  "[foo='bar' i,]",
+  "[foo='bar']i",
+  "[foo='bar' |i]",
+  "[foo='bar' \\|i]",
+  "[foo='bar' *|i]",
+  "[foo='bar' \\*|i]",
+  "[foo='bar' *]",
+  "[foo='bar' \\*]",
+  "[foo i]",
+  "[foo/**/i]",
+];
+var mode = "standards mode";
+onload = function() {
+  var quirks = document.getElementById('quirks').contentWindow;
+  var xml = document.getElementById('xml').contentWindow;
+  [window, quirks, xml].forEach(function(global) {
+    var style = global.document.getElementsByTagName('style')[0];
+    var elm = global.document.getElementById('test');
+    function clean_slate() {
+      style.textContent = '';
+      assert_equals(style.sheet.cssRules.length, 0, 'CSSOM was not empty for empty stylesheet');
+      assert_equals(global.getComputedStyle(elm).visibility, 'visible', 'computed style for empty stylesheet');
+    }
+    valid.forEach(function(s) {
+      test(function() {
+        clean_slate();
+        style.textContent = s + ' { visibility:hidden }';
+        assert_equals(style.sheet.cssRules.length, 1, 'valid rule didn\'t parse into CSSOM');
+        assert_equals(global.getComputedStyle(elm).visibility, 'hidden', 'valid selector didn\'t match');
+      }, s + ' in ' + global.mode);
+      test(function() {
+        assert_equals(global.document.querySelector(s), elm, 'valid selector');
+      }, s + ' with querySelector in ' + global.mode);
+    });
+    invalid.forEach(function(s) {
+      test(function() {
+        clean_slate();
+        style.textContent = s + ' { visibility:hidden }';
+        assert_equals(style.sheet.cssRules.length, 0, 'invalid rule parsed into CSSOM');
+        assert_equals(global.getComputedStyle(elm).visibility, 'visible', 'invalid selector matched');
+      }, s + ' in ' + global.mode);
+      test(function() {
+        assert_throws_dom("SyntaxError", global.DOMException, function() {
+          global.document.querySelector(s);
+        }, 'invalid selector');
+      }, s + ' with querySelector in ' + global.mode);
+    });
+  });
+  done();
+};
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function printProperties(properties) {
+            println(JSON.stringify(Object.values(properties), null, 4));
+        }
+
+        println("All properties associated with getComputedStyle(document.body):");
+        printProperties(getComputedStyle(document.body));
+
+        println("All properties associated with document.body.style by default:");
+        printProperties(document.body.style);
+
+        document.body.style.display = "none";
+        document.body.style.backgroundColor = "red";
+        document.body.style.fontSize = "15px";
+
+        println("All properties associated with document.body.style after setting some properties:");
+        printProperties(document.body.style);
+    });
+</script>

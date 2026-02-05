@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    div {
+        position: relative;
+        background: red;
+        height: 100px;
+        width: 100px;
+        left: 0;
+    }
+    .sin {
+        width: calc(sin(30deg + 1.0471967rad) * 80px);
+        rotate: 90deg;
+    }
+    .cos {
+        width: calc(cos(e - 2.7182818284590452354) * 100px);
+        rotate: 90deg;
+    }
+    .tan {
+        width: calc(tan(0.7853975rad) * 120px);
+        rotate: 90deg;
+    }
+    .asin {
+        height: 140px;
+        rotate: calc(asin(sin(pi/2)));
+    }
+    .acos {
+        height: 160px;
+        rotate: calc(acos(cos(pi / 2)));
+    }
+    .atan {
+        height: 180px;
+        rotate: calc(atan(tan(pi / 2)));
+    }
+    .atan2 {
+        height: 200px;
+        rotate: calc(atan2(10px, 0px));
+    }
+</style><div class="sin"></div><div class="cos"></div><div class="tan"></div><div class="asin"></div><div class="acos"></div><div class="atan"></div><div class="atan2"></div>

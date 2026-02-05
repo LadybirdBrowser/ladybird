@@ -1,0 +1,1 @@
+Got referrer: http://127.0.0.1/worker-referrer/worker.js

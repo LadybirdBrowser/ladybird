@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLOptionElement.text</title>
+<link rel=author title=Ms2ger href="mailto:Ms2ger@gmail.com">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#dom-option-text">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var spaces = ["\u0020", "\u0009", "\u000A", "\u000C", "\u000D"];
+  spaces.forEach(function(space) {
+    test(function() {
+      var option = document.createElement("option");
+      option.textContent = space + "text";
+      assert_equals(option.text, "text");
+    }, "option.text should strip leading space characters (" +
+        format_value(space) + ")");
+  });
+  spaces.forEach(function(space) {
+    test(function() {
+      var option = document.createElement("option");
+      option.textContent = "text" + space;
+      assert_equals(option.text, "text");
+    }, "option.text should strip trailing space characters (" +
+        format_value(space) + ")");
+  });
+  spaces.forEach(function(space) {
+    test(function() {
+      var option = document.createElement("option");
+      option.textContent = space + "text" + space;
+      assert_equals(option.text, "text");
+    }, "option.text should strip leading and trailing space characters (" +
+        format_value(space) + ")");
+  });
+  spaces.forEach(function(space) {
+    test(function() {
+      var option = document.createElement("option");
+      option.textContent = "before" + space + "after";
+      assert_equals(option.text, "before after");
+    }, "option.text should replace single internal space characters (" +
+        format_value(space) + ")");
+  });
+  spaces.forEach(function(space1) {
+    spaces.forEach(function(space2) {
+      test(function() {
+        var option = document.createElement("option");
+        option.textContent = "before" + space1 + space2 + "after";
+        assert_equals(option.text, "before after");
+      }, "option.text should replace multiple internal space characters (" +
+          format_value(space1) + ", " + format_value(space2) + ")");
+    });
+  });
+  test(function() {
+    var option = document.createElement("option");
+    option.textContent = "\u00a0text";
+    assert_equals(option.text, "\u00a0text");
+  }, "option.text should leave leading NBSP alone.");
+  test(function() {
+    var option = document.createElement("option");
+    option.textContent = "text\u00a0";
+    assert_equals(option.text, "text\u00a0");
+  }, "option.text should leave trailing NBSP alone.");
+  test(function() {
+    var option = document.createElement("option");
+    option.textContent = "before\u00a0after";
+    assert_equals(option.text, "before\u00a0after");
+  }, "option.text should leave a single internal NBSP alone.");
+  test(function() {
+    var option = document.createElement("option");
+    option.textContent = "before\u00a0\u00a0after";
+    assert_equals(option.text, "before\u00a0\u00a0after");
+  }, "option.text should leave two internal NBSPs alone.");
+});
+</script>

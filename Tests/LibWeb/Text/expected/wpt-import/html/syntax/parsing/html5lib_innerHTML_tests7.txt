@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	html5lib_innerHTML_tests7.html 7aabda442dc7b37110c3d03b1465fa893dc25625

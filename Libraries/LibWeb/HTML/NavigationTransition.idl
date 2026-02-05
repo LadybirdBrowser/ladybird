@@ -1,0 +1,13 @@
+#import <HTML/NavigationDestination.idl>
+#import <HTML/NavigationHistoryEntry.idl>
+#import <HTML/NavigationType.idl>
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationtransition
+[Exposed=Window]
+interface NavigationTransition {
+    readonly attribute NavigationType navigationType;
+    readonly attribute NavigationHistoryEntry from;
+    readonly attribute NavigationDestination to;
+    readonly attribute Promise<undefined> committed;
+    readonly attribute Promise<undefined> finished;
+};

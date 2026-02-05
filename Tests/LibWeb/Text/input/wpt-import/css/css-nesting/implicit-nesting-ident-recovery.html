@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>CSS Nesting: Nesting, error recovery</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #target1 {
+    display:block;
+    display:new-block;
+    color:green;
+  }
+  #target2 {
+    display:block;
+    display:hover {};
+    color:green;
+  }
+</style>
+<div id=target1>Green</div>
+<div id=target2>Green</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target1).color, 'rgb(0, 128, 0)');
+  }, 'Unknown declaration does not consume subsequent declaration');
+</script>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target2).color, 'rgb(0, 128, 0)');
+  }, 'Unknown declaration with blocks does not consume subsequent declaration');
+</script>

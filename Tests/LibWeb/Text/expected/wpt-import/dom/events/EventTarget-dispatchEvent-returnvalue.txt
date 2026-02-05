@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Return value of EventTarget.dispatchEvent() affected by preventDefault().
+Pass	Return value of EventTarget.dispatchEvent() affected by returnValue.

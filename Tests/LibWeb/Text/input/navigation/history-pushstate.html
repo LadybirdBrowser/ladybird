@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="testIframe" src="about:blank"></iframe>
+<script>
+    asyncTest(async done => {
+        const iframe = document.getElementById("testIframe");
+
+        function navigateIframe(src) {
+            return new Promise(resolve => {
+                iframe.addEventListener("load", () => {
+                    resolve();
+                });
+                iframe.src = src;
+            });
+        }
+
+        window.addEventListener("message", event => {
+            println(event.data);
+            done();
+        });
+
+        await navigateIframe("../../data/history-pushstate-iframe.html");
+    });
+</script>

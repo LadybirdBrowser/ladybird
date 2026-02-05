@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'color' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('color', [
+  {
+    syntax: 'currentcolor',
+    // computes to a <color>, which is not supported in level 1
+    computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  }
+]);
+
+// <color>s are not supported in level 1
+runUnsupportedPropertyTests('color', [
+  'red', '#bbff00', 'rgb(255, 255, 128)', 'hsl(50, 33%, 25%)',
+  'transparent'
+]);
+
+</script>

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const parser = new DOMParser();
+        const htmlString = '<head><link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAEElEQVR4nGNgGAWjYBTAAAADEAABPywr7AAAAABJRU5ErkJggg=="></head>';
+        const doc = parser.parseFromString(htmlString, "text/html");
+        println("PASS (didn't crash)");
+    });
+</script>

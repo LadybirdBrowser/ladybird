@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: getComputedStyle().textShadow</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-shadow-property">
+<meta name="assert" content="text-shadow computed value is none or a list, each item a color and lengths.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+    color: blue;
+  }
+</style>
+<div id="target"></div>
+<script>
+'use strict';
+const red = 'rgb(255, 0, 0)';
+const lime = 'rgb(0, 255, 0)';
+const currentColor = 'rgb(0, 0, 255)';
+
+test_computed_value("text-shadow", "none");
+
+test_computed_value("text-shadow", "10px 20px", currentColor + " 10px 20px 0px");
+test_computed_value("text-shadow", "red 10px 20px 30px", red + " 10px 20px 30px");
+test_computed_value("text-shadow", "calc(0.5em + 10px) calc(0.5em + 10px) calc(0.5em + 10px)", currentColor + " 30px 30px 30px");
+test_computed_value("text-shadow", "calc(-0.5em + 10px) calc(-0.5em + 10px) calc(-0.5em + 10px)", currentColor + " -10px -10px 0px");
+
+test_computed_value("text-shadow", "10px 20px, 30px 40px", currentColor + " 10px 20px 0px, " + currentColor + " 30px 40px 0px");
+test_computed_value("text-shadow", "lime 10px 20px 30px, red 40px 50px", lime + " 10px 20px 30px, " + red + " 40px 50px 0px");
+</script>

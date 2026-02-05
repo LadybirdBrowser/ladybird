@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>:has() invalidation with :defined pseudo-class</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/semantics-other.html#selector-defined">
+<style>
+  #subject {
+    background-color: red;
+    width: 100px;
+    height: 100px;
+  }
+  #subject:has(:defined) {
+    background-color: green;
+  }
+</style>
+<body>
+  Test :defined pseudo-class invalidation with :has()
+  <div id="subject">
+    <my-element></my-element>
+  </div>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script>
+    const GREEN = "rgb(0, 128, 0)";
+    const RED = "rgb(255, 0, 0)";
+
+    function assert_matches_defined(defined) {
+      assert_equals(getComputedStyle(subject).backgroundColor, defined ? GREEN : RED);
+    }
+
+    test(() => {
+      assert_matches_defined(false);
+      customElements.define("my-element", class MyElement extends HTMLElement { });
+      assert_matches_defined(true);
+    }, "Test :has() invalidation with :defined pseudo-class");
+  </script>
+</body>

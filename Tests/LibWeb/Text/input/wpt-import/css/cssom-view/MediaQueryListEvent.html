@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="flags" content="dom">
+<title>CSS Test: CSSOM View MediaQueryListEvent</title>
+<link rel="help" href="https://www.w3.org/TR/cssom-view-1/#mediaquerylistevent">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/matchMedia.js"></script>
+<div id="log"></div>
+<script>
+"use strict";
+
+test(() => {
+    assert_equals(new MediaQueryListEvent("test").type, "test");
+}, 'type can be different from "change"');
+
+test(() => {
+    const event = new MediaQueryListEvent("change");
+
+    assert_equals(event.media, "");
+    assert_false(event.matches);
+    assert_false(event.bubbles);
+    assert_false(event.cancelable);
+}, "init dictionary default values");
+
+test(() => {
+    const event = new MediaQueryListEvent("change", {
+        media: "test",
+        matches: true,
+        bubbles: true,
+        cancelable: true,
+    });
+
+    assert_equals(event.media, "test");
+    assert_true(event.matches);
+    assert_true(event.bubbles);
+    assert_true(event.cancelable);
+}, "init dictionary overrides");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let _event;
+    mql.addListener(event => {
+        _event = event;
+    });
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+
+    assert_true(_event instanceof getWindow(mql).MediaQueryListEvent);
+    assert_equals(_event.type, "change");
+    assert_false(_event.bubbles);
+    assert_false(_event.cancelable);
+}, "argument of addListener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let _event;
+    mql.onchange = event => {
+        _event = event;
+    };
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+
+    assert_true(_event instanceof getWindow(mql).MediaQueryListEvent);
+    assert_equals(_event.type, "change");
+    assert_false(_event.bubbles);
+    assert_false(_event.cancelable);
+}, "argument of onchange");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let _event;
+    mql.addEventListener("change", event => {
+        _event = event;
+    });
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+
+    assert_true(_event instanceof getWindow(mql).MediaQueryListEvent);
+    assert_equals(_event.type, "change");
+    assert_false(_event.bubbles);
+    assert_false(_event.cancelable);
+}, 'constructor of "change" event');
+</script>

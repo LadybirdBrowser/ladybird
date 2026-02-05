@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Make sure that relList based feature detection is working for <link>
+Pass	Make sure that relList based feature detection is working for <a>
+Pass	Make sure that relList based feature detection is working for <area>
+Pass	Make sure that relList based feature detection is working for <form>

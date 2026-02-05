@@ -1,0 +1,95 @@
+<!doctype HTML>
+<head>
+  <link rel="help" href="https://www.w3.org/TR/SVG/coords.html#SizingSVGInCSS">
+  <link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <style>
+    #wrapper {
+        width: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <svg id="mySVG"></svg>
+  </div>
+  <script>
+    let svgElem = document.getElementById("mySVG");
+    function expect_svg_width_and_height(width, height) {
+        let rect = svgElem.getBoundingClientRect();
+        assert_equals(rect.width, width, "checking width.");
+        assert_equals(rect.height, height, "checking height.");
+    }
+    test(function() {
+        expect_svg_width_and_height(300, 150);
+    }, "no sizing attributes set");
+
+    // Just setting width and/or height:
+    test(function() {
+        svgElem.setAttribute("width", "100");
+        expect_svg_width_and_height(100, 150);
+    }, "specified width");
+    test(function() {
+        svgElem.setAttribute("width", "400");
+        expect_svg_width_and_height(400, 150);
+    }, "modified specified width");
+
+    test(function() {
+        // (set height, leaving width still set)
+        svgElem.setAttribute("height", "100");
+        expect_svg_width_and_height(400, 100);
+    }, "specified width and height");
+    test(function() {
+        svgElem.setAttribute("height", "200");
+        expect_svg_width_and_height(400, 200);
+    }, "specified width and modified specified height");
+    test(function() {
+        svgElem.removeAttribute("width"); // leaving only 'height':
+        expect_svg_width_and_height(300, 200);
+    }, "specified height");
+    test(function() {
+        svgElem.setAttribute("height", "250");
+        expect_svg_width_and_height(300, 250);
+    }, "modified specified height");
+    test(function() {
+        // clean up (go back to having no sizing attrs set)
+        svgElem.removeAttribute("height");
+        expect_svg_width_and_height(300, 150);
+    }, "no specified sizing attrs (after setting & removing them)");
+
+
+    // Just setting viewBox:
+    test(function() {
+        svgElem.setAttribute("viewBox", "0 0 10 8");
+        expect_svg_width_and_height(500, 400);
+    }, "set a 10x8 viewBox");
+    test(function() {
+        // Adjusting already-set viewBox:
+        svgElem.setAttribute("viewBox", "0 0 50 10");
+        expect_svg_width_and_height(500, 100);
+    }, "modified viewBox to 50x20");
+    test(function() {
+        svgElem.setAttribute("width", "100");
+        expect_svg_width_and_height(100, 20);
+    }, "adding specified width, in presence of specified viewBox");
+    test(function() {
+        svgElem.setAttribute("viewBox", "0 0 40 30");
+        expect_svg_width_and_height(100, 75);
+    }, "modifiying specified viewBox, in presence of specified width");
+
+    test(function() {
+        svgElem.removeAttribute("width");
+        expect_svg_width_and_height(500, 375);
+    }, "removing specified width, in presence of specified viewBox");
+
+    test(function() {
+        svgElem.setAttribute("height", "60");
+        expect_svg_width_and_height(80, 60);
+    }, "adding specified height, in presence of specified viewBox");
+    test(function() {
+        svgElem.setAttribute("viewBox", "0 0 100 120");
+        expect_svg_width_and_height(50, 60);
+    }, "modifiying specified viewBox, in presence of specified height");
+  </script>
+</body>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>display: math display values on non-MathML compute to flow</title>
+<link rel="help" href="https://drafts.csswg.org/css-display/#the-display-properties">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="container">
+
+  <div data-expected="inline" style="display: math;"></div>
+  <div data-expected="inline" style="display: inline math;"></div>
+  <div data-expected="inline" style="display: math inline;"></div>
+  <div data-expected="block" style="display: block math;"></div>
+  <div data-expected="block" style="display: math block;"></div>
+
+  <svg data-expected="inline" style="display: math;"></svg>
+  <svg data-expected="inline" style="display: inline math;"></svg>
+  <svg data-expected="inline" style="display: math inline;"></svg>
+  <svg data-expected="block" style="display: block math;"></svg>
+  <svg data-expected="block" style="display: math block;"></svg>
+
+</div>
+
+<script>
+  Array.from(container.children).forEach(element => {
+      test(function() {
+          assert_equals(window.getComputedStyle(element).display,
+                        element.getAttribute('data-expected'));
+      }, `computed display on <${element.localName} style="${element.getAttribute('style')}">`);
+  });
+</script>

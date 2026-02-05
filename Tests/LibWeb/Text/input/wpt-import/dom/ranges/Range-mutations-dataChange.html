@@ -1,0 +1,14 @@
+<!doctype html>
+<title>Range mutation tests - update data by IDL attributes</title>
+<link rel="author" title="Aryeh Gregor" href=ayg@aryeh.name>
+<meta name=timeout content=long>
+
+<div id=log></div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../common.js"></script>
+<script src="Range-mutations.js"></script>
+<script>
+doTests(dataChangeTests, function(params) { return params[0] + "." + eval(params[1]) + " " + eval(params[2]) + ' ' + params[3] }, testDataChange);
+testDiv.style.display = "none";
+</script>

@@ -1,0 +1,6 @@
+#import <WebGL/WebGLObject.idl>
+
+// https://registry.khronos.org/webgl/specs/latest/2.0/#3.4
+[Exposed=(Window,Worker)]
+interface WebGLSync : WebGLObject {
+};

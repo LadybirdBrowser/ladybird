@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['clip-path'] = "path(evenodd, 'not-a-path')" should not set the property value
+Pass	e.style['clip-path'] = "path(badfillrule, 'M10,10')" should not set the property value

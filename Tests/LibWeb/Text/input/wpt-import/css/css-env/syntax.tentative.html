@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-env-1/">
+    <title>Test env() syntax</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+      div { background-color: rgb(0, 128, 0); }
+    </style>
+  </head>
+  <body>
+    <script>
+    // This value is expected if the syntax is valid.
+    const envWorkingValue = "rgba(0, 0, 0, 0)";
+
+    // This value is expected if the syntax is invalid.
+    const pageDefaultValue = "rgb(0, 128, 0)";
+
+    // This value is used to test fallback values.
+    const blueValue = "rgb(0, 0, 255)";
+
+    const testCases = [
+      { style: "", expectedPropertyValue: pageDefaultValue },
+      { style: "background-color: env(test)", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: ENV(test)", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(test) !important", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(test, 10px)", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(test, blue)", expectedPropertyValue: blueValue },
+      { style: "background-color: env(test, env(another))", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(test, env(another, blue))", expectedPropertyValue: blueValue },
+      { style: "background-color: env(-test)", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(--test)", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(10px)", expectedPropertyValue: pageDefaultValue },
+      { style: "background-color: env(env(test))", expectedPropertyValue: pageDefaultValue },
+      { style: "background-color: env( test)", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(test )", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env( test )", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(test /**/, blue)", expectedPropertyValue: blueValue },
+      { style: "background-color: env(test, {})", expectedPropertyValue: envWorkingValue },
+      { style: "background-color: env(test, {)", expectedPropertyValue: pageDefaultValue },
+    ];
+
+    testCases.forEach((testcase) => {
+      test(() => {
+        const elem = document.createElement("div");
+        const style = window.getComputedStyle(elem);
+
+        document.body.appendChild(elem);
+        elem.style.cssText = testcase.style;
+
+        assert_equals(style.getPropertyValue("background-color"), testcase.expectedPropertyValue);
+      }, testcase.style + " " + testcase.expectedPropertyValue);
+    });
+    </script>
+  </body>
+</html>

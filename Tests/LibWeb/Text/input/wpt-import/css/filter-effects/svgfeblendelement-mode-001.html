@@ -1,0 +1,82 @@
+<!DOCTYPE HTML>
+<title>SVGFEBlendElement.prototype.mode</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#InterfaceSVGFEBlendElement">
+<link rel="help" href="https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedEnumeration">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+// This test checks the use of SVGAnimatedEnumeration for 'mode' on SVGFEBlendElement.
+
+const svgNs = "http://www.w3.org/2000/svg";
+
+test(function() {
+  var element = document.createElementNS(svgNs, "feBlend");
+  assert_equals(element.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_NORMAL);
+  assert_false(element.hasAttribute("mode"));
+}, document.title + ", getter, initial value");
+
+test(function() {
+  var element = document.createElementNS(svgNs, "feBlend");
+  element.setAttribute("mode", "not-a-valid-value");
+  assert_equals(element.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_NORMAL);
+  assert_true(element.hasAttribute("mode"));
+  assert_equals(element.getAttribute("mode"), "not-a-valid-value");
+}, document.title + ", getter, invalid value");
+
+const enumerationMap = [
+  [ "normal", "NORMAL" ],
+  [ "multiply", "MULTIPLY" ],
+  [ "screen", "SCREEN" ],
+  [ "darken", "DARKEN" ],
+  [ "lighten", "LIGHTEN" ],
+  [ "overlay", "OVERLAY" ],
+  [ "color-dodge", "COLOR_DODGE" ],
+  [ "color-burn", "COLOR_BURN" ],
+  [ "hard-light", "HARD_LIGHT" ],
+  [ "soft-light", "SOFT_LIGHT" ],
+  [ "difference", "DIFFERENCE" ],
+  [ "exclusion", "EXCLUSION" ],
+  [ "hue", "HUE" ],
+  [ "saturation", "SATURATION" ],
+  [ "color", "COLOR" ],
+  [ "luminosity", "LUMINOSITY" ],
+];
+
+for (let [enumeration, value_suffix] of enumerationMap) {
+  test(function() {
+    let value = SVGFEBlendElement["SVG_FEBLEND_MODE_" + value_suffix];
+    var element = document.createElementNS(svgNs, "feBlend");
+    element.setAttribute("mode", enumeration);
+    assert_equals(element.mode.baseVal, value);
+  }, document.title + ", getter, numeric value for \"" + enumeration + "\"");
+}
+
+test(function() {
+  var element = document.createElementNS(svgNs, "feBlend");
+  element.setAttribute("mode", "lighten");
+  assert_equals(element.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_LIGHTEN);
+  assert_equals(element.getAttribute('mode'), "lighten");
+
+  assert_throws_js(TypeError, function() { element.mode.baseVal = 17; });
+  assert_equals(element.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_LIGHTEN);
+  assert_equals(element.getAttribute('mode'), "lighten");
+
+  assert_throws_js(TypeError, function() { element.mode.baseVal = -1; });
+  assert_equals(element.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_LIGHTEN);
+  assert_equals(element.getAttribute('mode'), "lighten");
+
+  assert_throws_js(TypeError, function() { element.mode.baseVal = 0; });
+  assert_equals(element.mode.baseVal, SVGFEBlendElement.SVG_FEBLEND_MODE_LIGHTEN);
+  assert_equals(element.getAttribute('mode'), "lighten");
+}, document.title + ", setter, invalid value");
+
+for (let [enumeration, value_suffix] of enumerationMap) {
+  test(function() {
+    let value = SVGFEBlendElement["SVG_FEBLEND_MODE_" + value_suffix];
+    var element = document.createElementNS(svgNs, "feBlend");
+    element.mode.baseVal = value;
+    assert_equals(element.mode.baseVal, value);
+    assert_equals(element.getAttribute('mode'), enumeration);
+  }, document.title + ", setter, numeric value for \"" + enumeration + "\"");
+}
+</script>

@@ -1,0 +1,17 @@
+#import <Streams/ReadableStream.idl>
+#import <Streams/ReadableStreamGenericReader.idl>
+
+// https://streams.spec.whatwg.org/#readablestreamdefaultreader
+[Exposed=*]
+interface ReadableStreamDefaultReader {
+    constructor(ReadableStream stream);
+
+    Promise<ReadableStreamReadResult> read();
+    undefined releaseLock();
+};
+ReadableStreamDefaultReader includes ReadableStreamGenericReader;
+
+dictionary ReadableStreamReadResult {
+    any value;
+    boolean done;
+};

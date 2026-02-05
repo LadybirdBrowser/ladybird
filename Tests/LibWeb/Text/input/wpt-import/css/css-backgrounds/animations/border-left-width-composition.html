@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-left-width composition</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/box.html#border-width-properties">
+<meta name="assert" content="border-left-width supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'border-left-width',
+  underlying: '50px',
+  addFrom: '100px',
+  addTo: '200px',
+}, [
+  {at: -0.3, expect: '120px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '200px'},
+  {at: 1, expect: '250px'},
+  {at: 1.5, expect: '300px'},
+]);
+
+test_composition({
+  property: 'border-left-width',
+  underlying: '100px',
+  addFrom: '10px',
+  addTo: '2px',
+}, [
+  {at: -0.5, expect: '114px'},
+  {at: 0, expect: '110px'},
+  {at: 0.5, expect: '106px'},
+  {at: 1, expect: '102px'},
+  {at: 1.5, expect: '98px'}, // Value clamping should happen after composition.
+]);
+
+test_composition({
+  property: 'border-left-width',
+  underlying: '10em',
+  addFrom: '100px',
+  addTo: '20em',
+}, [
+  {at: -0.3, expect: 'calc(130px + 4em)'},
+  {at: 0, expect: 'calc(100px + 10em)'},
+  {at: 0.5, expect: 'calc(50px + 20em)'},
+  {at: 1, expect: '30em'},
+  {at: 1.5, expect: 'calc(-50px + 40em)'},
+]);
+
+test_composition({
+  property: 'border-left-width',
+  underlying: '50px',
+  addFrom: '100px',
+  replaceTo: '200px',
+}, [
+  {at: -0.3, expect: '135px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '175px'},
+  {at: 1, expect: '200px'},
+  {at: 1.5, expect: '225px'},
+]);
+</script>
+</body>

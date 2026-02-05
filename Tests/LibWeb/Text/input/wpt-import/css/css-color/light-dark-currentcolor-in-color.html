@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CurrentColor can be used inside light-dark for the color property</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#light-dark">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #parent { color: green; }
+  #child {
+    color-scheme: dark;
+    color: light-dark(red, currentColor);
+  }
+</style>
+<div id="parent">
+  <div id="child">Text should be green</div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(child).color, "rgb(0, 128, 0)");
+  }, "curentColor in light-dark() refers to parent color");
+</script>

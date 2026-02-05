@@ -1,0 +1,4 @@
+Div contents: "foobar" bold state: false
+useCSS supported: true
+Div contents: "<span style="font-weight: bold;">fo</span>obar" bold state: true
+Div contents: "<span style="font-weight: bold;">fo</span>ob<b>ar</b>" bold state: true

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	test x with display false
+Pass	test y with display false
+Pass	test x with display true
+Pass	test y with display true

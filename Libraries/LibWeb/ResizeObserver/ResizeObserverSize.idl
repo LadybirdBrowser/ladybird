@@ -1,0 +1,6 @@
+// https://drafts.csswg.org/resize-observer-1/#resizeobserversize
+[Exposed=Window]
+interface ResizeObserverSize {
+    readonly attribute unrestricted double inlineSize;
+    readonly attribute unrestricted double blockSize;
+};

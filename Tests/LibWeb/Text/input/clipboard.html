@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<button id="button"></button>
+<script src="include.js"></script>
+<script type="text/javascript">
+    function writeText(onComplete) {
+        navigator.clipboard.writeText("Well hello friends :^)").then(
+            () => {
+                println("Success");
+                onComplete();
+            },
+            () => {
+                println("Failure");
+                onComplete();
+            }
+        );
+    }
+
+    asyncTest((done) => {
+        writeText(() => {
+            const button = document.getElementById("button");
+            internals.dispatchUserActivatedEvent(button, new Event("mousedown"));
+            button.dispatchEvent(new Event("click"));
+
+            writeText(done);
+        });
+    });
+</script>

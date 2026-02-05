@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<input id=input type=text>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("focus", () => {
+            println("focus");
+        });
+
+        input.addEventListener("blur", () => {
+            println("blur");
+        });
+
+        input.focus();
+
+        const rect = input.getBoundingClientRect();
+        const x = rect.x + rect.width;
+        const y = rect.y + rect.height;
+
+        internals.click(x + 10, y + 10);
+    })
+</script>

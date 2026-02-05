@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: Shrink column</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test ensures that flexbox shrinks the column height of a flex item
+after applying a new style.">
+<style>
+body {
+  width: 800px;
+  height: 600px;
+}
+
+.green {
+  background: green;
+}
+
+.blue {
+  background: blue;
+}
+
+.inner {
+  height: 200px;
+}
+
+.small {
+  height: 100px;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<script>
+onload = function() {
+  document.body.offsetWidth;
+  document.getElementById("target").classList.add("small");
+
+  checkLayout("body");
+};
+</script>
+
+<body class="flexbox column">
+
+<div class="flexbox column flex-one-one-auto">
+  <div class="flex-one-one-auto green" data-expected-height="250" id="target">
+    <div class="inner"></div>
+  </div>
+  <div class="flex-one-one-auto blue" data-expected-height="350">
+    <div class="inner"></div>
+  </div>
+</div>
+
+<div id=log></div>

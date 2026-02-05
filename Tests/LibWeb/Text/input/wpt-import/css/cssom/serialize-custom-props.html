@@ -1,0 +1,69 @@
+<link rel=author title="Tab Atkins-Bittner" href="https://www.xanthir.com/contact/">
+<link rel="help" href="https://drafts.csswg.org/css-values/#calc-range">
+<body><!doctype html>
+<title>Serializing Integers Never Uses Scinot</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<link rel=author title="Tab Atkins-Bittner" href="https://www.xanthir.com/contact/">
+<link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-component-value">
+<!--
+  Per CSSOM, integers always serialize all their digits out.
+  They never serialize to scinot, regardless of size,
+  because that makes them stop being an integer.
+  This applies to custom properties as well.
+-->
+<body>
+
+<script>
+
+try {
+CSS.registerProperty({
+    name: "--two",
+    value: "<integer>",
+    inherits: true,
+    initial: -1
+});
+}catch(e){}
+
+testIntLength(4);
+testIntLength(6);
+testIntLength(8);
+testIntLength(12);
+// JS starts serializing with scinot at 22 digits...
+testIntLength(25);
+
+function testIntLength(len) {
+    let el = document.body;
+    const val = "1".repeat(len);
+    test(()=>{
+        el.removeAttribute("style");
+        const nullVal = getComputedStyle(el).zIndex;
+        el.style.zIndex=val;
+        assert_not_equals(getComputedStyle(el).zIndex, nullVal)
+    }, `z-index can take a ${len}-digit integer`);
+
+    test(()=>{
+        el.removeAttribute("style");
+        el.style.setProperty("--one", val);
+        assert_equals(getComputedStyle(el).getPropertyValue("--one"), val);
+    }, `An unregistered custom prop can take a ${len}-digit integer`);
+
+    test(()=>{
+        el.removeAttribute("style");
+        el.style.setProperty("--two", val);
+        assert_equals(getComputedStyle(el).getPropertyValue("--two"), val);
+    }, `An <integer> custom prop can take a ${len}-digit integer`);
+
+    test(()=>{
+        el.removeAttribute("style");
+        el.style.zIndex = val;
+        const standardVal = getComputedStyle(el).zIndex;
+        el.removeAttribute("style");
+        el.style.setProperty("--three", val);
+        el.style.zIndex = "var(--three)";
+        assert_equals(getComputedStyle(el).zIndex, standardVal);
+    }, `z-index can take a custom property set to a ${len}-digit integer`);
+}
+
+</script>

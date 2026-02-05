@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['animation-duration'] = "-3s" should not set the property value
+Pass	e.style['animation-duration'] = "0" should not set the property value
+Pass	e.style['animation-duration'] = "infinite" should not set the property value
+Pass	e.style['animation-duration'] = "1s 2s" should not set the property value
+Pass	e.style['animation-duration'] = "initial, 1s" should not set the property value
+Pass	e.style['animation-duration'] = "1s, initial" should not set the property value

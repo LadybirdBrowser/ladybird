@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const SYNTAX_ERR = 12;
+        const illegalTokens = "\"(),/:;<=>?@[\\]{}";
+        let i = 0;
+        for (const token of illegalTokens) {
+            const xhr = new XMLHttpRequest();
+            try {
+                xhr.open(token, "data:text/plain,", true);
+            }
+            catch (e) {
+                if (e.code === SYNTAX_ERR)
+                    i += 1;
+            }
+        }
+        if (i === illegalTokens.length)
+            println("PASS");
+    });
+</script>

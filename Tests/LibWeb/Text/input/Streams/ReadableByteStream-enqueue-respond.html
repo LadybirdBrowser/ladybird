@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+function makeReadableByteStream() {
+  return new ReadableStream({
+    type: "bytes",
+    start(controller) {
+        const array = new Uint8Array([60, 61, 62, 63, 64, 65, 66, 67, 68, 69]);
+        println(`Enqueuing array ${array} onto ${controller}`);
+        controller.enqueue(array);
+    },
+    async pull(controller) {
+      println(`${controller.byobRequest} view: '${controller.byobRequest.view}'`);
+      const v = controller.byobRequest.view;
+      println(`Got view of buffer: ${new Uint8Array(v.buffer)}, offset ${v.byteOffset}, length ${v.byteLength}`);
+      controller.byobRequest.respond(1);
+    },
+  });
+}
+
+asyncTest(async done => {
+  let readableStream = makeReadableByteStream();
+  const reader = readableStream.getReader({ mode: "byob" });
+  let startingAB = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  const buffer = await readInto(startingAB);
+  println(`Final data: ${new Uint8Array(buffer)}`);
+  done();
+
+  async function readInto(buffer) {
+    let offset = 0;
+    while (offset < buffer.byteLength) {
+      let u8 = new Uint8Array(buffer, offset, buffer.byteLength - offset)
+      const { value: view, done } = await reader.read(u8);
+      buffer = view.buffer;
+      if (done) {
+        break;
+      }
+      offset += view.byteLength;
+    }
+
+    return buffer;
+  }
+});
+</script>

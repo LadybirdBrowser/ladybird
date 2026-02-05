@@ -1,0 +1,101 @@
+import("//Tests/unittest.gni")
+
+tests = [
+  "TestAllOf",
+  "TestAnyOf",
+  "TestArray",
+  "TestAtomic",
+  "TestBadge",
+  "TestBase64",
+  "TestBinaryHeap",
+  "TestBinarySearch",
+  "TestBitCast",
+  "TestBitmap",
+  "TestBitStream",
+  "TestBuiltinWrappers",
+  "TestByteBuffer",
+  "TestCharacterTypes",
+  "TestChecked",
+  "TestCircularBuffer",
+  "TestCircularQueue",
+  "TestByteString",
+  "TestDisjointChunks",
+  "TestDistinctNumeric",
+  "TestDoublyLinkedList",
+  "TestDuration",
+  "TestEndian",
+  "TestEnumBits",
+  "TestFind",
+  "TestFixedArray",
+  "TestFixedPoint",
+  "TestFloatingPointParsing",
+  "TestFlyString",
+  "TestFormat",
+  "TestGenericLexer",
+  "TestGenericShorthands",
+  "TestHashFunctions",
+  "TestHashMap",
+  "TestHashTable",
+  "TestHex",
+  "TestIPv4Address",
+  "TestIPv6Address",
+  "TestIndexSequence",
+  "TestInsertionSort",
+  "TestIntegerMath",
+  "TestIntrusiveList",
+  "TestIntrusiveRedBlackTree",
+  "TestJSON",
+  "TestLEB128",
+  "TestLexicalPath",
+  "TestMemory",
+  "TestMemoryStream",
+  "TestNeverDestroyed",
+  "TestNonnullRefPtr",
+  "TestNumberFormat",
+  "TestOptional",
+  "TestOwnPtr",
+  "TestPrint",
+  "TestQueue",
+  "TestQuickSelect",
+  "TestQuickSort",
+  "TestRedBlackTree",
+  "TestRefPtr",
+  "TestSIMD",
+  "TestSinglyLinkedList",
+  "TestSourceGenerator",
+  "TestSourceLocation",
+  "TestSpan",
+  "TestStack",
+  "TestStatistics",
+  "TestStdLibExtras",
+  "TestStringFloatingPointConversions",
+  "TestStringUtils",
+  "TestStringView",
+  "TestTrie",
+  "TestTuple",
+  "TestTypeTraits",
+  "TestTypedTransfer",
+  "TestUFixedBigInt",
+  "TestUtf16",
+  "TestUtf8",
+  "TestVariant",
+  "TestVector",
+  "TestWeakPtr",
+]
+
+# FIXME: "TestString", when LibUnicode is available
+
+foreach(test_name, tests) {
+  unittest(test_name) {
+    include_dirs = [ "//Userland/Libraries" ]
+    sources = [ test_name + ".cpp" ]
+  }
+}
+
+group("AK") {
+  deps = []
+  foreach(test_name, tests) {
+    deps += [ ":" + test_name ]
+  }
+  testonly = true
+}

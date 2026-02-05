@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['shape-margin'] = "0" should set the property value
+Pass	e.style['shape-margin'] = "10px" should set the property value
+Pass	e.style['shape-margin'] = "20em" should set the property value
+Pass	e.style['shape-margin'] = "37.5%" should set the property value

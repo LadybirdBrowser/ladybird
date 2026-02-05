@@ -1,0 +1,54 @@
+Harness status: OK
+
+Found 49 tests
+
+49 Pass
+Pass	e.style['opacity'] = "hypot()" should not set the property value
+Pass	e.style['opacity'] = "hypot( )" should not set the property value
+Pass	e.style['opacity'] = "hypot(,)" should not set the property value
+Pass	e.style['opacity'] = "hypot(1, )" should not set the property value
+Pass	e.style['opacity'] = "hypot(, 1)" should not set the property value
+Pass	e.style['opacity'] = "hypot(1 + )" should not set the property value
+Pass	e.style['opacity'] = "hypot(1 - )" should not set the property value
+Pass	e.style['opacity'] = "hypot(1 * )" should not set the property value
+Pass	e.style['opacity'] = "hypot(1 / )" should not set the property value
+Pass	e.style['opacity'] = "hypot(1 2)" should not set the property value
+Pass	e.style['opacity'] = "hypot(1, , 2)" should not set the property value
+Pass	e.style['opacity'] = "sqrt()" should not set the property value
+Pass	e.style['opacity'] = "sqrt( )" should not set the property value
+Pass	e.style['opacity'] = "sqrt(,)" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1, )" should not set the property value
+Pass	e.style['opacity'] = "sqrt(, 1)" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1 + )" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1 - )" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1 * )" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1 / )" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1 2)" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1, , 2)" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1, 2)" should not set the property value
+Pass	e.style['opacity'] = "pow( )" should not set the property value
+Pass	e.style['opacity'] = "pow(,)" should not set the property value
+Pass	e.style['opacity'] = "pow(1, )" should not set the property value
+Pass	e.style['opacity'] = "pow(, 1)" should not set the property value
+Pass	e.style['opacity'] = "pow(1 + )" should not set the property value
+Pass	e.style['opacity'] = "pow(1 - )" should not set the property value
+Pass	e.style['opacity'] = "pow(1 * )" should not set the property value
+Pass	e.style['opacity'] = "pow(1 / )" should not set the property value
+Pass	e.style['opacity'] = "pow(1 2)" should not set the property value
+Pass	e.style['opacity'] = "pow(1, , 2)" should not set the property value
+Pass	e.style['opacity'] = "pow(2px, 2)" should not set the property value
+Pass	e.style['opacity'] = "pow(10, 1px)" should not set the property value
+Pass	e.style['outline-offset'] = "calc(1px * pow(1))" should not set the property value
+Pass	e.style['outline-offset'] = "calc(1px * pow(2px, 3px))" should not set the property value
+Pass	e.style['outline-offset'] = "calc(sqrt(100px)" should not set the property value
+Pass	e.style['outline-offset'] = "hypot(2px, 3)" should not set the property value
+Pass	e.style['outline-offset'] = "hypot(3, ,4)" should not set the property value
+Pass	e.style['outline-offset'] = "hypot(1, 2)" should not set the property value
+Pass	e.style['outline-offset'] = "calc(1px * pow(2 3))" should not set the property value
+Pass	e.style['outline-offset'] = "hypot()" should not set the property value
+Pass	e.style['outline-offset'] = "calc(pow(2))" should not set the property value
+Pass	e.style['outline-offset'] = "pow())" should not set the property value
+Pass	e.style['outline-offset'] = "pow(1, 2)" should not set the property value
+Pass	e.style['outline-offset'] = "calc(sqrt())" should not set the property value
+Pass	e.style['outline-offset'] = "calc(sqrt(100, 200))" should not set the property value
+Pass	e.style['outline-offset'] = "pow(10px, 1)" should not set the property value

@@ -1,0 +1,32 @@
+#import <Fetch/Request.idl>
+#import <HTML/HTMLElement.idl>
+#import <HTML/Scripting/Fetching.idl>
+
+// https://html.spec.whatwg.org/multipage/scripting.html#htmlscriptelement
+[Exposed=Window]
+interface HTMLScriptElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect=nomodule] attribute boolean noModule;
+    [CEReactions] attribute boolean async;
+    [CEReactions, Reflect] attribute boolean defer;
+    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect] attribute DOMString integrity;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
+
+    // https://www.w3.org/TR/trusted-types/#enforcement-in-scripts
+    [CEReactions] attribute (TrustedScript or Utf16DOMString) text;
+    [CEReactions] attribute (TrustedScriptURL or Utf16USVString) src;
+    [CEReactions] attribute (TrustedScript or Utf16DOMString)? textContent;
+    [CEReactions] attribute (TrustedScript or Utf16DOMString) innerText;
+
+    static boolean supports(DOMString type);
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString charset;
+    [CEReactions, Reflect] attribute DOMString event;
+    [CEReactions, Reflect=for] attribute DOMString htmlFor;
+};

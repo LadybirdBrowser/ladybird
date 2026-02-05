@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+
+        removeTestErrorHandler()
+
+        window.addEventListener("error", (event) => {
+            println(`onerror event fired: ${event.error}`);
+            done();
+        });
+
+        try {
+            throw new Error("FAIL");
+        } catch (e) {}
+
+        throw new Error("Uncaught error");
+    });
+</script>

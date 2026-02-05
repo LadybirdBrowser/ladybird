@@ -1,0 +1,197 @@
+{
+  "-webkit-autofill": {
+    "legacy-alias-for": "autofill"
+  },
+  "active": {
+    "argument": ""
+  },
+  "any-link": {
+    "argument": ""
+  },
+  "autofill": {
+    "argument": ""
+  },
+  "buffering": {
+    "argument": ""
+  },
+  "checked": {
+    "argument": ""
+  },
+  "default": {
+    "argument": ""
+  },
+  "defined": {
+    "argument": ""
+  },
+  "dir": {
+    "argument": "<ident>"
+  },
+  "disabled": {
+    "argument": ""
+  },
+  "empty": {
+    "argument": ""
+  },
+  "enabled": {
+    "argument": ""
+  },
+  "even-less-good-value": {
+    "argument": ""
+  },
+  "first-child": {
+    "argument": ""
+  },
+  "first-of-type": {
+    "argument": ""
+  },
+  "focus": {
+    "argument": ""
+  },
+  "focus-visible": {
+    "argument": ""
+  },
+  "focus-within": {
+    "argument": ""
+  },
+  "has": {
+    "argument": "<relative-selector-list>"
+  },
+  "heading": {
+    "argument": "<level>#?"
+  },
+  "high-value": {
+    "argument": ""
+  },
+  "host": {
+    "argument": "<compound-selector>?"
+  },
+  "hover": {
+    "argument": ""
+  },
+  "indeterminate": {
+    "argument": ""
+  },
+  "invalid": {
+    "argument": ""
+  },
+  "is": {
+    "argument": "<forgiving-selector-list>"
+  },
+  "lang": {
+    "argument": "<language-ranges>"
+  },
+  "last-child": {
+    "argument": ""
+  },
+  "last-of-type": {
+    "argument": ""
+  },
+  "link": {
+    "argument": ""
+  },
+  "local-link": {
+    "argument": ""
+  },
+  "low-value": {
+    "argument": ""
+  },
+  "modal": {
+    "argument": ""
+  },
+  "muted": {
+    "argument": ""
+  },
+  "not": {
+    "argument": "<selector-list>"
+  },
+  "nth-child": {
+    "argument": "<an+b-of>"
+  },
+  "nth-last-child": {
+    "argument": "<an+b-of>"
+  },
+  "nth-last-of-type": {
+    "argument": "<an+b>"
+  },
+  "nth-of-type": {
+    "argument": "<an+b>"
+  },
+  "only-child": {
+    "argument": ""
+  },
+  "only-of-type": {
+    "argument": ""
+  },
+  "open": {
+    "argument": ""
+  },
+  "optimal-value": {
+    "argument": ""
+  },
+  "optional": {
+    "argument": ""
+  },
+  "popover-open": {
+    "argument": ""
+  },
+  "paused": {
+    "argument": ""
+  },
+  "placeholder-shown": {
+    "argument": ""
+  },
+  "playing": {
+    "argument": ""
+  },
+  "read-only": {
+    "argument": ""
+  },
+  "read-write": {
+    "argument": ""
+  },
+  "required": {
+    "argument": ""
+  },
+  "root": {
+    "argument": ""
+  },
+  "scope": {
+    "argument": ""
+  },
+  "seeking": {
+    "argument": ""
+  },
+  "stalled": {
+    "argument": ""
+  },
+  "state": {
+    "argument": "<ident>"
+  },
+  "suboptimal-value": {
+    "argument": ""
+  },
+  "target": {
+    "argument": ""
+  },
+  "unchecked": {
+    "argument": ""
+  },
+  "user-invalid": {
+    "argument": ""
+  },
+  "user-valid": {
+    "argument": ""
+  },
+  "valid": {
+    "argument": ""
+  },
+  "visited": {
+    "argument": ""
+  },
+  "volume-locked": {
+    "argument": ""
+  },
+  "where": {
+    "argument": "<forgiving-selector-list>"
+  }
+}

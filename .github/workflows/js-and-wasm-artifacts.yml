@@ -1,0 +1,177 @@
+name: Package the js repl as a binary artifact
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      reference_to_build:
+        description: 'Branch, tag or commit hash to build'
+        required: true
+        type: string
+
+env:
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
+
+jobs:
+  build-and-package:
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: ['Linux']
+        arch: ['x86_64']
+        toolchain: ['Clang']
+        package_type: ['Linux-x86_64']
+        runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
+
+        include:
+          - os_name: 'macOS'
+            arch: 'arm64'
+            toolchain: 'Clang'
+            package_type: 'macOS-arm64'
+            runner_labels: '["macos-15", "self-hosted"]'
+
+          - os_name: 'Linux'
+            arch: 'arm64'
+            toolchain: 'Clang'
+            package_type: 'Linux-aarch64'
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
+
+    steps:
+      - name: Checkout LadybirdBrowser/ladybird
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.reference_to_build }}
+
+      - name: 'Determine build commit hash'
+        id: build-commit
+        shell: bash
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Use latest custom actions'
+        if: ${{ inputs.reference_to_build != '' && github.sha != steps.build-commit.outputs.sha }}
+        shell: bash
+        run: |
+          git fetch origin master
+          git checkout origin/master -- .github/actions
+
+      - name: "Set up environment"
+        uses: ./.github/actions/setup
+        with:
+          os: ${{ matrix.os_name }}
+          arch: ${{ matrix.arch }}
+
+      - name: Restore Caches
+        uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
+        with:
+          runner_labels: ${{ matrix.runner_labels }}
+          os: ${{ matrix.os_name }}
+          arch: ${{ matrix.arch }}
+          cache_key_extra: 'LibJS and LibWasm Artifacts'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          download_cache_path: ${{ github.workspace }}/Build/caches
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+
+      - name: Create build directory Ubuntu
+        run: |
+          cmake --preset Distribution \
+            -DCMAKE_C_COMPILER=clang-20 \
+            -DCMAKE_CXX_COMPILER=clang++-20 \
+            -DENABLE_CI_BASELINE_CPU=ON \
+            -DENABLE_GUI_TARGETS=OFF
+        if: ${{ matrix.os_name == 'Linux' }}
+
+      # FIXME: Add the following flag back when vcpkg supports Universal binaries:
+      #        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+      #
+      #        See: https://github.com/microsoft/vcpkg/discussions/19454
+      - name: Create build directory macOS
+        run: |
+          cmake --preset Distribution \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
+            -DENABLE_GUI_TARGETS=OFF
+        if: ${{ matrix.os_name == 'macOS' }}
+
+      - name: Build js
+        working-directory: Build/distribution
+        run: |
+          ninja js
+
+      - name: Build wasm
+        working-directory: Build/distribution
+        run: |
+          ninja wasm
+
+      - name: Package js and wasm
+        working-directory: Build/distribution
+        run: |
+          cpack
+
+          # Inject the COMMIT file for older builds (before commit 5c5de0e30e04).
+          for package in ladybird-*.tar.gz; do
+            if ! tar -tzf "${package}" | grep -qx COMMIT; then
+              echo "${{ steps.build-commit.outputs.sha }}" > COMMIT
+              gunzip "${package}"
+              tar --append --file="${package%.gz}" COMMIT
+              gzip "${package%.gz}"
+              rm COMMIT
+            fi
+          done
+
+      - name: Save Caches
+        uses: ./.github/actions/cache-save
+        with:
+          runner_labels: ${{ matrix.runner_labels }}
+          arch: 'Lagom'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
+
+      - name: Sanity-check the js repl
+        shell: bash
+        run: |
+          path="Build/distribution/ladybird-js-${{ matrix.package_type }}.tar.gz"
+          if [ -f "${path}" ]; then
+            tar -xvzf "${path}"
+            bin/js -c "console.log('Hello, World\!');" > js-repl-out.txt
+            if ! grep -q "\"Hello, World\!\"" js-repl-out.txt; then
+              echo "Sanity check failed: \"Hello, World\!\" not found in output."
+              exit 1
+            fi
+          fi
+
+      - name: Sanity-check the wasm repl
+        shell: bash
+        run: |
+          path="Build/distribution/ladybird-wasm-${{ matrix.package_type }}.tar.gz"
+          if [ -f "${path}" ]; then
+            tar -xvzf "${path}"
+            bin/wasm -e run_sanity_check -w ${{ github.workspace }}/Libraries/LibWasm/Tests/CI/ci-sanity-check.wasm > wasm-repl-out.txt
+            if ! grep -q "Hello, World\!" wasm-repl-out.txt; then
+              echo "Sanity check failed: Hello, World\! not found in output."
+              exit 1
+            fi
+          fi
+
+      - name: Upload js package
+        uses: actions/upload-artifact@v6
+        with:
+          name: ladybird-js-${{ matrix.package_type }}
+          path: Build/distribution/ladybird-js-*.tar.gz
+          retention-days: 7
+
+      - name: Upload wasm package
+        uses: actions/upload-artifact@v6
+        with:
+          name: ladybird-wasm-${{ matrix.package_type }}
+          path: Build/distribution/ladybird-wasm-*.tar.gz
+          retention-days: 7

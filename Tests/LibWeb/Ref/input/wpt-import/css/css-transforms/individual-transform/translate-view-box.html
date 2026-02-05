@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>transform-box: view-box</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/individual-transform/../transform-box/reference/greensquare200x200.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-translate">
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-box">
+<meta name="assert" content="translate percentages are relative to the reference box.">
+<style>
+svg {
+  background-color: red;
+}
+rect {
+  transform-box: view-box;
+}
+#target1 {
+  transform-origin: 25% 25%;
+  scale: 2;
+}
+#target2 {
+  translate: 50%;
+}
+#target3 {
+  translate: 0 50%;
+}
+#target4 {
+  transform-origin: 50% 50%;
+  rotate: 180deg;
+}
+</style>
+<p>There should be a green 200x200 rectangle below, and no red.</p>
+<svg width="200" height="200">
+  <rect id="target1" x="25" y="25" width="50" height="50" fill="green"/>
+  <rect id="target2" width="100" height="100" fill="green"/>
+  <rect id="target3" width="100" height="100" fill="green"/>
+  <rect id="target4" width="100" height="100" fill="green"/>
+</svg>

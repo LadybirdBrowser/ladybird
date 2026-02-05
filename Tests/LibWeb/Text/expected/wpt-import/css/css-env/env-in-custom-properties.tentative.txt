@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	env() is substituted into a custom property
+Pass	Substitution of unrecognized env() causes guaranteed-invalid

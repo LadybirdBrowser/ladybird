@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSSkewX tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssskewx">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gInvalidTestCases = [
+  { value: 'auto', desc: 'a keyword'},
+  { value: 3.14, desc: 'a double'},
+  { value: 0, desc: 'a unitless zero'},
+  { value: '10deg', desc: 'a string angle'},
+  { value: CSS.number(10), desc: 'a number CSSUnitValue'},
+  { value: CSS.s(10), desc: 'a time dimension CSSUnitValue'},
+  { value: new CSSMathSum(CSS.px(1)), desc: 'a CSSMathValue of length type' },
+];
+
+for (const {value, desc} of gInvalidTestCases) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSSkewX(value));
+  }, 'Constructing a CSSSkewX with ' + desc + ' throws a TypeError');
+}
+
+for (const {value, desc} of gInvalidTestCases) {
+  test(() => {
+    let skewX = new CSSSkewX(CSS.deg(0));
+    assert_throws_js(TypeError, () => skewX.ax = value);
+    assert_style_value_equals(skewX.ax, CSS.deg(0));
+  }, 'Updating CSSSkewX.ax with ' + desc + ' throws a TypeError');
+}
+
+const gValidTestCases = [
+  { value: CSS.deg(-3.14), desc: 'an angle CSSUnitValue' },
+  { value: new CSSMathSum(CSS.deg(1)), desc: 'a CSSMathValue of angle type' },
+];
+
+for (const {value: ax, desc: axDesc} of gValidTestCases) {
+  test(() => {
+    const skewX = new CSSSkewX(ax);
+    assert_equals(skewX.ax, ax);
+    assert_true(skewX.is2D);
+  }, 'CSSSkewX can be constructed from ' + axDesc);
+}
+
+for (const {value, desc} of gValidTestCases) {
+  test(() => {
+    let skewX = new CSSSkewX(CSS.deg(0));
+    skewX.ax = value;
+    assert_style_value_equals(skewX.ax, value);
+  }, 'CSSSkew.ax can be updated to ' + desc);
+}
+
+test(() => {
+  let skewX = new CSSSkewX(CSS.deg(0));
+  skewX.is2D = false;
+  assert_true(skewX.is2D);
+}, 'Modifying skewX.is2D is a no-op');
+
+</script>

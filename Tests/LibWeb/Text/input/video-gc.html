@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<iframe id="iframe"></iframe>
+<script src="include.js"></script>
+<script>
+    function navigateIframe(src) {
+        return new Promise(resolve => {
+            window.onmessage = e => {
+                println(e.data);
+                resolve();
+            };
+
+            iframe.src = src;
+        });
+    }
+
+    asyncTest(async done => {
+        await navigateIframe("../data/video-gc-frame.html");
+        await navigateIframe("../data/iframe-test-content-1.html");
+        iframe.remove();
+
+        for (let i = 0; i < 5; ++i) {
+            internals.gc();
+        }
+
+        println("PASS (didn't crash)");
+        done();
+    });
+</script>

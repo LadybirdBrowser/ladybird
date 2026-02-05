@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    function offsetParentOfChildDocument() {
+        const frameDocument = document.querySelector("iframe").contentDocument;
+        const frameRoot = frameDocument.documentElement;
+        document.documentElement.append(frameRoot);
+        document.dispatchEvent(new CustomEvent("offsetParentCalled", { detail: { iframeOffsetParent: frameRoot.offsetParent }}));
+    }
+
+    asyncTest(done => {
+        document.addEventListener("offsetParentCalled", event => {
+            println(`iframe offsetParent value: ${event.detail.iframeOffsetParent}`);
+            done();
+        });
+    });
+</script>
+<iframe srcdoc="
+<script>
+    window.parent.offsetParentOfChildDocument();
+</script>
+">

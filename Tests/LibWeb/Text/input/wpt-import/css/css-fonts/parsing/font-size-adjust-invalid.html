@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 5: parsing font-size-adjust with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop">
+<meta name="assert" content="font-size-adjust supports only the grammar 'none | [metric]? [from-font | <number>]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-size-adjust', 'auto');
+test_invalid_value('font-size-adjust', '-10');
+test_invalid_value('font-size-adjust', '0.5 ex-height');
+test_invalid_value('font-size-adjust', 'em 1.0');
+test_invalid_value('font-size-adjust', 'ch 0.5');  // it's 'ch-width', not 'ch'
+test_invalid_value('font-size-adjust', 'ic 1.0');  // it's 'ic-width' or 'ic-height', not 'ic'
+
+test_invalid_value('font-size-adjust', 'ex-height');
+test_invalid_value('font-size-adjust', 'cap-height');
+test_invalid_value('font-size-adjust', 'ic-height');
+test_invalid_value('font-size-adjust', 'ic-width');
+test_invalid_value('font-size-adjust', 'ch-width');
+
+test_invalid_value('font-size-adjust', 'ex-height none');
+test_invalid_value('font-size-adjust', 'cap-height none');
+test_invalid_value('font-size-adjust', 'ic-height none');
+test_invalid_value('font-size-adjust', 'ic-width none');
+test_invalid_value('font-size-adjust', 'ch-width none');
+
+test_invalid_value('font-size-adjust', 'ex-height ex-height');
+test_invalid_value('font-size-adjust', 'cap-height cap-height');
+test_invalid_value('font-size-adjust', 'ic-height ic-height');
+test_invalid_value('font-size-adjust', 'ic-width ic-width');
+test_invalid_value('font-size-adjust', 'ch-width ch-width');
+
+test_invalid_value('font-size-adjust', 'none none');
+test_invalid_value('font-size-adjust', 'none 0.5');
+test_invalid_value('font-size-adjust', 'none from-font');
+
+test_invalid_value('font-size-adjust', 'from-font none');
+test_invalid_value('font-size-adjust', 'from-font 0.5');
+test_invalid_value('font-size-adjust', 'from-font ex-height');
+test_invalid_value('font-size-adjust', 'from-font cap-height');
+test_invalid_value('font-size-adjust', 'from-font ic-height');
+test_invalid_value('font-size-adjust', 'from-font ic-width');
+test_invalid_value('font-size-adjust', 'from-font ch-width');
+test_invalid_value('font-size-adjust', 'from-font from-font');
+
+test_invalid_value('font-size-adjust', 'ex-height from-font from-font');
+test_invalid_value('font-size-adjust', 'cap-height from-font from-font');
+test_invalid_value('font-size-adjust', 'ic-height from-font from-font');
+test_invalid_value('font-size-adjust', 'ic-width from-font from-font');
+test_invalid_value('font-size-adjust', 'ch-width from-font from-font');
+
+test_invalid_value('font-size-adjust', 'ex-height from-font 0.5');
+test_invalid_value('font-size-adjust', 'cap-height from-font 0.5');
+test_invalid_value('font-size-adjust', 'ic-height from-font 0.5');
+test_invalid_value('font-size-adjust', 'ic-width from-font 0.5');
+test_invalid_value('font-size-adjust', 'ch-width from-font 0.5');
+
+test_invalid_value('font-size-adjust', 'ex-height 0.5 from-font');
+test_invalid_value('font-size-adjust', 'cap-height 0.5 from-font');
+test_invalid_value('font-size-adjust', 'ic-height 0.5 from-font');
+test_invalid_value('font-size-adjust', 'ic-width 0.5 from-font');
+test_invalid_value('font-size-adjust', 'ch-width 0.5 from-font');
+
+test_invalid_value('font-size-adjust', 'ex-height from-font none');
+test_invalid_value('font-size-adjust', 'cap-height from-font none');
+test_invalid_value('font-size-adjust', 'ic-height from-font none');
+test_invalid_value('font-size-adjust', 'ic-width from-font none');
+test_invalid_value('font-size-adjust', 'ch-width from-font none');
+
+test_invalid_value('font-size-adjust', 'ex-height none from-font');
+test_invalid_value('font-size-adjust', 'cap-height none from-font');
+test_invalid_value('font-size-adjust', 'ic-height none from-font');
+test_invalid_value('font-size-adjust', 'ic-width none from-font');
+test_invalid_value('font-size-adjust', 'ch-width none from-font');
+</script>
+</body>
+</html>

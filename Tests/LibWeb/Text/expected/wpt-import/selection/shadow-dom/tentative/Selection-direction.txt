@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Pass	direction returns "none" when there is no selection
+Pass	direction returns "forward" when there is a forward-direction selection in the document tree
+Pass	direction returns "backward" when there is a backward-direction selection in the document tree
+Pass	direction returns "forward" when there is a forward selection in the shadow tree
+Pass	direction returns "backward" when there is a backward selection in the shadow tree
+Pass	direction returns "forward" when there is a forward selection that crosses shadow boundaries
+Fail	direction returns "backward" when there is a forward selection that crosses shadow boundaries

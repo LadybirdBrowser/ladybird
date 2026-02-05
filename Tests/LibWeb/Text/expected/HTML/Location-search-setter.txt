@@ -1,0 +1,1 @@
+location.search set to ?foo=bar

@@ -1,0 +1,37 @@
+<!doctype html>
+<html class="test-wait">
+<style>
+button {
+  background-repeat: no-repeat;
+}
+*:last-child {
+  opacity: 0;
+  animation: kf ease-in, steps(65, start) 0.92 paused;
+  border-radius: inherit
+}
+@keyframes kf {}
+</style>
+<script>
+let animationEnded = false;
+let selectionChanged = false;
+function maybeFinishTest() {
+  if (animationEnded && selectionChanged) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.documentElement.className = "";
+    }));
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+  document.designMode = "on"
+  window.onanimationend = () => {
+    document.execCommand("insertHTML", false, "A")
+    animationEnded = true;
+    maybeFinishTest();
+  }
+  document.onselectionchange = () => {
+    document.execCommand("selectAll", false)
+    selectionChanged = true;
+    maybeFinishTest();
+  }
+})
+</script>

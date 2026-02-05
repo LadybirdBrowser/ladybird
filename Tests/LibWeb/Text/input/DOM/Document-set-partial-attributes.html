@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function testPartialDocumentAttribute(documentAttr, bodyAttr) {
+            println(`before document.${documentAttr}=${document[documentAttr]}`);
+            println(`before body attribute ${bodyAttr}=${document.body.getAttribute(bodyAttr)}`);
+            document[documentAttr] = "red";
+            println(`after document.${documentAttr}=${document[documentAttr]}`);
+            println(`after body attribute ${bodyAttr}=${document.body.getAttribute(bodyAttr)}`);
+        }
+        testPartialDocumentAttribute("fgColor", "text");
+        testPartialDocumentAttribute("linkColor", "link");
+        testPartialDocumentAttribute("alinkColor", "alink");
+        testPartialDocumentAttribute("vlinkColor", "vlink");
+        testPartialDocumentAttribute("bgColor", "bgcolor");
+    });
+</script>

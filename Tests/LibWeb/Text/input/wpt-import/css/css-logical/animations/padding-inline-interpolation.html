@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>padding-inline interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-padding-inline">
+<meta name="assert" content="padding-inline supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_interpolation({
+  property: 'padding-inline',
+  from: '10px',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+</script>
+</body>

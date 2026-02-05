@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let a = document.createElement("div");
+        let b = document.createElement("div");
+        a.appendChild(b);
+        document.body.appendChild(a);
+
+        b.style = 'width: 100px;';
+
+        println(b.offsetWidth);
+        a.style.display = 'none';
+        println(b.offsetWidth);
+    });
+</script>

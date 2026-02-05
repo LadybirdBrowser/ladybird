@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selector Invalidation: :has() with nesting parent containing complex selector</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<style>
+  .anchor { background-color: white; }
+
+  .ancestor .descendant {
+    .anchor:has(&) { background-color: blue; }
+  }
+
+  .ancestor .child {
+    .anchor:has(> &) { background-color: lightblue; }
+  }
+
+  .ancestor_prev ~ div .descendant {
+    .anchor:has(&) { background-color: yellow; }
+  }
+
+  .ancestor_prev ~ div.ancestor .descendant {
+    .anchor:has(&) { background-color: yellowgreen; }
+  }
+
+  .prev ~ .indirect_next {
+    .anchor:has(~ &) { background-color: green; }
+  }
+
+  .prev ~ .direct_next {
+    .anchor:has(+ &) { background-color: lightgreen; }
+  }
+</style>
+<div><div id="grand_parent1">
+  <div id="parent1">
+    <div id="anchor1" class="anchor">
+      <div><div class="descendant"></div></div>
+    </div>
+  </div>
+</div></div>
+<div><div id="grand_parent2">
+  <div id="parent2">
+    <div id="anchor2" class="anchor">
+      <div class="child"></div>
+    </div>
+  </div>
+</div></div>
+<div><div id="grand_parent_indirect_prev3"></div>
+     <div id="grand_parent_direct_prev3"></div>
+     <div id="grand_parent3">
+       <div id="parent_indirect_prev3"></div>
+       <div id="parent_direct_prev3"></div>
+       <div id="parent3">
+         <div id="anchor_indirect_prev3"></div>
+         <div id="anchor_direct_prev3"></div>
+         <div id="anchor3" class="anchor">
+           <div><div class="descendant"></div></div>
+         </div>
+       </div>
+</div></div>
+<div><div id="indirect_prev4"></div>
+     <div id="direct_prev4"></div>
+     <div id="anchor4" class="anchor"></div>
+     <div></div><div class="indirect_next">
+</div></div>
+<div><div id="indirect_prev5"></div>
+     <div id="direct_prev5"></div>
+     <div id="anchor5" class="anchor"></div>
+     <div class="direct_next">
+</div></div>
+<script>
+  const white = "rgb(255, 255, 255)";
+  const blue = "rgb(0, 0, 255)";
+  const lightblue = "rgb(173, 216, 230)";
+  const yellow = "rgb(255, 255, 0)";
+  const yellowgreen = "rgb(154, 205, 50)";
+  const green = "rgb(0, 128, 0)";
+  const lightgreen = "rgb(144, 238, 144)";
+
+  function bg_color(element, color, message) {
+    promise_test(async () => {
+      assert_equals(getComputedStyle(element)['background-color'], color);
+    }, message);
+  }
+
+  function add_class_and_check_bg_color(
+      element_to_add, class_name, has_anchor, color) {
+    promise_test(async () => {
+      element_to_add.classList.add(class_name);
+      assert_equals(getComputedStyle(has_anchor)['background-color'], color);
+    }, `#${has_anchor.id} becomes ${color} after adding .${class_name} to #${element_to_add.id}`);
+  }
+
+  function remove_class_and_check_bg_color(
+      element_to_remove, class_name, has_anchor, color) {
+    promise_test(async () => {
+      element_to_remove.classList.remove(class_name);
+      assert_equals(getComputedStyle(has_anchor)['background-color'], color);
+    }, `#${has_anchor.id} becomes ${color} after removing .${class_name} from #${element_to_remove.id}`);
+  }
+
+  bg_color(anchor1, white, "#anchor1 initially white");
+  add_class_and_check_bg_color(grand_parent1, "ancestor", anchor1, blue);
+  remove_class_and_check_bg_color(grand_parent1, "ancestor", anchor1, white);
+  add_class_and_check_bg_color(parent1, "ancestor", anchor1, blue);
+  remove_class_and_check_bg_color(parent1, "ancestor", anchor1, white);
+
+  bg_color(anchor2, white, "#anchor2 initially white");
+  add_class_and_check_bg_color(grand_parent2, "ancestor", anchor2, lightblue);
+  remove_class_and_check_bg_color(grand_parent2, "ancestor", anchor2, white);
+  add_class_and_check_bg_color(parent2, "ancestor", anchor2, lightblue);
+  remove_class_and_check_bg_color(parent2, "ancestor", anchor2, white);
+
+  bg_color(anchor3, white, "#anchor3 initially white");
+  add_class_and_check_bg_color(grand_parent_indirect_prev3, "ancestor_prev",
+                               anchor3, yellow);
+  add_class_and_check_bg_color(grand_parent3, "ancestor", anchor3, yellowgreen);
+  remove_class_and_check_bg_color(grand_parent3, "ancestor", anchor3, yellow);
+  remove_class_and_check_bg_color(grand_parent_indirect_prev3, "ancestor_prev",
+                                  anchor3, white);
+  add_class_and_check_bg_color(grand_parent_direct_prev3, "ancestor_prev",
+                               anchor3, yellow);
+  remove_class_and_check_bg_color(grand_parent_direct_prev3, "ancestor_prev",
+                                  anchor3, white);
+  add_class_and_check_bg_color(parent_indirect_prev3, "ancestor_prev",
+                               anchor3, yellow);
+  add_class_and_check_bg_color(parent3, "ancestor", anchor3, yellowgreen);
+  remove_class_and_check_bg_color(parent3, "ancestor", anchor3, yellow);
+  remove_class_and_check_bg_color(parent_indirect_prev3, "ancestor_prev",
+                                  anchor3, white);
+  add_class_and_check_bg_color(parent_direct_prev3, "ancestor_prev",
+                               anchor3, yellow);
+  remove_class_and_check_bg_color(parent_direct_prev3, "ancestor_prev",
+                                  anchor3, white);
+  add_class_and_check_bg_color(anchor_indirect_prev3, "ancestor_prev",
+                               anchor3, yellow);
+  remove_class_and_check_bg_color(anchor_indirect_prev3, "ancestor_prev",
+                                  anchor3, white);
+  add_class_and_check_bg_color(anchor_direct_prev3, "ancestor_prev",
+                               anchor3, yellow);
+  remove_class_and_check_bg_color(anchor_direct_prev3, "ancestor_prev",
+                                  anchor3, white);
+
+  bg_color(anchor4, white, "#anchor4 initially white");
+  add_class_and_check_bg_color(indirect_prev4, "prev", anchor4, green);
+  remove_class_and_check_bg_color(indirect_prev4, "prev", anchor4, white);
+  add_class_and_check_bg_color(direct_prev4, "prev", anchor4, green);
+  remove_class_and_check_bg_color(direct_prev4, "prev", anchor4, white);
+
+  bg_color(anchor5, white, "#anchor5 initially white");
+  add_class_and_check_bg_color(indirect_prev5, "prev", anchor5, lightgreen);
+  remove_class_and_check_bg_color(indirect_prev5, "prev", anchor5, white);
+  add_class_and_check_bg_color(direct_prev5, "prev", anchor5, lightgreen);
+  remove_class_and_check_bg_color(direct_prev5, "prev", anchor5, white);
+</script>

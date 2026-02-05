@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+    <title>Tab-related Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests <a href="https://w3c.github.io/aria/#tab">tab</a> and related roles.</p>
+
+<!--<div> tab with tablist/tab/tabpanel semantics-->
+<div role="tablist" data-testname="div role is tablist" data-expectedrole="tablist" class="ex">
+    <div role="tab" data-testname="role is tab (in div tablist)" data-expectedrole="tab" class="ex">x</div>
+</div>
+<div role="tabpanel" data-testname="role is tabpanel (with sibling div tablist)" data-expectedrole="tabpanel" class="ex"></div>
+
+<!--<div> tabs with tablist/tab/tabpanel semantics, selection, no focus management-->
+<div role="tablist" data-testname="div role is tablist (with selection)" data-expectedrole="tablist" class="ex">
+    <div role="tab" aria-selected="true" data-testname="role is tab and tab is selected" data-expectedrole="tab" class="ex">x</div>
+    <div role="tab" aria-selected="false" data-testname="role is tab and tab is not selected" data-expectedrole="tab" class="ex">y</div>
+</div>
+<div role="tabpanel" data-testname="role is tabpanel (faux selected)" data-expectedrole="tabpanel" class="ex"></div>
+<div role="tabpanel" data-testname="role is tabpanel (faux unselected)" data-expectedrole="tabpanel" class="ex"></div>
+
+<!--<div> tabs with tablist/tab/tabpanel semantics, selection, roving tabindex-->
+<div role="tablist" data-testname="div role is tablist (with selection, roving tabindex)" data-expectedrole="tablist" class="ex">
+    <div role="tab" aria-selected="true" tabindex = "0" data-testname="role is tab, tab is selected and in tab order" data-expectedrole="tab" class="ex">x</div>
+    <div role="tab" aria-selected="false" tabindex = "-1" data-testname="role is tab and tab is not selected, not tabbable" data-expectedrole="tab" class="ex">y</div>
+    <div role="tab" aria-selected="false" tabindex = "-1" data-testname="role is tab and tab is not selected, not tabbable (duplicate)" data-expectedrole="tab" class="ex">z</div>
+</div>
+<div role="tabpanel" data-testname="role is tabpanel with selection, roving tabindex" data-expectedrole="tabpanel" class="ex"></div>
+<div role="tabpanel" data-testname="role is tabpanel with selection, roving tabindex (duplicate)" data-expectedrole="tabpanel" class="ex"></div>
+<div role="tabpanel" data-testname="role is tabpanel with selection, roving tabindex (duplicate 2)" data-expectedrole="tabpanel" class="ex"></div>
+
+<!--<div> tabs with tablist/tab/tabpanel semantics and non-empty tabpanel-->
+<div role="tablist" data-testname="div role is tablist (with non-empty tabpanel)" data-expectedrole="tablist" class="ex">
+    <div role="tab" aria-selected="true" data-testname="role is tab and tab is selected (with non-empty tabpanel content)" data-expectedrole="tab" class="ex">x</div>
+    <div role="tab" aria-selected="false" data-testname="role is tab and tab is not selected (with non-empty tabpanel content)" data-expectedrole="tab" class="ex">y</div>
+</div>
+<div role="tabpanel" data-testname="role is tabpanel with selection, non-empty content" data-expectedrole="tabpanel" class="ex">Tab one's stuff</div>
+<div role="tabpanel" data-testname="role is tabpanel with selection, non-empty content (duplicate)" data-expectedrole="tabpanel" class="ex">Tab two's stuff</div>
+
+<!--<div> tabs with tablist/tab/tabpanel semantics, non-empty tabpanel and aria-controls-->
+<div role="tablist" data-testname="div role is tablist (with non-empty tabpanel and aria-controls)" data-expectedrole="tablist" class="ex">
+    <div role="tab" aria-controls = "tabpanel1" aria-selected="true" data-testname="role is tab, tab is selected (with aria-controls)" data-expectedrole="tab" class="ex">x</div>
+    <div role="tab" aria-controls = "tabpanel2" aria-selected="false" data-testname="role is tab, tab is not selected (with aria-controls)" data-expectedrole="tab" class="ex">y</div>
+</div>
+<div role="tabpanel" id="tabpanel1" data-testname="role is tabpanel with aria-controls and non-empty content" data-expectedrole="tabpanel" class="ex">Tab one's stuff</div>
+<div role="tabpanel" id="tabpanel2" data-testname="role is tabpanel with aria-controls and non-empty content (duplicate)" data-expectedrole="tabpanel" class="ex">Tab one's stuff</div>
+
+<!--<div> tablist with child <button> that has explicit role="tab"-->
+<div role="tablist" data-testname="div role for button parent container is tablist" data-expectedrole="tablist" class="ex">
+    <button role="tab" data-testname="button role is tab (in div tablist)" data-expectedrole="tab" class="ex">x</div>
+</div>
+
+<!--<ul> tablist with child <divs> that have explicit role="tab"-->
+<ul role="tablist" data-testname="ul role is tablist" data-expectedrole="tablist" class="ex">
+    <li>
+        <div role="tab" aria-selected="true" tabindex = "0" data-testname="role is tab (within li), tab is selected and in tab order" data-expectedrole="tab" class="ex">x</div>
+    </li>
+    <li>
+        <div role="tab" aria-selected="false" tabindex = "-1" data-testname="role is tab (within li), tab is not selected and in tab order" data-expectedrole="tab" class="ex">y</div>
+    </li>
+</ul>
+<div role="tabpanel" data-testname="role is tabpanel as sibling to ul" data-expectedrole="tabpanel" class="ex">Tab one's stuff</div>
+<div role="tabpanel" data-testname="role is tabpanel as sibling to ul (duplicate)" data-expectedrole="tabpanel" class="ex">Tab two's stuff</div>
+
+<!--<ul> tablist with child <divs> that have explicit role="tab", role="none" on li elements-->
+    <ul role="tablist" data-testname="ul role is tablist (child li have role none)" data-expectedrole="tablist" class="ex">
+        <li role="none">
+            <div role="tab" aria-selected="true" tabindex = "0" data-testname="role is tab (within li with role none), tab is selected and in tab order" data-expectedrole="tab" class="ex">x</div>
+        </li>
+        <li role="none">
+            <div role="tab" aria-selected="false" tabindex = "-1" data-testname="role is tab (within li with role none), tab is not selected and in tab order" data-expectedrole="tab" class="ex">y</div>
+        </li>
+    </ul>
+    <div role="tabpanel" data-testname="role is tabpanel as sibling to ul with child role none li elements" data-expectedrole="tabpanel" class="ex">Tab one's stuff</div>
+    <div role="tabpanel" data-testname="role is tabpanel as sibling to ul with child role none li elements (duplicate)" data-expectedrole="tabpanel" class="ex">Tab two's stuff</div>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

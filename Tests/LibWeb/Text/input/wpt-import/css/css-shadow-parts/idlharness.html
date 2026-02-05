@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>CSS Shadow Parts IDL tests</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#idl">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/WebIDLParser.js"></script>
+<script src="../../resources/idlharness.js"></script>
+<script>
+idl_test(
+  ['css-shadow-parts'],
+  ['dom'],
+  idl_array => {
+    self.element = document.createElementNS('ns', 'e');
+    self.htmlElement = document.createElement('html');
+    self.svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    idl_array.add_objects({
+      Element: ['element', 'htmlElement', 'svgElement'],
+    });
+  }
+);
+</script>

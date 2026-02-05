@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let animFrameCallCount = 0;
+        function animFrameCb(i) {
+            println(i);
+            animFrameCallCount++;
+            if (animFrameCallCount === 20)
+                done();
+        }
+
+        for (let i = 0; i < 20; i++) {
+            // FIXME: Workaround for https://github.com/SerenityOS/serenity/issues/23552
+            let x = i;
+            requestAnimationFrame(() => {
+                animFrameCb(x);
+            });
+        }
+    });
+</script>

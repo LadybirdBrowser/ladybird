@@ -1,0 +1,32 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>CSS Test: float placement around other float in BFC but outside containing block</title>
+    <link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+    <link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+    <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats" />
+    <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-rule7-outside-left-001-ref.xht"/>
+    <meta name="assert" content="Test for float placement around other float in BFC but outside containing block" />
+
+<!--
+  CSS2.1 9.5.1 rule 7 says:
+
+    A left-floating box that has another left-floating box to its left
+    may not have its right outer edge to the right of its containing
+    block's right edge. (Loosely: a left float may not stick out at the
+    right edge, unless it is already as far to the left as possible.) An
+    analogous rule holds for right-floating elements.
+
+ -->
+
+<!-- the block formatting context inside which we're testing -->
+</head><body><div style="float: left; width: 500px; height: 500px">
+
+  <div style="float: left; width: 50px; height: 300px"></div>
+
+  <div style="margin-left: 100px"> <!-- 400px wide -->
+
+    <!-- we're testing the position of this float -->
+    <div style="float: left; width: 425px; height: 10px; background: blue"></div>
+
+  </div>
+
+</div>
+</body></html>

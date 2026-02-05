@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): perspective-origin</title>
+    <link rel="author" title="Matt Woodrow" href="mailto:mwoodrow@mozilla.com">
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-perspective-origin">
+    <meta name="assert" content="This tests that 'perspective-origin: 0 0' is
+    the same as 'perspective-origin: top left', different from no
+    'perspective-origin', and different from no perspective or no transform.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform3d-perspective-origin-ref.html">
+  </head>
+  <body>
+    <div style="perspective: 1000px; perspective-origin: 0 0;">
+      <div style="transform: rotatex(45deg); width: 100px; height: 100px;
+        background: lime">
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#bfc-next-to-float" title="9.5 Floats">
+<meta name="assert" content="The new formatting context's margin-right does not push it down to the next area.">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px; height: 100px; background: red; direction: rtl;">
+  <div style="float: left; width: 50px; height: 100px; background: green;"></div>
+  <div style="overflow: hidden; height: 100px; margin-left: -20px; background: green;"></div>
+</div>

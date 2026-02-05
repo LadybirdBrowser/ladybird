@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style type='text/css'>
+            .test div { width: 50px; }
+            #box:lang(ko) { width: 100px; }
+        </style>
+    </head>
+    <body>
+        <div class="test" lang="ko">
+            <div id="box" lang="">Test</div>
+        </div>
+    </body>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest((done) => {
+            if (document.getElementById('box').offsetWidth == 50) {
+                println("OK");
+            } else {
+                println("FAIL. If an element contains a lang attribute with an empty value, the value of a lang attribute higher up the document tree will no longer be applied to the content of that element.");
+            }
+            done();
+        });
+    </script>
+</html>

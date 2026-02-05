@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Document.getAnimations() returns an empty sequence for non-animated content
+Pass	Document.getAnimations() returns script-generated animations
+Pass	Document.getAnimations() returns script-generated animations in the order they were created
+Pass	Document.getAnimations() does not return a disconnected node
+Pass	Document.getAnimations() does not return an animation with a null target
+Pass	Document.getAnimations() returns animations on elements inside same-origin iframes
+Pass	iframe.contentDocument.getAnimations() returns animations on elements inside same-origin Document
+Pass	ShadowRoot.getAnimations() return all animations in the shadow tree
+Pass	Document.getAnimations() does NOT return animations in shadow trees
+Pass	ShadowRoot.getAnimations() does NOT return animations in parent document
+Pass	Document.getAnimations() triggers a style change event

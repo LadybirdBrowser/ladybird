@@ -1,0 +1,27 @@
+#import <FileAPI/Blob.idl>
+#import <FileAPI/File.idl>
+// FIXME: This #import currently gives the following error after XHR/FormData.idl was #imported in Fetch/BodyInit.idl:
+//        "LibWeb/HTML/Window.idl:114: error: Mixin 'WindowOrWorkerGlobalScope' was never defined."
+//        XHR/FormData.idl needs to be #imported in Fetch/BodyInit.idl while removing #import HTML/HTMLFormElement.idl
+//        currently makes no difference.
+// #import <HTML/HTMLFormElement.idl>
+
+typedef (File or USVString) FormDataEntryValue;
+
+// https://xhr.spec.whatwg.org/#interface-formdata
+[Exposed=(Window,Worker)]
+interface FormData {
+    constructor(optional HTMLFormElement form, optional HTMLElement? submitter = null);
+
+    undefined append(USVString name, USVString value);
+    undefined append(USVString name, Blob blobValue, optional USVString filename);
+    undefined delete(USVString name);
+    // FIXME: The BindingsGenerator is not able to resolve the Variant's visit for FormDataEntryValue when
+    // the return value for one function returns an optional FormDataEntryValue while the others does not.
+    (File or USVString)? get(USVString name);
+    sequence<FormDataEntryValue> getAll(USVString name);
+    boolean has(USVString name);
+    undefined set(USVString name, USVString value);
+    undefined set(USVString name, Blob blobValue, optional USVString filename);
+    iterable<USVString, FormDataEntryValue>;
+};

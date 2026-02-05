@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<form name="bob">
+    <button type="submit" id="fred" name="george" value="submit">Submit</button>
+</form>
+<img name="foo" id="bar" src="http://something.invalid" alt="Example" />
+<img id="baz" src="http://something.invalid" alt="Example" />
+<form name="foo">
+</form>
+<meta name="kangaroo" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        printElement(document.bob);
+        println(`document.bob === document.forms[0]: ${document.bob === document.forms[0]}`);
+        printElement(document.bob.fred);
+
+        println("img element with name 'foo' and id 'bar':");
+        printElement(document.bar);
+
+        println("img element with id 'baz', but no name:");
+        let baz = document.baz;
+        println(`baz === undefined: ${baz === undefined}`);
+
+        println("Multiple elements with name 'foo':");
+        let foos = document.foo;
+
+        println(`foos.length = ${foos.length}`);
+        for (let i = 0; i < foos.length; i++) {
+            printElement(foos[i]);
+        }
+
+        let obj = document.createElement("object");
+        obj.name = "greg";
+        obj.id = "banana";
+
+        document.body.insertBefore(obj, document.foo[0]);
+
+        println("obj element with name 'greg' and id 'banana':");
+        printElement(document.greg);
+        printElement(document.banana);
+
+        println("goodbye greg/banana");
+        document.body.removeChild(document.greg);
+
+        println(`no more greg or banana: ${document.greg === undefined}, ${document.banana === undefined}`);
+
+        println(`meta tag does not match: ${document.kangaroo === undefined}`);
+    });
+</script>

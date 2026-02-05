@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><style>
+  * {
+    border: 1px solid black !important;
+  }
+  body {
+    float: left;
+  }
+  .grid {
+    display: grid;
+    grid-template-areas: "foo whee";
+    grid-template-columns: min-content minmax(0, auto) min-content;
+  }
+  .whee {
+    grid-area: whee;
+    background: pink;
+  }
+</style></head><body><div class="grid"><div class="whee">whee

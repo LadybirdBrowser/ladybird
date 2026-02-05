@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-env-1/">
+    <title>Test that CSS env vars work with CSS.supports</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+    test(() => {
+      assert_true(CSS.supports("background: env(test)"));
+      assert_true(CSS.supports("background", "env(test)"));
+      assert_true(CSS.supports("background", "env(test, 10px)"));
+      assert_true(CSS.supports("background", "foobar(env(test))"));
+      assert_false(CSS.supports("background", "env()"));
+      assert_true(CSS.supports("background", "env(test, )"));
+      assert_true(CSS.supports("background", "env(test,)"));
+    });
+    </script>
+  </body>
+</html>

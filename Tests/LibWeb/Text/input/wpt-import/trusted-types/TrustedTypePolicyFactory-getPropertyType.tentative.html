@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+<script src="support/namespaces.js"></script>
+
+<body>
+<div id="target"></div>
+<script>
+  test(t => {
+    assert_equals(trustedTypes.getPropertyType("script", "text"), "TrustedScript");
+    assert_equals(trustedTypes.getPropertyType("script", "src"), "TrustedScriptURL");
+    assert_equals(trustedTypes.getPropertyType("script", "id"), null);
+    assert_equals(trustedTypes.getPropertyType("script", "b"), null);
+  }, "sanity check trustedTypes.getPropertyType for the HTML script element.");
+
+  test(t => {
+    assert_equals(trustedTypes.getAttributeType("img", "onerror"), "TrustedScript");
+    assert_equals(trustedTypes.getAttributeType("img", "width"), null);
+    assert_equals(trustedTypes.getAttributeType("img", "madeup"), null);
+  }, "sanity check trustedTypes.getAttributeType.");
+
+  // getPropertyType tests adapted from w3c/trusted-types polyfill:
+  test(t => {
+    // returns the proper type for attribute-related properties
+    assert_equals(trustedTypes.getPropertyType("script", "src"), "TrustedScriptURL");
+
+    // is case insensitive for tag names
+    assert_equals(trustedTypes.getPropertyType("SCRIPT", "src"), "TrustedScriptURL");
+
+    // is case sensitive for property names
+    assert_equals(trustedTypes.getPropertyType("script", "sRc"), null);
+    assert_equals(trustedTypes.getPropertyType("div", "innerhtml"), null);
+
+    // returns the proper type for innerHTML
+    assert_equals(trustedTypes.getPropertyType("div", "innerHTML"), "TrustedHTML");
+
+    // returns the proper type for outerHTML
+    assert_equals(trustedTypes.getPropertyType("div", "outerHTML"), "TrustedHTML");
+
+    // returns the proper type for script.prop
+    ["text", "innerText", "textContent"].forEach((prop) => {
+      assert_equals(trustedTypes.getPropertyType("script", prop), "TrustedScript");
+    });
+  }, "getPropertyType tests adapted from w3c/trusted-types polyfill");
+
+  test(t => {
+    // returns the proper type
+    assert_equals(trustedTypes.getAttributeType('script', 'src'), 'TrustedScriptURL');
+
+    // ignores attributes from unknown namespaces
+    assert_equals(trustedTypes.getAttributeType(
+          'a', 'href', '', 'http://foo.bar'), null);
+
+    // is case insensitive for element names
+    assert_equals(trustedTypes.getAttributeType('SCRIPT', 'src'), 'TrustedScriptURL');
+
+    // is case insensitive for the attribute names
+    assert_equals(trustedTypes.getAttributeType('script', 'SRC'), 'TrustedScriptURL');
+
+    // supports the inline event handlers
+    assert_equals(trustedTypes.getAttributeType('img', 'onerror'), 'TrustedScript');
+    assert_equals(trustedTypes.getAttributeType('unknown', 'onerror'), 'TrustedScript');
+
+    // defaults to undefined
+    assert_equals(trustedTypes.getAttributeType('unknown', 'src'), null);
+    assert_equals(trustedTypes.getAttributeType('img', 'bar'), null);
+  }, "getAttributeType tests adapted from w3c/trusted-types polyfill");
+
+  // Test case handling for both attributes and properties.
+  for (let attr of ["srcDoc", "SRCDOC", "srcdoc"]) {
+    for (let elem of ["iframe", "IFRAME", "iFrAmE"]) {
+      test(t => {
+        // attributes are case-insensitive, so all variants should be defined.
+        assert_true(trustedTypes.getAttributeType(elem, attr) != undefined);
+      }, `${elem}[${attr}] is defined`);
+      test(t => {
+        // properties are case-sensitive, so only the "correct" spelling
+        // should be defined.
+        assert_equals(trustedTypes.getPropertyType(elem, attr) != undefined,
+                      attr == "srcdoc");
+      }, `${elem}.${attr} is maybe defined`);
+    }
+  }
+
+  test(t => {
+    assert_equals(trustedTypes.getPropertyType("img", "onerror"), null);
+    assert_equals(trustedTypes.getAttributeType("img", "onerror"), "TrustedScript");
+  }, "getPropertyType vs getAttributeType for event handler.");
+
+  test(t => {
+    assert_equals(trustedTypes.getPropertyType("Script", "src"), "TrustedScriptURL");
+    assert_equals(trustedTypes.getPropertyType("ſcript", "src"), null);
+    assert_equals(trustedTypes.getAttributeType("Script", "src"), "TrustedScriptURL");
+    assert_equals(trustedTypes.getAttributeType("ſcript", "src"), null);
+    assert_equals(trustedTypes.getAttributeType("script", "Src"), "TrustedScriptURL");
+    assert_equals(trustedTypes.getAttributeType("script", "ſrc"), null);
+  }, "ASCII case-insensitivity of tag name and attribute parameters");
+
+  test(t => {
+    NSURI_ARRAY.forEach(elementNs => {
+      const emptyOrHTML = (elementNs === NSURI_EMPTY || elementNs === NSURI_HTML);
+      assert_equals(trustedTypes.getPropertyType("iframe", "srcdoc", elementNs),
+                    emptyOrHTML ? "TrustedHTML" : null);
+      assert_equals(trustedTypes.getPropertyType("script", "innerText", elementNs),
+                    emptyOrHTML ? "TrustedScript" : null);
+      assert_equals(trustedTypes.getPropertyType("script", "src", elementNs),
+                    emptyOrHTML ? "TrustedScriptURL" : null);
+      assert_equals(trustedTypes.getPropertyType("script", "text", elementNs),
+                    emptyOrHTML ? "TrustedScript" : null);
+      assert_equals(trustedTypes.getPropertyType("script", "textContent", elementNs),
+                    emptyOrHTML ? "TrustedScript" : null);
+      assert_equals(trustedTypes.getPropertyType("foo", "innerHTML", elementNs),
+                    "TrustedHTML");
+      assert_equals(trustedTypes.getPropertyType("foo", "outerHTML", elementNs),
+                    "TrustedHTML");
+    });
+    assert_equals(trustedTypes.getPropertyType("iframe", "srcdoc", NSURI_HTML.toUpperCase()), null, "case-sensitiveness");
+  }, "getPropertyType with an explicit elementNs parameter");
+
+  test(t => {
+    NSURI_ARRAY.forEach(elementNs => {
+      const emptyOrHTMLElementNs = (elementNs === NSURI_EMPTY || elementNs === NSURI_HTML);
+      NSURI_ARRAY.forEach(attrNs => {
+         const emptyAttrNs = (attrNs === NSURI_EMPTY);
+         assert_equals(trustedTypes.getAttributeType("iframe", "srcdoc", elementNs, attrNs),
+                       emptyOrHTMLElementNs && emptyAttrNs ? "TrustedHTML" : null);
+         assert_equals(trustedTypes.getAttributeType("script", "src", elementNs, attrNs),
+                       emptyOrHTMLElementNs && emptyAttrNs ? "TrustedScriptURL" : null);
+         assert_equals(trustedTypes.getAttributeType("script", "href", elementNs, attrNs),
+                       elementNs === NSURI_SVG && (emptyAttrNs || attrNs === NSURI_XLINK) ? "TrustedScriptURL" : null);
+      });
+    });
+    assert_equals(trustedTypes.getAttributeType("script", "href", NSURI_SVG.toUpperCase(), NSURI_XLINK), null, "case-sensitiveness of elementNs");
+    assert_equals(trustedTypes.getAttributeType("script", "href", NSURI_SVG, NSURI_XLINK.toUpperCase()), null, "case-sensitiveness of attrNs");
+  }, "getAttributeType with explicit elementNs and attrNs parameters");
+
+  test(t => {
+    assert_equals(trustedTypes.getAttributeType("script", "href", NSURI_SVG, NSURI_XLINK), "TrustedScriptURL", "local name 'href'");
+    assert_equals(trustedTypes.getAttributeType("script", "xlink:href", NSURI_SVG, NSURI_XLINK), null, "qualified name 'xlink:href'");
+  }, "getAttributeType with qualified attribute name");
+
+  test(t => {
+    assert_equals(trustedTypes.getPropertyType("iframe", "srcdoc", null), "TrustedHTML", "null elementNs in getPropertyType");
+    assert_equals(trustedTypes.getAttributeType("iframe", "srcdoc", null, NSURI_EMPTY), "TrustedHTML", "null elementNs in getAttributeType");
+    assert_equals(trustedTypes.getAttributeType("iframe", "srcdoc", NSURI_HTML, null), "TrustedHTML", "null attrNs in getAttributeType");
+  }, "getPropertyType/getAttributeType with explicit null elementNs/attrNs");
+</script>
+</body>

@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Inline StylePropertyMap.get with shorthands</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#get-a-value-from-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createInlineStyleMap(t, 'margin: 1px 2px 3px 4px');
+  const result = styleMap.get('margin');
+  assert_not_equals(result, null, 'Shorthand value must not be null');
+  assert_class_string(result, 'CSSStyleValue',
+    'Shorthand value must be a base CSSStyleValue');
+}, 'Getting an shorthand property set explicitly in inline style returns ' +
+   'a base CSSStyleValue');
+
+test(t => {
+  const styleMap = createInlineStyleMap(t, 'margin-top: 1px');
+  const result = styleMap.get('margin');
+  assert_equals(result, undefined,
+    'Shorthand value must be undefined as it is not explicitly set');
+}, 'Getting a shorthand property that is partially set in inline style ' +
+   'returns null');
+
+test(t => {
+  const styleMap = createDivWithoutStyle(t).attributeStyleMap;
+  assert_equals(styleMap.get('margin'), undefined,
+    'Shorthand value must be undefined for element without style');
+}, 'Getting an attributeStyleMap shorthand property from an element without ' +
+   'a style attribute');
+</script>

@@ -1,0 +1,25 @@
+import("qt_install_prefix.gni")
+
+template("link_qt") {
+  assert(defined(invoker.qt_components),
+         "Must define qt_component on $target_name")
+
+  config(target_name) {
+    include_dirs = [ qt_install_headers ]
+    if (current_os == "mac") {
+      frameworks = []
+      framework_dirs = [ qt_install_frameworks ]
+      foreach(component, invoker.qt_components) {
+        include_dirs += [ qt_install_headers + "Qt" + component ]
+        frameworks += [ "Qt" + component + ".framework" ]
+      }
+    } else {
+      libs = []
+      lib_dirs = [ qt_install_lib ]
+      foreach(component, invoker.qt_components) {
+        include_dirs += [ qt_install_headers + "Qt" + component ]
+        libs += [ "Qt6" + component ]
+      }
+    }
+  }
+}

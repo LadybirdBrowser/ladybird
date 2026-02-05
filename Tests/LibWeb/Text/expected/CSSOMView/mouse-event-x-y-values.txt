@@ -1,0 +1,10 @@
+x: 50
+y: 50
+screenX: 50
+screenY: 50
+clientX: 50
+clientY: 50
+pageX: 50
+pageY: 60
+offsetX: 42
+offsetY: 52

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="--some-url: 'awesome.png'"></div>
+<script>
+    test(() => {
+        let target = document.getElementById("target");
+        println(`Before: ${getComputedStyle(target).backgroundImage}`);
+
+        target.style.backgroundImage = "url('cool.png')";
+        println(`Using url('cool.png'): ${getComputedStyle(target).backgroundImage}`);
+
+        target.style.backgroundImage = "";
+        target.style.backgroundImage = "url(var(--some-url))";
+        println(`Using url(var(--some-url)): ${getComputedStyle(target).backgroundImage}`);
+
+        target.style.backgroundImage = "";
+        target.style.backgroundImage = "src('cool.png')";
+        println(`Using src('cool.png'): ${getComputedStyle(target).backgroundImage}`);
+
+        target.style.backgroundImage = "";
+        target.style.backgroundImage = "src(var(--some-url))";
+        println(`Using src(var(--some-url)): ${getComputedStyle(target).backgroundImage}`);
+
+    });
+</script>

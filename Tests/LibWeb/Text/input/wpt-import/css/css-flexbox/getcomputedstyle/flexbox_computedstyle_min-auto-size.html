@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>CSS Flexible Box Test: computed style for auto minimum size</title>
+<link rel="author" title="Rune Lillesveen" href="mailto:futhark@chromium.org" />
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .flex { display: flex }
+  .none { display: none }
+  .min-wh {
+    min-width: auto;
+    min-height: auto;
+  }
+  .contents { display: contents }
+</style>
+<div class="flex">
+  <div class="min-wh"></div>
+</div>
+<div class="none">
+  <div class="flex">
+    <div class="min-wh"></div>
+  </div>
+</div>
+<div class="flex">
+  <div class="contents">
+    <div class="min-wh"></div>
+  </div>
+</div>
+<div class="flex">
+  <div class="min-wh none"></div>
+</div>
+<script>
+  const tests = [
+    { description: "Computed min-width/min-height of specified auto for flex item.", computed: "auto" },
+    { description: "Computed min-width/min-height of specified auto inside display:none which would otherwise have been a flex item.", computed: "0px" },
+    { description: "Computed min-width/min-height of specified auto for flex item inside display:contents.", computed: "auto" },
+    { description: "Computed min-width/min-height of specified auto with display:none which would otherwise have been a flex item.", computed: "0px" }
+  ];
+
+  const testElements = document.querySelectorAll(".min-wh");
+  let testNo = 0;
+  for (let testElement of testElements) {
+    test(() => {
+      assert_equals(getComputedStyle(testElement).minWidth, tests[testNo].computed);
+      assert_equals(getComputedStyle(testElement).minHeight, tests[testNo].computed);
+    }, tests[testNo].description);
+    testNo++;
+  }
+</script>

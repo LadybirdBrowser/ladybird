@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_namespace-sensitivity.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['de0a2051123e97a540e3aeb58375103bda021122',];
+      var tests = {
+          "de0a2051123e97a540e3aeb58375103bda021122":[async_test('html5lib_namespace-sensitivity.html de0a2051123e97a540e3aeb58375103bda021122'), "%3Cbody%3E%3Ctable%3E%3Ctr%3E%3Ctd%3E%3Csvg%3E%3Ctd%3E%3CforeignObject%3E%3Cspan%3E%3C/td%3EFoo", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%22Foo%22%0A%7C%20%20%20%20%20%3Ctable%3E%0A%7C%20%20%20%20%20%20%20%3Ctbody%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Ctr%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Ctd%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20svg%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20td%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20foreignObject%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cspan%3E"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

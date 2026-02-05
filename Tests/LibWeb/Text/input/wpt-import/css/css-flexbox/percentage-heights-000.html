@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: Basic percentage heights</title>
+<link rel="author" title="Google" href="https://www.google.com/" />
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#main-sizing" />
+<meta name="flags" content="dom" />
+<meta name="assert" content="This test checks that percentage heights on a flex item correctly resolve against the container." />
+<style>
+.flexbox {
+    display: flex;
+    background-color: #aaa;
+    position: relative;
+}
+.flexbox :nth-child(1) {
+    background-color: blue;
+}
+.flexbox :nth-child(2) {
+    background-color: green;
+}
+.flexbox :nth-child(3) {
+    background-color: red;
+}
+
+.flexbox > div {
+    width: 40%;
+    height: 40%;
+}
+.column {
+    flex-flow: column wrap;
+    width: 100px;
+    height: 100px;
+    align-content: flex-start;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox column">
+    <div data-expected-height="40" data-offset-x="0" data-offset-y="0"></div>
+    <div data-expected-height="40" data-offset-x="0" data-offset-y="40"></div>
+    <div data-expected-height="40" data-offset-x="40" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox column">
+    <div data-expected-height="40" data-offset-x="0" data-offset-y="0" style="margin-bottom: 10%"></div>
+    <div data-expected-height="40" data-offset-x="40" data-offset-y="0" style="margin-bottom: 20%"></div>
+    <div data-expected-height="40" data-offset-x="40" data-offset-y="60"></div>
+</div>
+
+<div class="flexbox column">
+    <div data-expected-height="20" data-offset-x="0" data-offset-y="0" style="flex: 1; min-height: 0; max-height: 20%"></div>
+    <div data-expected-height="40" data-offset-x="0" data-offset-y="20"></div>
+    <div data-expected-height="40" data-offset-x="0" data-offset-y="60"></div>
+</div>
+
+<div class="flexbox column" style="writing-mode: vertical-rl">
+    <div data-expected-width="40" data-offset-x="60" data-offset-y="0"></div>
+    <div data-expected-width="40" data-offset-x="20" data-offset-y="0"></div>
+    <div data-expected-width="40" data-offset-x="60" data-offset-y="40"></div>
+</div>
+
+<div class="flexbox column" style="writing-mode: vertical-rl">
+    <div data-expected-width="40" data-offset-x="60" data-offset-y="0" style="margin-bottom: 10%"></div>
+    <div data-expected-width="40" data-offset-x="20" data-offset-y="0" style="margin-bottom: 20%"></div>
+    <div data-expected-width="40" data-offset-x="60" data-offset-y="60"></div>
+</div>
+
+<div class="flexbox column" style="writing-mode: vertical-rl">
+    <div data-expected-width="20" data-offset-x="80" data-offset-y="0" style="flex: 1; min-width: 0; max-width: 20%"></div>
+    <div data-expected-width="40" data-offset-x="40" data-offset-y="0"></div>
+    <div data-expected-width="40" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+</body>
+</html>

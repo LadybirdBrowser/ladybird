@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	e.style['mask-position'] = "auto" should not set the property value
+Pass	e.style['mask-position'] = "1px 2px 3px" should not set the property value
+Pass	e.style['mask-position'] = "left right" should not set the property value
+Pass	e.style['mask-position'] = "bottom 10%" should not set the property value
+Pass	e.style['mask-position'] = "bottom 10% top 20%" should not set the property value
+Pass	e.style['mask-position'] = "center left 1px" should not set the property value
+Pass	e.style['mask-position'] = "center top 2px" should not set the property value
+Pass	e.style['mask-position'] = "right 3% center" should not set the property value
+Pass	e.style['mask-position'] = "left 4px top" should not set the property value
+Pass	e.style['mask-position'] = "right top 5px" should not set the property value
+Pass	e.style['mask-position'] = "bottom 6% center" should not set the property value
+Pass	e.style['mask-position'] = "bottom 7% left" should not set the property value
+Pass	e.style['mask-position'] = "bottom right 8%" should not set the property value

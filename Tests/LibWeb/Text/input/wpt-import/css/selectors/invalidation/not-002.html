@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<title>CSS Selectors Invalidation: complex :not()</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#negation">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .b {
+    color: yellow;
+  }
+  /*Simple selector arguments */
+  .a :not(:not(.b, .c)) {
+    color: red;
+  }
+  /*Compound selector arguments */
+  .a :not(:not(.c#d, .e)) {
+    color: green;
+  }
+  /* Complex selector arguments */
+  .a .g>.b {
+    color: black;
+  }
+  .a :not(:not(.e+.f, .g>.b, .h)) {
+    color: blue;
+  }
+  .g>.b {
+    color: black;
+  }
+  .a .h {
+    color: black;
+  }
+  /* Nested */
+  .a+.c>.e {
+    color: black;
+  }
+  .c>.a+.e {
+    color: black;
+  }
+  .a+:not(:not(.b+.f, :is(.c>.e, .g))) {
+    color: red;
+  }
+  .c>.e {
+    color: black;
+  }
+</style>
+<div id="a1">
+  <div class="b" id="b1">
+    Red
+  </div>
+  <div class="c" id="c1">
+    Red
+  </div>
+  <div class="c" id="d">
+    Green
+  </div>
+  <div class="e" id="e1">
+    Green
+  </div>
+  <div class="f" id="f1">
+    Blue
+  </div>
+  <div class="g">
+    <div class="b" id="b2">
+      Blue
+      <div class="b" id="b3">
+        Red
+      </div>
+    </div>
+  </div>
+  <div class="h" id="h1">
+    Blue
+  </div>
+</div>
+<div class="c" id="c2">
+  <div id="a2"></div>
+  <div class="e" id="e2">
+    Red
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+
+  var black = "rgb(0, 0, 0)";
+  var blue = "rgb(0, 0, 255)";
+  var green = "rgb(0, 128, 0)";
+  var red = "rgb(255, 0, 0)";
+  var yellow = "rgb(255, 255, 0)";
+
+  test(() => {
+    assert_equals(getComputedStyle(b1).color, yellow);
+    assert_equals(getComputedStyle(b2).color, black);
+    assert_equals(getComputedStyle(b3).color, yellow);
+    assert_equals(getComputedStyle(c1).color, black);
+    assert_equals(getComputedStyle(d).color, black);
+    assert_equals(getComputedStyle(e1).color, black);
+    assert_equals(getComputedStyle(e2).color, black);
+    assert_equals(getComputedStyle(f1).color, black);
+    assert_equals(getComputedStyle(h1).color, black);
+  }, "Preconditions.");
+
+  test(() => {
+    a1.className = "a";
+    assert_equals(getComputedStyle(b1).color, red);
+    assert_equals(getComputedStyle(b3).color, red);
+    assert_equals(getComputedStyle(c1).color, red);
+  }, "Invalidate :not() for simple selector arguments.");
+
+  test(() => {
+    a1.className = "a";
+    assert_equals(getComputedStyle(d).color, green);
+  }, "Invalidate :not() for compound selector arguments.");
+
+  test(() => {
+    a1.className = "a";
+    assert_equals(getComputedStyle(b2).color, blue);
+    assert_equals(getComputedStyle(b3).color, red);
+    assert_equals(getComputedStyle(f1).color, blue);
+  }, "Invalidate :not() for complex selector arguments.");
+
+  test(() => {
+    a1.className = "a";
+    assert_equals(getComputedStyle(e2).color, black);
+    a2.className = "a";
+    assert_equals(getComputedStyle(e2).color, red);
+  }, "Invalidate nested :is() inside :not().");
+
+  test(() => {
+    a1.className = "a";
+    assert_equals(getComputedStyle(b2).color, blue);
+    assert_equals(getComputedStyle(h1).color, blue);
+  }, "Test specificity of :not().");
+</script>

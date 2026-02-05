@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selector Invalidation: :has() with :not()</title>
+<link rel="author" title="Antti Koivisto" href="mailto:antti@apple.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+#subject:has(:not(.test)) { color: green }
+#subject:has(.test :not(.test)) { color: red }
+</style>
+
+<main id=main>
+    <div id=subject>
+        <div id=subject_child class=test>
+            <div id=subject_descendant class=test></div>
+        </div>
+    </div>
+</main>
+
+<script>
+const grey = 'rgb(128, 128, 128)';
+const red = 'rgb(255, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+const blue = 'rgb(0, 0, 255)';
+
+function testColor(test_name, color) {
+    test(function() {
+        assert_equals(getComputedStyle(subject).color, color);
+    }, test_name);
+}
+
+function testClassChange(element, expectedColor)
+{
+    element.classList.remove('test');
+    testColor(`remove .test to ${element.id}`, expectedColor);
+    element.classList.add('test');
+    testColor(`add .test from ${element.id}`, grey);
+}
+
+function testElementInsertionBefore(beforeElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+
+    beforeElement.before(newElement);
+    testColor(`insert element div before ${beforeElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove element div before ${beforeElement.id}`, grey);
+}
+
+function testElementInsertionAfter(afterElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+
+    afterElement.after(newElement);
+    testColor(`insert element div after ${afterElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove element div after ${afterElement.id}`, grey);
+}
+
+function testTreeInsertionBefore(beforeElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+    const newChild = document.createElement('div');
+    newElement.appendChild(newChild);
+
+    beforeElement.before(newElement);
+    testColor(`insert tree div>div before ${beforeElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove tree div>div before ${beforeElement.id}`, grey);
+}
+
+function testTreeInsertionAfter(afterElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+    const newChild = document.createElement('div');
+    newElement.appendChild(newChild);
+
+    afterElement.after(newElement);
+    testColor(`insert tree div.test after ${afterElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove tree div.test after ${afterElement.id}`, grey);
+}
+
+testColor('Initial color', grey);
+
+testClassChange(subject_child, green);
+testClassChange(subject_descendant, red);
+
+testElementInsertionBefore(subject_child, green);
+testElementInsertionBefore(subject_descendant, red);
+
+testElementInsertionAfter(subject_child, green);
+testElementInsertionAfter(subject_descendant, red);
+
+testTreeInsertionBefore(subject_child, green);
+testTreeInsertionBefore(subject_descendant, red);
+
+testTreeInsertionAfter(subject_child, green);
+testTreeInsertionAfter(subject_descendant, red);
+
+</script>

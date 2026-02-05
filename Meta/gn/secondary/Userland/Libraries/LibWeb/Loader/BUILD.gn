@@ -1,0 +1,13 @@
+source_set("Loader") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "ContentFilter.cpp",
+    "FileRequest.cpp",
+    "GeneratedPagesLoader.cpp",
+    "LoadRequest.cpp",
+    "ProxyMappings.cpp",
+    "Resource.cpp",
+    "ResourceLoader.cpp",
+  ]
+}

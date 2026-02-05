@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTML-AAM Element Accessible Name From Author Tests</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tests the accName for elements defined in <a href="https://w3c.github.io/html-aam/#accessible-name-and-description-computation">HTML-AAM: Accessible Name Computations By HTML Element</a>.
+  These tests are meant to show whether an element returns a name per the naming mechanism used. See <a href="https://wpt.fyi/results/accname">wpt: accname</a> for expanded accName testing.</p>
+
+
+<!--
+The following elements are those which can be named by authors. They do not receive their name from elements for which they are an accessibility ancestor.
+
+There are other elements which can be named by author, but have additional ways in which they can be named. These elements will be tested separately.
+-->
+
+
+<h2>address element</h2>
+<address data-testname="address no name" data-expectedlabel="" class="ex">x</address>
+
+<address data-testname="address aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</address>
+<address data-testname="address aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</address>
+<address data-testname="address title" title="title" data-expectedlabel="title" class="ex">x</address>
+
+<address data-testname="address aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</address>
+<address data-testname="address aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</address>
+
+<address data-testname="address aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</address>
+<address data-testname="address aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</address>
+
+
+
+<h2>aside element</h2>
+<aside data-testname="aside no name" data-expectedlabel="" class="ex">x</aside>
+
+<aside data-testname="aside aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</aside>
+<aside data-testname="aside aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</aside>
+<aside data-testname="aside title" title="title" data-expectedlabel="title" class="ex">x</aside>
+
+<aside data-testname="aside aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</aside>
+<aside data-testname="aside aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</aside>
+
+<aside data-testname="aside aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</aside>
+<aside data-testname="aside aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</aside>
+
+
+<h2>blockquote element</h2>
+<blockquote data-testname="blockquote no name" data-expectedlabel="" class="ex">x</blockquote>
+
+<blockquote data-testname="blockquote aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</blockquote>
+<blockquote data-testname="blockquote aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</blockquote>
+<blockquote data-testname="blockquote title" title="title" data-expectedlabel="title" class="ex">x</blockquote>
+
+<blockquote data-testname="blockquote aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</blockquote>
+<blockquote data-testname="blockquote aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</blockquote>
+
+<blockquote data-testname="blockquote aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</blockquote>
+<blockquote data-testname="blockquote aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</blockquote>
+
+
+
+<h2>details element</h2>
+<details data-testname="details no name" data-expectedlabel="" class="ex"><summary>x</summary></details>
+
+<details data-testname="details aria-label" aria-label="label" data-expectedlabel="label" class="ex"><summary>x</summary></details>
+<details data-testname="details aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex"><summary>x</summary></details>
+<details data-testname="details title" title="title" data-expectedlabel="title" class="ex"><summary>x</summary></details>
+
+<details data-testname="details aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex"><summary>x</summary></details>
+<details data-testname="details aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex"><summary>x</summary></details>
+
+<details data-testname="details aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex"><summary>x</summary></details>
+<details data-testname="details aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex"><summary>x</summary></details>
+
+
+<h2>figure element</h2>
+<figure data-testname="figure no name" data-expectedlabel="" class="ex">x</figure>
+
+<figure data-testname="figure aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</figure>
+<figure data-testname="figure aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</figure>
+<figure data-testname="figure title" title="title" data-expectedlabel="title" class="ex">x</figure>
+
+<figure data-testname="figure aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</figure>
+<figure data-testname="figure aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</figure>
+
+<figure data-testname="figure aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</figure>
+<figure data-testname="figure aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</figure>
+
+
+<h2>footer element</h2>
+<footer data-testname="footer no name" data-expectedlabel="" class="ex">x</footer>
+
+<footer data-testname="footer aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</footer>
+<footer data-testname="footer aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</footer>
+<footer data-testname="footer title" title="title" data-expectedlabel="title" class="ex">x</footer>
+
+<footer data-testname="footer aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</footer>
+<footer data-testname="footer aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</footer>
+
+<footer data-testname="footer aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</footer>
+<footer data-testname="footer aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</footer>
+
+
+<h2>form element</h2>
+<form data-testname="form no name" data-expectedlabel="" class="ex">x</form>
+
+<form data-testname="form aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</form>
+<form data-testname="form aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</form>
+<form data-testname="form title" title="title" data-expectedlabel="title" class="ex">x</form>
+
+<form data-testname="form aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</form>
+<form data-testname="form aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</form>
+
+<form data-testname="form aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</form>
+<form data-testname="form aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</form>
+
+
+<h2>hgroup element</h2>
+<hgroup data-testname="hgroup no name" data-expectedlabel="" class="ex"><h3>x</h3><p>y</p></hgroup>
+
+<hgroup data-testname="hgroup aria-label" aria-label="label" data-expectedlabel="label" class="ex"><h3>x</h3><p>y</p></hgroup>
+<hgroup data-testname="hgroup aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex"><h3>x</h3><p>y</p></hgroup>
+<hgroup data-testname="hgroup title" title="title" data-expectedlabel="title" class="ex"><h3>x</h3><p>y</p></hgroup>
+
+<hgroup data-testname="hgroup aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex"><h3>x</h3><p>y</p></hgroup>
+<hgroup data-testname="hgroup aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex"><h3>x</h3><p>y</p></hgroup>
+
+<hgroup data-testname="hgroup aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex"><h3>x</h3><p>y</p></hgroup>
+<hgroup data-testname="hgroup aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex"><h3>x</h3><p>y</p></hgroup>
+
+
+<h2>hr element</h2>
+<hr data-testname="hr no name" data-expectedlabel="" class="ex">
+
+<hr data-testname="hr aria-label" aria-label="label" data-expectedlabel="label" class="ex">
+<hr data-testname="hr aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">
+<hr data-testname="hr title" title="title" data-expectedlabel="title" class="ex">
+
+<hr data-testname="hr aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">
+<hr data-testname="hr aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">
+
+<hr data-testname="hr aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">
+<hr data-testname="hr aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">
+
+
+<h2>ol element</h2>
+<ol data-testname="ol no name" data-expectedlabel="" class="ex"><li>x</li></ol>
+
+<ol data-testname="ol aria-label" aria-label="label" data-expectedlabel="label" class="ex"><li>x</li></ol>
+<ol data-testname="ol aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex"><li>x</li></ol>
+<ol data-testname="ol title" title="title" data-expectedlabel="title" class="ex"><li>x</li></ol>
+
+<ol data-testname="ol aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex"><li>x</li></ol>
+<ol data-testname="ol aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex"><li>x</li></ol>
+
+<ol data-testname="ol aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex"><li>x</li></ol>
+<ol data-testname="ol aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex"><li>x</li></ol>
+
+
+<h2>main element</h2>
+<main data-testname="main no name" data-expectedlabel="" class="ex">x</main>
+
+<main data-testname="main aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</main>
+<main data-testname="main aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</main>
+<main data-testname="main title" title="title" data-expectedlabel="title" class="ex">x</main>
+
+<main data-testname="main aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</main>
+<main data-testname="main aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</main>
+
+<main data-testname="main aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</main>
+<main data-testname="main aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</main>
+
+
+<h2>menu element</h2>
+<menu data-testname="menu no name" data-expectedlabel="" class="ex"><li>x</li></menu>
+
+<menu data-testname="menu aria-label" aria-label="label" data-expectedlabel="label" class="ex"><li>x</li></menu>
+<menu data-testname="menu aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex"><li>x</li></menu>
+<menu data-testname="menu title" title="title" data-expectedlabel="title" class="ex"><li>x</li></menu>
+
+<menu data-testname="menu aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex"><li>x</li></menu>
+<menu data-testname="menu aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex"><li>x</li></menu>
+
+<menu data-testname="menu aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex"><li>x</li></menu>
+<menu data-testname="menu aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex"><li>x</li></menu>
+
+
+<h2>nav element</h2>
+<nav data-testname="nav no name" data-expectedlabel="" class="ex">x</nav>
+
+<nav data-testname="nav aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</nav>
+<nav data-testname="nav aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</nav>
+<nav data-testname="nav title" title="title" data-expectedlabel="title" class="ex">x</nav>
+
+<nav data-testname="nav aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</nav>
+<nav data-testname="nav aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</nav>
+
+<nav data-testname="nav aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</nav>
+<nav data-testname="nav aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</nav>
+
+
+<h2>search element</h2>
+<search data-testname="search no name" data-expectedlabel="" class="ex">x</search>
+
+<search data-testname="search aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</search>
+<search data-testname="search aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</search>
+<search data-testname="search title" title="title" data-expectedlabel="title" class="ex">x</search>
+
+<search data-testname="search aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</search>
+<search data-testname="search aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</search>
+
+<search data-testname="search aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</search>
+<search data-testname="search aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</search>
+
+
+<h2>section element</h2>
+<section data-testname="section no name" data-expectedlabel="" class="ex">x</section>
+
+<section data-testname="section aria-label" aria-label="label" data-expectedlabel="label" class="ex">x</section>
+<section data-testname="section aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex">x</section>
+<section data-testname="section title" title="title" data-expectedlabel="title" class="ex">x</section>
+
+<section data-testname="section aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex">x</section>
+<section data-testname="section aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex">x</section>
+
+<section data-testname="section aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex">x</section>
+<section data-testname="section aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex">x</section>
+
+
+<h2>ul element</h2>
+<ul data-testname="ul no name" data-expectedlabel="" class="ex"><li>x</li></ul>
+
+<ul data-testname="ul aria-label" aria-label="label" data-expectedlabel="label" class="ex"><li>x</li></ul>
+<ul data-testname="ul aria-labelledby" aria-labelledby="labelledby" data-expectedlabel="labelledby" class="ex"><li>x</li></ul>
+<ul data-testname="ul title" title="title" data-expectedlabel="title" class="ex"><li>x</li></ul>
+
+<ul data-testname="ul aria-labelledby vs aria-label vs title" aria-labelledby="labelledby" aria-label="label" title="title" data-expectedlabel="labelledby" class="ex"><li>x</li></ul>
+<ul data-testname="ul aria-labelledby vs aria-label" aria-labelledby="labelledby" aria-label="label" data-expectedlabel="labelledby" class="ex"><li>x</li></ul>
+
+<ul data-testname="ul aria-labelledby vs title" aria-labelledby="labelledby" title="title" data-expectedlabel="labelledby" class="ex"><li>x</li></ul>
+<ul data-testname="ul aria-label vs title" aria-label="label" title="title" data-expectedlabel="label" class="ex"><li>x</li></ul>
+
+
+<!-- element to reference for aria-labelledby tests -->
+<div id="labelledby">labelledby</div>
+
+<script>
+AriaUtils.verifyLabelsBySelector(".ex");
+</script>
+
+</body>
+</html>

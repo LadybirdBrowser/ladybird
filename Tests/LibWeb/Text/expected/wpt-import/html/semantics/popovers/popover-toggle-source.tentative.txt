@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+4 Pass
+3 Fail
+Pass	ToggleEvent.source on popover elements: showPopover() without source.
+Fail	ToggleEvent.source on popover elements: showPopover() with source.
+Pass	ToggleEvent.source on popover elements: Calling click() on a popovertarget button.
+Fail	ToggleEvent.source on popover elements: Calling click() on a command button.
+Pass	ToggleEvent.source on popover elements: showPopover() then popovertarget button.
+Fail	ToggleEvent.source on popover elements: showPopover(invoker) then popovertarget button.
+Pass	ToggleEvent.source on popover elements: popovertarget button then hidePopover().

@@ -1,0 +1,5 @@
+FIXME: This test relies on having a GPU backend enabled, which it is not in run-tests mode :(
+context instanceof WebGLRenderingContext: false
+context is null: true
+context2 instanceof WebGL2RenderingContext: false
+context2 is null: true

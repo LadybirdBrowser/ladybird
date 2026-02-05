@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+function javascript_navigation_callback() {
+    println("link clicked!");
+    window.done();
+}
+</script>
+<a id="test-link" href="javascript:javascript_navigation_callback()"></a>
+<script>
+    asyncTest((done) => {
+        document.getElementById("test-link").click();
+        window.done = done;
+    });
+</script>

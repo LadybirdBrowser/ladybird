@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<title>Tests correct handling of min-height: min-content with dynamic changes</title>
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#resolve-flexible-lengths" title="4.5. Implied Minimum Size of Flex Items" />
+<link rel="author" title="Google Inc." href="http://www.google.com/">
+<link href="support/flexbox.css" rel="stylesheet">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<style>
+.container {
+  height: 300px;
+  outline: 2px solid black;
+}
+
+.inner
+{
+  width: 400px;
+  flex: 1;
+  background-color: green;
+}
+#container2 .flexbox > * { flex-basis: 0; }
+#container2 .column > * { flex-basis: auto; }
+.container .flexbox { min-height: min-content; }
+.container > .flexbox { min-height: 0; }
+</style>
+<script>
+function change() {
+  var container = document.getElementById('container');
+  container.offsetHeight;
+  container.style.height = '80px';
+  container = document.getElementById('container2');
+  container.offsetHeight;
+  container.style.height = '80px';
+  checkLayout('.container');
+}
+</script>
+<body onload="change()">
+<p>Green rectangle should be entirely within the black rectangle</p>
+<div id="log"></div>
+<div id="container" class="container">
+  <div class="flexbox column" style="height: 100%;">
+    <div class="flexbox flex-one">
+        <div class="flexbox column">
+          <div class="flexbox column flex-one">
+            <div class="inner" data-expected-height="80">
+            </div>
+          </div>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div id="container2" class="container">
+  <div class="flexbox column" style="height: 100%;">
+    <div class="flexbox flex-one">
+        <div class="flexbox column">
+          <div class="flexbox column flex-one">
+            <div class="inner" data-expected-height="80">
+            </div>
+          </div>
+        </div>
+    </div>
+  </div>
+</div>

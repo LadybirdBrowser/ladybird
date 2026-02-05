@@ -1,0 +1,77 @@
+{
+  "preferred-text-scale": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-preferred-text-scale",
+    "type": "<number>",
+    "dimensions": 0
+  },
+  "safe-area-inset-bottom": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-inset-bottom",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "safe-area-inset-left": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-inset-left",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "safe-area-inset-right": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-inset-right",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "safe-area-inset-top": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-inset-top",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "safe-area-max-inset-bottom": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-max-inset-bottom",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "safe-area-max-inset-left": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-max-inset-left",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "safe-area-max-inset-right": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-max-inset-right",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "safe-area-max-inset-top": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-safe-area-max-inset-top",
+    "type": "<length>",
+    "dimensions": 0
+  },
+  "viewport-segment-bottom": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-viewport-segment-bottom",
+    "type": "<length>",
+    "dimensions": 2
+  },
+  "viewport-segment-height": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-viewport-segment-height",
+    "type": "<length>",
+    "dimensions": 2
+  },
+  "viewport-segment-left": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-viewport-segment-left",
+    "type": "<length>",
+    "dimensions": 2
+  },
+  "viewport-segment-right": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-viewport-segment-right",
+    "type": "<length>",
+    "dimensions": 2
+  },
+  "viewport-segment-top": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-viewport-segment-top",
+    "type": "<length>",
+    "dimensions": 2
+  },
+  "viewport-segment-width": {
+    "spec": "https://drafts.csswg.org/css-env/#valdef-env-viewport-segment-width",
+    "type": "<length>",
+    "dimensions": 2
+  }
+}

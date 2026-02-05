@@ -1,0 +1,6 @@
+Click [13, 20]: position=0 text="hello 👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻"
+Click [16, 20]: position=1 text="ello 👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻"
+Click [52, 20]: position=6 text="👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻"
+Click [57, 20]: position=18 text="👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻"
+Click [85, 20]: position=30 text="👩🏼‍❤️‍👨🏻👩🏼‍❤️‍👨🏻"
+Click [90, 20]: position=42 text="👩🏼‍❤️‍👨🏻"

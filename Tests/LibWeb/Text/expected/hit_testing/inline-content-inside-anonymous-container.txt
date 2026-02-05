@@ -1,0 +1,12 @@
+<#text>
+index: 4
+<BODY>
+---
+<#text>
+index: 20
+<A id="target">
+---
+<DIV id="a">
+index: 0
+<BODY>
+---

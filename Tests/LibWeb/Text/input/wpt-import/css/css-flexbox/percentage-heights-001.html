@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+
+<title>CSS Flexbox: Definite cross sizes</title>
+
+<link rel="stylesheet" href="support/flexbox.css">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#definite-sizes">
+<link rel="author" title="Google Inc." href="https://www.google.com/">
+<meta name="flags" content="dom" />
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.rect {
+  width: 50px;
+  height: 50px;
+  background-color: blue;
+}
+
+.flexbox {
+  width: 50px;
+  outline: 3px solid black;
+}
+
+
+.flexbox > * {
+  min-height: 0;
+  min-width: 0;
+}
+
+.flexbox > div > div {
+  overflow: hidden;
+}
+</style>
+
+<body onload="checkLayout('.flexbox')" style="height: 800px;">
+<div id=log></div>
+
+
+<p>This test verifies that we consider flex items' cross sizes to be definite
+if the align value is stretch (the default)</p>
+
+<p>Tests that we get a definite size in the simple case:</p>
+<div class="flexbox" data-expected-height="50">
+  <div data-expected-height="50">
+    <div style="height: 50%" data-expected-height="25">
+      <div class="rect" data-expected-height="50"></div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we get a definite size in a wrapping flexbox:</p>
+<div class="flexbox wrap" data-expected-height="50">
+  <div data-expected-height="50">
+    <div style="height: 50%" data-expected-height="25">
+      <div class="rect" data-expected-height="50"></div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we get an indefinite size when not stretch-aligning, despite
+definite size on container:</p>
+<div class="flexbox wrap" style="height: 50px;" data-expected-height="50">
+  <div class="align-self-flex-start" data-expected-height="50">
+    <div style="height: 50%" data-expected-height="50">
+      <div class="rect" data-expected-height="50"></div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we get a definite size in a definite-height flexbox:</p>
+<div class="flexbox" style="height: 50px;" data-expected-height="50">
+  <div data-expected-height="50">
+    <div style="height: 50%" data-expected-height="25">
+      <div class="rect" data-expected-height="50"></div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we get a definite size in a nested flexbox where only the outer
+one has an explicit height:</p>
+<div class="flexbox" style="height: 50px;" data-expected-height="50">
+  <div class="flexbox" data-expected-height="50">
+    <div data-expected-height="50">
+      <div style="height: 50%" data-expected-height="25">
+        <div class="rect" data-expected-height="50"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we get a definite size in a nested flexbox where only the outer
+one has an explicit height and has an opposite direction:</p>
+<div class="flexbox" style="height: 50px;" data-expected-height="50">
+  <div class="flexbox column" data-expected-height="50">
+    <div class="flex-one" data-expected-height="50">
+      <div style="height: 50%" data-expected-height="25">
+        <div class="rect" data-expected-height="50"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we respect min-height, on child of a flex item with percent
+height that's treated as definite:</p>
+<div class="flexbox" style="height: 50px;" data-expected-height="50">
+  <div data-expected-height="50">
+    <div style="height: 50%; min-height: 30px;" data-expected-height="30">
+      <div class="rect" data-expected-height="50"></div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that max-height also supports percentages:</p>
+<div class="flexbox" data-expected-height="50">
+  <div data-expected-height="50">
+    <div style="max-height: 50%" data-expected-height="25">
+      <div class="rect" data-expected-height="50"></div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that percentage sizes can also be definite:</p>
+<div class="flexbox" style="height: 10%;" data-expected-height="80">
+  <div data-expected-height="80">
+    <div style="height: 50%" data-expected-height="40">
+      <div class="rect" data-expected-height="50"></div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we use a definite size even when a percentage size is not definite</p>
+<div>
+  <div class="flexbox" style="height: 10%;" data-expected-height="50">
+    <div data-expected-height="50">
+      <div style="height: 50%" data-expected-height="25">
+        <div class="rect" data-expected-height="50"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>Tests that we don't mix up widths and heights</p>
+<div class="flexbox" style="height: 50px; width: 100px;" data-expected-height="50">
+  <div style="width: 100px;" data-expected-height="50" data-expected-width="100">
+    <div style="width: 50%" data-expected-width="50">
+      <div class="rect" data-expected-height="50" data-expected-width="50"></div>
+    </div>
+  </div>
+</div>

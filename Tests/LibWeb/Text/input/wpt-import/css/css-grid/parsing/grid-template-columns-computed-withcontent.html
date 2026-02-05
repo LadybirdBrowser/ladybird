@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridTemplateColumns</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-columns">
+<meta name="assert" content="grid-template-columns computed value is the keyword none or a computed track list.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    display: grid;
+    font-size: 40px;
+    min-width: 200px;
+    width: 300px;
+    max-width: 400px;
+    min-height: 500px;
+    height: 600px;
+    max-height: 700px;
+  }
+  #child {
+    min-width: 20px;
+    width: 30px;
+    max-width: 40px;
+    min-height: 50px;
+    height: 60px;
+    max-height: 70px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target">
+    <div id="child"></div>
+  </div>
+</div>
+<script>
+test_computed_value("grid-template-columns", 'none', '300px'); // "none" without #child
+
+// track-size <fixed-breadth> = <length-percentage> | <flex> | min-content | max-content | auto
+test_computed_value("grid-template-columns", '20%', '60px'); // 20% * width
+test_computed_value("grid-template-columns", 'calc(-0.5em + 10px)', '0px');
+test_computed_value("grid-template-columns", 'calc(0.5em + 10px)', '30px');
+test_computed_value("grid-template-columns", 'calc(30% + 40px)', '130px'); // 30% * width + 40px
+test_computed_value("grid-template-columns", '5fr', '300px'); // width
+test_computed_value("grid-template-columns", 'min-content', '30px');
+test_computed_value("grid-template-columns", 'max-content', '30px');
+test_computed_value("grid-template-columns", 'auto', '300px'); // width
+
+// track-size minmax( <inflexible-breadth> , <track-breadth> )
+test_computed_value("grid-template-columns", 'minmax(10px, auto)', '300px'); // width
+test_computed_value("grid-template-columns", 'minmax(20%, max-content)', '60px'); // 20% * width
+test_computed_value("grid-template-columns", 'minmax(min-content, calc(-0.5em + 10px))', '30px');
+test_computed_value("grid-template-columns", 'minmax(auto, 0)', '30px');
+
+// track-size fit-content( <length-percentage> )
+test_computed_value("grid-template-columns", 'fit-content(70px)', '30px');
+test_computed_value("grid-template-columns", 'fit-content(20%)', '30px');
+test_computed_value("grid-template-columns", 'fit-content(calc(-0.5em + 10px))', '30px');
+
+// <track-repeat> = repeat( [ <positive-integer> ] , [ <line-names>? <track-size> ]+ <line-names>? )
+test_computed_value("grid-template-columns", 'repeat(1, 10px)', '10px');
+test_computed_value("grid-template-columns", 'repeat(1, [one two] 20%)', '[one two] 60px');
+test_computed_value("grid-template-columns", 'repeat(2, minmax(10px, auto))', '160px 140px');
+
+test_computed_value("grid-template-columns", 'repeat(2, fit-content(20%) [three four] 30px 40px [five six])',
+                    '30px [three four] 30px 40px [five six] 0px [three four] 30px 40px [five six]');
+
+// <track-list> = [ <line-names>? [ <track-size> | <track-repeat> ] ]+ <line-names>?
+test_computed_value("grid-template-columns", 'min-content repeat(5, minmax(10px, auto))',
+                    '30px 54px 54px 54px 54px 54px');
+test_computed_value("grid-template-columns", '[] 150px [] 1fr []', '150px 150px');
+
+// <auto-repeat> = repeat( [ auto-fill | auto-fit ] , [ <line-names>? <fixed-size> ]+ <line-names>? )
+test_computed_value("grid-template-columns", 'repeat(auto-fill, 200px)', '200px');
+test_computed_value("grid-template-columns", 'repeat(auto-fit, [one] 20%)',
+                    '[one] 60px [one] 0px [one] 0px [one] 0px [one] 0px');
+test_computed_value("grid-template-columns", 'repeat(auto-fill, minmax(100px, 5fr) [two])',
+                    '100px [two] 100px [two] 100px [two]');
+test_computed_value("grid-template-columns", 'repeat(auto-fit, [three] minmax(max-content, 6em) [four])',
+                    '[three] 240px [four]');
+test_computed_value('grid-template-columns', '[a] 21px [b] repeat(auto-fill, [c] 22px [d] 23px [e]) [f] 24px [g]',
+                    '[a] 21px [b c] 22px [d] 23px [e c] 22px [d] 23px [e c] 22px [d] 23px [e c] 22px [d] 23px [e c] 22px [d] 23px [e f] 24px [g]');
+test_computed_value('grid-template-columns', '[a] 21px [b c] repeat(auto-fill, [d e] 22px [f g h] 23px [i j k l]) [m n] 24px [o]',
+                    '[a] 21px [b c d e] 22px [f g h] 23px [i j k l d e] 22px [f g h] 23px [i j k l d e] 22px [f g h] 23px [i j k l d e] 22px [f g h] 23px [i j k l d e] 22px [f g h] 23px [i j k l m n] 24px [o]');
+test_computed_value('grid-template-columns', '[a] repeat(2, [b] 20px [c d] 21px [e f g]) [h i] repeat(auto-fit, [j] 22px [k l m] 23px [n o p q]) [r s]',
+                    '[a b] 20px [c d] 21px [e f g b] 20px [c d] 21px [e f g h i j] 0px [k l m] 0px [n o p q j] 0px [k l m] 0px [n o p q j] 0px [k l m] 0px [n o p q j] 0px [k l m] 0px [n o p q r s]');
+
+// <auto-track-list> =
+// [ <line-names>? [ <fixed-size> | <fixed-repeat> ] ]* <line-names>?
+// <auto-repeat>
+// [ <line-names>? [ <fixed-size> | <fixed-repeat> ] ]* <line-names>?
+
+test_computed_value("grid-template-columns", '[one] repeat(2, minmax(50px, auto)) [two] 30px [three] repeat(auto-fill, 10px) 40px [four five] repeat(2, minmax(200px, auto)) [six]',
+                    '[one] 50px 50px [two] 30px [three] 10px 40px [four five] 200px 200px [six]');
+</script>
+</body>
+</html>

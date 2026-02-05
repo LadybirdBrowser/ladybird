@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	Property contain value 'none'
+Pass	Property contain value 'strict'
+Pass	Property contain value 'content'
+Pass	Property contain value 'size'
+Pass	Property contain value 'layout'
+Pass	Property contain value 'style'
+Pass	Property contain value 'paint'
+Pass	Property contain value 'size layout'
+Pass	Property contain value 'style paint'
+Pass	Property contain value 'style layout paint'
+Pass	Property contain value 'size style layout paint'
+Pass	Property contain value 'size layout paint'
+Pass	Property contain value 'layout paint'
+Pass	Property contain value 'inline-size'
+Pass	Property contain value 'inline-size layout style paint'

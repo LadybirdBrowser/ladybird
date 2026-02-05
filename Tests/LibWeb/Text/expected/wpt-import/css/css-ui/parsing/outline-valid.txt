@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	e.style['outline'] = "rgba(10, 20, 30, 0.4)" should set the property value
+Pass	e.style['outline'] = "auto" should set the property value
+Pass	e.style['outline'] = "none" should set the property value
+Pass	e.style['outline'] = "dotted" should set the property value
+Pass	e.style['outline'] = "dashed" should set the property value
+Pass	e.style['outline'] = "solid" should set the property value
+Pass	e.style['outline'] = "double" should set the property value
+Pass	e.style['outline'] = "groove" should set the property value
+Pass	e.style['outline'] = "ridge" should set the property value
+Pass	e.style['outline'] = "inset" should set the property value
+Pass	e.style['outline'] = "outset" should set the property value
+Pass	e.style['outline'] = "0" should set the property value
+Pass	e.style['outline'] = "1px" should set the property value
+Pass	e.style['outline'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['outline'] = "thin" should set the property value
+Pass	e.style['outline'] = "medium" should set the property value
+Pass	e.style['outline'] = "thick" should set the property value
+Pass	e.style['outline'] = "dashed thin" should set the property value
+Pass	e.style['outline'] = "medium rgba(10, 20, 30, 0.4)" should set the property value
+Pass	e.style['outline'] = "3px ridge rgba(10, 20, 30, 0.4)" should set the property value

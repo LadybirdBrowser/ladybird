@@ -1,0 +1,23 @@
+source_set("Infrastructure") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [
+    "HTTP",
+    "//Userland/Libraries/LibWeb:all_generated",
+  ]
+  sources = [
+    "ConnectionTimingInfo.cpp",
+    "FetchAlgorithms.cpp",
+    "FetchController.cpp",
+    "FetchParams.cpp",
+    "FetchRecord.cpp",
+    "FetchTimingInfo.cpp",
+    "HTTP.cpp",
+    "IncrementalReadLoopReadRequest.cpp",
+    "MimeTypeBlocking.cpp",
+    "NetworkPartitionKey.cpp",
+    "NoSniffBlocking.cpp",
+    "PortBlocking.cpp",
+    "Task.cpp",
+    "URL.cpp",
+  ]
+}

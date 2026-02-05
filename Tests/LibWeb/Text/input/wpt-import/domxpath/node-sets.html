@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#node-sets">
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+function nodesetToSet(result) {
+  const set = new Set();
+  for (let node = result.iterateNext(); node; node = result.iterateNext()) {
+    set.add(node);
+  }
+  return set;
+}
+
+test(() => {
+  const doc = document.implementation.createHTMLDocument();
+  doc.documentElement.innerHTML = '<body><div></div></body>';
+  const result = nodesetToSet(doc.evaluate('(.//div)[1]|.', doc.documentElement));
+  assert_equals(result.size, 2);
+  assert_true(result.has(doc.documentElement));
+  assert_true(result.has(doc.body.firstChild));
+}, '| operator should evaluate both sides of expressions with the same context node');
+</script>
+</body>

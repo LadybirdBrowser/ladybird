@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en-US"><head>
+	<title>CSS Test: Test for flow around floats (reference)</title>
+	<link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+	<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta http-equiv="Content-Style-Type" content="text/css" />
+	<style type="text/css">
+
+	table { margin: 0; border-spacing: 0; }
+	td, th { padding: 0; vertical-align: top; }
+
+	</style>
+</head>
+<body>
+
+<!-- 6px margin between (from top, from bottom, from both) -->
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow; margin-top: 1px;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow; margin-top: 1px;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow; margin-top: 1px;"></div>
+</td></tr></tbody></table>
+
+<!-- 5px margin between (from both) -->
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<!-- 4px margin between (from both) -->
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<!-- negative margin between -->
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float: left; height: 10px; width: 150px; background: blue"></div>
+    <div style="height: 5px; background: purple;"></div>
+    <div style="float: left; clear: left; width: 200px; height: 5px; background: yellow;"></div>
+</td></tr></tbody></table>
+
+
+
+</body></html>

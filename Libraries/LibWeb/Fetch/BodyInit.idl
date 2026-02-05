@@ -1,0 +1,10 @@
+#import <FileAPI/Blob.idl>
+#import <Streams/ReadableStream.idl>
+#import <DOMURL/URLSearchParams.idl>
+#import <XHR/FormData.idl>
+
+// https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
+typedef (Blob or BufferSource or FormData or URLSearchParams or USVString) XMLHttpRequestBodyInit;
+
+// https://fetch.spec.whatwg.org/#bodyinit
+typedef (ReadableStream or XMLHttpRequestBodyInit) BodyInit;

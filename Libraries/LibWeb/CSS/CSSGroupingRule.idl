@@ -1,0 +1,10 @@
+#import <CSS/CSSRule.idl>
+#import <CSS/CSSRuleList.idl>
+
+// https://drafts.csswg.org/cssom/#the-cssgroupingrule-interface
+[Exposed=Window]
+interface CSSGroupingRule : CSSRule {
+    [SameObject, ImplementedAs=css_rules_for_bindings] readonly attribute CSSRuleList cssRules;
+    unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
+    undefined deleteRule(unsigned long index);
+};

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function testProperty(elementNameOrFactory, propertyName, propertyGetter, propertySetter) {
+            const attributeName = propertyName.toLowerCase();
+            function setValue(value) {
+                let element;
+                let elementName;
+                if (typeof elementNameOrFactory === "string") {
+                    element = document.createElement(elementNameOrFactory);
+                    elementName = elementNameOrFactory;
+                } else {
+                    element = elementNameOrFactory();
+                    elementName = element.tagName.toLowerCase();
+                }
+
+                element.setAttribute(attributeName, value.toString());
+                println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.setAttribute("${propertyName}", "${value}"): ${element.getAttribute(`${attributeName}`)}`);
+                println(`${elementName}.${propertyName} after ${elementName}.setAttribute("${attributeName}", "${value}"): ${propertyGetter(element)}`);
+
+                element = document.createElement(elementName);
+                try {
+                    propertySetter(element, value);
+                    println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.${propertyName} = ${value}: ${element.getAttribute(attributeName)}`);
+                    println(`${elementName}.${propertyName} after ${elementName}.${propertyName} = ${value}: ${propertyGetter(element)}`);
+                } catch (e) {
+                    println(`${elementName}.${propertyName} = ${value} threw exception of type ${e.name}`);
+                }
+            }
+
+            setValue(0);
+            setValue(1);
+            setValue(2147483647);
+            setValue(2147483648);
+            setValue(4294967295);
+            setValue(4294967296);
+        }
+
+        const imageButtonInputFactory = () => {
+            const input = document.createElement("input");
+            input.type = "image";
+            return input;
+        }
+
+        testProperty("canvas", "width", (canvas) => canvas.width, (canvas, value) => canvas.width = value);
+        testProperty("canvas", "height", (canvas) => canvas.height, (canvas, value) => canvas.height = value);
+        testProperty("colgroup", "span", (colgroup) => colgroup.span, (colgroup, value) => colgroup.span = value);
+        testProperty("img", "height", (img) => img.height, (img, value) => img.height = value);
+        testProperty("img", "hspace", (img) => img.hspace, (img, value) => img.hspace = value);
+        testProperty("img", "width", (img) => img.width, (img, value) => img.width = value);
+        testProperty("input", "maxLength", (input) => input.maxLength, (input, value) => input.maxLength = value);
+        testProperty("input", "minLength", (input) => input.minLength, (input, value) => input.minLength = value);
+        testProperty("input", "size", (input) => input.size, (input, value) => input.size = value);
+        testProperty(imageButtonInputFactory, "height", (input) => input.height, (input, value) => input.height = value);
+        testProperty(imageButtonInputFactory, "width", (input) => input.width, (input, value) => input.width = value);
+        testProperty("marquee", "scrollAmount", (marquee) => marquee.scrollAmount, (marquee, value) => marquee.scrollAmount = value);
+        testProperty("marquee", "scrollDelay", (marquee) => marquee.scrollDelay, (marquee, value) => marquee.scrollDelay = value);
+        testProperty("select", "size", (select) => select.size, (select, value) => select.size = value);
+        testProperty("td", "colSpan", (tableCell) => tableCell.colSpan, (tableCell, value) => tableCell.colSpan = value);
+        testProperty("td", "rowSpan", (tableCell) => tableCell.rowSpan, (tableCell, value) => tableCell.rowSpan = value);
+        testProperty("textarea", "maxLength", (textarea) => textarea.maxLength, (textarea, value) => textarea.maxLength = value);
+        testProperty("textarea", "minLength", (textarea) => textarea.minLength, (textarea, value) => textarea.minLength = value);
+        testProperty("textarea", "rows", (textarea) => textarea.rows, (textarea, value) => textarea.rows = value);
+        testProperty("textarea", "cols", (textarea) => textarea.cols, (textarea, value) => textarea.cols = value);
+    });
+</script>

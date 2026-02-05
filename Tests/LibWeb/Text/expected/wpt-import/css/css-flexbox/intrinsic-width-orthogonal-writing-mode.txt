@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	.inline-flexbox 1
+Fail	.inline-flexbox 2
+Fail	.inline-flexbox 3

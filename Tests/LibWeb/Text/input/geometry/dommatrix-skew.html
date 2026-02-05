@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Skew X DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).skewXSelf(10));
+
+        // 2. Skew X DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().skewX(10)));
+
+        // 3. Skew X DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).skewXSelf(20));
+
+        // 4. Skew X DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).multiply(new DOMMatrix().skewX(20)));
+
+        // 5. Skew Y DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).skewYSelf(10));
+
+        // 6. Skew Y DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().skewY(10)));
+
+        // 7. Skew Y DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).skewYSelf(20));
+
+        // 8. Skew Y DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).multiply(new DOMMatrix().skewY(20)));
+    });
+</script>

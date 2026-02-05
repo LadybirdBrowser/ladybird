@@ -1,0 +1,63 @@
+{
+  "version": 9,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 30,
+    "patch": 0
+  },
+  "include": [
+    "Meta/CMake/presets/CMake${hostSystemName}Presets.json"
+  ],
+  "buildPresets": [
+    {
+      "name": "Release",
+      "inherits": "base",
+      "configurePreset": "Release",
+      "displayName": "Release Build",
+      "description": "Build the project in release"
+    },
+    {
+      "name": "Debug",
+      "inherits": "base",
+      "configurePreset": "Debug",
+      "displayName": "Debug Build",
+      "description": "Build the project in debug"
+    },
+    {
+      "name": "Sanitizer",
+      "inherits": "base",
+      "configurePreset": "Sanitizer",
+      "displayName": "Sanitizer Build",
+      "description": "Build the project with Sanitizers on Unix"
+    }
+  ],
+  "testPresets": [
+    {
+      "hidden": true,
+      "name": "root_base",
+      "inherits": "base",
+      "environment": {
+        "LADYBIRD_SOURCE_DIR": "${fileDir}"
+      }
+    },
+    {
+      "name": "Release",
+      "inherits": "root_base",
+      "configurePreset": "Release"
+    },
+    {
+      "name": "Debug",
+      "inherits": "root_base",
+      "configurePreset": "Debug"
+    },
+    {
+      "name": "Sanitizer",
+      "inherits": "root_base",
+      "configurePreset": "Sanitizer",
+      "environment": {
+        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
+        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
+      }
+    }
+  ]
+}

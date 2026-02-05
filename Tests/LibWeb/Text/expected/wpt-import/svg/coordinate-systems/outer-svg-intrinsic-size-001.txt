@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	no sizing attributes set
+Pass	specified width
+Pass	modified specified width
+Pass	specified width and height
+Pass	specified width and modified specified height
+Pass	specified height
+Pass	modified specified height
+Pass	no specified sizing attrs (after setting & removing them)
+Pass	set a 10x8 viewBox
+Pass	modified viewBox to 50x20
+Pass	adding specified width, in presence of specified viewBox
+Pass	modifiying specified viewBox, in presence of specified width
+Pass	removing specified width, in presence of specified viewBox
+Pass	adding specified height, in presence of specified viewBox
+Pass	modifiying specified viewBox, in presence of specified height

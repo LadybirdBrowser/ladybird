@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This test is based on the WPT test: https://github.com/web-platform-tests/wpt/blob/b4a6f12709/xhr/overridemimetype-blob.html
+    function checkContentType(url, overrideType, expectedType) {
+        return new Promise((resolve, reject) => {
+            const client = new XMLHttpRequest();
+            client.responseType = "blob";
+            if (overrideType !== null) {
+                client.overrideMimeType(overrideType);
+            }
+
+            client.onload = () => {
+                if (client.getResponseHeader("Content-Type") !== "") {
+                    reject(new Error("Expected Content-Type response header to be empty"));
+                } else if (client.response.type !== expectedType) {
+                    reject(new Error(`Expected response type to be '${expectedType}' for override type '${overrideType}' but got '${client.response.type}'`));
+                } else {
+                    resolve();
+                }
+            };
+            client.open("GET", url);
+            client.send();
+        });
+    }
+
+    asyncTest(async (done) => {
+        try {
+            const httpServer = httpTestServer();
+            const url = await httpServer.createEcho("GET", "/xhr-override-mimetype-no-content-type-test", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "",
+                },
+            });
+
+            await checkContentType(url, null, "text/xml");
+
+            // mime-types.json is copied from https://github.com/web-platform-tests/wpt/blob/master/mimesniff/mime-types/resources/mime-types.json
+            const mimes = await fetch("../../data/mime-types.json").then((response) => response.json());
+            if (!Array.isArray(mimes) || mimes.length === 0) {
+                throw new Error("Expected mime-types.json data to be an array");
+            }
+
+            for (const mime of mimes) {
+                if (typeof mime === "string") {
+                    continue;
+                }
+
+                await checkContentType(url, mime.input, mime.output !== null ? mime.output : "application/octet-stream");
+            }
+
+            println("PASS");
+        } catch (err) {
+            println("FAIL - " + err);
+        }
+        done();
+    });
+</script>

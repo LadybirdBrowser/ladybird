@@ -1,0 +1,16 @@
+border-start-start-radius: 50% -> 50%
+border-start-end-radius: 25% -> 25%
+border-end-start-radius: 10% -> 10%
+border-end-end-radius: 75% -> 75%
+border-start-start-radius: calc(10px + 5px) -> 15px
+border-start-end-radius: calc(50% - 10%) -> 40%
+border-end-start-radius: calc(20px * 2) -> 40px
+border-end-end-radius: calc(100% / 4) -> 25%
+border-start-start-radius: 50% 0% -> 50% 0%
+border-start-end-radius: 45% 5% -> 45% 5%
+border-end-start-radius: 40% 10% -> 40% 10%
+border-end-end-radius: 35% 15% -> 35% 15%
+border-start-start-radius: 30% / 20% -> 30% 20%
+border-start-end-radius: 25% / 15% -> 25% 15%
+border-end-start-radius: 20% / 10% -> 20% 10%
+border-end-end-radius: 15% / 5% -> 15% 5%

@@ -1,0 +1,16 @@
+<todo-item></todo-item>
+<script>
+  const template = document.createElement("template");
+  template.innerHTML = `<li></li>`;
+
+  class TodoItem extends HTMLElement {
+    constructor() {
+      super();
+      const shadow = this.attachShadow({ mode: "open" });
+      const node = document.importNode(template.content, true);
+      shadow.appendChild(node);
+    }
+  }
+
+  customElements.define("todo-item", TodoItem);
+</script>

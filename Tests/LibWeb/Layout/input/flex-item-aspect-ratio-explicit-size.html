@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; padding: 0; }
+    .container {
+        display: flex;
+        width: 500px;
+        border: 1px solid salmon;
+    }
+    .item {
+        border: 1px solid black;
+    }
+</style>
+<div class="container">
+    <div class="item" style="width: 100px; flex-basis: 100px; aspect-ratio: 2 / 1;">A</div>
+    <div class="item" style="width: 100px; aspect-ratio: 1 / 1;">B</div>
+    <div class="item" style="width: 100px; height: 50px;">C</div>
+</div>
+<div class="container" style="flex-direction: column; width: auto; height: 300px; margin-top: 10px;">
+    <div class="item" style="height: 100px; flex-basis: 100px; aspect-ratio: 2 / 1;">D</div>
+    <div class="item" style="height: 50px; aspect-ratio: 1 / 2;">E</div>
+</div>

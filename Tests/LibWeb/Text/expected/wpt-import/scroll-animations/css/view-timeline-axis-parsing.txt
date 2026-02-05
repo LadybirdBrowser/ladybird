@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	e.style['view-timeline-axis'] = "initial" should set the property value
+Pass	e.style['view-timeline-axis'] = "inherit" should set the property value
+Pass	e.style['view-timeline-axis'] = "unset" should set the property value
+Pass	e.style['view-timeline-axis'] = "revert" should set the property value
+Pass	e.style['view-timeline-axis'] = "block" should set the property value
+Pass	e.style['view-timeline-axis'] = "inline" should set the property value
+Pass	e.style['view-timeline-axis'] = "y" should set the property value
+Pass	e.style['view-timeline-axis'] = "x" should set the property value
+Pass	e.style['view-timeline-axis'] = "block, inline" should set the property value
+Pass	e.style['view-timeline-axis'] = "inline, block" should set the property value
+Pass	e.style['view-timeline-axis'] = "block, y, x, inline" should set the property value
+Pass	e.style['view-timeline-axis'] = "inline, inline, inline, inline" should set the property value
+Pass	e.style['view-timeline-axis'] = "abc" should not set the property value
+Pass	e.style['view-timeline-axis'] = "10px" should not set the property value
+Pass	e.style['view-timeline-axis'] = "auto" should not set the property value
+Pass	e.style['view-timeline-axis'] = "none" should not set the property value
+Pass	e.style['view-timeline-axis'] = "block inline" should not set the property value
+Pass	e.style['view-timeline-axis'] = "block / inline" should not set the property value

@@ -1,0 +1,4 @@
+Normal XML: characterSet=UTF-8, element=root
+UTF-32 declared: characterSet=UTF-8, element=root
+UTF-32BE declared: characterSet=UTF-8, element=root
+UTF-32LE declared: characterSet=UTF-8, element=root

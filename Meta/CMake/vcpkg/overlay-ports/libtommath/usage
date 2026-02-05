@@ -1,0 +1,9 @@
+libtommath provides CMake targets:
+
+  find_package(libtommath CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE libtommath)
+
+libtommath provides pkg-config modules:
+
+  # public domain library for manipulating large integer numbers
+  libtommath

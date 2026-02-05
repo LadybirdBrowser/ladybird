@@ -1,0 +1,95 @@
+#import <Clipboard/Clipboard.idl>
+#import <CredentialManagement/CredentialsContainer.idl>
+#import <EncryptedMediaExtensions/MediaKeySystemAccess.idl>
+#import <Gamepad/Gamepad.idl>
+#import <Geolocation/Geolocation.idl>
+#import <GPC/GlobalPrivacyControl.idl>
+#import <HTML/MimeTypeArray.idl>
+#import <HTML/NavigatorBeacon.idl>
+#import <HTML/NavigatorConcurrentHardware.idl>
+#import <HTML/NavigatorDeviceMemory.idl>
+#import <HTML/NavigatorID.idl>
+#import <HTML/NavigatorLanguage.idl>
+#import <HTML/NavigatorOnLine.idl>
+#import <HTML/PluginArray.idl>
+#import <HTML/UserActivation.idl>
+#import <MediaCapabilitiesAPI/MediaCapabilities.idl>
+#import <Serial/Serial.idl>
+#import <ServiceWorker/ServiceWorkerContainer.idl>
+#import <StorageAPI/NavigatorStorage.idl>
+#import <WebXR/XRSystem.idl>
+
+// https://html.spec.whatwg.org/multipage/system-state.html#navigator
+[Exposed=Window]
+interface Navigator {
+    // objects implementing this interface also implement the interfaces given below
+
+    // https://w3c.github.io/clipboard-apis/#navigator-interface
+    [SecureContext, SameObject] readonly attribute Clipboard clipboard;
+
+    // https://w3c.github.io/geolocation/#navigator_interface
+    [SameObject] readonly attribute Geolocation geolocation;
+
+    // https://w3c.github.io/pointerevents/#extensions-to-the-navigator-interface
+    readonly attribute long maxTouchPoints;
+
+    // https://wicg.github.io/serial/#extensions-to-the-navigator-interface
+    [SameObject] readonly attribute Serial serial;
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#useractivation
+    [SameObject] readonly attribute UserActivation userActivation;
+
+    // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
+    [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
+
+    // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
+    [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
+
+    // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
+    [SecureContext, SameObject] readonly attribute CredentialsContainer credentials;
+
+    // https://w3c.github.io/battery/
+    [SecureContext] Promise<BatteryManager> getBattery();
+
+    // https://immersive-web.github.io/webxr/#navigator-xr-attribute
+    [SecureContext, SameObject] readonly attribute XRSystem xr;
+};
+
+// NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
+//       are not used in WorkerNavigator, we define them here.
+
+// https://html.spec.whatwg.org/multipage/system-state.html#navigatorcontentutils
+interface mixin NavigatorContentUtils {
+    [FIXME, SecureContext] undefined registerProtocolHandler(DOMString scheme, USVString url);
+    [FIXME, SecureContext] undefined unregisterProtocolHandler(DOMString scheme, USVString url);
+};
+
+// https://html.spec.whatwg.org/multipage/system-state.html#navigatorcookies
+interface mixin NavigatorCookies {
+    readonly attribute boolean cookieEnabled;
+};
+
+// https://html.spec.whatwg.org/multipage/system-state.html#navigatorplugins
+interface mixin NavigatorPlugins {
+    [SameObject] readonly attribute PluginArray plugins;
+    [SameObject] readonly attribute MimeTypeArray mimeTypes;
+    boolean javaEnabled();
+    readonly attribute boolean pdfViewerEnabled;
+};
+
+// https://w3c.github.io/webdriver/#dom-navigatorautomationinformation
+interface mixin NavigatorAutomationInformation {
+    readonly attribute boolean webdriver;
+};
+
+Navigator includes GlobalPrivacyControl;
+Navigator includes NavigatorID;
+Navigator includes NavigatorLanguage;
+Navigator includes NavigatorOnLine;
+Navigator includes NavigatorContentUtils;
+Navigator includes NavigatorCookies;
+Navigator includes NavigatorPlugins;
+Navigator includes NavigatorConcurrentHardware;
+Navigator includes NavigatorAutomationInformation;
+Navigator includes NavigatorStorage;
+Navigator includes NavigatorDeviceMemory;

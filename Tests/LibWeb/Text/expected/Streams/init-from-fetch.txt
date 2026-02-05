@@ -1,0 +1,1 @@
+Was able to create a reader from a Fetch response!

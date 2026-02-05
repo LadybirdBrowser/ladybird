@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="defs" style="display: none;"></svg>
+<svg id="testSvg"></svg>
+<script>
+    // Generate a deeply nested SVG structure that would cause stack overflow
+    // if the recursion bug in SVGElement::removed_from is present.
+    const depth = 100;
+
+    let inner = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    inner.id = "level0";
+
+    for (let i = 1; i < depth; i++) {
+        let g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.id = `level${i}`;
+        g.appendChild(inner);
+        inner = g;
+    }
+
+    let symbol = document.createElementNS("http://www.w3.org/2000/svg", "symbol");
+    symbol.id = "deepSymbol";
+    symbol.appendChild(inner);
+    defs.appendChild(symbol);
+
+    let use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.id = "deepUse";
+    use.setAttribute("href", "#deepSymbol");
+    testSvg.appendChild(use);
+
+    function shadowChildCount(use) {
+        let sr = internals.getShadowRoot(use);
+        return sr ? sr.childNodes.length : 0;
+    }
+
+    asyncTest((done) => {
+        setTimeout(() => {
+            println(`Initial shadow children: ${shadowChildCount(deepUse)}`);
+
+            // This would cause stack overflow before the fix due to O(depth) recursion
+            document.getElementById("deepSymbol").remove();
+
+            println(`After removal shadow children: ${shadowChildCount(deepUse)}`);
+            println("PASS: No stack overflow from deep recursion");
+            done();
+        }, 10);
+    });
+</script>

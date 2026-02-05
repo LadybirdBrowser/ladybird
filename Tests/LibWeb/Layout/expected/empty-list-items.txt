@@ -1,0 +1,27 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 86 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 54 0+0+16] children: not-inline
+      BlockContainer <ol> at [48,16] [0+0+40 744 0+0+0] [16+0+0 54 0+0+16] children: not-inline
+        ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [29,17] [0+0+0 18.6875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [48,34] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [27,35] [0+0+0 21.15625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [48,52] [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [27,53] [0+0+0 21.4375 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,86] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x86]
+    PaintableWithLines (BlockContainer<BODY>) [8,16 784x54]
+      PaintableWithLines (BlockContainer<OL>) [8,16 784x54]
+        PaintableWithLines (ListItemBox<LI>) [48,16 744x18]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [29,17 18.6875x16]
+        PaintableWithLines (ListItemBox<LI>) [48,34 744x18]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [27,35 21.15625x16]
+        PaintableWithLines (ListItemBox<LI>) [48,52 744x18]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [27,53 21.4375x16]
+      PaintableWithLines (BlockContainer(anonymous)) [8,86 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x86] [children: 0] (z-index: auto)

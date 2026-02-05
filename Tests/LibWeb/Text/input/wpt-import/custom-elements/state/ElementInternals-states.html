@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<link rel=help href="https://html.spec.whatwg.org/multipage/custom-elements.html#custom-state-pseudo-class">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+class TestElement extends HTMLElement {
+  constructor() {
+    super();
+    this._internals = this.attachInternals();
+  }
+
+  get internals() {
+    return this._internals;
+  }
+}
+customElements.define("test-element", TestElement);
+
+test(() => {
+  let i = (new TestElement()).internals;
+
+  assert_true(i.states instanceof CustomStateSet);
+  assert_equals(i.states.size, 0);
+  assert_false(i.states.has('foo'));
+  assert_false(i.states.has('--foo'));
+  assert_equals(i.states.toString(), '[object CustomStateSet]');
+}, 'CustomStateSet behavior of ElementInternals.states: Initial state');
+
+test(() => {
+  let i = (new TestElement()).internals;
+  assert_throws_js(TypeError, () => { i.states.supports('foo'); });
+  i.states.add(''); // should not throw.
+  i.states.add('--a\tb'); // should not throw.
+}, 'CustomStateSet behavior of ElementInternals.states: Exceptions');
+
+test(() => {
+  let i = (new TestElement()).internals;
+  i.states.add('--foo');
+  i.states.add('--bar');
+  i.states.add('--foo');
+  assert_equals(i.states.size, 2);
+  assert_true(i.states.has('--foo'));
+  assert_true(i.states.has('--bar'));
+  assert_array_equals([...i.states], ['--foo', '--bar']);
+  i.states.delete('--foo');
+  assert_array_equals([...i.states], ['--bar']);
+  i.states.add('--foo');
+  assert_array_equals([...i.states], ['--bar', '--foo']);
+  i.states.delete('--bar');
+  i.states.add('--baz');
+  assert_array_equals([...i.states], ['--foo', '--baz']);
+}, 'CustomStateSet behavior of ElementInternals.states: Modifications');
+
+test(() => {
+  let i = (new TestElement()).internals;
+  i.states.add('--one');
+  i.states.add('--two');
+  i.states.add('--three');
+  let iter = i.states.values();
+
+  // Delete the next item.
+  i.states.delete('--one');
+  let item = iter.next();
+  assert_false(item.done);
+  assert_equals(item.value, '--two');
+
+  // Clear the set.
+  i.states.clear();
+  item = iter.next();
+  assert_true(item.done);
+
+  // Delete the previous item.
+  i.states.add('--one');
+  i.states.add('--two');
+  i.states.add('--three');
+  iter = i.states.values();
+  item = iter.next();
+  assert_equals(item.value, '--one');
+  i.states.delete('--one');
+  item = iter.next();
+  assert_equals(item.value, '--two');
+}, 'Updating a CustomStateSet while iterating it should work');
+</script>
+

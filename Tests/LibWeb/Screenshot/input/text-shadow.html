@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Text-Shadow</title>
+  <link rel="match" href="../expected/text-shadow-ref.html" />
+  <meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-4066">
+  <style>
+    * {
+        margin: 0;
+        font: 20px SerenitySans;
+    }
+
+    .box {
+      border: 1px solid black;
+      height: 150px;
+      width: 150px;
+      margin: 10px;
+    }
+  </style>
+</head>
+
+<body>
+<h2>Simple</h2>
+<div class="box" style="text-shadow: 25px 50px blue">
+  <p>text-shadow: 25px 50px blue</p>
+</div>
+
+<h2>Blur</h2>
+<div class="box" style="text-shadow: magenta 0 0 3px">
+  <p>text-shadow: magenta 0 0 3px</p>
+</div>
+
+<h2>Multiple</h2>
+<div class="box" style="text-shadow: 4px 4px blue, 8px 8px green, 12px 12px yellow">
+  <p>text-shadow: 4px 4px blue, 8px 8px green, 12px 12px yellow</p>
+</div>
+
+</body>
+</html>

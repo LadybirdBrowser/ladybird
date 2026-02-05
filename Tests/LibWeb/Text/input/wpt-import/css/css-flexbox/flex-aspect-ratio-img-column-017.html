@@ -1,0 +1,34 @@
+<!doctype html>
+<title>Non aspect-ratio svg flex item</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+<meta name="assert" content="Specified height on an svg image with no aspect ratio or intrinsic height is not the automatic minimum size." />
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<div id=log></div>
+
+<pre>
+Specified size suggestion = 200px
+Content size suggestion = 150px [1]
+Automatic minimum height = min(150px, 200px)
+
+[1] fallback size from last bullet point in https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes :
+
+For boxes without a preferred aspect ratio:
+ * If the available space is definite in the appropriate dimension, use the stretch fit into that size in that dimension.
+ * Otherwise, if the box has a <length> as its computed minimum size (min-width/min-height) in that dimension, use that size.
+ * Otherwise, use 300px for the width and/or 150px for the height as needed.
+
+</pre>
+Pass condition: there is a 150x150 green square.
+<div style="display: flex; flex-direction: column; height: 0px; width: 150px;">
+  <img src='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" />' style="height: 200px; background: green;" data-expected-height=150>
+</div>
+
+<script>
+checkLayout('img');
+</script>

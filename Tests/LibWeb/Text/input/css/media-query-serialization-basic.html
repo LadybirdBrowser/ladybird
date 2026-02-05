@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<head><style>
+@media only screen { }
+@media only screen and (min-width: 20px) and (max-width: 40px) { }
+@media only screen and (min-resolution: 96dpi) { }
+@media only screen and (min-resolution: 2dppx) { }
+@media only screen and (min-resolution: 96dpcm) { }
+</style></head>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let sheet = document.head.firstChild.sheet
+        for (rule of sheet.cssRules) {
+            println(rule.cssText);
+        }
+    });
+</script>

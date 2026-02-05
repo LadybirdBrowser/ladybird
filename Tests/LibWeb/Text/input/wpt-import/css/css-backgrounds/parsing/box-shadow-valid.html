@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing box-shadow with valid values</title>
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact"/>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#box-shadow">
+<meta name="assert" content="box-shadow supports the full grammar 'none | <shadow>#'.">
+<meta name="assert" content="Box shadow color, inset, and length parameters can be mixed in any order." />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("box-shadow", "none");
+test_valid_value("box-shadow", "1px 2px");
+test_valid_value("box-shadow", "red 1px 2px 3px -4px inset"); // Edge serializes as "inset 1px 2px 3px -4px red"
+test_valid_value("box-shadow", "inset 1px 2px red", "red 1px 2px inset");
+test_valid_value("box-shadow", "1px -2px inset, red -3px 4px"); // Edge serializes as "inset 1px -2px, -3px 4px red"
+test_valid_value("box-shadow", "inset 1px -2px, -3px 4px red", "1px -2px inset, red -3px 4px");
+
+
+// color only
+test_valid_value("box-shadow", "4px 4px green", "green 4px 4px");
+test_valid_value("box-shadow", "green -4px 4px", "green -4px 4px");
+test_valid_value("box-shadow", "-4px 4px 0 green", "green -4px 4px 0px");
+test_valid_value("box-shadow", "green -4px 4px 0", "green -4px 4px 0px");
+test_valid_value("box-shadow", "-4px 4px 0 0 green", "green -4px 4px 0px 0px");
+test_valid_value("box-shadow", "green -4px 4px 0 0", "green -4px 4px 0px 0px");
+
+// inset only
+test_valid_value("box-shadow", "4px -4px inset", "4px -4px inset");
+test_valid_value("box-shadow", "inset 4px -4px", "4px -4px inset");
+test_valid_value("box-shadow", "4px -4px 0 inset", "4px -4px 0px inset");
+test_valid_value("box-shadow", "inset 4px -4px 0", "4px -4px 0px inset");
+test_valid_value("box-shadow", "4px -4px 0 0 inset", "4px -4px 0px 0px inset");
+test_valid_value("box-shadow", "inset 4px -4px 0 0", "4px -4px 0px 0px inset");
+
+// color and inset
+test_valid_value("box-shadow", "4px -4px green inset", "green 4px -4px inset");
+test_valid_value("box-shadow", "4px -4px inset green", "green 4px -4px inset");
+test_valid_value("box-shadow", "inset green 4px -4px", "green 4px -4px inset");
+test_valid_value("box-shadow", "green inset 4px -4px", "green 4px -4px inset");
+test_valid_value("box-shadow", "green 4px -4px inset", "green 4px -4px inset");
+test_valid_value("box-shadow", "inset 4px -4px green", "green 4px -4px inset");
+test_valid_value("box-shadow", "inset green 4px -4px 0", "green 4px -4px 0px inset");
+test_valid_value("box-shadow", "green inset 4px -4px 0", "green 4px -4px 0px inset");
+test_valid_value("box-shadow", "4px -4px 0 green inset", "green 4px -4px 0px inset");
+test_valid_value("box-shadow", "4px -4px 0 inset green", "green 4px -4px 0px inset");
+test_valid_value("box-shadow", "green 4px -4px 0 inset", "green 4px -4px 0px inset");
+test_valid_value("box-shadow", "inset 4px -4px 0 green", "green 4px -4px 0px inset");
+test_valid_value("box-shadow", "inset green 4px -4px 0 0", "green 4px -4px 0px 0px inset");
+test_valid_value("box-shadow", "green inset 4px -4px 0 0", "green 4px -4px 0px 0px inset");
+test_valid_value("box-shadow", "4px -4px 0 0 green inset", "green 4px -4px 0px 0px inset");
+test_valid_value("box-shadow", "4px -4px 0 0 inset green", "green 4px -4px 0px 0px inset");
+test_valid_value("box-shadow", "green 4px -4px 0 0 inset", "green 4px -4px 0px 0px inset");
+test_valid_value("box-shadow", "inset 4px -4px 0 0 green", "green 4px -4px 0px 0px inset");
+
+// No parse-time range-checking for <blur-radius> given as a math function
+// https://drafts.csswg.org/css-values-4/#calc-range
+test_valid_value("box-shadow", "1px 1px calc(-1px)", "1px 1px calc(-1px)");
+test_valid_value("box-shadow", "1px 1px calc(1em - 2px)", "1px 1px calc(1em - 2px)");
+</script>
+</body>
+</html>

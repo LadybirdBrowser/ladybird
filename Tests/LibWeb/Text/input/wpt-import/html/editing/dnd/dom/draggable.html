@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<title>drag &amp; drop – draggable attribute</title>
+<style>div#test_elements { display: none; }</style>
+
+<script src='../../../../resources/testharness.js'></script>
+<script src='../../../../resources/testharnessreport.js'></script>
+
+<noscript><p>Enable JavaScript and reload.</p></noscript>
+
+<div id='log'></div>
+
+<div id='test_elements'>
+
+ <div id='defaults'>
+  <a href='#'>.</a>
+  <div></div>
+  <img src='../resources/1x1-transparent.gif'>
+ </div>
+
+ <div id='draggable'>
+  <a draggable='true' href='#'>.</a>
+  <div draggable='true'></div>
+  <img draggable='true' src='../resources/1x1-transparent.gif'>
+ </div>
+
+ <div id='draggable_false'>
+  <a draggable='false' href='#'>.</a>
+  <div draggable='false'></div>
+  <img draggable='false' src='../resources/1x1-transparent.gif'>
+ </div>
+
+ <div id='draggable_auto'>
+  <a draggable='auto' href='#'>.</a>
+  <div draggable='auto'></div>
+  <img draggable='auto' src='../resources/1x1-transparent.gif'>
+ </div>
+
+ <div id='draggable_foo'>
+  <a draggable='foo' href='#'>.</a>
+  <div draggable='foo'></div>
+  <img draggable='foo' src='../resources/1x1-transparent.gif'>
+ </div>
+
+ <div id='changable_true'>
+  <a href='#'>.</a>
+  <div></div>
+  <img src='../resources/1x1-transparent.gif'>
+ </div>
+
+ <div id='changable_false'>
+  <a href='#'>.</a>
+  <div></div>
+  <img src='../resources/1x1-transparent.gif'>
+ </div>
+
+ <div id='changable_foo'>
+  <a href='#'>.</a>
+  <div></div>
+  <img src='../resources/1x1-transparent.gif'>
+ </div>
+
+
+</div>
+
+<script>
+var foo = document.getElementById('foo');
+
+/* Does the .draggable property exist? */
+test(function () {
+  assert_idl_attribute(document.querySelector('#defaults a'), 'draggable');
+}, 'an <a> element should have a draggable property');
+
+test(function () {
+  assert_idl_attribute(document.querySelector('#defaults div'), 'draggable');
+}, 'a <div> element should have a draggable property');
+
+test(function () {
+  assert_idl_attribute(document.querySelector('#defaults img'), 'draggable');
+}, 'an <img> element should have a draggable property');
+
+
+/* Check the default values on different types of elements */
+test(function () {
+  assert_true(document.querySelector('#defaults a').draggable);
+}, 'an <a> element should be draggable by default');
+
+test(function () {
+  assert_false(document.querySelector('#defaults div').draggable);
+}, 'a <div> element should not be draggable by default');
+
+test(function () {
+  assert_true(document.querySelector('#defaults img').draggable);
+}, 'an <img> element should be draggable by default');
+
+
+/* If draggable="true" is set, all the elements should be draggable */
+test(function () {
+  assert_true(document.querySelector('#draggable a').draggable);
+}, 'an <a> element with draggable="true" should be draggable');
+
+test(function () {
+  assert_true(document.querySelector('#draggable div').draggable);
+}, 'a <div> element with draggable="true" should be draggable');
+
+test(function () {
+  assert_true(document.querySelector('#draggable img').draggable);
+}, 'an <img> element with draggable="true" should be draggable');
+
+
+/* If draggable="false" is set, none of the elements should be draggable */
+test(function () {
+  assert_false(document.querySelector('#draggable_false a').draggable);
+}, 'an <a> element with draggable="false" should not be draggable');
+
+test(function () {
+  assert_false(document.querySelector('#draggable_false div').draggable);
+}, 'a <div> element with draggable="false" should not be draggable');
+
+test(function () {
+  assert_false(document.querySelector('#draggable_false img').draggable);
+}, 'an <img> element with draggable="false" should not be draggable');
+
+
+/* If draggable="auto" is set, fall back to the defaults */
+test(function () {
+  assert_true(document.querySelector('#draggable_auto a').draggable);
+}, 'an <a> element with draggable="auto" should be draggable');
+
+test(function () {
+  assert_false(document.querySelector('#draggable_auto div').draggable);
+}, 'a <div> element with draggable="auto" should not be draggable');
+
+test(function () {
+  assert_true(document.querySelector('#draggable_auto img').draggable);
+}, 'an <img> element with draggable="auto" should be draggable');
+
+
+/* If draggable="foo" is set, fall back to the defaults */
+test(function () {
+  assert_true(document.querySelector('#draggable_foo a').draggable);
+}, 'an <a> element with draggable="foo" should be draggable');
+
+test(function () {
+  assert_false(document.querySelector('#draggable_foo div').draggable);
+}, 'a <div> element with draggable="foo" should not be draggable');
+
+test(function () {
+  assert_true(document.querySelector('#draggable_foo img').draggable);
+}, 'an <img> element with draggable="foo" should be draggable');
+
+
+/* Setting the element.droppable attribute to true for all elements */
+test(function () {
+  document.querySelector('#changable_true a').draggable = true;
+  assert_true(document.querySelector('#changable_true a').draggable);
+}, 'an <a> element with the draggable property set to true through a script should be draggable');
+
+test(function () {
+  document.querySelector('#changable_true div').draggable = true;
+  assert_true(document.querySelector('#changable_true div').draggable);
+}, 'a <div> element with the draggable property set to true through a script should be draggable');
+
+test(function () {
+  document.querySelector('#changable_true img').draggable = true;
+  assert_true(document.querySelector('#changable_true img').draggable);
+}, 'an <img> element with the draggable property set to true through a script should be draggable');
+
+
+/* Setting the element.droppable attribute to false for all elements */
+test(function () {
+  document.querySelector('#changable_false a').draggable = false;
+  assert_false(document.querySelector('#changable_false a').draggable);
+}, 'an <a> element with the draggable property set to false through a script should not be draggable');
+
+test(function () {
+  document.querySelector('#changable_false div').draggable = false;
+  assert_false(document.querySelector('#changable_false div').draggable);
+}, 'a <div> element with the draggable property set to false through a script should not be draggable');
+
+test(function () {
+  document.querySelector('#changable_false img').draggable = false;
+  assert_false(document.querySelector('#changable_false img').draggable);
+}, 'an <img> element with the draggable property set to false through a script should not be draggable');
+
+
+/* Setting the element.droppable attribute to "foo" for all elements */
+test(function () {
+  document.querySelector('#changable_foo a').draggable = 'foo';
+  assert_true(document.querySelector('#changable_foo a').draggable);
+}, 'an <a> element with the draggable property set to "foo" through a script should be draggable');
+
+test(function () {
+  document.querySelector('#changable_foo div').draggable = 'auto';
+  assert_true(document.querySelector('#changable_foo div').draggable);
+}, 'a <div> element with the draggable property set to "foo" through a script should be draggable');
+
+test(function () {
+  document.querySelector('#changable_foo img').draggable = 'foo';
+  assert_true(document.querySelector('#changable_foo img').draggable);
+}, 'an <img> element with the draggable property set to "foo" through a script should be draggable');
+</script>
+
+
+
+</body>
+</html>

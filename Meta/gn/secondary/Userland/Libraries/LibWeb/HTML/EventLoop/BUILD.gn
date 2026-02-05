@@ -1,0 +1,9 @@
+source_set("EventLoop") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "EventLoop.cpp",
+    "Task.cpp",
+    "TaskQueue.cpp",
+  ]
+}

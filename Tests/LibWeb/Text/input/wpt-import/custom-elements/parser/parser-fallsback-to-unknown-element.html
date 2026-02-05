@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Changes to the HTML parser</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTML parser must fallback to creating a HTMLUnknownElement when a custom element construction fails">
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+setup({allow_uncaught_exception:true});
+
+class ReturnsTextNode extends HTMLElement {
+    constructor() {
+        super();
+        return document.createTextNode('some text');
+    }
+};
+customElements.define('returns-text', ReturnsTextNode);
+
+class ReturnsNonElementObject extends HTMLElement {
+    constructor() {
+        super();
+        return {};
+    }
+};
+customElements.define('returns-non-element-object', ReturnsNonElementObject);
+
+class LacksSuperCall extends HTMLElement {
+    constructor() { }
+};
+customElements.define('lacks-super-call', LacksSuperCall);
+
+class ThrowsException extends HTMLElement {
+    constructor() {
+        throw 'Bad';
+    }
+};
+customElements.define('throws-exception', ThrowsException);
+
+</script>
+<returns-text></returns-text>
+<returns-non-element-object></returns-non-element-object>
+<lacks-super-call></lacks-super-call>
+<throws-exception></throws-exception>
+<script>
+
+test(function () {
+    var instance = document.querySelector('returns-text');
+
+    assert_false(instance instanceof ReturnsTextNode, 'HTML parser must NOT instantiate a custom element when the constructor returns a Text node');
+    assert_true(instance instanceof HTMLElement, 'The fallback element created by HTML parser must be an instance of HTMLElement');
+    assert_true(instance instanceof HTMLUnknownElement, 'The fallback element created by HTML parser must be an instance of HTMLUnknownElement');
+
+}, 'HTML parser must create a fallback HTMLUnknownElement when a custom element constructor returns a Text node');
+
+test(function () {
+    var instance = document.querySelector('returns-non-element-object');
+
+    assert_false(instance instanceof ReturnsNonElementObject, 'HTML parser must NOT instantiate a custom element when the constructor returns a non-Element object');
+    assert_true(instance instanceof HTMLElement, 'The fallback element created by HTML parser must be an instance of HTMLElement');
+    assert_true(instance instanceof HTMLUnknownElement, 'The fallback element created by HTML parser must be an instance of HTMLUnknownElement');
+
+}, 'HTML parser must create a fallback HTMLUnknownElement when a custom element constructor returns non-Element object');
+
+test(function () {
+    var instance = document.querySelector('lacks-super-call');
+
+    assert_false(instance instanceof LacksSuperCall, 'HTML parser must NOT instantiate a custom element when the constructor does not call super()');
+    assert_true(instance instanceof HTMLElement, 'The fallback element created by HTML parser must be an instance of HTMLElement');
+    assert_true(instance instanceof HTMLUnknownElement, 'The fallback element created by HTML parser must be an instance of HTMLUnknownElement');
+
+}, 'HTML parser must create a fallback HTMLUnknownElement when a custom element constructor does not call super()');
+
+test(function () {
+    var instance = document.querySelector('throws-exception');
+
+    assert_false(instance instanceof ThrowsException, 'HTML parser must NOT instantiate a custom element when the constructor throws an exception');
+    assert_true(instance instanceof HTMLElement, 'The fallback element created by HTML parser must be an instance of HTMLElement');
+    assert_true(instance instanceof HTMLUnknownElement, 'The fallback element created by HTML parser must be an instance of HTMLUnknownElement');
+
+}, 'HTML parser must create a fallback HTMLUnknownElement when a custom element constructor throws an exception');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: parsing mask-composite with invalid values</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-mask-composite">
+<meta name="assert" content="mask-composite supports only the grammar '<compositing-operator>#'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("mask-composite", "auto");
+test_invalid_value("mask-composite", "add subtract");
+test_invalid_value("mask-composite", "clear");
+test_invalid_value("mask-composite", "copy");
+test_invalid_value("mask-composite", "source-over");
+test_invalid_value("mask-composite", "source-in");
+test_invalid_value("mask-composite", "source-out");
+test_invalid_value("mask-composite", "source-atop");
+test_invalid_value("mask-composite", "destination-over");
+test_invalid_value("mask-composite", "destination-in");
+test_invalid_value("mask-composite", "destination-out");
+test_invalid_value("mask-composite", "destination-atop");
+test_invalid_value("mask-composite", "xor");
+test_invalid_value("mask-composite", "plus-lighter");
+</script>
+</body>
+</html>

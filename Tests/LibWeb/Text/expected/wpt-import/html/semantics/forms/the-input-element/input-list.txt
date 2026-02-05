@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	getting .list of input must return the datalist with that id
+Pass	getting .list of input must return null if it has no list attribute
+Pass	getting .list of input must return null if the list attribute is a non-datalist's id
+Pass	getting .list of input must return null if the list attribute is no element's id
+Pass	getting .list of input must return null if the list attribute is used in a non-datalist earlier than a datalist
+Pass	getting .list of input must return the datalist with that id even if a later non-datalist also has the id

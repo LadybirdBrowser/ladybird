@@ -1,0 +1,42 @@
+#import <DOM/Document.idl>
+#import <HTML/HTMLElement.idl>
+#import <HTML/ValidityState.idl>
+
+// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#htmlobjectelement
+[Exposed=Window]
+interface HTMLObjectElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, URL] attribute USVString data;
+    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect] attribute DOMString name;
+    readonly attribute HTMLFormElement? form;
+    [CEReactions, Reflect] attribute DOMString width;
+    [CEReactions, Reflect] attribute DOMString height;
+    readonly attribute Document? contentDocument;
+    readonly attribute WindowProxy? contentWindow;
+    Document? getSVGDocument();
+
+    readonly attribute boolean willValidate;
+    readonly attribute ValidityState validity;
+    readonly attribute Utf16DOMString validationMessage;
+    boolean checkValidity();
+    boolean reportValidity();
+    undefined setCustomValidity(DOMString error);
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect] attribute DOMString archive;
+    [CEReactions, Reflect] attribute DOMString code;
+    [CEReactions, Reflect] attribute boolean declare;
+    [CEReactions, Reflect] attribute unsigned long hspace;
+    [CEReactions, Reflect] attribute DOMString standby;
+    [CEReactions, Reflect] attribute unsigned long vspace;
+    [CEReactions, Reflect=codebase, URL] attribute USVString codeBase;
+    [CEReactions, Reflect=codetype] attribute DOMString codeType;
+    [CEReactions, Reflect=usemap] attribute DOMString useMap;
+
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString border;
+
+};

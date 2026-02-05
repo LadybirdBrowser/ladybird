@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-underline-position with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-decoration-style-property">
+<meta name="assert" content="text-underline-position supports the full grammar 'auto | [ under || [ left | right ] ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_valid_value("text-underline-position", "auto");
+
+test_valid_value("text-underline-position", "under");
+test_valid_value("text-underline-position", "from-font");
+test_valid_value("text-underline-position", "left");
+test_valid_value("text-underline-position", "right");
+test_valid_value("text-underline-position", "under left");
+test_valid_value("text-underline-position", "from-font left");
+test_valid_value("text-underline-position", "right under", "under right");
+test_valid_value("text-underline-position", "right from-font", "from-font right");
+</script>

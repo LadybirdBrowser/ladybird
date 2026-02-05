@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const transformStream = new TransformStream();
+
+        const stream = new ReadableStream();
+
+        stream.getReader();
+        try {
+            stream.pipeThrough(transformStream);
+        }
+        catch (e) {
+            println(e);
+        }
+        done();
+    });
+</script>

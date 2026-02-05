@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Task Manager</title>
+        <style>
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --table-border: gray;
+                    --table-row-odd: rgb(57, 57, 57);
+                    --table-row-hover: rgb(80, 79, 79);
+                }
+            }
+
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --table-border: gray;
+                    --table-row-odd: rgb(229, 229, 229);
+                    --table-row-hover: rgb(199, 198, 198);
+                }
+            }
+
+            html {
+                color-scheme: light dark;
+
+                font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                font-size: 10pt;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            th {
+                text-align: left;
+                border-bottom: 1px solid var(--table-border);
+            }
+
+            th:hover {
+                background-color: var(--table-row-hover);
+                cursor: pointer;
+            }
+
+            th.sorted-ascending:after {
+                content: " ▲";
+            }
+
+            th.sorted-descending:after {
+                content: " ▼";
+            }
+
+            td,
+            th {
+                padding: 4px;
+                border: 1px solid var(--table-border);
+            }
+
+            tbody tr:nth-of-type(2n + 1) {
+                background-color: var(--table-row-odd);
+            }
+
+            tbody tr:hover {
+                background-color: var(--table-row-hover);
+            }
+        </style>
+    </head>
+    <body>
+        <table>
+            <thead>
+                <tr>
+                    <th id="name">Name</th>
+                    <th id="pid">PID</th>
+                    <th id="cpu">CPU</th>
+                    <th id="memory">Memory</th>
+                </tr>
+            </thead>
+            <tbody id="process-table"></tbody>
+        </table>
+        <script type="module">
+            import { getByteFormatter }  from "resource://ladybird/utils.js";
+            const memoryFormatter = getByteFormatter(() => {
+                return {
+                    unitDisplay: "narrow",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }
+            })
+            const cpuFormatter = new Intl.NumberFormat([], {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+
+            const Direction = Object.freeze({
+                ascending: 1,
+                descending: 2,
+            });
+
+            window.processes = [];
+            window.sortDirection = Direction.ascending;
+            window.sortKey = "pid";
+
+            const renderSortedProcesses = () => {
+                document.querySelectorAll("th").forEach(header => {
+                    header.classList.remove("sorted-ascending");
+                    header.classList.remove("sorted-descending");
+                });
+
+                if (window.sortDirection === Direction.ascending) {
+                    document.getElementById(window.sortKey).classList.add("sorted-ascending");
+                } else {
+                    document.getElementById(window.sortKey).classList.add("sorted-descending");
+                }
+
+                const multiplier = window.sortDirection === Direction.ascending ? 1 : -1;
+
+                window.processes.sort((lhs, rhs) => {
+                    const lhsValue = lhs[window.sortKey];
+                    const rhsValue = rhs[window.sortKey];
+
+                    if (typeof lhsValue === "string") {
+                        return multiplier * lhsValue.localeCompare(rhsValue);
+                    }
+
+                    return multiplier * (lhsValue - rhsValue);
+                });
+
+                let oldTable = document.getElementById("process-table");
+
+                let newTable = document.createElement("tbody");
+                newTable.setAttribute("id", "process-table");
+
+                const insertColumn = (row, value) => {
+                    let column = row.insertCell();
+                    column.innerText = value;
+                };
+
+                window.processes.forEach(process => {
+                    let row = newTable.insertRow();
+                    insertColumn(row, process.name);
+                    insertColumn(row, process.pid);
+                    insertColumn(row, cpuFormatter.format(process.cpu));
+                    insertColumn(row, memoryFormatter.formatBytes(process.memory));
+                });
+
+                oldTable.parentNode.replaceChild(newTable, oldTable);
+            };
+
+            const loadProcessStatistics = processes => {
+                window.processes = processes;
+                renderSortedProcesses();
+            };
+
+            document.addEventListener("WebUILoaded", () => {
+                document.querySelectorAll("th").forEach(header => {
+                    header.addEventListener("click", () => {
+                        window.sortDirection = header.classList.contains("sorted-descending")
+                            ? Direction.ascending
+                            : Direction.descending;
+                        window.sortKey = header.getAttribute("id");
+
+                        renderSortedProcesses();
+                    });
+                });
+
+                setInterval(() => {
+                    ladybird.sendMessage("updateProcessStatistics");
+                }, 1000);
+
+                ladybird.sendMessage("updateProcessStatistics");
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "loadProcessStatistics") {
+                    loadProcessStatistics(event.detail.data);
+                }
+            });
+        </script>
+    </body>
+</html>

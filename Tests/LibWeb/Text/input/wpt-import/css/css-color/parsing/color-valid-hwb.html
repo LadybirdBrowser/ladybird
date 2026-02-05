@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Parsing and serialization of colors using valid HWB notation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#the-hwb-notation">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-sRGB-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-sRGB-values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+tests = [
+    ["hwb(120 30% 50%)", "rgb(77, 128, 77)"],
+    ["hwb(120 30% 50% / 0.5)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(none none none)", "rgb(255, 0, 0)"],
+    ["hwb(0 0% 0%)", "rgb(255, 0, 0)"],
+    ["hwb(none none none / none)", "rgba(255, 0, 0, 0)"],
+    ["hwb(0 0% 0% / 0)", "rgba(255, 0, 0, 0)"],
+    ["hwb(120 none none)", "rgb(0, 255, 0)"],
+    ["hwb(120 0% 0%)", "rgb(0, 255, 0)"],
+    ["hwb(120 80% none)", "rgb(204, 255, 204)"],
+    ["hwb(120 80% 0%)", "rgb(204, 255, 204)"],
+    ["hwb(120 none 50%)", "rgb(0, 128, 0)"],
+    ["hwb(120 0% 50%)", "rgb(0, 128, 0)"],
+    ["hwb(120 30% 50% / none)", "rgba(77, 128, 77, 0)"],
+    ["hwb(120 30% 50% / 0)", "rgba(77, 128, 77, 0)"],
+    ["hwb(none 100% 50% / none)", "rgba(170, 170, 170, 0)"],
+    ["hwb(0 100% 50% / 0)", "rgba(170, 170, 170, 0)"],
+
+    // Test with number components.
+    ["hwb(120 30 50)", "rgb(77, 128, 77)"],
+    ["hwb(120 30 50 / 0.5)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(120 30% 50)", "rgb(77, 128, 77)"],
+    ["hwb(120 30% 50 / 0.5)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(120 30 50%)", "rgb(77, 128, 77)"],
+    ["hwb(120 30 50% / 0.5)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(120 none 50)", "rgb(0, 128, 0)"],
+    ["hwb(120 none 50 / 0.5)", "rgba(0, 128, 0, 0.5)"],
+    ["hwb(120 30 none)", "rgb(77, 255, 77)"],
+    ["hwb(120 30 none / 0.5)", "rgba(77, 255, 77, 0.5)"],
+    ["hwb(120 30 50 / none)", "rgba(77, 128, 77, 0)"],
+
+    // Test that rounding happens properly. hwb(320deg 30% 40%) in sRGB has a blue
+    // channel of exactly one-half.
+    // 0.5 * 255 = 127.5. This value should be rounded UP to 128, not down to 127.
+    ["hwb(320deg 30% 40%)", "rgb(153, 77, 128)"],
+
+    // Test non-finite values. calc(infinity) goes to upper bound while calc(-infinity) and NaN go to the lower bound.
+    // See: https://github.com/w3c/csswg-drafts/issues/8629
+    ["hwb(calc(infinity) 20% 10%)", "rgb(230, 51, 51)"], // hwb(360 20% 10%)
+    ["hwb(calc(-infinity) 20% 10%)", "rgb(230, 51, 51)"], // hwb(0 20% 10%)
+    ["hwb(calc(0 / 0) 20% 10%)", "rgb(230, 51, 51)"], // hwb(0 20% 10%)
+    ["hwb(90 20% 10% / calc(infinity))", "rgb(140, 230, 51)"], // hwb(90 20% 10%)
+    ["hwb(90 20% 10% / calc(-infinity))", "rgba(140, 230, 51, 0)"], // hwb(90 20% 10% / 0)
+    ["hwb(90 20% 10% / calc(0 / 0))", "rgba(140, 230, 51, 0)"], // hwb(90 20% 10% / 0)
+
+    // calc(50% + (sign(1em - 10px) * 10%)) cannot be evaluated eagerly because font relative units are not yet known at parse time.
+    ["hwb(calc(110deg + (sign(1em - 10px) * 10deg)) 30% 50% / 50%)", "hwb(calc(110deg + (10deg * sign(1em - 10px))) 30 50 / 0.5)"],
+    ["hwb(calc(110 + (sign(1em - 10px) * 10)) 30 50 / 0.5)", "hwb(calc(110 + (10 * sign(1em - 10px))) 30 50 / 0.5)"],
+    ["hwb(120deg 30% 50% / calc(50% + (sign(1em - 10px) * 10%)))", "hwb(120 30 50 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["hwb(120 30 50 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "hwb(120 30 50 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+];
+
+for (const test of tests) {
+    test_valid_value("color", test[0], test[1]);
+}
+
+</script>
+</body>
+</html>

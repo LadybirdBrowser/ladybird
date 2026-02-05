@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<form id="form">
+    <textarea id="textarea">Original value</textarea>
+</form>
+<script type="text/javascript">
+    let textarea = document.getElementById("textarea");
+    textarea.value = "Modified value";
+
+    let form = document.getElementById("form");
+    form.reset();
+</script>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Shorthand serialization should be done correctly.</title>
+    <link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-declaration-block">
+    <link rel="help" href="https://drafts.csswg.org/css-variables/#variables-in-shorthands">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="foo1" style="background: red;">foo</div>
+    <div id="foo2" style="background-color: blue; background: red !important; background-color: green;">foo</div>
+    <div id="foo3" style="background-color: blue; background: red; background-color: green !important;">foo</div>
+
+    <div id="foo4" style="margin-right: 10px; margin-left: 10px; margin-top: 10px; margin-bottom: 10px;">foo</div>
+    <div id="foo5" style="margin-right: 10px; margin-left: 10px; margin-top: 10px; margin-bottom: 10px!important;">foo</div>
+    <div id="foo6" style="margin-right: 10px !important; margin-left: 10px !important; margin-top: 10px !important; margin-bottom: 10px!important;">foo</div>
+
+    <div id="foo7" style="background:var(--a);">foo</div>
+    <div id="test"></div>
+
+    <script>
+        test(function() {
+            var elem1 = document.getElementById('foo1');
+            var elem2 = document.getElementById('foo2');
+            var elem3 = document.getElementById('foo3');
+
+            assert_false(elem1.style.cssText.endsWith('!important;'));
+            assert_true(elem2.style.cssText.endsWith('!important;'));
+            assert_false(elem3.style.background.endsWith('!important'));
+
+        }, "Shorthand serialization with shorthand and longhands mixed.");
+
+        test(function() {
+            var elem4 = document.getElementById('foo4');
+            var elem5 = document.getElementById('foo5');
+            var elem6 = document.getElementById('foo6');
+
+            assert_equals(elem4.style.cssText, 'margin: 10px;');
+            assert_equals(elem4.style.margin, '10px');
+            assert_equals(elem5.style.cssText, 'margin-right: 10px; margin-left: 10px; margin-top: 10px; margin-bottom: 10px !important;');
+            assert_equals(elem5.style.margin, '');
+            assert_equals(elem6.style.cssText, 'margin: 10px !important;');
+            assert_equals(elem6.style.margin, '10px');
+        }, "Shorthand serialization with just longhands.");
+
+        test(function() {
+          var elem7 = document.getElementById('foo7');
+
+          assert_equals(elem7.style.background, 'var(--a)');
+          assert_equals(elem7.style.backgroundPosition, '');
+        }, "Shorthand serialization with variable and variable from other shorthand.");
+
+        test(function() {
+            var testElem = document.getElementById("test");
+            testElem.style.margin = "20px 20px 20px 20px";
+            assert_equals(testElem.style.margin, "20px");
+            assert_equals(testElem.style.cssText, "margin: 20px;")
+        }, "Shorthand serialization after setting");
+
+        test(function() {
+            const testElem = document.getElementById("test");
+            testElem.style.cssText = "margin: initial;";
+            assert_equals(testElem.style.margin, "initial");
+            assert_equals(testElem.style.cssText, "margin: initial;");
+        }, "Shorthand serialization with 'initial' value.");
+
+        test(function() {
+            const testElem = document.getElementById("test");
+            testElem.style.setProperty("margin-top", "initial", "important");
+            assert_equals(testElem.style.margin, "");
+        }, "Shorthand serialization with 'initial' value, one longhand with important flag.");
+
+        test(function() {
+            const testElem = document.getElementById("test");
+            testElem.style.cssText = "";
+            testElem.style.setProperty("margin-top", "initial");
+            testElem.style.setProperty("margin-right", "initial");
+            testElem.style.setProperty("margin-bottom", "initial");
+            testElem.style.setProperty("margin-left", "initial", "important");
+            assert_equals(testElem.style.margin, "");
+        }, "Shorthand serialization with 'initial' value, longhands set individually, one with important flag.");
+    </script>
+</body>
+</html>

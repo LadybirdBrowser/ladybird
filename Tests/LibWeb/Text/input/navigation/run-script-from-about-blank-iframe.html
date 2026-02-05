@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+    <iframe id="target" src="about:blank"></iframe>
+    <script>
+        asyncTest(done => {
+            window.addEventListener("message", event => {
+                println(event.data);
+                done();
+            });
+            var script = target.contentDocument.createElement("script");
+            script.innerHTML = `parent.postMessage("message from test iframe", "*");`;
+            target.contentDocument.body.appendChild(script);
+        });
+    </script>
+</body>

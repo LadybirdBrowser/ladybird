@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<style>
+    .test {
+        font-size: 12px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const newStyle = `
+        .test {
+            font-size: 14px;
+        }
+        .test2 {
+            font-size: 16px;
+        }`;
+        const newStyle2 = `.test {
+            padding: 100px;
+        }`;
+
+        const nonConstructedSheet = document.styleSheets[0];
+        try {
+            nonConstructedSheet.replaceSync(newStyle);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception thrown when calling replaceSync() on non-constructed stylesheet: ${e.name}`);
+        }
+
+        const sheet = new CSSStyleSheet();
+        const cssRules = sheet.cssRules;
+
+        sheet.replaceSync(newStyle);
+        println(`Number of CSS rules after replaceSync(): ${sheet.cssRules.length}`);
+        for (const rule of sheet.cssRules) {
+            println(`Rule: ${rule.cssText}`);
+        }
+
+        const cssRulesAfterReplaceSync = sheet.cssRules;
+        println(`cssRules returns the same object before and after replaceSync(): ${cssRules === cssRulesAfterReplaceSync}`);
+
+        const importRule = `@import url("test.css");`;
+        sheet.replaceSync(`${newStyle2} ${importRule}`);
+
+        println(`@import rule should be not appear below:`);
+        for (const rule of sheet.cssRules) {
+            println(`Rule: ${rule.cssText}`);
+        }
+
+        const unresolvedPromise = sheet.replace(newStyle);
+        try {
+            sheet.replaceSync(newStyle);
+            println("FAIL");
+        } catch (e) {
+            println(`Calling replaceSync() while the disallow modification flag set throws: ${e.name}`);
+        }
+    });
+</script>

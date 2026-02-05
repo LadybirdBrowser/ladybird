@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1323004">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../reference/ref-filled-green-100px-square.xht" />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <div style="display:flow-root; background:green; direction:rtl;">
+    <div style="float:left; width:50px; height:40px;"></div>
+    <div style="display:flow-root; height:60px; margin-right:51px;"></div>
+  </div>
+</div>

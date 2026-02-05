@@ -1,0 +1,22 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 120 0+1+0] [BFC] children: not-inline
+    Box <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 102 0+1+8] [GFC] children: not-inline
+      BlockContainer <div.foo> at [11,11] [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [11,11 27.15625x18] baseline: 13.796875
+            "foo"
+        TextNode <#text> (not painted)
+      BlockContainer <div.bar> at [11,11] [0+1+0 778 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [11,11 27.640625x18] baseline: 13.796875
+            "bar"
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x122]
+    PaintableBox (Box<BODY>) [9,9 782x104]
+      PaintableWithLines (BlockContainer<DIV>.foo) [10,10 102x102]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.bar) [10,10 780x102]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x120] [children: 0] (z-index: auto)

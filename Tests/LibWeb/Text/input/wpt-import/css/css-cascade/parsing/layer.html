@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>@layer rule parsing / serialization</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#layering">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  test_valid_rule("@layer A;");
+  test_valid_rule("@layer A, B, C;");
+  test_valid_rule("@layer A.A;");
+  test_valid_rule("@layer A, B.C.D, C;");
+
+  test_invalid_rule("@layer;");
+  test_invalid_rule("@layer A . A;");
+
+  test_valid_rule("@layer {\n}");
+  test_valid_rule("@layer A {\n}");
+  test_valid_rule("@layer A.B {\n}");
+  test_invalid_rule("@layer A . B {\n}");
+
+  test_invalid_rule("@layer A, B, C {\n}");
+</script>

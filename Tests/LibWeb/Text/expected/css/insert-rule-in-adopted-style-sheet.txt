@@ -1,0 +1,4 @@
+color of box 1 before rule insertion: rgb(255, 0, 0)
+color of box 2 before rule insertion: rgb(255, 0, 0)
+color of box 1 after rule insertion: rgb(0, 128, 0)
+color of box 2 after rule insertion: rgb(0, 128, 0)

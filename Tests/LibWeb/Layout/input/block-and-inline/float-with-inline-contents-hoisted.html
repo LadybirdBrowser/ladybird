@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    .a {
+        display: inline-block;
+    }
+    .b {
+        float: left;
+        width: 100%;
+    }
+    .box {
+        height: 100px;
+        width: 100px;
+    }
+    .green {
+        background-color: green;
+    }
+    .blue {
+        background-color: blue;
+    }
+</style>
+<body>
+<div class="a"><div class="box green"></div></div>
+<div class="b"><div class="box blue"></div></div>
+<div class="a"><div class="box green"></div></div>
+<div class="b"><div class="box blue"></div></div>
+<div></div><!-- This last <div> requires hoisting all inline content into an anonymous wrapper -->

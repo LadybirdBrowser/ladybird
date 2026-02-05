@@ -1,0 +1,160 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Arithmetic operations on CSSNumericValue tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-add">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-sub">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-mul">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-div">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-min">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-max">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gArithmeticOps = [
+  { methodName: 'add', mathType: CSSMathSum },
+  { methodName: 'sub', mathType: CSSMathSum },
+  { methodName: 'mul', mathType: CSSMathProduct },
+  { methodName: 'div', mathType: CSSMathProduct },
+  { methodName: 'min', mathType: CSSMathMin },
+  { methodName: 'max', mathType: CSSMathMax },
+];
+
+for (const {methodName, mathType} of gArithmeticOps) {
+  test(() => {
+    const result = CSS.number(1)[methodName]();
+    assert_style_value_equals(result, CSS.number(1));
+  }, 'Calling CSSUnitValue.' + methodName + ' with no arguments returns itself');
+
+  test(() => {
+    // Use an arithmetic expression that can't be simplified to a CSSUnitValue
+    const mathValue = new mathType(CSS.px(1), CSS.percent(1));
+    const result = mathValue[methodName]();
+    assert_style_value_equals(result, mathValue);
+  }, 'Calling CSSMathValue.' + methodName + ' with no arguments returns itself');
+
+  test(() => {
+    const result = CSS.px(1)[methodName](CSS.percent(1));
+    assert_equals(result.constructor.name, mathType.name);
+  }, 'Calling CSSNumericValue.' + methodName + ' with a single CSSNumericValue returns correct type');
+
+  test(() => {
+    const result = new mathType(CSS.px(1))[methodName](CSS.percent(1));
+    assert_equals(result.constructor.name, mathType.name);
+  }, 'Calling CSSMathValue.' + methodName + ' with a single CSSNumericValue returns correct type');
+
+  test(() => {
+    const result = CSS.percent(1)[methodName](CSS.px(1), CSS.px(2), CSS.px(3));
+    assert_equals(result.constructor.name, mathType.name);
+  }, 'Calling CSSNumericValue.' + methodName + ' with more than one number CSSNumericValues returns correct type');
+
+  test(() => {
+    const result = CSS.number(1)[methodName](1, CSS.number(2), 3);
+    assert_equals(result.constructor.name, CSSUnitValue.name);
+  }, 'Calling CSSNumericValue.' + methodName + ' can take numberish values');
+
+  test(() => {
+    const result = new mathType(CSS.number(1))[methodName](CSS.number(2), CSS.number(3));
+    assert_equals(result.constructor.name, CSSUnitValue.name);
+    assert_equals(result.unit, 'number');
+  }, 'Calling ' + mathType.name + '.' + methodName + ' with number CSSUnitValues simplifies to a CSSUnitValue');
+
+  test(() => {
+    assert_throws_js(TypeError, () => new CSS.px(0)[methodName](CSS.px(1), CSS.s(2)));
+  }, 'Calling CSSNumericValue.' + methodName + ' with incompatible types throws TypeError');
+}
+
+test(() => {
+  const result = CSS.px(10).add(CSS.px(5), CSS.px(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 17);
+  assert_equals(result.unit, 'px');
+}, 'Calling CSSUnitValue.add with CSSUnitValues with same unit simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.px(10).sub(CSS.px(5), CSS.px(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 3);
+  assert_equals(result.unit, 'px');
+}, 'Calling CSSUnitValue.sub with CSSUnitValues with same unit simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.number(10).mul(CSS.number(5), CSS.number(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 100);
+  assert_equals(result.unit, 'number');
+}, 'Calling CSSUnitValue.mul with all numbers simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.number(10).mul(CSS.px(5), CSS.number(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 100);
+  assert_equals(result.unit, 'px');
+}, 'Calling CSSUnitValue.mul with only one non-number simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.number(10).mul(CSS.px(5), CSS.px(2));
+  assert_equals(result.constructor.name, CSSMathProduct.name);
+}, 'Calling CSSUnitValue.mul with more than one non-number does not simplify to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.number(10).div(CSS.number(5), CSS.number(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 1);
+  assert_equals(result.unit, 'number');
+}, 'Calling CSSUnitValue.div with all numbers simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.px(10).div(CSS.number(5), CSS.number(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 1);
+  assert_equals(result.unit, 'px');
+}, 'Calling CSSUnitValue.div on a non-number value simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.number(10).div(CSS.px(5), CSS.number(2));
+  assert_equals(result.constructor.name, CSSMathProduct.name);
+}, 'Calling CSSUnitValue.div with a non-number value in the arguments does not simplify to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.px(10).min(CSS.px(5), CSS.px(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 2);
+  assert_equals(result.unit, 'px');
+}, 'Calling CSSUnitValue.min with CSSUnitValues with same unit simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.px(10).max(CSS.px(5), CSS.px(2));
+  assert_equals(result.constructor.name, CSSUnitValue.name);
+  assert_equals(result.value, 10);
+  assert_equals(result.unit, 'px');
+}, 'Calling CSSUnitValue.max with CSSUnitValues with same unit simplifies to a CSSUnitValue');
+
+test(() => {
+  const result = CSS.number(1).sub(CSS.number(1), new CSSMathNegate(1), new CSSMathSum(1));
+  assert_style_value_equals(result,
+    new CSSMathSum(CSS.number(1), CSS.number(-1), CSS.number(1), new CSSMathNegate(new CSSMathSum(1))));
+}, 'Calling CSSNumericValue.sub negates all argument values');
+
+test(() => {
+  const result = CSS.number(2).div(CSS.number(2), CSS.px(2), new CSSMathInvert(2), new CSSMathSum(2));
+  assert_style_value_equals(result,
+    new CSSMathProduct(CSS.number(2), CSS.number(0.5), new CSSMathInvert(CSS.px(2)), CSS.number(2), new CSSMathInvert(new CSSMathSum(2))));
+}, 'Calling CSSNumericValue.div inverts all argument values');
+
+test(() => {
+  assert_throws_js(RangeError, () => CSS.number(2).div(CSS.number(0)));
+  assert_throws_js(RangeError, () => CSS.number(3).div(CSS.px(10) ,CSS.number(0)));
+  assert_throws_js(RangeError, () => CSS.number(2).div(CSS.number(0), CSS.number(0)));
+}, 'Can not divide with CSSUnitValue which has zero value and number type');
+
+for (const methodName of ["add", "sub", "max", "min"]) {
+    test(() => {
+      assert_throws_js(TypeError, () => CSS.number(3)[methodName](CSS.px(10) ,CSS.number(0)));
+      assert_throws_js(TypeError, () => CSS.px(2)[methodName](CSS.deg(10)));
+    }, 'CSSNumericValue.' + methodName + ' should throw TypeError when the types are different.');
+}
+
+</script>

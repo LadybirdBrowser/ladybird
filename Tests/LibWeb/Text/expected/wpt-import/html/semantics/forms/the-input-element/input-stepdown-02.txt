@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	stepDown() on input with no initial or min values
+Fail	stepDown() on input with no initial value and positive min value
+Pass	stepDown() on input with no initial value and negative min value
+Pass	stepDown() on input with initial value equal to min value
+Pass	stepDown() on input with initial value less than min value
+Pass	stepDown() on input with initial value greater than min value

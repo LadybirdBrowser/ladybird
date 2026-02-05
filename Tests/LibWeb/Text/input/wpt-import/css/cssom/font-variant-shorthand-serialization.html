@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>Serialization of font-variant shorthand</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#serialize-a-css-declaration-block">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<div id="target"></div>
+<script>
+    const cssWideKeywords = ["initial", "inherit", "unset", "revert", "revert-layer"];
+    function test_serialization_set(expected) {
+        for (const [property, value] of Object.entries(expected)) {
+            if (!CSS.supports(`${property}: initial`))
+                continue;
+            assert_equals(target.style[property], value, `${property} was set`);
+        }
+    }
+    function setWithValue(value) {
+        return {
+            "font-variant-ligatures": value,
+            "font-variant-caps": value,
+            "font-variant-alternates": value,
+            "font-variant-numeric": value,
+            "font-variant-east-asian": value,
+            "font-variant-position": value,
+            "font-variant-emoji": value,
+            "font-variant": value
+        };
+    }
+    const emptySet = setWithValue("");
+    const normalSet = setWithValue("normal");
+    const nonDefaultValues = {
+        "font-variant-ligatures": "common-ligatures discretionary-ligatures",
+        "font-variant-caps": "small-caps",
+        "font-variant-alternates": "historical-forms",
+        "font-variant-numeric": "oldstyle-nums stacked-fractions",
+        "font-variant-east-asian": "ruby",
+        "font-variant-position": "sub",
+        "font-variant-emoji": "emoji",
+    };
+    test(function(t) {
+        target.style.fontVariant = "normal";
+        t.add_cleanup(() => target.removeAttribute("style"));
+
+        test_serialization_set(normalSet);
+    }, "font-variant: normal serialization");
+
+    test(function(t) {
+        target.style.fontVariant = "normal";
+        target.style.fontVariantLigatures = "none";
+        t.add_cleanup(() => target.removeAttribute("style"));
+
+        const expected = Object.assign({}, normalSet);
+        expected["font-variant-ligatures"] = "none";
+        expected["font-variant"] = "none";
+
+        test_serialization_set(expected);
+    }, "font-variant: none serialization");
+
+    test(function(t) {
+        t.add_cleanup(() => target.removeAttribute("style"));
+        for (const [property, value] of Object.entries(nonDefaultValues)) {
+            if (property == "font-variant-ligatures" || !CSS.supports(`${property}: initial`))
+                continue;
+            target.style.fontVariant = "normal";
+            target.style.fontVariantLigatures = "none";
+            target.style[property] = value;
+
+            const expected = Object.assign({}, normalSet);
+            expected["font-variant-ligatures"] = "none";
+            expected["font-variant"] = "";
+            expected[property] = value;
+
+            test_serialization_set(expected);
+            target.removeAttribute("style");
+        }
+    }, "font-variant-ligatures: none serialization with non-default value for another longhand");
+
+    test(function(t) {
+        t.add_cleanup(() => target.removeAttribute("style"));
+
+        for (const [property, value] of Object.entries(nonDefaultValues)) {
+            if (!CSS.supports(`${property}: initial`))
+                continue;
+            target.style.fontVariant = "normal";
+            target.style[property] = value;
+
+            const expected = Object.assign({}, normalSet);
+            expected[property] = value;
+            expected["font-variant"] = value;
+            test_serialization_set(expected);
+
+            target.removeAttribute("style");
+        }
+    }, "font-variant: normal with non-default longhands");
+
+    test(function(t) {
+        t.add_cleanup(() => target.removeAttribute("style"));
+        for (const keyword of cssWideKeywords) {
+            target.style.fontVariant = "normal";
+            target.style.fontVariantLigatures = keyword;
+
+            const expected = Object.assign({}, normalSet);
+            expected["font-variant-ligatures"] = keyword;
+            expected["font-variant"] = "";
+            test_serialization_set(expected);
+            target.removeAttribute("style");
+        }
+    }, "CSS-wide keyword in one longhand");
+
+    test(function(t) {
+        t.add_cleanup(() => target.removeAttribute("style"));
+
+        for (const keyword of cssWideKeywords) {
+            target.style.fontVariant = keyword;
+            test_serialization_set(setWithValue(keyword));
+            target.removeAttribute("style");
+        }
+    }, "CSS-wide keyword in shorthand");
+
+    test(function(t) {
+        target.style.fontVariant = "normal";
+        target.style.font = "menu";
+        t.add_cleanup(() => target.removeAttribute("style"));
+
+        test_serialization_set(emptySet);
+    }, "font: menu serialization");
+</script>
+</html>

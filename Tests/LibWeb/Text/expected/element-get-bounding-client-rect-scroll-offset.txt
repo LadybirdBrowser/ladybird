@@ -1,0 +1,3 @@
+{"x":18,"y":518,"width":100,"height":100,"top":518,"right":118,"bottom":618,"left":18}
+{"x":18,"y":418,"width":100,"height":100,"top":418,"right":118,"bottom":518,"left":18}
+{"x":18,"y":318,"width":100,"height":100,"top":318,"right":118,"bottom":418,"left":18}

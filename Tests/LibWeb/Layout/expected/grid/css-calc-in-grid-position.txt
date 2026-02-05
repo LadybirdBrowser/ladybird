@@ -1,0 +1,66 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] [8+0+0 600 0+0+192] [8+0+0 36 0+0+8] [GFC] children: not-inline
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.title> at [8,8] [0+0+0 198.25 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 7, rect: [8,8 45.578125x18] baseline: 13.796875
+            "title 1"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.text> at [8,26] [0+0+0 198.25 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [8,26 46.484375x18] baseline: 13.796875
+            "text 1"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.title> at [206.25,8] [0+0+0 200.71875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 7, rect: [206.25,8 48.046875x18] baseline: 13.796875
+            "title 2"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.text> at [206.25,26] [0+0+0 200.71875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [206.25,26 48.953125x18] baseline: 13.796875
+            "text 2"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.title> at [406.96875,8] [0+0+0 201 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 7, rect: [406.96875,8 48.328125x18] baseline: 13.796875
+            "title 3"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.text> at [406.96875,26] [0+0+0 201 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [406.96875,26 49.234375x18] baseline: 13.796875
+            "text 3"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
+    PaintableBox (Box<BODY>) [8,8 600x36]
+      PaintableWithLines (BlockContainer<DIV>.title) [8,8 198.25x18]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.text) [8,26 198.25x18]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.title) [206.25,8 200.71875x18]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.text) [206.25,26 200.71875x18]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.title) [406.96875,8 201x18]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.text) [406.96875,26 201x18]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x52] [children: 0] (z-index: auto)

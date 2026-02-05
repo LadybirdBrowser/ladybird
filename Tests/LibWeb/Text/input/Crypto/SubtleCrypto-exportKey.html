@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function bufferToHex(buffer) {
+        return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    asyncTest(async done => {
+        let algorithm = {
+            name: "RSA-OAEP",
+            modulusLength: 512,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        };
+
+        println("exportKey with RSA-OAEP algorithm");
+
+        let key = await window.crypto.subtle.generateKey(algorithm, true, [
+            "encrypt",
+            "decrypt",
+            "wrapKey",
+            "unwrapKey",
+        ]);
+
+        let exportedPublicKey = await window.crypto.subtle.exportKey("jwk", key.publicKey);
+        println(`exportedPublicKey kwt: ${exportedPublicKey.kty}`);
+        println(`exportedPublicKey alg: ${exportedPublicKey.alg}`);
+        println(`exportedPublicKey exponent: ${exportedPublicKey.e}`);
+        println(`exportedPublicKey key_ops: ${exportedPublicKey.key_ops}`);
+        println(`exportedPublicKey ext: ${exportedPublicKey.ext}`);
+
+        let exportedPrivateKey = await window.crypto.subtle.exportKey("jwk", key.privateKey);
+        println(`exportedPrivateKey kwt: ${exportedPrivateKey.kty}`);
+        println(`exportedPrivateKey alg: ${exportedPrivateKey.alg}`);
+        println(`exportedPrivateKey exponent: ${exportedPrivateKey.e}`);
+        println(`exportedPrivateKey key_ops: ${exportedPrivateKey.key_ops}`);
+        println(`exportedPrivateKey ext: ${exportedPrivateKey.ext}`);
+
+        let exportedPublicKey2 = await window.crypto.subtle.exportKey("spki", key.publicKey);
+        println(`FIXME: exportedPublicKey2: ${bufferToHex(exportedPublicKey2)}`);
+
+        try {
+            let exportedPrivateKey2 = await window.crypto.subtle.exportKey("spki", key.privateKey);
+            println("FAIL: Shouldn't be able to export private key as spki");
+        } catch (e) {
+            println(`exportKey spki private key: ${e.name} ${e.message}`);
+        }
+
+        done();
+    });
+</script>

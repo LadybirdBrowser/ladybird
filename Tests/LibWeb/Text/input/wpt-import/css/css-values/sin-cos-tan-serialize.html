@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#trig-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-serialize">
+<link rel="author" title="Apple Inc">
+<link rel="author" title="Seokho Song" href="seokho@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+<div id=target></div>
+<script>
+function test_serialization(specified, expected, approx = false) {
+    let options = {type: "number"};
+    if (approx) {
+        options.approx = 1e-6;
+    }
+    test_math_specified(specified, `calc(${expected})`, options);
+    test_math_computed(specified, expected == "NaN" ? "0" : expected, options);
+    test_math_used(specified, expected == "NaN" ? "0" : expected, options);
+}
+//test case, expected, approx
+var test_array = [
+    ["cos(0)"                                           , "1"],
+    ["sin(0)"                                           , "0"],
+    ["tan(0)"                                           , "0"],
+    ["calc(sin(0) + 0.5)"                               , "0.5"],
+    ["calc(sin(0) + cos(0) + tan(0))"                   , "1"],
+    ["calc(cos(0) + 0.5)"                               , "1.5"],
+    ["calc(tan(0) + 0.5)"                               , "0.5"],
+    ["cos(0deg)"                                        , "1"],
+    ["sin(0deg)"                                        , "0"],
+    ["tan(0deg)"                                        , "0"],
+    ["sin(30deg)"                                       , "0.5"],
+    ["sin(0.523599)"                                    , "0.5"],
+    ["sin(0.523599rad)"                                 , "0.5"],
+    ["sin(33.333333grad)"                               , "0.5"],
+    ["sin(0.08333333turn)"                              , "0.5"],
+    ["cos(60deg)"                                       , "0.5"],
+    ["cos(66.66666666grad)"                             , "0.5"],
+    ["cos(1.047197551)"                                 , "0.5"],
+    ["cos(1.047197551rad)"                              , "0.5"],
+    ["cos(0.16666666666turn)"                           , "0.5"],
+    ["tan(45deg)"                                       , "1"],
+    ["tan(50grad)"                                      , "1"],
+    ["tan(0.78539816)"                                  , "1"],
+    ["tan(0.78539816rad)"                               , "1"],
+    ["tan(0.125turn)"                                   , "1"],
+    ["sin(180deg)"                                      , "0", true],
+    ["cos(180deg)"                                      , "-1"],
+    ["tan(180deg)"                                      , "0", true],
+    ["sin(270deg)"                                      , "-1"],
+    ["cos(270deg)"                                      , "0", true],
+    ["sin(-180deg)"                                     , "0", true],
+    ["cos(-180deg)"                                     , "-1"],
+    ["tan(-180deg)"                                     , "0", true],
+    ["sin(-270deg)"                                     , "1"],
+    ["cos(-270deg)"                                     , "0", true],
+    ["calc(sin(30deg) + cos(60deg) + tan(45deg))"       , "2"],
+    ["calc(sin(infinity))"                              , "NaN"],
+    ["calc(cos(infinity))"                              , "NaN"],
+    ["calc(tan(infinity))"                              , "NaN"],
+    ["calc(sin(-infinity))"                             , "NaN"],
+    ["calc(cos(-infinity))"                             , "NaN"],
+    ["calc(tan(-infinity))"                             , "NaN"],
+    ["calc(sin(NaN))"                                   , "NaN"],
+    ["calc(cos(NaN))"                                   , "NaN"],
+    ["calc(tan(NaN))"                                   , "NaN"],
+];
+
+for (let [test, expected, approx] of test_array) {
+    test_serialization(test, expected, approx);
+    test_serialization(`calc(${test})`, expected, approx);
+}
+
+</script>

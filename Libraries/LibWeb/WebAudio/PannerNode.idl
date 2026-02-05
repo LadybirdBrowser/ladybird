@@ -1,0 +1,56 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/AudioParam.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#enumdef-panningmodeltype
+enum PanningModelType {
+    "equalpower",
+    "HRTF"
+};
+
+// https://webaudio.github.io/web-audio-api/#enumdef-distancemodeltype
+enum DistanceModelType {
+    "linear",
+    "inverse",
+    "exponential"
+};
+
+// https://webaudio.github.io/web-audio-api/#PannerOptions
+dictionary PannerOptions : AudioNodeOptions {
+    PanningModelType panningModel = "equalpower";
+    DistanceModelType distanceModel = "inverse";
+    float positionX = 0;
+    float positionY = 0;
+    float positionZ = 0;
+    float orientationX = 1;
+    float orientationY = 0;
+    float orientationZ = 0;
+    double refDistance = 1;
+    double maxDistance = 10000;
+    double rolloffFactor = 1;
+    double coneInnerAngle = 360;
+    double coneOuterAngle = 360;
+    double coneOuterGain = 0;
+};
+
+// https://webaudio.github.io/web-audio-api/#PannerNode
+[Exposed=Window]
+interface PannerNode : AudioNode {
+    constructor(BaseAudioContext context, optional PannerOptions options = {});
+    attribute PanningModelType panningModel;
+    readonly attribute AudioParam positionX;
+    readonly attribute AudioParam positionY;
+    readonly attribute AudioParam positionZ;
+    readonly attribute AudioParam orientationX;
+    readonly attribute AudioParam orientationY;
+    readonly attribute AudioParam orientationZ;
+    attribute DistanceModelType distanceModel;
+    attribute double refDistance;
+    attribute double maxDistance;
+    attribute double rolloffFactor;
+    attribute double coneInnerAngle;
+    attribute double coneOuterAngle;
+    attribute double coneOuterGain;
+    undefined setPosition(float x, float y, float z);
+    undefined setOrientation(float x, float y, float z);
+};

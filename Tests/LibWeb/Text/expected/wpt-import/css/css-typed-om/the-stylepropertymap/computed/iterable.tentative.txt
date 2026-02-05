@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	StylePropertyMap iterates properties in correct order
+Fail	StylePropertyMap iterator returns CSS properties with the correct CSSStyleValue
+Fail	StylePropertyMap iterator returns list-valued properties with the correct CSSStyleValue
+Fail	StylePropertyMap iterator returns custom properties with the correct CSSStyleValue
+Fail	Computed StylePropertyMap sorts custom properties in increasing code-point order

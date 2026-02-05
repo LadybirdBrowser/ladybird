@@ -1,0 +1,9 @@
+<!doctype html>
+<script src="../include.js"></script>
+<input id="myInput">
+<script>
+    test(() => {
+        println(myInput.shadowRoot);
+        println(internals.getShadowRoot(myInput));
+    });
+</script>

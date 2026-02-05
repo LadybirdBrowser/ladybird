@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Values and Units Test: signed zero</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#math">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-ieee">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<meta name="assert" content="Checks that a bunch of calculations produce the correct zero (+0 or -0)">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+<div id="target"></div>
+<script>
+function test_zero(expression, { is_negative }) {
+  test_math_used(`sign(${expression})`, '0', { type: 'integer' });
+  // to test zero sign, make it to negative infinity and clamp it between -1 and 1
+  test_math_used(
+    `clamp(-1, 1 / sign(${expression}), 1)`,
+    (is_negative)? '-1' : '1',
+    { type: 'integer' },
+  );
+}
+
+test_zero('calc(-0)', { is_negative: true });
+test_zero('calc( 0)', { is_negative: false });
+
+test_zero('calc(-0 * -1)', { is_negative: false });
+test_zero('calc(-0 *  1)', { is_negative: true });
+test_zero('calc( 0 * -1)', { is_negative: true });
+test_zero('calc( 0 *  1)', { is_negative: false });
+
+test_zero('calc(-1 / -infinity)', { is_negative: false });
+test_zero('calc(-1 /  infinity)', { is_negative: true });
+test_zero('calc( 1 / -infinity)', { is_negative: true });
+test_zero('calc( 1 /  infinity)', { is_negative: false });
+
+test_zero('calc(-0 + -0)', { is_negative: true });
+test_zero('calc(-0 +  0)', { is_negative: false });
+test_zero('calc( 0 + -0)', { is_negative: false });
+test_zero('calc( 0 +  0)', { is_negative: false });
+
+test_zero('calc(-0 - -0)', { is_negative: false });
+test_zero('calc(-0 -  0)', { is_negative: true });
+test_zero('calc( 0 - -0)', { is_negative: false });
+test_zero('calc( 0 -  0)', { is_negative: false });
+
+test_zero('min(-0,  0)', { is_negative: true });
+test_zero('min( 0, -0)', { is_negative: true });
+
+test_zero('max(-0,  0)', { is_negative: false });
+test_zero('max( 0, -0)', { is_negative: false });
+
+test_zero('clamp(-0, -1, -0)', { is_negative: true });
+test_zero('clamp(-0, -0, -0)', { is_negative: true });
+test_zero('clamp(-0,  0, -0)', { is_negative: true });
+test_zero('clamp(-0,  1, -0)', { is_negative: true });
+
+test_zero('clamp(-0, -1, 0)', { is_negative: true });
+test_zero('clamp(-0, -0, 0)', { is_negative: true });
+test_zero('clamp(-0,  0, 0)', { is_negative: false });
+test_zero('clamp(-0,  1, 0)', { is_negative: false });
+
+test_zero('clamp(0, -1, -0)', { is_negative: false });
+test_zero('clamp(0, -0, -0)', { is_negative: false });
+test_zero('clamp(0,  0, -0)', { is_negative: false });
+test_zero('clamp(0,  1, -0)', { is_negative: false });
+
+test_zero('round(nearest, -1, infinity)', { is_negative: true });
+test_zero('round(nearest, -0, infinity)', { is_negative: true });
+test_zero('round(nearest,  0, infinity)', { is_negative: false });
+test_zero('round(nearest,  1, infinity)', { is_negative: false });
+
+test_zero('round(up, -1, infinity)', { is_negative: true });
+test_zero('round(up, -0, infinity)', { is_negative: true });
+test_zero('round(up,  0, infinity)', { is_negative: false });
+
+test_zero('round(down, -0, infinity)', { is_negative: true });
+test_zero('round(down,  0, infinity)', { is_negative: false });
+test_zero('round(down,  1, infinity)', { is_negative: false });
+
+test_zero('mod(-1, -1)', { is_negative: true });
+test_zero('mod(-1,  1)', { is_negative: false });
+test_zero('mod( 1, -1)', { is_negative: true });
+test_zero('mod( 1,  1)', { is_negative: false });
+
+test_zero('rem(-1, -1)', { is_negative: true });
+test_zero('rem(-1,  1)', { is_negative: true });
+test_zero('rem( 1, -1)', { is_negative: false });
+test_zero('rem( 1,  1)', { is_negative: false });
+
+test_zero('asin(-0)', { is_negative: true });
+test_zero('asin( 0)', { is_negative: false });
+
+test_zero('atan(-0)', { is_negative: true });
+test_zero('atan( 0)', { is_negative: false });
+
+test_zero('atan2(-0, 0)', { is_negative: true });
+test_zero('atan2(-0, 1)', { is_negative: true });
+test_zero('atan2(-0, infinity)', { is_negative: true });
+
+test_zero('atan2(0, 0)', { is_negative: false });
+test_zero('atan2(0, 1)', { is_negative: false });
+test_zero('atan2(0, infinity)', { is_negative: false });
+
+test_zero('atan2(-1, infinity)', { is_negative: true });
+test_zero('atan2( 1, infinity)', { is_negative: false });
+
+test_zero('pow(-infinity, -2)', { is_negative: false });
+test_zero('pow(-infinity, -1)', { is_negative: true });
+
+test_zero('pow(-0, 1)', { is_negative: true });
+test_zero('pow(-0, 2)', { is_negative: false });
+
+test_zero('pow(0, 1)', { is_negative: false });
+test_zero('pow(0, 2)', { is_negative: false });
+
+test_zero('pow(infinity, -2)', { is_negative: false });
+test_zero('pow(infinity, -1)', { is_negative: false });
+
+test_zero('sqrt(-0)', { is_negative: true });
+test_zero('sqrt( 0)', { is_negative: false });
+
+test_zero('hypot(-0)', { is_negative: false });
+test_zero('hypot( 0)', { is_negative: false });
+
+test_zero('exp(-infinity)', { is_negative: false });
+
+test_zero('abs(-0)', { is_negative: false });
+test_zero('abs( 0)', { is_negative: false });
+
+test_zero('sign(-0)', { is_negative: true });
+test_zero('sign( 0)', { is_negative: false });
+</script>

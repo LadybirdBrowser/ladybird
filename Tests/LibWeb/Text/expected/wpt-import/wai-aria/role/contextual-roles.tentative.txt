@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	role is sectionfooter (in main)
+Pass	role is sectionheader (in main)

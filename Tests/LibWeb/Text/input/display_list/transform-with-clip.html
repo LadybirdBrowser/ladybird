@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        width: 150px;
+        height: 150px;
+        overflow: hidden;
+        border: 2px solid black;
+    }
+    .transformed {
+        width: 200px;
+        height: 200px;
+        background: lightgreen;
+        transform: translate(20px, 20px);
+    }
+</style>
+<div class="container">
+    <div class="transformed">Clipped + Transformed</div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

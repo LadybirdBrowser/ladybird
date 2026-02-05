@@ -1,0 +1,12 @@
+shared_library("LibThreading") {
+  output_name = "threading"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "BackgroundAction.cpp",
+    "Thread.cpp",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+  ]
+}

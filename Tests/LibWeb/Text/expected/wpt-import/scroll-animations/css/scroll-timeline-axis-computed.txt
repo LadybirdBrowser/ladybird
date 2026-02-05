@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Property scroll-timeline-axis value 'initial'
+Pass	Property scroll-timeline-axis value 'inherit'
+Pass	Property scroll-timeline-axis value 'unset'
+Pass	Property scroll-timeline-axis value 'revert'
+Pass	Property scroll-timeline-axis value 'block'
+Pass	Property scroll-timeline-axis value 'inline'
+Pass	Property scroll-timeline-axis value 'y'
+Pass	Property scroll-timeline-axis value 'x'
+Pass	Property scroll-timeline-axis value 'block, inline'
+Pass	Property scroll-timeline-axis value 'inline, block'
+Pass	Property scroll-timeline-axis value 'block, y, x, inline'
+Pass	Property scroll-timeline-axis value 'inline, inline, inline, inline'
+Pass	The scroll-timeline-axis property shows up in CSSStyleDeclaration enumeration
+Pass	The scroll-timeline-axis property shows up in CSSStyleDeclaration.cssText

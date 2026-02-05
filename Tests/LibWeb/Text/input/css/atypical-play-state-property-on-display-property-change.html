@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+
+<style>
+    @keyframes anim {
+        from {
+            left: 0;
+        }
+        to {
+            left: 100px;
+        }
+    }
+
+    .test {
+        display: none;
+    }
+
+    #foo-parent {
+        animation-play-state: paused;
+    }
+
+    #foo {
+        animation: 1s anim;
+        animation-play-state: inherit;
+    }
+
+    #bar {
+        animation: invalid-anim, 1s anim paused;
+    }
+
+    #baz {
+        --paused: paused;
+        animation: 1s anim;
+        animation-play-state: var(--paused);
+    }
+</style>
+<div id="foo-parent"><div id="foo" class="test"></div></div>
+<div id="bar" class="test"></div>
+<div id="baz" class="test"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const element of document.getElementsByClassName("test")) {
+            const id = element.id;
+            element.style.display = "block";
+
+            const animations = element.getAnimations();
+
+            if (animations.length != 1) {
+                println(id + ": FAIL! Expected an animation");
+                continue;
+            }
+
+            if (animations[0].playState != "paused") {
+                println(id + ": FAIL! Expected animation to be paused");
+                continue;
+            }
+
+            println(id + ": PASS!");
+        }
+    });
+</script>

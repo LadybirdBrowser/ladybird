@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Test innerText/outerText for a combination of a list item with ::first-letter in multicol

@@ -1,0 +1,87 @@
+<!doctype html>
+<title>CSS Selectors parsing</title>
+<link rel="author" title="Adam Argyle" href="mailto:argyle@google.com">
+<link rel="author" title="Tab Atkins-Bittner" href="https://tabatkins.com/contact/">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style id="test-sheet"></style>
+<script>
+  let [ss] = document.styleSheets
+
+  function resetStylesheet() {
+    while (ss.rules.length)
+      ss.removeRule(0)
+  }
+
+  function testNestedSelector(sel, {expected=sel, parent=".foo"}={}) {
+    resetStylesheet();
+    const ruleText = `${parent} { ${sel} { color: green; }}`
+    test(()=>{
+      ss.insertRule(ruleText);
+      assert_equals(ss.rules.length, 1, "Outer rule should exist.");
+      const rule = ss.rules[0];
+      assert_equals(rule.cssRules.length, 1, "Inner rule should exist.");
+      const innerRule = rule.cssRules[0];
+      assert_equals(innerRule.selectorText, expected, `Inner rule's selector should be "${expected}".`);
+    }, ruleText);
+  }
+
+  function testInvalidNestingSelector(sel, {parent=".foo"}={}) {
+    resetStylesheet();
+    const ruleText = `${parent} { ${sel} { color: green; }}`
+    test(()=>{
+      ss.insertRule(ruleText);
+      assert_equals(ss.rules.length, 1, "Outer rule should exist.");
+      const rule = ss.rules[0];
+      assert_equals(rule.cssRules.length, 0, "Inner rule should not exist.");
+    }, "INVALID: " + ruleText);
+  }
+
+  // basic usage
+  testNestedSelector("&");
+  testNestedSelector("&.bar");
+  testNestedSelector("& .bar");
+  testNestedSelector("& > .bar");
+
+  // relative selector
+  testNestedSelector("> .bar", {expected:"& > .bar"});
+  testNestedSelector("> & .bar", {expected:"& > & .bar"});
+  testNestedSelector("+ .bar &", {expected:"& + .bar &"});
+  testNestedSelector("+ .bar, .foo, > .baz", {expected:"& + .bar, & .foo, & > .baz"});
+
+  // implicit relative (and not)
+  testNestedSelector(".foo", {expected:"& .foo"});
+  testNestedSelector(".test > & .bar");
+  testNestedSelector(".foo, .foo &", {expected:"& .foo, .foo &"});
+  testNestedSelector(".foo, .bar", {expected:"& .foo, & .bar"});
+  testNestedSelector(":is(.bar, .baz)", {expected:"& :is(.bar, .baz)"});
+  testNestedSelector("&:is(.bar, .baz)");
+  testNestedSelector(":is(.bar, &.baz)");
+  testNestedSelector("&:is(.bar, &.baz)");
+
+  // Mixing nesting selector with other simple selectors
+  testNestedSelector("div&");
+  testInvalidNestingSelector("&div"); // type selector must be first
+  testNestedSelector(".class&");
+  testNestedSelector("&.class");
+  testNestedSelector("[attr]&");
+  testNestedSelector("&[attr]");
+  testNestedSelector("#id&");
+  testNestedSelector("&#id");
+  testNestedSelector(":hover&");
+  testNestedSelector("&:hover");
+  testNestedSelector(":is(div)&");
+  testNestedSelector("&:is(div)");
+
+  // Multiple nesting selectors
+  testNestedSelector("& .bar & .baz & .qux");
+  testNestedSelector("&&");
+
+  // Selector list in inner rule
+  testNestedSelector("& > section, & > article");
+
+  // Selector list in both inner and outer rule.
+  testNestedSelector("& + .baz, &.qux", {parent:".foo, .bar"});
+</script>

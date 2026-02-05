@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/scrollable-overflow-viewport-bug.html">
+<style>
+  #child {
+    position: absolute;
+    top: 150vh;
+    width: 100px;
+    height: 100px;
+  }
+
+  #holder {
+    position: absolute;
+    overflow: hidden;
+  }
+</style>
+
+<div id="holder"></div>
+<script>
+  const child = document.createElement("div");
+  child.id = "child";
+  holder.appendChild(child);
+</script>

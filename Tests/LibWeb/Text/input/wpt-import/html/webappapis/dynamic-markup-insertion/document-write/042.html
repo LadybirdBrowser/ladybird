@@ -1,0 +1,16 @@
+<!doctype html>
+<title>document.write entity</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  document.write("<body><span>&not");
+});
+</script>in;abc</span>
+<script>
+t.step(function() {
+  assert_equals(document.body.childNodes[0].textContent, "\u2209abc");
+})
+t.done();
+</script>
+<div id="log"></div>

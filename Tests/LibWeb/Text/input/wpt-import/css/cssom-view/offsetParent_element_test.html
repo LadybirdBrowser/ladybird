@@ -1,0 +1,182 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>CSSOM View —— offsetParent element test</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="author" title="neo_and_rayi" href="mailto:1988wangxiao@gmail.com">
+<link rel="help" href="http://www.w3.org/TR/cssom-view/#extensions-to-the-htmlelement-interface">
+<link rel="help" href="http://www.w3.org/TR/cssom-view/#dom-htmlelement-offsetparent">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#fixed {
+    position: fixed;
+}
+
+#none-element {
+    display:none;
+}
+
+#relative-element {
+    position: relative;
+}
+
+#absolute-element {
+    position: absolute;
+}
+
+#transform-element {
+    transform: translateX(10px);
+}
+
+#perspective-element {
+    perspective: 10px;
+}
+
+#transform-style-preserve-3d-element {
+    transform-style: preserve-3d;
+}
+
+#filter-element {
+    filter: opacity(25%);
+}
+
+#contain-paint-element {
+    contain: paint;
+}
+</style>
+
+</head>
+<body>
+
+<div id="body-element-child"></div>
+
+<div id="relative-element">
+    <div id="relative-element-child"></div>
+</div>
+
+<div id="absolute-element">
+    <div id="absolute-element-child"></div>
+</div>
+
+<div id="transform-element">
+    <div id="transform-element-child"></div>
+</div>
+
+<div id="transform-style-preserve-3d-element">
+    <div id="transform-style-preserve-3d-element-child"></div>
+</div>
+
+<div id="perspective-element">
+    <div id="perspective-element-child"></div>
+</div>
+
+<div id="contain-paint-element">
+    <div id="contain-paint-element-child"></div>
+</div>
+
+<table id="table-element">
+    <caption>
+        <div id="caption-element-child"></div>
+    </caption>
+
+    <tbody>
+    <tr id="table-element-tr">
+        <td id="table-element-td">
+            <span id="table-element-child"></span>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<div id="none-element">
+    <a href="#" id="none-element-child-a"></a>
+    <p id="none-element-child-p"></p>
+    <video id="none-element-child-video"></video>
+    <audio id="none-element-child-audio"></audio>
+    <canvas id="none-element-child-canvas"></canvas>
+    <svg id="none-element-child-svg"></svg>
+</div>
+
+<div id="fixed">
+</div>
+
+<div id="log"></div>
+<script type="text/javascript">
+var getStyle = window.getComputedStyle;
+var html = document.documentElement;
+var body = document.body;
+var fixed_element = document.getElementById('fixed');
+var none_element = document.getElementById('none-element');
+
+var none_element_child_a = document.getElementById('none-element-child-a');
+var none_element_child_p = document.getElementById('none-element-child-p');
+var none_element_child_video = document.getElementById('none-element-child-video');
+var none_element_child_audio = document.getElementById('none-element-child-audio');
+var none_element_child_canvas = document.getElementById('none-element-child-canvas');
+var none_element_child_svg = document.getElementById('none-element-child-svg');
+
+var relative_element = document.getElementById('relative-element');
+var absolute_element = document.getElementById('absolute-element');
+var td_element = document.getElementsByTagName('td')[0];
+
+var body_element_child = document.getElementById('body-element-child');
+var relative_element_child = document.getElementById('relative-element-child');
+var absolute_element_child = document.getElementById('absolute-element-child');
+var table_element_child = document.getElementById('table-element-child');
+
+var caption_element_child = document.getElementById('caption-element-child');
+var table_element_tr = document.getElementById('table-element-tr');
+var table_element = document.getElementById('table-element');
+
+// The offsetParent attribute algorithm rule checking passed!
+test(function() {
+    assert_equals(html.offsetParent,null);
+    assert_equals(body.offsetParent,null);
+    assert_equals(fixed_element.offsetParent,null);
+    assert_equals(none_element.offsetParent,null);
+    assert_equals(none_element_child_a.offsetParent,null);
+    assert_equals(none_element_child_p.offsetParent,null);
+    assert_equals(none_element_child_video.offsetParent,null);
+    assert_equals(none_element_child_audio.offsetParent,null);
+    assert_equals(none_element_child_canvas.offsetParent,null);
+    assert_equals(none_element_child_svg.offsetParent,undefined);
+}, "Valid the algorithm rule of offsetParent check step 1");
+
+// The offsetParent attribute algorithm rule checking passed!
+test(function() {
+    assert_equals(body_element_child.offsetParent,body);
+    assert_equals(window.getComputedStyle(relative_element).position,'relative');
+    assert_equals(relative_element_child.offsetParent,relative_element);
+    assert_equals(window.getComputedStyle(absolute_element).position,'absolute');
+    assert_equals(absolute_element_child.offsetParent,absolute_element);
+    assert_equals(window.getComputedStyle(td_element).position,'static');
+    assert_equals(table_element_child.offsetParent,td_element);
+    assert_equals(window.getComputedStyle(table_element_tr).position,'static');
+    assert_equals(table_element_tr.offsetParent,table_element);
+    assert_equals(window.getComputedStyle(caption_element_child).position,'static');
+    assert_equals(caption_element_child.offsetParent,table_element);
+    assert_equals(window.getComputedStyle(td_element).position,'static');
+    assert_equals(td_element.offsetParent,table_element);
+
+    let transform_element = document.getElementById('transform-element');
+    assert_equals(transform_element.children[0].offsetParent, transform_element);
+
+    let perspective_element = document.getElementById('perspective-element');
+    assert_equals(perspective_element.children[0].offsetParent, perspective_element);
+
+    let transform_style_preserve_3d_element = document.getElementById('transform-style-preserve-3d-element');
+    assert_equals(transform_style_preserve_3d_element.children[0].offsetParent,
+                  transform_style_preserve_3d_element);
+
+    let contain_paint_element = document.getElementById('contain-paint-element');
+    assert_equals(contain_paint_element.children[0].offsetParent, contain_paint_element);
+
+
+}, "Valid the algorithm rule of offsetParent check step 2");
+
+</script>
+
+</body>
+</html>

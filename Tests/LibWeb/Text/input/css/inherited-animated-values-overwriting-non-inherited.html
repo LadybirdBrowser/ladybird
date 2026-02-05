@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        @keyframes fooAnim {
+            from,
+            to {
+                color: red;
+            }
+        }
+
+        #foo {
+            animation: fooAnim 1s infinite;
+        }
+
+        @keyframes barAnim {
+            from,
+            to {
+                color: green;
+            }
+        }
+
+        #bar {
+            animation: barAnim 1s infinite;
+        }
+    </style>
+    <div id="foo"><div id="bar"></div></div>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest(done => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    // Trigger recomputation of inherited style for #bar
+                    foo.style.fontSize = "20px";
+
+                    println(getComputedStyle(bar).color);
+                    done();
+                });
+            });
+        });
+    </script>
+</html>

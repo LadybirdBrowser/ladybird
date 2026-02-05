@@ -1,0 +1,67 @@
+<!doctype html>
+<title>::part():disabled grouping</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/">
+<style>
+  my-element::part(button) {
+    font-family: fantasy;
+    background-color: #ff0000;
+  }
+  #grouped {
+    color: #ff0000;
+  }
+  my-element::part(button):disabled {
+    background-color: #00ff00;
+  }
+  my-element::part(button):disabled,
+  #grouped {
+    color: #00ff00;
+  }
+  my-element::part(not-a-part):disabled,
+  #grouped {
+    font-family: monospace;
+  }
+</style>
+<body>
+  <my-element id="subject"></my-element>
+  <p id="grouped">Text</p>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script>
+    const RED = "rgb(255, 0, 0)";
+    const GREEN = "rgb(0, 255, 0)";
+    customElements.define(
+      "my-element",
+      class MyElement extends HTMLElement {
+        connectedCallback() {
+          this.attachShadow({
+            mode: "open",
+          }).innerHTML = `
+              <button part="button" disabled>Test</button>
+            `;
+          this.elementInternals = this.attachInternals();
+        }
+
+        get inner() {
+          return this.shadowRoot.querySelector("[part=button]");
+        }
+      },
+    );
+
+    test(() => {
+        assert_equals(getComputedStyle(subject.inner).fontFamily, 'fantasy');
+    }, "Styles applied to ::part(...)");
+
+    test(() => {
+        assert_equals(getComputedStyle(subject.inner).backgroundColor, GREEN);
+    }, "Styles applied to ::part(...):disabled");
+
+    test(() => {
+        assert_equals(getComputedStyle(subject.inner).color, GREEN);
+        assert_equals(getComputedStyle(grouped).color, GREEN);
+    }, "Styles applied via grouped selector including matched ::part(...):disabled");
+
+    test(() => {
+        assert_equals(getComputedStyle(grouped).fontFamily, 'monospace');
+    }, "Styles applied via grouped selector including unmatched ::part(...):disabled");
+  </script>
+</body>

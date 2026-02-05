@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout Module Level 1: parsing flex-basis with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex-basis">
+<meta name="assert" content="flex-basis supports the full grammar 'content | <‘width’>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("flex-basis", "1px");
+test_valid_value("flex-basis", "calc(2em + 3ex)");
+test_valid_value("flex-basis", "400%");
+test_valid_value("flex-basis", "auto");
+test_valid_value("flex-basis", "fit-content");
+test_valid_value("flex-basis", "min-content");
+test_valid_value("flex-basis", "max-content");
+test_valid_value("flex-basis", "content");
+</script>
+</body>
+</html>

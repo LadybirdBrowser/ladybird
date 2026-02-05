@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: Supported properties in ::marker animations</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#marker-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-animations-1/#keyframes">
+<link rel="help" href="https://drafts.csswg.org/css-transitions-1/#transitions">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<meta name="assert" content="This test checks ::marker supports animations and transitions, but only for the properties that apply to ::marker." />
+<style id="style"></style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<ul>
+  <li id="target">target</li>
+</ul>
+<script>
+const interpolationTests = [
+  // ::marker supports all font properties.
+  {
+    property: "font",
+    from: "oblique normal 100 ultra-condensed 5px / 20px serif",
+    to: "italic small-caps 900 ultra-expanded 25px / 50px Ahem",
+    midPoint: ["italic small-caps 500 expanded 15px / 35px Ahem", "italic small-caps 500 expanded 15px/35px Ahem"],
+  },
+  {
+    property: "font-family",
+    from: "serif",
+    to: "Ahem",
+    midPoint: "Ahem",
+  },
+  {
+    property: "font-feature-settings",
+    from: "'c2sc'",
+    to: "'smcp'",
+    midPoint: "\"smcp\"",
+  },
+  {
+    property: "font-kerning",
+    from: "normal",
+    to: "none",
+    midPoint: "none",
+  },
+  {
+    property: "font-size",
+    from: "5px",
+    to: "25px",
+    midPoint: "15px",
+  },
+  {
+    property: "font-size-adjust",
+    from: "1",
+    to: "3",
+    midPoint: "2",
+  },
+  {
+    property: "font-stretch",
+    from: "ultra-condensed",
+    to: "ultra-expanded",
+    midPoint: ["expanded", "125%"],
+  },
+  {
+    property: "font-style",
+    from: "oblique",
+    to: "italic",
+    midPoint: "italic",
+  },
+  {
+    property: "font-synthesis",
+    from: "weight",
+    to: "none",
+    midPoint: "none",
+  },
+  {
+    property: "font-synthesis-small-caps",
+    from: "auto",
+    to: "none",
+    midPoint: "none",
+  },
+  {
+    property: "font-synthesis-style",
+    from: "auto",
+    to: "none",
+    midPoint: "none",
+  },
+  {
+    property: "font-synthesis-weight",
+    from: "auto",
+    to: "none",
+    midPoint: "none",
+  },
+  {
+    property: "font-variant",
+    from: "unicase",
+    to: "small-caps",
+    midPoint: "small-caps",
+  },
+  {
+    property: "font-variant-caps",
+    from: "unicase",
+    to: "small-caps",
+    midPoint: "small-caps",
+  },
+  {
+    property: "font-variant-east-asian",
+    from: "proportional-width",
+    to: "full-width",
+    midPoint: "full-width",
+  },
+  {
+    property: "font-variant-ligatures",
+    from: "no-historical-ligatures",
+    to: "historical-ligatures",
+    midPoint: "historical-ligatures",
+  },
+  {
+    property: "font-variant-numeric",
+    from: "ordinal",
+    to: "slashed-zero",
+    midPoint: "slashed-zero",
+  },
+  {
+    property: "font-variant-position",
+    from: "super",
+    to: "sub",
+    midPoint: "sub",
+  },
+  {
+    property: "font-weight",
+    from: "100",
+    to: "900",
+    midPoint: "500",
+  },
+
+  // `line-height` is not a font property but is a longhand of `font`, and is also supported.
+  {
+    property: "line-height",
+    from: "20px",
+    to: "50px",
+    midPoint: "35px",
+  },
+
+  // ::marker supports `white-space`
+  {
+    property: "white-space",
+    from: "pre-line",
+    to: "nowrap",
+    midPoint: "nowrap",
+  },
+
+  // ::marker supports `color`
+  {
+    property: "color",
+    from: "rgb(0, 100, 200)",
+    to: "rgb(100, 200, 0)",
+    midPoint: "rgb(50, 150, 100)",
+  },
+
+  // ::marker supports `text-combine-upright`, `unicode-bidi` and `direction`,
+  // but they are not animatable.
+  {
+    property: "text-combine-upright",
+    from: "all",
+    to: "all",
+    midPoint: null,
+  },
+  {
+    property: "unicode-bidi",
+    from: "embed",
+    to: "plaintext",
+    midPoint: null,
+  },
+  {
+    property: "direction",
+    from: "rtl",
+    to: "rtl",
+    midPoint: null,
+  },
+
+  // ::marker supports `content`
+  {
+    property: "content",
+    from: "'foo'",
+    to: "'bar'",
+    midPoint: "\"bar\"",
+  },
+
+  // ::marker supports text properties.
+  {
+    property: "hyphens",
+    from: "manual",
+    to: "none",
+    midPoint: "none",
+  },
+  {
+    property: "letter-spacing",
+    from: "0px",
+    to: "20px",
+    midPoint: "10px",
+  },
+  {
+    property: "line-break",
+    from: "strict",
+    to: "anywhere",
+    midPoint: "anywhere",
+  },
+  {
+    property: "overflow-wrap",
+    from: "break-word",
+    to: "anywhere",
+    midPoint: "anywhere",
+  },
+  {
+    property: "tab-size",
+    from: "0px",
+    to: "20px",
+    midPoint: "10px",
+  },
+  {
+    property: "text-transform",
+    from: "lowercase",
+    to: "uppercase",
+    midPoint: "uppercase",
+  },
+  {
+    property: "word-break",
+    from: "break-all",
+    to: "break-word",
+    midPoint: "break-word",
+  },
+  {
+    property: "word-spacing",
+    from: "0px",
+    to: "20px",
+    midPoint: "10px",
+  },
+
+  // ::marker supports inherited text decoration properties.
+  {
+    property: "text-decoration-skip-ink",
+    from: "auto",
+    to: "none",
+    midPoint: "none",
+  },
+  {
+    property: "text-emphasis",
+    from: "dot rgb(0, 200, 0)",
+    to: "triangle rgb(100, 0, 200)",
+    midPoint: "triangle rgb(50, 100, 100)",
+  },
+  {
+    property: "text-emphasis-color",
+    from: "rgb(0, 200, 0)",
+    to: "rgb(100, 0, 200)",
+    midPoint: "rgb(50, 100, 100)",
+  },
+  {
+    property: "text-emphasis-position",
+    from: "over right",
+    to: "under left",
+    midPoint: "under left",
+  },
+  {
+    property: "text-emphasis-style",
+    from: "filled dot",
+    to: "filled triangle",
+    midPoint: "triangle",
+  },
+  {
+    property: "text-shadow",
+    from: "rgb(0, 200, 0) 1px 2px 3px",
+    to: "rgb(100, 0, 200) 3px 2px 1px",
+    midPoint: "rgb(50, 100, 100) 2px 2px 2px",
+  },
+
+  // ::marker supports `cursor`.
+  {
+    property: "cursor",
+    from: "auto",
+    to: "move",
+    midPoint: "move",
+  },
+
+  // ::marker does NOT support layout properties
+  {
+    property: "display",
+    from: "flex",
+    to: "none",
+    midPoint: ["block", "inline", "inline-block"],
+  },
+  {
+    property: "position",
+    from: "fixed",
+    to: "absolute",
+    midPoint: "static",
+  },
+  {
+    property: "float",
+    from: "left",
+    to: "right",
+    midPoint: "none",
+  },
+
+  // ::marker does NOT support list properties despite being affected by them,
+  // they apply to the list item instead.
+  {
+    property: "list-style",
+    from: "inside url('foo') square",
+    to: "inside url('bar') decimal",
+    midPoint: "outside none disc",
+  },
+  {
+    property: "list-style-image",
+    from: "url('foo')",
+    to: "url('bar')",
+    midPoint: "none",
+  },
+  {
+    property: "list-style-position",
+    from: "inside",
+    to: "inside",
+    midPoint: "outside",
+  },
+  {
+    property: "list-style-type",
+    from: "square",
+    to: "decimal",
+    midPoint: "disc",
+  },
+];
+
+const target = document.getElementById("target");
+const styleElement = document.getElementById("style");
+const markerStyle = getComputedStyle(target, "::marker");
+
+function check({property, from, to, midPoint}) {
+  assert_true(property in markerStyle, property + " doesn't seem to be supported in the computed style");
+  assert_true(CSS.supports(property, from), `'${from}' is a supported value for ${property}.`);
+  assert_true(CSS.supports(property, to), `'${to}' is a supported value for ${property}.`);
+  const computed = markerStyle.getPropertyValue(property);
+  if (Array.isArray(midPoint)) {
+    assert_in_array(computed, midPoint);
+  } else {
+    assert_equals(computed, midPoint);
+  }
+}
+
+function testAnimations(interpolationTests) {
+  styleElement.textContent = `
+    ::marker {
+      animation: anim 2s -1s paused linear;
+    }
+    @keyframes anim {
+      from {}
+      to {}
+    }
+  `;
+  const keyframes = styleElement.sheet.cssRules[1];
+  const fromStyle = keyframes.cssRules[0].style;
+  const toStyle = keyframes.cssRules[1].style;
+  for (let {property, from, to, midPoint} of interpolationTests) {
+    fromStyle.cssText = "";
+    toStyle.cssText = "";
+    if (midPoint == null) {
+      midPoint = markerStyle.getPropertyValue(property);
+    }
+    fromStyle.setProperty(property, from);
+    toStyle.setProperty(property, to);
+    test(() => {
+      check({property, from, to, midPoint});
+    }, `Animation of ${property} in ::marker`);
+  }
+}
+
+function testTransitions(interpolationTests) {
+  styleElement.textContent = `
+    .transition::marker {
+      transition: all 2s -1s linear;
+    }
+    .from::marker {}
+    .to::marker {}
+  `;
+  const fromStyle = styleElement.sheet.cssRules[1].style;
+  const toStyle = styleElement.sheet.cssRules[2].style;
+  for (let {property, from, to, midPoint} of interpolationTests) {
+    fromStyle.cssText = "";
+    toStyle.cssText = "";
+    if (midPoint == null) {
+      midPoint = to;
+    }
+    fromStyle.setProperty(property, from);
+    toStyle.setProperty(property, to);
+    target.className = "from";
+    markerStyle.width;
+    target.classList.add("transition");
+    markerStyle.width;
+    target.classList.add("to");
+    test(() => {
+      check({property, from, to, midPoint});
+    }, `Transition of ${property} in ::marker`);
+  }
+}
+
+testAnimations(interpolationTests);
+testTransitions(interpolationTests);
+</script>

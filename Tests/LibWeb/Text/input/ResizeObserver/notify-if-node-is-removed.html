@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<head>
+    <style>
+        #box {
+            width: 200px;
+            height: 200px;
+            background-color: lightblue;
+        }
+    </style>
+</head>
+<body>
+    <div id="box"></div>
+</body>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const box = document.getElementById("box");
+
+        let resolve = null;
+        function createResizeObserverPromise() {
+            return new Promise(r => {
+                resolve = r;
+            });
+        }
+
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                const { width, height } = entry.contentRect;
+                println(`Size changed: ${width}px x ${height}px`);
+            }
+
+            if (resolve) resolve();
+        });
+
+        let observerCallbackInvocation = createResizeObserverPromise();
+        resizeObserver.observe(box);
+        await observerCallbackInvocation;
+
+        box.remove();
+
+        observerCallbackInvocation = createResizeObserverPromise();
+        await observerCallbackInvocation;
+
+        done();
+    });
+</script>

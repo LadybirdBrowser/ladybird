@@ -1,0 +1,2 @@
+img.currentSrc default value: ''
+object.data default value: ''

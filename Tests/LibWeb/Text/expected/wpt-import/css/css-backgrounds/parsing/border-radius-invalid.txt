@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	e.style['border-radius'] = "auto" should not set the property value
+Pass	e.style['border-radius'] = "none" should not set the property value
+Pass	e.style['border-radius'] = "1px 2px 3px 4px 5px" should not set the property value
+Pass	e.style['border-radius'] = "-1px" should not set the property value
+Pass	e.style['border-radius'] = "1px -2px" should not set the property value
+Pass	e.style['border-radius'] = "1em /" should not set the property value
+Pass	e.style['border-radius'] = "1px / 2px / 3px" should not set the property value
+Pass	e.style['border-radius'] = "4 / 5" should not set the property value
+Pass	e.style['border-radius'] = "5em 1px 5em 2% 5em 3px 5em 4%" should not set the property value
+Pass	e.style['border-radius'] = "1px 5em 2% 5em 3px 5em 4% 5em" should not set the property value
+Pass	e.style['border-top-left-radius'] = "10px 20px 30px" should not set the property value

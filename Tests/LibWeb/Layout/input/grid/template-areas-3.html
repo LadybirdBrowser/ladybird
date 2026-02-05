@@ -1,0 +1,33 @@
+<!DOCTYPE html><head><style type="text/css">
+* {
+    border: 1px solid black;
+}
+
+.grid {
+    display: grid;
+    grid-template-rows: repeat(4, 25%);
+    grid-template-columns: repeat(3, 33.3333%);
+    height: 672px;
+    grid-template-areas: "a a a" "a a a" "b c d" "b c e";
+}
+
+.a {
+    grid-area: a / a / a / a;
+}
+
+.b {
+    grid-area: b / b / b / b;
+}
+
+.c {
+    grid-area: c / c / c / c;
+}
+
+.d {
+    grid-area: d / d / d / d;
+}
+
+.e {
+    grid-area: e / e / e / e;
+}
+</style></head><body><div class="grid"><div class="a">a</div><div class="b">b</div><div class="c">c</div><div class="d">d</div><div class="e">e</div></div></body>

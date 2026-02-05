@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS prefers-color-scheme affects SVG images - color-scheme 'normal', no &lt;meta></title>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#prefers-color-scheme">
+<link rel="match" href="../../../../expected/wpt-import/css/mediaqueries/prefers-color-scheme-svg-image-normal-ref.html">
+<style>
+  .background {
+    width: 32px;
+    height: 32px;
+    background-image: url(resources/prefers-color-scheme.svg);
+  }
+</style>
+<div>
+  <img src="resources/prefers-color-scheme.svg">
+  <div class="background"></div>
+</div>

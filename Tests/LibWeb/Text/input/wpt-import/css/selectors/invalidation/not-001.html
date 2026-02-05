@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>CSS Selectors Invalidation: complex :not()</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#negation">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  * {
+    color: yellow;
+  }
+  :not(.b ~ *) {
+    color: green;
+  }
+</style>
+<div id="b">
+</div>
+<div class="c">
+</div>
+<div class="d">
+</div>
+<script>
+  var black = "rgb(0, 0, 0)";
+  var blue = "rgb(0, 0, 255)";
+  var green = "rgb(0, 128, 0)";
+  var red = "rgb(255, 0, 0)";
+  var yellow = "rgb(255, 255, 0)";
+
+  test(() => {
+    assert_equals(getComputedStyle(document.querySelector("#b")).color, green);
+    assert_equals(getComputedStyle(document.querySelector(".c")).color, green);
+    assert_equals(getComputedStyle(document.querySelector(".d")).color, green);
+  }, "precondition");
+
+  test(() => {
+    document.getElementById("b").className = "b";
+    assert_equals(getComputedStyle(document.querySelector("#b")).color, green);
+    assert_equals(getComputedStyle(document.querySelector(".c")).color, yellow);
+    assert_equals(getComputedStyle(document.querySelector(".d")).color, yellow);
+  }, "Invalidation of sibling combinators in :not()");
+</script>

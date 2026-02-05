@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Media Queries Test: 'aspect-ratio' serializes with spaces around ' / '.</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-component-value">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(function() {
+  assert_equals(matchMedia("(aspect-ratio: 1/3)").media, "(aspect-ratio: 1 / 3)");
+}, "<ratio> serializes with spaces around the integer.");
+</script>

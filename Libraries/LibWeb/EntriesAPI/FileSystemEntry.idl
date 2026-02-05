@@ -1,0 +1,10 @@
+[Exposed=Window]
+interface FileSystemEntry {
+    readonly attribute boolean isFile;
+    readonly attribute boolean isDirectory;
+    readonly attribute USVString name;
+    [FIXME] readonly attribute USVString fullPath;
+    [FIXME] readonly attribute FileSystem filesystem;
+
+    [FIXME] undefined getParent(optional FileSystemEntryCallback successCallback, optional ErrorCallback errorCallback);
+};

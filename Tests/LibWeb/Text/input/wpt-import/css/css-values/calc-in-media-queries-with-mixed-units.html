@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>test calc with mixed units in media queries</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <link rel="help" href="https://www.w3.org/TR/css3-values/#calc-computed-value">
+  </head>
+  <body>
+    <iframe src="./support/mixed-units-01.html" title="px-em" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-02.html" title="vh+em" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-03.html" title="vw-em" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-04.html" title="vw+vh" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-05.html" title="vh+px" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-06.html" title="vw+px" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-07.html" title="px/em*em" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-08.html" title="vh*em" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-09.html" title="vh*vw/em*px/vh" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-10.html" title="vw/px*vh" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-11.html" title="vh*vw/em*px" frameborder="0" height="10" width="100"></iframe>
+    <iframe src="./support/mixed-units-12.html" title="vw*vh*px*em/px/px/px" frameborder="0" height="10" width="100"></iframe>
+    <script>
+      for (const frame of document.querySelectorAll("iframe")) {
+        async_test((t) => {
+          frame.addEventListener("load", t.step_func(() => {
+            const body = frame.contentWindow.document.body;
+            const actual = frame.contentWindow.getComputedStyle(body).getPropertyValue("background-color");
+            assert_equals(actual, "rgb(255, 165, 0)");
+            t.done();
+          }));
+        }, `box should be orange if the calc between ${frame.title} in @media was correct`);
+      }
+    </script>
+  </body>
+</html>

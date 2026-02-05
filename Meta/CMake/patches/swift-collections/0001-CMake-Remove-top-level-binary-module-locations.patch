@@ -1,0 +1,170 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Kaster <andrew@ladybird.org>
+Date: Thu, 22 Aug 2024 20:51:38 -0600
+Subject: [PATCH] CMake: Remove top-level binary/module locations
+
+---
+ CMakeLists.txt                                      | 13 +++++--------
+ Sources/BitCollections/CMakeLists.txt               |  2 --
+ Sources/CMakeLists.txt                              |  2 --
+ Sources/Collections/CMakeLists.txt                  |  4 ++--
+ Sources/DequeModule/CMakeLists.txt                  |  2 --
+ Sources/HashTreeCollections/CMakeLists.txt          |  2 --
+ Sources/HeapModule/CMakeLists.txt                   |  2 --
+ Sources/InternalCollectionsUtilities/CMakeLists.txt |  2 --
+ Sources/OrderedCollections/CMakeLists.txt           |  2 --
+ Sources/RopeModule/CMakeLists.txt                   |  2 --
+ 10 files changed, 7 insertions(+), 26 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 939a29e48ee386c0dac32350c6f6dfb4c4279170..2692814e02971e1469fc236a89c825a5c1547932 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -11,22 +11,19 @@ if(POLICY CMP0091)
+   cmake_policy(SET CMP0091 NEW)
+ endif()
+ 
++if(POLICY CMP0157)
++  cmake_policy(SET CMP0157 OLD)
++endif()
++
++
+ cmake_minimum_required(VERSION 3.16)
+ project(SwiftCollections
+   LANGUAGES C Swift)
+ 
+ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
+ 
+-set(CMAKE_Swift_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/swift)
+ set(CMAKE_Swift_COMPILE_OPTIONS_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
+ 
+-set(CMAKE_Swift_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/swift)
+-set(CMAKE_Swift_COMPILE_OPTIONS_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
+-
+-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+-
+ set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
+ 
+ if(CMAKE_SYSTEM_NAME STREQUAL Windows OR CMAKE_SYSTEM_NAME STREQUAL Darwin)
+diff --git a/Sources/BitCollections/CMakeLists.txt b/Sources/BitCollections/CMakeLists.txt
+index c5becdeec08a91978aa8b00dc2fc272299ca16b0..3f52e47220362de9c47e3e2527a2b78260d6f45e 100644
+--- a/Sources/BitCollections/CMakeLists.txt
++++ b/Sources/BitCollections/CMakeLists.txt
+@@ -15,8 +15,6 @@ else()
+     ${COLLECTIONS_BIT_SOURCES})
+   target_link_libraries(BitCollections PRIVATE
+     InternalCollectionsUtilities)
+-  set_target_properties(BitCollections PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   _install_target(BitCollections)
+   set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS BitCollections)
+diff --git a/Sources/CMakeLists.txt b/Sources/CMakeLists.txt
+index ad39dd9be70a3d3fd7f3176e9a607c6fa1413d82..a54e494c81a552282735bd926a05cb3d9527b169 100644
+--- a/Sources/CMakeLists.txt
++++ b/Sources/CMakeLists.txt
+@@ -24,8 +24,6 @@ if(COLLECTIONS_SINGLE_MODULE)
+   endif()
+ 
+   target_compile_definitions(${COLLECTIONS_MODULE_NAME} PRIVATE COLLECTIONS_SINGLE_MODULE)
+-  set_target_properties(${COLLECTIONS_MODULE_NAME} PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   if(COLLECTIONS_FOUNDATION_TOOLCHAIN_MODULE)
+     get_swift_host_os(swift_os)
+diff --git a/Sources/Collections/CMakeLists.txt b/Sources/Collections/CMakeLists.txt
+index 9f534a46c80475e2ef39ba39d386be00d25b7c30..6be24ce21145f14718e90d67247d2ea56c21ffd4 100644
+--- a/Sources/Collections/CMakeLists.txt
++++ b/Sources/Collections/CMakeLists.txt
+@@ -15,9 +15,9 @@ target_link_libraries(Collections PRIVATE
+   HeapModule
+   OrderedCollections
+   HashTreeCollections
++  InternalCollectionsUtilities
+   )
+-set_target_properties(Collections PROPERTIES
+-  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+ _install_target(Collections)
+ set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS Collections)
++
+diff --git a/Sources/DequeModule/CMakeLists.txt b/Sources/DequeModule/CMakeLists.txt
+index 07364b66e32257c098edfbfdd3204206dee56709..da1a79becc36893a90d797bee610b973c3c12853 100644
+--- a/Sources/DequeModule/CMakeLists.txt
++++ b/Sources/DequeModule/CMakeLists.txt
+@@ -15,8 +15,6 @@ else()
+     ${COLLECTIONS_DEQUE_SOURCES})
+   target_link_libraries(DequeModule PRIVATE
+     InternalCollectionsUtilities)
+-  set_target_properties(DequeModule PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   _install_target(DequeModule)
+   set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS DequeModule)
+diff --git a/Sources/HashTreeCollections/CMakeLists.txt b/Sources/HashTreeCollections/CMakeLists.txt
+index 0329fe664fd103348f55ce34dee71da9f437dfd6..56566f36a63c834f0c7d40f787504adede820808 100644
+--- a/Sources/HashTreeCollections/CMakeLists.txt
++++ b/Sources/HashTreeCollections/CMakeLists.txt
+@@ -15,8 +15,6 @@ else()
+     ${COLLECTIONS_HASHTREE_SOURCES})
+   target_link_libraries(HashTreeCollections PRIVATE
+     InternalCollectionsUtilities)
+-  set_target_properties(HashTreeCollections PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   _install_target(HashTreeCollections)
+   set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS HashTreeCollections)
+diff --git a/Sources/HeapModule/CMakeLists.txt b/Sources/HeapModule/CMakeLists.txt
+index a1cc57a63b5bcd140ea207298fbd0c6d48f784de..6bf9edeed5bfdeb9120869dfdbaed21a2376e3c3 100644
+--- a/Sources/HeapModule/CMakeLists.txt
++++ b/Sources/HeapModule/CMakeLists.txt
+@@ -15,8 +15,6 @@ else()
+     ${COLLECTIONS_HEAP_SOURCES})
+   target_link_libraries(HeapModule PRIVATE
+     InternalCollectionsUtilities)
+-  set_target_properties(HeapModule PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   _install_target(HeapModule)
+   set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS HeapModule)
+diff --git a/Sources/InternalCollectionsUtilities/CMakeLists.txt b/Sources/InternalCollectionsUtilities/CMakeLists.txt
+index 808e36c2eb43f26f8009d4982e5cd095c3a3639d..f25f3da067e8d6ce540ba911a3df43d6e3b5b561 100644
+--- a/Sources/InternalCollectionsUtilities/CMakeLists.txt
++++ b/Sources/InternalCollectionsUtilities/CMakeLists.txt
+@@ -13,8 +13,6 @@ else()
+   set(module_name InternalCollectionsUtilities)
+   add_library(InternalCollectionsUtilities
+     ${COLLECTIONS_UTILITIES_SOURCES})
+-  set_target_properties(InternalCollectionsUtilities PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   _install_target(InternalCollectionsUtilities)
+   set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS InternalCollectionsUtilities)
+diff --git a/Sources/OrderedCollections/CMakeLists.txt b/Sources/OrderedCollections/CMakeLists.txt
+index 017113861101c5acfb3f77a8feca86f1b9a6fd50..16e63aec3d0e317191b59637ef02aba9b0e76a76 100644
+--- a/Sources/OrderedCollections/CMakeLists.txt
++++ b/Sources/OrderedCollections/CMakeLists.txt
+@@ -15,8 +15,6 @@ else()
+     ${COLLECTIONS_ORDERED_SOURCES})
+   target_link_libraries(OrderedCollections PRIVATE
+     InternalCollectionsUtilities)
+-  set_target_properties(OrderedCollections PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   _install_target(OrderedCollections)
+   set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS OrderedCollections)
+diff --git a/Sources/RopeModule/CMakeLists.txt b/Sources/RopeModule/CMakeLists.txt
+index d33fac9213f939fcfccb1f702039b421814d3dfd..19e08d235a14348dac983cb4bf1972a039ea3fbb 100644
+--- a/Sources/RopeModule/CMakeLists.txt
++++ b/Sources/RopeModule/CMakeLists.txt
+@@ -15,8 +15,6 @@ else()
+     ${COLLECTIONS_ROPE_SOURCES})
+   target_link_libraries(_RopeModule PRIVATE
+     InternalCollectionsUtilities)
+-  set_target_properties(_RopeModule PROPERTIES
+-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+ 
+   _install_target(_RopeModule)
+   set_property(GLOBAL APPEND PROPERTY SWIFT_COLLECTIONS_EXPORTS _RopeModule)

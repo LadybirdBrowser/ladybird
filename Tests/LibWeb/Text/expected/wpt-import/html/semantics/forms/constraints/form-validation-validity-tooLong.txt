@@ -1,0 +1,68 @@
+Harness status: OK
+
+Found 63 tests
+
+63 Pass
+Pass	[INPUT in TEXT status] Non-dirty value - maxlength is not set
+Pass	[INPUT in TEXT status] Non-dirty value - value is empty string
+Pass	[INPUT in TEXT status] Non-dirty value - length of value is less than maxlength
+Pass	[INPUT in TEXT status] Non-dirty value - length of value equals to maxlength
+Pass	[INPUT in TEXT status] Non-dirty value - length of value is greater than maxlength
+Pass	[INPUT in TEXT status] Dirty value - value is less than maxlength
+Pass	[INPUT in TEXT status] Dirty value - length of value(AAA) in unicode is less than maxlength
+Pass	[INPUT in TEXT status] Dirty value - value equals to maxlength
+Pass	[INPUT in TEXT status] Dirty value - length of value is greater than maxlength
+Pass	[INPUT in SEARCH status] Non-dirty value - maxlength is not set
+Pass	[INPUT in SEARCH status] Non-dirty value - value is empty string
+Pass	[INPUT in SEARCH status] Non-dirty value - length of value is less than maxlength
+Pass	[INPUT in SEARCH status] Non-dirty value - length of value equals to maxlength
+Pass	[INPUT in SEARCH status] Non-dirty value - length of value is greater than maxlength
+Pass	[INPUT in SEARCH status] Dirty value - value is less than maxlength
+Pass	[INPUT in SEARCH status] Dirty value - length of value(AAA) in unicode is less than maxlength
+Pass	[INPUT in SEARCH status] Dirty value - value equals to maxlength
+Pass	[INPUT in SEARCH status] Dirty value - length of value is greater than maxlength
+Pass	[INPUT in TEL status] Non-dirty value - maxlength is not set
+Pass	[INPUT in TEL status] Non-dirty value - value is empty string
+Pass	[INPUT in TEL status] Non-dirty value - length of value is less than maxlength
+Pass	[INPUT in TEL status] Non-dirty value - length of value equals to maxlength
+Pass	[INPUT in TEL status] Non-dirty value - length of value is greater than maxlength
+Pass	[INPUT in TEL status] Dirty value - value is less than maxlength
+Pass	[INPUT in TEL status] Dirty value - length of value(AAA) in unicode is less than maxlength
+Pass	[INPUT in TEL status] Dirty value - value equals to maxlength
+Pass	[INPUT in TEL status] Dirty value - length of value is greater than maxlength
+Pass	[INPUT in URL status] Non-dirty value - maxlength is not set
+Pass	[INPUT in URL status] Non-dirty value - value is empty string
+Pass	[INPUT in URL status] Non-dirty value - length of value is less than maxlength
+Pass	[INPUT in URL status] Non-dirty value - length of value equals to maxlength
+Pass	[INPUT in URL status] Non-dirty value - length of value is greater than maxlength
+Pass	[INPUT in URL status] Dirty value - value is less than maxlength
+Pass	[INPUT in URL status] Dirty value - length of value(AAA) in unicode is less than maxlength
+Pass	[INPUT in URL status] Dirty value - value equals to maxlength
+Pass	[INPUT in URL status] Dirty value - length of value is greater than maxlength
+Pass	[INPUT in EMAIL status] Non-dirty value - maxlength is not set
+Pass	[INPUT in EMAIL status] Non-dirty value - value is empty string
+Pass	[INPUT in EMAIL status] Non-dirty value - length of value is less than maxlength
+Pass	[INPUT in EMAIL status] Non-dirty value - length of value equals to maxlength
+Pass	[INPUT in EMAIL status] Non-dirty value - length of value is greater than maxlength
+Pass	[INPUT in EMAIL status] Dirty value - value is less than maxlength
+Pass	[INPUT in EMAIL status] Dirty value - length of value(AAA) in unicode is less than maxlength
+Pass	[INPUT in EMAIL status] Dirty value - value equals to maxlength
+Pass	[INPUT in EMAIL status] Dirty value - length of value is greater than maxlength
+Pass	[INPUT in PASSWORD status] Non-dirty value - maxlength is not set
+Pass	[INPUT in PASSWORD status] Non-dirty value - value is empty string
+Pass	[INPUT in PASSWORD status] Non-dirty value - length of value is less than maxlength
+Pass	[INPUT in PASSWORD status] Non-dirty value - length of value equals to maxlength
+Pass	[INPUT in PASSWORD status] Non-dirty value - length of value is greater than maxlength
+Pass	[INPUT in PASSWORD status] Dirty value - value is less than maxlength
+Pass	[INPUT in PASSWORD status] Dirty value - length of value(AAA) in unicode is less than maxlength
+Pass	[INPUT in PASSWORD status] Dirty value - value equals to maxlength
+Pass	[INPUT in PASSWORD status] Dirty value - length of value is greater than maxlength
+Pass	[textarea]  Non-dirty value - maxlength is not set
+Pass	[textarea]  Non-dirty value - value is empty string
+Pass	[textarea]  Non-dirty value - length of value is less than maxlength
+Pass	[textarea]  Non-dirty value - length of value equals to maxlength
+Pass	[textarea]  Non-dirty value - length of value is greater than maxlength
+Pass	[textarea]  Dirty value - value is less than maxlength
+Pass	[textarea]  Dirty value - length of value(LF, CRLF) in unicode is less than maxlength
+Pass	[textarea]  Dirty value - length of value equals to maxlength
+Pass	[textarea]  Dirty value - length of value is greater than maxlength

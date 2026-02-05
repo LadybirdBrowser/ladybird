@@ -1,0 +1,26 @@
+<!doctype html>
+<body style="margin: 0">
+<style>
+    #hidden-stacking-context {
+        visibility: hidden;
+        position: absolute;
+        z-index: 1;
+        font-size: 100px;
+    }
+    #visible-child { visibility: visible; }
+</style>
+<div id="hidden-stacking-context"><div id="visible-child">KEK</div></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    // Hit test in the middle of the visible text inside hidden stacking context
+    const result = internals.hitTest(50, 50);
+    if (result && result.node) {
+        printElement(result.node);
+        printElement(result.node.parentNode);
+    } else {
+        println("FAIL: no hit test result");
+    }
+});
+</script>
+</body>

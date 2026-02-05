@@ -1,0 +1,30 @@
+<!doctype html>
+<title>CSS Selectors nested invalidation through @media by selectorText</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  .b {
+    color: red;
+  }
+  & {
+    @media screen {
+      &.b { color: green; }
+    }
+  }
+</style>
+
+<div id="elem" class="a b">
+  Test passes if color is green.
+</div>
+
+<script>
+  test(() => {
+    let elem = document.getElementById('elem');
+    assert_equals(getComputedStyle(elem).color, 'rgb(255, 0, 0)');
+    document.styleSheets[0].rules[1].selectorText = '.a';
+    assert_equals(getComputedStyle(elem).color, 'rgb(0, 128, 0)');
+  });
+</script>

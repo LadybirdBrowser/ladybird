@@ -1,0 +1,20 @@
+#import <CSS/CSSStyleDeclaration.idl>
+
+// https://drafts.csswg.org/cssom/#csspagedescriptors
+[Exposed=Window]
+interface CSSPageDescriptors : CSSStyleDeclaration {
+    [LegacyNullToEmptyString] attribute CSSOMString margin;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_top_regular, ImplementedAs=margin_top] attribute CSSOMString marginTop;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_right_regular, ImplementedAs=margin_right] attribute CSSOMString marginRight;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_bottom_regular, ImplementedAs=margin_bottom] attribute CSSOMString marginBottom;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_left_regular, ImplementedAs=margin_left] attribute CSSOMString marginLeft;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_top_dashed, ImplementedAs=margin_top] attribute CSSOMString margin-top;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_right_dashed, ImplementedAs=margin_right] attribute CSSOMString margin-right;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_bottom_dashed, ImplementedAs=margin_bottom] attribute CSSOMString margin-bottom;
+    [LegacyNullToEmptyString, AttributeCallbackName=margin_left_dashed, ImplementedAs=margin_left] attribute CSSOMString margin-left;
+    [LegacyNullToEmptyString] attribute CSSOMString size;
+    [LegacyNullToEmptyString, AttributeCallbackName=page_orientation_regular, ImplementedAs=page_orientation] attribute CSSOMString pageOrientation;
+    [LegacyNullToEmptyString, AttributeCallbackName=page_orientation_dashed, ImplementedAs=page_orientation] attribute CSSOMString page-orientation;
+    [LegacyNullToEmptyString] attribute CSSOMString marks;
+    [LegacyNullToEmptyString] attribute CSSOMString bleed;
+};

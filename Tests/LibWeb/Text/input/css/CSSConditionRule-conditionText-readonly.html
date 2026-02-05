@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    @media not all {
+      div { color: red; }
+    }
+    @supports not (unsupported-property: unsupported-value) {
+        div { display: none; }
+    }
+</style>
+<div>This text shouldn't be visible</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const mediaRule = document.styleSheets[0].cssRules[0];
+        println(`@media rule conditionText initial value: ${mediaRule.conditionText}`);
+        mediaRule.conditionText = "all";
+        println(`@media rule conditionText value after assignment: ${mediaRule.conditionText}`);
+
+        const supportsRule = document.styleSheets[0].cssRules[1];
+        println(`@supports rule conditionText initial value: ${supportsRule.conditionText}`);
+        supportsRule.conditionText = "(unsupported-property: unsupported-value)";
+        println(`@supports rule conditionText value after assignment: ${supportsRule.conditionText}`);
+    });
+</script>

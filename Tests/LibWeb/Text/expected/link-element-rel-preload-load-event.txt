@@ -1,0 +1,2 @@
+Got error event
+Got load event

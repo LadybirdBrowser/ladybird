@@ -1,0 +1,19 @@
+<!doctype html>
+<title>abspos flex children with top margins</title>
+<link rel="author" title="Manuel Rego" href="mailto:rego@igalia.com">
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<link rel="bookmark" href="https://crbug.com/886592">
+<meta name="assert" content="Check abspos position of flex children with margins in justify-content: flex-end container.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<div style="display: flex; width: 200px; height: 100px; justify-content: flex-end; border: solid thick; position: relative;">
+  <div style="background: cyan; margin: 20px; position: absolute; width: 30px; height: 40px;" data-offset-x="150" id="abspos"></div>
+</div>
+
+<script>
+checkLayout('#abspos');
+</script>

@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	@counter-style 'system: cyclic' is valid
+Pass	@counter-style 'system: fixed' is valid
+Pass	@counter-style 'system: fixed 100' is valid
+Pass	@counter-style 'system: fixed -1' is valid
+Pass	@counter-style 'system: symbolic' is valid
+Pass	@counter-style 'system: alphabetic' is valid
+Pass	@counter-style 'system: numeric' is valid
+Pass	@counter-style 'system: additive' is valid
+Pass	@counter-style 'system: extends bar' is valid
+Pass	@counter-style 'system: float' is invalid
+Pass	@counter-style 'system: cyclic cyclic' is invalid
+Pass	@counter-style 'system: extends none' is invalid
+Pass	@counter-style 'system: extends initial' is invalid
+Pass	@counter-style 'system: extends inherit' is invalid
+Pass	@counter-style 'system: extends unset' is invalid

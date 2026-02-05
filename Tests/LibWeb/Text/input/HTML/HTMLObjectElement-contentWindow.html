@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {        
+        const objectElement = document.createElement("object");
+        println(`object.contentWindow initial value should be null: ${objectElement.contentWindow === null}`);
+        objectElement.type = "text/html";
+        objectElement.name = "PASS"
+        // FIXME: about:srcdoc is being used here as a convenient way to load a blank document. This isn't cross browser compatible.
+        objectElement.data = "about:srcdoc";
+        objectElement.onload = () => {
+            println(`contentWindow.name should be the same as object.name ${objectElement.contentWindow.name}`);
+            document.body.removeChild(objectElement);
+            done();     
+        };
+
+        document.body.appendChild(objectElement);
+    });
+</script>

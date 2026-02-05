@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Canceling an animation should cause its start time and hold time to be unresolved
+Pass	A play-pending ready promise should be rejected when the animation is canceled
+Pass	A pause-pending ready promise should be rejected when the animation is canceled
+Pass	When an animation is canceled, it should create a resolved Promise
+Pass	The ready promise should be replaced when the animation is canceled
+Pass	The finished promise should NOT be rejected if the animation is already idle
+Pass	The cancel event should NOT be fired if the animation is already idle
+Pass	Canceling an animation should fire cancel event on orphaned element

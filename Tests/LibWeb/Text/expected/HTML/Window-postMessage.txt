@@ -1,0 +1,140 @@
+originError instanceof DOMException: true
+originError.name: SyntaxError
+originError.message: Invalid URL for targetOrigin: 'aaaa'
+originError.constructor === window.DOMException: true
+originParsedBeforeSerializeError instanceof DOMException: true
+originParsedBeforeSerializeError.name: SyntaxError
+originParsedBeforeSerializeError.message: Invalid URL for targetOrigin: 'aaaa'
+originParsedBeforeSerializeError.constructor === window.DOMException: true
+serializeError instanceof DOMException: true
+serializeError.name: DataCloneError
+serializeError.message: Cannot serialize platform objects
+serializeError.constructor === window.DOMException: true
+originIframeError instanceof DOMException: false
+originIframeError instanceof iframe.contentWindow.DOMException: true
+originIframeError.name: SyntaxError
+originIframeError.message: Invalid URL for targetOrigin: 'aaaa'
+originIframeError.constructor === DOMException: false
+originIframeError.constructor === iframe.contentWindow.DOMException: true
+originParsedBeforeSerializeIframeError instanceof DOMException: false
+originParsedBeforeSerializeIframeError instanceof iframe.contentWindow.DOMException: true
+originParsedBeforeSerializeIframeError.name: SyntaxError
+originParsedBeforeSerializeIframeError.message: Invalid URL for targetOrigin: 'aaaa'
+originParsedBeforeSerializeIframeError.constructor === DOMException: false
+originParsedBeforeSerializeIframeError.constructor === iframe.contentWindow.DOMException: true
+serializeIframeError instanceof DOMException: false
+serializeIframeError instanceof iframe.contentWindow.DOMException: true
+serializeIframeError.name: DataCloneError
+serializeIframeError.message: Cannot serialize platform objects
+serializeIframeError.constructor === DOMException: false
+serializeIframeError.constructor === iframe.contentWindow.DOMException: true
+Message 1 data: undefined
+Message 1 origin: file://
+Message 1 lastEventId: 
+Message 1 source: [object Window]
+Message 1 ports: 
+Message 1 ports === ports: true
+Message 1 Object.isFrozen(ports): true
+Message 1 source === window: true
+Message 1 source === iframe.contentWindow: false
+Message 1 source === blobIframe.contentWindow: false
+Message 2 data: null
+Message 2 origin: file://
+Message 2 lastEventId: 
+Message 2 source: [object Window]
+Message 2 ports: 
+Message 2 ports === ports: true
+Message 2 Object.isFrozen(ports): true
+Message 2 source === window: true
+Message 2 source === iframe.contentWindow: false
+Message 2 source === blobIframe.contentWindow: false
+Message 3 data: true
+Message 3 origin: file://
+Message 3 lastEventId: 
+Message 3 source: [object Window]
+Message 3 ports: 
+Message 3 ports === ports: true
+Message 3 Object.isFrozen(ports): true
+Message 3 source === window: true
+Message 3 source === iframe.contentWindow: false
+Message 3 source === blobIframe.contentWindow: false
+Message 4 data: false
+Message 4 origin: file://
+Message 4 lastEventId: 
+Message 4 source: [object Window]
+Message 4 ports: 
+Message 4 ports === ports: true
+Message 4 Object.isFrozen(ports): true
+Message 4 source === window: true
+Message 4 source === iframe.contentWindow: false
+Message 4 source === blobIframe.contentWindow: false
+Message 5 data: 123
+Message 5 origin: file://
+Message 5 lastEventId: 
+Message 5 source: [object Window]
+Message 5 ports: 
+Message 5 ports === ports: true
+Message 5 Object.isFrozen(ports): true
+Message 5 source === window: true
+Message 5 source === iframe.contentWindow: false
+Message 5 source === blobIframe.contentWindow: false
+Message 6 data: 123.456
+Message 6 origin: file://
+Message 6 lastEventId: 
+Message 6 source: [object Window]
+Message 6 ports: 
+Message 6 ports === ports: true
+Message 6 Object.isFrozen(ports): true
+Message 6 source === window: true
+Message 6 source === iframe.contentWindow: false
+Message 6 source === blobIframe.contentWindow: false
+Message 7 data: 9007199254740991
+Message 7 origin: file://
+Message 7 lastEventId: 
+Message 7 source: [object Window]
+Message 7 ports: 
+Message 7 ports === ports: true
+Message 7 Object.isFrozen(ports): true
+Message 7 source === window: true
+Message 7 source === iframe.contentWindow: false
+Message 7 source === blobIframe.contentWindow: false
+Message 8 data: This is a string
+Message 8 origin: file://
+Message 8 lastEventId: 
+Message 8 source: [object Window]
+Message 8 ports: 
+Message 8 ports === ports: true
+Message 8 Object.isFrozen(ports): true
+Message 8 source === window: true
+Message 8 source === iframe.contentWindow: false
+Message 8 source === blobIframe.contentWindow: false
+Message 9 data: [object Object]
+Message 9 origin: file://
+Message 9 lastEventId: 
+Message 9 source: [object Window]
+Message 9 ports: [object MessagePort]
+Message 9 ports === ports: true
+Message 9 Object.isFrozen(ports): true
+Message 9 source === window: true
+Message 9 source === iframe.contentWindow: false
+Message 9 source === blobIframe.contentWindow: false
+Message 10 data: I am from another ~planet~ iframe
+Message 10 origin: file://
+Message 10 lastEventId: 
+Message 10 source: [object Window]
+Message 10 ports: 
+Message 10 ports === ports: true
+Message 10 Object.isFrozen(ports): true
+Message 10 source === window: false
+Message 10 source === iframe.contentWindow: true
+Message 10 source === blobIframe.contentWindow: false
+Message 11 data: All done :^)
+Message 11 origin: file://
+Message 11 lastEventId: 
+Message 11 source: [object Window]
+Message 11 ports: 
+Message 11 ports === ports: true
+Message 11 Object.isFrozen(ports): true
+Message 11 source === window: false
+Message 11 source === iframe.contentWindow: false
+Message 11 source === blobIframe.contentWindow: true

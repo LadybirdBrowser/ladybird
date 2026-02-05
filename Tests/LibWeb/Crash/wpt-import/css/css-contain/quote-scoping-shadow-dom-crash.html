@@ -1,0 +1,20 @@
+<!doctype html>
+<link rel="help" href="http://crbug.com/329231572">
+<style>
+  #test { contain: style; }
+</style>
+<body>
+<q id="test"></q>
+<div>
+  <template shadowrootmode="open">
+    <slot></slot>
+  </template>
+  <q id="test2"></q>
+</div>
+<script>
+  test.offsetTop;
+  test2.slot = "1";
+  test2.appendChild(test);
+  test.offsetTop;
+</script>
+</body>

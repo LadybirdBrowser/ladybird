@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <title>Abstract Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tests <a href="https://w3c.github.io/aria/#abstract_roles">Abstract Roles</a> and related <a href="https://w3c.github.io/aria/#document-handling_author-errors_roles">9.1 Roles - handling author errors</a></p>
+
+  <nav role="command" data-testname="command role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="composite" data-testname="composite role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="input" data-testname="input role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="landmark" data-testname="landmark role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="range" data-testname="range role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="roletype" data-testname="roletype role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="section" data-testname="section role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="sectionhead" data-testname="sectionhead role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="select" data-testname="select role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="structure" data-testname="structure role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="widget" data-testname="widget role" data-expectedrole="navigation" class="ex">x</nav>
+  <nav role="window" data-testname="window role" data-expectedrole="navigation" class="ex">x</nav>
+
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#view-timeline-axis">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+</head>
+<div id="target"></div>
+<script>
+test_valid_value('view-timeline-axis', 'initial');
+test_valid_value('view-timeline-axis', 'inherit');
+test_valid_value('view-timeline-axis', 'unset');
+test_valid_value('view-timeline-axis', 'revert');
+
+test_valid_value('view-timeline-axis', 'block');
+test_valid_value('view-timeline-axis', 'inline');
+test_valid_value('view-timeline-axis', 'y');
+test_valid_value('view-timeline-axis', 'x');
+test_valid_value('view-timeline-axis', 'block, inline');
+test_valid_value('view-timeline-axis', 'inline, block');
+test_valid_value('view-timeline-axis', 'block, y, x, inline');
+test_valid_value('view-timeline-axis', 'inline, inline, inline, inline');
+
+test_invalid_value('view-timeline-axis', 'abc');
+test_invalid_value('view-timeline-axis', '10px');
+test_invalid_value('view-timeline-axis', 'auto');
+test_invalid_value('view-timeline-axis', 'none');
+test_invalid_value('view-timeline-axis', 'block inline');
+test_invalid_value('view-timeline-axis', 'block / inline');
+</script>

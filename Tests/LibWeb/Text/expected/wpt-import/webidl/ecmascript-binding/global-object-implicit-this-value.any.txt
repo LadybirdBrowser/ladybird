@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Global object's getter throws when called on incompatible object
+Pass	Global object's setter throws when called on incompatible object
+Pass	Global object's operation throws when called on incompatible object
+Pass	Global object's getter throws when called on incompatible object (document.all)
+Pass	Global object's setter throws when called on incompatible object (document.all)
+Pass	Global object's operation throws when called on incompatible object (document.all)
+Pass	Global object's getter works when called on null / undefined
+Pass	Global object's setter works when called on null / undefined
+Pass	Global object's operation works when called on null / undefined

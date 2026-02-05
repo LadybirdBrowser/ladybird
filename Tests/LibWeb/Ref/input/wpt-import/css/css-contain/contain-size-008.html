@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Containment Test: Size containment on table-header-group</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-size">
+<link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/pass_if_pass_below_clipped.html">
+<meta name=assert content="Size containment doesn't apply to table-header-group elements.">
+<style>
+div {
+  display: table-header-group;
+  contain: size;
+}
+section {
+  overflow: hidden;
+}
+</style>
+
+<p>Test passes if there is the word "PASS" below.</p>
+<section>
+<div>PASS</div>
+</section>

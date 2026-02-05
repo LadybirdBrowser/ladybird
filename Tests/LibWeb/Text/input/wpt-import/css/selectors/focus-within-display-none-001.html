@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Selectors Level 4: focus-within</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#focus-within-pseudo">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#focus-fixup-rule">
+<meta name="assert" content="Checks ':focus-within' pseudo-class after 'display: none'.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="wrapper">
+  <input id="input">
+</div>
+<script>
+  "use strict";
+
+  const wrapper = document.getElementById("wrapper");
+  const input = document.getElementById("input");
+
+  async_test((t) => {
+    input.focus();
+    window.requestAnimationFrame(() => {
+      t.step(() => assert_true(input.matches(":focus-within"),
+                               "Check input matches ':focus-within' after being focused"));
+      t.step(() => assert_true(wrapper.matches(":focus-within"),
+                               "Check wrapper matches ':focus-within' after child was focused"));
+
+      input.style.display = "none";
+      window.requestAnimationFrame(() => {
+        t.step(() => assert_false(input.matches(":focus-within"),
+                                  "Check input doesn't match ':focus-within' after getting 'display: none'"));
+        t.step(() => assert_false(wrapper.matches(":focus-within"),
+                                 "Check wrapper doesn't match ':focus-within' after child got 'display: none'"));
+        input.style.display = "inline";
+        t.done();
+      });
+    });
+  }, "Test ':focus-within' after 'display:none' on input");
+
+  async_test((t) => {
+    input.focus();
+    window.requestAnimationFrame(() => {
+      t.step(() => assert_true(input.matches(":focus-within"),
+                               "Check input matches ':focus-within' after being focused"));
+      t.step(() => assert_true(wrapper.matches(":focus-within"),
+                               "Check wrapper matches ':focus-within' after child was focused"));
+
+      wrapper.style.display = "none";
+      window.requestAnimationFrame(() => {
+        t.step(() => assert_false(input.matches(":focus-within"),
+                                  "Check input doesn't match ':focus-within' after parent got 'display: none'"));
+        t.step(() => assert_false(wrapper.matches(":focus-within"),
+                                 "Check wrapper doesn't match ':focus-within' after getting 'display: none'"));
+        wrapper.style.display = "block";
+        t.done();
+      });
+    });
+  }, "Test ':focus-within' after 'display:none' on input's parent");
+</script>

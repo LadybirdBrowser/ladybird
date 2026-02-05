@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Initially no placeholder text
+Pass	Added placeholder text
+Pass	Set placeholder text to empty string
+Pass	Removed placeholder attribute

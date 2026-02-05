@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Zero width floats, and positioning with negative margins</title>
+<link rel="author" title="Ian Kilpatrick" href="ikilpatrick@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#float-width" title="10.3.5 Floating, non-replaced elements">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="width: 125px;">
+  <div style="float: left; width: 0px; height: 50px;"></div>
+  <div style="float: right; clear: left; width: 25px; height: 50px;"></div>
+  <div style="overflow: hidden; margin-left: -50px; height: 100px; background: green;"></div>
+</div>

@@ -1,0 +1,3 @@
+typeof screen.isExtended: boolean
+screen.isExtended: false
+

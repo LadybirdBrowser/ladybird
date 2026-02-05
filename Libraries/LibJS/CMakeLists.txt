@@ -1,0 +1,308 @@
+include(libjs_generators)
+
+set(SOURCES
+    AST.cpp
+    Bytecode/ASTCodegen.cpp
+    Bytecode/BasicBlock.cpp
+    Bytecode/Builtins.cpp
+    Bytecode/CodeGenerationError.cpp
+    Bytecode/Executable.cpp
+    Bytecode/Generator.cpp
+    Bytecode/IdentifierTable.cpp
+    Bytecode/Instruction.cpp
+    Bytecode/Interpreter.cpp
+    Bytecode/Label.cpp
+    Bytecode/PropertyKeyTable.cpp
+    Bytecode/RegexTable.cpp
+    Bytecode/ScopedOperand.cpp
+    Bytecode/StringTable.cpp
+    Console.cpp
+    Contrib/Test262/262Object.cpp
+    Contrib/Test262/AgentObject.cpp
+    Contrib/Test262/GlobalObject.cpp
+    Contrib/Test262/IsHTMLDDA.cpp
+    CyclicModule.cpp
+    Heap/Cell.cpp
+    Lexer.cpp
+    Module.cpp
+    Parser.cpp
+    ParserError.cpp
+    Print.cpp
+    Runtime/AbstractOperations.cpp
+    Runtime/Accessor.cpp
+    Runtime/Agent.cpp
+    Runtime/AggregateError.cpp
+    Runtime/AggregateErrorConstructor.cpp
+    Runtime/AggregateErrorPrototype.cpp
+    Runtime/ArgumentsObject.cpp
+    Runtime/Array.cpp
+    Runtime/ArrayBuffer.cpp
+    Runtime/ArrayBufferConstructor.cpp
+    Runtime/ArrayBufferPrototype.cpp
+    Runtime/ArrayConstructor.cpp
+    Runtime/ArrayIterator.cpp
+    Runtime/ArrayIteratorPrototype.cpp
+    Runtime/ArrayPrototype.cpp
+    Runtime/AsyncDisposableStack.cpp
+    Runtime/AsyncDisposableStackConstructor.cpp
+    Runtime/AsyncDisposableStackPrototype.cpp
+    Runtime/AsyncFromSyncIterator.cpp
+    Runtime/AsyncFromSyncIteratorPrototype.cpp
+    Runtime/AsyncFunctionConstructor.cpp
+    Runtime/AsyncFunctionDriverWrapper.cpp
+    Runtime/AsyncFunctionPrototype.cpp
+    Runtime/AsyncGenerator.cpp
+    Runtime/AsyncGeneratorFunctionConstructor.cpp
+    Runtime/AsyncGeneratorFunctionPrototype.cpp
+    Runtime/AsyncGeneratorPrototype.cpp
+    Runtime/AsyncIteratorPrototype.cpp
+    Runtime/AtomicsObject.cpp
+    Runtime/BigInt.cpp
+    Runtime/BigIntConstructor.cpp
+    Runtime/BigIntObject.cpp
+    Runtime/BigIntPrototype.cpp
+    Runtime/BooleanConstructor.cpp
+    Runtime/BooleanObject.cpp
+    Runtime/BooleanPrototype.cpp
+    Runtime/BoundFunction.cpp
+    Runtime/ClassFieldDefinition.cpp
+    Runtime/Completion.cpp
+    Runtime/CompletionCell.cpp
+    Runtime/ConsoleObjectPrototype.cpp
+    Runtime/ConsoleObject.cpp
+    Runtime/DataView.cpp
+    Runtime/DataViewConstructor.cpp
+    Runtime/DataViewPrototype.cpp
+    Runtime/Date.cpp
+    Runtime/DateConstructor.cpp
+    Runtime/DatePrototype.cpp
+    Runtime/DeclarativeEnvironment.cpp
+    Runtime/DisposableStack.cpp
+    Runtime/DisposableStackConstructor.cpp
+    Runtime/DisposableStackPrototype.cpp
+    Runtime/ECMAScriptFunctionObject.cpp
+    Runtime/Environment.cpp
+    Runtime/Error.cpp
+    Runtime/ErrorConstructor.cpp
+    Runtime/ErrorPrototype.cpp
+    Runtime/ErrorTypes.cpp
+    Runtime/ExecutionContext.cpp
+    Runtime/FinalizationRegistry.cpp
+    Runtime/FinalizationRegistryConstructor.cpp
+    Runtime/FinalizationRegistryPrototype.cpp
+    Runtime/FunctionConstructor.cpp
+    Runtime/FunctionEnvironment.cpp
+    Runtime/FunctionObject.cpp
+    Runtime/FunctionPrototype.cpp
+    Runtime/GeneratorFunctionConstructor.cpp
+    Runtime/GeneratorFunctionPrototype.cpp
+    Runtime/GeneratorObject.cpp
+    Runtime/GeneratorPrototype.cpp
+    Runtime/GeneratorResult.cpp
+    Runtime/GlobalEnvironment.cpp
+    Runtime/GlobalObject.cpp
+    Runtime/IndexedProperties.cpp
+    Runtime/Intl/AbstractOperations.cpp
+    Runtime/Intl/Collator.cpp
+    Runtime/Intl/CollatorCompareFunction.cpp
+    Runtime/Intl/CollatorConstructor.cpp
+    Runtime/Intl/CollatorPrototype.cpp
+    Runtime/Intl/DateTimeFormat.cpp
+    Runtime/Intl/DateTimeFormatConstructor.cpp
+    Runtime/Intl/DateTimeFormatFunction.cpp
+    Runtime/Intl/DateTimeFormatPrototype.cpp
+    Runtime/Intl/DisplayNames.cpp
+    Runtime/Intl/DisplayNamesConstructor.cpp
+    Runtime/Intl/DisplayNamesPrototype.cpp
+    Runtime/Intl/DurationFormat.cpp
+    Runtime/Intl/DurationFormatConstructor.cpp
+    Runtime/Intl/DurationFormatPrototype.cpp
+    Runtime/Intl/Intl.cpp
+    Runtime/Intl/ListFormat.cpp
+    Runtime/Intl/ListFormatConstructor.cpp
+    Runtime/Intl/ListFormatPrototype.cpp
+    Runtime/Intl/Locale.cpp
+    Runtime/Intl/LocaleConstructor.cpp
+    Runtime/Intl/LocalePrototype.cpp
+    Runtime/Intl/MathematicalValue.cpp
+    Runtime/Intl/NumberFormat.cpp
+    Runtime/Intl/NumberFormatConstructor.cpp
+    Runtime/Intl/NumberFormatFunction.cpp
+    Runtime/Intl/NumberFormatPrototype.cpp
+    Runtime/Intl/PluralRules.cpp
+    Runtime/Intl/PluralRulesConstructor.cpp
+    Runtime/Intl/PluralRulesPrototype.cpp
+    Runtime/Intl/RelativeTimeFormat.cpp
+    Runtime/Intl/RelativeTimeFormatConstructor.cpp
+    Runtime/Intl/RelativeTimeFormatPrototype.cpp
+    Runtime/Intl/Segmenter.cpp
+    Runtime/Intl/SegmenterConstructor.cpp
+    Runtime/Intl/SegmenterPrototype.cpp
+    Runtime/Intl/Segments.cpp
+    Runtime/Intl/SegmentIterator.cpp
+    Runtime/Intl/SegmentIteratorPrototype.cpp
+    Runtime/Intl/SegmentsPrototype.cpp
+    Runtime/Intrinsics.cpp
+    Runtime/Iterator.cpp
+    Runtime/IteratorConstructor.cpp
+    Runtime/IteratorHelper.cpp
+    Runtime/IteratorHelperPrototype.cpp
+    Runtime/IteratorPrototype.cpp
+    Runtime/JSONObject.cpp
+    Runtime/JobCallback.cpp
+    Runtime/KeyedCollections.cpp
+    Runtime/Map.cpp
+    Runtime/MapConstructor.cpp
+    Runtime/MapIterator.cpp
+    Runtime/MapIteratorPrototype.cpp
+    Runtime/MapPrototype.cpp
+    Runtime/MathObject.cpp
+    Runtime/ModuleEnvironment.cpp
+    Runtime/ModuleNamespaceObject.cpp
+    Runtime/NativeFunction.cpp
+    Runtime/NativeJavaScriptBackedFunction.cpp
+    Runtime/NumberConstructor.cpp
+    Runtime/NumberObject.cpp
+    Runtime/NumberPrototype.cpp
+    Runtime/Object.cpp
+    Runtime/ObjectConstructor.cpp
+    Runtime/ObjectEnvironment.cpp
+    Runtime/ObjectPrototype.cpp
+    Runtime/PrimitiveString.cpp
+    Runtime/PrivateEnvironment.cpp
+    Runtime/Promise.cpp
+    Runtime/PromiseCapability.cpp
+    Runtime/PromiseConstructor.cpp
+    Runtime/PromiseJobs.cpp
+    Runtime/PromisePrototype.cpp
+    Runtime/PromiseReaction.cpp
+    Runtime/PromiseResolvingElementFunctions.cpp
+    Runtime/PromiseResolvingFunction.cpp
+    Runtime/PropertyDescriptor.cpp
+    Runtime/ProxyConstructor.cpp
+    Runtime/ProxyObject.cpp
+    Runtime/RawJSONObject.cpp
+    Runtime/Realm.cpp
+    Runtime/Reference.cpp
+    Runtime/ReflectObject.cpp
+    Runtime/RegExpConstructor.cpp
+    Runtime/RegExpLegacyStaticProperties.cpp
+    Runtime/RegExpObject.cpp
+    Runtime/RegExpPrototype.cpp
+    Runtime/RegExpStringIterator.cpp
+    Runtime/RegExpStringIteratorPrototype.cpp
+    Runtime/Set.cpp
+    Runtime/SetConstructor.cpp
+    Runtime/SetIterator.cpp
+    Runtime/SetIteratorPrototype.cpp
+    Runtime/SetPrototype.cpp
+    Runtime/ShadowRealm.cpp
+    Runtime/ShadowRealmConstructor.cpp
+    Runtime/ShadowRealmPrototype.cpp
+    Runtime/Shape.cpp
+    Runtime/SharedArrayBufferConstructor.cpp
+    Runtime/SharedArrayBufferPrototype.cpp
+    Runtime/SharedFunctionInstanceData.cpp
+    Runtime/StringConstructor.cpp
+    Runtime/StringIterator.cpp
+    Runtime/StringIteratorPrototype.cpp
+    Runtime/StringObject.cpp
+    Runtime/StringPrototype.cpp
+    Runtime/SuppressedError.cpp
+    Runtime/SuppressedErrorConstructor.cpp
+    Runtime/SuppressedErrorPrototype.cpp
+    Runtime/Symbol.cpp
+    Runtime/SymbolConstructor.cpp
+    Runtime/SymbolObject.cpp
+    Runtime/SymbolPrototype.cpp
+    Runtime/Temporal/AbstractOperations.cpp
+    Runtime/Temporal/Calendar.cpp
+    Runtime/Temporal/DateEquations.cpp
+    Runtime/Temporal/Duration.cpp
+    Runtime/Temporal/DurationConstructor.cpp
+    Runtime/Temporal/DurationPrototype.cpp
+    Runtime/Temporal/Instant.cpp
+    Runtime/Temporal/InstantConstructor.cpp
+    Runtime/Temporal/InstantPrototype.cpp
+    Runtime/Temporal/ISO8601.cpp
+    Runtime/Temporal/Now.cpp
+    Runtime/Temporal/PlainDate.cpp
+    Runtime/Temporal/PlainDateConstructor.cpp
+    Runtime/Temporal/PlainDatePrototype.cpp
+    Runtime/Temporal/PlainDateTime.cpp
+    Runtime/Temporal/PlainDateTimeConstructor.cpp
+    Runtime/Temporal/PlainDateTimePrototype.cpp
+    Runtime/Temporal/PlainMonthDay.cpp
+    Runtime/Temporal/PlainMonthDayConstructor.cpp
+    Runtime/Temporal/PlainMonthDayPrototype.cpp
+    Runtime/Temporal/PlainTime.cpp
+    Runtime/Temporal/PlainTimeConstructor.cpp
+    Runtime/Temporal/PlainTimePrototype.cpp
+    Runtime/Temporal/PlainYearMonth.cpp
+    Runtime/Temporal/PlainYearMonthConstructor.cpp
+    Runtime/Temporal/PlainYearMonthPrototype.cpp
+    Runtime/Temporal/Temporal.cpp
+    Runtime/Temporal/TimeZone.cpp
+    Runtime/Temporal/ZonedDateTime.cpp
+    Runtime/Temporal/ZonedDateTimeConstructor.cpp
+    Runtime/Temporal/ZonedDateTimePrototype.cpp
+    Runtime/TypedArray.cpp
+    Runtime/TypedArrayConstructor.cpp
+    Runtime/TypedArrayPrototype.cpp
+    Runtime/Uint8Array.cpp
+    Runtime/Value.cpp
+    Runtime/VM.cpp
+    Runtime/WeakMap.cpp
+    Runtime/WeakMapConstructor.cpp
+    Runtime/WeakMapPrototype.cpp
+    Runtime/WeakRef.cpp
+    Runtime/WeakRefConstructor.cpp
+    Runtime/WeakRefPrototype.cpp
+    Runtime/WeakSet.cpp
+    Runtime/WeakSetConstructor.cpp
+    Runtime/WeakSetPrototype.cpp
+    Runtime/WrapForValidIteratorPrototype.cpp
+    Runtime/WrappedFunction.cpp
+    Script.cpp
+    SourceCode.cpp
+    SourceTextModule.cpp
+    SyntaxHighlighter.cpp
+    SyntheticModule.cpp
+    Token.cpp
+)
+
+generate_bytecode_def_derived()
+
+set(GENERATED_SOURCES Bytecode/Op.cpp)
+
+ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
+
+find_package(simdjson CONFIG REQUIRED)
+target_link_libraries(LibJS PRIVATE simdjson::simdjson)
+
+target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC)
+
+# Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
+target_link_libraries(LibJS PUBLIC LibUnicode)
+
+# TODO: This is probably also needed on RISC-V.
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86.*")
+    target_link_libraries(LibJS PRIVATE atomic)
+endif()
+
+if (WIN32)
+    # FIXME: Windows on ARM
+    target_link_libraries(LibJS PRIVATE clang_rt.builtins-x86_64.lib)
+else()
+    # This flag has no effect on Windows
+    target_compile_options(LibJS PRIVATE -fno-omit-frame-pointer)
+endif()
+
+target_link_libraries(LibJS PUBLIC JSClangPlugin)
+
+if (WIN32 AND ENABLE_ADDRESS_SANITIZER)
+    # FIXME: Fix address sanitizer stack-overflow error when running test-js.
+    # Even tripling the stack size for this target to 24MB didn't fix it, so it is most likely some ASAN related bug/quirk given test-js passes using the 8MB stack without ASAN
+    # ==9948==ERROR: AddressSanitizer: stack-overflow on address 0x7ffd983a6f47 (pc 0x7ffd983a6f47 bp 0x004e514053e0 sp 0x004e51405348 T0)
+    target_compile_options(LibJS PRIVATE -fno-sanitize=address)
+endif()

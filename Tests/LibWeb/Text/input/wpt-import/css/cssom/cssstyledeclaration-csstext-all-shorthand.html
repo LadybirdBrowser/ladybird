@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>CSSOM test: serialization of the 'all' shorthand in cssText</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#dom-cssstyledeclaration-csstext">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+const style = document.createElement("div").style;
+
+test(function() {
+  style.cssText = "all: inherit";
+  assert_equals(style.cssText, "all: inherit;");
+}, "'all' shorthand alone");
+
+test(function() {
+  style.cssText = "width: 100px; all: inherit; height: inherit";
+  assert_equals(style.cssText, "all: inherit;");
+}, "'all' shorthand with 'width' and 'height'");
+
+test(function() {
+  style.cssText = "direction: ltr; all: inherit; unicode-bidi: plaintext";
+  assert_equals(style.cssText, "direction: ltr; all: inherit; unicode-bidi: plaintext;");
+}, "'all' shorthand with 'direction' and 'unicode-bidi'");
+
+test(function() {
+  style.cssText = "width: 100px; --a: a; all: inherit; --b: b; height: inherit";
+  assert_equals(style.cssText, "--a: a; all: inherit; --b: b;");
+}, "'all' shorthand with 'width', 'height' and custom properties");
+
+test(function() {
+  let cssText = "all: inherit; ";
+  for (let longhand of getComputedStyle(document.documentElement)) {
+    cssText += longhand + ": inherit; ";
+  }
+  style.cssText = cssText;
+  if (CSS.supports("interactivity:inert")) {
+    assert_equals(style.cssText, "all: inherit; direction: inherit; interactivity: inherit; unicode-bidi: inherit;");
+  } else {
+    assert_equals(style.cssText, "all: inherit; direction: inherit; unicode-bidi: inherit;");
+  }
+}, "'all' shorthand with all longhands");
+
+test(function() {
+  style.cssText = "--foo: bar; all: initial";
+  assert_true(style.cssText.includes("--foo: bar"), "cssText serialization includes custom property");
+}, "all:initial should not exclude custom from cssText");
+</script>

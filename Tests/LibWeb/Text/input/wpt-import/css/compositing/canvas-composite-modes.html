@@ -1,0 +1,157 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>Test of &lt;composite-mode&gt; values in canvas globalCompositeOperation</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/C#compositing">
+<link rel="help" href="https://drafts.fxtf.org/compositing/#canvascompositingandblending">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<canvas id="canvas" width="2" height="2"></canvas>
+
+<script>
+
+// Test a small set of sRGB color and alpha values in the 0-255 range.
+const VALUES = [ 0, 47, 193, 255 ];
+
+const COMPOSITE_OPERATORS = {
+  // Define a "color" function accepting source and destination colors
+  // and alphas, and an "alpha" function accepting source and
+  // destination alphas.
+  "clear": {
+    "color": (sa, sc, da, dc) => 0,
+    "alpha": (sa, da) => 0
+  },
+  "copy": {
+    "color": (sa, sc, da, dc) => sa * sc,
+    "alpha": (sa, da) => sa
+  },
+  "destination": {
+    // TODO(dbaron): The spec says this should work, but none of
+    // Chromium, Gecko, or WebKit appear to implement it.
+    "color": (sa, sc, da, dc) => da * dc,
+    "alpha": (sa, da) => da
+  },
+  "source-over": {
+    "color": (sa, sc, da, dc) => sa * sc + da * dc * (1 - sa),
+    "alpha": (sa, da) => sa + da * (1 - sa)
+  },
+  "destination-over": {
+    "color": (sa, sc, da, dc) => sa * sc * (1 - da) + da * dc,
+    "alpha": (sa, da) => sa * (1 - da) + da
+  },
+  "source-in": {
+    "color": (sa, sc, da, dc) => sa * sc * da,
+    "alpha": (sa, da) => sa * da
+  },
+  "destination-in": {
+    "color": (sa, sc, da, dc) => da * dc * sa,
+    "alpha": (sa, da) => da * sa
+  },
+  "source-out": {
+    "color": (sa, sc, da, dc) => sa * sc * (1 - da),
+    "alpha": (sa, da) => sa * (1 - da)
+  },
+  "destination-out": {
+    "color": (sa, sc, da, dc) => da * dc * (1 - sa),
+    "alpha": (sa, da) => da * (1 - sa)
+  },
+  "source-atop": {
+    "color": (sa, sc, da, dc) => sa * sc * da + da * dc * (1 - sa),
+    "alpha": (sa, da) => sa * da + da * (1 - sa)
+  },
+  "destination-atop": {
+    "color": (sa, sc, da, dc) => sa * sc * (1 - da) + da * dc * sa,
+    "alpha": (sa, da) => sa * (1 - da) + da * sa
+  },
+  "xor": {
+    "color": (sa, sc, da, dc) => sa * sc * (1 - da) + da * dc * (1 - sa),
+    "alpha": (sa, da) => sa * (1 - da) + da * (1 - sa)
+  },
+  "lighter": {
+    // TODO(https://github.com/w3c/fxtf-drafts/issues/446): All engines
+    // actually implement 'lighter' using the formula for 'plus-lighter'
+    // given below; we should update the spec to match!
+    "color": (sa, sc, da, dc) => sa * sc + da * dc,
+    "alpha": (sa, da) => sa + da
+  },
+  "plus-darker": {
+    // TODO(https://github.com/w3c/fxtf-drafts/issues/447): This formula
+    // is almost certainly wrong.  It doesn't make sense, and the one
+    // engine that implements this value (WebKit) does something very
+    // different.
+    "color": (sa, sc, da, dc) => Math.max(0, 1 - sa * sc + 1 - da * dc),
+    "alpha": (sa, da) => Math.max(0, 1 - sa + 1 - da)
+  },
+  "plus-lighter": {
+    "color": (sa, sc, da, dc) => Math.min(1, sa * sc + da * dc),
+    "alpha": (sa, da) => Math.min(1, sa + da)
+  }
+};
+
+let canvas = document.getElementById("canvas");
+let cx = canvas.getContext("2d", { willReadFrequently: true });
+
+function roundup_255th(n) {
+  return Math.ceil(n * 255) / 255;
+}
+
+function rounddown_255th(n) {
+  return Math.floor(n * 255) / 255;
+}
+
+for (let op in COMPOSITE_OPERATORS) {
+  test(function() {
+    cx.save();
+    this.add_cleanup(() => { cx.restore(); });
+    for (let sc of VALUES) {
+      for (let sa of VALUES) {
+        for (let dc of VALUES) {
+          for (let da of VALUES) {
+            let desc = `g=${sc} a=${sa} ${op} g=${dc} a=${da}`;
+            cx.restore();
+            cx.save();
+            cx.clearRect(0, 0, 2, 2);
+            cx.fillStyle = `rgb(0, ${dc}, 0)`;
+            cx.globalAlpha = da / 255;
+            cx.fillRect(0, 0, 2, 2);
+            cx.globalCompositeOperation = op;
+            assert_equals(cx.globalCompositeOperation, op, "composite operation");
+            cx.fillStyle = `rgb(0, ${sc}, 0)`;
+            cx.globalAlpha = sa / 255;
+            cx.fillRect(0, 0, 2, 2);
+            let imageData = cx.getImageData(0, 0, 1, 1);
+            assert_equals(imageData.data.length, 4, "length of ImageData");
+            assert_equals(imageData.data[0], 0, `red: ${desc}`);
+            assert_equals(imageData.data[2], 0, `blue: ${desc}`);
+            let expected_color = COMPOSITE_OPERATORS[op].color(sa/255, sc/255, da/255, dc/255);
+            let expected_alpha = COMPOSITE_OPERATORS[op].alpha(sa/255, da/255);
+            let allowed_color_error;
+            // undo the premultiplication:
+            if (expected_alpha == 0) {
+              assert_equals(expected_color, 0, `premultiplication zero check: ${desc}`);
+              allowed_color_error = 0;
+            } else {
+              // We want to allow for the error in the color expectation
+              // to increase when the expected alpha is small, because
+              // we want to allow for roughly the same amount of error
+              // in the (smaller) *premultiplied* value.
+              let expected_min_color = rounddown_255th(expected_color) / roundup_255th(expected_alpha);
+              let expected_max_color = roundup_255th(expected_color) / rounddown_255th(expected_alpha);
+              // Set the expectation to the midpoint of the error range
+              // rather than the actual accurate expectation.
+              expected_color = (expected_max_color + expected_min_color) / 2;
+              allowed_color_error = (expected_max_color - expected_min_color) / 2;
+            }
+            expected_color *= 255;
+            expected_alpha *= 255;
+            allowed_color_error *= 255;
+            allowed_color_error += 3.5;
+            assert_approx_equals(imageData.data[1], expected_color, allowed_color_error, `green: ${desc}`);
+            assert_approx_equals(imageData.data[3], expected_alpha, 1.01, `alpha: ${desc}`);
+          }
+        }
+      }
+    }
+  }, `globalCompositeOperation ${op}`);
+}
+</script>

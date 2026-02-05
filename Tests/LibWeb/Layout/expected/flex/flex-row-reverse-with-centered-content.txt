@@ -1,0 +1,30 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 66 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] children: not-inline
+      Box <div.flex> at [8,8] flex-container(row-reverse) [0+0+0 784 0+0+0] [0+0+0 50 0+0+0] [FFC] children: not-inline
+        BlockContainer <div> at [425,8] flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [425,8 6.34375x18] baseline: 13.796875
+              "1"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [375,8] flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [375,8 8.8125x18] baseline: 13.796875
+              "2"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [325,8] flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [325,8 9.09375x18] baseline: 13.796875
+              "3"
+          TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x66]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x50]
+      PaintableBox (Box<DIV>.flex) [8,8 784x50]
+        PaintableWithLines (BlockContainer<DIV>) [425,8 50x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [375,8 50x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [325,8 50x50]
+          TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x66] [children: 0] (z-index: auto)

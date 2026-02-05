@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	Clearing an empty CSS rule is a no-op
+Fail	Can clear a CSS rule containing properties
+Pass	Declared StylePropertyMap.clear updates the CSS rule

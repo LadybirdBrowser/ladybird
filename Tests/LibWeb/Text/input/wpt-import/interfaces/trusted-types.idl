@@ -1,0 +1,65 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Trusted Types (https://w3c.github.io/trusted-types/dist/spec/)
+
+[Exposed=(Window,Worker)]
+interface TrustedHTML {
+  stringifier;
+  DOMString toJSON();
+};
+
+[Exposed=(Window,Worker)]
+interface TrustedScript {
+  stringifier;
+  DOMString toJSON();
+};
+
+[Exposed=(Window,Worker)]
+interface TrustedScriptURL {
+  stringifier;
+  USVString toJSON();
+};
+
+[Exposed=(Window,Worker)] interface TrustedTypePolicyFactory {
+    TrustedTypePolicy createPolicy(
+        DOMString policyName, optional TrustedTypePolicyOptions policyOptions = {});
+    boolean isHTML(any value);
+    boolean isScript(any value);
+    boolean isScriptURL(any value);
+    readonly attribute TrustedHTML emptyHTML;
+    readonly attribute TrustedScript emptyScript;
+    DOMString? getAttributeType(
+        DOMString tagName,
+        DOMString attribute,
+        optional DOMString? elementNs = "",
+        optional DOMString? attrNs = "");
+    DOMString? getPropertyType(
+        DOMString tagName,
+        DOMString property,
+        optional DOMString? elementNs = "");
+    readonly attribute TrustedTypePolicy? defaultPolicy;
+};
+
+[Exposed=(Window,Worker)]
+interface TrustedTypePolicy {
+  readonly attribute DOMString name;
+  TrustedHTML createHTML(DOMString input, any... arguments);
+  TrustedScript createScript(DOMString input, any... arguments);
+  TrustedScriptURL createScriptURL(DOMString input, any... arguments);
+};
+
+dictionary TrustedTypePolicyOptions {
+   CreateHTMLCallback createHTML;
+   CreateScriptCallback createScript;
+   CreateScriptURLCallback createScriptURL;
+};
+callback CreateHTMLCallback = DOMString? (DOMString input, any... arguments);
+callback CreateScriptCallback = DOMString? (DOMString input, any... arguments);
+callback CreateScriptURLCallback = USVString? (DOMString input, any... arguments);
+
+typedef (TrustedHTML or TrustedScript or TrustedScriptURL) TrustedType;
+
+partial interface mixin WindowOrWorkerGlobalScope {
+  readonly attribute TrustedTypePolicyFactory trustedTypes;
+};

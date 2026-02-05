@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<title>Infinity and NaN: calc() serialization for number values.</title>
+<link rel="help" href="https://drafts.csswg.org/css-values/#calc-type-checking">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/serialize-testcommon.js"></script>
+<div id="target"></div>
+<div id="log"></div>
+<script>
+function test_serialization(t,s, {prop="opacity"}={}) {
+    test_specified_serialization(prop, t, s)
+}
+//TEST CASE                                          | EXPECTED
+var test_map = {
+    "NaN"                                         :"calc(NaN)",
+    "infinity"                                    :"calc(infinity)",
+    "-infinity"                                   :"calc(-infinity)",
+    "1 * NaN"                                     :"calc(NaN)",
+    "1 * nan"                                     :"calc(NaN)",
+    "1 * infinity / infinity"                     :"calc(NaN)",
+    "1 * 0 * infinity"                            :"calc(NaN)",
+    "1 * (infinity + -infinity)"                  :"calc(NaN)",
+    "1 * (-infinity + infinity)"                  :"calc(NaN)",
+    "1 * (infinity - infinity)"                   :"calc(NaN)",
+    "1 * infinity"                                :"calc(infinity)",
+    "1 * -infinity"                               :"calc(-infinity)",
+    "1 * iNFinIty"                                :"calc(infinity)",
+    "1 * (infinity + infinity)"                   :"calc(infinity)",
+    "1 * (-infinity + -infinity)"                 :"calc(-infinity)",
+    "1 * 1/infinity"                              :"calc(0)",
+    "1 * infinity * infinity"                     :"calc(infinity)",
+    "1 * -infinity * -infinity"                   :"calc(infinity)",
+    "1 * max(INFinity*3, 0)"                      :"calc(infinity)",
+    "1 * min(inFInity*4, 0)"                      :"calc(0)",
+    "1 * max(nAn*2, 0)"                           :"calc(NaN)",
+    "1 * min(nan*3, 0)"                           :"calc(NaN)",
+    "1 * clamp(-INFINITY*20, 0, infiniTY*10)"     :"calc(0)",
+
+    "1 * max(NaN, min(0,10))"                     :"calc(NaN)",
+    "1 * clamp(NaN, 0, 10)"                       :"calc(NaN)",
+
+    "1 * max(0, min(10, NaN))"                    :"calc(NaN)",
+    "1 * clamp(0, 10, NaN)"                       :"calc(NaN)",
+
+    "1 * max(0, min(NaN, 10))"                    :"calc(NaN)",
+    "1 * clamp(0, NaN, 10)"                       :"calc(NaN)",
+
+    "1 * clamp(-Infinity, 0, infinity)"           :"calc(0)",
+    "1 * clamp(-inFinity, infinity, 10)"          :"calc(10)",
+};
+
+for (var exp in test_map) {
+    test_serialization("calc("+exp+")", test_map[exp]);
+}
+</script>

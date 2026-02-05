@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['text-rendering'] = "auto" should set the property value
+Pass	e.style['text-rendering'] = "optimizespeed" should set the property value
+Pass	e.style['text-rendering'] = "optimizelegibility" should set the property value
+Pass	e.style['text-rendering'] = "geometricprecision" should set the property value

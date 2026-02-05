@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>CSS Animations: animation-timing-function parsing (invalid)</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#animation-timing-function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_invalid_value("animation-timing-function", "steps(2,()start)");
+test_invalid_value("animation-timing-function", "steps(2,() start)");
+test_invalid_value("animation-timing-function", "steps(2, ()start)");
+test_invalid_value("animation-timing-function", "steps(2())");
+test_invalid_value("animation-timing-function", "steps(2 ())");
+test_invalid_value("animation-timing-function", "steps(2,())");
+test_invalid_value("animation-timing-function", "steps(2, ())");
+</script>

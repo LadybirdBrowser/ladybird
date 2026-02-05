@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let controller = new AbortController();
+        let watcher = new CloseWatcher({ signal: controller.signal });
+        let oncancel_called = false;
+        let onclose_called = false;
+        watcher.oncancel = () => oncancel_called = true;
+        watcher.onclose = () => onclose_called = true;
+
+        controller.abort();
+        watcher.requestClose();
+
+        println(oncancel_called);
+        println(onclose_called);
+    });
+</script>

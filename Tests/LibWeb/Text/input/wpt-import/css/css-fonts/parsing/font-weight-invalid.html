@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-weight with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-weight-prop">
+<meta name="assert" content="font-weight supports only the grammar 'normal | bold | bolder | lighter | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-weight', 'auto');
+test_invalid_value('font-weight', 'bold 900');
+</script>
+</body>
+</html>

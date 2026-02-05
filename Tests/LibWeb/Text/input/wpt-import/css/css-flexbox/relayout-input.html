@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/1082447" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<div style="display: flex; width: 100px;">
+  <input id="target" style="position: relative; height: 20px; flex: 1; width: 0px;" data-expected-width="100" />
+</div>
+<script>
+test(function() {
+  document.body.offsetTop;
+  document.getElementById('target').value = 'text';
+  checkLayout('#target');
+});
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['animation-duration'] = "3s" should set the property value
+Pass	e.style['animation-duration'] = "500ms" should set the property value
+Pass	e.style['animation-duration'] = "1s, 2s, 3s" should set the property value

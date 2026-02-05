@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Floats in self-painting inline box should not crash</title>
+<link rel="help" href="https://crbug.com/1109565">
+<link rel="author" href="kojii@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<span style='opacity: 0.5'>
+  <div style="float: right">X</div>
+</span>
+<img title="ABC">
+<script>
+test(() => {}, "Pass if not crashes");
+</script>

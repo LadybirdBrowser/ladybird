@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	e.style['text-wrap'] = "pretty" should set the property value
+Pass	e.style['text-wrap'] = "wrap pretty" should set the property value
+Pass	e.style['text-wrap'] = "pretty wrap" should set the property value
+Pass	e.style['text-wrap'] = "stable wrap" should set the property value
+Pass	e.style['text-wrap'] = "nowrap pretty" should set the property value
+Pass	e.style['text-wrap'] = "pretty nowrap" should set the property value
+Pass	e.style['text-wrap-style'] = "pretty" should set the property value
+Pass	Property text-wrap value 'pretty'
+Pass	Property text-wrap value 'wrap pretty'
+Pass	Property text-wrap value 'pretty wrap'
+Pass	Property text-wrap value 'stable wrap'
+Pass	Property text-wrap value 'nowrap pretty'
+Pass	Property text-wrap value 'pretty nowrap'
+Pass	Property text-wrap-style value 'pretty'

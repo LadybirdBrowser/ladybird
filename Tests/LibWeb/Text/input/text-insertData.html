@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="text">==</div>
+<script>
+    test(() => {
+        const text = document.getElementById("text");
+        const range = document.createRange();
+        range.setStart(text.firstChild, 0);
+        range.setEnd(text.firstChild, text.firstChild.length);
+        text.firstChild.insertData(1, "Привет");
+        println(range.toString());
+    });
+</script>

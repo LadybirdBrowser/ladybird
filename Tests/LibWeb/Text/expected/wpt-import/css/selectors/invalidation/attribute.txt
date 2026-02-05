@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	[att] selector is effective
+Pass	[att=val] selector is effective
+Pass	[att~=val] selector is effective
+Pass	[att|=val] selector is effective
+Pass	#id selector is effective
+Pass	.class selector is effective

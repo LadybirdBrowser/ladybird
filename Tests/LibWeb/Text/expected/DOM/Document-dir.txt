@@ -1,0 +1,6 @@
+String
+document.dir = ''
+document.dir = 'ltr'
+document.dir = 'rtl'
+document.dir = 'auto'
+document.dir = ''

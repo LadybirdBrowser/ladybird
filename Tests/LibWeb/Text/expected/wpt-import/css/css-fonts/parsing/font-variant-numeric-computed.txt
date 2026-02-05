@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Property font-variant-numeric value 'normal'
+Pass	Property font-variant-numeric value 'lining-nums'
+Pass	Property font-variant-numeric value 'oldstyle-nums'
+Pass	Property font-variant-numeric value 'proportional-nums'
+Pass	Property font-variant-numeric value 'tabular-nums'
+Pass	Property font-variant-numeric value 'diagonal-fractions'
+Pass	Property font-variant-numeric value 'stacked-fractions'
+Pass	Property font-variant-numeric value 'ordinal'
+Pass	Property font-variant-numeric value 'slashed-zero'
+Pass	Property font-variant-numeric value 'oldstyle-nums tabular-nums diagonal-fractions'
+Pass	Property font-variant-numeric value 'lining-nums proportional-nums stacked-fractions ordinal slashed-zero'

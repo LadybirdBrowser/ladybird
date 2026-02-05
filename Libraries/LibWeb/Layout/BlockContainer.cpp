@@ -1,0 +1,36 @@
+/*
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
+
+namespace Web::Layout {
+
+GC_DEFINE_ALLOCATOR(BlockContainer);
+
+BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, GC::Ref<CSS::ComputedProperties> style)
+    : Box(document, node, move(style))
+{
+}
+
+BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, NonnullOwnPtr<CSS::ComputedValues> computed_values)
+    : Box(document, node, move(computed_values))
+{
+}
+
+BlockContainer::~BlockContainer() = default;
+
+Painting::PaintableWithLines const* BlockContainer::paintable_with_lines() const
+{
+    return as_if<Painting::PaintableWithLines>(Box::paintable_box());
+}
+
+GC::Ptr<Painting::Paintable> BlockContainer::create_paintable() const
+{
+    return Painting::PaintableWithLines::create(*this);
+}
+
+}

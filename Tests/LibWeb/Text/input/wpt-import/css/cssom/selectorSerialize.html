@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSSOM Test: test serialized selector which is only one simple selector in the sequence of simple selectors</title>
+        <link rel="author" title="T.Nishitani" href="mailto:lequinharay@gmail.com">
+        <link rel="reviewer" title="L. David Baron" href="https://dbaron.org/">
+        <link rel="help" href="https://drafts.csswg.org/cssom-1/#serializing-selectors">
+        <meta name="flags" content="dom">
+        <meta charset="utf-8">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+        <style id="teststyles">
+        </style>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script>
+            function assert_selector_serializes_to(source, expected_result) {
+              var style_element = document.getElementById("teststyles");
+              style_element.firstChild.data = source + "{ font-size: 1em; }";
+              var sheet = style_element.sheet;
+              assert_equals(sheet.cssRules[sheet.cssRules.length - 1].selectorText, expected_result);
+            }
+
+            function run_tests_on_anplusb_selector(source) {
+                assert_selector_serializes_to(source + '( even   )', source + '(2n)');
+                assert_selector_serializes_to(source + '(   odd )', source + '(2n+1)');
+                assert_selector_serializes_to(source + '( +10  )', source + '(10)');
+                assert_selector_serializes_to(source + '(   -10 )', source + '(-10)');
+                assert_selector_serializes_to(source + '( +4n  )', source + '(4n)');
+                assert_selector_serializes_to(source + '( -3n   )', source + '(-3n)');
+                assert_selector_serializes_to(source + '( 1n + 5  )', source + '(n+5)');
+                assert_selector_serializes_to(source + '( -1n +     5 )', source + '(-n+5)');
+                assert_selector_serializes_to(source + '( -1n     - 5 )', source + '(-n-5)');
+            }
+
+            test(function() {
+              assert_selector_serializes_to(":nth-child(  3n - 0)", ":nth-child(3n)");
+              assert_selector_serializes_to(":nth-child(  1n - 0)", ":nth-child(n)");
+            }, ":nth-child serialization produces canonical form");
+
+
+            /* for universal selecter with default namespace */
+            test(function(){
+                /* this is single universal selector */
+                assert_selector_serializes_to('*', '*');
+                assert_selector_serializes_to(' * ', '*');
+            }, 'single universal selector shows \'*\' when serialized.')
+
+            test(function(){
+                assert_selector_serializes_to('div', 'div');
+                assert_selector_serializes_to(' div ', 'div');
+            }, 'single type (simple) selector in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                assert_selector_serializes_to('.class', '.class');
+                assert_selector_serializes_to(' .class    ', '.class');
+            }, 'single class (simple) selector in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                assert_selector_serializes_to('#id', '#id');
+                assert_selector_serializes_to('     #id ', '#id');
+            }, 'single id (simple) selector in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                assert_selector_serializes_to(':hover', ':hover');
+                assert_selector_serializes_to('    :hover    ', ':hover');
+            }, 'single pseudo (simple) selector which does not accept arguments in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                assert_selector_serializes_to(':lang(ja)', ':lang(ja)');
+                assert_selector_serializes_to(':lang( ja )', ':lang(ja)');
+                assert_selector_serializes_to(':lang( j\\ a )', ':lang(j\\ a)');
+            }, 'single pseudo (simple) selector "lang" which accepts arguments in the sequence of simple selectors that is not a universal selector')
+
+
+            test(function(){
+                run_tests_on_anplusb_selector(':nth-child');
+            }, 'single pseudo (simple) selector "nth-child" which accepts arguments in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                run_tests_on_anplusb_selector(':nth-last-child');
+            }, 'single pseudo (simple) selector "nth-last-child" which accepts arguments in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                run_tests_on_anplusb_selector(':nth-of-type');
+            }, 'single pseudo (simple) selector "nth-of-child" which accepts arguments in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                run_tests_on_anplusb_selector(':nth-last-of-type');
+            }, 'single pseudo (simple) selector ":nth-last-of-type" which accepts arguments in the sequence of simple selectors that is not a universal selector')
+
+            test(function(){
+                assert_selector_serializes_to(' :not( abc ) ', ':not(abc)');
+                assert_selector_serializes_to(' :not(  .head ) ', ':not(.head)');
+                assert_selector_serializes_to(' :not(  #head   ) ', ':not(#head)');
+                assert_selector_serializes_to(' :not(  :hover   ) ', ':not(:hover)');
+            }, 'single pseudo (simple) selector ":not" which accepts arguments in the sequence of simple selectors that is not a universal selector')
+
+            const escaped_ns_rule = "@namespace ns\\:odd url(ns);";
+            test(function() {
+                assert_selector_serializes_to("[ns\\:foo]", "[ns\\:foo]");
+            }, "escaped character in attribute name");
+            test(function() {
+                assert_selector_serializes_to("[\\30zonk]", "[\\30 zonk]");
+            }, "escaped character as code point in attribute name");
+            test(function() {
+                assert_selector_serializes_to("[\\@]", "[\\@]");
+            }, "escaped character (@) in attribute name");
+            test(function() {
+                assert_selector_serializes_to("[*|ns\\:foo]", "[*|ns\\:foo]");
+            }, "escaped character in attribute name with any namespace");
+            test(function() {
+                assert_selector_serializes_to(escaped_ns_rule + "[ns\\:odd|foo]", "[ns\\:odd|foo]");
+            }, "escaped character in attribute prefix");
+            test(function() {
+                assert_selector_serializes_to(escaped_ns_rule + "[ns\\:odd|odd\\:name]", "[ns\\:odd|odd\\:name]");
+            }, "escaped character in both attribute prefix and name");
+
+            test(() => {
+              assert_selector_serializes_to("\\\\", "\\\\");
+            }, "escaped character (\\) in element name");
+            test(() => {
+              assert_selector_serializes_to("*|\\\\", "\\\\");
+            }, "escaped character (\\) in element name with any namespace without default");
+            test(() => {
+              assert_selector_serializes_to("@namespace 'blah'; *|\\\\", "*|\\\\");
+            }, "escaped character (\\) in element name with any namespace with default");
+            test(() => {
+              assert_selector_serializes_to("|\\\\", "|\\\\");
+            }, "escaped character (\\) in element name with no namespace");
+
+            const element_escaped_ns_rule = "@namespace x\\* 'blah';";
+            test(() => {
+              assert_selector_serializes_to(element_escaped_ns_rule + "x\\*|test", "x\\*|test");
+            }, "escaped character (*) in element prefix");
+
+            // TODO: https://github.com/w3c/csswg-drafts/issues/8911
+        </script>
+    </body>
+</html>

@@ -1,0 +1,28 @@
+#import <Streams/ReadableStream.idl>
+
+// https://w3c.github.io/FileAPI/#blob-section
+[Exposed=(Window,Worker), Serializable]
+interface Blob {
+    constructor(optional sequence<BlobPart> blobParts, optional BlobPropertyBag options = {});
+
+    readonly attribute unsigned long long size;
+    readonly attribute DOMString type;
+
+    // slice Blob into byte-ranged chunks
+    Blob slice(optional [Clamp] long long start, optional [Clamp] long long end, optional DOMString contentType);
+
+    // read from the Blob.
+    [NewObject] ReadableStream stream();
+    [NewObject] Promise<USVString> text();
+    [NewObject] Promise<ArrayBuffer> arrayBuffer();
+    [NewObject] Promise<Uint8Array> bytes();
+};
+
+enum EndingType { "transparent", "native" };
+
+dictionary BlobPropertyBag {
+    DOMString type = "";
+    EndingType endings = "transparent";
+};
+
+typedef (BufferSource or Blob or USVString) BlobPart;

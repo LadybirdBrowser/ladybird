@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            document.defaultView.getComputedStyle(document.documentElement, null).setProperty("foo", "bar");
+            println("FAIL");
+        } catch (e) {
+            println(`Calling setProperty() on a computed CSSStyleDeclaration throws error of type: ${e.name}`);
+        }
+
+        try {
+            document.defaultView.getComputedStyle(document.documentElement, null).removeProperty("foo");
+            println("FAIL");
+        } catch (e) {
+            println(`Calling removeProperty() on a computed CSSStyleDeclaration throws error of type: ${e.name}`);
+        }
+    });
+</script>

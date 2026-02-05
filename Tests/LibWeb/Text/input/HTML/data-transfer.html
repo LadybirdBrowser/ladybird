@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let dataTransfer = new DataTransfer();
+        println(`dropEffect: ${dataTransfer.dropEffect}`);
+        println(`effectAllowed: ${dataTransfer.effectAllowed}`);
+
+        let dataTransferItemList = dataTransfer.items;
+        println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
+
+        let stringItem = dataTransferItemList.add("well hello friends", "custom-type");
+        println(`stringItem: kind=${stringItem.kind}, type=${stringItem.type}`);
+        println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
+
+        if (dataTransferItemList[0] !== stringItem) {
+            println("FAILED");
+        }
+
+        let promise = new Promise((resolve, reject) => {
+            stringItem.getAsString(data => {
+                println(`stringItemAsString: data=${data}`);
+                resolve();
+            });
+        });
+        await promise;
+
+        try {
+            dataTransferItemList.add("well hello friends", "custom-type");
+            println("FAILED");
+        } catch (e) {}
+
+        let file = new File(["well hello friends"], "file.txt", {
+            type: "text/plain",
+        });
+
+        let fileItem = dataTransferItemList.add(file);
+        println(`fileItem: kind=${fileItem.kind}, type=${fileItem.type}`);
+        println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
+
+        let fileItemAsFile = fileItem.getAsFile();
+        println(`fileItemAsFile: name=${fileItemAsFile.name}, type=${fileItemAsFile.type}`);
+
+        let fileItemAsEntry = fileItem.webkitGetAsEntry();
+        println(`fileItemAsEntry: name=${fileItemAsEntry.name}, file=${fileItemAsEntry.isFile}, directory=${fileItemAsEntry.isDirectory}`);
+
+        if (dataTransferItemList[1] !== fileItem) {
+            println("FAILED");
+        }
+
+        if (dataTransferItemList[2] !== undefined) {
+            println("FAILED");
+        }
+
+        done();
+    });
+</script>

@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSTranslate tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#csstranslate">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gInvalidCoordTestCases = [
+  { coord: CSS.deg(1), desc: 'a CSSUnitValue with type other than length or percent'},
+  { coord: new CSSMathSum(CSS.deg(1)), desc: 'a CSSMathValue that doesn\'t match <length-percentage>'},
+];
+
+for (const {coord, desc} of gInvalidCoordTestCases) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSTranslate(coord, CSS.px(0), CSS.px(0)));
+    assert_throws_js(TypeError, () => new CSSTranslate(CSS.px(0), coord, CSS.px(0)));
+    assert_throws_js(TypeError, () => new CSSTranslate(CSS.px(0), CSS.px(0), coord));
+  }, 'Constructing a CSSTranslate with ' + desc + ' for the coordinates throws a TypeError');
+}
+
+test(() => {
+  assert_throws_js(TypeError, () => new CSSTranslate(CSS.px(0), CSS.px(0), CSS.percent(0)));
+}, 'Constructing a CSSTranslate with a percent for the Z coordinate throws a TypeError');
+
+for (const attr of ['x', 'y', 'z']) {
+  for (const {value, desc} of gInvalidCoordTestCases) {
+    test(() => {
+      let result = new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(0));
+      assert_throws_js(TypeError, () => result[attr] = value);
+      assert_style_value_equals(result[attr], CSS.px(0));
+    }, 'Updating CSSTranslate.' + attr + ' to ' + desc + ' throws a TypeError');
+  }
+}
+
+test(() => {
+  let result = new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(0));
+  assert_throws_js(TypeError, () => result.z = CSS.percent(0));
+  assert_style_value_equals(result.z, CSS.px(0));
+}, 'Updating CSSTranslate.z to a percent throws a TypeError');
+
+test(() => {
+  const result = new CSSTranslate(CSS.px(-3.14), CSS.percent(3.14));
+  assert_style_value_equals(result.x, CSS.px(-3.14));
+  assert_style_value_equals(result.y, CSS.percent(3.14));
+  assert_style_value_equals(result.z, CSS.px(0));
+  assert_true(result.is2D);
+}, 'CSSTranslate can be constructed from two length or percent coordinates');
+
+test(() => {
+  const result = new CSSTranslate(CSS.px(-3.14), CSS.percent(3.14), CSS.px(10));
+  assert_style_value_equals(result.x, CSS.px(-3.14));
+  assert_style_value_equals(result.y, CSS.percent(3.14));
+  assert_style_value_equals(result.z, CSS.px(10));
+  assert_false(result.is2D);
+}, 'CSSTranslate can be constructed from three length or percent coordinates');
+
+test(() => {
+  const result = new CSSTranslate(new CSSMathSum(CSS.px(-3.14)), new CSSMathSum(CSS.percent(3.14)));
+  assert_style_value_equals(result.x, new CSSMathSum(CSS.px(-3.14)));
+  assert_style_value_equals(result.y, new CSSMathSum(CSS.percent(3.14)));
+  assert_style_value_equals(result.z, CSS.px(0));
+  assert_true(result.is2D);
+}, 'CSSTranslate can be constructed from CSSMathValues');
+
+for (const attr of ['x', 'y']) {
+  test(() => {
+    let result = new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(0));
+    result[attr] = CSS.px(3.14);
+    assert_style_value_equals(result[attr], CSS.px(3.14));
+  }, 'CSSTranslate.' + attr + ' can be updated to a length');
+
+  test(() => {
+    let result = new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(0));
+    result[attr] = CSS.percent(3.14);
+    assert_style_value_equals(result[attr], CSS.percent(3.14));
+  }, 'CSSTranslate.' + attr + ' can be updated to a percent');
+
+  test(() => {
+    let result = new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(0));
+    result[attr] = new CSSMathSum(CSS.px(3.14));
+    assert_style_value_equals(result[attr], new CSSMathSum(CSS.px(3.14)));
+    result[attr] = new CSSMathSum(CSS.percent(3.14));
+    assert_style_value_equals(result[attr], new CSSMathSum(CSS.percent(3.14)));
+  }, 'CSSTranslate.' + attr + ' can be updated to a CSSMathValue');
+}
+
+test(() => {
+  let result = new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(0));
+  result.z = CSS.px(3.14);
+  assert_style_value_equals(result.z, CSS.px(3.14));
+}, 'CSSTranslate.z can be updated to a length');
+
+test(() => {
+  let result = new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(0));
+  result.z = new CSSMathSum(CSS.px(3.14));
+  assert_style_value_equals(result.z, new CSSMathSum(CSS.px(3.14)));
+}, 'CSSTranslate.z can be updated to a CSSMathValue');
+
+test(() => {
+  let result = new CSSTranslate(CSS.px(0), CSS.px(0));
+  result.is2D = true;
+  assert_true(result.is2D);
+  result.is2D = false;
+  assert_false(result.is2D);
+}, 'Modifying CSSTranslate.is2D can be updated to true or false');
+
+</script>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function dumpText(text) {
+            println(`text.data = '${text.data}', length = ${text.length}`);
+        }
+
+        let text = new Text('🙃');
+        dumpText(text);
+        text.appendData('🙃')
+        dumpText(text);
+        text.insertData(2, 'hi🙃')
+        dumpText(text);
+        text.deleteData(2, 1)
+        dumpText(text);
+        text.replaceData(2, 5, 'replaced!')
+        dumpText(text);
+        println(text.substringData(2, 5))
+    });
+</script>

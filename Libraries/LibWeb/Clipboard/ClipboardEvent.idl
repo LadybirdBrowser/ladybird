@@ -1,0 +1,13 @@
+#import <DOM/Event.idl>
+#import <HTML/DataTransfer.idl>
+
+dictionary ClipboardEventInit : EventInit {
+    DataTransfer? clipboardData = null;
+};
+
+// https://w3c.github.io/clipboard-apis/#clipboardevent
+[Exposed=Window]
+interface ClipboardEvent : Event {
+    constructor(DOMString type, optional ClipboardEventInit eventInitDict = {});
+    readonly attribute DataTransfer? clipboardData;
+};

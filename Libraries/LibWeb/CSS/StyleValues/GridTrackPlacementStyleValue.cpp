@@ -1,0 +1,32 @@
+/*
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include "GridTrackPlacementStyleValue.h"
+
+namespace Web::CSS {
+
+ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue const> GridTrackPlacementStyleValue::create(CSS::GridTrackPlacement grid_track_placement)
+{
+    return adopt_ref(*new (nothrow) GridTrackPlacementStyleValue(move(grid_track_placement)));
+}
+
+void GridTrackPlacementStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
+{
+    m_grid_track_placement.serialize(builder, mode);
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> GridTrackPlacementStyleValue::absolutized(ComputationContext const& context) const
+{
+    auto absolutized_placement = m_grid_track_placement.absolutized(context);
+    if (absolutized_placement == m_grid_track_placement)
+        return *this;
+    return create(move(absolutized_placement));
+}
+
+}

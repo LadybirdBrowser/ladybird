@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let styleNode = document.createElement("style");
+        styleNode.innerText = `
+            test {
+                --color: red;
+                color: red;
+            }
+        `;
+        document.head.appendChild(styleNode);
+        const sheet = styleNode.sheet;
+        println(sheet.cssRules[0].cssText);
+    });
+</script>

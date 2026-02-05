@@ -1,0 +1,19 @@
+face.family: Some font family
+face.style: normal
+face.weight: normal
+face.stretch: normal
+face.unicodeRange: U+0-10FFFF
+face.featureSettings: normal
+face.variationSettings: normal
+face.display: auto
+face.ascentOverride: normal
+face.descentOverride: normal
+face.lineGapOverride: normal
+face.family: Another font family
+face.style: italic
+face.weight: bold
+face.stretch: condensed
+face.family = 1: SyntaxError: FontFace.family setter: Invalid descriptor value
+face.style = 1: SyntaxError: FontFace.style setter: Invalid descriptor value
+face.weight = 500kg: SyntaxError: FontFace.weight setter: Invalid descriptor value
+face.stretch = super stretched: SyntaxError: FontFace.stretch setter: Invalid descriptor value

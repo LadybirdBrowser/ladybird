@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: nested style containment and the quote element following a style boundary without any quotes</title>
+  <link rel="author" title="Martin Robinson" href="mailto:mrobinson@igalia.com">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/quote-scoping-empty-style-boundaries-ref.html">
+  <link rel=help href="https://drafts.csswg.org/css-contain-1/#containment-style">
+
+<div style="contain: style;">
+    <div style="contain: style;">
+        <q></q>
+    </div>
+</div>

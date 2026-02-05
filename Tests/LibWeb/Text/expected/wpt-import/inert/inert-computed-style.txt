@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	inert isn't hit-testable, but that isn't expose in the computed style

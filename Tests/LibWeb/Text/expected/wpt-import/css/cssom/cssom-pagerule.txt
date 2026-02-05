@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	Sanity checks
+Pass	Page selector is initially the empty string
+Pass	Page selector 'cssText' is initially the @page { }
+Pass	Set selectorText to :left pseudo page
+Pass	Set cssText to :left pseudo page
+Pass	Set selectorText to named page
+Pass	Set cssText to named page
+Pass	Set selectorText to named page with :first pseudo page
+Pass	Set cssText to named page with :first pseudo page
+Pass	Set selectorText to named page with case insensitive :first pseudo page
+Pass	Set cssText to named page with case insensitive :first pseudo page
+Pass	Set selectorText to named page with two :first pseudo page
+Pass	Set cssText to named page with two :first pseudo page
+Pass	Set selectorText to named page with pseudo pages of :first, :left, :right, :first in order.
+Pass	Set cssText to named page with pseudo pages of :first, :left, :right, :first in order.
+Pass	Cannot set selectorText to named page with pseudo, whitespace between
+Pass	Cannot set cssText to named page with pseudo, whitespace between - return default @page { }
+Pass	Cannot set selectorText to two pseudos, whitespace between
+Pass	Cannot set cssText to two pseudos, whitespace between - return default @page { }
+Pass	Cannot set selectorText to invalid pseudo page
+Pass	Cannot set cssText to invalid pseudo page - return default @page { }
+Pass	Set selectorText to named page after rule was removed

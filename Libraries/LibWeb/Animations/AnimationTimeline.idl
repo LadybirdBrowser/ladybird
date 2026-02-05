@@ -1,0 +1,9 @@
+#import <CSS/CSSNumericValue.idl>
+
+// https://drafts.csswg.org/web-animations-2/#the-animationtimeline-interface
+[Exposed=Window]
+interface AnimationTimeline {
+    [ImplementedAs=current_time_for_bindings] readonly attribute CSSNumberish? currentTime;
+    [ImplementedAs=duration_for_bindings] readonly attribute CSSNumberish? duration;
+    [FIXME] Animation play (optional AnimationEffect? effect = null);
+};

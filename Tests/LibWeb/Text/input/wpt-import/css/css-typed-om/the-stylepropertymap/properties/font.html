@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'font' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runUnsupportedPropertyTests('font', [
+  '1.2em "Fira Sans", sans-serif',
+  'italic 1.2em "Fira Sans", serif',
+  'italic small-caps bold 16px/2 cursive',
+  'small-caps bold 24px/1 sans-serif',
+  'caption',
+]);
+
+</script>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-inside-scroll-container-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    #scrollable {
+        height: 300px;
+        overflow: scroll;
+    }
+    svg {
+        display: block;
+    }
+</style>
+<div id="scrollable">
+    <svg width="100" height="100">
+        <rect width="100" height="100" fill="green" />
+    </svg>
+    <svg width="100" height="100">
+        <rect width="100" height="100" fill="green" />
+    </svg>
+    <svg width="100" height="100">
+        <rect width="100" height="100" fill="green" />
+    </svg>
+    <svg width="100" height="100">
+        <rect width="100" height="100" fill="green" />
+    </svg>
+    <svg width="100" height="100">
+        <rect width="100" height="100" fill="green" />
+    </svg>
+</div>
+<script>
+    const scrollContainer = document.getElementById("scrollable");
+    scrollContainer.scrollTop = 100;
+</script>

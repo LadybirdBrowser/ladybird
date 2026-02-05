@@ -1,0 +1,6 @@
+About to read into Uint8Array with [object ReadableStreamBYOBReader]
+Total bytes: 34
+'This is some data to be read! 🦬'
+About to read into DataView with [object ReadableStreamBYOBReader]
+Total bytes: 34
+'This is some data to be read! 🦬'

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <link rel="match" href="../expected/li-change-value-attribute-ref.html" />
+  <ol>
+    <li id="first">Item a</li>
+    <li>Item b</li>
+  </ol>
+  <script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById("first").value = 42;
+        document.documentElement.className = '';
+      });
+    });
+  </script>
+</html>

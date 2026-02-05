@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const logs = [];
+        const printLogs = () => {
+            logs.sort();
+            for (const log of logs) {
+                println(log);
+            }
+        };
+
+        let goodLink = document.createElement("link");
+        goodLink.setAttribute("rel", "preload");
+        goodLink.setAttribute("href", "valid.css");
+        goodLink.setAttribute("as", "style");
+        goodLink.addEventListener("load", function () {
+            logs.push("Got load event");
+
+            if (logs.length == 2) {
+                printLogs();
+                done();
+            }
+        });
+        document.head.appendChild(goodLink);
+
+        let badLink = document.createElement("link");
+        badLink.setAttribute("rel", "preload");
+        badLink.setAttribute("href", "this-file-does-not-exist-and-so-is-invalid.css");
+        badLink.setAttribute("as", "style");
+        badLink.addEventListener("error", function () {
+            logs.push("Got error event");
+
+            if (logs.length == 2) {
+                printLogs();
+                done();
+            }
+        });
+        document.head.appendChild(badLink);
+    });
+</script>

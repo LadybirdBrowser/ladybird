@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test case for negative values of text-underline-offset</title>
+<meta name="assert" content="text-underline-offset: Negative values should not be clamped to zero">
+<link rel="author" title="Myles C. Maxfield" href="mmaxfield@apple.com">
+<link rel="author" title="Apple Inc." href="http://www.apple.com/">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/4059">
+<link rel="mismatch" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-underline-offset-negative-notref.html">
+</head>
+<body>
+<div style="font-size: 48px; text-decoration: underline; text-underline-offset: -20px; text-decoration-skip: none;">Hello</div>
+</body>
+</html>

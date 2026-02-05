@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 33 tests
+
+30 Pass
+3 Fail
+Pass	querySelectorAll
+Pass	createElement
+Pass	createElementNS
+Pass	createDocumentFragment
+Pass	createTextNode
+Pass	createComment
+Pass	createProcessingInstruction
+Pass	createAttribute
+Pass	createAttributeNS
+Pass	createEvent
+Pass	createRange
+Pass	createNodeIterator
+Pass	createTreeWalker
+Pass	Request
+Pass	Response
+Fail	getElementsByTagName
+Fail	getElementsByTagNameNS
+Fail	getElementsByClassName
+Pass	createDocumentType
+Pass	createDocument
+Pass	createHTMLDocument
+Pass	NamedNodeMap item
+Pass	NamedNodeMap getNamedItem
+Pass	NamedNodeMap getNamedItemNS
+Pass	splitText
+Pass	extractContents
+Pass	cloneContents
+Pass	cloneRange
+Pass	getContext 2d
+Pass	getContext webgl
+Pass	createImageData
+Pass	getImageData
+Pass	FontFace's load()

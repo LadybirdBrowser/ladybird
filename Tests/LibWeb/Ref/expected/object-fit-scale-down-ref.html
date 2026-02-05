@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+.container {
+  border: 1px solid #888;
+  display: inline-block;
+  width: 128px;
+  height: 128px;
+}
+
+.container div {
+  position: relative;
+}
+
+.red {
+  background-color: #f00;
+}
+
+.yellow {
+  background-color: #ff0;
+}
+
+.green {
+  background-color: #0f0;
+}
+
+.blue {
+  background-color: #00f;
+}
+    </style>
+  </head>
+  <body>
+    <!-- square_256x256 -->
+    <div class="container">
+      <div class="red" style="width: 128px; height: 128px; left: 0px; top: 0px">
+        <div class="yellow" style="width: 96px; height: 96px; left: 16px; top: 16px;">
+          <div class="green" style="width: 64px; height: 64px; left: 16px; top: 16px;">
+            <div class="blue" style="width: 32px; height: 32px; left: 16px; top: 16px;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- square_64x64 -->
+    <div class="container">
+      <div class="red" style="width: 64px; height: 64px; left: 32px; top: 32px;">
+        <div class="yellow" style="width: 48px; height: 48px; left: 8px; top: 8px;">
+          <div class="green" style="width: 32px; height: 32px; left: 8px; top: 8px;">
+            <div class="blue" style="width: 16px; height: 16px; left: 8px; top: 8px;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- portrait_128x256 -->
+    <div class="container">
+      <div class="red" style="width: 64px; height: 128px; left: 32px; top: 0px;">
+        <div class="yellow" style="width: 48px; height: 96px; left: 8px; top: 16px;">
+          <div class="green" style="width: 32px; height: 64px; left: 8px; top: 16px;">
+            <div class="blue" style="width: 16px; height: 32px; left: 8px; top: 16px;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- landscape_256x128 -->
+    <div class="container">
+      <div class="red" style="width: 128px; height: 64px; left: 0px; top: 32px;">
+        <div class="yellow" style="width: 96px; height: 48px; left: 16px; top: 8px;">
+          <div class="green" style="width: 64px; height: 32px; left: 16px; top: 8px;">
+            <div class="blue" style="width: 32px; height: 16px; left: 16px; top: 8px;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: parsing animation with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#propdef-animation">
+<meta name="assert" content="animation supports the full grammar '<single-animation> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <single-animation> = <time> || <easing-function> || <time> ||
+// <single-animation-iteration-count> || <single-animation-direction> ||
+// <single-animation-fill-mode> || <single-animation-play-state> ||
+// [ none | <keyframes-name> ]
+test_valid_value("animation", "1s", ["1s", "1s ease 0s 1 normal none running none"]);
+test_valid_value("animation", "cubic-bezier(0, -2, 1, 3)", ["cubic-bezier(0, -2, 1, 3)", "auto cubic-bezier(0, -2, 1, 3) 0s 1 normal none running none"]);
+test_valid_value("animation", "cubic-bezier( 0, -2, 1, 3 )", ["cubic-bezier(0, -2, 1, 3)", "auto cubic-bezier(0, -2, 1, 3) 0s 1 normal none running none"]);
+test_valid_value("animation", "1s -3s", ["1s -3s", "1s ease -3s 1 normal none running none"]);
+test_valid_value("animation", "4", ["4", "auto ease 0s 4 normal none running none"]);
+test_valid_value("animation", "reverse", ["reverse", "auto ease 0s 1 reverse none running none"]);
+test_valid_value("animation", "both", ["both", "auto ease 0s 1 normal both running none"]);
+test_valid_value("animation", "paused", ["paused", "auto ease 0s 1 normal none paused none"]);
+test_valid_value("animation", "none", ["auto", "none", "auto ease 0s 1 normal none running none"]);
+test_valid_value("animation", "anim", ["anim", "auto ease 0s 1 normal none running anim"]);
+
+test_valid_value("animation", "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)",
+  "1s cubic-bezier(0, -2, 1, 3) -3s 4 reverse both paused anim");
+
+test_valid_value("animation", "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)",
+  ["reverse both paused anim, 1s cubic-bezier(0, -2, 1, 3) -3s 4", "auto ease 0s 1 reverse both paused anim, 1s cubic-bezier(0, -2, 1, 3) -3s 4 normal none running none"]);
+
+// TODO: Add test with a single negative time.
+// TODO: Add test with a single timing-function keyword.
+</script>
+</body>
+</html>

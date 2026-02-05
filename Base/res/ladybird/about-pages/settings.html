@@ -1,0 +1,609 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Settings</title>
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <style>
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --card-background-color: #f9f9f9;
+                    --card-header-background-color: #f0f2f5;
+
+                    --input-background-color: white;
+
+                    --border-color: #dcdde1;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --card-background-color: #2c2c2c;
+                    --card-header-background-color: #252525;
+
+                    --border-color: #3d3d3d;
+                }
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                max-width: 800px;
+
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            header {
+                display: flex;
+                align-items: center;
+
+                margin-bottom: 30px;
+            }
+
+            header h1 {
+                font-size: 20px;
+            }
+
+            header img {
+                height: 48px;
+                margin-right: 10px;
+                float: left;
+            }
+
+            hr {
+                height: 1px;
+                background-color: var(--border-color);
+                border: none;
+            }
+
+            .card {
+                background-color: var(--card-background-color);
+
+                border-radius: 8px;
+                margin-bottom: 20px;
+
+                overflow: hidden;
+            }
+
+            .card-header {
+                background-color: var(--card-header-background-color);
+
+                border-bottom: 1px solid var(--border-color);
+                padding: 15px 20px;
+            }
+
+            .inner-header {
+                font-size: 16px;
+                font-weight: 500;
+            }
+
+            .card-body {
+                padding: 20px;
+            }
+
+            .card-body > hr {
+                margin: 0 8px 16px 8px;
+            }
+
+            .card-group {
+                margin-bottom: 20px;
+            }
+
+            .card-group:last-child {
+                margin-bottom: 0;
+            }
+
+            .inline-container {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+            }
+
+            .button-container {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+
+                margin-top: 20px;
+            }
+
+            .input-field-container {
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                gap: 10px;
+            }
+
+            .input-field-container + .input-field-container {
+                margin-top: 16px;
+            }
+
+            .input-field-container label,
+            .input-field-container p {
+                margin: 0;
+            }
+
+            .forcibly-enabled {
+                font-size: 14px;
+                opacity: 0.6;
+            }
+
+            .description {
+                margin-bottom: 10px;
+
+                font-size: 14px;
+                opacity: 0.7;
+            }
+
+            label {
+                display: block;
+                margin-bottom: 8px;
+
+                font-size: 14px;
+            }
+
+            input[type="text"],
+            input[type="url"],
+            select {
+                background-color: var(--input-background-color);
+
+                width: 100%;
+                border: 1px solid var(--border-color);
+            }
+
+            input[type="text"].success,
+            input[type="url"].success {
+                border: 1px solid green;
+            }
+
+            input[type="text"].error,
+            input[type="url"].error {
+                border: 1px solid red;
+            }
+
+            dialog {
+                background-color: var(--card-background-color);
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+
+                width: 90%;
+                max-width: 500px;
+
+                margin: auto;
+                padding: 0;
+
+                border: none;
+                border-radius: 8px;
+                outline: none;
+            }
+
+            dialog::backdrop {
+                background-color: rgba(0, 0, 0, 0.5);
+            }
+
+            dialog .dialog-header {
+                background-color: var(--card-header-background-color);
+
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+
+                padding: 15px 20px;
+            }
+
+            dialog .dialog-body {
+                height: 450px;
+
+                border-top: 1px solid var(--border-color);
+
+                display: flex;
+                flex-direction: column;
+
+                padding: 15px 20px;
+            }
+
+            dialog .dialog-body label {
+                font-size: 16px;
+            }
+
+            dialog .dialog-body hr {
+                margin: 8px 4px 10px 4px;
+            }
+
+            dialog .dialog-form {
+                border-top: 1px solid var(--border-color);
+
+                display: flex;
+                flex-direction: column;
+
+                padding: 15px 20px;
+            }
+
+            dialog .form-group {
+                margin-bottom: 20px;
+            }
+
+            dialog .dialog-footer {
+                display: flex;
+                justify-content: flex-end;
+
+                border-top: 1px solid var(--border-color);
+
+                padding: 15px 20px;
+                gap: 10px;
+            }
+
+            dialog .dialog-title {
+                font-size: 18px;
+                font-weight: 500;
+            }
+
+            dialog .dialog-button {
+                background: none;
+                border: none;
+                outline: none;
+
+                padding: 0;
+
+                font-size: 22px;
+                opacity: 0.8;
+
+                cursor: pointer;
+            }
+
+            dialog .dialog-button:hover {
+                opacity: 1;
+            }
+
+            dialog .dialog-button:disabled {
+                opacity: 0.3;
+            }
+
+            dialog .dialog-list {
+                outline: 1px solid var(--border-color);
+                border-radius: 4px;
+
+                margin: 10px 0;
+
+                font-size: 14px;
+
+                overflow-y: auto;
+                flex-grow: 1;
+            }
+
+            dialog .dialog-list-item {
+                padding: 10px;
+
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            dialog .dialog-list-item:hover {
+                background-color: var(--card-header-background-color);
+            }
+
+            dialog .dialog-list-item-placeholder {
+                padding: 10px;
+                opacity: 0.6;
+            }
+
+            dialog .dialog-list-item-label {
+                flex-grow: 1;
+            }
+
+            dialog .dialog-controls {
+                display: flex;
+                justify-content: flex-end;
+
+                margin-top: auto;
+                gap: 10px;
+            }
+
+            dialog .dialog-controls button svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            dialog .dialog-controls input,
+            dialog .dialog-controls select {
+                flex-grow: 1;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>Ladybird Settings</h1>
+        </header>
+
+        <div class="card">
+            <div class="card-header">General</div>
+            <div class="card-body">
+                <div class="card-group">
+                    <label for="new-tab-page-url">New Tab Page URL</label>
+                    <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
+                </div>
+
+                <div class="card-group">
+                    <label for="default-zoom-level">Default Zoom Level</label>
+                    <select id="default-zoom-level"></select>
+                </div>
+
+                <hr />
+
+                <div class="card-group inline-container">
+                    <span>Languages</span>
+                    <button id="languages-settings" class="secondary-button">Settings...</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Search</div>
+            <div class="card-body">
+                <div class="card-group">
+                    <div class="inline-container">
+                        <label for="search-engine">Default Search Engine</label>
+                        <button id="search-settings" class="secondary-button">Settings...</button>
+                    </div>
+                    <p class="description">Select the search engine to use in the address bar.</p>
+                    <select id="search-engine">
+                        <option value="">Disable search</option>
+                        <hr />
+                    </select>
+                </div>
+
+                <hr />
+
+                <div class="card-group">
+                    <label for="autocomplete-engine">Search Suggestions</label>
+                    <p class="description">Select the engine that will provide search suggestions.</p>
+                    <select id="autocomplete-engine">
+                        <option value="">Disable search suggestions</option>
+                        <hr />
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Permissions</div>
+            <div class="card-body">
+                <div class="card-group inline-container">
+                    <span>Autoplay</span>
+                    <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
+                        This setting is controlled via the command line
+                    </span>
+                    <button id="autoplay-settings" class="secondary-button">Settings...</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Privacy</div>
+            <div class="card-body">
+                <div class="card-group inline-container">
+                    <span>Browsing Data</span>
+                    <button id="clear-browsing-data" class="secondary-button">Clear...</button>
+                </div>
+
+                <hr />
+
+                <div class="card-group">
+                    <div class="inline-container">
+                        <label for="global-privacy-control-toggle">Enable Global Privacy Control</label>
+                        <input id="global-privacy-control-toggle" type="checkbox" switch />
+                    </div>
+                    <p class="description">Tell websites not to sell or share your data.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Network</div>
+            <div class="card-body">
+                <div class="card-group">
+                    <div class="card-header inner-header inline-container">
+                        <span>DNS Settings</span>
+                        <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
+                            This setting is controlled via the command line
+                        </span>
+                    </div>
+                    <div id="dns-settings-container" class="card-body">
+                        <div class="card-group">
+                            <label for="dns-upstream">DNS Upstream</label>
+                            <select id="dns-upstream">
+                                <option value="system">System DNS</option>
+                                <option value="custom">Custom DNS Server</option>
+                            </select>
+                        </div>
+                        <div id="custom-dns-settings" class="hidden">
+                            <div class="card-group">
+                                <label for="dns-type">Type</label>
+                                <select id="dns-type">
+                                    <option value="udp">UDP</option>
+                                    <option value="tls">TLS</option>
+                                </select>
+                            </div>
+                            <div class="card-group">
+                                <label for="dnssec-toggle">Validate DNSSEC Locally</label>
+                                <input id="dnssec-toggle" type="checkbox" switch />
+                            </div>
+                            <div class="card-group">
+                                <label for="dns-server">DNS Server (IP or hostname)</label>
+                                <input id="dns-server" type="text" />
+                            </div>
+                            <div class="card-group">
+                                <label for="dns-port">Port</label>
+                                <input id="dns-port" type="text" placeholder="53" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button id="restore-defaults" class="primary-button">Restore&nbsp;Defaults</button>
+        </div>
+
+        <dialog id="languages-dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">Languages</h3>
+                <button id="languages-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p class="description">Choose languages for websites in order of preference</p>
+                <div id="languages-list" class="dialog-list"></div>
+                <div class="dialog-controls">
+                    <select id="languages-select">
+                        <option value="">Select a language to add...</option>
+                    </select>
+                    <button id="languages-add" class="primary-button" disabled>Add</button>
+                </div>
+            </div>
+        </dialog>
+
+        <dialog id="search-dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">Search Settings</h3>
+                <button id="search-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body" style="height: 300px">
+                <p class="description">Manage custom search engines</p>
+                <div id="search-list" class="dialog-list"></div>
+            </div>
+            <div class="dialog-form">
+                <div class="form-group">
+                    <label for="search-custom-name">Search Engine Name</label>
+                    <input id="search-custom-name" type="text" placeholder="Example" />
+                </div>
+                <div class="form-group">
+                    <label for="search-custom-url">Search URL</label>
+                    <p class="description">Use %s as a placeholder for the search query</p>
+                    <input id="search-custom-url" type="url" placeholder="https://example.com/search?q=%s" />
+                </div>
+                <div class="dialog-controls">
+                    <button id="search-custom-add" class="primary-button">Add&nbsp;Engine</button>
+                </div>
+            </div>
+        </dialog>
+
+        <dialog id="site-settings">
+            <div class="dialog-header">
+                <h3 id="site-settings-title" class="dialog-title"></h3>
+                <button id="site-settings-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="inline-container">
+                    <label for="site-settings-global">Enable on all sites</label>
+                    <input id="site-settings-global" type="checkbox" switch />
+                </div>
+                <hr />
+                <label>Allowlist</label>
+                <div id="site-settings-list" class="dialog-list"></div>
+                <div class="dialog-controls">
+                    <input id="site-settings-input" type="text" placeholder="example.com" />
+                    <button id="site-settings-add" class="primary-button">Add&nbsp;Site</button>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button id="site-settings-remove-all" class="secondary-button">Remove All Sites</button>
+            </div>
+        </dialog>
+
+        <dialog id="clear-browsing-data-dialog">
+            <div class="dialog-header">
+                <h3 id="clear-browsing-data-title" class="dialog-title">Clear Browsing Data</h3>
+                <button id="clear-browsing-data-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p id="clear-browsing-data-total-size" class="description"></p>
+                <hr />
+
+                <div class="input-field-container">
+                    <p>From:</p>
+                    <select id="clear-browsing-data-time-range">
+                        <option value="lastHour">Last hour</option>
+                        <option value="last4Hours">Last 4 hours</option>
+                        <option value="today">Today</option>
+                        <option value="all" selected>All time</option>
+                    </select>
+                </div>
+
+                <div class="input-field-container">
+                    <input id="clear-browsing-data-cached-files" type="checkbox" value="" checked />
+                    <label for="clear-browsing-data-cached-files">
+                        Cached files<span id="clear-browsing-data-cached-files-size"></span>
+                        <p class="description">Remove items that help pages load faster</p>
+                    </label>
+                </div>
+                <div class="input-field-container">
+                    <input id="clear-browsing-data-site-data" type="checkbox" value="" checked />
+                    <label for="clear-browsing-data-site-data">
+                        Cookies and site data<span id="clear-browsing-data-site-data-size"></span>
+                        <p class="description">Remove items that may sign you out of most sites</p>
+                    </label>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button id="clear-browsing-data-remove-data" class="secondary-button">Remove data</button>
+            </div>
+        </dialog>
+
+        <script>
+            // FIXME: When we support per-glyph font fallbacks, replace these SVGs with analogous code points.
+            //        https://github.com/LadybirdBrowser/ladybird/issues/864
+            const upwardArrowSVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+            const downwardArrowSVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+
+            const containsValidURL = input => {
+                return input.value.length !== 0 && input.checkValidity();
+            };
+        </script>
+
+        <script src="resource://ladybird/about-pages/settings/default-zoom-level.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/network.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/new-tab-page.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/permissions.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/privacy.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/search.js" type="module"></script>
+
+        <script type="module">
+            const restoreDefaults = document.querySelector("#restore-defaults");
+
+            restoreDefaults.addEventListener("click", () => {
+                ladybird.sendMessage("restoreDefaultSettings");
+            });
+
+            // FIXME: This should be replaced once we support popover light dismissal.
+            document.querySelectorAll("dialog").forEach(dialog =>
+                dialog.addEventListener("click", event => {
+                    const rect = dialog.getBoundingClientRect();
+
+                    if (
+                        event.clientX < rect.left ||
+                        event.clientX > rect.right ||
+                        event.clientY < rect.top ||
+                        event.clientY > rect.bottom
+                    ) {
+                        dialog.close();
+                    }
+                })
+            );
+
+            document.addEventListener("WebUILoaded", () => {
+                ladybird.sendMessage("loadCurrentSettings");
+            });
+        </script>
+    </body>
+</html>

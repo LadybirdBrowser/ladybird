@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS prefers-color-scheme affects SVG images - color-scheme 'normal', no &lt;meta> (reference)</title>
+<style>
+  .background {
+    width: 32px;
+    height: 32px;
+  }
+  #light { display: revert }
+  #dark { display: none }
+  @media (prefers-color-scheme: dark) {
+    #light { display: none }
+    #dark { display: revert }
+  }
+</style>
+<div id="light">
+  <img src="resources/prefers-color-scheme-light.svg">
+  <div class="background" style="background-image: url(resources/prefers-color-scheme-light.svg)"></div>
+</div>
+<div id="dark">
+  <img src="resources/prefers-color-scheme-dark.svg">
+  <div class="background" style="background-image: url(resources/prefers-color-scheme-dark.svg)"></div>
+</div>

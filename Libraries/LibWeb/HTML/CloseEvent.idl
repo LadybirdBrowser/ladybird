@@ -1,0 +1,17 @@
+#import <DOM/Event.idl>
+
+// https://websockets.spec.whatwg.org/#the-closeevent-interface
+[Exposed=*]
+interface CloseEvent : Event {
+    constructor(DOMString type, optional CloseEventInit eventInitDict = {});
+
+    readonly attribute boolean wasClean;
+    readonly attribute unsigned short code;
+    readonly attribute USVString reason;
+};
+
+dictionary CloseEventInit : EventInit {
+    boolean wasClean = false;
+    unsigned short code = 0;
+    USVString reason = "";
+};

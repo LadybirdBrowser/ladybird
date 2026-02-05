@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Computation of colors using RGB notation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#rgb-functions">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-sRGB-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-sRGB-values">
+<link rel="author" title="Chris Nardi" href="mailto:cnardi@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  :root {
+    --high: 500;
+    --negative: -100;
+  }
+  #container {
+    container-type: inline-size;
+    color: rgb(255, 0, 0);
+  }
+</style>
+<script>
+tests = [
+    ["rgb(none none none)", "rgb(0, 0, 0)"],
+    ["rgb(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["rgb(128 none none)", "rgb(128, 0, 0)"],
+    ["rgb(128 none none / none)", "rgba(128, 0, 0, 0)"],
+    ["rgb(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
+    ["rgb(20% none none)", "rgb(51, 0, 0)"],
+    ["rgb(20% none none / none)", "rgba(51, 0, 0, 0)"],
+    ["rgb(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
+    ["rgba(none none none)", "rgb(0, 0, 0)"],
+    ["rgba(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["rgba(128 none none)", "rgb(128, 0, 0)"],
+    ["rgba(128 none none / none)", "rgba(128, 0, 0, 0)"],
+    ["rgba(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
+    ["rgba(20% none none)", "rgb(51, 0, 0)"],
+    ["rgba(20% none none / none)", "rgba(51, 0, 0, 0)"],
+    ["rgba(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
+
+    ["rgb(2.5, 3.4, 4.6)", ["rgb(3, 3, 5)", "rgb(2.5, 3.4, 4.6)"], "Tests that RGB channels are rounded appropriately"],
+
+    ["rgb(00, 51, 102)", "rgb(0, 51, 102)", "Valid numbers should be parsed"],
+    ["r\\gb(00, 51, 102)", "rgb(0, 51, 102)", "Correct escape sequences should still parse"],
+    ["r\\67 b(00, 51, 102)", "rgb(0, 51, 102)", "Correct escape sequences should still parse"],
+    ["RGB(153, 204, 255)", "rgb(153, 204, 255)", "Capitalization should not affect parsing"],
+    ["rgB(0, 0, 0)", "rgb(0, 0, 0)", "Capitalization should not affect parsing"],
+    ["rgB(0, 51, 255)", "rgb(0, 51, 255)", "Capitalization should not affect parsing"],
+    ["rgb(0,51,255)", "rgb(0, 51, 255)", "Lack of whitespace should not affect parsing"],
+    ["rgb(0\t,  51 ,255)", "rgb(0, 51, 255)", "Whitespace should not affect parsing"],
+    ["rgb(/* R */0, /* G */51, /* B */255)", "rgb(0, 51, 255)", "Comments should be allowed within function"],
+    ["rgb(-51, 306, 0)", "rgb(0, 255, 0)", "Invalid values should be clamped to 0 and 255 respectively"],
+    ["rgb(42%, 3%, 50%)", "rgb(107, 8, 128)", "Valid percentages should be parsed"],
+    ["RGB(100%, 100%, 100%)", "rgb(255, 255, 255)", "Capitalization should not affect parsing"],
+    ["rgB(0%, 0%, 0%)", "rgb(0, 0, 0)", "Capitalization should not affect parsing"],
+    ["rgB(10%, 20%, 30%)", "rgb(26, 51, 77)", "Capitalization should not affect parsing"],
+    ["rgb(10%,20%,30%)", "rgb(26, 51, 77)", "Whitespace should not affect parsing"],
+    ["rgb(10%\t,  20% ,30%)", "rgb(26, 51, 77)", "Whitespace should not affect parsing"],
+    ["rgb(/* R */ 10%, /* G */ 20%, /* B */ 30%)", "rgb(26, 51, 77)", "Comments should not affect parsing"],
+    ["rgb(-12%, 110%, 1400%)", "rgb(0, 255, 255)", "Invalid values should be clamped to 0 and 255 respectively"],
+    ["rgb(0, 0, 0, 0)", "rgba(0, 0, 0, 0)", "RGB and RGBA are synonyms"],
+    ["rgb(0%, 0%, 0%, 0%)", "rgba(0, 0, 0, 0)", "RGB and RGBA are synonyms"],
+    ["rgb(0%, 0%, 0%, 0)", "rgba(0, 0, 0, 0)", "RGB and RGBA are synonyms"],
+    ["rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0)", "Valid numbers should be parsed"],
+    ["rgba(204, 0, 102, 0.3)", "rgba(204, 0, 102, 0.3)", "Valid numbers should be parsed"],
+    ["RGBA(255, 255, 255, 0)", "rgba(255, 255, 255, 0)", "Capitalization should not affect parsing"],
+    ["rgBA(0, 51, 255, 1)", "rgb(0, 51, 255)", "Capitalization should not affect parsing"],
+    ["rgba(0, 51, 255, 1.1)", "rgb(0, 51, 255)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["rgba(0, 51, 255, 37)", "rgb(0, 51, 255)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["rgba(0, 51, 255, 0.42)", "rgba(0, 51, 255, 0.42)", "Valid numbers should be parsed"],
+    ["rgba(0, 51, 255, 0)", "rgba(0, 51, 255, 0)", "Valid numbers should be parsed"],
+    ["rgba(0, 51, 255, -0.1)", "rgba(0, 51, 255, 0)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["rgba(0, 51, 255, -139)", "rgba(0, 51, 255, 0)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["RGBA(100%, 100%, 100%, 0)", "rgba(255, 255, 255, 0)", "Capitalization should not affect parsing"],
+    ["rgba(42%, 3%, 50%, 0.3)", "rgba(107, 8, 128, 0.3)", "Valid percentages should be parsed"],
+    ["rgBA(0%, 20%, 100%, 1)", "rgb(0, 51, 255)", "Capitalization should not affect parsing"],
+    ["rgba(0%, 20%, 100%, 1.1)", "rgb(0, 51, 255)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["rgba(0%, 20%, 100%, 37)", "rgb(0, 51, 255)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["rgba(0%, 20%, 100%, 0.42)", "rgba(0, 51, 255, 0.42)", "Valid percentages should be parsed"],
+    ["rgba(0%, 20%, 100%, 0)", "rgba(0, 51, 255, 0)", "Valid percentages should be parsed"],
+    ["rgba(0%, 20%, 100%, -0.1)", "rgba(0, 51, 255, 0)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["rgba(0%, 20%, 100%, -139)", "rgba(0, 51, 255, 0)", "Invalid alpha values should be clamped to 0 and 1 respectively"],
+    ["rgba(255, 255, 255, 0%)", "rgba(255, 255, 255, 0)", "Percent alpha values are accepted in rgb/rgba"],
+    ["rgba(0%, 0%, 0%, 0%)", "rgba(0, 0, 0, 0)", "Percent alpha values are accepted in rgb/rgba"],
+    ["rgba(0%, 0%, 0%)", "rgb(0, 0, 0)", "RGB and RGBA are synonyms"],
+    ["rgba(0, 0, 0)", "rgb(0, 0, 0)", "RGB and RGBA are synonyms"],
+
+    // rgb are in the range [0, 255], alpha is in the range [0, 1].
+    // calc(infinity) resolves to the upper bound while calc(-infinity) and calc(NaN) resolves the lower bound.
+    // See: https://github.com/w3c/csswg-drafts/issues/8629
+    ["rgb(calc(infinity), 0, 0)", "rgb(255, 0, 0)", "Red channel resolves positive infinity to 255"],
+    ["rgb(0, calc(infinity), 0)", "rgb(0, 255, 0)", "Green channel resolves positive infinity to 255"],
+    ["rgb(0, 0, calc(infinity))", "rgb(0, 0, 255)", "Blue channel resolves positive infinity to 255"],
+    ["rgba(0, 0, 0, calc(infinity))", "rgb(0, 0, 0)", "Alpha channel resolves positive infinity to fully opaque"],
+    ["rgb(calc(-infinity), 0, 0)", "rgb(0, 0, 0)", "Red channel resolves negative infinity to zero"],
+    ["rgb(0, calc(-infinity), 0)", "rgb(0, 0, 0)", "Green channel resolves negative infinity to zero"],
+    ["rgb(0, 0, calc(-infinity))", "rgb(0, 0, 0)", "Blue channel resolves negative infinity to zero"],
+    ["rgba(0, 0, 0, calc(-infinity))", "rgba(0, 0, 0, 0)", "Alpha channel resolves negative infinity to fully transparent"],
+    ["rgb(calc(NaN), 0, 0)", "rgb(0, 0, 0)", "Red channel resolves NaN to zero"],
+    ["rgb(0, calc(NaN), 0)", "rgb(0, 0, 0)", "Green channel resolves NaN to zero"],
+    ["rgb(0, 0, calc(NaN))", "rgb(0, 0, 0)", "Blue channel resolves NaN to zero"],
+    ["rgba(0, 0, 0, calc(NaN))", "rgba(0, 0, 0, 0)", "Alpha channel resolves NaN to zero"],
+    ["rgb(calc(0 / 0), 0, 0)", "rgb(0, 0, 0)", "Red channel resolves NaN equivalent calc statements to zero"],
+    ["rgb(0, calc(0 / 0), 0)", "rgb(0, 0, 0)", "Green channel resolves NaN equivalent calc statements to zero"],
+    ["rgb(0, 0, calc(0 / 0))", "rgb(0, 0, 0)", "Blue channel resolves NaN equivalent calc statements to zero"],
+    ["rgba(0, 0, 0, calc(0 / 0))", "rgba(0, 0, 0, 0)", "Alpha channel resolves NaN equivalent calc statements to zero"],
+
+    ["rgb(var(--high), 0, 0)", "rgb(255, 0, 0)", "Variables above 255 get clamped to 255."],
+    ["rgb(var(--negative), 64, 128)", "rgb(0, 64, 128)", "Variables below 0 get clamped to 0."],
+
+    // calc(50% + (sign(1em - 10px) * 10%)), with its font relative units, must be evaluatated for computed value.
+    ["rgb(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)", "rgba(153, 0, 0, 0.5)"],
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)", "rgba(153, 0, 0, 0.5)"],
+    ["rgb(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)", "rgba(60, 0, 0, 0.5)"],
+    ["rgba(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)", "rgba(60, 0, 0, 0.5)"],
+    ["rgb(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "rgba(0, 0, 0, 0.6)"],
+    ["rgba(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "rgba(0, 0, 0, 0.6)"],
+    ["rgb(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgba(0, 0, 0, 0.85)"],
+    ["rgba(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgba(0, 0, 0, 0.85)"],
+
+    ["rgb(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)", "rgba(153, 0, 0, 0.5)"],
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)", "rgba(153, 0, 0, 0.5)"],
+    ["rgb(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)", "rgba(60, 0, 0, 0.5)"],
+    ["rgba(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)", "rgba(60, 0, 0, 0.5)"],
+    ["rgb(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))", "rgba(0, 0, 0, 0.6)"],
+    ["rgba(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))", "rgba(0, 0, 0, 0.6)"],
+    ["rgb(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgba(0, 0, 0, 0.85)"],
+    ["rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgba(0, 0, 0, 0.85)"],
+
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)", "rgba(153, 0, 0, 0.5)"],
+    ["rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgba(0, 0, 0, 0.85)"],
+];
+
+for (const test of tests) {
+    test_computed_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+}
+
+// Ensure that `calc` values work with dynamically changing relative units (slighly different alpha values to make test harness not complain about duplicate tests).
+document.getElementById("container").style.width = "1000px";
+test_computed_value("color", "rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 51%)", "rgba(153, 0, 0, 0.51)");
+document.getElementById("container").style.width = "100px";
+test_computed_value("color", "rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 52%)", "rgba(102, 0, 0, 0.52)");
+
+</script>
+</body>
+</html>

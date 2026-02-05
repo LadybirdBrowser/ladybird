@@ -1,0 +1,49 @@
+/*
+ * Copyright (c) 2022, Ali Mohammad Pur <mpfard@serenityos.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Error.h>
+#include <AK/IPv4Address.h>
+#include <AK/Types.h>
+#include <LibURL/URL.h>
+
+namespace Core {
+
+// FIXME: Username/password support.
+struct ProxyData {
+    enum Type {
+        Direct,
+        SOCKS5,
+    } type { Type::Direct };
+
+    IPv4Address host_ipv4;
+    u16 port { 0 };
+
+    bool operator==(ProxyData const& other) const = default;
+
+    static ErrorOr<ProxyData> parse_url(URL::URL const& url)
+    {
+        ProxyData proxy_data;
+        if (url.scheme() != "socks5")
+            return Error::from_string_literal("Unsupported proxy type");
+
+        proxy_data.type = ProxyData::Type::SOCKS5;
+
+        if (!url.host().has_value() || !url.host()->has<IPv4Address>())
+            return Error::from_string_literal("Invalid proxy host, must be an IPv4 address");
+        proxy_data.host_ipv4 = url.host()->get<IPv4Address>();
+
+        auto port = url.port();
+        if (!port.has_value())
+            return Error::from_string_literal("Invalid proxy, must have a port");
+        proxy_data.port = *port;
+
+        return proxy_data;
+    }
+};
+
+}

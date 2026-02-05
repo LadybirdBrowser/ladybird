@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            math-depth: 1;
+        }
+
+        #bar {
+            math-depth: inherit;
+        }
+    </style>
+    <div id="foo">
+        <div id="bar"></div>
+    </div>
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            await animationFrame();
+            await animationFrame();
+
+            foo.style.mathDepth = "2";
+            println(getComputedStyle(bar).mathDepth);
+        });
+    </script>
+</html>

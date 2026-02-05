@@ -1,0 +1,15 @@
+before cloning:
+original imageBitmap width: 120
+original imageBitmap height: 120
+after cloning, before transferring:
+original imageBitmap width: 120
+original imageBitmap height: 120
+cloned imageBitmap width: 120
+cloned imageBitmap height: 120
+after cloning, after transferring:
+original imageBitmap width: 0
+original imageBitmap height: 0
+cloned imageBitmap width: 120
+cloned imageBitmap height: 120
+transferred imageBitmap width: 120
+transferred imageBitmap height: 120

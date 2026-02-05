@@ -1,0 +1,9 @@
+// https://wicg.github.io/speech-api/#speechsynthesisvoice
+[Exposed=Window]
+interface SpeechSynthesisVoice {
+    readonly attribute DOMString voiceURI;
+    readonly attribute DOMString name;
+    readonly attribute DOMString lang;
+    readonly attribute boolean localService;
+    [ImplementedAs=is_default] readonly attribute boolean default;
+};

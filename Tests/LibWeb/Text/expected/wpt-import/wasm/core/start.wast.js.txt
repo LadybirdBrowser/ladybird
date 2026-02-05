@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	#1 Reinitialize the default imports
+Pass	#2 Test that WebAssembly compilation fails
+Pass	#3 Test that WebAssembly compilation fails
+Pass	#4 Test that WebAssembly compilation fails
+Pass	#5 Test that WebAssembly compilation fails
+Pass	#6 Reinitialize the default imports
+Pass	#7 Test that WebAssembly compilation fails
+Pass	#8 Test that WebAssembly compilation fails
+Pass	#9 Test that WebAssembly compilation fails
+Pass	#10 Test that WebAssembly instantiation succeeds
+Pass	#11 Test that a WebAssembly code returns a specific result
+Pass	#12 Run a WebAssembly test without special assertions
+Pass	#13 Test that a WebAssembly code returns a specific result
+Pass	#14 Run a WebAssembly test without special assertions
+Pass	#15 Test that a WebAssembly code returns a specific result
+Pass	#16 Test that WebAssembly instantiation succeeds
+Pass	#17 Test that a WebAssembly code returns a specific result
+Pass	#18 Run a WebAssembly test without special assertions
+Pass	#19 Test that a WebAssembly code returns a specific result
+Pass	#20 Run a WebAssembly test without special assertions
+Pass	#21 Test that a WebAssembly code returns a specific result
+Pass	#22 Test that WebAssembly instantiation succeeds
+Pass	#23 Test that WebAssembly instantiation succeeds
+Pass	#24 Test that WebAssembly instantiation succeeds
+Pass	#25 Test that WebAssembly instantiation fails
+Pass	#26 Test that a WebAssembly module is uninstantiable
+Pass	#27 Test that WebAssembly compilation fails

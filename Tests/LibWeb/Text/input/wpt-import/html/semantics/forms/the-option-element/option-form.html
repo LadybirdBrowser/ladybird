@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLOptionElement.form</title>
+<link rel=author title="Sergey Alexandrov" href="mailto:splavgm@gmail.com">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#dom-option-form">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<form id="form">
+    <select id="select">
+        <optgroup id="optgroup"></optgroup>
+    </select>
+</form>
+<div id=log></div>
+
+<script>
+test(function () {
+  var form = document.getElementById("form");
+  var select = document.getElementById("select");
+  var optgroup = document.getElementById("optgroup");
+
+  var o1 = document.createElement("option");
+  assert_equals(o1.form, null);
+
+  select.appendChild(o1);
+  assert_equals(o1.form, select.form);
+
+  var o2 = document.createElement("option");
+  select.appendChild(o2);
+  assert_equals(o2.form, select.form);
+
+}, "form");
+</script>

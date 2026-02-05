@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Can create policy with name 'SomeName'
+Pass	Can create a second policy with name 'SomeName'
+Pass	Can create policy with name 'default'

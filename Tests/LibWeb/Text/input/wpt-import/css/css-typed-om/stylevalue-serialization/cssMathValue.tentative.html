@@ -1,0 +1,145 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>IDL-constructed CSSMathValue serialization tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#calc-serialization">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gTestCases = [
+  {
+    description: 'CSSMathMax with one argument',
+    value: new CSSMathMax(1),
+    cssText: 'max(1)',
+  },
+  {
+    description: 'CSSMathMax with more than one argument',
+    value: new CSSMathMax(1, 2, 3),
+    cssText: 'max(1, 2, 3)',
+  },
+  {
+    description: 'CSSMathMax with pixel arguments',
+    value: new CSSMathMin(CSS.px(100), CSS.px(110)),
+    cssText: 'min(100px, 110px)',
+  },
+  {
+    description: 'CSSMathMax containing nested CSSMathValues',
+    value: new CSSMathMax(new CSSMathSum(1, 2), 3),
+    cssText: 'max(1 + 2, 3)',
+  },
+  {
+    description: 'CSSMathMin with one argument',
+    value: new CSSMathMin(1),
+    cssText: 'min(1)',
+  },
+  {
+    description: 'CSSMathMin with more than one argument',
+    value: new CSSMathMin(1, 2, 3),
+    cssText: 'min(1, 2, 3)',
+  },
+  {
+    description: 'CSSMathMin with pixel arguments',
+    value: new CSSMathMin(CSS.px(90), CSS.px(100)),
+    cssText: 'min(90px, 100px)',
+  },
+  {
+    description: 'CSSMathMin containing nested CSSMathValues',
+    value: new CSSMathMin(new CSSMathSum(1, 2), 3),
+    cssText: 'min(1 + 2, 3)',
+  },
+  {
+    description: 'CSSMathClamp with lower, value and upper arguments',
+    value: new CSSMathClamp(1, 2, 3),
+    cssText: 'clamp(1, 2, 3)',
+  },
+  {
+    description: 'CSSMathClamp with pixel arguments',
+    value: new CSSMathClamp(CSS.px(90), CSS.px(100), CSS.px(110)),
+    cssText: 'clamp(90px, 100px, 110px)',
+  },
+  {
+    description: 'CSSMathClamp containing nested CSSMathValues',
+    value: new CSSMathClamp(new CSSMathSum(1, 2), 3, 4),
+    cssText: 'clamp(1 + 2, 3, 4)',
+  },
+  {
+    description: 'CSSMathSum with one argument',
+    value: new CSSMathSum(1),
+    cssText: 'calc(1)',
+  },
+  {
+    description: 'CSSMathSum with more than one argument',
+    value: new CSSMathSum(1, 2, 3),
+    cssText: 'calc(1 + 2 + 3)',
+  },
+  {
+    description: 'CSSMathSum with a CSSMathNegate as first value',
+    value: new CSSMathSum(new CSSMathNegate(1), 2, 3),
+    cssText: 'calc((-1) + 2 + 3)',
+  },
+  {
+    description: 'CSSMathSum containing a CSSMathNegate after first value',
+    value: new CSSMathSum(1, new CSSMathNegate(2), 3),
+    cssText: 'calc(1 - 2 + 3)',
+  },
+  {
+    description: 'CSSMathSum nested inside a CSSMathValue',
+    value: new CSSMathSum(new CSSMathSum(1, 2), 3),
+    cssText: 'calc((1 + 2) + 3)',
+  },
+  {
+    description: 'CSSMathNegate',
+    value: new CSSMathNegate(1),
+    cssText: 'calc(-1)',
+  },
+  {
+    description: 'CSSMathNegate nested inside a CSSMathValue',
+    value: new CSSMathProduct(new CSSMathNegate(1)),
+    cssText: 'calc((-1))',
+  },
+  {
+    description: 'CSSMathProduct with one argument',
+    value: new CSSMathProduct(1),
+    cssText: 'calc(1)',
+  },
+  {
+    description: 'CSSMathProduct with more than one argument',
+    value: new CSSMathProduct(1, 2, 3),
+    cssText: 'calc(1 * 2 * 3)',
+  },
+  {
+    description: 'CSSMathProduct with a CSSMathInvert as first value',
+    value: new CSSMathProduct(new CSSMathInvert(1), 2, 3),
+    cssText: 'calc((1 / 1) * 2 * 3)',
+  },
+  {
+    description: 'CSSMathProduct containing a CSSMathInvert after first value',
+    value: new CSSMathProduct(1, new CSSMathInvert(2), 3),
+    cssText: 'calc(1 / 2 * 3)',
+  },
+  {
+    description: 'CSSMathProduct nested inside a CSSMathValue',
+    value: new CSSMathProduct(new CSSMathProduct(1, 2), 3),
+    cssText: 'calc((1 * 2) * 3)',
+  },
+  {
+    description: 'CSSMathInvert',
+    value: new CSSMathInvert(1),
+    cssText: 'calc(1 / 1)',
+  },
+  {
+    description: 'CSSMathInvert nested inside a CSSMathValue',
+    value: new CSSMathSum(new CSSMathInvert(1)),
+    cssText: 'calc((1 / 1))',
+  },
+];
+
+for (const {value, cssText, description} of gTestCases) {
+  test(() => {
+    assert_equals(value.toString(), cssText);
+  }, description + ' serializes correctly');
+}
+
+</script>

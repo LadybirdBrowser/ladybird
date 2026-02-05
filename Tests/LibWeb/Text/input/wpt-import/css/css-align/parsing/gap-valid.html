@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Box Alignment Level 3: parsing gap with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-gap">
+<meta name="assert" content="row-gap supports the full grammar '<row-gap> <column-gap>?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("gap", "normal normal", "normal");
+test_valid_value("gap", "10px 10px", "10px");
+test_valid_value("gap", "20% 20%", "20%");
+test_valid_value("gap", "calc(20% + 10px) calc(20% + 10px)", "calc(20% + 10px)");
+
+test_valid_value("gap", "normal 10px");
+test_valid_value("gap", "10px 20%");
+test_valid_value("gap", "20% calc(20% + 10px)");
+test_valid_value("gap", "calc(20% + 10px) 0px");
+test_valid_value("gap", "0px normal");
+</script>
+</body>
+</html>

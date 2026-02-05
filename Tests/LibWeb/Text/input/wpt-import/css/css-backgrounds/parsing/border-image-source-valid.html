@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing border-image-source with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-image-source">
+<meta name="assert" content="border-image-source supports the full grammar 'none | <image>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("border-image-source", "none");
+
+// Safari removes quotes.
+test_valid_value("border-image-source", 'url("http://www.example.com/")', ['url("http://www.example.com/")', 'url(http://www.example.com/)']);
+</script>
+</body>
+</html>

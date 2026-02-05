@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .perspective-container {
+        perspective: 500px;
+        width: 200px;
+        height: 200px;
+    }
+    .rotated {
+        width: 100px;
+        height: 100px;
+        background: blue;
+        transform: rotateY(30deg);
+    }
+</style>
+<div class="perspective-container">
+    <div class="rotated">3D</div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

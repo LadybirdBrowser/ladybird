@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form>
+    <textarea id="testTextArea" value="FAIL"></textarea>
+</form>
+<script>
+    test(() => {
+        const form = document.forms[0];
+        const textarea = form.querySelector("textarea");
+        textarea.value = "PASS";
+
+        const clone = form.cloneNode(true);
+        document.body.appendChild(clone);
+
+        println(`Cloned textarea value: ${clone.querySelector("textarea").value}`);
+
+        form.remove();
+        clone.remove();
+    });
+</script>

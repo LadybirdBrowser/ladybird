@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid item placement with non-inherited grid-template-areas</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css-grid-1/#line-placement">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/placement/../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Checks that inheriting grid-template-columns and grid-template-rows doesn't also inherit grid-template-areas.">
+<style>
+.wrapper {
+  grid-template-areas: "area";
+}
+.grid {
+  display: grid;
+  width: 100px;
+  height: 100px;
+  grid-auto-columns: 0px 100%;
+  grid-auto-rows: 0px 100%;
+  grid-template-columns: inherit;
+  grid-template-rows: inherit;
+  background: red;
+}
+.item {
+  grid-area: area;
+  background: green;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="wrapper">
+  <div class="grid">
+    <div class="item"></div>
+  </div>
+</div>

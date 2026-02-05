@@ -1,0 +1,7 @@
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#record-interface
+[Exposed=(Window,Worker)]
+interface IDBRecord {
+    readonly attribute any key;
+    readonly attribute any primaryKey;
+    readonly attribute any value;
+};

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['mask-type'] = "luminance" should set the property value
+Pass	e.style['mask-type'] = "alpha" should set the property value

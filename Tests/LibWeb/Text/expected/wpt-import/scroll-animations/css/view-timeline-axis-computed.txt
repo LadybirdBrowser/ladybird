@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Property view-timeline-axis value 'initial'
+Pass	Property view-timeline-axis value 'inherit'
+Pass	Property view-timeline-axis value 'unset'
+Pass	Property view-timeline-axis value 'revert'
+Pass	Property view-timeline-axis value 'block'
+Pass	Property view-timeline-axis value 'inline'
+Pass	Property view-timeline-axis value 'y'
+Pass	Property view-timeline-axis value 'x'
+Pass	Property view-timeline-axis value 'block, inline'
+Pass	Property view-timeline-axis value 'inline, block'
+Pass	Property view-timeline-axis value 'block, y, x, inline'
+Pass	Property view-timeline-axis value 'inline, inline, inline, inline'
+Pass	The view-timeline-axis property shows up in CSSStyleDeclaration enumeration
+Pass	The view-timeline-axis property shows up in CSSStyleDeclaration.cssText

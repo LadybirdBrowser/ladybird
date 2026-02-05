@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>DocumentOrShadowRoot.getAnimations</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations-1/#dom-documentorshadowroot-getanimations">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<body>
+<div id="log"></div>
+<div id="target"></div>
+<script>
+'use strict';
+
+const gKeyFrames = { 'marginLeft': ['100px', '200px'] };
+
+test(t => {
+  assert_equals(document.getAnimations().length, 0,
+                'getAnimations returns an empty sequence for a document ' +
+                'with no animations');
+}, 'Document.getAnimations() returns an empty sequence for non-animated'
+   + ' content');
+
+test(t => {
+  const div = createDiv(t);
+  const anim1 = div.animate(gKeyFrames, 100 * MS_PER_SEC);
+  const anim2 = div.animate(gKeyFrames, 100 * MS_PER_SEC);
+  assert_equals(document.getAnimations().length, 2,
+                'getAnimation returns running animations');
+
+  anim1.finish();
+  anim2.finish();
+  assert_equals(document.getAnimations().length, 0,
+                'getAnimation only returns running animations');
+}, 'Document.getAnimations() returns script-generated animations')
+
+test(t => {
+  const div = createDiv(t);
+  const anim1 = div.animate(gKeyFrames, 100 * MS_PER_SEC);
+  const anim2 = div.animate(gKeyFrames, 100 * MS_PER_SEC);
+  assert_array_equals(document.getAnimations(),
+                      [ anim1, anim2 ],
+                      'getAnimations() returns running animations');
+}, 'Document.getAnimations() returns script-generated animations in the order'
+   + ' they were created')
+
+test(t => {
+  // This element exists but is not a descendent of any document, so isn't
+  // picked up by getAnimations.
+  const div = document.createElement('div');
+  const anim = div.animate(gKeyFrames, 100 * MS_PER_SEC);
+  assert_equals(document.getAnimations().length, 0);
+
+  // Now connect the div; it should appear in the list of animations.
+  document.body.appendChild(div);
+  t.add_cleanup(() => { div.remove(); });
+  assert_equals(document.getAnimations().length, 1);
+}, 'Document.getAnimations() does not return a disconnected node');
+
+test(t => {
+  const effect = new KeyframeEffect(null, gKeyFrames, 100 * MS_PER_SEC);
+  const anim = new Animation(effect, document.timeline);
+  anim.play();
+
+  assert_equals(document.getAnimations().length, 0,
+                'document.getAnimations() only returns animations targeting ' +
+                'elements in this document');
+}, 'Document.getAnimations() does not return an animation with a null target');
+
+promise_test(async t => {
+  const iframe = document.createElement('iframe');
+  await insertFrameAndAwaitLoad(t, iframe, document)
+
+  const div = createDiv(t, iframe.contentDocument)
+  const effect = new KeyframeEffect(div, null, 100 * MS_PER_SEC);
+  const anim = new Animation(effect, document.timeline);
+  anim.play();
+
+  // The animation's timeline is from the main document, but the effect's
+  // target element is part of the iframe document and that is what matters
+  // for getAnimations.
+  assert_equals(document.getAnimations().length, 0);
+  assert_equals(iframe.contentDocument.getAnimations().length, 1);
+  anim.finish();
+}, 'Document.getAnimations() returns animations on elements inside same-origin'
+   + ' iframes');
+
+promise_test(async t => {
+  const iframe1 = document.createElement('iframe');
+  const iframe2 = document.createElement('iframe');
+
+  await insertFrameAndAwaitLoad(t, iframe1, document);
+  await insertFrameAndAwaitLoad(t, iframe2, document);
+
+  const div_frame1 = createDiv(t, iframe1.contentDocument)
+  const div_main_frame = createDiv(t)
+  const effect1 = new KeyframeEffect(div_frame1, null, 100 * MS_PER_SEC);
+  const anim1 = new Animation(effect1, document.timeline);
+  anim1.play();
+  // Animation of div_frame1 is in iframe with main timeline.
+  // The animation's timeline is from the iframe, but the effect's target
+  // element is part of the iframe's document.
+  assert_equals(document.getAnimations().length, 0);
+  assert_equals(iframe1.contentDocument.getAnimations().length, 1);
+  anim1.finish();
+
+   // animation of div_frame1 in iframe1 with iframe timeline
+  const effect2 = new KeyframeEffect(div_frame1, null, 100 * MS_PER_SEC);
+  const anim2 = new Animation(effect2, iframe1.contentDocument.timeline);
+  anim2.play();
+  assert_equals(document.getAnimations().length, 0);
+  assert_equals(iframe1.contentDocument.getAnimations().length, 1);
+  anim2.finish();
+
+  //animation of div_main_frame in main frame with iframe timeline
+  const effect3 = new KeyframeEffect(div_main_frame, null, 100 * MS_PER_SEC);
+  const anim3 = new Animation(effect3, iframe1.contentDocument.timeline);
+  anim3.play();
+  assert_equals(document.getAnimations().length, 1);
+  assert_equals(iframe1.contentDocument.getAnimations().length, 0);
+  anim3.finish();
+
+  //animation of div_frame1 in iframe1 with another iframe's timeline
+  const effect4 = new KeyframeEffect(div_frame1, null, 100 * MS_PER_SEC);
+  const anim4 = new Animation(effect4, iframe2.contentDocument.timeline);
+  anim4.play();
+  assert_equals(document.getAnimations().length, 0);
+  assert_equals(iframe1.contentDocument.getAnimations().length, 1);
+  assert_equals(iframe2.contentDocument.getAnimations().length, 0);
+  anim4.finish();
+}, 'iframe.contentDocument.getAnimations() returns animations on elements '
+   + 'inside same-origin Document');
+
+test(t => {
+  const div = createDiv(t);
+  const shadow = div.attachShadow({ mode: 'open' });
+
+  // Create a tree with the following structure
+  //
+  //             div
+  //              |
+  //         (ShadowRoot)
+  //           /     \
+  //       childA  childB
+  //      (*anim2)   |
+  //              grandChild
+  //               (*anim1)
+  //
+  // This lets us test that:
+  //
+  // a) All children of the ShadowRoot are included
+  // b) Descendants of the children are included
+  // c) The result is sorted by composite order (since we fire anim1 before
+  //    anim2 despite childA appearing first in tree order)
+
+  const childA = createDiv(t);
+  shadow.append(childA);
+
+  const childB = createDiv(t);
+  shadow.append(childB);
+
+  const grandChild = createDiv(t);
+  childB.append(grandChild);
+
+  const anim1 = grandChild.animate(gKeyFrames, 100 * MS_PER_SEC)
+  const anim2 = childA.animate(gKeyFrames, 100 * MS_PER_SEC)
+
+  assert_array_equals(
+    div.shadowRoot.getAnimations(),
+    [ anim1, anim2 ],
+    'getAnimations() called on ShadowRoot returns expected animations'
+  );
+}, 'ShadowRoot.getAnimations() return all animations in the shadow tree');
+
+test(t => {
+  const div = createDiv(t);
+  const shadow = div.attachShadow({ mode: 'open' });
+
+  const child = createDiv(t);
+  shadow.append(child);
+
+  child.animate(gKeyFrames, 100 * MS_PER_SEC)
+
+  assert_array_equals(
+    document.getAnimations(),
+    [],
+    'getAnimations() called on Document does not return animations from shadow'
+    + ' trees'
+  );
+}, 'Document.getAnimations() does NOT return animations in shadow trees');
+
+test(t => {
+  const div = createDiv(t);
+  const shadow = div.attachShadow({ mode: 'open' });
+
+  div.animate(gKeyFrames, 100 * MS_PER_SEC)
+
+  assert_array_equals(
+    div.shadowRoot.getAnimations(),
+    [],
+    'getAnimations() called on ShadowRoot does not return animations from'
+    + ' Document'
+  );
+}, 'ShadowRoot.getAnimations() does NOT return animations in parent document');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const watcher = EventWatcher(t, div, 'transitionrun');
+
+  // Create a covering animation to prevent transitions from firing after
+  // calling getAnimations().
+  const coveringAnimation = new Animation(
+    new KeyframeEffect(div, { opacity: [0, 1] }, 100 * MS_PER_SEC)
+  );
+
+  // Setup transition start point.
+  div.style.transition = 'opacity 100s';
+  getComputedStyle(div).opacity;
+
+  // Update specified style but don't flush style.
+  div.style.opacity = '0.5';
+
+  // Fetch animations
+  document.getAnimations();
+
+  // Play the covering animation to ensure that only the call to
+  // getAnimations() has a chance to trigger transitions.
+  coveringAnimation.play();
+
+  // If getAnimations() flushed style, we should get a transitionrun event.
+  await watcher.wait_for('transitionrun');
+}, 'Document.getAnimations() triggers a style change event');
+
+</script>
+</body>

@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	input type=reset in form should trigger form reset and not toggle popover
+Pass	input type=submit in form should trigger form submit and not toggle popover
+Pass	input type=button in form should toggle popover
+Pass	input type=image in form should trigger form submit and not toggle popover
+Pass	input type=reset with form attr should trigger form reset and not toggle popover
+Pass	input type=submit with form attr should trigger form submit and not toggle popover
+Pass	input type=button with form attr should toggle popover
+Pass	input type=image with form attr should trigger form submit and not toggle popover
+Pass	input type=reset outside form should toggle popover
+Pass	input type=submit outside form should toggle popover
+Pass	input type=button outside form should toggle popover
+Pass	input type=image outside form should toggle popover

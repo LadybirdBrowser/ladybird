@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing border-inline-width with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-inline-width">
+<meta name="assert" content="border-inline-width supports only the grammar '<line-width>{1,2}'.">
+<meta name="assert" content="Negative lengths are not allowed.">
+  <script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("border-inline-start-width", "-20px");
+test_invalid_value("border-inline-start-width", "auto");
+test_invalid_value("border-inline-start-width", "medium 40px");
+test_invalid_value("border-inline-end-width", "10");
+test_invalid_value("border-inline-end-width", "30%");
+
+test_invalid_value("border-inline-width", "thick, thin");
+test_invalid_value("border-inline-width", "10px 20px 30px");
+</script>
+</body>
+</html>

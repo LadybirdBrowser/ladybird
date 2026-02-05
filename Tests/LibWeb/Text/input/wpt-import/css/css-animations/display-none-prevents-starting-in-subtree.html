@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:graouts@webkit.org">
+<link rel=help href="https://drafts.csswg.org/css-animations/#animations">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-animations/support/testcommon.js"></script>
+<style>
+@keyframes margin {
+    100% { margin-left: 200px }
+}
+
+#child {
+  animation: margin 1s forwards;
+}
+</style>
+<div id="container">
+    <div>
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+test(() => {
+  const container = document.getElementById("container");
+  const animationCount = () => container.getAnimations({ subtree: true }).length;
+
+  assert_equals(animationCount(), 1, `An animation is running on the child initially with "display: block" on the container.`);
+
+  container.style.display = "none";
+  assert_equals(animationCount(), 0, `Setting "display: none" on the container canceled the animation.`);
+
+  container.style.marginLeft = "50px";
+  container.firstElementChild.style.marginLeft = "100px";
+  assert_equals(animationCount(), 0, `Manipulating styles on the container and a child element does not restart the animation.`);
+}, 'Elements in a "display: none" tree cannot start CSS Animations.');
+</script>

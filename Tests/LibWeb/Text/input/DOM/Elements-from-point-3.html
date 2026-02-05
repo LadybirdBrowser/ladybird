@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<div>
+    <p>Some text</p>
+</div>
+<p>Elements at point 30, 20:</p>
+<div id="output"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let output = document.getElementById("output");
+        let elements = document.elementsFromPoint(30, 20);
+        elements.forEach((elt, i) => {
+            output.textContent += elt.localName;
+            if (i < elements.length - 1) {
+                output.textContent += " < ";
+            }
+        });
+        println(output.innerText);
+    });
+</script>

@@ -1,0 +1,11 @@
+"marks: none": parsed as "none"
+"marks: crop": parsed as "crop"
+"marks: cross": parsed as "cross"
+"marks: crop cross": parsed as "crop cross"
+"marks: cross crop": parsed as "crop cross"
+"marks: none crop": INVALID
+"marks: crop crop": INVALID
+"marks: cross cross": INVALID
+"marks: cross crop cross": INVALID
+"marks: orange": INVALID
+"marks: auto": INVALID

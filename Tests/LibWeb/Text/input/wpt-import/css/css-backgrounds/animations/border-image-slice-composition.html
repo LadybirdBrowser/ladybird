@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-image-slice composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-image-slice">
+<meta name="assert" content="border-image-slice supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'border-image-slice',
+  underlying: '1 2 3 4',
+  addFrom: '1 2 3 4',
+  addTo: '101 102 103 104',
+}, [
+  {at: -0.25, expect: '0'}, // Non-negative.
+  {at: 0, expect: '2 4 6 8'},
+  {at: 0.25, expect: '27 29 31 33'},
+  {at: 0.5, expect: '52 54 56 58'},
+  {at: 0.75, expect: '77 79 81 83'},
+  {at: 1, expect: '102 104 106 108'},
+  {at: 1.25, expect: '127 129 131 133'},
+]);
+
+test_composition({
+  property: 'border-image-slice',
+  underlying: '100 200 300 400 fill',
+  addFrom: '100 fill',
+  addTo: '200 300 500 fill',
+}, [
+  {at: -0.25, expect: '175 250 300 450 fill'},
+  {at: 0, expect: '200 300 400 500 fill'},
+  {at: 0.25, expect: '225 350 500 550 fill'},
+  {at: 0.5, expect: '250 400 600 600 fill'},
+  {at: 0.75, expect: '275 450 700 650 fill'},
+  {at: 1, expect: '300 500 800 700 fill'},
+  {at: 1.25, expect: '325 550 900 750 fill'},
+]);
+
+test_composition({
+  property: 'border-image-slice',
+  underlying: '1 2 3% 4%',
+  addFrom: '1 2 3% 4%',
+  addTo: '101 102 103% 104%',
+}, [
+  {at: -0.25, expect: '0 0 0% 0%'}, // Non-negative.
+  {at: 0, expect: '2 4 6% 8%'},
+  {at: 0.25, expect: '27 29 31% 33%'},
+  {at: 0.5, expect: '52 54 56% 58%'},
+  {at: 0.75, expect: '77 79 81% 83%'},
+  {at: 1, expect: '102 104 106% 108%'},
+  {at: 1.25, expect: '127 129 131% 133%'},
+]);
+
+test_composition({
+  property: 'border-image-slice',
+  underlying: '10% 20%',
+  addFrom: '190% 180% 290% 280%',
+  addTo: '90% 80%',
+}, [
+  {at: -0.25, expect: '225% 225% 350% 350%'},
+  {at: 0, expect: '200% 200% 300% 300%'},
+  {at: 0.25, expect: '175% 175% 250% 250%'},
+  {at: 0.5, expect: '150% 150% 200% 200%'},
+  {at: 0.75, expect: '125% 125% 150% 150%'},
+  {at: 1, expect: '100%'},
+  {at: 1.25, expect: '75% 75% 50% 50%'},
+]);
+
+test_composition({
+  property: 'border-image-slice',
+  underlying: '10 20%',
+  replaceFrom: '100 100%',
+  addTo: '190 180%',
+}, [
+  {at: -0.25, expect: '75 75%'},
+  {at: 0, expect: '100 100%'},
+  {at: 0.25, expect: '125 125%'},
+  {at: 0.5, expect: '150 150%'},
+  {at: 0.75, expect: '175 175%'},
+  {at: 1, expect: '200 200%'},
+  {at: 1.25, expect: '225 225%'},
+]);
+
+test_composition({
+  property: 'border-image-slice',
+  underlying: '10% 20',
+  addFrom: '90% 80',
+  replaceTo: '0% 0 0% 0',
+}, [
+  {at: -0.25, expect: '125% 125'},
+  {at: 0, expect: '100% 100'},
+  {at: 0.25, expect: '75% 75'},
+  {at: 0.5, expect: '50% 50'},
+  {at: 0.75, expect: '25% 25'},
+  {at: 1, expect: '0% 0'},
+  {at: 1.25, expect: '0% 0'}, // Non-negative.
+]);
+
+test_composition({
+  property: 'border-image-slice',
+  underlying: '10 20',
+  addFrom: '100% 150%',
+  addTo: '200% 250% fill',
+}, [
+  {at: -0.25, expect: '100% 150%'},
+  {at: 0, expect: '100% 150%'},
+  {at: 0.25, expect: '100% 150%'},
+  {at: 0.5, expect: '200% 250% fill'},
+  {at: 0.75, expect: '200% 250% fill'},
+  {at: 1, expect: '200% 250% fill'},
+  {at: 1.25, expect: '200% 250% fill'},
+]);
+
+test_composition({
+  property: 'border-image-slice',
+  underlying: '10 20',
+  addFrom: '100 150%',
+  addTo: '200% 250',
+}, [
+  {at: -0.25, expect: '100 150%'},
+  {at: 0, expect: '100 150%'},
+  {at: 0.25, expect: '100 150%'},
+  {at: 0.5, expect: '200% 250'},
+  {at: 0.75, expect: '200% 250'},
+  {at: 1, expect: '200% 250'},
+  {at: 1.25, expect: '200% 250'},
+]);
+</script>
+</body>

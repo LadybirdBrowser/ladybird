@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        grid-template-rows: 1fr;
+        width: 300px;
+        height: 100px;
+        align-items: stretch;
+        justify-items: stretch;
+    }
+    .item {
+        background: lightgreen;
+    }
+</style>
+<div class="grid">
+    <div class="item">stretch both</div>
+    <div class="item" style="align-self: stretch; justify-self: stretch;">explicit stretch</div>
+</div>

@@ -1,0 +1,36 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
+      ListItemBox <li> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+        ListItemMarkerBox <(anonymous)> at [-6,14] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] children: not-inline
+        BlockContainer <a> at [8,8] floating [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 14.265625x18] baseline: 13.796875
+              "A"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      ListItemBox <li> at [8,26] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+        ListItemMarkerBox <(anonymous)> at [-6,32] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] children: not-inline
+        BlockContainer <a> at [8,26] floating [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,26 9.34375x18] baseline: 13.796875
+              "B"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
+      PaintableWithLines (ListItemBox<LI>) [8,8 784x18]
+        MarkerPaintable (ListItemMarkerBox(anonymous)) [-6,14 6x6]
+        PaintableWithLines (BlockContainer<A>) [8,8 784x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
+      PaintableWithLines (ListItemBox<LI>) [8,26 784x18]
+        MarkerPaintable (ListItemMarkerBox(anonymous)) [-6,32 6x6]
+        PaintableWithLines (BlockContainer<A>) [8,26 784x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x52] [children: 0] (z-index: auto)

@@ -1,0 +1,4 @@
+// https://html.spec.whatwg.org/multipage/system-state.html#navigatoronline
+interface mixin NavigatorOnLine {
+    readonly attribute boolean onLine;
+};

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // HTML Text Nodes
+        const fragment = document.createDocumentFragment();
+
+        const firstNode = document.createTextNode("A");
+        fragment.appendChild(firstNode);
+        println(`Text node ${firstNode.data} with no siblings: ${firstNode.wholeText}`);
+
+        const secondNode = document.createTextNode("B");
+        fragment.appendChild(secondNode);
+        println(`Text node ${secondNode.data} with previous sibling ${secondNode.previousSibling.data}: ${secondNode.wholeText}`);
+
+        const thirdNode = document.createTextNode("C");
+        fragment.appendChild(thirdNode);
+        println(`Text node ${secondNode.data} with previous sibling ${secondNode.previousSibling.data} and next sibling ${secondNode.nextSibling.data}: ${secondNode.wholeText}`);
+
+        // XML CDATA Sections
+        const xmlDoc = new DOMParser().parseFromString("<root></root>", "application/xml");
+        const xmlFrag = xmlDoc.querySelector("root");
+
+        const firstSection = xmlDoc.createCDATASection("D");
+        xmlFrag.appendChild(firstSection);
+        println(`CDATA section ${firstSection.data} with no siblings: ${firstSection.wholeText}`);
+
+        const secondSection = xmlDoc.createCDATASection("E");
+        xmlFrag.appendChild(secondSection);
+        println(`CDATA section ${secondSection.data} with previous sibling ${secondSection.previousSibling.data}: ${secondSection.wholeText}`);
+
+        const thirdSection = xmlDoc.createCDATASection("F");
+        xmlFrag.appendChild(thirdSection);
+        println(`CDATA section ${secondSection.data} with previous sibling ${secondSection.previousSibling.data} and next sibling ${secondSection.nextSibling.data}: ${secondSection.wholeText}`);
+    });
+</script>

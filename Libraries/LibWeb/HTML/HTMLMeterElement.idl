@@ -1,0 +1,15 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#htmlmeterelement
+[Exposed=Window]
+interface HTMLMeterElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    [CEReactions] attribute double value;
+    [CEReactions] attribute double min;
+    [CEReactions] attribute double max;
+    [CEReactions] attribute double low;
+    [CEReactions] attribute double high;
+    [CEReactions] attribute double optimum;
+    readonly attribute NodeList labels;
+};

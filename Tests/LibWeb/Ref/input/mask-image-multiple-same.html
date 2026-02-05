@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/mask-image-multiple-same-ref.html" />
+<style>
+    #mask-image-box {
+        background-color: green;
+        width: 100px;
+        height: 200px;
+        mask-image: url("../data/mask-image-100x200.png"), url("../data/mask-image-100x200.png");
+    }
+</style>
+
+<div id="mask-image-box"></div>
+<!-- FIXME: Workaround to ensure CSS mask-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
+<img style="display: none" src="../data/mask-image-100x200.png" />

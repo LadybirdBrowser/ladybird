@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html id="html">
+<head>
+  <meta charset="utf-8">
+  <title>Selectors Level 4: focus-within</title>
+  <link rel="author" title="Benjamin Poulain" href="mailto:bpoulain@apple.com">
+  <link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+  <link rel="help" href="https://drafts.csswg.org/selectors-4/#focus-within-pseudo">
+  <meta name="assert" content="Checks the basic features of the ':focus-within' pseudo class.">
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <style>
+    * {
+      background-color: white;
+    }
+    :focus-within {
+      background-color: rgb(1, 2, 3);
+    }
+  </style>
+</head>
+<body id="body">
+  <div id="test">
+    <div id="container1">
+      <div id="sibling1"></div>
+      <div id="sibling2">
+        <input id="target1">
+      </div>
+      <div id="sibling3"></div>
+    </div>
+    <div id="container2">
+      <div id="sibling4"></div>
+      <div id="sibling5">
+        <textarea id="target2"></textarea>
+      </div>
+      <div id="sibling6"></div>
+    </div>
+  </div>
+  <div id=log></div>
+
+  <script>
+    "use strict";
+
+    function elementsStyledWithFocusWithinSelector() {
+        let elements = [];
+        for (let element of document.querySelectorAll("*")) {
+            if (getComputedStyle(element).backgroundColor === 'rgb(1, 2, 3)') {
+                elements.push(element.id);
+            }
+        }
+        return elements;
+    }
+
+    function elementsMatchingFocusWithinSelector() {
+        let elements = [];
+        for (let element of document.querySelectorAll(":focus-within")) {
+            elements.push(element.id);
+        }
+        return elements;
+    }
+
+    test(
+      function() {
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), []);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), []);
+      }, "Initial State");
+
+    var container1 = document.getElementById("container1");
+    var container2 = document.getElementById("container2");
+    var target1 = document.getElementById("target1");
+    var target2 = document.getElementById("target2");
+
+    test(
+      function() {
+        target1.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container1", "sibling2", "target1"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container1", "sibling2", "target1"]);
+      }, "Focus 'target1'");
+
+    test(
+      function() {
+        target2.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+      }, "Focus 'target2'");
+
+    test(
+      function() {
+        target1.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container1", "sibling2", "target1"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container1", "sibling2", "target1"]);
+      }, "Focus 'target1' again");
+
+    test(
+      function() {
+        target2.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+      }, "Focus 'target2' again");
+
+    test(
+      function() {
+        target1.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container1", "sibling2", "target1"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container1", "sibling2", "target1"]);
+      }, "Focus 'target1' once again");
+
+    test(
+      function() {
+        container1.parentElement.removeChild(container1);
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), []);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), []);
+        assert_equals(container1.querySelectorAll(":focus-within").length, 0);
+        assert_false(target1.matches(":focus"));
+        assert_false(target2.matches(":focus"));
+      }, "Detach 'container1' from the document");
+
+    test(
+      function() {
+        target1.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), []);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), []);
+        assert_equals(container1.querySelectorAll(":focus-within").length, 0);
+        assert_false(target1.matches(":focus"));
+        assert_false(target2.matches(":focus"));
+      }, "Try to focus 'target1'");
+
+    test(
+      function() {
+        target2.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+      }, "Focus 'target2' once again");
+
+    test(
+      function() {
+        container2.appendChild(container1);
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container2", "sibling5", "target2"]);
+      }, "Attach 'container1' in 'container2'");
+
+    test(
+      function() {
+        target1.focus();
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), ["html", "body", "test", "container2", "container1", "sibling2", "target1"]);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), ["html", "body", "test", "container2", "container1", "sibling2", "target1"]);
+      }, "Focus 'target1' for the last time");
+
+    test(
+      function() {
+        container2.appendChild(target1);
+        assert_array_equals(elementsStyledWithFocusWithinSelector(), []);
+        assert_array_equals(elementsMatchingFocusWithinSelector(), []);
+        assert_false(target1.matches(":focus"));
+        assert_false(target2.matches(":focus"));
+      }, "Move 'target1' in 'container2'");
+  </script>
+</body>
+</html>

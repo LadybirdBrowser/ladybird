@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<title>CSSStyleSheet constructor and adoptedStyleSheets</title>
+<link rel="author" title="Rakina Zata Amni" href="mailto:rakina@chromium.org">
+<link rel="help" href="https://wicg.github.io/construct-stylesheets/">
+<script src = '../../resources/testharness.js'></script>
+<script src = '../../resources/testharnessreport.js'></script>
+
+<section id="firstSection">
+  <div>
+    <span class="green"></span>
+    <span class="red"></span>
+    <span class="blue"></span>
+    <span class="white"></span>
+    <span class="yellow"></span>
+  </div>
+</section>
+<section id="shadowHost"></section>
+<section id="thirdSection"></section>
+
+<script>
+'use strict';
+const greenStyleText = ".green { color: green; }";
+const redStyleTexts = [".red { color: red; }", ".red + span + span { color: red; }"];
+const blueStyleTexts = [".blue { color: blue; }", ".blue + span + span { color: blue; }"];
+const whiteStyleText = "* { color: white; }";
+const yellowStyleText = ".yellow { color: yellow; }";
+
+const firstDiv = document.querySelector('#firstSection > div');
+const secondDiv = firstDiv.cloneNode(true);
+const shadowHost = document.querySelector('#shadowHost');
+const shadowRoot = shadowHost.attachShadow({mode: 'open'});
+shadowRoot.appendChild(secondDiv);
+
+const greenSpan = firstDiv.children[0];
+const redSpan = firstDiv.children[1];
+const blueSpan = firstDiv.children[2];
+const whiteSpan = firstDiv.children[3];
+const yellowSpan = firstDiv.children[4];
+const greenShadowSpan = secondDiv.children[0];
+const redShadowSpan = secondDiv.children[1];
+const blueShadowSpan = secondDiv.children[2];
+const whiteShadowSpan = secondDiv.children[3];
+const yellowShadowSpan = secondDiv.children[4];
+
+test(() => {
+  assert_equals(document.adoptedStyleSheets.length, 0);
+}, "document.adoptedStyleSheets should initially have length 0.");
+
+test(() => {
+  const sheet = new CSSStyleSheet({disabled: true, media: "screen, print"});
+  assert_equals(sheet.title, null, "The title attribute must return the title or null if title is the empty string");
+  assert_equals(sheet.ownerNode, null);
+  assert_equals(sheet.ownerRule, null);
+  assert_equals(sheet.media.length, 2);
+  assert_equals(sheet.media.item(0), "screen");
+  assert_equals(sheet.media.item(1), "print");
+  assert_true(sheet.disabled);
+  assert_equals(sheet.cssRules.length, 0);
+
+  sheet.insertRule(redStyleTexts[0]);
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(sheet.cssRules[0].cssText, redStyleTexts[0]);
+
+  sheet.insertRule(redStyleTexts[1]);
+  assert_equals(sheet.cssRules.length, 2);
+  assert_equals(sheet.cssRules[0].cssText, redStyleTexts[1]);
+
+  const sheet2 = new CSSStyleSheet({});
+  assert_equals(sheet2.title, null, "The title attribute must return the title or null if title is the empty string");
+  assert_equals(sheet2.ownerNode, null);
+  assert_equals(sheet2.ownerRule, null);
+  assert_equals(sheet2.media.length, 0);
+  assert_false(sheet2.disabled);
+  assert_equals(sheet2.cssRules.length, 0);
+
+  sheet2.insertRule(redStyleTexts[1]);
+  assert_equals(sheet2.cssRules.length, 1);
+  assert_equals(sheet2.cssRules[0].cssText, redStyleTexts[1]);
+
+  sheet2.deleteRule(0);
+  assert_equals(sheet2.cssRules.length, 0);
+
+  const sheet3 = new CSSStyleSheet();
+  assert_equals(sheet3.title, null, "The title attribute must return the title or null if title is the empty string");
+  assert_equals(sheet3.ownerNode, null);
+  assert_equals(sheet3.ownerRule, null);
+  assert_equals(sheet3.media.length, 0);
+  assert_false(sheet3.disabled);
+  assert_equals(sheet3.cssRules.length, 0);
+
+  sheet3.insertRule(redStyleTexts[1]);
+  assert_equals(sheet3.cssRules.length, 1);
+  assert_equals(sheet3.cssRules[0].cssText, redStyleTexts[1]);
+
+  sheet3.deleteRule(0);
+  assert_equals(sheet3.cssRules.length, 0);
+}, 'new CSSStyleSheet produces empty CSSStyleSheet');
+
+test(() => {
+  const sheet = new CSSStyleSheet({title: "something"});
+  assert_equals(sheet.title, null, "title and alternate are not supported by the constructor. https://github.com/WICG/construct-stylesheets/issues/105");
+}, "title can be set in the CSSStyleSheet constructor");
+
+promise_test(() => {
+  const sheet = new CSSStyleSheet({disabled: true, media: "screen, print"});
+  const promise_sheet = sheet.replace(redStyleTexts[0]);
+  return promise_sheet.then(function(sheet) {
+    assert_equals(sheet.title, null, "The title attribute must return the title or null if title is the empty string");
+    assert_equals(sheet.ownerNode, null);
+    assert_equals(sheet.ownerRule, null);
+    assert_equals(sheet.media.length, 2);
+    assert_equals(sheet.media.item(0), "screen");
+    assert_equals(sheet.media.item(1), "print");
+    assert_true(sheet.disabled);
+    assert_equals(sheet.cssRules.length, 1);
+    assert_equals(sheet.cssRules[0].cssText, redStyleTexts[0]);
+
+    sheet.insertRule(redStyleTexts[1]);
+    assert_equals(sheet.cssRules.length, 2);
+    assert_equals(sheet.cssRules[0].cssText, redStyleTexts[1]);
+  });
+}, 'CSSStyleSheet.replace produces Promise<CSSStyleSheet>');
+
+function createAllSheetsPromise() {
+  const greenSheet = new CSSStyleSheet();
+  const redSheet = new CSSStyleSheet({media: "screen, print"});
+  const blueSheet = new CSSStyleSheet({disabled: true});
+  const whiteSheet = new CSSStyleSheet({disabled: true});
+  const yellowSheet = new CSSStyleSheet({disabled: false});
+
+  const greenPromise = greenSheet.replace(greenStyleText);
+  const redPromise = redSheet.replace(redStyleTexts[0] + redStyleTexts[1]);
+  const bluePromise = blueSheet.replace(blueStyleTexts[0] + blueStyleTexts[1]);
+  const whitePromise = whiteSheet.replace(whiteStyleText);
+  const yellowPromise = yellowSheet.replace(yellowStyleText);
+  return [greenPromise, redPromise, bluePromise, whitePromise, yellowPromise];
+}
+
+promise_test(() => {
+  return Promise.all(createAllSheetsPromise()).then(values => {
+    const greenStyleSheet = values[0];
+    const redStyleSheet = values[1];
+    const blueStyleSheet = values[2];
+    const whiteStyleSheet = values[3];
+    const yellowStyleSheet = values[4];
+
+    // Lists of style sheets can be created, assigned and read.
+
+    // disabled stylesheets aren't applied
+    document.adoptedStyleSheets = [whiteStyleSheet];
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    // disable dsheets don't block other styles from applying
+    document.adoptedStyleSheets = [greenStyleSheet, blueStyleSheet];
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 128, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    document.adoptedStyleSheets = [redStyleSheet, yellowStyleSheet];
+
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(255, 255, 0)");
+
+    document.adoptedStyleSheets = [redStyleSheet, yellowStyleSheet, greenStyleSheet, blueStyleSheet];
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 128, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(255, 255, 0)");
+    document.adoptedStyleSheets = [];
+  });
+}, 'Constructed style sheets can be applied on document');
+
+promise_test(() => {
+  return Promise.all(createAllSheetsPromise()).then(values => {
+    const greenStyleSheet = values[0];
+    const redStyleSheet = values[1];
+    const blueStyleSheet = values[2];
+    const whiteStyleSheet = values[3];
+    const yellowStyleSheet = values[4];
+    shadowRoot.adoptedStyleSheets = [whiteStyleSheet];
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowShadowSpan).color, "rgb(0, 0, 0)");
+
+    shadowRoot.adoptedStyleSheets = [greenStyleSheet, blueStyleSheet];
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 128, 0)");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowShadowSpan).color, "rgb(0, 0, 0)");
+
+    shadowRoot.adoptedStyleSheets = [redStyleSheet, yellowStyleSheet];
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteShadowSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowShadowSpan).color, "rgb(255, 255, 0)");
+
+    shadowRoot.adoptedStyleSheets = [redStyleSheet, yellowStyleSheet, greenStyleSheet, blueStyleSheet];
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 128, 0)");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteShadowSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowShadowSpan).color, "rgb(255, 255, 0)");
+  });
+}, 'Constructed style sheets can be applied on shadow root');
+
+promise_test(() => {
+  return Promise.all(createAllSheetsPromise()).then(values => {
+    const greenStyleSheet = values[0];
+    const redStyleSheet = values[1];
+    shadowRoot.adoptedStyleSheets = [greenStyleSheet];
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 128, 0)", "Style applies connected");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(0, 0, 0)", "Style applies when connected");
+    let hostParent = shadowHost.parentNode;
+    hostParent.removeChild(shadowHost);
+    assert_equals(getComputedStyle(greenShadowSpan).color, "", "Style doesn't apply when detached");
+    assert_equals(getComputedStyle(redShadowSpan).color, "", "Style doesn't apply when detached");
+    shadowRoot.adoptedStyleSheets = [redStyleSheet, greenStyleSheet];
+    hostParent.appendChild(shadowHost);
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 128, 0)", "Style applies after reattach");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(255, 0, 0)", "Style applies after reattach");
+  });
+}, 'Re-attaching shadow host with adopted stylesheets work');
+
+test(() => {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(":host { color: red; }");
+  const host = document.createElement("div");
+  let sr = host.attachShadow({mode: "open"});
+  sr.adoptedStyleSheets = [sheet];
+  document.body.appendChild(host);
+  assert_equals(getComputedStyle(host).color, "rgb(255, 0, 0)", "Style applies when connected");
+  sheet.replaceSync(":host { color: blue; }");
+  assert_equals(getComputedStyle(host).color, "rgb(0, 0, 255)", "Style update applies when connected");
+}, 'Attaching a shadow root that already has adopted stylesheets work');
+
+test(() => {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(":host([red]) { color: red; } :host(.blue) { color: blue; }");
+  const host = document.createElement("div");
+  host.toggleAttribute("red");
+  document.body.appendChild(host);
+  assert_equals(getComputedStyle(host).color, "rgb(0, 0, 0)", "No style applies yet");
+
+  let sr = host.attachShadow({mode: "open"});
+  sr.adoptedStyleSheets = [sheet];
+
+  assert_equals(getComputedStyle(host).color, "rgb(255, 0, 0)", "Style applies after adding style");
+  document.body.removeChild(host);
+  document.body.appendChild(host);
+  assert_equals(getComputedStyle(host).color, "rgb(255, 0, 0)", "Style applies after reattachment");
+  host.toggleAttribute("red");
+  assert_equals(getComputedStyle(host).color, "rgb(0, 0, 0)", "Attribute updates to the element after reattachment apply");
+  host.classList.toggle("blue");
+  assert_equals(getComputedStyle(host).color, "rgb(0, 0, 255)", "Class updates to the element after reattachment apply");
+
+}, "Re-attaching shadow host and updating attributes work");
+
+promise_test(() => {
+  const plainSheet = new CSSStyleSheet();
+  const redStyleSheetPromise = plainSheet.replace(redStyleTexts[0]);
+  return redStyleSheetPromise.then(function(redStyleSheet) {
+    document.adoptedStyleSheets = [redStyleSheet];
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    redStyleSheet.insertRule(redStyleTexts[1]);
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    redStyleSheet.deleteRule(1);
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    redStyleSheet.cssRules[0].style.color = "white";
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(255, 255, 255)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+});
+}, 'Changes to constructed stylesheets through CSSOM is reflected');
+
+promise_test(() => {
+  const plainSheet = new CSSStyleSheet();
+  const redStyleSheetPromise = plainSheet.replace(redStyleTexts[0]);
+  return redStyleSheetPromise.then(function(redStyleSheet) {
+    document.adoptedStyleSheets = [redStyleSheet];
+    shadowRoot.adoptedStyleSheets = [redStyleSheet];
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowShadowSpan).color, "rgb(0, 0, 0)");
+
+    shadowRoot.adoptedStyleSheets[0].insertRule(redStyleTexts[1]);
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    assert_equals(getComputedStyle(greenShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redShadowSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueShadowSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteShadowSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowShadowSpan).color, "rgb(0, 0, 0)");
+    document.adoptedStyleSheets = [];
+  });
+}, 'Constructed stylesheet can be used and modified in multiple TreeScopes');
+
+promise_test(() => {
+  const iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  const thirdDiv = firstDiv.cloneNode(true);
+  iframe.contentDocument.body.appendChild(thirdDiv);
+  const greenIframeSpan = thirdDiv.children[0];
+  const redIframeSpan = thirdDiv.children[1];
+  const blueIframeSpan = thirdDiv.children[2];
+  const whiteIframeSpan = thirdDiv.children[3];
+  const yellowIframeSpan = thirdDiv.children[4];
+
+  const plainSheet = new CSSStyleSheet();
+  const redStyleSheetPromise = plainSheet.replace(redStyleTexts[0]);
+  return redStyleSheetPromise.then(function(redStyleSheet) {
+    assert_throws_dom(
+      'NotAllowedError',
+      iframe.contentWindow.DOMException,
+      () => { iframe.contentDocument.adoptedStyleSheets = [redStyleSheet]; }
+    );
+    assert_equals(getComputedStyle(greenIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowIframeSpan).color, "rgb(0, 0, 0)");
+
+    document.adoptedStyleSheets = [redStyleSheet];
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    document.adoptedStyleSheets[0].insertRule(redStyleTexts[1]);
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+  });
+}, 'Stylesheets constructed on the main Document cannot be used in iframes');
+
+promise_test(async () => {
+  const iframe = document.createElement("iframe");
+  const iframeLoaded = new Promise(resolve => iframe.addEventListener("load", resolve));
+  document.body.appendChild(iframe);
+  await iframeLoaded;
+  const thirdDiv = firstDiv.cloneNode(true);
+  iframe.contentDocument.body.appendChild(thirdDiv);
+  const greenIframeSpan = thirdDiv.children[0];
+  const redIframeSpan = thirdDiv.children[1];
+  const blueIframeSpan = thirdDiv.children[2];
+  const whiteIframeSpan = thirdDiv.children[3];
+  const yellowIframeSpan = thirdDiv.children[4];
+
+  // Make sure both the main Document and the iframe are not styled
+  const emptyStyleSheet = new CSSStyleSheet();
+  document.adoptedStyleSheets = [emptyStyleSheet];
+  assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(redSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(whiteSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+  assert_equals(getComputedStyle(greenIframeSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(redIframeSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(blueIframeSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(whiteIframeSpan).color, "rgb(0, 0, 0)");
+  assert_equals(getComputedStyle(yellowIframeSpan).color, "rgb(0, 0, 0)");
+
+  const iframePlainSheet = new iframe.contentWindow.CSSStyleSheet();
+  const iframeRedStyleSheetPromise = iframePlainSheet.replace(redStyleTexts[0]);
+  return iframeRedStyleSheetPromise.then(function(iframeRedStyleSheet) {
+    assert_throws_dom('NotAllowedError', () => { document.adoptedStyleSheets = [iframeRedStyleSheet]; });
+    assert_equals(getComputedStyle(greenSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(blueSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowSpan).color, "rgb(0, 0, 0)");
+
+    iframe.contentDocument.adoptedStyleSheets = [iframeRedStyleSheet];
+    assert_equals(getComputedStyle(greenIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redIframeSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(yellowIframeSpan).color, "rgb(0, 0, 0)");
+
+    iframe.contentDocument.adoptedStyleSheets[0].insertRule(redStyleTexts[1]);
+    assert_equals(getComputedStyle(greenIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(redIframeSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(blueIframeSpan).color, "rgb(0, 0, 0)");
+    assert_equals(getComputedStyle(whiteIframeSpan).color, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(yellowIframeSpan).color, "rgb(0, 0, 0)");
+  });
+}, 'Stylesheet constructed on iframe cannot be used in the main Document');
+</script>
+
+<div id="divNonConstructed" class="nonConstructed">
+</div>
+
+<script>
+`use strict`;
+const shadowRootNonConstructed = divNonConstructed.attachShadow({mode:'open'})
+nonConstructedStyle = document.createElement("style");
+shadowRootNonConstructed.appendChild(nonConstructedStyle);
+nonConstructedStyle.sheet.insertRule(".nonConstructed { color: red; }", 0);
+const nonConstructedStyleSheet = nonConstructedStyle.sheet;
+
+test(() => {
+  assert_equals(getComputedStyle(divNonConstructed).color, "rgb(0, 0, 0)");
+  assert_throws_dom('NotAllowedError', () => { document.adoptedStyleSheets = [nonConstructedStyleSheet]; });
+}, 'Adding non-constructed stylesheet to AdoptedStyleSheets is not allowed when the owner document of the stylesheet is in the same document tree as the AdoptedStyleSheets');
+
+test(() => {
+  const iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  iframeDiv = iframe.contentDocument.createElement("div");
+  iframeDiv.classList.add("nonConstructed");
+  iframe.contentDocument.body.appendChild(iframeDiv);
+
+  assert_equals(getComputedStyle(iframeDiv).color, "rgb(0, 0, 0)");
+  assert_throws_dom('NotAllowedError', iframe.contentWindow.DOMException, () => {
+    iframe.contentDocument.adoptedStyleSheets = [nonConstructedStyleSheet];
+  });
+  assert_equals(getComputedStyle(iframeDiv).color, "rgb(0, 0, 0)");
+
+  iframeStyle = iframe.contentDocument.createElement("style");
+  iframe.contentDocument.body.appendChild(iframeStyle);
+  iframeStyle.sheet.insertRule(".nonConstructedSpan { color: red; }");
+  const iframeStyleSheet = iframeStyle.sheet;
+  nonConstructedSpan = document.createElement("span");
+  nonConstructedSpan.classList.add(".nonConstructedSpan");
+  divNonConstructed.appendChild(nonConstructedSpan);
+
+  assert_equals(getComputedStyle(iframeDiv).color, "rgb(0, 0, 0)");
+  assert_throws_dom('NotAllowedError', () => { document.adoptedStyleSheets = [iframeStyleSheet]; });
+  assert_equals(getComputedStyle(iframeDiv).color, "rgb(0, 0, 0)");
+}, 'Adding non-constructed stylesheet to AdoptedStyleSheets is not allowed when the owner document of the stylesheet and the AdoptedStyleSheets are in different document trees');
+
+function attachShadowDiv(host) {
+  const shadowRoot = host.attachShadow({mode: 'open'});
+  const shadowDiv = document.createElement("div");
+  shadowRoot.appendChild(shadowDiv);
+  return shadowDiv;
+}
+
+test(() => {
+  const sheet = new CSSStyleSheet();
+  assert_equals(sheet.cssRules.length, 0);
+
+  sheet.replaceSync(redStyleTexts[0])
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(redStyleTexts[0], sheet.cssRules[0].cssText);
+
+  sheet.replaceSync(redStyleTexts[1]);
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(redStyleTexts[1], sheet.cssRules[0].cssText);
+}, 'CSSStyleSheet.replaceSync replaces stylesheet text synchronously');
+
+test(() => {
+  // Attach a div inside a shadow root with the class ".red".
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  shadowDiv.classList.add("red");
+  // Create empty stylesheet.
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+  // Replace the stylesheet text that will color it red.
+  sheet.replaceSync(redStyleTexts[0]);
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 0, 0)");
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(sheet.cssRules[0].cssText, redStyleTexts[0]);
+  sheet.insertRule(redStyleTexts[1]);
+  assert_equals(sheet.cssRules.length, 2);
+  assert_equals(sheet.cssRules[0].cssText, redStyleTexts[1]);
+}, 'CSSStyleSheet.replaceSync correctly updates the style of its adopters synchronously');
+
+test(() => {
+  // Attach a div inside a shadow root with the class ".red".
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  shadowDiv.classList.add("target");
+
+  // Create empty stylesheet.
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+
+  // Replace the stylesheet text that will color it red.
+  sheet.replaceSync(".target { color: red; }");
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 0, 0)");
+
+  // Create a style element that will set colors to white.
+  const style = document.createElement("style");
+  style.textContent = ".target { color: white; }";
+  span.shadowRoot.appendChild(style)
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 0, 0)", "non-adopted styles should be ordered before adopted styles");
+
+  span.shadowRoot.adoptedStyleSheets = [];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 255, 255)", "with no adopted styles in conflict, the non-adopted style should take effect");
+
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 0, 0)", "the adopted style should be ordered after the non-adopted style");
+
+  sheet.disabled = true;
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 255, 255)", "with the adopted sheet disabled, the non-adopted style should take effect");
+
+  sheet.disabled = false;
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 0, 0)", "the adopted sheet re-enabled, it should take effect again");
+}, 'Adopted sheets are ordered after non-adopted sheets in the shadow root')
+
+test(() => {
+  // Attach a div inside a shadow root with the class ".red".
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  span.classList.add("target");
+
+  // Create empty stylesheet.
+  const sheet = new CSSStyleSheet();
+  document.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(span).color, "rgb(0, 0, 0)");
+
+  // Replace the stylesheet text that will color it red.
+  sheet.replaceSync(".target { color: red; }");
+  assert_equals(getComputedStyle(span).color, "rgb(255, 0, 0)");
+
+  // Create a style element that will set colors to white.
+  const style = document.createElement("style");
+  style.textContent = ".target { color: white; }";
+  span.appendChild(style)
+  assert_equals(getComputedStyle(span).color, "rgb(255, 0, 0)", "non-adopted styles should be ordered before adopted styles");
+
+  document.adoptedStyleSheets = [];
+  assert_equals(getComputedStyle(span).color, "rgb(255, 255, 255)", "with no adopted styles in conflict, the non-adopted style should take effect");
+
+  document.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(span).color, "rgb(255, 0, 0)", "the adopted style should be ordered after the non-adopted style");
+
+  sheet.disabled = true;
+  assert_equals(getComputedStyle(span).color, "rgb(255, 255, 255)", "with the adopted sheet disabled, the non-adopted style should take effect");
+
+  sheet.disabled = false;
+  assert_equals(getComputedStyle(span).color, "rgb(255, 0, 0)", "the adopted sheet re-enabled, it should take effect again")
+}, 'Adopted sheets are ordered after non-adopted sheets in the document')
+
+const import_text = '@import url("support/constructable-import.css");';
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => { (new CSSStyleSheet).insertRule(import_text) });
+}, 'Inserting an @import rule through insertRule on a constructed stylesheet throws an exception');
+
+promise_test(t => {
+    const importUrl = "support/constructable-import.css";
+    const sheet = new CSSStyleSheet();
+
+    sheet.replaceSync(`@import url("${importUrl}");`);
+
+    const timeAfterReplaceSync = performance.now();
+    let link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = importUrl;
+
+    return new Promise(resolve => {
+      link.addEventListener("error", t.unreached_func("Load shouldn't fail"));
+      link.addEventListener("load", t.step_func(() => {
+        let entries = window.performance.getEntriesByType('resource').filter(entry => entry.name.includes(importUrl));
+        assert_equals(entries.length, 1, "There should be only one entry for the import URL");
+        assert_greater_than_equal(entries[0].startTime, timeAfterReplaceSync, "The entry's start time should be after replaceSync threw");
+        link.remove();
+        resolve();
+      }));
+      document.body.appendChild(link);
+    });
+}, "CSSStyleSheet.replaceSync should not trigger any loads from @import rules")
+
+promise_test(() => {
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+  // Replace and assert that the imported rule is NOT applied.
+  const sheet_promise = sheet.replace(import_text);
+  return sheet_promise.then((sheet) => {
+    // replace() ignores @import rules:
+    assert_equals(sheet.cssRules.length, 0);
+    assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+  }).catch((reason) => {
+    assert_unreached(`Promise was rejected (${reason}) when it should have been resolved`);
+  });
+}, 'CSSStyleSheet.replace allows, but ignores, import rule inside');
+
+promise_test(() => {
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  const targetSpan = document.createElement("span");
+  targetSpan.classList.add("target");
+  shadowDiv.appendChild(targetSpan);
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+  // Replace and assert that the imported rule is NOT applied, but regular rule does apply.
+  const sheet_promise = sheet.replace(import_text + ".target { color: blue; }");
+  return sheet_promise.then((sheet) => {
+    assert_equals(sheet.cssRules.length, 1);
+    // @import not applied:
+    assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+    // regular rule applied:
+    assert_equals(getComputedStyle(targetSpan).color, "rgb(0, 0, 255)");
+  }).catch((reason) => {
+    assert_unreached(`Promise was rejected (${reason}) when it should have been resolved`);
+  });
+}, 'CSSStyleSheet.replace ignores @import rule but still loads other rules');
+
+test(() => {
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+  // Replace and assert that the imported rule is NOT applied.
+  try {
+    sheet.replaceSync(import_text);
+    // replaceSync() ignores @import rules:
+    assert_equals(sheet.cssRules.length, 0);
+    assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+  } catch(reason) {
+    assert_unreached(`replaceSync threw an exception (${reason}) when it shouldn't have`);
+  }
+}, 'CSSStyleSheet.replaceSync allows, but ignores, import rule inside');
+
+promise_test(() => {
+  const sheet = new CSSStyleSheet();
+  const sheet_promise = sheet.replace("@import url('not-there.css');");
+
+  return sheet_promise.then((sheet) => {
+    // No exception here
+  }).catch((reason) => {
+    assert_unreached("Promise was rejected");
+  });
+}, 'CSSStyleSheet.replace does not reject on failed imports');
+
+test(() => {
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+
+  const newSpan = span.cloneNode(true);
+  assert_equals(newSpan.shadowRoot, null);
+}, 'Cloning a shadow host will not clone shadow root, and also adoptedStyleSheets');
+
+test(() => {
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+
+  const iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  const newSpan = iframe.contentDocument.importNode(span, true);
+  iframe.contentDocument.body.appendChild(newSpan);
+  assert_equals(newSpan.shadowRoot, null);
+}, 'Importing a shadow host will not copy shadow root, and also adoptedStyleSheets');
+
+test(() => {
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync("* { color: red; }");
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 0, 0)");
+
+  document.adoptNode(span);
+  assert_equals(span.shadowRoot.adoptedStyleSheets.length, 1);
+  assert_equals(span.shadowRoot.adoptedStyleSheets[0], sheet);
+
+  const iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  iframe.contentDocument.adoptNode(span);
+  iframe.contentDocument.body.appendChild(span);
+  assert_not_equals(span.shadowRoot, null);
+  assert_equals(span.shadowRoot.adoptedStyleSheets.length, 0);
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+}, 'Adopting a shadow host will empty adoptedStyleSheets if adopting to a different document');
+
+test(() => {
+  const span = document.createElement("span");
+  const div = document.createElement("div");
+  thirdSection.appendChild(span);
+  span.appendChild(div);
+  const shadowDiv = attachShadowDiv(div);
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync("* { color: red; }");
+  div.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(255, 0, 0)");
+
+  document.adoptNode(span);
+  assert_equals(div.shadowRoot.adoptedStyleSheets.length, 1);
+  assert_equals(div.shadowRoot.adoptedStyleSheets[0], sheet);
+
+  const iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  iframe.contentDocument.adoptNode(span);
+  iframe.contentDocument.body.appendChild(span);
+  assert_not_equals(div.shadowRoot, null);
+  assert_equals(div.shadowRoot.adoptedStyleSheets.length, 0);
+  assert_equals(getComputedStyle(shadowDiv).color, "rgb(0, 0, 0)");
+}, `Adopting a shadow host's ancestor will empty adoptedStyleSheets if adopting to a different document`);
+
+test(() => {
+  const host = document.createElement("div");
+  const root = host.attachShadow({mode: "open"});
+  root.adoptedStyleSheets = [new CSSStyleSheet()];
+  document.body.offsetTop;
+}, 'Forcing a style update after adding an adopted stylesheet on a disconnected shadow root should not crash.');
+
+test(() => {
+  const host = document.createElement("div");
+  thirdSection.appendChild(host);
+  const root = host.attachShadow({mode: "open"});
+  const sheet = new CSSStyleSheet();
+  root.adoptedStyleSheets = [sheet];
+  host.remove();
+  sheet.replaceSync('');
+}, 'Modifying an adopted stylesheet on a disconnected shadow root should not crash.');
+
+function currentLocation() {
+  const sections = location.href.split("/")
+  sections.pop();
+  return sections.join("/");
+}
+
+test(() => {
+  const span = document.createElement("span");
+  thirdSection.appendChild(span);
+  const shadowDiv = attachShadowDiv(span);
+
+  const fileName = "example.png"
+  const fullPath = `${currentLocation()}/${fileName}`
+
+  const sheet = new CSSStyleSheet();
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+
+  sheet.replaceSync(`* { background-image: url("${fileName}"); }`);
+  const styleFromRelative = getComputedStyle(shadowDiv).backgroundImage;
+
+  sheet.replaceSync(`* { background-image: url("${fullPath}"); }`);
+  const styleFromFull = getComputedStyle(shadowDiv).backgroundImage;
+
+  assert_equals(styleFromRelative, styleFromFull);
+}, "Constructing a sheet with the default base URL uses the constructor document's base URL for CSS rules");
+
+</script>

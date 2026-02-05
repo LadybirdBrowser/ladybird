@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+        clip: rect(0px, 100px, 100px, 0px);
+    }
+</style>
+<div class="box" id="box">Box</div>
+<script>
+    test(() => {
+        // NOTE: Display lists are captured first and printed later because println() modifies
+        // the DOM tree, causing layout updates that invalidate the accumulated visual context
+        // tree, which would affect the captured display lists.
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("box").style.clip = "rect(10px, 90px, 90px, 10px)";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before clip change:");
+        println(displayListBefore);
+        println("After clip change:");
+        println(displayListAfter);
+    });
+</script>

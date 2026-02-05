@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    button {
+        text-decoration: underline;
+    }
+</style>
+<button>foo the bar</button>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

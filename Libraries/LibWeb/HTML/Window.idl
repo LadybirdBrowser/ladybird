@@ -1,0 +1,145 @@
+#import <CookieStore/CookieStore.idl>
+#import <CSS/MediaQueryList.idl>
+#import <CSS/Screen.idl>
+#import <CSS/VisualViewport.idl>
+#import <DOM/Document.idl>
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <HTML/AnimationFrameProvider.idl>
+#import <HTML/CustomElements/CustomElementRegistry.idl>
+#import <HTML/History.idl>
+#import <HTML/Navigation.idl>
+#import <HTML/Navigator.idl>
+#import <HTML/UniversalGlobalScope.idl>
+#import <HTML/WindowDeprecated.idl>
+#import <HTML/WindowLocalStorage.idl>
+#import <HTML/WindowOrWorkerGlobalScope.idl>
+#import <HTML/WindowSessionStorage.idl>
+#import <RequestIdleCallback/IdleRequest.idl>
+#import <Speech/SpeechSynthesis.idl>
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#window
+[Global=Window, Exposed=Window, LegacyUnenumerableNamedProperties]
+interface Window : EventTarget {
+    // the current browsing context
+    [LegacyUnforgeable] readonly attribute WindowProxy window;
+    [Replaceable] readonly attribute WindowProxy self;
+    [LegacyUnforgeable] readonly attribute Document document;
+    attribute DOMString name;
+    attribute DOMString status;
+    undefined close();
+    readonly attribute boolean closed;
+    [PutForwards=href, LegacyUnforgeable] readonly attribute Location location;
+    readonly attribute History history;
+    readonly attribute Navigation navigation;
+    readonly attribute CustomElementRegistry customElements;
+    undefined stop();
+    undefined focus();
+    undefined blur();
+
+    [Replaceable] readonly attribute BarProp locationbar;
+    [Replaceable] readonly attribute BarProp menubar;
+    [Replaceable] readonly attribute BarProp personalbar;
+    [Replaceable] readonly attribute BarProp scrollbars;
+    [Replaceable] readonly attribute BarProp statusbar;
+    [Replaceable] readonly attribute BarProp toolbar;
+
+    // other browsing contexts
+    [Replaceable] readonly attribute WindowProxy frames;
+    [Replaceable] readonly attribute unsigned long length;
+    [LegacyUnforgeable] readonly attribute WindowProxy? top;
+    attribute any opener;
+    [Replaceable] readonly attribute WindowProxy? parent;
+    readonly attribute Element? frameElement;
+    WindowProxy? open(optional USVString url = "", optional DOMString target = "_blank", optional [LegacyNullToEmptyString] DOMString features = "");
+
+    // Since this is the global object, the IDL named getter adds a NamedPropertiesObject exotic
+    // object on the prototype chain. Indeed, this does not make the global object an exotic object.
+    // Indexed access is taken care of by the WindowProxy exotic object.
+    getter object (DOMString name);
+
+    // the user agent
+    readonly attribute Navigator navigator;
+    [Replaceable, ImplementedAs=navigator] readonly attribute Navigator clientInformation; // legacy alias of .navigator
+
+    // user prompts
+    undefined alert();
+    undefined alert(DOMString message);
+    boolean confirm(optional DOMString message = "");
+    DOMString? prompt(optional DOMString message = "", optional DOMString default = "");
+
+    undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
+    undefined postMessage(any message, optional WindowPostMessageOptions options = {});
+
+    // https://dom.spec.whatwg.org/#interface-window-extensions
+    [Replaceable] readonly attribute (Event or undefined) event; // legacy
+
+    // https://drafts.csswg.org/cssom/#extensions-to-the-window-interface
+    [NewObject] CSSStyleProperties getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
+
+    // https://w3c.github.io/csswg-drafts/cssom-view/#extensions-to-the-window-interface
+    [NewObject] MediaQueryList matchMedia(CSSOMString query);
+    [SameObject, Replaceable] readonly attribute Screen screen;
+    [SameObject, Replaceable] readonly attribute VisualViewport? visualViewport;
+
+    undefined moveTo(long x, long y);
+    undefined moveBy(long x, long y);
+    undefined resizeTo(long x, long y);
+    undefined resizeBy(long x, long y);
+
+    // viewport
+    [Replaceable] readonly attribute long innerWidth;
+    [Replaceable] readonly attribute long innerHeight;
+
+    // viewport scrolling
+    [Replaceable] readonly attribute double scrollX;
+    [Replaceable, ImplementedAs=scroll_x] readonly attribute double pageXOffset;
+    [Replaceable] readonly attribute double scrollY;
+    [Replaceable, ImplementedAs=scroll_y] readonly attribute double pageYOffset;
+    Promise<undefined> scroll(optional ScrollToOptions options = {});
+    Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+    [ImplementedAs=scroll] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+    [ImplementedAs=scroll] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+    Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+    Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
+
+    // client
+    [Replaceable] readonly attribute long screenX;
+    [Replaceable, ImplementedAs=screen_x] readonly attribute long screenLeft;
+    [Replaceable] readonly attribute long screenY;
+    [Replaceable, ImplementedAs=screen_y] readonly attribute long screenTop;
+    [Replaceable] readonly attribute long outerWidth;
+    [Replaceable] readonly attribute long outerHeight;
+    [Replaceable] readonly attribute double devicePixelRatio;
+
+    // https://w3c.github.io/requestidlecallback/#window_extensions
+    unsigned long requestIdleCallback(IdleRequestCallback callback, optional IdleRequestOptions options = {});
+    undefined cancelIdleCallback(unsigned long handle);
+
+    // https://w3c.github.io/selection-api/#extensions-to-window-interface
+    Selection? getSelection();
+
+    // This function is non-standard.
+    boolean find(optional DOMString string = "");
+};
+Window includes AnimationFrameProvider;
+Window includes GlobalEventHandlers;
+Window includes UniversalGlobalScope;
+Window includes WindowEventHandlers;
+Window includes WindowLocalStorage;
+Window includes WindowSessionStorage;
+Window includes WindowOrWorkerGlobalScope;
+
+enum ScrollBehavior { "auto", "instant", "smooth" };
+
+dictionary ScrollOptions {
+    ScrollBehavior behavior = "auto";
+};
+dictionary ScrollToOptions : ScrollOptions {
+    unrestricted double left;
+    unrestricted double top;
+};
+
+dictionary WindowPostMessageOptions : StructuredSerializeOptions {
+    USVString targetOrigin = "/";
+};

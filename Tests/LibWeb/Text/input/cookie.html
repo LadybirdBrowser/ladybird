@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<div id="test"></div>
+<script src="include.js"></script>
+<script>
+    const printCookies = label => {
+        // There's no specified order for multiple cookies, and it's a bit non-deterministic in our implementation.
+        // Sort the cookies alphabetically here for ease of testing.
+        const cookies = document.cookie.split("; ").sort().join("; ");
+        println(`${label}: "${cookies}"`);
+    };
+
+    const deleteCookie = name => {
+        document.cookie = `${name}=""; max-age=-9999`;
+    };
+
+    const cookieAverseTest = () => {
+        document.cookie = "cookie=value";
+        printCookies("Cookie averse test");
+    };
+
+    const basicTest = () => {
+        document.cookie = "cookie=value";
+        printCookies("Basic test");
+
+        deleteCookie("cookie");
+    };
+
+    const multipleCookiesTest = () => {
+        document.cookie = "cookie1=value1";
+        document.cookie = "cookie2=value2";
+        document.cookie = "cookie3=value3";
+
+        printCookies("Multiple cookies");
+
+        deleteCookie("cookie1");
+        deleteCookie("cookie2");
+        deleteCookie("cookie3");
+    };
+
+    const namelessCookieTest = () => {
+        document.cookie = "=value";
+        printCookies("Nameless cookie");
+
+        deleteCookie("");
+    };
+
+    const valuelessCookieTest = () => {
+        document.cookie = "cookie=";
+        printCookies("Valueless cookie");
+
+        deleteCookie("cookie");
+    };
+
+    const namelessAndValuelessCookieTest = () => {
+        document.cookie = "=";
+        printCookies("Nameless and valueless cookie");
+    };
+
+    const invalidControlCharacterTest = () => {
+        document.cookie = "cookie=ab\ncd";
+        printCookies("Invalid control character");
+    };
+
+    const nonASCIIDomainTest = () => {
+        document.cookie = "cookie=value; domain=🤓";
+        printCookies("Non-ASCII domain");
+    };
+
+    const defaultPathTest = () => {
+        document.cookie = "cookie1=value; path=";
+        document.cookie = "cookie2=value; path=f";
+
+        printCookies("Default path");
+
+        deleteCookie("cookie1");
+        deleteCookie("cookie2");
+    };
+
+    const secureCookiePrefixTest = () => {
+        document.cookie = "__Secure-cookie=value";
+        printCookies("Secure cookie prefix");
+    };
+
+    const hostCookiePrefixTest = () => {
+        document.cookie = "__Host-cookie1=value";
+        document.cookie = "__Host-cookie2=value; secure";
+        document.cookie = "__Host-cookie3=value; secure; path=/foo";
+        printCookies("Host cookie prefix");
+    };
+
+    const largeValueTest = () => {
+        const value = "x".repeat(256);
+
+        document.cookie = `cookie=${value}`;
+        printCookies("Large value");
+
+        deleteCookie("cookie");
+    };
+
+    const overlyLargeValueTest = () => {
+        const value = "x".repeat(4096 - "cookie".length + 1);
+
+        document.cookie = `cookie=${value}`;
+        printCookies("Overly large value");
+    };
+
+    const httpOnlyTest = () => {
+        document.cookie = "cookie=value; httponly";
+        printCookies("HTTP only");
+    };
+
+    const publicSuffixTest = () => {
+        document.cookie = "cookie=value; domain=uk.gov";
+        printCookies("Public suffix");
+    };
+
+    const sameSiteTest = () => {
+        document.cookie = "cookie=value; SameSite=Lax";
+        printCookies("SameSite=Lax");
+        deleteCookie("cookie");
+
+        document.cookie = "cookie=value; SameSite=Strict";
+        printCookies("SameSite=Strict");
+        deleteCookie("cookie");
+
+        document.cookie = "cookie=value; SameSite=None";
+        printCookies("SameSite=None");
+        deleteCookie("cookie");
+    };
+
+    const maxAgeTest = () => {
+        document.cookie = "cookie-max-age1=value; max-age=1";
+        document.cookie = `cookie-max-age2=value; max-age=${"1".repeat(1024)}`;
+        printCookies("Max-Age (before expiration)");
+
+        internals.expireCookiesWithTimeOffset(2);
+        printCookies("Max-Age (after expiration)");
+        deleteCookie("cookie-max-age2");
+    };
+
+    const maxAgeInPastTest = () => {
+        document.cookie = "cookie1=value; max-age=-1";
+        document.cookie = `cookie2=value; max-age=-${"1".repeat(1023)}`;
+        printCookies("Max-Age in past");
+    };
+
+    const expiresTest = () => {
+        let expiry = new Date(Date.now() + 1000);
+        expiry = expiry.toUTCString();
+
+        document.cookie = `cookie-expires=value; expires=${expiry}`;
+        printCookies("Expires (before expiration)");
+
+        internals.expireCookiesWithTimeOffset(2);
+        printCookies("Expires (after expiration)");
+    };
+
+    const expiresInPastTest = () => {
+        document.cookie = "cookie=value; expires=Mon, 23 Jan 1989 08:10:36 GMT";
+        printCookies("Expires in past");
+    };
+
+    // Note that in these cases, the attribute is simply ignored, rather than the cookie being rejected.
+    const invalidExpiryTest = () => {
+        document.cookie = "cookie=value; expires=Sat, 31 Feb 2060 08:10:36 GMT";
+        printCookies("Invalid expiry (date does not exist)");
+        deleteCookie("cookie");
+
+        document.cookie = "cookie=value; expires=Sat, 31 Feb 2060 GMT";
+        printCookies("Invalid expiry (missing time)");
+        deleteCookie("cookie");
+
+        document.cookie = "cookie=value; expires=Sat, Feb 2060 08:10:36 GMT";
+        printCookies("Invalid expiry (missing day)");
+        deleteCookie("cookie");
+
+        document.cookie = "cookie=value; expires=Sat, 31 2060 08:10:36 GMT";
+        printCookies("Invalid expiry (missing month)");
+        deleteCookie("cookie");
+
+        document.cookie = "cookie=value; expires=Sat, 31 Feb 08:10:36 GMT";
+        printCookies("Invalid expiry (missing year)");
+        deleteCookie("cookie");
+    };
+
+    test(() => {
+        cookieAverseTest();
+
+        internals.enableCookiesOnFileDomains();
+
+        basicTest();
+        multipleCookiesTest();
+
+        namelessCookieTest();
+        valuelessCookieTest();
+        namelessAndValuelessCookieTest();
+
+        invalidControlCharacterTest();
+        nonASCIIDomainTest();
+        defaultPathTest();
+        secureCookiePrefixTest();
+        hostCookiePrefixTest();
+
+        largeValueTest();
+        overlyLargeValueTest();
+
+        httpOnlyTest();
+        publicSuffixTest();
+        sameSiteTest();
+
+        maxAgeTest();
+        maxAgeInPastTest();
+
+        expiresTest();
+        expiresInPastTest();
+        invalidExpiryTest();
+    });
+</script>

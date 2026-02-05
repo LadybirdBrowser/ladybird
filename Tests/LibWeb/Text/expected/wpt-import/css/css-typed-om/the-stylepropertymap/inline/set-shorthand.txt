@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Setting a shorthand with an invalid CSSStyleValue on inline style throws TypeError
+Pass	Setting a shorthand with an invalid String on inline style throws TypeError
+Pass	Setting a shorthand with a CSSStyleValue updates inline style
+Pass	Setting a shorthand with a string updates inline style

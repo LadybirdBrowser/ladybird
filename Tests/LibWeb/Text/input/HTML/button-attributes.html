@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        var button = document.createElement('button');
+        println(button.type);
+        button.setAttribute("type", "button");
+        println(button.type);
+        button.setAttribute("type", "BUTTON");
+        println(button.type);
+        button.setAttribute("type", "invalid");
+        println(button.type);
+        button.removeAttribute("type");
+        println(button.type);
+    });
+</script>

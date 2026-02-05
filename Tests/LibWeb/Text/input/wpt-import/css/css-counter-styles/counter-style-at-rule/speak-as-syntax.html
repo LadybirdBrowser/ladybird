@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-speak_as">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_speak_as(value) {
+  test_valid_counter_style_descriptor('speak-as', value);
+}
+
+function test_invalid_speak_as(value) {
+  test_invalid_counter_style_descriptor('speak-as', value);
+}
+
+// auto | bullets | numbers | words | spell-out | <counter-style-name>
+
+test_valid_speak_as('auto');
+test_valid_speak_as('bullets');
+test_valid_speak_as('numbers');
+test_valid_speak_as('words');
+test_valid_speak_as('spell-out');
+
+test_valid_speak_as('bar');
+test_valid_speak_as('spellout'); // 'spellout' is a valid counter style name
+
+test_invalid_speak_as('bullets numbers');
+
+// The following are not valid counter style names
+test_invalid_speak_as('none');
+test_invalid_speak_as('initial');
+test_invalid_speak_as('inherit');
+test_invalid_speak_as('unset');
+
+</script>

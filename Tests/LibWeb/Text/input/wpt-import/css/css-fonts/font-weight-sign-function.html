@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts test: font-weight with CSS sign() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-weight-prop">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<style>
+:root {
+  font-size: 16px;
+}
+</style>
+<div id="target"></div>
+<script>
+  test_computed_value("font-weight", "calc(sign(1rem - 1px) * 10)", "10");
+  test_computed_value("font-weight", "calc(sign(1rem - 1px) * -10000)", "1");
+  test_computed_value("font-weight", "calc(sign(1rem - 1px) * 10000)", "1000");
+</script>

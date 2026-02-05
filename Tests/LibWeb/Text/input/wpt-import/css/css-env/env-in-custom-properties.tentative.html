@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-env-1/">
+    <title>Test env() will work in custom properties</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+      #parent {
+        --var1: inherited;
+      }
+      #child {
+        --my-width: env(test, 100px);
+        width: var(--my-width);
+        --var1: env(nonexistent);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="parent">
+      <div id="child"></div>
+    </div>
+    <script>
+    test(() => {
+      const style = window.getComputedStyle(child);
+      assert_equals(style.getPropertyValue("width"), "100px");
+    }, 'env() is substituted into a custom property');
+
+    test(() => {
+      const style = window.getComputedStyle(child);
+      assert_equals(style.getPropertyValue("--var1"), "");
+    }, 'Substitution of unrecognized env() causes guaranteed-invalid');
+    </script>
+  </body>
+</html>

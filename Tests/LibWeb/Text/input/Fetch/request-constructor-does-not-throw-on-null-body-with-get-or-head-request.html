@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        try {
+            const dataUrl = "data:,hello";
+            new Request(dataUrl, { method: "GET", body: null });
+            println("Successfully created GET request with body set to null");
+            new Request(dataUrl, { method: "HEAD", body: null });
+            println("Successfully created HEAD request with body set to null");
+            await fetch(dataUrl, { method: "GET", body: null });
+            println("Successfully started GET fetch with body set to null");
+            await fetch(dataUrl, { method: "HEAD", body: null });
+            println("Successfully started HEAD fetch with body set to null");
+        } catch (e) {
+            println(`Unexpected throw: ${e}`);
+        }
+
+        done();
+    });
+</script>

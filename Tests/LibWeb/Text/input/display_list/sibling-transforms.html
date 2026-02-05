@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        display: flex;
+        gap: 10px;
+    }
+    .box {
+        width: 80px;
+        height: 80px;
+    }
+    .left {
+        background: red;
+        transform: rotate(10deg);
+    }
+    .right {
+        background: blue;
+        transform: scale(0.8);
+    }
+</style>
+<div class="container">
+    <div class="box left">A</div>
+    <div class="box right">B</div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

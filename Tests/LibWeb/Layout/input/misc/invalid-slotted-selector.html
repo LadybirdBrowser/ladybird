@@ -1,0 +1,11 @@
+<!DOCTYPE html><div><template shadowrootmode="open"><style>
+slot[name='nav-links']::slotted(ul) {
+    display: flex;
+    flex-direction: row;
+    list-style: none;
+    background-color: red;
+}
+slot[name='nav-links']::slotted(ul > li) { /* This selector is invalid, because ::slotted argument is limited to 1 compound selector */
+    display: inline-block;
+}
+</style><slot name="nav-links"></slot></template><ul slot="nav-links"><li><a>HELLO</a></li><li><a>HI</a></li></ul></div>

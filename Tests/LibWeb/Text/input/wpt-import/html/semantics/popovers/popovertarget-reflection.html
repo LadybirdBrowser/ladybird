@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=1523410">
+<link rel=help href="https://bugzilla.mozilla.org/show_bug.cgi?id=1879001">
+<link rel=help href="https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<button id=mybutton popovertarget="mypopover">toggle popover</button>
+<div id=mypopover popover=auto>popover</div>
+
+<script>
+test(() => {
+  assert_equals(mybutton.popoverTargetElement.id, "mypopover",
+    'Setting element.popoverTargetElement to a valid element should work');
+
+  mybutton.popoverTargetElement = null;
+  assert_false(mybutton.hasAttribute('popovertarget'),
+    'Setting element.popoverTargetElement to null should unset popovertarget attribute.');
+  assert_equals(mybutton.popoverTargetElement, null,
+    'Setting element.popoverTargetElement to null should remove the existing element from element.popoverTargetElement.');
+
+  mybutton.popoverTargetElement = mypopover;
+  assert_true(mybutton.hasAttribute('popovertarget'),
+    'Assigning to element.popoverTargetElement should set the popovertarget attribute.');
+
+  mybutton.removeAttribute('popovertarget');
+  assert_equals(mybutton.popoverTargetElement, null,
+    'Removing the popovertarget attribute should remove the element from element.popoverTargetElement.');
+
+  mybutton.popoverTargetElement = mypopover;
+  assert_true(mybutton.hasAttribute('popovertarget'),
+    'Assigning to element.popoverTargetElement should set the popovertarget attribute.');
+
+  mybutton.setAttribute("popovertarget", 'invalid');
+  assert_equals(mybutton.popoverTargetElement, null,
+    'Setting the popovertarget attribute to a localName that is not attr should remove the existing element from element.popoverTargetElement.');
+
+  mybutton.popoverTargetElement = mypopover;
+  mybutton.setAttribute("popovertarget", "");
+  assert_equals(mybutton.popoverTargetElement, null,
+    'Setting the popovertarget attribute to empty string right after setting explicit element does remove the explicit element.');
+
+  mybutton.setAttribute("popovertarget", "mypopover");
+  assert_equals(mybutton.popoverTargetElement.id, "mypopover",
+    'Setting the popovertarget attribute to a value should set the popover target element.');
+  mybutton.setAttribute("popovertarget", "");
+  assert_equals(mybutton.getAttribute('popovertarget'), "",
+    'Assigning to element.popoverTargetElement to empty string should update the attribute value to empty string.');
+  assert_equals(mybutton.popoverTargetElement, null,
+    'Setting the popovertarget attribute to empty string should remove the existing element from element.popoverTargetElement.');
+}, 'Element attribute reflection of popoverTargetElement/popovertarget should be kept in sync.');
+</script>

@@ -1,0 +1,961 @@
+{
+  "absolute-size": [
+    "xx-small",
+    "x-small",
+    "small",
+    "medium",
+    "large",
+    "x-large",
+    "xx-large",
+    "xxx-large"
+  ],
+  "align-content": [
+    "normal",
+    "start",
+    "flex-start",
+    "end",
+    "flex-end",
+    "center",
+    "space-between",
+    "space-around",
+    "space-evenly",
+    "stretch"
+  ],
+  "align-items": [
+    "baseline",
+    "center",
+    "end",
+    "flex-end",
+    "flex-start",
+    "normal",
+    "safe",
+    "self-end",
+    "self-start",
+    "start",
+    "stretch",
+    "unsafe"
+  ],
+  "align-self": [
+    "auto",
+    "baseline",
+    "center",
+    "end",
+    "flex-end",
+    "flex-start",
+    "normal",
+    "safe",
+    "self-end",
+    "self-start",
+    "start",
+    "stretch",
+    "unsafe"
+  ],
+  "anchor-side": [
+    "inside",
+    "outside",
+    "top",
+    "left",
+    "right",
+    "bottom",
+    "start",
+    "end",
+    "self-start",
+    "self-end",
+    "center"
+  ],
+  "anchor-size": [
+    "block",
+    "height",
+    "inline",
+    "self-block",
+    "self-inline",
+    "width"
+  ],
+  "animation-composition": [
+    "replace",
+    "add",
+    "accumulate"
+  ],
+  "animation-direction": [
+    "alternate",
+    "alternate-reverse",
+    "normal",
+    "reverse"
+  ],
+  "animation-fill-mode": [
+    "backwards",
+    "both",
+    "forwards",
+    "none"
+  ],
+  "animation-play-state": [
+    "paused",
+    "running"
+  ],
+  "appearance": [
+    "auto",
+    "button",
+    "checkbox",
+    "listbox",
+    "menulist",
+    "meter",
+    "menulist-button",
+    "none",
+    "push-button",
+    "progress-bar",
+    "radio",
+    "searchfield",
+    "slider-horizontal",
+    "square-button",
+    "textarea",
+    "textfield"
+  ],
+  "axis": [
+    "block",
+    "inline",
+    "x",
+    "y"
+  ],
+  "background-attachment": [
+    "fixed",
+    "local",
+    "scroll"
+  ],
+  "background-box": [
+    "border-box",
+    "content-box",
+    "padding-box",
+    "text"
+  ],
+  "border-collapse": [
+    "separate",
+    "collapse"
+  ],
+  "border-image-repeat": [
+    "stretch",
+    "repeat",
+    "round",
+    "space"
+  ],
+  "box-sizing": [
+    "border-box",
+    "content-box"
+  ],
+  "caption-side": [
+    "top",
+    "bottom"
+  ],
+  "clear": [
+    "none",
+    "left",
+    "right",
+    "both",
+    "inline-start",
+    "inline-end"
+  ],
+  "color-interpolation": [
+    "auto",
+    "linearrgb",
+    "srgb"
+  ],
+  "column-span": [
+    "none",
+    "all"
+  ],
+  "compositing-operator": [
+    "add",
+    "subtract",
+    "intersect",
+    "exclude"
+  ],
+  "contain": [
+    "none",
+    "strict",
+    "content",
+    "size",
+    "inline-size",
+    "layout",
+    "style",
+    "paint"
+  ],
+  "content-visibility": [
+    "visible",
+    "auto",
+    "hidden"
+  ],
+  "coord-box": [
+    "content-box",
+    "padding-box",
+    "border-box",
+    "fill-box",
+    "stroke-box",
+    "view-box"
+  ],
+  "counter-style-name-keyword": [
+    "circle",
+    "decimal",
+    "decimal-leading-zero",
+    "disc",
+    "disclosure-closed",
+    "disclosure-open",
+    "lower-alpha",
+    "lower-greek",
+    "lower-latin",
+    "lower-roman",
+    "none",
+    "square",
+    "upper-alpha",
+    "upper-latin",
+    "upper-roman"
+  ],
+  "counter-style-system": [
+    "cyclic",
+    "numeric",
+    "alphabetic",
+    "symbolic",
+    "additive"
+  ],
+  "cross-origin-modifier-value": [
+    "anonymous",
+    "use-credentials"
+  ],
+  "cursor-predefined": [
+    "auto",
+    "default",
+    "none",
+    "context-menu",
+    "help",
+    "pointer",
+    "progress",
+    "wait",
+    "cell",
+    "crosshair",
+    "text",
+    "vertical-text",
+    "alias",
+    "copy",
+    "move",
+    "no-drop",
+    "not-allowed",
+    "grab",
+    "grabbing",
+    "e-resize",
+    "n-resize",
+    "ne-resize",
+    "nw-resize",
+    "s-resize",
+    "se-resize",
+    "sw-resize",
+    "w-resize",
+    "ew-resize",
+    "ns-resize",
+    "nesw-resize",
+    "nwse-resize",
+    "col-resize",
+    "row-resize",
+    "all-scroll",
+    "zoom-in",
+    "zoom-out"
+  ],
+  "direction": [
+    "ltr",
+    "rtl"
+  ],
+  "display-box": [
+    "contents",
+    "none"
+  ],
+  "display-inside": [
+    "flow",
+    "flow-root",
+    "table",
+    "flex",
+    "grid",
+    "ruby",
+    "math"
+  ],
+  "display-internal": [
+    "table-row-group",
+    "table-header-group",
+    "table-footer-group",
+    "table-row",
+    "table-cell",
+    "table-column-group",
+    "table-column",
+    "table-caption",
+    "ruby-base",
+    "ruby-text",
+    "ruby-base-container",
+    "ruby-text-container"
+  ],
+  "display-legacy": [
+    "inline-block",
+    "inline-table",
+    "inline-flex",
+    "inline-grid"
+  ],
+  "display-outside": [
+    "block",
+    "inline",
+    "run-in"
+  ],
+  "easing-keyword": [
+    "linear",
+    "ease",
+    "ease-in",
+    "ease-out",
+    "ease-in-out"
+  ],
+  "empty-cells": [
+    "show",
+    "hide"
+  ],
+  "fill-rule": [
+    "nonzero",
+    "evenodd"
+  ],
+  "flex-direction": [
+    "row",
+    "row-reverse",
+    "column",
+    "column-reverse"
+  ],
+  "flex-wrap": [
+    "nowrap",
+    "wrap",
+    "wrap-reverse"
+  ],
+  "float": [
+    "none",
+    "left",
+    "right",
+    "inline-start",
+    "inline-end"
+  ],
+  "font-display": [
+    "auto",
+    "block",
+    "swap",
+    "fallback",
+    "optional"
+  ],
+  "font-kerning": [
+    "auto",
+    "normal",
+    "none"
+  ],
+  "font-optical-sizing": [
+    "auto",
+    "none"
+  ],
+  "font-style-keyword": [
+    "normal",
+    "italic",
+    "left",
+    "right",
+    "oblique"
+  ],
+  "font-tech": [
+    "avar2",
+    "color-cbdt",
+    "color-colrv0",
+    "color-colrv1",
+    "color-sbix",
+    "color-svg",
+    "features-aat",
+    "features-graphite",
+    "features-opentype",
+    "incremental",
+    "palettes",
+    "variations"
+  ],
+  "font-variant-alternates": [
+    "normal",
+    "historical-forms"
+  ],
+  "font-variant-caps": [
+    "normal",
+    "small-caps",
+    "all-small-caps",
+    "petite-caps",
+    "all-petite-caps",
+    "unicase",
+    "titling-caps"
+  ],
+  "font-variant-east-asian": [
+    "normal",
+    "ruby",
+    "jis78",
+    "jis83",
+    "jis90",
+    "jis04",
+    "simplified",
+    "traditional",
+    "full-width",
+    "proportional-width"
+  ],
+  "font-variant-emoji": [
+    "normal",
+    "text",
+    "emoji",
+    "unicode"
+  ],
+  "font-variant-ligatures": [
+    "normal",
+    "none",
+    "common-ligatures",
+    "no-common-ligatures",
+    "discretionary-ligatures",
+    "no-discretionary-ligatures",
+    "historical-ligatures",
+    "no-historical-ligatures",
+    "contextual",
+    "no-contextual"
+  ],
+  "font-variant-numeric": [
+    "normal",
+    "ordinal",
+    "slashed-zero",
+    "lining-nums",
+    "oldstyle-nums",
+    "proportional-nums",
+    "tabular-nums",
+    "diagonal-fractions",
+    "stacked-fractions"
+  ],
+  "font-variant-position": [
+    "normal",
+    "sub",
+    "super"
+  ],
+  "font-width": [
+    "ultra-condensed",
+    "extra-condensed",
+    "condensed",
+    "semi-condensed",
+    "normal",
+    "semi-expanded",
+    "expanded",
+    "extra-expanded",
+    "ultra-expanded"
+  ],
+  "generic-font-family": [
+    "serif",
+    "sans-serif",
+    "cursive",
+    "fantasy",
+    "monospace",
+    "math",
+    "ui-serif",
+    "ui-sans-serif",
+    "ui-monospace",
+    "ui-rounded"
+  ],
+  "hue-interpolation-method": [
+    "shorter",
+    "longer",
+    "increasing",
+    "decreasing"
+  ],
+  "image-rendering": [
+    "auto",
+    "crisp-edges",
+    "high-quality",
+    "pixelated",
+    "smooth",
+    "optimizespeed=pixelated",
+    "optimizequality=smooth"
+  ],
+  "isolation": [
+    "auto",
+    "isolate"
+  ],
+  "justify-content": [
+    "normal",
+    "start",
+    "end",
+    "flex-start",
+    "flex-end",
+    "center",
+    "space-between",
+    "space-around",
+    "space-evenly",
+    "stretch",
+    "left",
+    "right"
+  ],
+  "justify-items": [
+    "baseline",
+    "center",
+    "end",
+    "flex-end",
+    "flex-start",
+    "legacy",
+    "normal",
+    "safe",
+    "self-end",
+    "self-start",
+    "start",
+    "stretch",
+    "unsafe",
+    "left",
+    "right"
+  ],
+  "justify-self": [
+    "auto",
+    "baseline",
+    "center",
+    "end",
+    "flex-end",
+    "flex-start",
+    "normal",
+    "safe",
+    "self-end",
+    "self-start",
+    "start",
+    "stretch",
+    "unsafe",
+    "left",
+    "right"
+  ],
+  "line-style": [
+    "none",
+    "hidden",
+    "dotted",
+    "dashed",
+    "solid",
+    "double",
+    "groove",
+    "ridge",
+    "inset",
+    "outset"
+  ],
+  "line-width": [
+    "thin",
+    "medium",
+    "thick"
+  ],
+  "list-style-position": [
+    "inside",
+    "outside"
+  ],
+  "mask-type": [
+    "luminance",
+    "alpha"
+  ],
+  "masking-mode": [
+    "alpha",
+    "luminance",
+    "match-source"
+  ],
+  "math-shift": [
+    "normal",
+    "compact"
+  ],
+  "math-style": [
+    "normal",
+    "compact"
+  ],
+  "mix-blend-mode": [
+    "normal",
+    "multiply",
+    "screen",
+    "overlay",
+    "darken",
+    "lighten",
+    "color-dodge",
+    "color-burn",
+    "hard-light",
+    "soft-light",
+    "difference",
+    "exclusion",
+    "hue",
+    "saturation",
+    "color",
+    "luminosity",
+    "plus-darker",
+    "plus-lighter"
+  ],
+  "object-fit": [
+    "fill",
+    "contain",
+    "cover",
+    "none",
+    "scale-down"
+  ],
+  "outline-style": [
+    "auto",
+    "none",
+    "dotted",
+    "dashed",
+    "solid",
+    "double",
+    "groove",
+    "ridge",
+    "inset",
+    "outset"
+  ],
+  "overflow": [
+    "auto",
+    "clip",
+    "hidden",
+    "scroll",
+    "visible"
+  ],
+  "page-size": [
+    "a5",
+    "a4",
+    "a3",
+    "b5",
+    "b4",
+    "jis-b5",
+    "jis-b4",
+    "letter",
+    "legal",
+    "ledger"
+  ],
+  "paint-order": [
+    "fill",
+    "stroke",
+    "markers"
+  ],
+  "pointer-events": [
+    "auto",
+    "all",
+    "none"
+  ],
+  "polar-color-space": [
+    "hsl",
+    "hwb",
+    "lch",
+    "oklch"
+  ],
+  "position-area": [
+    "left",
+    "center",
+    "right",
+    "span-left",
+    "span-right",
+    "x-start",
+    "x-end",
+    "span-x-start",
+    "span-x-end",
+    "self-x-start",
+    "self-x-end",
+    "span-self-x-start",
+    "span-self-x-end",
+    "span-all",
+    "top",
+    "bottom",
+    "span-top",
+    "span-bottom",
+    "y-start",
+    "y-end",
+    "span-y-start",
+    "span-y-end",
+    "self-y-start",
+    "self-y-end",
+    "span-self-y-start",
+    "span-self-y-end",
+    "block-start",
+    "block-end",
+    "span-block-start",
+    "span-block-end",
+    "inline-start",
+    "inline-end",
+    "span-inline-start",
+    "span-inline-end",
+    "self-block-start",
+    "self-block-end",
+    "span-self-block-start",
+    "span-self-block-end",
+    "self-inline-start",
+    "self-inline-end",
+    "span-self-inline-start",
+    "span-self-inline-end",
+    "start",
+    "end",
+    "span-start",
+    "span-end",
+    "self-start",
+    "self-end",
+    "span-self-start",
+    "span-self-end"
+  ],
+  "position-edge": [
+    "center",
+    "left",
+    "right",
+    "top",
+    "bottom"
+  ],
+  "positioning": [
+    "absolute",
+    "fixed",
+    "relative",
+    "static",
+    "sticky"
+  ],
+  "radial-extent": [
+    "closest-corner",
+    "closest-side",
+    "farthest-corner",
+    "farthest-side"
+  ],
+  "referrer-policy-modifier-value": [
+    "no-referrer",
+    "no-referrer-when-downgrade",
+    "same-origin",
+    "origin",
+    "strict-origin",
+    "origin-when-cross-origin",
+    "strict-origin-when-cross-origin",
+    "unsafe-url"
+  ],
+  "relative-size": [
+    "smaller",
+    "larger"
+  ],
+  "repetition": [
+    "no-repeat",
+    "repeat",
+    "round",
+    "space"
+  ],
+  "resize": [
+    "none",
+    "both",
+    "horizontal",
+    "vertical",
+    "inline",
+    "block"
+  ],
+  "rounding-strategy": [
+    "down",
+    "nearest",
+    "to-zero",
+    "up"
+  ],
+  "scrollbar-gutter": [
+    "auto",
+    "stable",
+    "both-edges"
+  ],
+  "scrollbar-width": [
+    "auto",
+    "thin",
+    "none"
+  ],
+  "scroller": [
+    "root",
+    "nearest",
+    "self"
+  ],
+  "shape-box": [
+    "content-box",
+    "padding-box",
+    "border-box",
+    "margin-box"
+  ],
+  "shape-rendering": [
+    "auto",
+    "optimizespeed",
+    "crispedges",
+    "geometricprecision"
+  ],
+  "step-position": [
+    "jump-start",
+    "jump-end",
+    "jump-none",
+    "jump-both",
+    "start",
+    "end"
+  ],
+  "stroke-linecap": [
+    "butt",
+    "square",
+    "round"
+  ],
+  "stroke-linejoin": [
+    "miter",
+    "round",
+    "bevel"
+  ],
+  "table-layout": [
+    "auto",
+    "fixed"
+  ],
+  "text-align": [
+    "center",
+    "justify",
+    "start",
+    "end",
+    "left",
+    "right",
+    "match-parent",
+    "-libweb-center",
+    "-libweb-inherit-or-center",
+    "-libweb-left",
+    "-libweb-right"
+  ],
+  "text-anchor": [
+    "start",
+    "middle",
+    "end"
+  ],
+  "text-decoration-line": [
+    "none",
+    "underline",
+    "overline",
+    "line-through",
+    "blink",
+    "spelling-error",
+    "grammar-error"
+  ],
+  "text-decoration-style": [
+    "dashed",
+    "dotted",
+    "double",
+    "solid",
+    "wavy"
+  ],
+  "text-justify": [
+    "auto",
+    "none",
+    "inter-word",
+    "inter-character"
+  ],
+  "text-overflow": [
+    "clip",
+    "ellipsis"
+  ],
+  "text-rendering": [
+    "auto",
+    "optimizespeed",
+    "optimizelegibility",
+    "geometricprecision"
+  ],
+  "text-transform": [
+    "capitalize",
+    "full-size-kana",
+    "full-width",
+    "lowercase",
+    "math-auto",
+    "none",
+    "uppercase"
+  ],
+  "text-underline-position-horizontal": [
+    "auto",
+    "from-font",
+    "under"
+  ],
+  "text-underline-position-vertical": [
+    "auto",
+    "left",
+    "right"
+  ],
+  "text-wrap-mode": [
+    "wrap",
+    "nowrap"
+  ],
+  "text-wrap-style": [
+    "auto",
+    "balance",
+    "stable",
+    "pretty"
+  ],
+  "touch-action": [
+    "auto",
+    "manipulation",
+    "none",
+    "pan-down",
+    "pan-left",
+    "pan-right",
+    "pan-up",
+    "pan-x",
+    "pan-y"
+  ],
+  "transform-box": [
+    "content-box",
+    "border-box",
+    "fill-box",
+    "stroke-box",
+    "view-box"
+  ],
+  "transform-style": [
+    "flat",
+    "preserve-3d"
+  ],
+  "transition-behavior": [
+    "normal",
+    "allow-discrete"
+  ],
+  "try-order": [
+    "most-width",
+    "most-height",
+    "most-block-size",
+    "most-inline-size"
+  ],
+  "try-tactic": [
+    "flip-block",
+    "flip-inline",
+    "flip-start"
+  ],
+  "unicode-bidi": [
+    "bidi-override",
+    "embed",
+    "isolate",
+    "isolate-override",
+    "normal",
+    "plaintext"
+  ],
+  "user-select": [
+    "all",
+    "auto",
+    "contain",
+    "none",
+    "text"
+  ],
+  "vertical-align": [
+    "baseline",
+    "bottom",
+    "middle",
+    "sub",
+    "super",
+    "text-bottom",
+    "text-top",
+    "top"
+  ],
+  "visibility": [
+    "collapse",
+    "hidden",
+    "visible"
+  ],
+  "white-space": [
+    "normal",
+    "pre",
+    "pre-line",
+    "pre-wrap"
+  ],
+  "white-space-collapse": [
+    "collapse",
+    "discard",
+    "preserve",
+    "preserve-breaks",
+    "preserve-spaces",
+    "break-spaces"
+  ],
+  "word-break": [
+    "normal",
+    "keep-all",
+    "break-all",
+    "break-word"
+  ],
+  "writing-mode": [
+    "horizontal-tb",
+    "vertical-rl",
+    "vertical-lr",
+    "sideways-rl",
+    "sideways-lr"
+  ]
+}

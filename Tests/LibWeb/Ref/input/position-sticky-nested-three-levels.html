@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/position-sticky-nested-three-levels-ref.html" />
+<style>
+    .scrollable-container {
+        width: 400px;
+        height: 200px;
+        overflow-y: scroll;
+        border: 5px solid red;
+    }
+
+    .outer-sticky {
+        position: sticky;
+        top: 0px;
+        width: 350px;
+        height: 150px;
+        background: #3498db;
+    }
+
+    .middle-sticky {
+        position: sticky;
+        top: 20px;
+        width: 280px;
+        height: 100px;
+        background: #27ae60;
+    }
+
+    .inner-sticky {
+        position: sticky;
+        top: 40px;
+        width: 200px;
+        height: 40px;
+        background: #e74c3c;
+    }
+
+    .spacer {
+        height: 400px;
+        background-color: orange;
+    }
+</style>
+
+<div class="scrollable-container" id="container">
+    <div class="spacer"></div>
+    <div class="outer-sticky">
+        <div class="middle-sticky">
+            <div class="inner-sticky"></div>
+        </div>
+    </div>
+    <div class="spacer"></div>
+</div>
+
+<script>
+    // At scrollTop=420:
+    // - Outer sticky stuck at top: 0
+    // - Middle sticky stuck at top: 20
+    // - Inner sticky stuck at top: 40
+    document.getElementById("container").scrollTop = 420;
+</script>

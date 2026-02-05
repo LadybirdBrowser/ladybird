@@ -1,0 +1,34 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Test: 'contain: paint' element should contain absolute position elements.</title>
+  <link rel="author" title="Kyle Zentner" href="mailto:zentner.kyle@gmail.com">
+  <link rel="help" href="https://drafts.csswg.org/css-contain/#containment-paint">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/contain-paint-containing-block-absolute-001-ref.html">
+  <style>
+  #a {
+      contain: paint;
+      width: 100px;
+      height: 100px;
+      background: red;
+      margin: 50px;
+  }
+  #b {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100px;
+      height: 100px;
+      background: green;
+  }
+  </style>
+</head>
+<body>
+  <div id="a">
+    <div>
+      <div id="b"></div>
+    </div>
+  </div>
+</body>
+</html>

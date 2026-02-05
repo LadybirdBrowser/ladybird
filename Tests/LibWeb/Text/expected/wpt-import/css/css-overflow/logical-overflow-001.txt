@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	overflow-x matches overflow-inline, and overflow-y matches overflow-block when the element has a horizontal writing mode
+Pass	overflow-y matches overflow-inline, and overflow-x matches overflow-block when the element has a vertical writing mode

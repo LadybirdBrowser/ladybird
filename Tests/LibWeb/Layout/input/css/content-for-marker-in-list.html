@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html id="html">
+<head id="head">
+<style id="style">
+
+ol { counter-reset: item; }
+li {
+    counter-increment: item;
+}
+
+li.number::marker { content: counter( item ) ':'; }
+li.bullet::marker { content: '• '; }
+
+</style>
+</head>
+<body id="body">
+<ol>
+    <li class="number">one</li>
+    <li class="bullet">bullet</li>
+    <li class="number">three</li>
+    <li class="bullet">bullet</li>
+    <li class="number">five</li>
+</ol>
+</body>
+</html>

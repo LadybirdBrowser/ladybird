@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	In window.document with click event
+Pass	In window.document with load event
+Pass	In window.document.cloneNode(true)
+Pass	In new Document()
+Pass	In DOMImplementation.createHTMLDocument()

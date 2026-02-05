@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" id="svg-element"></svg>
+<script>
+    test(() => {
+        const svgElement = document.getElementById("svg-element");
+        svgElement.height = 1;
+        svgElement.setAttribute("viewBox", "0 0 1 0");
+        println("PASS (didn't crash)");
+    });
+</script>

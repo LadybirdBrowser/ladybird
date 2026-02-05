@@ -1,0 +1,2 @@
+Div contents: "<font color="#0000ff">foo</font>bar"
+Div contents: "<font color="#0000ff">foo</font><font color="#ff0000">bar</font>"

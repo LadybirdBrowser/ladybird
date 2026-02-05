@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSStyleValue.parse Error Handling</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parse">
+<meta name="assert" content="Test CSSStyleValue.parse error handling" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parse('', 'auto'));
+}, 'CSSStyleValue.parse() with empty property name throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parse('lemon', 'auto'));
+}, 'CSSStyleValue.parse() with unsupported property name throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parse('width', '10deg'));
+}, 'CSSStyleValue.parse() with invalid value for valid property throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parse('margin', '10deg'));
+}, 'CSSStyleValue.parse() with invalid value for shorthand property throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parse('--foo', ''));
+}, 'CSSStyleValue.parse() with invalid value for custom property throws TypeError');
+
+</script>

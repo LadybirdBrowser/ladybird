@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>Overflow:scroll floating paint order</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/zindex.html">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/overflow-scroll-float-paint-order-ref.html">
+<style>
+  #scroller {
+    float: left;
+    background: red;
+    padding: 20px;
+    box-sizing: border-box;
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+  }
+  #negative-margin {
+    float: left;
+    width: 100px;
+    height: 100px;
+    background: green;
+    margin-left: -100px;
+  }
+  #foreground1 {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    background: blue;
+  }
+  #foreground2 {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    background: magenta;
+  }
+</style>
+<!-- The paint order should be:
+  scroller background (invisible)
+  scroller child background (invisible)
+  foreground1 (invisible)
+  negative-margin background (visible)
+  foreground2 (visible)
+-->
+<div id="scroller">
+  <div style="height: 200px; background: yellow">
+    <div id="foreground1"></div>
+  </div>
+</div>
+<div id="negative-margin">
+  <div id="foreground2"></div>
+</div>

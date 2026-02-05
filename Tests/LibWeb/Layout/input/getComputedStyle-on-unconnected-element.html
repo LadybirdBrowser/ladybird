@@ -1,0 +1,11 @@
+<!doctype html><style>
+* { font: 20px SerenitySans; }
+</style><script>
+let fragment = document.createDocumentFragment()
+let a = document.createElement("a")
+fragment.appendChild(a)
+let b = document.createElement("b")
+a.appendChild(b)
+window.getComputedStyle(b).display
+</script>
+This test passes if we don't crash.

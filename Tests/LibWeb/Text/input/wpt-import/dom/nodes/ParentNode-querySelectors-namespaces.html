@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>querySelectorAll must work with namespace attribute selectors on SVG</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<!-- Regression test for https://github.com/jsdom/jsdom/issues/2028 -->
+
+<svg id="thesvg" xlink:href="foo"></svg>
+
+<script>
+"use strict";
+
+setup({ single_test: true });
+
+const el = document.getElementById("thesvg");
+
+assert_equals(document.querySelector("[*|href]"), el);
+assert_array_equals(document.querySelectorAll("[*|href]"), [el]);
+
+done();
+</script>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	There should be 3 @page rules.
+Pass	Rule #0
+Pass	Rule #1
+Pass	Rule #2

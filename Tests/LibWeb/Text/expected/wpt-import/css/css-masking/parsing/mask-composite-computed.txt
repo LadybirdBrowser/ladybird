@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Property mask-composite value 'add'
+Pass	Property mask-composite value 'subtract'
+Pass	Property mask-composite value 'intersect'
+Pass	Property mask-composite value 'exclude'

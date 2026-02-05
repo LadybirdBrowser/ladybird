@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>line-height interpolation</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/visudet.html#propdef-line-height">
+<meta name="assert" content="line-height supports animation by computation">
+<meta name="timeout" content="long">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  line-height: 30px;
+}
+
+.target {
+  display: inline-block;
+  font: 20px sans-serif;
+  line-height: 10px;
+}
+
+.expected {
+  color: green;
+  margin-right: 30px;
+}
+</style>
+<body>
+<template id="target-template">
+  <p>
+  v<br />v
+  </p>
+</template>
+</body>
+<script>
+test_interpolation({
+  property: 'line-height',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -1, expect: '0px'},
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_no_interpolation({
+  property: 'line-height',
+  from: 'initial',
+  to: '20px',
+});
+
+test_interpolation({
+  property: 'line-height',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -1, expect: '40px'},
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'line-height',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -1, expect: '40px'},
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'line-height',
+  from: '4',
+  to: '14',
+}, [
+  {at: -1, expect: '0'},
+  {at: -0.3, expect: '1'},
+  {at: 0, expect: '4'},
+  {at: 0.3, expect: '7'},
+  {at: 0.6, expect: '10'},
+  {at: 1, expect: '14'},
+  {at: 1.5, expect: '19'},
+]);
+
+test_interpolation({
+  property: 'line-height',
+  from: '4px',
+  to: '14px',
+}, [
+  {at: -1, expect: '0px'},
+  {at: -0.3, expect: '1px'},
+  {at: 0, expect: '4px'},
+  {at: 0.3, expect: '7px'},
+  {at: 0.6, expect: '10px'},
+  {at: 1, expect: '14px'},
+  {at: 1.5, expect: '19px'},
+]);
+
+test_interpolation({
+  property: 'line-height',
+  from: 'normal',
+  to: 'normal',
+}, [
+  {at: -0.3, expect: 'normal'},
+  {at: 0, expect: 'normal'},
+  {at: 0.3, expect: 'normal'},
+  {at: 0.6, expect: 'normal'},
+  {at: 1, expect: 'normal'},
+  {at: 1.5, expect: 'normal'},
+]);
+
+test_no_interpolation({
+  property: 'line-height',
+  from: '4',
+  to: '14px',
+});
+
+test_no_interpolation({
+  property: 'line-height',
+  from: '14px',
+  to: 'normal',
+});
+
+test_no_interpolation({
+  property: 'line-height',
+  from: 'normal',
+  to: '4',
+});
+
+test_no_interpolation({
+  property: 'line-height',
+  from: '4',
+  to: 'normal',
+});
+
+test_no_interpolation({
+  property: 'line-height',
+  from: 'normal',
+  to: '14px',
+});
+
+test_no_interpolation({
+  property: 'line-height',
+  from: '14px',
+  to: '4',
+});
+
+test_no_interpolation({
+  property: 'line-height',
+  from: '4',
+  to: '14q',
+});
+
+test_interpolation({
+  property: 'line-height',
+  from: '4q',
+  to: '14q',
+}, [
+  {at: -1, expect: '0q'},
+  {at: -0.3, expect: '1q'},
+  {at: 0, expect: '4q'},
+  {at: 0.3, expect: '7q'},
+  {at: 0.6, expect: '10q'},
+  {at: 1, expect: '14q'},
+  {at: 1.5, expect: '19q'},
+]);
+
+test_no_interpolation({
+  property: 'line-height',
+  from: '14q',
+  to: 'normal',
+});
+
+test_no_interpolation({
+  property: 'line-height',
+  from: '1',
+  to: '200%',
+});
+
+test_interpolation({
+  property: 'line-height',
+  from: '100%',
+  to: '200%',
+}, [
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '130%'},
+  {at: 0.6, expect: '160%'},
+  {at: 1, expect: '200%'},
+]);
+</script>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<iframe id="testframe"></iframe>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        const testframe = document.getElementById("testframe");
+        const canvas = document.createElement("canvas");
+
+        window.onmessage = messageEvent => {
+            if (messageEvent.data === "done") {
+                done();
+                return;
+            }
+
+            println(messageEvent.data);
+        };
+
+        testframe.onload = () => {
+            canvas.toBlob(async (canvasBlob) => {
+                const imageBitmap = await createImageBitmap(canvasBlob);
+                const aesGcm128bitKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 128 }, true, ["encrypt"]);
+                const input = document.createElement("input");
+                input.type = "file";
+
+                const serializableTypes = [
+                    new DOMException(),
+                    new DOMRectReadOnly(),
+                    new DOMRect(),
+                    new Blob([""], { type: "text/plain" }),
+                    imageBitmap,
+                    aesGcm128bitKey,
+                    new File([""], "test.txt"),
+                    input.files,
+                    new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6]),
+                    new DOMMatrix([6, 5, 4, 3, 2, 1]),
+                    new DOMPointReadOnly(),
+                    new DOMPoint(),
+                    new DOMQuad(),
+                    new ImageData(1, 1),
+                ];
+
+                const messageChannel = new MessageChannel();
+
+                const transferableTypes = [
+                    messageChannel.port2,
+                    new ArrayBuffer(1),
+                    new ArrayBuffer(1, { maxByteLength: 2 }),
+                    new ReadableStream(),
+                    new WritableStream(),
+                    new TransformStream(),
+                ];
+
+                for (const serializableType of serializableTypes) {
+                    testframe.contentWindow.postMessage(serializableType);
+                }
+
+                for (const transferableType of transferableTypes) {
+                    testframe.contentWindow.postMessage(transferableType, { transfer: [ transferableType ] });
+                }
+
+                testframe.contentWindow.postMessage("done");
+            });
+        };
+
+        testframe.srcdoc = `
+\u003cscript\u003e
+    window.onmessage = messageEvent => {
+        if (messageEvent.data === "done") {
+            window.parent.postMessage("done");
+            return;
+        }
+
+        window.parent.postMessage("iframe received an object: " + messageEvent.data);
+    };
+\u003c/script\u003e`
+    });
+</script>

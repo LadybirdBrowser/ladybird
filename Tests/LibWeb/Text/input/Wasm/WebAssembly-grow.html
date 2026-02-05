@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const memory = new WebAssembly.Memory({
+              initial: 10,
+              maximum: 100,
+        });
+
+        println(`Made memory ${memory} with buffer ${memory.buffer} (byteLength ${memory.buffer.byteLength})`);
+        memory.grow(5);
+        println(`After growing buffer (byteLength ${memory.buffer.byteLength})`);
+
+        try {
+            memory.grow(4294967296); // 1 over max value.
+        } catch (e) {
+            println(`Got error: '${e}'`);
+        }
+    });
+</script>

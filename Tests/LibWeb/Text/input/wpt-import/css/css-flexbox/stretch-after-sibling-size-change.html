@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: Stretch after sibling size is changed</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test ensures that flexbox stretches flex items
+after a flex item height is changed.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+window.onload = function()
+{
+    document.getElementById("a").style.height = "20px";
+    checkLayout(".flexbox");
+};
+</script>
+</head>
+<body>
+<div id=log></div>
+<div data-expected-width="100" data-expected-height="20" class="flexbox" style="width: 100px">
+    <div id=a class="flex-one" data-expected-width="50" data-expected-height="20" style="background-color: blue; height: 30px;"></div>
+    <div id=b class="flex-one" data-expected-width="50" data-expected-height="20" style="background-color: green"></div>
+</div>
+</body>
+</html>

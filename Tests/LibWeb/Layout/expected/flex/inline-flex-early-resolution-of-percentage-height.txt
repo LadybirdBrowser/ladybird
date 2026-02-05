@@ -1,0 +1,17 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: inline
+    frag 0 from Box start: 0, length: 0, rect: [8,8 200x200] baseline: 21.796875
+    Box <body> at [8,8] flex-container(row) [8+0+0 200 0+0+8] [8+0+0 200 0+0+8] [FFC] children: not-inline
+      BlockContainer <div> at [8,8] flex-item [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.84375x18] baseline: 13.796875
+            "hello"
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
+    PaintableBox (Box<BODY>) [8,8 200x200]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 200x200]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x216] [children: 0] (z-index: auto)

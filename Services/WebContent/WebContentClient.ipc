@@ -1,0 +1,133 @@
+#include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/Cursor.h>
+#include <LibGfx/ShareableBitmap.h>
+#include <LibHTTP/Header.h>
+#include <LibRequests/NetworkError.h>
+#include <LibRequests/RequestTimingInfo.h>
+#include <LibURL/URL.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
+#include <LibWeb/Cookie/Cookie.h>
+#include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/HTML/ActivateTab.h>
+#include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/HTML/SelectItem.h>
+#include <LibWeb/HTML/WebViewHints.h>
+#include <LibWeb/Page/EventResult.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWebView/Attribute.h>
+#include <LibWebView/ConsoleOutput.h>
+#include <LibWebView/DOMNodeProperties.h>
+#include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWebView/StorageSetResult.h>
+#include <LibWebView/Mutation.h>
+#include <LibWebView/PageInfo.h>
+#include <LibWebView/ProcessHandle.h>
+
+endpoint WebContentClient
+{
+    did_request_new_process_for_navigation(u64 page_id, URL::URL url) =|
+    did_start_loading(u64 page_id, URL::URL url, bool is_redirect) =|
+    did_finish_loading(u64 page_id, URL::URL url) =|
+    did_request_refresh(u64 page_id) =|
+    did_paint(u64 page_id, Gfx::IntRect content_rect, i32 bitmap_id) =|
+    did_request_cursor_change(u64 page_id, Gfx::Cursor cursor) =|
+    did_change_title(u64 page_id, Utf16String title) =|
+    did_change_url(u64 page_id, URL::URL url) =|
+    did_request_tooltip_override(u64 page_id, Gfx::IntPoint position, ByteString title) =|
+    did_stop_tooltip_override(u64 page_id) =|
+    did_enter_tooltip_area(u64 page_id, ByteString title) =|
+    did_leave_tooltip_area(u64 page_id) =|
+    did_hover_link(u64 page_id, URL::URL url) =|
+    did_unhover_link(u64 page_id) =|
+    did_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers) =|
+    did_middle_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers) =|
+    did_request_context_menu(u64 page_id, Gfx::IntPoint content_position) =|
+    did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers) =|
+    did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
+    did_request_media_context_menu(u64 page_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::Page::MediaContextMenu menu) =|
+    did_request_alert(u64 page_id, String message) =|
+    did_request_confirm(u64 page_id, String message) =|
+    did_request_prompt(u64 page_id, String message, String default_) =|
+    did_request_set_prompt_text(u64 page_id, String message) =|
+    did_request_accept_dialog(u64 page_id) =|
+    did_request_dismiss_dialog(u64 page_id) =|
+    did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source) =|
+
+    did_inspect_dom_tree(u64 page_id, String dom_tree) =|
+    did_inspect_dom_node(u64 page_id, WebView::DOMNodeProperties properties) =|
+    did_inspect_accessibility_tree(u64 page_id, String accessibility_tree) =|
+    did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) =|
+    did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) =|
+    did_mutate_dom(u64 page_id, WebView::Mutation mutation) =|
+    did_get_dom_node_html(u64 page_id, String html) =|
+
+    did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> style_sheets) =|
+    did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, String source) =|
+
+    did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|
+
+    did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, Optional<Core::AnonymousBuffer> info) =|
+
+    did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon) =|
+    did_request_all_cookies_webdriver(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)
+    did_request_all_cookies_cookiestore(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)
+    did_request_named_cookie(URL::URL url, String name) => (Optional<Web::Cookie::Cookie> cookie)
+    did_request_cookie(URL::URL url, Web::Cookie::Source source) => (String cookie)
+    did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source) => ()
+    did_update_cookie(Web::Cookie::Cookie cookie) =|
+    did_expire_cookies_with_time_offset(AK::Duration offset) =|
+    did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => (Optional<String> value)
+    did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value) => (WebView::StorageSetResult result)
+    did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => ()
+    did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<String> keys)
+    did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => ()
+    did_update_resource_count(u64 page_id, i32 count_waiting) =|
+    did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) => (String handle)
+    did_request_activate_tab(u64 page_id) =|
+    did_close_browsing_context(u64 page_id) =|
+    did_request_restore_window(u64 page_id) =|
+    did_request_reposition_window(u64 page_id, Gfx::IntPoint position) =|
+    did_request_resize_window(u64 page_id, Gfx::IntSize size) =|
+    did_request_maximize_window(u64 page_id) =|
+    did_request_minimize_window(u64 page_id) =|
+    did_request_fullscreen_window(u64 page_id) =|
+    did_request_file(u64 page_id, ByteString path, i32 request_id) =|
+    did_request_color_picker(u64 page_id, Color current_color) =|
+    did_request_file_picker(u64 page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
+    did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
+    did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) =|
+    did_change_theme_color(u64 page_id, Gfx::Color color) =|
+
+    did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String presentation_style) =|
+    did_request_clipboard_entries(u64 page_id, u64 request_id) =|
+
+    did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
+    did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) =|
+
+    did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
+
+    did_execute_js_console_input(u64 page_id, JsonValue result) =|
+    did_output_js_console_message(u64 page_id, WebView::ConsoleOutput console_output) =|
+
+    did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type) =|
+    did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers) =|
+    did_receive_network_response_body(u64 page_id, u64 request_id, ByteBuffer data) =|
+    did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
+
+    did_finish_test(u64 page_id, String text) =|
+    did_set_test_timeout(u64 page_id, double milliseconds) =|
+    did_receive_reference_test_metadata(u64 page_id, JsonValue result) =|
+    did_receive_test_variant_metadata(u64 page_id, JsonValue result) =|
+
+    did_set_browser_zoom(u64 page_id, double factor) =|
+
+    did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
+
+    request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) => (IPC::File socket) // FIXME: Add required attributes to select a SharedWorker Agent
+}

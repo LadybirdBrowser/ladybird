@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	IDBCursor.advance() - invalid - attempt to call advance twice
+Pass	IDBCursor.advance() - invalid - pass something other than number
+Pass	IDBCursor.advance() - invalid - pass null/undefined
+Pass	IDBCursor.advance() - invalid - missing argument
+Pass	IDBCursor.advance() - invalid - pass negative numbers
+Pass	IDBCursor.advance() - invalid - got value not set on exception

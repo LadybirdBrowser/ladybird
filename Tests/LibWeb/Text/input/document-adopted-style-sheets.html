@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="testElement"></div>
+<script>
+    test(() => {
+        // Make sure assignment of empty array works correctly
+        document.adoptedStyleSheets = [];
+
+        {
+            const computedStyle = window.getComputedStyle(testElement);
+            const color = computedStyle.getPropertyValue("color");
+            println(`color with no adopted style sheets: ${color}`);
+        }
+
+        const sheetColorRed = new CSSStyleSheet();
+        sheetColorRed.replaceSync("#testElement { color: red }");
+        document.adoptedStyleSheets.push(sheetColorRed);
+
+        println(`document.adoptedStyleSheets.length=(${document.adoptedStyleSheets.length})`);
+
+        {
+            const computedStyle = window.getComputedStyle(testElement);
+            const color = computedStyle.getPropertyValue("color");
+            println(`add style sheet using Array.prototype.push(): ${color}`);
+        }
+
+        document.adoptedStyleSheets.pop();
+
+        println(`document.adoptedStyleSheets.length=(${document.adoptedStyleSheets.length})`);
+
+        {
+            const computedStyle = window.getComputedStyle(testElement);
+            const color = computedStyle.getPropertyValue("color");
+            println(`delete added style sheet using Array.prototype.pop(): ${color}`);
+        }
+
+        document.adoptedStyleSheets = [sheetColorRed];
+
+        println(`document.adoptedStyleSheets.length=(${document.adoptedStyleSheets.length})`);
+
+        {
+            const computedStyle = window.getComputedStyle(testElement);
+            const color = computedStyle.getPropertyValue("color");
+            println(`add style by assigning array to document.adoptedStyleSheets: ${color}`);
+        }
+
+        const sheetColorGreen = new CSSStyleSheet();
+        sheetColorGreen.replaceSync("#testElement { color: green }");
+        document.adoptedStyleSheets.push(sheetColorGreen);
+
+        document.adoptedStyleSheets = new Set([sheetColorGreen]);
+
+        println(`document.adoptedStyleSheets.length=(${document.adoptedStyleSheets.length})`);
+
+        {
+            const computedStyle = window.getComputedStyle(testElement);
+            const color = computedStyle.getPropertyValue("color");
+            println(`add style by assigning Set to document.adoptedStyleSheets: ${color}`);
+        }
+
+        try {
+            document.adoptedStyleSheets = 1;
+        } catch(err) {
+            println(`assignment of non-iterable value to document.adoptedStyleSheets throws "${err.message}"`);
+        }
+
+        try {
+            document.adoptedStyleSheets = ["foo"];
+        } catch(err) {
+            println(`assignment of value that is not CSSStyleSheet throws "${err.message}"`);
+        }
+    });
+</script>

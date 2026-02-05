@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridTemplateAreas</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-areas">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("grid-template-areas", "none");
+test_computed_value("grid-template-areas", '"first"');
+test_computed_value("grid-template-areas", '"first second"');
+test_computed_value("grid-template-areas", '"1st 2nd 3rd"');
+test_computed_value("grid-template-areas", '"first second" "third fourth"');
+test_computed_value("grid-template-areas", '"first second" "third ." "1st 2nd" "3rd 4th"');
+
+// https://github.com/w3c/csswg-drafts/issues/3261
+test_computed_value("grid-template-areas", '"  a  \t  b  "', '"a b"');
+test_computed_value("grid-template-areas", '"c\td"', '"c d"');
+test_computed_value("grid-template-areas", '"first ..."', '"first ."');
+</script>
+</body>
+</html>

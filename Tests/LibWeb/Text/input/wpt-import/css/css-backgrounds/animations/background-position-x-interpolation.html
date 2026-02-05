@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#background-position">
+<meta name="test" content="background-position-x supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  background-position-x: 60px;
+}
+
+.target {
+  background-position-x: 40px;
+}
+</style>
+
+<body>
+<script>
+test_interpolation({
+  property: 'background-position-x',
+  from: neutralKeyframe,
+  to: '80px',
+}, [
+  {at: -0.25, expect: '30px'},
+  {at: 0, expect:     '40px'},
+  {at: 0.25, expect:  '50px'},
+  {at: 0.5, expect:   '60px'},
+  {at: 0.75, expect:  '70px'},
+  {at: 1, expect:     '80px'},
+  {at: 1.25, expect:  '90px'},
+]);
+
+test_interpolation({
+  property: 'background-position-x',
+  from: 'initial',
+  to: 'right',
+}, [
+  {at: -0.25, expect: '-25%'},
+  {at: 0, expect:     '0%'},
+  {at: 0.25, expect:  '25%'},
+  {at: 0.5, expect:   '50%'},
+  {at: 0.75, expect:  '75%'},
+  {at: 1, expect:     '100%'},
+  {at: 1.25, expect:  '125%'},
+]);
+
+test_interpolation({
+  property: 'background-position-x',
+  from: 'inherit',
+  to: '80px',
+}, [
+  {at: -0.25, expect: '55px'},
+  {at: 0, expect:     '60px'},
+  {at: 0.25, expect:  '65px'},
+  {at: 0.5, expect:   '70px'},
+  {at: 0.75, expect:  '75px'},
+  {at: 1, expect:     '80px'},
+  {at: 1.25, expect:  '85px'},
+]);
+
+test_interpolation({
+  property: 'background-position-x',
+  from: '300px, 400px',
+  to: '500px, 600px, 700px',
+}, [
+  {at: -0.25, expect: '250px, 350px, 200px, 375px, 225px, 325px'},
+  {at: 0, expect:     '300px, 400px, 300px, 400px, 300px, 400px'},
+  {at: 0.25, expect:  '350px, 450px, 400px, 425px, 375px, 475px'},
+  {at: 0.5, expect:   '400px, 500px, 500px, 450px, 450px, 550px'},
+  {at: 0.75, expect:  '450px, 550px, 600px, 475px, 525px, 625px'},
+  {at: 1, expect:     '500px, 600px, 700px, 500px, 600px, 700px'},
+  {at: 1.25, expect:  '550px, 650px, 800px, 525px, 675px, 775px'},
+]);
+</script>
+</body>

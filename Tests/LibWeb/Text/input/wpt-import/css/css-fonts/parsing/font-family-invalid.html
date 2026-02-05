@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-family with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-family-prop">
+<meta name="assert" content="font-family supports only the grammar '[ <family-name> | <generic-family> ] #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-family', 'cursive serif');
+
+test_invalid_value('font-family', 'Red/Black, sans-serif');
+test_invalid_value('font-family', '"Lucida" Grande, sans-serif');
+test_invalid_value('font-family', 'Ahem!, sans-serif');
+test_invalid_value('font-family', 'test@foo, sans-serif');
+test_invalid_value('font-family', '#POUND, sans-serif');
+test_invalid_value('font-family', 'Hawaii 5-0, sans-serif');
+</script>
+</body>
+</html>

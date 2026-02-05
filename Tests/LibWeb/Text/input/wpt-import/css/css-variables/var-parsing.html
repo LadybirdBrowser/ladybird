@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>CSS Custom Properties: var() parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-variables">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+
+<script>
+
+test_valid_value('width', 'var(--x)');
+test_valid_value('width', 'var(--x,)');
+test_valid_value('width', 'var(--x, )');
+
+test_invalid_value('width', 'var(--x ())');
+test_invalid_value('width', 'var(--x () )');
+test_invalid_value('width', 'var(--x() )');
+test_invalid_value('width', 'var(--x (),)');
+test_invalid_value('width', 'var(--x(),)');
+
+</script>

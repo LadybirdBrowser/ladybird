@@ -1,0 +1,114 @@
+Harness status: OK
+
+Found 109 tests
+
+109 Pass
+Pass	setup
+Pass	RSA-OAEP with SHA-1 and no label decryption
+Pass	RSA-OAEP with SHA-256 and no label decryption
+Pass	RSA-OAEP with SHA-384 and no label decryption
+Pass	RSA-OAEP with SHA-512 and no label decryption
+Pass	RSA-OAEP with SHA-1 and empty label decryption
+Pass	RSA-OAEP with SHA-256 and empty label decryption
+Pass	RSA-OAEP with SHA-384 and empty label decryption
+Pass	RSA-OAEP with SHA-512 and empty label decryption
+Pass	RSA-OAEP with SHA-1 and a label decryption
+Pass	RSA-OAEP with SHA-256 and a label decryption
+Pass	RSA-OAEP with SHA-384 and a label decryption
+Pass	RSA-OAEP with SHA-512 and a label decryption
+Pass	RSA-OAEP with SHA-1 and no label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-256 and no label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-384 and no label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-512 and no label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-1 and empty label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-256 and empty label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-384 and empty label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-512 and empty label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-1 and a label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-256 and a label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-384 and a label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-512 and a label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-1 and no label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-256 and no label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-384 and no label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-512 and no label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-1 and empty label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-256 and empty label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-384 and empty label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-512 and empty label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-1 and a label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-256 and a label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-384 and a label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-512 and a label using publicKey to decrypt
+Pass	RSA-OAEP with SHA-1 and no label no decrypt usage
+Pass	RSA-OAEP with SHA-256 and no label no decrypt usage
+Pass	RSA-OAEP with SHA-384 and no label no decrypt usage
+Pass	RSA-OAEP with SHA-512 and no label no decrypt usage
+Pass	RSA-OAEP with SHA-1 and empty label no decrypt usage
+Pass	RSA-OAEP with SHA-256 and empty label no decrypt usage
+Pass	RSA-OAEP with SHA-384 and empty label no decrypt usage
+Pass	RSA-OAEP with SHA-512 and empty label no decrypt usage
+Pass	RSA-OAEP with SHA-1 and a label no decrypt usage
+Pass	RSA-OAEP with SHA-256 and a label no decrypt usage
+Pass	RSA-OAEP with SHA-384 and a label no decrypt usage
+Pass	RSA-OAEP with SHA-512 and a label no decrypt usage
+Pass	RSA-OAEP with SHA-1 and no label with altered plaintext
+Pass	RSA-OAEP with SHA-256 and no label with altered plaintext
+Pass	RSA-OAEP with SHA-384 and no label with altered plaintext
+Pass	RSA-OAEP with SHA-512 and no label with altered plaintext
+Pass	RSA-OAEP with SHA-1 and empty label with altered plaintext
+Pass	RSA-OAEP with SHA-256 and empty label with altered plaintext
+Pass	RSA-OAEP with SHA-384 and empty label with altered plaintext
+Pass	RSA-OAEP with SHA-512 and empty label with altered plaintext
+Pass	RSA-OAEP with SHA-1 and a label with altered plaintext
+Pass	RSA-OAEP with SHA-256 and a label with altered plaintext
+Pass	RSA-OAEP with SHA-384 and a label with altered plaintext
+Pass	RSA-OAEP with SHA-512 and a label with altered plaintext
+Pass	RSA-OAEP with SHA-1 and no label
+Pass	RSA-OAEP with SHA-256 and no label
+Pass	RSA-OAEP with SHA-384 and no label
+Pass	RSA-OAEP with SHA-512 and no label
+Pass	RSA-OAEP with SHA-1 and empty label
+Pass	RSA-OAEP with SHA-256 and empty label
+Pass	RSA-OAEP with SHA-384 and empty label
+Pass	RSA-OAEP with SHA-512 and empty label
+Pass	RSA-OAEP with SHA-1 and a label
+Pass	RSA-OAEP with SHA-256 and a label
+Pass	RSA-OAEP with SHA-384 and a label
+Pass	RSA-OAEP with SHA-512 and a label
+Pass	RSA-OAEP with SHA-1 and no label too long plaintext
+Pass	RSA-OAEP with SHA-256 and no label too long plaintext
+Pass	RSA-OAEP with SHA-384 and no label too long plaintext
+Pass	RSA-OAEP with SHA-512 and no label too long plaintext
+Pass	RSA-OAEP with SHA-1 and empty label too long plaintext
+Pass	RSA-OAEP with SHA-256 and empty label too long plaintext
+Pass	RSA-OAEP with SHA-384 and empty label too long plaintext
+Pass	RSA-OAEP with SHA-512 and empty label too long plaintext
+Pass	RSA-OAEP with SHA-1 and a label too long plaintext
+Pass	RSA-OAEP with SHA-256 and a label too long plaintext
+Pass	RSA-OAEP with SHA-384 and a label too long plaintext
+Pass	RSA-OAEP with SHA-512 and a label too long plaintext
+Pass	RSA-OAEP with SHA-1 and no label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-256 and no label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-384 and no label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-512 and no label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-1 and empty label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-256 and empty label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-384 and empty label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-512 and empty label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-1 and a label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-256 and a label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-384 and a label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-512 and a label using privateKey to encrypt
+Pass	RSA-OAEP with SHA-1 and no label no encrypt usage
+Pass	RSA-OAEP with SHA-256 and no label no encrypt usage
+Pass	RSA-OAEP with SHA-384 and no label no encrypt usage
+Pass	RSA-OAEP with SHA-512 and no label no encrypt usage
+Pass	RSA-OAEP with SHA-1 and empty label no encrypt usage
+Pass	RSA-OAEP with SHA-256 and empty label no encrypt usage
+Pass	RSA-OAEP with SHA-384 and empty label no encrypt usage
+Pass	RSA-OAEP with SHA-512 and empty label no encrypt usage
+Pass	RSA-OAEP with SHA-1 and a label no encrypt usage
+Pass	RSA-OAEP with SHA-256 and a label no encrypt usage
+Pass	RSA-OAEP with SHA-384 and a label no encrypt usage
+Pass	RSA-OAEP with SHA-512 and a label no encrypt usage

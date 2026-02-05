@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property border-block-start-color value 'currentcolor'
+Pass	Property border-block-start-color value 'rgb(2, 3, 4)'
+Pass	Property border-block-end-color value 'rgb(34, 51, 68)'
+Pass	Property border-block-end-color value 'transparent'
+Pass	Property border-block-color value 'rgb(34, 51, 68)'
+Pass	Property border-block-color value 'transparent rgb(2, 3, 4)'
+Pass	Property border-block-color value 'rgb(2, 3, 4) rgb(2, 3, 4)'
+Pass	Property border-block-color value 'currentcolor lime'

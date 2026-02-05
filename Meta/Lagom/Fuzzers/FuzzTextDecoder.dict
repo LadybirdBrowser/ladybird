@@ -1,0 +1,15 @@
+magic_separator="|DATA|"
+
+# encodings
+cyrillic_encoding="windows-1251"
+hebrew_encoding="windows-1255"
+koi8r_encoding="koi8-r"
+latin1_encoding="windows-1252"
+latin2_encoding="iso-8859-2"
+latin9_encoding="iso-8859-15"
+mac_roman_encoding="macintosh"
+turkish_encoding="windows-1254"
+user_defined_encoding="x-user-defined"
+utf16be_encoding="utf-16be"
+utf16le_encoding="utf-16le"
+utf8_encoding="utf-8"

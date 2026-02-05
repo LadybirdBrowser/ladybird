@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Filter function composition</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<body>
+<script>
+'use strict';
+
+test_composition({
+  property: 'filter',
+  underlying: 'grayscale(0.1)',
+  accumulateFrom: 'grayscale(0)',
+  accumulateTo: 'grayscale(0.9)',
+}, [
+  {at: -1, expect: 'grayscale(0)'}, // Negative values are clamped
+  {at: 0, expect: 'grayscale(0.1)'},
+  {at: 0.5, expect: 'grayscale(0.55)'},
+  {at: 1, expect: 'grayscale(1)'},
+  {at: 1.5, expect: 'grayscale(1)'}, // Values above 1 are clamped
+]);
+
+test_composition({
+  property: 'filter',
+  underlying: 'invert(0.1)',
+  accumulateFrom: 'invert(0)',
+  accumulateTo: 'invert(0.9)',
+}, [
+  {at: -1, expect: 'invert(0)'}, // Negative values are clamped
+  {at: 0, expect: 'invert(0.1)'},
+  {at: 0.5, expect: 'invert(0.55)'},
+  {at: 1, expect: 'invert(1)'},
+  {at: 1.5, expect: 'invert(1)'}, // Values above 1 are clamped
+]);
+
+test_composition({
+  property: 'filter',
+  underlying: 'sepia(0.1)',
+  accumulateFrom: 'sepia(0)',
+  accumulateTo: 'sepia(0.9)',
+}, [
+  {at: -1, expect: 'sepia(0)'}, // Negative values are clamped
+  {at: 0, expect: 'sepia(0.1)'},
+  {at: 0.5, expect: 'sepia(0.55)'},
+  {at: 1, expect: 'sepia(1)'},
+  {at: 1.5, expect: 'sepia(1)'}, // Values above 1 are clamped
+]);
+</script>
+</body>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>Node.moveBefore should not preserve CSS transition state when crossing document boundaries</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<body>
+  <iframe id="iframe">
+  </iframe>
+  <section id="new-parent">
+  </section>
+  <style id="style">
+    #item {
+      width: 100px;
+      height: 100px;
+      background: green;
+      transition: left 10s;
+      position: absolute;
+      left: 0;
+    }
+
+    section {
+      position: relative;
+    }
+
+    body {
+      margin-left: 0;
+    }
+  </style>
+  <script>
+    promise_test(async t => {
+      const iframe = document.querySelector("#iframe");
+      const style = document.querySelector("#style");
+      iframe.contentDocument.head.append(style.cloneNode(true));
+      const item = iframe.contentDocument.createElement("div");
+      item.id = "item";
+      iframe.contentDocument.body.append(item);
+      assert_equals(item.getBoundingClientRect().x, 0);
+      item.style.left = "400px";
+      await new Promise(resolve => item.addEventListener("transitionstart", resolve));
+
+      // Calling `moveBefore()` on a cross-document element undergoing a
+      // transition does not move the element, nor alter the transition.
+      assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+        document.querySelector("#new-parent").moveBefore(item, null);
+      });
+
+      await new Promise(resolve => requestAnimationFrame(() => resolve()));
+      assert_less_than(item.getBoundingClientRect().x, 20);
+    }, "Moving a transition across documents should reset its state");
+  </script>
+</body>

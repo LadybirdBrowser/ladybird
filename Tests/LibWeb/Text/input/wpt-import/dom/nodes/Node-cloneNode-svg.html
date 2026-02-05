@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cloning of SVG elements and attributes</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-node-clonenode">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-node-clone">
+<!-- regression test for https://github.com/jsdom/jsdom/issues/1601 -->
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<svg xmlns:xlink='http://www.w3.org/1999/xlink'><use xlink:href='#test'></use></svg>
+
+<script>
+"use strict";
+
+const svg = document.querySelector("svg");
+const clone = svg.cloneNode(true);
+
+test(() => {
+
+  assert_equals(clone.namespaceURI, "http://www.w3.org/2000/svg");
+  assert_equals(clone.prefix, null);
+  assert_equals(clone.localName, "svg");
+  assert_equals(clone.tagName, "svg");
+
+}, "cloned <svg> should have the right properties");
+
+test(() => {
+
+  const attr = clone.attributes[0];
+
+  assert_equals(attr.namespaceURI, "http://www.w3.org/2000/xmlns/");
+  assert_equals(attr.prefix, "xmlns");
+  assert_equals(attr.localName, "xlink");
+  assert_equals(attr.name, "xmlns:xlink");
+  assert_equals(attr.value, "http://www.w3.org/1999/xlink");
+
+}, "cloned <svg>'s xmlns:xlink attribute should have the right properties");
+
+test(() => {
+
+  const use = clone.firstElementChild;
+  assert_equals(use.namespaceURI, "http://www.w3.org/2000/svg");
+  assert_equals(use.prefix, null);
+  assert_equals(use.localName, "use");
+  assert_equals(use.tagName, "use");
+
+}, "cloned <use> should have the right properties");
+
+test(() => {
+
+  const use = clone.firstElementChild;
+  const attr = use.attributes[0];
+
+  assert_equals(attr.namespaceURI, "http://www.w3.org/1999/xlink");
+  assert_equals(attr.prefix, "xlink");
+  assert_equals(attr.localName, "href");
+  assert_equals(attr.name, "xlink:href");
+  assert_equals(attr.value, "#test");
+
+}, "cloned <use>'s xlink:href attribute should have the right properties");
+
+</script>

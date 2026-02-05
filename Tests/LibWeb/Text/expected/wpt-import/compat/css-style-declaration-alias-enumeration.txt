@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 51 tests
+
+40 Pass
+11 Fail
+Pass	webkitAlignContent found on CSSStyleDeclaration
+Pass	webkitAlignItems found on CSSStyleDeclaration
+Pass	webkitAlignSelf found on CSSStyleDeclaration
+Pass	webkitAnimation found on CSSStyleDeclaration
+Pass	webkitAnimationDelay found on CSSStyleDeclaration
+Pass	webkitAnimationDirection found on CSSStyleDeclaration
+Pass	webkitAnimationDuration found on CSSStyleDeclaration
+Pass	webkitAnimationFillMode found on CSSStyleDeclaration
+Pass	webkitAnimationIterationCount found on CSSStyleDeclaration
+Pass	webkitAnimationName found on CSSStyleDeclaration
+Pass	webkitAnimationPlayState found on CSSStyleDeclaration
+Pass	webkitAnimationTimingFunction found on CSSStyleDeclaration
+Fail	webkitBackfaceVisibility found on CSSStyleDeclaration
+Fail	WebKitBackgroundClip found on CSSStyleDeclaration
+Pass	webkitBackgroundOrigin found on CSSStyleDeclaration
+Pass	webkitBackgroundSize found on CSSStyleDeclaration
+Pass	webkitBorderBottomLeftRadius found on CSSStyleDeclaration
+Pass	webkitBorderBottomRightRadius found on CSSStyleDeclaration
+Pass	webkitBorderRadius found on CSSStyleDeclaration
+Pass	webkitBorderTopLeftRadius found on CSSStyleDeclaration
+Pass	webkitBorderTopRightRadius found on CSSStyleDeclaration
+Pass	webkitBoxShadow found on CSSStyleDeclaration
+Pass	webkitBoxSizing found on CSSStyleDeclaration
+Pass	webkitFilter found on CSSStyleDeclaration
+Pass	webkitFlex found on CSSStyleDeclaration
+Pass	webkitFlexBasis found on CSSStyleDeclaration
+Pass	webkitFlexDirection found on CSSStyleDeclaration
+Pass	webkitFlexFlow found on CSSStyleDeclaration
+Pass	webkitFlexGrow found on CSSStyleDeclaration
+Pass	webkitFlexShrink found on CSSStyleDeclaration
+Pass	webkitFlexWrap found on CSSStyleDeclaration
+Pass	webkitJustifyContent found on CSSStyleDeclaration
+Pass	webkitMask found on CSSStyleDeclaration
+Fail	webkitMaskClip found on CSSStyleDeclaration
+Fail	webkitMaskComposite found on CSSStyleDeclaration
+Pass	webkitMaskImage found on CSSStyleDeclaration
+Fail	webkitMaskOrigin found on CSSStyleDeclaration
+Fail	webkitMaskPosition found on CSSStyleDeclaration
+Fail	webkitMaskRepeat found on CSSStyleDeclaration
+Fail	webkitMaskSize found on CSSStyleDeclaration
+Pass	webkitOrder found on CSSStyleDeclaration
+Fail	webkitPerspective found on CSSStyleDeclaration
+Fail	webkitPerspectiveOrigin found on CSSStyleDeclaration
+Pass	webkitTransform found on CSSStyleDeclaration
+Pass	webkitTransformOrigin found on CSSStyleDeclaration
+Fail	webkitTransformStyle found on CSSStyleDeclaration
+Pass	webkitTransition found on CSSStyleDeclaration
+Pass	webkitTransitionDelay found on CSSStyleDeclaration
+Pass	webkitTransitionDuration found on CSSStyleDeclaration
+Pass	webkitTransitionProperty found on CSSStyleDeclaration
+Pass	webkitTransitionTimingFunction found on CSSStyleDeclaration

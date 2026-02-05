@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function bufferToHex(buffer) {
+        return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    asyncTest(async (done) => {
+        let key_material = "password";
+        let enc = new TextEncoder();
+        let key = await window.crypto.subtle.importKey(
+            "raw",
+            enc.encode(key_material),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits", "deriveKey"]
+        );
+
+        println(`imported key: ${key}`);
+        println(`imported key.type: ${key.type}`);
+        println(`imported key.extractable: ${key.extractable}`);
+        println(`imported key.algorithm: ${JSON.stringify(key.algorithm)}`);
+        println(`imported key.usages: ${key.usages}`);
+
+        let message = "Hello, world!";
+        let encoded_message = enc.encode(message);
+
+        let digest = await window.crypto.subtle.digest("SHA-256", encoded_message);
+
+        println(`SHA-256 digest: ${bufferToHex(digest)}`);
+        done();
+    });
+</script>

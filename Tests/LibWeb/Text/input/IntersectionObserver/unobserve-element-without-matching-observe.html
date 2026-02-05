@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let observer = new IntersectionObserver(function() {});
+        let div = document.createElement("div");
+        observer.unobserve(div);
+        println("PASS! (Didn't crash)");
+    });
+</script>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head>
+    <title>document.domain's setter</title>
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+    <script src="../../../../common/get-host-info.sub.js"></script>
+  </head>
+  <body>
+    <iframe id="iframe"></iframe>
+    <script>
+      var host_info = get_host_info();
+      var HTTP_PORT = host_info.HTTP_PORT;
+      var ORIGINAL_HOST = host_info.ORIGINAL_HOST;
+      var SUFFIX_HOST = ORIGINAL_HOST.substring(ORIGINAL_HOST.lastIndexOf('.') + 1); // e.g. "test"
+      var REMOTE_HOST = host_info.REMOTE_HOST;
+      var iframe = document.getElementById("iframe");
+      var iframe_url = new URL("support/document_domain_setter_iframe.html", document.location);
+      iframe_url.hostname = REMOTE_HOST;
+      iframe.src = iframe_url;
+
+      test(function() {
+        assert_throws_dom("SecurityError", function() { document.domain = SUFFIX_HOST; });
+        assert_throws_dom("SecurityError", function() { document.domain = "." + SUFFIX_HOST; });
+        assert_throws_dom("SecurityError", function() { document.domain = REMOTE_HOST; });
+        assert_throws_dom("SecurityError", function() { document.domain = "example.com"; });
+      }, "failed setting of document.domain");
+
+      async_test(function(t) {
+        iframe.addEventListener("load", t.step_func_done(function() {
+          // Before setting document.domain, the iframe is not
+          // same-origin-domain, so security checks fail.
+          assert_equals(iframe.contentDocument, null);
+          assert_throws_dom("SecurityError", () => iframe.contentWindow.frameElement);
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.origin; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.href; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.protocol; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.host; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.port; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.hostname; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.pathname; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.hash; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.search; });
+          assert_throws_dom("SecurityError", function() { iframe.contentWindow.location.toString(); });
+          // Set document.domain
+          document.domain = ORIGINAL_HOST;
+          // After setting document.domain, the iframe is
+          // same-origin-domain, so security checks pass.
+          assert_equals(iframe.contentDocument.domain, document.domain);
+          assert_equals(iframe.contentWindow.frameElement, iframe);
+          assert_equals(iframe.contentWindow.origin, iframe_url.origin);
+          assert_equals(iframe.contentWindow.location.href, iframe_url.href);
+          assert_equals(iframe.contentWindow.location.protocol, iframe_url.protocol);
+          assert_equals(iframe.contentWindow.location.host, iframe_url.host);
+          assert_equals(iframe.contentWindow.location.port, iframe_url.port);
+          assert_equals(iframe.contentWindow.location.hostname, iframe_url.hostname);
+          assert_equals(iframe.contentWindow.location.pathname, iframe_url.pathname);
+          assert_equals(iframe.contentWindow.location.hash, iframe_url.hash);
+          assert_equals(iframe.contentWindow.location.search, iframe_url.search);
+          assert_equals(iframe.contentWindow.location.search, iframe_url.search);
+          assert_equals(iframe.contentWindow.location.toString(), iframe_url.toString());
+          // document.open checks for same-origin, not same-origin-domain,
+          // https://github.com/whatwg/html/issues/2282
+          assert_throws_dom("SecurityError", iframe.contentWindow.DOMException,
+                            function() { iframe.contentDocument.open(); });
+        }));
+      }, "same-origin-domain iframe");
+
+      test(() => {
+        assert_throws_dom("SecurityError", () => { (new Document).domain = document.domain });
+        assert_throws_dom("SecurityError", () => { document.implementation.createHTMLDocument().domain = document.domain });
+        assert_throws_dom("SecurityError", () => { document.implementation.createDocument(null, "").domain = document.domain });
+      }, "failed setting of document.domain for documents without browsing context");
+    </script>
+  </body>
+</html>

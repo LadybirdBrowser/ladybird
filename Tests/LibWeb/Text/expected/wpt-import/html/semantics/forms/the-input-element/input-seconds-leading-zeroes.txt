@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Expected valueAsNumber=946729801000 from 2000-01-01T12:30:01
+Pass	Expected digits unchanged in round-trip of 2000-01-01T12:30:01
+Pass	Expected valueAsNumber=946729800500 from 2000-01-01T12:30:00.5
+Pass	Expected digits unchanged in round-trip of 2000-01-01T12:30:00.5
+Pass	Expected valueAsNumber=946729800040 from 2000-01-01T12:30:00.04
+Pass	Expected digits unchanged in round-trip of 2000-01-01T12:30:00.04
+Pass	Expected valueAsNumber=946729800003 from 2000-01-01T12:30:00.003
+Pass	Expected digits unchanged in round-trip of 2000-01-01T12:30:00.003
+Pass	Expected valueAsNumber=45001000 from 12:30:01
+Pass	Expected valueAsNumber=45000500 from 12:30:00.5
+Pass	Expected valueAsNumber=45000040 from 12:30:00.04
+Pass	Expected valueAsNumber=45000003 from 12:30:00.003

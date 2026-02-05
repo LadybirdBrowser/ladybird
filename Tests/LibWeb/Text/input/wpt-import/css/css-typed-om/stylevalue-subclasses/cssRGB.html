@@ -1,0 +1,87 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSRGB tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssrgb">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+"use strict";
+
+const gInvalidColorTestCases = [
+  { color: CSS.deg(1), desc: "an angle CSSUnitValue"},
+  { color: new CSSMathSum(CSS.px(1)), desc: "a CSSMathValue that doesn\"t match <number>"},
+  // Alpha has a default value and works with undefined
+  { color: undefined, desc: "undefined", skipAlpha: true},
+  { color: "calc(10 + 10%)", desc: "a CSS math calculation"}
+];
+
+const gValidColorTestCases = [
+  { color: 0.5, desc: "a number with the resulting value being a percentage.", result: CSS.percent(50) },
+  { color: CSS.number(0.5), desc: "a CSS number.", skipAlpha: true },
+  { color: CSS.percent(50), desc: "CSS percent.", result: CSS.percent(50) },
+  { color: new CSSMathSum(CSS.percent(10), CSS.percent(20)), desc: "CSS math sum." },
+  { color: new CSSMathProduct(CSS.percent(10), CSS.number(2)), desc: "CSS math product." },
+  { color: new CSSMathMax(CSS.percent(10), CSS.percent(20)), desc: "CSS math max." },
+  { color: new CSSMathMin(CSS.percent(10), CSS.percent(20)), desc: "CSS math min." },
+];
+
+for (const {color, desc, skipAlpha} of gInvalidColorTestCases) {
+  test(() => {
+    assert_throws_dom("SyntaxError", () => new CSSRGB(color, 0, 0));
+    assert_throws_dom("SyntaxError", () => new CSSRGB(0, color, 0));
+    assert_throws_dom("SyntaxError", () => new CSSRGB(0, 0, color));
+    assert_throws_dom("SyntaxError", () => new CSSRGB(color, 0, 0, 0));
+    assert_throws_dom("SyntaxError", () => new CSSRGB(0, color, 0, 0));
+    assert_throws_dom("SyntaxError", () => new CSSRGB(0, 0, color, 0));
+    if (!skipAlpha) assert_throws_dom("SyntaxError", () => new CSSRGB(0, 0, 0, color));
+  }, `Constructing a CSSRGB with ${desc} for the color channels throws a SyntaxError.`);
+}
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => new CSSRGB(0, 0, 0, CSS.number(1)));
+}, `Constructing a CSSRGB with a CSS number for the alpha channels throws a SyntaxError.`);
+
+for (const attr of ['r', 'g', 'b', 'alpha']) {
+  for (const {color, desc} of gInvalidColorTestCases) {
+    test(() => {
+      const result = new CSSRGB(0, 0, 0, 0);
+      assert_throws_dom("SyntaxError", () => result[attr] = color);
+      assert_style_value_equals(result[attr], CSS.percent(0));
+    }, `Updating CSSRGB. ${attr} to ${desc} throws a SyntaxError.`);
+  }
+}
+
+test(() => {
+  const result = new CSSRGB(0, 0, 0);
+  assert_throws_dom("SyntaxError", () => result.alpha = CSS.number(1));
+}, "Updating the alpha channel to a CSS number throws a SyntaxError.");
+
+test(() => {
+  const result = new CSSRGB(0.5, CSS.number(73), CSS.percent(91));
+  assert_color_channel_approx_equals(result.r, CSS.percent(50));
+  assert_color_channel_approx_equals(result.g, CSS.number(73));
+  assert_color_channel_approx_equals(result.b, CSS.percent(91));
+  assert_color_channel_approx_equals(result.alpha, CSS.percent(100));
+}, "CSSRGB can be constructed from three numbers and will get an alpha of 100%.");
+
+test(() => {
+  const result = new CSSRGB(0.5, CSS.number(0.2), 0.3, CSS.percent(0.4));
+  assert_color_channel_approx_equals(result.r, CSS.percent(50));
+  assert_color_channel_approx_equals(result.g, CSS.number(0.2));
+  assert_color_channel_approx_equals(result.b, CSS.percent(30));
+  assert_color_channel_approx_equals(result.alpha, CSS.percent(0.4));
+}, "CSSRGB can be constructed from four numbers.");
+
+for (const attr of ["r", "g", "b", "alpha"]) {
+  for (const testCase of gValidColorTestCases) {
+    if (attr === "alpha" && testCase.skipAlpha)
+      continue;
+    test(() => {
+      const result = new CSSRGB(0, 0, 0);
+      result[attr] = testCase.color;
+      assert_color_channel_approx_equals(result[attr], testCase.result ? testCase.result : testCase.color)
+    }, `CSSRGB.${attr} can be updated with ${testCase.desc}`);
+  }
+}
+</script>

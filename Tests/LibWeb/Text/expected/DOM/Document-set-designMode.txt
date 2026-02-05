@@ -1,0 +1,6 @@
+document.designMode initial value: off
+document.designMode after setting to "invalid": off
+document.designMode after setting to "on": on
+document.designMode after setting to "off": off
+document.designMode after setting to "ON": on
+document.designMode after setting to "OFF": off

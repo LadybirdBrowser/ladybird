@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	DOMContentLoaded
+Pass	load
+Pass	pageshow
+Pass	order

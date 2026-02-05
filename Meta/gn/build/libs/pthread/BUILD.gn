@@ -1,0 +1,11 @@
+config("pthread_config") {
+  visibility = [ ":pthread" ]
+  libs = [ "pthread" ]
+}
+
+group("pthread") {
+  # On Android, bionic has built-in support for pthreads.
+  if (current_os != "android") {
+    public_configs = [ ":pthread_config" ]
+  }
+}

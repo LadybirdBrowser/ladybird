@@ -1,0 +1,48 @@
+<!doctype html>
+<title>currentSrc</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+['audio', 'video'].forEach(function(tagName) {
+  test(function() {
+    assert_equals(document.createElement(tagName).currentSrc, '');
+  }, tagName + '.currentSrc initial value');
+
+  ['', '.', ' ', 'data:,'].forEach(function(src) {
+    async_test(function(t) {
+      var e = document.createElement(tagName);
+      e.src = src;
+      assert_equals(e.currentSrc, '');
+      e.addEventListener('loadstart', function () {
+        t.step_timeout(function () {
+          if (src == '') {
+            assert_equals(e.currentSrc, '');
+          } else {
+            assert_equals(e.currentSrc, e.src);
+          }
+          t.done();
+        }, 0);
+      })
+    }, tagName + '.currentSrc after setting src attribute "' + src + '"');
+
+    async_test(function(t) {
+      var e = document.createElement(tagName);
+      var s = document.createElement('source');
+      s.src = src;
+      e.appendChild(s);
+      assert_equals(e.currentSrc, '');
+      e.addEventListener('loadstart', function() {
+        t.step_timeout(function () {
+          if (src == '') {
+            assert_equals(e.currentSrc, '');
+          } else {
+            assert_equals(e.currentSrc, s.src);
+          }
+          t.done();
+        }, 0);
+      });
+    }, tagName + '.currentSrc after adding source element with src attribute "' + src + '"');
+  });
+});
+</script>

@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Exceptions raised in constructors / lifecycle callbacks are reported in their global objects</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<iframe></iframe>
+<iframe></iframe>
+<iframe></iframe>
+<script>
+setup({ allow_uncaught_exception: true });
+
+window.onerror = () => { onerrorCalls.push("top"); };
+frames[0].onerror = () => { onerrorCalls.push("frame0"); };
+frames[1].onerror = () => { onerrorCalls.push("frame1"); };
+frames[2].onerror = () => { onerrorCalls.push("frame2"); };
+
+const sourceThrowError = `throw new parent.frames[2].Error("PASS")`;
+
+test(t => {
+  window.onerrorCalls = [];
+
+  const XFoo = new frames[1].Function(sourceThrowError);
+  frames[0].customElements.define("x-foo-constructor", XFoo);
+
+  frames[0].document.createElement("x-foo-constructor");
+  assert_array_equals(onerrorCalls, ["frame1"]);
+}, "constructor");
+
+test(t => {
+  window.onerrorCalls = [];
+
+  const XFooConnected = class extends frames[0].HTMLElement {};
+  XFooConnected.prototype.connectedCallback = new frames[1].Function(sourceThrowError);
+  frames[0].customElements.define("x-foo-connected", XFooConnected);
+
+  const el = frames[0].document.createElement("x-foo-connected");
+  frames[0].document.body.append(el);
+
+  assert_array_equals(onerrorCalls, ["frame1"]);
+}, "connectedCallback");
+
+test(t => {
+  window.onerrorCalls = [];
+
+  const XFooDisconnected = class extends frames[0].HTMLElement {};
+  XFooDisconnected.prototype.disconnectedCallback = new frames[1].Function(sourceThrowError);
+  frames[0].customElements.define("x-foo-disconnected", XFooDisconnected);
+
+  const el = frames[0].document.createElement("x-foo-disconnected");
+  frames[0].document.body.append(el);
+  el.remove();
+
+  assert_array_equals(onerrorCalls, ["frame1"]);
+}, "disconnectedCallback");
+
+test(t => {
+  window.onerrorCalls = [];
+
+  const XFooAttributeChanged = class extends frames[0].HTMLElement {};
+  XFooAttributeChanged.observedAttributes = ["foo"];
+  XFooAttributeChanged.prototype.attributeChangedCallback = new frames[1].Function(sourceThrowError);
+  frames[0].customElements.define("x-foo-attribute-changed", XFooAttributeChanged);
+
+  const el = frames[0].document.createElement("x-foo-attribute-changed");
+  frames[0].document.body.append(el);
+  el.setAttribute("foo", "bar");
+
+  assert_array_equals(onerrorCalls, ["frame1"]);
+}, "attributeChangedCallback");
+
+test(t => {
+  window.onerrorCalls = [];
+
+  const XFooAdopted = class extends frames[0].HTMLElement {};
+  XFooAdopted.prototype.adoptedCallback = new frames[1].Function(sourceThrowError);
+  frames[0].customElements.define("x-foo-adopted", XFooAdopted);
+
+  const el = frames[0].document.createElement("x-foo-adopted");
+  document.body.append(el);
+
+  assert_array_equals(onerrorCalls, ["frame1"]);
+}, "adoptedCallback");
+</script>

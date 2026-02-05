@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Non-HTML elements default to translate-enabled
+Pass	Non-HTML elements inherit their parent's translation-enabled state
+Pass	Non-HTML elements inherit their parent's no-translation state

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body></body>
+<script>
+    test(() => {
+        const div = document.createElement('div');
+        document.body.appendChild(div);
+        const nested = document.createElement('div');
+        div.appendChild(nested);
+
+        div.style.setProperty("--redcolor", "red");
+        println(`style.getPropertyValue(--redcolor)=${div.style.getPropertyValue("--redcolor")}`);
+        println(`style.getPropertyPriority(--redcolor)=${div.style.getPropertyPriority("--redcolor")}`);
+
+        nested.style["backgroundColor"] = "var(--redcolor)";
+        nested.style["width"] = "100px";
+        nested.style["height"] = "100px";
+ 
+        const bgColorBefore = getComputedStyle(nested).backgroundColor;
+        div.style.removeProperty("--redcolor");
+        const bgColorAfter = getComputedStyle(nested).backgroundColor;
+
+        println(bgColorBefore);
+        println(bgColorAfter);
+    });
+</script>

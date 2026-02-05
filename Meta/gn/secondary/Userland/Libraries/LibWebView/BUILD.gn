@@ -1,0 +1,177 @@
+import("//Meta/gn/build/compiled_action.gni")
+import("//Meta/gn/build/download_cache.gni")
+import("//Meta/gn/build/download_file.gni")
+import("//Meta/gn/build/embed_as_string.gni")
+
+declare_args() {
+  # If true, Download public suffix list from GitHub.
+  # Data will be downloaded to $cache_path/PublicSuffix and used by LibPublicSuffix
+  enable_public_suffix_list_download = true
+}
+
+public_suffix_cache = cache_path + "PublicSuffix/"
+
+if (enable_public_suffix_list_download) {
+  download_file("public_suffix_list_download") {
+    version = "master"
+    url = "https://raw.githubusercontent.com/publicsuffix/list/" + version +
+          "/public_suffix_list.dat"
+    output = "$public_suffix_cache/public_suffix_list.dat"
+    version_file = public_suffix_cache + "version.txt"
+  }
+
+  compiled_action("generate_public_suffix_list_sources") {
+    tool =
+        "//Meta/Lagom/Tools/CodeGenerators/LibWebView:GeneratePublicSuffixData"
+    deps = [ ":public_suffix_list_download" ]
+    outputs = [
+      "$target_gen_dir/PublicSuffixData.h",
+      "$target_gen_dir/PublicSuffixData.cpp",
+    ]
+    args = [
+      "-h",
+      rebase_path(outputs[0], root_build_dir),
+      "-c",
+      rebase_path(outputs[1], root_build_dir),
+      "-p",
+      rebase_path("$public_suffix_cache/public_suffix_list.dat",
+                  root_build_dir),
+    ]
+  }
+}
+
+compiled_action("WebContentClientEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/WebContent/WebContentClient.ipc" ]
+  outputs = [ "$root_gen_dir/WebContent/WebContentClientEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("WebContentServerEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/WebContent/WebContentServer.ipc" ]
+  outputs = [ "$root_gen_dir/WebContent/WebContentServerEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("WebDriverClientEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/WebContent/WebDriverClient.ipc" ]
+  outputs = [ "$root_gen_dir/WebContent/WebDriverClientEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("WebDriverServerEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/WebContent/WebDriverServer.ipc" ]
+  outputs = [ "$root_gen_dir/WebContent/WebDriverServerEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("UIProcessClientEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Libraries/LibWebView/UIProcessClient.ipc" ]
+  outputs = [ "$root_gen_dir/LibWebView/UIProcessClientEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("UIProcessServerEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Libraries/LibWebView/UIProcessServer.ipc" ]
+  outputs = [ "$root_gen_dir/LibWebView/UIProcessServerEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+embed_as_string("generate_native_stylesheet_source") {
+  input = "Native.css"
+  output = "$target_gen_dir/NativeStyleSheetSource.cpp"
+  variable_name = "native_stylesheet_source"
+  namespace = "WebView"
+}
+
+shared_library("LibWebView") {
+  output_name = "webview"
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+    "//Userland/",
+    "$target_gen_dir/..",
+  ]
+  deps = [
+    ":UIProcessClientEndpoint",
+    ":UIProcessServerEndpoint",
+    ":WebContentClientEndpoint",
+    ":WebContentServerEndpoint",
+    ":WebDriverClientEndpoint",
+    ":WebDriverServerEndpoint",
+    ":generate_native_stylesheet_source",
+    "//AK",
+    "//Meta/gn/build/libs/sqlite3",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibFileSystem",
+    "//Userland/Libraries/LibGfx",
+    "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibImageDecoderClient",
+    "//Userland/Libraries/LibJS",
+    "//Userland/Libraries/LibRequests",
+    "//Userland/Libraries/LibSyntax",
+    "//Userland/Libraries/LibURL",
+    "//Userland/Libraries/LibUnicode",
+    "//Userland/Libraries/LibWeb",
+  ]
+  sources = [
+    "Application.cpp",
+    "Attribute.cpp",
+    "ChromeProcess.cpp",
+    "CookieJar.cpp",
+    "Database.cpp",
+    "InspectorClient.cpp",
+    "Process.cpp",
+    "ProcessHandle.cpp",
+    "ProcessManager.cpp",
+    "SearchEngine.cpp",
+    "SourceHighlighter.cpp",
+    "URL.cpp",
+    "UserAgent.cpp",
+    "ViewImplementation.cpp",
+    "WebContentClient.cpp",
+  ]
+  sources += get_target_outputs(":WebContentClientEndpoint") +
+             get_target_outputs(":WebContentServerEndpoint") +
+             get_target_outputs(":WebDriverClientEndpoint") +
+             get_target_outputs(":WebDriverServerEndpoint") +
+             get_target_outputs(":UIProcessClientEndpoint") +
+             get_target_outputs(":UIProcessServerEndpoint") +
+             get_target_outputs(":generate_native_stylesheet_source")
+  if (enable_public_suffix_list_download) {
+    deps += [ ":generate_public_suffix_list_sources" ]
+    sources += get_target_outputs(":generate_public_suffix_list_sources")
+    defines = [ "ENABLE_PUBLIC_SUFFIX=1" ]
+  } else {
+    defines = [ "ENABLE_PUBLIC_SUFFIX=0" ]
+  }
+}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+        let animation = foo.animate({ opacity: [0, 1] }, { duration: 1000 });
+
+        animation.cancel();
+        println(`Animation's playState is idle after cancel(): ${animation.playState === "idle"}`);
+
+        animation.play();
+        println(`Animation's playState is idle immediately after play(): ${animation.playState === "running"}`);
+
+        animation.pause();
+        println(`Animation's playState is paused after pause(): ${animation.playState === "paused"}`);
+
+        animation.finish();
+        println(`Animation's playState is finished after finish(): ${animation.playState === "finished"}`);
+
+        animation = foo.animate({ opacity: [0, 1] }, { duration: 1000 });
+        animation.currentTime = 1500;
+        println(`Animation's playState is finished after animation runs to completion: ${animation.playState === "finished"}`);
+    });
+</script>

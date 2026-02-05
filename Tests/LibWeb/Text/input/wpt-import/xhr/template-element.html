@@ -1,0 +1,36 @@
+<!doctype html>
+<title>XMLHttpRequest: template element parsing</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+async_test(t => {
+  const client = new XMLHttpRequest
+  client.open("GET", "data:text/xml,<template xmlns='http://www.w3.org/1999/xhtml'><test/></template>")
+  client.send()
+  client.onload = t.step_func_done(() => {
+    assert_equals(client.responseXML.documentElement.childElementCount, 0)
+    assert_equals(client.responseXML.documentElement.content.firstChild.localName, "test")
+  })
+})
+
+async_test(t => {
+  const client = new XMLHttpRequest
+  client.open("GET", "data:text/xml,<template><test/></template>")
+  client.send()
+  client.onload = t.step_func_done(() => {
+    assert_equals(client.responseXML.documentElement.childElementCount, 1)
+    assert_equals(client.responseXML.documentElement.firstChild.localName, "test")
+  })
+})
+
+async_test(t => {
+  const client = new XMLHttpRequest
+  client.open("GET", "data:text/xml,<template xmlns='http://www.w3.org/2000/svg'><test/></template>")
+  client.send()
+  client.onload = t.step_func_done(() => {
+    assert_equals(client.responseXML.documentElement.childElementCount, 1)
+    assert_equals(client.responseXML.documentElement.firstChild.localName, "test")
+  })
+})
+</script>

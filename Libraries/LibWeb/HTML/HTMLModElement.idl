@@ -1,0 +1,12 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/edits.html#htmlmodelement
+[Exposed=Window]
+interface HTMLModElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect, URL] attribute USVString cite;
+    [CEReactions, Reflect=datetime] attribute DOMString dateTime;
+
+};

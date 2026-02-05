@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSS-contain test: style containment dynamic containment set invalidation</title>
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+<link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/quote-scoping-invalidation-001-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-style">
+
+<style>
+  #root {
+    quotes: "A" "Z" "1" "9" "(" ")" "+" "-";
+  }
+  #root::before, #root span::before {
+    content: open-quote;
+  }
+  #root::after {
+    content: close-quote;
+  }
+ .contain-style {
+   contain: style;
+ }
+</style>
+
+<p>Test passes if the text below is "A1(19" (not including the quotation marks).<p>
+<div id="root">
+  <div id="scope">
+    <span id="span1"></span>
+    <span id="span2"></span>
+  </div>
+  <span></span>
+</div>
+
+<script>
+  document.body.offsetTop;
+  scope.style.contain = "style";
+</script>

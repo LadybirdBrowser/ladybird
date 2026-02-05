@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "test"
+Pass	Audit report
+Pass	> [test] Basic tests for AudioNode API.
+Pass	  AudioBufferSource.numberOfInputs is equal to 0.
+Pass	  AudioBufferSource.numberOfOutputs is equal to 1.
+Pass	  AudioContext.destination.numberOfInputs is equal to 1.
+Pass	  AudioContext.destination.numberOfOutputs is equal to 1.
+Pass	  audioNode.connect(0, 0, 0) threw TypeError: "Not an object of type AudioNode".
+Pass	  audioNode.connect(null, 0, 0) threw TypeError: "Not an object of type AudioNode".
+Pass	  audioNode.connect(context.destination, 5, 0) threw IndexSizeError: "Output index 5 exceeds number of outputs".
+Pass	  audioNode.connect(context.destination, 0, 5) threw IndexSizeError: "Input index '5' exceeds number of inputs".
+Pass	  audioNode.connect(context.destination, 0, 0) did not throw an exception.
+Pass	  Connecting a node to a different context threw InvalidAccessError: "Cannot connect to an AudioNode in a different AudioContext".
+Pass	  context3 = new AudioContext(1, 44100, 44100) threw TypeError: "Not an object of type AudioContextOptions".
+Pass	  AudioNode is an EventTarget is true.
+Pass	< [test] All assertions passed. (total 12 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

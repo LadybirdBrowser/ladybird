@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Overflow and Transforms: css-overflow-3</title>
+<link rel="author" href="mailto:atotic@google.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://crbug.com/964924">
+<meta name="assert" content="chrome does not crash with css contain edge case">
+<style>
+  * {
+    contain: size layout;
+  }
+  html {
+    outline-style: auto;
+    margin-bottom: 39%;
+  }
+  #target {
+    -webkit-appearance: button;
+  }
+</style>
+<output id="target">text</output>
+<script>
+test(() => {
+  document.body.offsetTop;
+  document.querySelector("#target").value = "";
+  document.body.offsetTop;
+  assert_equals(document.querySelector("#target").value, "");
+}, 'chrome does not crash with contain');
+</script>

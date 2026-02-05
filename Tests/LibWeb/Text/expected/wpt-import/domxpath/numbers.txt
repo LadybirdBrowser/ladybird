@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	"+" operator depending on the context node
+Pass	"-" operator depending on the context node
+Pass	"*" operator depending on the context node
+Pass	"div" operator depending on the context node
+Pass	"mod" operator depending on the context node

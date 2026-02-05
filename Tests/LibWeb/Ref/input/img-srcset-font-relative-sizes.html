@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/img-srcset-font-relative-sizes-ref.html" />
+<div style="font-size: 10px">
+    <!-- Font relative units should be resolved relative to the initial font regardless of the img element's style -->
+    <img
+        sizes="10em"
+        srcset="
+            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2P4z8DwHwAFAAH/F1FwBgAAAABJRU5ErkJggg== 100w,
+            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NgaGD4DwAChAGAZM0bBgAAAABJRU5ErkJggg== 200w
+        "
+        width="400"
+        height="400"
+    />
+</div>

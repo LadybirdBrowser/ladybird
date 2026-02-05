@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	option.text should recurse
+Pass	option.text should not recurse into HTML script elements
+Pass	option.text should not recurse into SVG script elements
+Pass	option.text should recurse into MathML script elements
+Pass	option.text should recurse into null script elements
+Pass	option.text should work if a child of the option ends with a script
+Pass	option.text should work if the option is in an HTML script element
+Pass	option.text should work if the option is in an SVG script element
+Pass	option.text should work if the option is in a MathML script element
+Pass	option.text should ignore comment children
+Pass	option.text should ignore PI children

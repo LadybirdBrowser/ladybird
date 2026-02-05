@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	0: getAttributeType with full namespace info.
+Pass	0: getAttributeType with element namespace and empty attribute namespace
+Pass	0: getAttributeType without namespaces.
+Pass	0: getAttributeType with undefined and empty namespace.
+Pass	0: getAttributeType with empty and undefined namespace.
+Pass	0: getAttributeType with empty namespaces.
+Pass	0: getAttributeType with element namespace and empty attribute namespace.
+Pass	1: getAttributeType with full namespace info.
+Pass	1: getAttributeType with element namespace and empty attribute namespace
+Pass	1: getAttributeType without namespaces.
+Pass	1: getAttributeType with undefined and empty namespace.
+Pass	1: getAttributeType with empty and undefined namespace.
+Pass	1: getAttributeType with empty namespaces.
+Pass	1: getAttributeType with element namespace and empty attribute namespace.
+Pass	2: getAttributeType with full namespace info.
+Pass	2: getAttributeType with element namespace and empty attribute namespace
+Pass	2: getAttributeType without namespaces.
+Pass	2: getAttributeType with undefined and empty namespace.
+Pass	2: getAttributeType with empty and undefined namespace.
+Pass	2: getAttributeType with empty namespaces.
+Pass	2: getAttributeType with element namespace and empty attribute namespace.

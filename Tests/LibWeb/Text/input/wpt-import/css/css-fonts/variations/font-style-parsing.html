@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing the new font-style values introduced in CSS Fonts level 4</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-style-prop" />
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="test"></div>
+    <script>
+        var testFontStyle = [
+            { style: "italic",                      expectedResult: true,   message: "'italic' is valid" },
+            { style: "italic 20deg",                expectedResult: false,  message: "'italic' followed by angle is invalid" },
+            { style: "italic a",                    expectedResult: false,  message: "'italic' followed by non-number is invalid" },
+            { style: "oblique",                     expectedResult: true,   message: "'oblique' is valid" },
+            { style: "oblique 0deg",                expectedResult: true,   message: "'oblique' followed by zero degrees is valid",                 expectedValue: "normal" },
+            { style: "oblique 20deg",               expectedResult: true,   message: "'oblique' followed by positive angle in degrees is valid" },
+            { style: "oblique 0.5rad",              expectedResult: true,   message: "'oblique' followed by positive angle in radians is valid",    expectedValue: /^oblique 28\.\d*deg$/ },
+            { style: "oblique 20grad",              expectedResult: true,   message: "'oblique' followed by positive angle in gradians is valid",   expectedValue: "oblique 18deg" },
+            { style: "oblique 0.1turn",             expectedResult: true,   message: "'oblique' followed by positive angle in turns is valid",      expectedValue: "oblique 36deg" },
+            { style: "oblique 20px",                expectedResult: false,  message: "'oblique' followed by number with invalid unit type is in valid" },
+            { style: "oblique -20deg",              expectedResult: true,   message: "'oblique' followed by negative angle is valid" },
+            { style: "oblique 20.5deg",             expectedResult: true,   message: "'oblique' followed by fractional angle is valid" },
+            { style: "oblique 90deg",               expectedResult: true,   message: "'oblique' followed by maxumum 90 degree angle is valid" },
+            { style: "oblique -90deg",              expectedResult: true,   message: "'oblique' followed by minimum -90 degree angle is valid" },
+            { style: "oblique 90.01deg",            expectedResult: false,  message: "'oblique' followed by positive out of range angle is in invalid" },
+            { style: "oblique -90.01deg",           expectedResult: false,  message: "'oblique' followed by negative out of range angle is in invalid" },
+            { style: "oblique 10",                  expectedResult: false,  message: "'oblique' followed by unit-less value is invalid" },
+            { style: "oblique 30deg",               expectedResult: true,   message: "'oblique' followed by positive angle is valid" },
+            { style: "oblique a",                   expectedResult: false,  message: "'oblique' followed by non-number is invalid" },
+            { style: "oblique 20deg a",             expectedResult: false,  message: "'oblique' and angle followed by non-number is invalid" },
+            { style: "oblique -",                   expectedResult: false,  message: "'oblique' followed by isolated minus is invalid" },
+            { style: "oblique - 20deg",             expectedResult: false,  message: "'oblique' followed by minus and angle separated by space is invalid" },
+            { style: "oblique -a",                  expectedResult: false,  message: "'oblique' followed by minus and non-number is invalid" },
+            { style: "oblique calc(50deg)",         expectedResult: true,   message: "'oblique' followed by calc is valid",                         expectedValue: "oblique 50deg" },
+            { style: "oblique calc(-120deg)",       expectedResult: true,   message: "'oblique' followed by calc is valid even if it must be clamped (no computation)",     expectedValue: "oblique -90deg" },
+            { style: "oblique calc(6 * 20deg)",     expectedResult: true,   message: "'oblique' followed by calc is valid even if it must be clamped (with computation)",   expectedValue: "oblique 90deg" },
+            { style: "oblique calc(10grad + 5deg)", expectedResult: true,   message: "'oblique' followed by calc is valid even if it mixes units (with computation)",       expectedValue: "oblique" }
+        ];
+
+        testFontStyle.forEach(function (testCase) {
+            test(() => {
+                assert_equals(window.CSS.supports("font-style", testCase.style), testCase.expectedResult, "Font-style supports: " + testCase.message);
+            }, "Font-style (supports): " + testCase.message);
+        });
+
+        testFontStyle.forEach(function (testCase) {
+            if (testCase.expectedResult) {
+                test(() => {
+                    let element = document.getElementById("test");
+                    element.style = "font-style: " + testCase.style;
+                    let actualValue = getComputedStyle(element).fontStyle;
+                    let expectedValue = testCase.expectedValue ?? testCase.style;
+                    let assert_fn = expectedValue instanceof RegExp ? assert_regexp_match : assert_equals;
+                    assert_fn(actualValue, expectedValue, "Font-style computed style: " + testCase.message);
+                }, "Font-style (computed): " + testCase.message);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+#import <HTML/HTMLElement.idl>
+#import <HTML/HTMLFormElement.idl>
+#import <HTML/HTMLOptionsCollection.idl>
+#import <HTML/ValidityState.idl>
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#htmlselectelement
+[Exposed=Window]
+interface HTMLSelectElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    [CEReactions] attribute DOMString autocomplete;
+    [CEReactions, Reflect] attribute boolean disabled;
+    readonly attribute HTMLFormElement? form;
+    [CEReactions, Reflect] attribute boolean multiple;
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute boolean required;
+    [CEReactions] attribute unsigned long size;
+
+    readonly attribute DOMString type;
+
+    [SameObject] readonly attribute HTMLOptionsCollection options;
+    [CEReactions] attribute unsigned long length;
+    getter HTMLOptionElement? item(unsigned long index);
+    HTMLOptionElement? namedItem(DOMString name);
+    [CEReactions] undefined add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
+    [CEReactions] undefined remove(); // ChildNode overload
+    [CEReactions] undefined remove(long index);
+    [FIXME, CEReactions] setter undefined (unsigned long index, HTMLOptionElement? option);
+
+    [SameObject] readonly attribute HTMLCollection selectedOptions;
+    attribute long selectedIndex;
+    attribute Utf16DOMString value;
+
+    readonly attribute boolean willValidate;
+    readonly attribute ValidityState validity;
+    readonly attribute Utf16DOMString validationMessage;
+    boolean checkValidity();
+    boolean reportValidity();
+    undefined setCustomValidity(DOMString error);
+
+    undefined showPicker();
+
+    readonly attribute NodeList labels;
+};

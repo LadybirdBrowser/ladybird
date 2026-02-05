@@ -1,0 +1,3 @@
+// https://html.spec.whatwg.org/multipage/worklets.html#workletglobalscope
+[Exposed=Worklet, SecureContext]
+interface WorkletGlobalScope {};

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+  // This test tests error handling of duplicate policy creation when no
+  // Trusted Types enforcement is active.
+
+  test(t => {
+     trustedTypes.createPolicy('foo', {} );
+     trustedTypes.createPolicy('foo', {} );
+  }, "Duplicate policy names should be tolerated (unless in enforcing mode)");
+
+</script>
+</body>

@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSUnparsedValue Iterable Declaration</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  const result = new CSSUnparsedValue([]);
+  assert_array_equals([...result], [], 'result of iterating');
+}, 'Iterating over an empty CSSUnparsedValue produces nothing');
+
+test(() => {
+  const args = [' ', new CSSVariableReferenceValue('--A')];
+  const result = new CSSUnparsedValue(args);
+  assert_style_value_array_equals([...result], args, 'result of iterating');
+}, 'Iterating over a CSSUnparsedValue produces all fragments');
+
+</script>

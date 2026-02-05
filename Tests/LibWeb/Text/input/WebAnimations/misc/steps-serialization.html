@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const div = document.createElement('div');
+        div.style.width = '50px';
+        div.style.height = '50px';
+        div.style.backgroundColor = 'red';
+        div.style.animation = 'test-animation 2s infinite';
+
+        document.body.appendChild(div);
+
+        const testCases = [
+            { input: 'steps(1, jump-none)' },
+            { input: 'steps(1, start)' },
+            { input: 'steps(1)' }, // Equivalent to steps(1, end)
+            { input: 'steps(4, jump-both)' },
+            { input: 'steps(2, jump-start)' },
+            { input: 'steps(3, end)' }, // Implicitly steps(3)
+            { input: 'steps(5, start)' },
+            { input: 'steps(6, jump-none)' },
+            { input: 'steps(10, jump-both)' },
+            { input: 'steps(1, jump-end)' }, // Implicitly steps(1)
+        ];
+
+        testCases.forEach(({ input }) => {
+            div.style.animationTimingFunction = input;
+            const computed = getComputedStyle(div).animationTimingFunction;
+
+            println(`Input: ${input}, Computed: ${computed}`);
+        });
+
+        document.body.removeChild(div);
+    });
+</script>

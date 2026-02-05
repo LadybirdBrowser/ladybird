@@ -1,0 +1,23 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head>
+    <title>CSS Test: float</title>
+    <link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+    <link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+    <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats" />
+    <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-wrap-bfc-outside-001-ref.xht"/>
+
+<style type="text/css">
+#wrap {width:600px; border:1px solid;}
+.a {background:lime; color:#fff; width:80%;}
+.b {float:right; width:18%; background: cyan; color: #000; height:10em;}
+textarea {box-sizing: border-box;width: 100%; height:10em;}
+</style>
+
+</head>
+<body>
+<div id="wrap">
+	<div class="b"></div>
+	<div class="a"><textarea></textarea></div>
+</div>
+
+
+</body></html>

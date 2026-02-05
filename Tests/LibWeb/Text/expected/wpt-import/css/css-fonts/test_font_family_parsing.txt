@@ -1,0 +1,2237 @@
+Harness status: OK
+
+Found 2232 tests
+
+2232 Pass
+Pass	font-family: simple
+Pass	font-family: simple (setter)
+Pass	font: 16px simple
+Pass	font: 16px simple (setter)
+Pass	font: 900px simple
+Pass	font: 900px simple (setter)
+Pass	font: 900em simple
+Pass	font: 900em simple (setter)
+Pass	font: 35% simple
+Pass	font: 35% simple (setter)
+Pass	font: 7832.3% simple
+Pass	font: 7832.3% simple (setter)
+Pass	font: xx-large simple
+Pass	font: xx-large simple (setter)
+Pass	font: lighter larger simple
+Pass	font: lighter larger simple (setter)
+Pass	font: italic 16px simple
+Pass	font: italic 16px simple (setter)
+Pass	font: italic bold 16px simple
+Pass	font: italic bold 16px simple (setter)
+Pass	font: normal smaller simple
+Pass	font: normal smaller simple (setter)
+Pass	font: normal normal 16px simple
+Pass	font: normal normal 16px simple (setter)
+Pass	font: 400 normal 16px simple
+Pass	font: 400 normal 16px simple (setter)
+Pass	font: bolder oblique 16px simple
+Pass	font: bolder oblique 16px simple (setter)
+Pass	font-family: 'simple'
+Pass	font-family: 'simple' (setter)
+Pass	font: 16px 'simple'
+Pass	font: 16px 'simple' (setter)
+Pass	font: 900px 'simple'
+Pass	font: 900px 'simple' (setter)
+Pass	font: 900em 'simple'
+Pass	font: 900em 'simple' (setter)
+Pass	font: 35% 'simple'
+Pass	font: 35% 'simple' (setter)
+Pass	font: 7832.3% 'simple'
+Pass	font: 7832.3% 'simple' (setter)
+Pass	font: xx-large 'simple'
+Pass	font: xx-large 'simple' (setter)
+Pass	font: lighter larger 'simple'
+Pass	font: lighter larger 'simple' (setter)
+Pass	font: italic 16px 'simple'
+Pass	font: italic 16px 'simple' (setter)
+Pass	font: italic bold 16px 'simple'
+Pass	font: italic bold 16px 'simple' (setter)
+Pass	font: normal smaller 'simple'
+Pass	font: normal smaller 'simple' (setter)
+Pass	font: normal normal 16px 'simple'
+Pass	font: normal normal 16px 'simple' (setter)
+Pass	font: 400 normal 16px 'simple'
+Pass	font: 400 normal 16px 'simple' (setter)
+Pass	font: bolder oblique 16px 'simple'
+Pass	font: bolder oblique 16px 'simple' (setter)
+Pass	font-family: "simple"
+Pass	font-family: "simple" (setter)
+Pass	font: 16px "simple"
+Pass	font: 16px "simple" (setter)
+Pass	font: 900px "simple"
+Pass	font: 900px "simple" (setter)
+Pass	font: 900em "simple"
+Pass	font: 900em "simple" (setter)
+Pass	font: 35% "simple"
+Pass	font: 35% "simple" (setter)
+Pass	font: 7832.3% "simple"
+Pass	font: 7832.3% "simple" (setter)
+Pass	font: xx-large "simple"
+Pass	font: xx-large "simple" (setter)
+Pass	font: lighter larger "simple"
+Pass	font: lighter larger "simple" (setter)
+Pass	font: italic 16px "simple"
+Pass	font: italic 16px "simple" (setter)
+Pass	font: italic bold 16px "simple"
+Pass	font: italic bold 16px "simple" (setter)
+Pass	font: normal smaller "simple"
+Pass	font: normal smaller "simple" (setter)
+Pass	font: normal normal 16px "simple"
+Pass	font: normal normal 16px "simple" (setter)
+Pass	font: 400 normal 16px "simple"
+Pass	font: 400 normal 16px "simple" (setter)
+Pass	font: bolder oblique 16px "simple"
+Pass	font: bolder oblique 16px "simple" (setter)
+Pass	font-family: -simple
+Pass	font-family: -simple (setter)
+Pass	font: 16px -simple
+Pass	font: 16px -simple (setter)
+Pass	font: 900px -simple
+Pass	font: 900px -simple (setter)
+Pass	font: 900em -simple
+Pass	font: 900em -simple (setter)
+Pass	font: 35% -simple
+Pass	font: 35% -simple (setter)
+Pass	font: 7832.3% -simple
+Pass	font: 7832.3% -simple (setter)
+Pass	font: xx-large -simple
+Pass	font: xx-large -simple (setter)
+Pass	font: lighter larger -simple
+Pass	font: lighter larger -simple (setter)
+Pass	font: italic 16px -simple
+Pass	font: italic 16px -simple (setter)
+Pass	font: italic bold 16px -simple
+Pass	font: italic bold 16px -simple (setter)
+Pass	font: normal smaller -simple
+Pass	font: normal smaller -simple (setter)
+Pass	font: normal normal 16px -simple
+Pass	font: normal normal 16px -simple (setter)
+Pass	font: 400 normal 16px -simple
+Pass	font: 400 normal 16px -simple (setter)
+Pass	font: bolder oblique 16px -simple
+Pass	font: bolder oblique 16px -simple (setter)
+Pass	font-family: _simple
+Pass	font-family: _simple (setter)
+Pass	font: 16px _simple
+Pass	font: 16px _simple (setter)
+Pass	font: 900px _simple
+Pass	font: 900px _simple (setter)
+Pass	font: 900em _simple
+Pass	font: 900em _simple (setter)
+Pass	font: 35% _simple
+Pass	font: 35% _simple (setter)
+Pass	font: 7832.3% _simple
+Pass	font: 7832.3% _simple (setter)
+Pass	font: xx-large _simple
+Pass	font: xx-large _simple (setter)
+Pass	font: lighter larger _simple
+Pass	font: lighter larger _simple (setter)
+Pass	font: italic 16px _simple
+Pass	font: italic 16px _simple (setter)
+Pass	font: italic bold 16px _simple
+Pass	font: italic bold 16px _simple (setter)
+Pass	font: normal smaller _simple
+Pass	font: normal smaller _simple (setter)
+Pass	font: normal normal 16px _simple
+Pass	font: normal normal 16px _simple (setter)
+Pass	font: 400 normal 16px _simple
+Pass	font: 400 normal 16px _simple (setter)
+Pass	font: bolder oblique 16px _simple
+Pass	font: bolder oblique 16px _simple (setter)
+Pass	font-family: quite simple
+Pass	font-family: quite simple (setter)
+Pass	font: 16px quite simple
+Pass	font: 16px quite simple (setter)
+Pass	font: 900px quite simple
+Pass	font: 900px quite simple (setter)
+Pass	font: 900em quite simple
+Pass	font: 900em quite simple (setter)
+Pass	font: 35% quite simple
+Pass	font: 35% quite simple (setter)
+Pass	font: 7832.3% quite simple
+Pass	font: 7832.3% quite simple (setter)
+Pass	font: xx-large quite simple
+Pass	font: xx-large quite simple (setter)
+Pass	font: lighter larger quite simple
+Pass	font: lighter larger quite simple (setter)
+Pass	font: italic 16px quite simple
+Pass	font: italic 16px quite simple (setter)
+Pass	font: italic bold 16px quite simple
+Pass	font: italic bold 16px quite simple (setter)
+Pass	font: normal smaller quite simple
+Pass	font: normal smaller quite simple (setter)
+Pass	font: normal normal 16px quite simple
+Pass	font: normal normal 16px quite simple (setter)
+Pass	font: 400 normal 16px quite simple
+Pass	font: 400 normal 16px quite simple (setter)
+Pass	font: bolder oblique 16px quite simple
+Pass	font: bolder oblique 16px quite simple (setter)
+Pass	font-family: quite _simple
+Pass	font-family: quite _simple (setter)
+Pass	font: 16px quite _simple
+Pass	font: 16px quite _simple (setter)
+Pass	font: 900px quite _simple
+Pass	font: 900px quite _simple (setter)
+Pass	font: 900em quite _simple
+Pass	font: 900em quite _simple (setter)
+Pass	font: 35% quite _simple
+Pass	font: 35% quite _simple (setter)
+Pass	font: 7832.3% quite _simple
+Pass	font: 7832.3% quite _simple (setter)
+Pass	font: xx-large quite _simple
+Pass	font: xx-large quite _simple (setter)
+Pass	font: lighter larger quite _simple
+Pass	font: lighter larger quite _simple (setter)
+Pass	font: italic 16px quite _simple
+Pass	font: italic 16px quite _simple (setter)
+Pass	font: italic bold 16px quite _simple
+Pass	font: italic bold 16px quite _simple (setter)
+Pass	font: normal smaller quite _simple
+Pass	font: normal smaller quite _simple (setter)
+Pass	font: normal normal 16px quite _simple
+Pass	font: normal normal 16px quite _simple (setter)
+Pass	font: 400 normal 16px quite _simple
+Pass	font: 400 normal 16px quite _simple (setter)
+Pass	font: bolder oblique 16px quite _simple
+Pass	font: bolder oblique 16px quite _simple (setter)
+Pass	font-family: quite -simple
+Pass	font-family: quite -simple (setter)
+Pass	font: 16px quite -simple
+Pass	font: 16px quite -simple (setter)
+Pass	font: 900px quite -simple
+Pass	font: 900px quite -simple (setter)
+Pass	font: 900em quite -simple
+Pass	font: 900em quite -simple (setter)
+Pass	font: 35% quite -simple
+Pass	font: 35% quite -simple (setter)
+Pass	font: 7832.3% quite -simple
+Pass	font: 7832.3% quite -simple (setter)
+Pass	font: xx-large quite -simple
+Pass	font: xx-large quite -simple (setter)
+Pass	font: lighter larger quite -simple
+Pass	font: lighter larger quite -simple (setter)
+Pass	font: italic 16px quite -simple
+Pass	font: italic 16px quite -simple (setter)
+Pass	font: italic bold 16px quite -simple
+Pass	font: italic bold 16px quite -simple (setter)
+Pass	font: normal smaller quite -simple
+Pass	font: normal smaller quite -simple (setter)
+Pass	font: normal normal 16px quite -simple
+Pass	font: normal normal 16px quite -simple (setter)
+Pass	font: 400 normal 16px quite -simple
+Pass	font: 400 normal 16px quite -simple (setter)
+Pass	font: bolder oblique 16px quite -simple
+Pass	font: bolder oblique 16px quite -simple (setter)
+Pass	font-family: 0simple
+Pass	font-family: 0simple (setter)
+Pass	font: 16px 0simple
+Pass	font: 16px 0simple (setter)
+Pass	font: 900px 0simple
+Pass	font: 900px 0simple (setter)
+Pass	font: 900em 0simple
+Pass	font: 900em 0simple (setter)
+Pass	font: 35% 0simple
+Pass	font: 35% 0simple (setter)
+Pass	font: 7832.3% 0simple
+Pass	font: 7832.3% 0simple (setter)
+Pass	font: xx-large 0simple
+Pass	font: xx-large 0simple (setter)
+Pass	font: lighter larger 0simple
+Pass	font: lighter larger 0simple (setter)
+Pass	font: italic 16px 0simple
+Pass	font: italic 16px 0simple (setter)
+Pass	font: italic bold 16px 0simple
+Pass	font: italic bold 16px 0simple (setter)
+Pass	font: normal smaller 0simple
+Pass	font: normal smaller 0simple (setter)
+Pass	font: normal normal 16px 0simple
+Pass	font: normal normal 16px 0simple (setter)
+Pass	font: 400 normal 16px 0simple
+Pass	font: 400 normal 16px 0simple (setter)
+Pass	font: bolder oblique 16px 0simple
+Pass	font: bolder oblique 16px 0simple (setter)
+Pass	font-family: simple!
+Pass	font-family: simple! (setter)
+Pass	font: 16px simple!
+Pass	font: 16px simple! (setter)
+Pass	font: 900px simple!
+Pass	font: 900px simple! (setter)
+Pass	font: 900em simple!
+Pass	font: 900em simple! (setter)
+Pass	font: 35% simple!
+Pass	font: 35% simple! (setter)
+Pass	font: 7832.3% simple!
+Pass	font: 7832.3% simple! (setter)
+Pass	font: xx-large simple!
+Pass	font: xx-large simple! (setter)
+Pass	font: lighter larger simple!
+Pass	font: lighter larger simple! (setter)
+Pass	font: italic 16px simple!
+Pass	font: italic 16px simple! (setter)
+Pass	font: italic bold 16px simple!
+Pass	font: italic bold 16px simple! (setter)
+Pass	font: normal smaller simple!
+Pass	font: normal smaller simple! (setter)
+Pass	font: normal normal 16px simple!
+Pass	font: normal normal 16px simple! (setter)
+Pass	font: 400 normal 16px simple!
+Pass	font: 400 normal 16px simple! (setter)
+Pass	font: bolder oblique 16px simple!
+Pass	font: bolder oblique 16px simple! (setter)
+Pass	font-family: simple()
+Pass	font-family: simple() (setter)
+Pass	font: 16px simple()
+Pass	font: 16px simple() (setter)
+Pass	font: 900px simple()
+Pass	font: 900px simple() (setter)
+Pass	font: 900em simple()
+Pass	font: 900em simple() (setter)
+Pass	font: 35% simple()
+Pass	font: 35% simple() (setter)
+Pass	font: 7832.3% simple()
+Pass	font: 7832.3% simple() (setter)
+Pass	font: xx-large simple()
+Pass	font: xx-large simple() (setter)
+Pass	font: lighter larger simple()
+Pass	font: lighter larger simple() (setter)
+Pass	font: italic 16px simple()
+Pass	font: italic 16px simple() (setter)
+Pass	font: italic bold 16px simple()
+Pass	font: italic bold 16px simple() (setter)
+Pass	font: normal smaller simple()
+Pass	font: normal smaller simple() (setter)
+Pass	font: normal normal 16px simple()
+Pass	font: normal normal 16px simple() (setter)
+Pass	font: 400 normal 16px simple()
+Pass	font: 400 normal 16px simple() (setter)
+Pass	font: bolder oblique 16px simple()
+Pass	font: bolder oblique 16px simple() (setter)
+Pass	font-family: quite@simple
+Pass	font-family: quite@simple (setter)
+Pass	font: 16px quite@simple
+Pass	font: 16px quite@simple (setter)
+Pass	font: 900px quite@simple
+Pass	font: 900px quite@simple (setter)
+Pass	font: 900em quite@simple
+Pass	font: 900em quite@simple (setter)
+Pass	font: 35% quite@simple
+Pass	font: 35% quite@simple (setter)
+Pass	font: 7832.3% quite@simple
+Pass	font: 7832.3% quite@simple (setter)
+Pass	font: xx-large quite@simple
+Pass	font: xx-large quite@simple (setter)
+Pass	font: lighter larger quite@simple
+Pass	font: lighter larger quite@simple (setter)
+Pass	font: italic 16px quite@simple
+Pass	font: italic 16px quite@simple (setter)
+Pass	font: italic bold 16px quite@simple
+Pass	font: italic bold 16px quite@simple (setter)
+Pass	font: normal smaller quite@simple
+Pass	font: normal smaller quite@simple (setter)
+Pass	font: normal normal 16px quite@simple
+Pass	font: normal normal 16px quite@simple (setter)
+Pass	font: 400 normal 16px quite@simple
+Pass	font: 400 normal 16px quite@simple (setter)
+Pass	font: bolder oblique 16px quite@simple
+Pass	font: bolder oblique 16px quite@simple (setter)
+Pass	font-family: #simple
+Pass	font-family: #simple (setter)
+Pass	font: 16px #simple
+Pass	font: 16px #simple (setter)
+Pass	font: 900px #simple
+Pass	font: 900px #simple (setter)
+Pass	font: 900em #simple
+Pass	font: 900em #simple (setter)
+Pass	font: 35% #simple
+Pass	font: 35% #simple (setter)
+Pass	font: 7832.3% #simple
+Pass	font: 7832.3% #simple (setter)
+Pass	font: xx-large #simple
+Pass	font: xx-large #simple (setter)
+Pass	font: lighter larger #simple
+Pass	font: lighter larger #simple (setter)
+Pass	font: italic 16px #simple
+Pass	font: italic 16px #simple (setter)
+Pass	font: italic bold 16px #simple
+Pass	font: italic bold 16px #simple (setter)
+Pass	font: normal smaller #simple
+Pass	font: normal smaller #simple (setter)
+Pass	font: normal normal 16px #simple
+Pass	font: normal normal 16px #simple (setter)
+Pass	font: 400 normal 16px #simple
+Pass	font: 400 normal 16px #simple (setter)
+Pass	font: bolder oblique 16px #simple
+Pass	font: bolder oblique 16px #simple (setter)
+Pass	font-family: quite 0simple
+Pass	font-family: quite 0simple (setter)
+Pass	font: 16px quite 0simple
+Pass	font: 16px quite 0simple (setter)
+Pass	font: 900px quite 0simple
+Pass	font: 900px quite 0simple (setter)
+Pass	font: 900em quite 0simple
+Pass	font: 900em quite 0simple (setter)
+Pass	font: 35% quite 0simple
+Pass	font: 35% quite 0simple (setter)
+Pass	font: 7832.3% quite 0simple
+Pass	font: 7832.3% quite 0simple (setter)
+Pass	font: xx-large quite 0simple
+Pass	font: xx-large quite 0simple (setter)
+Pass	font: lighter larger quite 0simple
+Pass	font: lighter larger quite 0simple (setter)
+Pass	font: italic 16px quite 0simple
+Pass	font: italic 16px quite 0simple (setter)
+Pass	font: italic bold 16px quite 0simple
+Pass	font: italic bold 16px quite 0simple (setter)
+Pass	font: normal smaller quite 0simple
+Pass	font: normal smaller quite 0simple (setter)
+Pass	font: normal normal 16px quite 0simple
+Pass	font: normal normal 16px quite 0simple (setter)
+Pass	font: 400 normal 16px quite 0simple
+Pass	font: 400 normal 16px quite 0simple (setter)
+Pass	font: bolder oblique 16px quite 0simple
+Pass	font: bolder oblique 16px quite 0simple (setter)
+Pass	font-family: 納豆嫌い
+Pass	font-family: 納豆嫌い (setter)
+Pass	font: 16px 納豆嫌い
+Pass	font: 16px 納豆嫌い (setter)
+Pass	font: 900px 納豆嫌い
+Pass	font: 900px 納豆嫌い (setter)
+Pass	font: 900em 納豆嫌い
+Pass	font: 900em 納豆嫌い (setter)
+Pass	font: 35% 納豆嫌い
+Pass	font: 35% 納豆嫌い (setter)
+Pass	font: 7832.3% 納豆嫌い
+Pass	font: 7832.3% 納豆嫌い (setter)
+Pass	font: xx-large 納豆嫌い
+Pass	font: xx-large 納豆嫌い (setter)
+Pass	font: lighter larger 納豆嫌い
+Pass	font: lighter larger 納豆嫌い (setter)
+Pass	font: italic 16px 納豆嫌い
+Pass	font: italic 16px 納豆嫌い (setter)
+Pass	font: italic bold 16px 納豆嫌い
+Pass	font: italic bold 16px 納豆嫌い (setter)
+Pass	font: normal smaller 納豆嫌い
+Pass	font: normal smaller 納豆嫌い (setter)
+Pass	font: normal normal 16px 納豆嫌い
+Pass	font: normal normal 16px 納豆嫌い (setter)
+Pass	font: 400 normal 16px 納豆嫌い
+Pass	font: 400 normal 16px 納豆嫌い (setter)
+Pass	font: bolder oblique 16px 納豆嫌い
+Pass	font: bolder oblique 16px 納豆嫌い (setter)
+Pass	font-family: 納豆嫌い, ick, patooey
+Pass	font-family: 納豆嫌い, ick, patooey (setter)
+Pass	font: 16px 納豆嫌い, ick, patooey
+Pass	font: 16px 納豆嫌い, ick, patooey (setter)
+Pass	font: 900px 納豆嫌い, ick, patooey
+Pass	font: 900px 納豆嫌い, ick, patooey (setter)
+Pass	font: 900em 納豆嫌い, ick, patooey
+Pass	font: 900em 納豆嫌い, ick, patooey (setter)
+Pass	font: 35% 納豆嫌い, ick, patooey
+Pass	font: 35% 納豆嫌い, ick, patooey (setter)
+Pass	font: 7832.3% 納豆嫌い, ick, patooey
+Pass	font: 7832.3% 納豆嫌い, ick, patooey (setter)
+Pass	font: xx-large 納豆嫌い, ick, patooey
+Pass	font: xx-large 納豆嫌い, ick, patooey (setter)
+Pass	font: lighter larger 納豆嫌い, ick, patooey
+Pass	font: lighter larger 納豆嫌い, ick, patooey (setter)
+Pass	font: italic 16px 納豆嫌い, ick, patooey
+Pass	font: italic 16px 納豆嫌い, ick, patooey (setter)
+Pass	font: italic bold 16px 納豆嫌い, ick, patooey
+Pass	font: italic bold 16px 納豆嫌い, ick, patooey (setter)
+Pass	font: normal smaller 納豆嫌い, ick, patooey
+Pass	font: normal smaller 納豆嫌い, ick, patooey (setter)
+Pass	font: normal normal 16px 納豆嫌い, ick, patooey
+Pass	font: normal normal 16px 納豆嫌い, ick, patooey (setter)
+Pass	font: 400 normal 16px 納豆嫌い, ick, patooey
+Pass	font: 400 normal 16px 納豆嫌い, ick, patooey (setter)
+Pass	font: bolder oblique 16px 納豆嫌い, ick, patooey
+Pass	font: bolder oblique 16px 納豆嫌い, ick, patooey (setter)
+Pass	font-family: ick, patooey, 納豆嫌い
+Pass	font-family: ick, patooey, 納豆嫌い (setter)
+Pass	font: 16px ick, patooey, 納豆嫌い
+Pass	font: 16px ick, patooey, 納豆嫌い (setter)
+Pass	font: 900px ick, patooey, 納豆嫌い
+Pass	font: 900px ick, patooey, 納豆嫌い (setter)
+Pass	font: 900em ick, patooey, 納豆嫌い
+Pass	font: 900em ick, patooey, 納豆嫌い (setter)
+Pass	font: 35% ick, patooey, 納豆嫌い
+Pass	font: 35% ick, patooey, 納豆嫌い (setter)
+Pass	font: 7832.3% ick, patooey, 納豆嫌い
+Pass	font: 7832.3% ick, patooey, 納豆嫌い (setter)
+Pass	font: xx-large ick, patooey, 納豆嫌い
+Pass	font: xx-large ick, patooey, 納豆嫌い (setter)
+Pass	font: lighter larger ick, patooey, 納豆嫌い
+Pass	font: lighter larger ick, patooey, 納豆嫌い (setter)
+Pass	font: italic 16px ick, patooey, 納豆嫌い
+Pass	font: italic 16px ick, patooey, 納豆嫌い (setter)
+Pass	font: italic bold 16px ick, patooey, 納豆嫌い
+Pass	font: italic bold 16px ick, patooey, 納豆嫌い (setter)
+Pass	font: normal smaller ick, patooey, 納豆嫌い
+Pass	font: normal smaller ick, patooey, 納豆嫌い (setter)
+Pass	font: normal normal 16px ick, patooey, 納豆嫌い
+Pass	font: normal normal 16px ick, patooey, 納豆嫌い (setter)
+Pass	font: 400 normal 16px ick, patooey, 納豆嫌い
+Pass	font: 400 normal 16px ick, patooey, 納豆嫌い (setter)
+Pass	font: bolder oblique 16px ick, patooey, 納豆嫌い
+Pass	font: bolder oblique 16px ick, patooey, 納豆嫌い (setter)
+Pass	font-family: 納豆嫌い, 納豆大嫌い
+Pass	font-family: 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: 16px 納豆嫌い, 納豆大嫌い
+Pass	font: 16px 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: 900px 納豆嫌い, 納豆大嫌い
+Pass	font: 900px 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: 900em 納豆嫌い, 納豆大嫌い
+Pass	font: 900em 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: 35% 納豆嫌い, 納豆大嫌い
+Pass	font: 35% 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: 7832.3% 納豆嫌い, 納豆大嫌い
+Pass	font: 7832.3% 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: xx-large 納豆嫌い, 納豆大嫌い
+Pass	font: xx-large 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: lighter larger 納豆嫌い, 納豆大嫌い
+Pass	font: lighter larger 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: italic 16px 納豆嫌い, 納豆大嫌い
+Pass	font: italic 16px 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: italic bold 16px 納豆嫌い, 納豆大嫌い
+Pass	font: italic bold 16px 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: normal smaller 納豆嫌い, 納豆大嫌い
+Pass	font: normal smaller 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: normal normal 16px 納豆嫌い, 納豆大嫌い
+Pass	font: normal normal 16px 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: 400 normal 16px 納豆嫌い, 納豆大嫌い
+Pass	font: 400 normal 16px 納豆嫌い, 納豆大嫌い (setter)
+Pass	font: bolder oblique 16px 納豆嫌い, 納豆大嫌い
+Pass	font: bolder oblique 16px 納豆嫌い, 納豆大嫌い (setter)
+Pass	font-family: 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font-family: 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: 900px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: 900px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: 900em 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: 900em 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: 35% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: 35% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: 7832.3% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: 7832.3% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: xx-large 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: xx-large 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: lighter larger 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: lighter larger 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: italic 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: italic 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: italic bold 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: italic bold 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: normal smaller 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: normal smaller 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: normal normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: normal normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: 400 normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: 400 normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font: bolder oblique 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い
+Pass	font: bolder oblique 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い (setter)
+Pass	font-family: 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font-family: 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: 900px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: 900px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: 900em 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: 900em 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: 35% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: 35% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: 7832.3% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: 7832.3% 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: xx-large 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: xx-large 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: lighter larger 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: lighter larger 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: italic 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: italic 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: italic bold 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: italic bold 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: normal smaller 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: normal smaller 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: normal normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: normal normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: 400 normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: 400 normal 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font: bolder oblique 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない
+Pass	font: bolder oblique 16px 納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない (setter)
+Pass	font-family: arial, helvetica, sans-serif
+Pass	font-family: arial, helvetica, sans-serif (setter)
+Pass	font: 16px arial, helvetica, sans-serif
+Pass	font: 16px arial, helvetica, sans-serif (setter)
+Pass	font: 900px arial, helvetica, sans-serif
+Pass	font: 900px arial, helvetica, sans-serif (setter)
+Pass	font: 900em arial, helvetica, sans-serif
+Pass	font: 900em arial, helvetica, sans-serif (setter)
+Pass	font: 35% arial, helvetica, sans-serif
+Pass	font: 35% arial, helvetica, sans-serif (setter)
+Pass	font: 7832.3% arial, helvetica, sans-serif
+Pass	font: 7832.3% arial, helvetica, sans-serif (setter)
+Pass	font: xx-large arial, helvetica, sans-serif
+Pass	font: xx-large arial, helvetica, sans-serif (setter)
+Pass	font: lighter larger arial, helvetica, sans-serif
+Pass	font: lighter larger arial, helvetica, sans-serif (setter)
+Pass	font: italic 16px arial, helvetica, sans-serif
+Pass	font: italic 16px arial, helvetica, sans-serif (setter)
+Pass	font: italic bold 16px arial, helvetica, sans-serif
+Pass	font: italic bold 16px arial, helvetica, sans-serif (setter)
+Pass	font: normal smaller arial, helvetica, sans-serif
+Pass	font: normal smaller arial, helvetica, sans-serif (setter)
+Pass	font: normal normal 16px arial, helvetica, sans-serif
+Pass	font: normal normal 16px arial, helvetica, sans-serif (setter)
+Pass	font: 400 normal 16px arial, helvetica, sans-serif
+Pass	font: 400 normal 16px arial, helvetica, sans-serif (setter)
+Pass	font: bolder oblique 16px arial, helvetica, sans-serif
+Pass	font: bolder oblique 16px arial, helvetica, sans-serif (setter)
+Pass	font-family: arial, helvetica, 'times' new roman, sans-serif
+Pass	font-family: arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: 16px arial, helvetica, 'times' new roman, sans-serif
+Pass	font: 16px arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: 900px arial, helvetica, 'times' new roman, sans-serif
+Pass	font: 900px arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: 900em arial, helvetica, 'times' new roman, sans-serif
+Pass	font: 900em arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: 35% arial, helvetica, 'times' new roman, sans-serif
+Pass	font: 35% arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: 7832.3% arial, helvetica, 'times' new roman, sans-serif
+Pass	font: 7832.3% arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: xx-large arial, helvetica, 'times' new roman, sans-serif
+Pass	font: xx-large arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: lighter larger arial, helvetica, 'times' new roman, sans-serif
+Pass	font: lighter larger arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: italic 16px arial, helvetica, 'times' new roman, sans-serif
+Pass	font: italic 16px arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: italic bold 16px arial, helvetica, 'times' new roman, sans-serif
+Pass	font: italic bold 16px arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: normal smaller arial, helvetica, 'times' new roman, sans-serif
+Pass	font: normal smaller arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: normal normal 16px arial, helvetica, 'times' new roman, sans-serif
+Pass	font: normal normal 16px arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: 400 normal 16px arial, helvetica, 'times' new roman, sans-serif
+Pass	font: 400 normal 16px arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font: bolder oblique 16px arial, helvetica, 'times' new roman, sans-serif
+Pass	font: bolder oblique 16px arial, helvetica, 'times' new roman, sans-serif (setter)
+Pass	font-family: arial, helvetica, "times" new roman, sans-serif
+Pass	font-family: arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: 16px arial, helvetica, "times" new roman, sans-serif
+Pass	font: 16px arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: 900px arial, helvetica, "times" new roman, sans-serif
+Pass	font: 900px arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: 900em arial, helvetica, "times" new roman, sans-serif
+Pass	font: 900em arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: 35% arial, helvetica, "times" new roman, sans-serif
+Pass	font: 35% arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: 7832.3% arial, helvetica, "times" new roman, sans-serif
+Pass	font: 7832.3% arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: xx-large arial, helvetica, "times" new roman, sans-serif
+Pass	font: xx-large arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: lighter larger arial, helvetica, "times" new roman, sans-serif
+Pass	font: lighter larger arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: italic 16px arial, helvetica, "times" new roman, sans-serif
+Pass	font: italic 16px arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: italic bold 16px arial, helvetica, "times" new roman, sans-serif
+Pass	font: italic bold 16px arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: normal smaller arial, helvetica, "times" new roman, sans-serif
+Pass	font: normal smaller arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: normal normal 16px arial, helvetica, "times" new roman, sans-serif
+Pass	font: normal normal 16px arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: 400 normal 16px arial, helvetica, "times" new roman, sans-serif
+Pass	font: 400 normal 16px arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font: bolder oblique 16px arial, helvetica, "times" new roman, sans-serif
+Pass	font: bolder oblique 16px arial, helvetica, "times" new roman, sans-serif (setter)
+Pass	font-family: arial, helvetica, '\"times new roman', sans-serif
+Pass	font-family: arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: 16px arial, helvetica, '\"times new roman', sans-serif
+Pass	font: 16px arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: 900px arial, helvetica, '\"times new roman', sans-serif
+Pass	font: 900px arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: 900em arial, helvetica, '\"times new roman', sans-serif
+Pass	font: 900em arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: 35% arial, helvetica, '\"times new roman', sans-serif
+Pass	font: 35% arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: 7832.3% arial, helvetica, '\"times new roman', sans-serif
+Pass	font: 7832.3% arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: xx-large arial, helvetica, '\"times new roman', sans-serif
+Pass	font: xx-large arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: lighter larger arial, helvetica, '\"times new roman', sans-serif
+Pass	font: lighter larger arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: italic 16px arial, helvetica, '\"times new roman', sans-serif
+Pass	font: italic 16px arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: italic bold 16px arial, helvetica, '\"times new roman', sans-serif
+Pass	font: italic bold 16px arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: normal smaller arial, helvetica, '\"times new roman', sans-serif
+Pass	font: normal smaller arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: normal normal 16px arial, helvetica, '\"times new roman', sans-serif
+Pass	font: normal normal 16px arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: 400 normal 16px arial, helvetica, '\"times new roman', sans-serif
+Pass	font: 400 normal 16px arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font: bolder oblique 16px arial, helvetica, '\"times new roman', sans-serif
+Pass	font: bolder oblique 16px arial, helvetica, '\"times new roman', sans-serif (setter)
+Pass	font-family: arial, helvetica, times 'new' roman, sans-serif
+Pass	font-family: arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: 16px arial, helvetica, times 'new' roman, sans-serif
+Pass	font: 16px arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: 900px arial, helvetica, times 'new' roman, sans-serif
+Pass	font: 900px arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: 900em arial, helvetica, times 'new' roman, sans-serif
+Pass	font: 900em arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: 35% arial, helvetica, times 'new' roman, sans-serif
+Pass	font: 35% arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: 7832.3% arial, helvetica, times 'new' roman, sans-serif
+Pass	font: 7832.3% arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: xx-large arial, helvetica, times 'new' roman, sans-serif
+Pass	font: xx-large arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: lighter larger arial, helvetica, times 'new' roman, sans-serif
+Pass	font: lighter larger arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: italic 16px arial, helvetica, times 'new' roman, sans-serif
+Pass	font: italic 16px arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: italic bold 16px arial, helvetica, times 'new' roman, sans-serif
+Pass	font: italic bold 16px arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: normal smaller arial, helvetica, times 'new' roman, sans-serif
+Pass	font: normal smaller arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: normal normal 16px arial, helvetica, times 'new' roman, sans-serif
+Pass	font: normal normal 16px arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: 400 normal 16px arial, helvetica, times 'new' roman, sans-serif
+Pass	font: 400 normal 16px arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font: bolder oblique 16px arial, helvetica, times 'new' roman, sans-serif
+Pass	font: bolder oblique 16px arial, helvetica, times 'new' roman, sans-serif (setter)
+Pass	font-family: arial, helvetica, times "new" roman, sans-serif
+Pass	font-family: arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: 16px arial, helvetica, times "new" roman, sans-serif
+Pass	font: 16px arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: 900px arial, helvetica, times "new" roman, sans-serif
+Pass	font: 900px arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: 900em arial, helvetica, times "new" roman, sans-serif
+Pass	font: 900em arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: 35% arial, helvetica, times "new" roman, sans-serif
+Pass	font: 35% arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: 7832.3% arial, helvetica, times "new" roman, sans-serif
+Pass	font: 7832.3% arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: xx-large arial, helvetica, times "new" roman, sans-serif
+Pass	font: xx-large arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: lighter larger arial, helvetica, times "new" roman, sans-serif
+Pass	font: lighter larger arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: italic 16px arial, helvetica, times "new" roman, sans-serif
+Pass	font: italic 16px arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: italic bold 16px arial, helvetica, times "new" roman, sans-serif
+Pass	font: italic bold 16px arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: normal smaller arial, helvetica, times "new" roman, sans-serif
+Pass	font: normal smaller arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: normal normal 16px arial, helvetica, times "new" roman, sans-serif
+Pass	font: normal normal 16px arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: 400 normal 16px arial, helvetica, times "new" roman, sans-serif
+Pass	font: 400 normal 16px arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font: bolder oblique 16px arial, helvetica, times "new" roman, sans-serif
+Pass	font: bolder oblique 16px arial, helvetica, times "new" roman, sans-serif (setter)
+Pass	font-family: İsimple
+Pass	font-family: İsimple (setter)
+Pass	font: 16px İsimple
+Pass	font: 16px İsimple (setter)
+Pass	font: 900px İsimple
+Pass	font: 900px İsimple (setter)
+Pass	font: 900em İsimple
+Pass	font: 900em İsimple (setter)
+Pass	font: 35% İsimple
+Pass	font: 35% İsimple (setter)
+Pass	font: 7832.3% İsimple
+Pass	font: 7832.3% İsimple (setter)
+Pass	font: xx-large İsimple
+Pass	font: xx-large İsimple (setter)
+Pass	font: lighter larger İsimple
+Pass	font: lighter larger İsimple (setter)
+Pass	font: italic 16px İsimple
+Pass	font: italic 16px İsimple (setter)
+Pass	font: italic bold 16px İsimple
+Pass	font: italic bold 16px İsimple (setter)
+Pass	font: normal smaller İsimple
+Pass	font: normal smaller İsimple (setter)
+Pass	font: normal normal 16px İsimple
+Pass	font: normal normal 16px İsimple (setter)
+Pass	font: 400 normal 16px İsimple
+Pass	font: 400 normal 16px İsimple (setter)
+Pass	font: bolder oblique 16px İsimple
+Pass	font: bolder oblique 16px İsimple (setter)
+Pass	font-family: ßsimple
+Pass	font-family: ßsimple (setter)
+Pass	font: 16px ßsimple
+Pass	font: 16px ßsimple (setter)
+Pass	font: 900px ßsimple
+Pass	font: 900px ßsimple (setter)
+Pass	font: 900em ßsimple
+Pass	font: 900em ßsimple (setter)
+Pass	font: 35% ßsimple
+Pass	font: 35% ßsimple (setter)
+Pass	font: 7832.3% ßsimple
+Pass	font: 7832.3% ßsimple (setter)
+Pass	font: xx-large ßsimple
+Pass	font: xx-large ßsimple (setter)
+Pass	font: lighter larger ßsimple
+Pass	font: lighter larger ßsimple (setter)
+Pass	font: italic 16px ßsimple
+Pass	font: italic 16px ßsimple (setter)
+Pass	font: italic bold 16px ßsimple
+Pass	font: italic bold 16px ßsimple (setter)
+Pass	font: normal smaller ßsimple
+Pass	font: normal smaller ßsimple (setter)
+Pass	font: normal normal 16px ßsimple
+Pass	font: normal normal 16px ßsimple (setter)
+Pass	font: 400 normal 16px ßsimple
+Pass	font: 400 normal 16px ßsimple (setter)
+Pass	font: bolder oblique 16px ßsimple
+Pass	font: bolder oblique 16px ßsimple (setter)
+Pass	font-family: ẙsimple
+Pass	font-family: ẙsimple (setter)
+Pass	font: 16px ẙsimple
+Pass	font: 16px ẙsimple (setter)
+Pass	font: 900px ẙsimple
+Pass	font: 900px ẙsimple (setter)
+Pass	font: 900em ẙsimple
+Pass	font: 900em ẙsimple (setter)
+Pass	font: 35% ẙsimple
+Pass	font: 35% ẙsimple (setter)
+Pass	font: 7832.3% ẙsimple
+Pass	font: 7832.3% ẙsimple (setter)
+Pass	font: xx-large ẙsimple
+Pass	font: xx-large ẙsimple (setter)
+Pass	font: lighter larger ẙsimple
+Pass	font: lighter larger ẙsimple (setter)
+Pass	font: italic 16px ẙsimple
+Pass	font: italic 16px ẙsimple (setter)
+Pass	font: italic bold 16px ẙsimple
+Pass	font: italic bold 16px ẙsimple (setter)
+Pass	font: normal smaller ẙsimple
+Pass	font: normal smaller ẙsimple (setter)
+Pass	font: normal normal 16px ẙsimple
+Pass	font: normal normal 16px ẙsimple (setter)
+Pass	font: 400 normal 16px ẙsimple
+Pass	font: 400 normal 16px ẙsimple (setter)
+Pass	font: bolder oblique 16px ẙsimple
+Pass	font: bolder oblique 16px ẙsimple (setter)
+Pass	font-family: \s imple
+Pass	font-family: \s imple (setter)
+Pass	font: 16px \s imple
+Pass	font: 16px \s imple (setter)
+Pass	font: 900px \s imple
+Pass	font: 900px \s imple (setter)
+Pass	font: 900em \s imple
+Pass	font: 900em \s imple (setter)
+Pass	font: 35% \s imple
+Pass	font: 35% \s imple (setter)
+Pass	font: 7832.3% \s imple
+Pass	font: 7832.3% \s imple (setter)
+Pass	font: xx-large \s imple
+Pass	font: xx-large \s imple (setter)
+Pass	font: lighter larger \s imple
+Pass	font: lighter larger \s imple (setter)
+Pass	font: italic 16px \s imple
+Pass	font: italic 16px \s imple (setter)
+Pass	font: italic bold 16px \s imple
+Pass	font: italic bold 16px \s imple (setter)
+Pass	font: normal smaller \s imple
+Pass	font: normal smaller \s imple (setter)
+Pass	font: normal normal 16px \s imple
+Pass	font: normal normal 16px \s imple (setter)
+Pass	font: 400 normal 16px \s imple
+Pass	font: 400 normal 16px \s imple (setter)
+Pass	font: bolder oblique 16px \s imple
+Pass	font: bolder oblique 16px \s imple (setter)
+Pass	font-family: \073 imple
+Pass	font-family: \073 imple (setter)
+Pass	font: 16px \073 imple
+Pass	font: 16px \073 imple (setter)
+Pass	font: 900px \073 imple
+Pass	font: 900px \073 imple (setter)
+Pass	font: 900em \073 imple
+Pass	font: 900em \073 imple (setter)
+Pass	font: 35% \073 imple
+Pass	font: 35% \073 imple (setter)
+Pass	font: 7832.3% \073 imple
+Pass	font: 7832.3% \073 imple (setter)
+Pass	font: xx-large \073 imple
+Pass	font: xx-large \073 imple (setter)
+Pass	font: lighter larger \073 imple
+Pass	font: lighter larger \073 imple (setter)
+Pass	font: italic 16px \073 imple
+Pass	font: italic 16px \073 imple (setter)
+Pass	font: italic bold 16px \073 imple
+Pass	font: italic bold 16px \073 imple (setter)
+Pass	font: normal smaller \073 imple
+Pass	font: normal smaller \073 imple (setter)
+Pass	font: normal normal 16px \073 imple
+Pass	font: normal normal 16px \073 imple (setter)
+Pass	font: 400 normal 16px \073 imple
+Pass	font: 400 normal 16px \073 imple (setter)
+Pass	font: bolder oblique 16px \073 imple
+Pass	font: bolder oblique 16px \073 imple (setter)
+Pass	font-family: sim\035 ple
+Pass	font-family: sim\035 ple (setter)
+Pass	font: 16px sim\035 ple
+Pass	font: 16px sim\035 ple (setter)
+Pass	font: 900px sim\035 ple
+Pass	font: 900px sim\035 ple (setter)
+Pass	font: 900em sim\035 ple
+Pass	font: 900em sim\035 ple (setter)
+Pass	font: 35% sim\035 ple
+Pass	font: 35% sim\035 ple (setter)
+Pass	font: 7832.3% sim\035 ple
+Pass	font: 7832.3% sim\035 ple (setter)
+Pass	font: xx-large sim\035 ple
+Pass	font: xx-large sim\035 ple (setter)
+Pass	font: lighter larger sim\035 ple
+Pass	font: lighter larger sim\035 ple (setter)
+Pass	font: italic 16px sim\035 ple
+Pass	font: italic 16px sim\035 ple (setter)
+Pass	font: italic bold 16px sim\035 ple
+Pass	font: italic bold 16px sim\035 ple (setter)
+Pass	font: normal smaller sim\035 ple
+Pass	font: normal smaller sim\035 ple (setter)
+Pass	font: normal normal 16px sim\035 ple
+Pass	font: normal normal 16px sim\035 ple (setter)
+Pass	font: 400 normal 16px sim\035 ple
+Pass	font: 400 normal 16px sim\035 ple (setter)
+Pass	font: bolder oblique 16px sim\035 ple
+Pass	font: bolder oblique 16px sim\035 ple (setter)
+Pass	font-family: \1f4a9
+Pass	font-family: \1f4a9 (setter)
+Pass	font: 16px \1f4a9
+Pass	font: 16px \1f4a9 (setter)
+Pass	font: 900px \1f4a9
+Pass	font: 900px \1f4a9 (setter)
+Pass	font: 900em \1f4a9
+Pass	font: 900em \1f4a9 (setter)
+Pass	font: 35% \1f4a9
+Pass	font: 35% \1f4a9 (setter)
+Pass	font: 7832.3% \1f4a9
+Pass	font: 7832.3% \1f4a9 (setter)
+Pass	font: xx-large \1f4a9
+Pass	font: xx-large \1f4a9 (setter)
+Pass	font: lighter larger \1f4a9
+Pass	font: lighter larger \1f4a9 (setter)
+Pass	font: italic 16px \1f4a9
+Pass	font: italic 16px \1f4a9 (setter)
+Pass	font: italic bold 16px \1f4a9
+Pass	font: italic bold 16px \1f4a9 (setter)
+Pass	font: normal smaller \1f4a9
+Pass	font: normal smaller \1f4a9 (setter)
+Pass	font: normal normal 16px \1f4a9
+Pass	font: normal normal 16px \1f4a9 (setter)
+Pass	font: 400 normal 16px \1f4a9
+Pass	font: 400 normal 16px \1f4a9 (setter)
+Pass	font: bolder oblique 16px \1f4a9
+Pass	font: bolder oblique 16px \1f4a9 (setter)
+Pass	font-family: \01f4a9
+Pass	font-family: \01f4a9 (setter)
+Pass	font: 16px \01f4a9
+Pass	font: 16px \01f4a9 (setter)
+Pass	font: 900px \01f4a9
+Pass	font: 900px \01f4a9 (setter)
+Pass	font: 900em \01f4a9
+Pass	font: 900em \01f4a9 (setter)
+Pass	font: 35% \01f4a9
+Pass	font: 35% \01f4a9 (setter)
+Pass	font: 7832.3% \01f4a9
+Pass	font: 7832.3% \01f4a9 (setter)
+Pass	font: xx-large \01f4a9
+Pass	font: xx-large \01f4a9 (setter)
+Pass	font: lighter larger \01f4a9
+Pass	font: lighter larger \01f4a9 (setter)
+Pass	font: italic 16px \01f4a9
+Pass	font: italic 16px \01f4a9 (setter)
+Pass	font: italic bold 16px \01f4a9
+Pass	font: italic bold 16px \01f4a9 (setter)
+Pass	font: normal smaller \01f4a9
+Pass	font: normal smaller \01f4a9 (setter)
+Pass	font: normal normal 16px \01f4a9
+Pass	font: normal normal 16px \01f4a9 (setter)
+Pass	font: 400 normal 16px \01f4a9
+Pass	font: 400 normal 16px \01f4a9 (setter)
+Pass	font: bolder oblique 16px \01f4a9
+Pass	font: bolder oblique 16px \01f4a9 (setter)
+Pass	font-family: \0001f4a9
+Pass	font-family: \0001f4a9 (setter)
+Pass	font: 16px \0001f4a9
+Pass	font: 16px \0001f4a9 (setter)
+Pass	font: 900px \0001f4a9
+Pass	font: 900px \0001f4a9 (setter)
+Pass	font: 900em \0001f4a9
+Pass	font: 900em \0001f4a9 (setter)
+Pass	font: 35% \0001f4a9
+Pass	font: 35% \0001f4a9 (setter)
+Pass	font: 7832.3% \0001f4a9
+Pass	font: 7832.3% \0001f4a9 (setter)
+Pass	font: xx-large \0001f4a9
+Pass	font: xx-large \0001f4a9 (setter)
+Pass	font: lighter larger \0001f4a9
+Pass	font: lighter larger \0001f4a9 (setter)
+Pass	font: italic 16px \0001f4a9
+Pass	font: italic 16px \0001f4a9 (setter)
+Pass	font: italic bold 16px \0001f4a9
+Pass	font: italic bold 16px \0001f4a9 (setter)
+Pass	font: normal smaller \0001f4a9
+Pass	font: normal smaller \0001f4a9 (setter)
+Pass	font: normal normal 16px \0001f4a9
+Pass	font: normal normal 16px \0001f4a9 (setter)
+Pass	font: 400 normal 16px \0001f4a9
+Pass	font: 400 normal 16px \0001f4a9 (setter)
+Pass	font: bolder oblique 16px \0001f4a9
+Pass	font: bolder oblique 16px \0001f4a9 (setter)
+Pass	font-family: \AbAb
+Pass	font-family: \AbAb (setter)
+Pass	font: 16px \AbAb
+Pass	font: 16px \AbAb (setter)
+Pass	font: 900px \AbAb
+Pass	font: 900px \AbAb (setter)
+Pass	font: 900em \AbAb
+Pass	font: 900em \AbAb (setter)
+Pass	font: 35% \AbAb
+Pass	font: 35% \AbAb (setter)
+Pass	font: 7832.3% \AbAb
+Pass	font: 7832.3% \AbAb (setter)
+Pass	font: xx-large \AbAb
+Pass	font: xx-large \AbAb (setter)
+Pass	font: lighter larger \AbAb
+Pass	font: lighter larger \AbAb (setter)
+Pass	font: italic 16px \AbAb
+Pass	font: italic 16px \AbAb (setter)
+Pass	font: italic bold 16px \AbAb
+Pass	font: italic bold 16px \AbAb (setter)
+Pass	font: normal smaller \AbAb
+Pass	font: normal smaller \AbAb (setter)
+Pass	font: normal normal 16px \AbAb
+Pass	font: normal normal 16px \AbAb (setter)
+Pass	font: 400 normal 16px \AbAb
+Pass	font: 400 normal 16px \AbAb (setter)
+Pass	font: bolder oblique 16px \AbAb
+Pass	font: bolder oblique 16px \AbAb (setter)
+Pass	font-family: italic
+Pass	font-family: italic (setter)
+Pass	font: 16px italic
+Pass	font: 16px italic (setter)
+Pass	font: 900px italic
+Pass	font: 900px italic (setter)
+Pass	font: 900em italic
+Pass	font: 900em italic (setter)
+Pass	font: 35% italic
+Pass	font: 35% italic (setter)
+Pass	font: 7832.3% italic
+Pass	font: 7832.3% italic (setter)
+Pass	font: xx-large italic
+Pass	font: xx-large italic (setter)
+Pass	font: lighter larger italic
+Pass	font: lighter larger italic (setter)
+Pass	font: italic 16px italic
+Pass	font: italic 16px italic (setter)
+Pass	font: italic bold 16px italic
+Pass	font: italic bold 16px italic (setter)
+Pass	font: normal smaller italic
+Pass	font: normal smaller italic (setter)
+Pass	font: normal normal 16px italic
+Pass	font: normal normal 16px italic (setter)
+Pass	font: 400 normal 16px italic
+Pass	font: 400 normal 16px italic (setter)
+Pass	font: bolder oblique 16px italic
+Pass	font: bolder oblique 16px italic (setter)
+Pass	font-family: bold
+Pass	font-family: bold (setter)
+Pass	font: 16px bold
+Pass	font: 16px bold (setter)
+Pass	font: 900px bold
+Pass	font: 900px bold (setter)
+Pass	font: 900em bold
+Pass	font: 900em bold (setter)
+Pass	font: 35% bold
+Pass	font: 35% bold (setter)
+Pass	font: 7832.3% bold
+Pass	font: 7832.3% bold (setter)
+Pass	font: xx-large bold
+Pass	font: xx-large bold (setter)
+Pass	font: lighter larger bold
+Pass	font: lighter larger bold (setter)
+Pass	font: italic 16px bold
+Pass	font: italic 16px bold (setter)
+Pass	font: italic bold 16px bold
+Pass	font: italic bold 16px bold (setter)
+Pass	font: normal smaller bold
+Pass	font: normal smaller bold (setter)
+Pass	font: normal normal 16px bold
+Pass	font: normal normal 16px bold (setter)
+Pass	font: 400 normal 16px bold
+Pass	font: 400 normal 16px bold (setter)
+Pass	font: bolder oblique 16px bold
+Pass	font: bolder oblique 16px bold (setter)
+Pass	font-family: bold italic
+Pass	font-family: bold italic (setter)
+Pass	font: 16px bold italic
+Pass	font: 16px bold italic (setter)
+Pass	font: 900px bold italic
+Pass	font: 900px bold italic (setter)
+Pass	font: 900em bold italic
+Pass	font: 900em bold italic (setter)
+Pass	font: 35% bold italic
+Pass	font: 35% bold italic (setter)
+Pass	font: 7832.3% bold italic
+Pass	font: 7832.3% bold italic (setter)
+Pass	font: xx-large bold italic
+Pass	font: xx-large bold italic (setter)
+Pass	font: lighter larger bold italic
+Pass	font: lighter larger bold italic (setter)
+Pass	font: italic 16px bold italic
+Pass	font: italic 16px bold italic (setter)
+Pass	font: italic bold 16px bold italic
+Pass	font: italic bold 16px bold italic (setter)
+Pass	font: normal smaller bold italic
+Pass	font: normal smaller bold italic (setter)
+Pass	font: normal normal 16px bold italic
+Pass	font: normal normal 16px bold italic (setter)
+Pass	font: 400 normal 16px bold italic
+Pass	font: 400 normal 16px bold italic (setter)
+Pass	font: bolder oblique 16px bold italic
+Pass	font: bolder oblique 16px bold italic (setter)
+Pass	font-family: italic bold
+Pass	font-family: italic bold (setter)
+Pass	font: 16px italic bold
+Pass	font: 16px italic bold (setter)
+Pass	font: 900px italic bold
+Pass	font: 900px italic bold (setter)
+Pass	font: 900em italic bold
+Pass	font: 900em italic bold (setter)
+Pass	font: 35% italic bold
+Pass	font: 35% italic bold (setter)
+Pass	font: 7832.3% italic bold
+Pass	font: 7832.3% italic bold (setter)
+Pass	font: xx-large italic bold
+Pass	font: xx-large italic bold (setter)
+Pass	font: lighter larger italic bold
+Pass	font: lighter larger italic bold (setter)
+Pass	font: italic 16px italic bold
+Pass	font: italic 16px italic bold (setter)
+Pass	font: italic bold 16px italic bold
+Pass	font: italic bold 16px italic bold (setter)
+Pass	font: normal smaller italic bold
+Pass	font: normal smaller italic bold (setter)
+Pass	font: normal normal 16px italic bold
+Pass	font: normal normal 16px italic bold (setter)
+Pass	font: 400 normal 16px italic bold
+Pass	font: 400 normal 16px italic bold (setter)
+Pass	font: bolder oblique 16px italic bold
+Pass	font: bolder oblique 16px italic bold (setter)
+Pass	font-family: larger
+Pass	font-family: larger (setter)
+Pass	font: 16px larger
+Pass	font: 16px larger (setter)
+Pass	font: 900px larger
+Pass	font: 900px larger (setter)
+Pass	font: 900em larger
+Pass	font: 900em larger (setter)
+Pass	font: 35% larger
+Pass	font: 35% larger (setter)
+Pass	font: 7832.3% larger
+Pass	font: 7832.3% larger (setter)
+Pass	font: xx-large larger
+Pass	font: xx-large larger (setter)
+Pass	font: lighter larger larger
+Pass	font: lighter larger larger (setter)
+Pass	font: italic 16px larger
+Pass	font: italic 16px larger (setter)
+Pass	font: italic bold 16px larger
+Pass	font: italic bold 16px larger (setter)
+Pass	font: normal smaller larger
+Pass	font: normal smaller larger (setter)
+Pass	font: normal normal 16px larger
+Pass	font: normal normal 16px larger (setter)
+Pass	font: 400 normal 16px larger
+Pass	font: 400 normal 16px larger (setter)
+Pass	font: bolder oblique 16px larger
+Pass	font: bolder oblique 16px larger (setter)
+Pass	font-family: smaller
+Pass	font-family: smaller (setter)
+Pass	font: 16px smaller
+Pass	font: 16px smaller (setter)
+Pass	font: 900px smaller
+Pass	font: 900px smaller (setter)
+Pass	font: 900em smaller
+Pass	font: 900em smaller (setter)
+Pass	font: 35% smaller
+Pass	font: 35% smaller (setter)
+Pass	font: 7832.3% smaller
+Pass	font: 7832.3% smaller (setter)
+Pass	font: xx-large smaller
+Pass	font: xx-large smaller (setter)
+Pass	font: lighter larger smaller
+Pass	font: lighter larger smaller (setter)
+Pass	font: italic 16px smaller
+Pass	font: italic 16px smaller (setter)
+Pass	font: italic bold 16px smaller
+Pass	font: italic bold 16px smaller (setter)
+Pass	font: normal smaller smaller
+Pass	font: normal smaller smaller (setter)
+Pass	font: normal normal 16px smaller
+Pass	font: normal normal 16px smaller (setter)
+Pass	font: 400 normal 16px smaller
+Pass	font: 400 normal 16px smaller (setter)
+Pass	font: bolder oblique 16px smaller
+Pass	font: bolder oblique 16px smaller (setter)
+Pass	font-family: bolder
+Pass	font-family: bolder (setter)
+Pass	font: 16px bolder
+Pass	font: 16px bolder (setter)
+Pass	font: 900px bolder
+Pass	font: 900px bolder (setter)
+Pass	font: 900em bolder
+Pass	font: 900em bolder (setter)
+Pass	font: 35% bolder
+Pass	font: 35% bolder (setter)
+Pass	font: 7832.3% bolder
+Pass	font: 7832.3% bolder (setter)
+Pass	font: xx-large bolder
+Pass	font: xx-large bolder (setter)
+Pass	font: lighter larger bolder
+Pass	font: lighter larger bolder (setter)
+Pass	font: italic 16px bolder
+Pass	font: italic 16px bolder (setter)
+Pass	font: italic bold 16px bolder
+Pass	font: italic bold 16px bolder (setter)
+Pass	font: normal smaller bolder
+Pass	font: normal smaller bolder (setter)
+Pass	font: normal normal 16px bolder
+Pass	font: normal normal 16px bolder (setter)
+Pass	font: 400 normal 16px bolder
+Pass	font: 400 normal 16px bolder (setter)
+Pass	font: bolder oblique 16px bolder
+Pass	font: bolder oblique 16px bolder (setter)
+Pass	font-family: lighter
+Pass	font-family: lighter (setter)
+Pass	font: 16px lighter
+Pass	font: 16px lighter (setter)
+Pass	font: 900px lighter
+Pass	font: 900px lighter (setter)
+Pass	font: 900em lighter
+Pass	font: 900em lighter (setter)
+Pass	font: 35% lighter
+Pass	font: 35% lighter (setter)
+Pass	font: 7832.3% lighter
+Pass	font: 7832.3% lighter (setter)
+Pass	font: xx-large lighter
+Pass	font: xx-large lighter (setter)
+Pass	font: lighter larger lighter
+Pass	font: lighter larger lighter (setter)
+Pass	font: italic 16px lighter
+Pass	font: italic 16px lighter (setter)
+Pass	font: italic bold 16px lighter
+Pass	font: italic bold 16px lighter (setter)
+Pass	font: normal smaller lighter
+Pass	font: normal smaller lighter (setter)
+Pass	font: normal normal 16px lighter
+Pass	font: normal normal 16px lighter (setter)
+Pass	font: 400 normal 16px lighter
+Pass	font: 400 normal 16px lighter (setter)
+Pass	font: bolder oblique 16px lighter
+Pass	font: bolder oblique 16px lighter (setter)
+Pass	font: 16px default
+Pass	font: 16px default (setter)
+Pass	font: 900px default
+Pass	font: 900px default (setter)
+Pass	font: 900em default
+Pass	font: 900em default (setter)
+Pass	font: 35% default
+Pass	font: 35% default (setter)
+Pass	font: 7832.3% default
+Pass	font: 7832.3% default (setter)
+Pass	font: xx-large default
+Pass	font: xx-large default (setter)
+Pass	font: lighter larger default
+Pass	font: lighter larger default (setter)
+Pass	font: italic 16px default
+Pass	font: italic 16px default (setter)
+Pass	font: italic bold 16px default
+Pass	font: italic bold 16px default (setter)
+Pass	font: normal smaller default
+Pass	font: normal smaller default (setter)
+Pass	font: normal normal 16px default
+Pass	font: normal normal 16px default (setter)
+Pass	font: 400 normal 16px default
+Pass	font: 400 normal 16px default (setter)
+Pass	font: bolder oblique 16px default
+Pass	font: bolder oblique 16px default (setter)
+Pass	font: 16px initial
+Pass	font: 16px initial (setter)
+Pass	font: 900px initial
+Pass	font: 900px initial (setter)
+Pass	font: 900em initial
+Pass	font: 900em initial (setter)
+Pass	font: 35% initial
+Pass	font: 35% initial (setter)
+Pass	font: 7832.3% initial
+Pass	font: 7832.3% initial (setter)
+Pass	font: xx-large initial
+Pass	font: xx-large initial (setter)
+Pass	font: lighter larger initial
+Pass	font: lighter larger initial (setter)
+Pass	font: italic 16px initial
+Pass	font: italic 16px initial (setter)
+Pass	font: italic bold 16px initial
+Pass	font: italic bold 16px initial (setter)
+Pass	font: normal smaller initial
+Pass	font: normal smaller initial (setter)
+Pass	font: normal normal 16px initial
+Pass	font: normal normal 16px initial (setter)
+Pass	font: 400 normal 16px initial
+Pass	font: 400 normal 16px initial (setter)
+Pass	font: bolder oblique 16px initial
+Pass	font: bolder oblique 16px initial (setter)
+Pass	font: 16px inherit
+Pass	font: 16px inherit (setter)
+Pass	font: 900px inherit
+Pass	font: 900px inherit (setter)
+Pass	font: 900em inherit
+Pass	font: 900em inherit (setter)
+Pass	font: 35% inherit
+Pass	font: 35% inherit (setter)
+Pass	font: 7832.3% inherit
+Pass	font: 7832.3% inherit (setter)
+Pass	font: xx-large inherit
+Pass	font: xx-large inherit (setter)
+Pass	font: lighter larger inherit
+Pass	font: lighter larger inherit (setter)
+Pass	font: italic 16px inherit
+Pass	font: italic 16px inherit (setter)
+Pass	font: italic bold 16px inherit
+Pass	font: italic bold 16px inherit (setter)
+Pass	font: normal smaller inherit
+Pass	font: normal smaller inherit (setter)
+Pass	font: normal normal 16px inherit
+Pass	font: normal normal 16px inherit (setter)
+Pass	font: 400 normal 16px inherit
+Pass	font: 400 normal 16px inherit (setter)
+Pass	font: bolder oblique 16px inherit
+Pass	font: bolder oblique 16px inherit (setter)
+Pass	font-family: normal
+Pass	font-family: normal (setter)
+Pass	font: 16px normal
+Pass	font: 16px normal (setter)
+Pass	font: 900px normal
+Pass	font: 900px normal (setter)
+Pass	font: 900em normal
+Pass	font: 900em normal (setter)
+Pass	font: 35% normal
+Pass	font: 35% normal (setter)
+Pass	font: 7832.3% normal
+Pass	font: 7832.3% normal (setter)
+Pass	font: xx-large normal
+Pass	font: xx-large normal (setter)
+Pass	font: lighter larger normal
+Pass	font: lighter larger normal (setter)
+Pass	font: italic 16px normal
+Pass	font: italic 16px normal (setter)
+Pass	font: italic bold 16px normal
+Pass	font: italic bold 16px normal (setter)
+Pass	font: normal smaller normal
+Pass	font: normal smaller normal (setter)
+Pass	font: normal normal 16px normal
+Pass	font: normal normal 16px normal (setter)
+Pass	font: 400 normal 16px normal
+Pass	font: 400 normal 16px normal (setter)
+Pass	font: bolder oblique 16px normal
+Pass	font: bolder oblique 16px normal (setter)
+Pass	font-family: default, simple
+Pass	font-family: default, simple (setter)
+Pass	font: 16px default, simple
+Pass	font: 16px default, simple (setter)
+Pass	font: 900px default, simple
+Pass	font: 900px default, simple (setter)
+Pass	font: 900em default, simple
+Pass	font: 900em default, simple (setter)
+Pass	font: 35% default, simple
+Pass	font: 35% default, simple (setter)
+Pass	font: 7832.3% default, simple
+Pass	font: 7832.3% default, simple (setter)
+Pass	font: xx-large default, simple
+Pass	font: xx-large default, simple (setter)
+Pass	font: lighter larger default, simple
+Pass	font: lighter larger default, simple (setter)
+Pass	font: italic 16px default, simple
+Pass	font: italic 16px default, simple (setter)
+Pass	font: italic bold 16px default, simple
+Pass	font: italic bold 16px default, simple (setter)
+Pass	font: normal smaller default, simple
+Pass	font: normal smaller default, simple (setter)
+Pass	font: normal normal 16px default, simple
+Pass	font: normal normal 16px default, simple (setter)
+Pass	font: 400 normal 16px default, simple
+Pass	font: 400 normal 16px default, simple (setter)
+Pass	font: bolder oblique 16px default, simple
+Pass	font: bolder oblique 16px default, simple (setter)
+Pass	font-family: initial, simple
+Pass	font-family: initial, simple (setter)
+Pass	font: 16px initial, simple
+Pass	font: 16px initial, simple (setter)
+Pass	font: 900px initial, simple
+Pass	font: 900px initial, simple (setter)
+Pass	font: 900em initial, simple
+Pass	font: 900em initial, simple (setter)
+Pass	font: 35% initial, simple
+Pass	font: 35% initial, simple (setter)
+Pass	font: 7832.3% initial, simple
+Pass	font: 7832.3% initial, simple (setter)
+Pass	font: xx-large initial, simple
+Pass	font: xx-large initial, simple (setter)
+Pass	font: lighter larger initial, simple
+Pass	font: lighter larger initial, simple (setter)
+Pass	font: italic 16px initial, simple
+Pass	font: italic 16px initial, simple (setter)
+Pass	font: italic bold 16px initial, simple
+Pass	font: italic bold 16px initial, simple (setter)
+Pass	font: normal smaller initial, simple
+Pass	font: normal smaller initial, simple (setter)
+Pass	font: normal normal 16px initial, simple
+Pass	font: normal normal 16px initial, simple (setter)
+Pass	font: 400 normal 16px initial, simple
+Pass	font: 400 normal 16px initial, simple (setter)
+Pass	font: bolder oblique 16px initial, simple
+Pass	font: bolder oblique 16px initial, simple (setter)
+Pass	font-family: inherit, simple
+Pass	font-family: inherit, simple (setter)
+Pass	font: 16px inherit, simple
+Pass	font: 16px inherit, simple (setter)
+Pass	font: 900px inherit, simple
+Pass	font: 900px inherit, simple (setter)
+Pass	font: 900em inherit, simple
+Pass	font: 900em inherit, simple (setter)
+Pass	font: 35% inherit, simple
+Pass	font: 35% inherit, simple (setter)
+Pass	font: 7832.3% inherit, simple
+Pass	font: 7832.3% inherit, simple (setter)
+Pass	font: xx-large inherit, simple
+Pass	font: xx-large inherit, simple (setter)
+Pass	font: lighter larger inherit, simple
+Pass	font: lighter larger inherit, simple (setter)
+Pass	font: italic 16px inherit, simple
+Pass	font: italic 16px inherit, simple (setter)
+Pass	font: italic bold 16px inherit, simple
+Pass	font: italic bold 16px inherit, simple (setter)
+Pass	font: normal smaller inherit, simple
+Pass	font: normal smaller inherit, simple (setter)
+Pass	font: normal normal 16px inherit, simple
+Pass	font: normal normal 16px inherit, simple (setter)
+Pass	font: 400 normal 16px inherit, simple
+Pass	font: 400 normal 16px inherit, simple (setter)
+Pass	font: bolder oblique 16px inherit, simple
+Pass	font: bolder oblique 16px inherit, simple (setter)
+Pass	font-family: normal, simple
+Pass	font-family: normal, simple (setter)
+Pass	font: 16px normal, simple
+Pass	font: 16px normal, simple (setter)
+Pass	font: 900px normal, simple
+Pass	font: 900px normal, simple (setter)
+Pass	font: 900em normal, simple
+Pass	font: 900em normal, simple (setter)
+Pass	font: 35% normal, simple
+Pass	font: 35% normal, simple (setter)
+Pass	font: 7832.3% normal, simple
+Pass	font: 7832.3% normal, simple (setter)
+Pass	font: xx-large normal, simple
+Pass	font: xx-large normal, simple (setter)
+Pass	font: lighter larger normal, simple
+Pass	font: lighter larger normal, simple (setter)
+Pass	font: italic 16px normal, simple
+Pass	font: italic 16px normal, simple (setter)
+Pass	font: italic bold 16px normal, simple
+Pass	font: italic bold 16px normal, simple (setter)
+Pass	font: normal smaller normal, simple
+Pass	font: normal smaller normal, simple (setter)
+Pass	font: normal normal 16px normal, simple
+Pass	font: normal normal 16px normal, simple (setter)
+Pass	font: 400 normal 16px normal, simple
+Pass	font: 400 normal 16px normal, simple (setter)
+Pass	font: bolder oblique 16px normal, simple
+Pass	font: bolder oblique 16px normal, simple (setter)
+Pass	font-family: simple, default
+Pass	font-family: simple, default (setter)
+Pass	font: 16px simple, default
+Pass	font: 16px simple, default (setter)
+Pass	font: 900px simple, default
+Pass	font: 900px simple, default (setter)
+Pass	font: 900em simple, default
+Pass	font: 900em simple, default (setter)
+Pass	font: 35% simple, default
+Pass	font: 35% simple, default (setter)
+Pass	font: 7832.3% simple, default
+Pass	font: 7832.3% simple, default (setter)
+Pass	font: xx-large simple, default
+Pass	font: xx-large simple, default (setter)
+Pass	font: lighter larger simple, default
+Pass	font: lighter larger simple, default (setter)
+Pass	font: italic 16px simple, default
+Pass	font: italic 16px simple, default (setter)
+Pass	font: italic bold 16px simple, default
+Pass	font: italic bold 16px simple, default (setter)
+Pass	font: normal smaller simple, default
+Pass	font: normal smaller simple, default (setter)
+Pass	font: normal normal 16px simple, default
+Pass	font: normal normal 16px simple, default (setter)
+Pass	font: 400 normal 16px simple, default
+Pass	font: 400 normal 16px simple, default (setter)
+Pass	font: bolder oblique 16px simple, default
+Pass	font: bolder oblique 16px simple, default (setter)
+Pass	font-family: simple, initial
+Pass	font-family: simple, initial (setter)
+Pass	font: 16px simple, initial
+Pass	font: 16px simple, initial (setter)
+Pass	font: 900px simple, initial
+Pass	font: 900px simple, initial (setter)
+Pass	font: 900em simple, initial
+Pass	font: 900em simple, initial (setter)
+Pass	font: 35% simple, initial
+Pass	font: 35% simple, initial (setter)
+Pass	font: 7832.3% simple, initial
+Pass	font: 7832.3% simple, initial (setter)
+Pass	font: xx-large simple, initial
+Pass	font: xx-large simple, initial (setter)
+Pass	font: lighter larger simple, initial
+Pass	font: lighter larger simple, initial (setter)
+Pass	font: italic 16px simple, initial
+Pass	font: italic 16px simple, initial (setter)
+Pass	font: italic bold 16px simple, initial
+Pass	font: italic bold 16px simple, initial (setter)
+Pass	font: normal smaller simple, initial
+Pass	font: normal smaller simple, initial (setter)
+Pass	font: normal normal 16px simple, initial
+Pass	font: normal normal 16px simple, initial (setter)
+Pass	font: 400 normal 16px simple, initial
+Pass	font: 400 normal 16px simple, initial (setter)
+Pass	font: bolder oblique 16px simple, initial
+Pass	font: bolder oblique 16px simple, initial (setter)
+Pass	font-family: simple, inherit
+Pass	font-family: simple, inherit (setter)
+Pass	font: 16px simple, inherit
+Pass	font: 16px simple, inherit (setter)
+Pass	font: 900px simple, inherit
+Pass	font: 900px simple, inherit (setter)
+Pass	font: 900em simple, inherit
+Pass	font: 900em simple, inherit (setter)
+Pass	font: 35% simple, inherit
+Pass	font: 35% simple, inherit (setter)
+Pass	font: 7832.3% simple, inherit
+Pass	font: 7832.3% simple, inherit (setter)
+Pass	font: xx-large simple, inherit
+Pass	font: xx-large simple, inherit (setter)
+Pass	font: lighter larger simple, inherit
+Pass	font: lighter larger simple, inherit (setter)
+Pass	font: italic 16px simple, inherit
+Pass	font: italic 16px simple, inherit (setter)
+Pass	font: italic bold 16px simple, inherit
+Pass	font: italic bold 16px simple, inherit (setter)
+Pass	font: normal smaller simple, inherit
+Pass	font: normal smaller simple, inherit (setter)
+Pass	font: normal normal 16px simple, inherit
+Pass	font: normal normal 16px simple, inherit (setter)
+Pass	font: 400 normal 16px simple, inherit
+Pass	font: 400 normal 16px simple, inherit (setter)
+Pass	font: bolder oblique 16px simple, inherit
+Pass	font: bolder oblique 16px simple, inherit (setter)
+Pass	font-family: simple, default bongo
+Pass	font-family: simple, default bongo (setter)
+Pass	font: 16px simple, default bongo
+Pass	font: 16px simple, default bongo (setter)
+Pass	font: 900px simple, default bongo
+Pass	font: 900px simple, default bongo (setter)
+Pass	font: 900em simple, default bongo
+Pass	font: 900em simple, default bongo (setter)
+Pass	font: 35% simple, default bongo
+Pass	font: 35% simple, default bongo (setter)
+Pass	font: 7832.3% simple, default bongo
+Pass	font: 7832.3% simple, default bongo (setter)
+Pass	font: xx-large simple, default bongo
+Pass	font: xx-large simple, default bongo (setter)
+Pass	font: lighter larger simple, default bongo
+Pass	font: lighter larger simple, default bongo (setter)
+Pass	font: italic 16px simple, default bongo
+Pass	font: italic 16px simple, default bongo (setter)
+Pass	font: italic bold 16px simple, default bongo
+Pass	font: italic bold 16px simple, default bongo (setter)
+Pass	font: normal smaller simple, default bongo
+Pass	font: normal smaller simple, default bongo (setter)
+Pass	font: normal normal 16px simple, default bongo
+Pass	font: normal normal 16px simple, default bongo (setter)
+Pass	font: 400 normal 16px simple, default bongo
+Pass	font: 400 normal 16px simple, default bongo (setter)
+Pass	font: bolder oblique 16px simple, default bongo
+Pass	font: bolder oblique 16px simple, default bongo (setter)
+Pass	font-family: simple, initial bongo
+Pass	font-family: simple, initial bongo (setter)
+Pass	font: 16px simple, initial bongo
+Pass	font: 16px simple, initial bongo (setter)
+Pass	font: 900px simple, initial bongo
+Pass	font: 900px simple, initial bongo (setter)
+Pass	font: 900em simple, initial bongo
+Pass	font: 900em simple, initial bongo (setter)
+Pass	font: 35% simple, initial bongo
+Pass	font: 35% simple, initial bongo (setter)
+Pass	font: 7832.3% simple, initial bongo
+Pass	font: 7832.3% simple, initial bongo (setter)
+Pass	font: xx-large simple, initial bongo
+Pass	font: xx-large simple, initial bongo (setter)
+Pass	font: lighter larger simple, initial bongo
+Pass	font: lighter larger simple, initial bongo (setter)
+Pass	font: italic 16px simple, initial bongo
+Pass	font: italic 16px simple, initial bongo (setter)
+Pass	font: italic bold 16px simple, initial bongo
+Pass	font: italic bold 16px simple, initial bongo (setter)
+Pass	font: normal smaller simple, initial bongo
+Pass	font: normal smaller simple, initial bongo (setter)
+Pass	font: normal normal 16px simple, initial bongo
+Pass	font: normal normal 16px simple, initial bongo (setter)
+Pass	font: 400 normal 16px simple, initial bongo
+Pass	font: 400 normal 16px simple, initial bongo (setter)
+Pass	font: bolder oblique 16px simple, initial bongo
+Pass	font: bolder oblique 16px simple, initial bongo (setter)
+Pass	font-family: simple, inherit bongo
+Pass	font-family: simple, inherit bongo (setter)
+Pass	font: 16px simple, inherit bongo
+Pass	font: 16px simple, inherit bongo (setter)
+Pass	font: 900px simple, inherit bongo
+Pass	font: 900px simple, inherit bongo (setter)
+Pass	font: 900em simple, inherit bongo
+Pass	font: 900em simple, inherit bongo (setter)
+Pass	font: 35% simple, inherit bongo
+Pass	font: 35% simple, inherit bongo (setter)
+Pass	font: 7832.3% simple, inherit bongo
+Pass	font: 7832.3% simple, inherit bongo (setter)
+Pass	font: xx-large simple, inherit bongo
+Pass	font: xx-large simple, inherit bongo (setter)
+Pass	font: lighter larger simple, inherit bongo
+Pass	font: lighter larger simple, inherit bongo (setter)
+Pass	font: italic 16px simple, inherit bongo
+Pass	font: italic 16px simple, inherit bongo (setter)
+Pass	font: italic bold 16px simple, inherit bongo
+Pass	font: italic bold 16px simple, inherit bongo (setter)
+Pass	font: normal smaller simple, inherit bongo
+Pass	font: normal smaller simple, inherit bongo (setter)
+Pass	font: normal normal 16px simple, inherit bongo
+Pass	font: normal normal 16px simple, inherit bongo (setter)
+Pass	font: 400 normal 16px simple, inherit bongo
+Pass	font: 400 normal 16px simple, inherit bongo (setter)
+Pass	font: bolder oblique 16px simple, inherit bongo
+Pass	font: bolder oblique 16px simple, inherit bongo (setter)
+Pass	font-family: simple, bongo default
+Pass	font-family: simple, bongo default (setter)
+Pass	font: 16px simple, bongo default
+Pass	font: 16px simple, bongo default (setter)
+Pass	font: 900px simple, bongo default
+Pass	font: 900px simple, bongo default (setter)
+Pass	font: 900em simple, bongo default
+Pass	font: 900em simple, bongo default (setter)
+Pass	font: 35% simple, bongo default
+Pass	font: 35% simple, bongo default (setter)
+Pass	font: 7832.3% simple, bongo default
+Pass	font: 7832.3% simple, bongo default (setter)
+Pass	font: xx-large simple, bongo default
+Pass	font: xx-large simple, bongo default (setter)
+Pass	font: lighter larger simple, bongo default
+Pass	font: lighter larger simple, bongo default (setter)
+Pass	font: italic 16px simple, bongo default
+Pass	font: italic 16px simple, bongo default (setter)
+Pass	font: italic bold 16px simple, bongo default
+Pass	font: italic bold 16px simple, bongo default (setter)
+Pass	font: normal smaller simple, bongo default
+Pass	font: normal smaller simple, bongo default (setter)
+Pass	font: normal normal 16px simple, bongo default
+Pass	font: normal normal 16px simple, bongo default (setter)
+Pass	font: 400 normal 16px simple, bongo default
+Pass	font: 400 normal 16px simple, bongo default (setter)
+Pass	font: bolder oblique 16px simple, bongo default
+Pass	font: bolder oblique 16px simple, bongo default (setter)
+Pass	font-family: simple, bongo initial
+Pass	font-family: simple, bongo initial (setter)
+Pass	font: 16px simple, bongo initial
+Pass	font: 16px simple, bongo initial (setter)
+Pass	font: 900px simple, bongo initial
+Pass	font: 900px simple, bongo initial (setter)
+Pass	font: 900em simple, bongo initial
+Pass	font: 900em simple, bongo initial (setter)
+Pass	font: 35% simple, bongo initial
+Pass	font: 35% simple, bongo initial (setter)
+Pass	font: 7832.3% simple, bongo initial
+Pass	font: 7832.3% simple, bongo initial (setter)
+Pass	font: xx-large simple, bongo initial
+Pass	font: xx-large simple, bongo initial (setter)
+Pass	font: lighter larger simple, bongo initial
+Pass	font: lighter larger simple, bongo initial (setter)
+Pass	font: italic 16px simple, bongo initial
+Pass	font: italic 16px simple, bongo initial (setter)
+Pass	font: italic bold 16px simple, bongo initial
+Pass	font: italic bold 16px simple, bongo initial (setter)
+Pass	font: normal smaller simple, bongo initial
+Pass	font: normal smaller simple, bongo initial (setter)
+Pass	font: normal normal 16px simple, bongo initial
+Pass	font: normal normal 16px simple, bongo initial (setter)
+Pass	font: 400 normal 16px simple, bongo initial
+Pass	font: 400 normal 16px simple, bongo initial (setter)
+Pass	font: bolder oblique 16px simple, bongo initial
+Pass	font: bolder oblique 16px simple, bongo initial (setter)
+Pass	font-family: simple, bongo inherit
+Pass	font-family: simple, bongo inherit (setter)
+Pass	font: 16px simple, bongo inherit
+Pass	font: 16px simple, bongo inherit (setter)
+Pass	font: 900px simple, bongo inherit
+Pass	font: 900px simple, bongo inherit (setter)
+Pass	font: 900em simple, bongo inherit
+Pass	font: 900em simple, bongo inherit (setter)
+Pass	font: 35% simple, bongo inherit
+Pass	font: 35% simple, bongo inherit (setter)
+Pass	font: 7832.3% simple, bongo inherit
+Pass	font: 7832.3% simple, bongo inherit (setter)
+Pass	font: xx-large simple, bongo inherit
+Pass	font: xx-large simple, bongo inherit (setter)
+Pass	font: lighter larger simple, bongo inherit
+Pass	font: lighter larger simple, bongo inherit (setter)
+Pass	font: italic 16px simple, bongo inherit
+Pass	font: italic 16px simple, bongo inherit (setter)
+Pass	font: italic bold 16px simple, bongo inherit
+Pass	font: italic bold 16px simple, bongo inherit (setter)
+Pass	font: normal smaller simple, bongo inherit
+Pass	font: normal smaller simple, bongo inherit (setter)
+Pass	font: normal normal 16px simple, bongo inherit
+Pass	font: normal normal 16px simple, bongo inherit (setter)
+Pass	font: 400 normal 16px simple, bongo inherit
+Pass	font: 400 normal 16px simple, bongo inherit (setter)
+Pass	font: bolder oblique 16px simple, bongo inherit
+Pass	font: bolder oblique 16px simple, bongo inherit (setter)
+Pass	font-family: simple, normal
+Pass	font-family: simple, normal (setter)
+Pass	font: 16px simple, normal
+Pass	font: 16px simple, normal (setter)
+Pass	font: 900px simple, normal
+Pass	font: 900px simple, normal (setter)
+Pass	font: 900em simple, normal
+Pass	font: 900em simple, normal (setter)
+Pass	font: 35% simple, normal
+Pass	font: 35% simple, normal (setter)
+Pass	font: 7832.3% simple, normal
+Pass	font: 7832.3% simple, normal (setter)
+Pass	font: xx-large simple, normal
+Pass	font: xx-large simple, normal (setter)
+Pass	font: lighter larger simple, normal
+Pass	font: lighter larger simple, normal (setter)
+Pass	font: italic 16px simple, normal
+Pass	font: italic 16px simple, normal (setter)
+Pass	font: italic bold 16px simple, normal
+Pass	font: italic bold 16px simple, normal (setter)
+Pass	font: normal smaller simple, normal
+Pass	font: normal smaller simple, normal (setter)
+Pass	font: normal normal 16px simple, normal
+Pass	font: normal normal 16px simple, normal (setter)
+Pass	font: 400 normal 16px simple, normal
+Pass	font: 400 normal 16px simple, normal (setter)
+Pass	font: bolder oblique 16px simple, normal
+Pass	font: bolder oblique 16px simple, normal (setter)
+Pass	font-family: simple default
+Pass	font-family: simple default (setter)
+Pass	font: 16px simple default
+Pass	font: 16px simple default (setter)
+Pass	font: 900px simple default
+Pass	font: 900px simple default (setter)
+Pass	font: 900em simple default
+Pass	font: 900em simple default (setter)
+Pass	font: 35% simple default
+Pass	font: 35% simple default (setter)
+Pass	font: 7832.3% simple default
+Pass	font: 7832.3% simple default (setter)
+Pass	font: xx-large simple default
+Pass	font: xx-large simple default (setter)
+Pass	font: lighter larger simple default
+Pass	font: lighter larger simple default (setter)
+Pass	font: italic 16px simple default
+Pass	font: italic 16px simple default (setter)
+Pass	font: italic bold 16px simple default
+Pass	font: italic bold 16px simple default (setter)
+Pass	font: normal smaller simple default
+Pass	font: normal smaller simple default (setter)
+Pass	font: normal normal 16px simple default
+Pass	font: normal normal 16px simple default (setter)
+Pass	font: 400 normal 16px simple default
+Pass	font: 400 normal 16px simple default (setter)
+Pass	font: bolder oblique 16px simple default
+Pass	font: bolder oblique 16px simple default (setter)
+Pass	font-family: simple initial
+Pass	font-family: simple initial (setter)
+Pass	font: 16px simple initial
+Pass	font: 16px simple initial (setter)
+Pass	font: 900px simple initial
+Pass	font: 900px simple initial (setter)
+Pass	font: 900em simple initial
+Pass	font: 900em simple initial (setter)
+Pass	font: 35% simple initial
+Pass	font: 35% simple initial (setter)
+Pass	font: 7832.3% simple initial
+Pass	font: 7832.3% simple initial (setter)
+Pass	font: xx-large simple initial
+Pass	font: xx-large simple initial (setter)
+Pass	font: lighter larger simple initial
+Pass	font: lighter larger simple initial (setter)
+Pass	font: italic 16px simple initial
+Pass	font: italic 16px simple initial (setter)
+Pass	font: italic bold 16px simple initial
+Pass	font: italic bold 16px simple initial (setter)
+Pass	font: normal smaller simple initial
+Pass	font: normal smaller simple initial (setter)
+Pass	font: normal normal 16px simple initial
+Pass	font: normal normal 16px simple initial (setter)
+Pass	font: 400 normal 16px simple initial
+Pass	font: 400 normal 16px simple initial (setter)
+Pass	font: bolder oblique 16px simple initial
+Pass	font: bolder oblique 16px simple initial (setter)
+Pass	font-family: simple inherit
+Pass	font-family: simple inherit (setter)
+Pass	font: 16px simple inherit
+Pass	font: 16px simple inherit (setter)
+Pass	font: 900px simple inherit
+Pass	font: 900px simple inherit (setter)
+Pass	font: 900em simple inherit
+Pass	font: 900em simple inherit (setter)
+Pass	font: 35% simple inherit
+Pass	font: 35% simple inherit (setter)
+Pass	font: 7832.3% simple inherit
+Pass	font: 7832.3% simple inherit (setter)
+Pass	font: xx-large simple inherit
+Pass	font: xx-large simple inherit (setter)
+Pass	font: lighter larger simple inherit
+Pass	font: lighter larger simple inherit (setter)
+Pass	font: italic 16px simple inherit
+Pass	font: italic 16px simple inherit (setter)
+Pass	font: italic bold 16px simple inherit
+Pass	font: italic bold 16px simple inherit (setter)
+Pass	font: normal smaller simple inherit
+Pass	font: normal smaller simple inherit (setter)
+Pass	font: normal normal 16px simple inherit
+Pass	font: normal normal 16px simple inherit (setter)
+Pass	font: 400 normal 16px simple inherit
+Pass	font: 400 normal 16px simple inherit (setter)
+Pass	font: bolder oblique 16px simple inherit
+Pass	font: bolder oblique 16px simple inherit (setter)
+Pass	font-family: simple normal
+Pass	font-family: simple normal (setter)
+Pass	font: 16px simple normal
+Pass	font: 16px simple normal (setter)
+Pass	font: 900px simple normal
+Pass	font: 900px simple normal (setter)
+Pass	font: 900em simple normal
+Pass	font: 900em simple normal (setter)
+Pass	font: 35% simple normal
+Pass	font: 35% simple normal (setter)
+Pass	font: 7832.3% simple normal
+Pass	font: 7832.3% simple normal (setter)
+Pass	font: xx-large simple normal
+Pass	font: xx-large simple normal (setter)
+Pass	font: lighter larger simple normal
+Pass	font: lighter larger simple normal (setter)
+Pass	font: italic 16px simple normal
+Pass	font: italic 16px simple normal (setter)
+Pass	font: italic bold 16px simple normal
+Pass	font: italic bold 16px simple normal (setter)
+Pass	font: normal smaller simple normal
+Pass	font: normal smaller simple normal (setter)
+Pass	font: normal normal 16px simple normal
+Pass	font: normal normal 16px simple normal (setter)
+Pass	font: 400 normal 16px simple normal
+Pass	font: 400 normal 16px simple normal (setter)
+Pass	font: bolder oblique 16px simple normal
+Pass	font: bolder oblique 16px simple normal (setter)
+Pass	font-family: default simple
+Pass	font-family: default simple (setter)
+Pass	font: 16px default simple
+Pass	font: 16px default simple (setter)
+Pass	font: 900px default simple
+Pass	font: 900px default simple (setter)
+Pass	font: 900em default simple
+Pass	font: 900em default simple (setter)
+Pass	font: 35% default simple
+Pass	font: 35% default simple (setter)
+Pass	font: 7832.3% default simple
+Pass	font: 7832.3% default simple (setter)
+Pass	font: xx-large default simple
+Pass	font: xx-large default simple (setter)
+Pass	font: lighter larger default simple
+Pass	font: lighter larger default simple (setter)
+Pass	font: italic 16px default simple
+Pass	font: italic 16px default simple (setter)
+Pass	font: italic bold 16px default simple
+Pass	font: italic bold 16px default simple (setter)
+Pass	font: normal smaller default simple
+Pass	font: normal smaller default simple (setter)
+Pass	font: normal normal 16px default simple
+Pass	font: normal normal 16px default simple (setter)
+Pass	font: 400 normal 16px default simple
+Pass	font: 400 normal 16px default simple (setter)
+Pass	font: bolder oblique 16px default simple
+Pass	font: bolder oblique 16px default simple (setter)
+Pass	font-family: initial simple
+Pass	font-family: initial simple (setter)
+Pass	font: 16px initial simple
+Pass	font: 16px initial simple (setter)
+Pass	font: 900px initial simple
+Pass	font: 900px initial simple (setter)
+Pass	font: 900em initial simple
+Pass	font: 900em initial simple (setter)
+Pass	font: 35% initial simple
+Pass	font: 35% initial simple (setter)
+Pass	font: 7832.3% initial simple
+Pass	font: 7832.3% initial simple (setter)
+Pass	font: xx-large initial simple
+Pass	font: xx-large initial simple (setter)
+Pass	font: lighter larger initial simple
+Pass	font: lighter larger initial simple (setter)
+Pass	font: italic 16px initial simple
+Pass	font: italic 16px initial simple (setter)
+Pass	font: italic bold 16px initial simple
+Pass	font: italic bold 16px initial simple (setter)
+Pass	font: normal smaller initial simple
+Pass	font: normal smaller initial simple (setter)
+Pass	font: normal normal 16px initial simple
+Pass	font: normal normal 16px initial simple (setter)
+Pass	font: 400 normal 16px initial simple
+Pass	font: 400 normal 16px initial simple (setter)
+Pass	font: bolder oblique 16px initial simple
+Pass	font: bolder oblique 16px initial simple (setter)
+Pass	font-family: inherit simple
+Pass	font-family: inherit simple (setter)
+Pass	font: 16px inherit simple
+Pass	font: 16px inherit simple (setter)
+Pass	font: 900px inherit simple
+Pass	font: 900px inherit simple (setter)
+Pass	font: 900em inherit simple
+Pass	font: 900em inherit simple (setter)
+Pass	font: 35% inherit simple
+Pass	font: 35% inherit simple (setter)
+Pass	font: 7832.3% inherit simple
+Pass	font: 7832.3% inherit simple (setter)
+Pass	font: xx-large inherit simple
+Pass	font: xx-large inherit simple (setter)
+Pass	font: lighter larger inherit simple
+Pass	font: lighter larger inherit simple (setter)
+Pass	font: italic 16px inherit simple
+Pass	font: italic 16px inherit simple (setter)
+Pass	font: italic bold 16px inherit simple
+Pass	font: italic bold 16px inherit simple (setter)
+Pass	font: normal smaller inherit simple
+Pass	font: normal smaller inherit simple (setter)
+Pass	font: normal normal 16px inherit simple
+Pass	font: normal normal 16px inherit simple (setter)
+Pass	font: 400 normal 16px inherit simple
+Pass	font: 400 normal 16px inherit simple (setter)
+Pass	font: bolder oblique 16px inherit simple
+Pass	font: bolder oblique 16px inherit simple (setter)
+Pass	font-family: normal simple
+Pass	font-family: normal simple (setter)
+Pass	font: 16px normal simple
+Pass	font: 16px normal simple (setter)
+Pass	font: 900px normal simple
+Pass	font: 900px normal simple (setter)
+Pass	font: 900em normal simple
+Pass	font: 900em normal simple (setter)
+Pass	font: 35% normal simple
+Pass	font: 35% normal simple (setter)
+Pass	font: 7832.3% normal simple
+Pass	font: 7832.3% normal simple (setter)
+Pass	font: xx-large normal simple
+Pass	font: xx-large normal simple (setter)
+Pass	font: lighter larger normal simple
+Pass	font: lighter larger normal simple (setter)
+Pass	font: italic 16px normal simple
+Pass	font: italic 16px normal simple (setter)
+Pass	font: italic bold 16px normal simple
+Pass	font: italic bold 16px normal simple (setter)
+Pass	font: normal smaller normal simple
+Pass	font: normal smaller normal simple (setter)
+Pass	font: normal normal 16px normal simple
+Pass	font: normal normal 16px normal simple (setter)
+Pass	font: 400 normal 16px normal simple
+Pass	font: 400 normal 16px normal simple (setter)
+Pass	font: bolder oblique 16px normal simple
+Pass	font: bolder oblique 16px normal simple (setter)
+Pass	font-family: caption
+Pass	font-family: caption (setter)
+Pass	font: 16px caption
+Pass	font: 16px caption (setter)
+Pass	font: 900px caption
+Pass	font: 900px caption (setter)
+Pass	font: 900em caption
+Pass	font: 900em caption (setter)
+Pass	font: 35% caption
+Pass	font: 35% caption (setter)
+Pass	font: 7832.3% caption
+Pass	font: 7832.3% caption (setter)
+Pass	font: xx-large caption
+Pass	font: xx-large caption (setter)
+Pass	font: lighter larger caption
+Pass	font: lighter larger caption (setter)
+Pass	font: italic 16px caption
+Pass	font: italic 16px caption (setter)
+Pass	font: italic bold 16px caption
+Pass	font: italic bold 16px caption (setter)
+Pass	font: normal smaller caption
+Pass	font: normal smaller caption (setter)
+Pass	font: normal normal 16px caption
+Pass	font: normal normal 16px caption (setter)
+Pass	font: 400 normal 16px caption
+Pass	font: 400 normal 16px caption (setter)
+Pass	font: bolder oblique 16px caption
+Pass	font: bolder oblique 16px caption (setter)
+Pass	font-family: icon
+Pass	font-family: icon (setter)
+Pass	font: 16px icon
+Pass	font: 16px icon (setter)
+Pass	font: 900px icon
+Pass	font: 900px icon (setter)
+Pass	font: 900em icon
+Pass	font: 900em icon (setter)
+Pass	font: 35% icon
+Pass	font: 35% icon (setter)
+Pass	font: 7832.3% icon
+Pass	font: 7832.3% icon (setter)
+Pass	font: xx-large icon
+Pass	font: xx-large icon (setter)
+Pass	font: lighter larger icon
+Pass	font: lighter larger icon (setter)
+Pass	font: italic 16px icon
+Pass	font: italic 16px icon (setter)
+Pass	font: italic bold 16px icon
+Pass	font: italic bold 16px icon (setter)
+Pass	font: normal smaller icon
+Pass	font: normal smaller icon (setter)
+Pass	font: normal normal 16px icon
+Pass	font: normal normal 16px icon (setter)
+Pass	font: 400 normal 16px icon
+Pass	font: 400 normal 16px icon (setter)
+Pass	font: bolder oblique 16px icon
+Pass	font: bolder oblique 16px icon (setter)
+Pass	font-family: menu
+Pass	font-family: menu (setter)
+Pass	font: 16px menu
+Pass	font: 16px menu (setter)
+Pass	font: 900px menu
+Pass	font: 900px menu (setter)
+Pass	font: 900em menu
+Pass	font: 900em menu (setter)
+Pass	font: 35% menu
+Pass	font: 35% menu (setter)
+Pass	font: 7832.3% menu
+Pass	font: 7832.3% menu (setter)
+Pass	font: xx-large menu
+Pass	font: xx-large menu (setter)
+Pass	font: lighter larger menu
+Pass	font: lighter larger menu (setter)
+Pass	font: italic 16px menu
+Pass	font: italic 16px menu (setter)
+Pass	font: italic bold 16px menu
+Pass	font: italic bold 16px menu (setter)
+Pass	font: normal smaller menu
+Pass	font: normal smaller menu (setter)
+Pass	font: normal normal 16px menu
+Pass	font: normal normal 16px menu (setter)
+Pass	font: 400 normal 16px menu
+Pass	font: 400 normal 16px menu (setter)
+Pass	font: bolder oblique 16px menu
+Pass	font: bolder oblique 16px menu (setter)
+Pass	font: 16px unset
+Pass	font: 16px unset (setter)
+Pass	font: 900px unset
+Pass	font: 900px unset (setter)
+Pass	font: 900em unset
+Pass	font: 900em unset (setter)
+Pass	font: 35% unset
+Pass	font: 35% unset (setter)
+Pass	font: 7832.3% unset
+Pass	font: 7832.3% unset (setter)
+Pass	font: xx-large unset
+Pass	font: xx-large unset (setter)
+Pass	font: lighter larger unset
+Pass	font: lighter larger unset (setter)
+Pass	font: italic 16px unset
+Pass	font: italic 16px unset (setter)
+Pass	font: italic bold 16px unset
+Pass	font: italic bold 16px unset (setter)
+Pass	font: normal smaller unset
+Pass	font: normal smaller unset (setter)
+Pass	font: normal normal 16px unset
+Pass	font: normal normal 16px unset (setter)
+Pass	font: 400 normal 16px unset
+Pass	font: 400 normal 16px unset (setter)
+Pass	font: bolder oblique 16px unset
+Pass	font: bolder oblique 16px unset (setter)
+Pass	font-family: unset, simple
+Pass	font-family: unset, simple (setter)
+Pass	font: 16px unset, simple
+Pass	font: 16px unset, simple (setter)
+Pass	font: 900px unset, simple
+Pass	font: 900px unset, simple (setter)
+Pass	font: 900em unset, simple
+Pass	font: 900em unset, simple (setter)
+Pass	font: 35% unset, simple
+Pass	font: 35% unset, simple (setter)
+Pass	font: 7832.3% unset, simple
+Pass	font: 7832.3% unset, simple (setter)
+Pass	font: xx-large unset, simple
+Pass	font: xx-large unset, simple (setter)
+Pass	font: lighter larger unset, simple
+Pass	font: lighter larger unset, simple (setter)
+Pass	font: italic 16px unset, simple
+Pass	font: italic 16px unset, simple (setter)
+Pass	font: italic bold 16px unset, simple
+Pass	font: italic bold 16px unset, simple (setter)
+Pass	font: normal smaller unset, simple
+Pass	font: normal smaller unset, simple (setter)
+Pass	font: normal normal 16px unset, simple
+Pass	font: normal normal 16px unset, simple (setter)
+Pass	font: 400 normal 16px unset, simple
+Pass	font: 400 normal 16px unset, simple (setter)
+Pass	font: bolder oblique 16px unset, simple
+Pass	font: bolder oblique 16px unset, simple (setter)
+Pass	font-family: simple, unset
+Pass	font-family: simple, unset (setter)
+Pass	font: 16px simple, unset
+Pass	font: 16px simple, unset (setter)
+Pass	font: 900px simple, unset
+Pass	font: 900px simple, unset (setter)
+Pass	font: 900em simple, unset
+Pass	font: 900em simple, unset (setter)
+Pass	font: 35% simple, unset
+Pass	font: 35% simple, unset (setter)
+Pass	font: 7832.3% simple, unset
+Pass	font: 7832.3% simple, unset (setter)
+Pass	font: xx-large simple, unset
+Pass	font: xx-large simple, unset (setter)
+Pass	font: lighter larger simple, unset
+Pass	font: lighter larger simple, unset (setter)
+Pass	font: italic 16px simple, unset
+Pass	font: italic 16px simple, unset (setter)
+Pass	font: italic bold 16px simple, unset
+Pass	font: italic bold 16px simple, unset (setter)
+Pass	font: normal smaller simple, unset
+Pass	font: normal smaller simple, unset (setter)
+Pass	font: normal normal 16px simple, unset
+Pass	font: normal normal 16px simple, unset (setter)
+Pass	font: 400 normal 16px simple, unset
+Pass	font: 400 normal 16px simple, unset (setter)
+Pass	font: bolder oblique 16px simple, unset
+Pass	font: bolder oblique 16px simple, unset (setter)
+Pass	font-family: simple, unset bongo
+Pass	font-family: simple, unset bongo (setter)
+Pass	font: 16px simple, unset bongo
+Pass	font: 16px simple, unset bongo (setter)
+Pass	font: 900px simple, unset bongo
+Pass	font: 900px simple, unset bongo (setter)
+Pass	font: 900em simple, unset bongo
+Pass	font: 900em simple, unset bongo (setter)
+Pass	font: 35% simple, unset bongo
+Pass	font: 35% simple, unset bongo (setter)
+Pass	font: 7832.3% simple, unset bongo
+Pass	font: 7832.3% simple, unset bongo (setter)
+Pass	font: xx-large simple, unset bongo
+Pass	font: xx-large simple, unset bongo (setter)
+Pass	font: lighter larger simple, unset bongo
+Pass	font: lighter larger simple, unset bongo (setter)
+Pass	font: italic 16px simple, unset bongo
+Pass	font: italic 16px simple, unset bongo (setter)
+Pass	font: italic bold 16px simple, unset bongo
+Pass	font: italic bold 16px simple, unset bongo (setter)
+Pass	font: normal smaller simple, unset bongo
+Pass	font: normal smaller simple, unset bongo (setter)
+Pass	font: normal normal 16px simple, unset bongo
+Pass	font: normal normal 16px simple, unset bongo (setter)
+Pass	font: 400 normal 16px simple, unset bongo
+Pass	font: 400 normal 16px simple, unset bongo (setter)
+Pass	font: bolder oblique 16px simple, unset bongo
+Pass	font: bolder oblique 16px simple, unset bongo (setter)
+Pass	font-family: simple, bongo unset
+Pass	font-family: simple, bongo unset (setter)
+Pass	font: 16px simple, bongo unset
+Pass	font: 16px simple, bongo unset (setter)
+Pass	font: 900px simple, bongo unset
+Pass	font: 900px simple, bongo unset (setter)
+Pass	font: 900em simple, bongo unset
+Pass	font: 900em simple, bongo unset (setter)
+Pass	font: 35% simple, bongo unset
+Pass	font: 35% simple, bongo unset (setter)
+Pass	font: 7832.3% simple, bongo unset
+Pass	font: 7832.3% simple, bongo unset (setter)
+Pass	font: xx-large simple, bongo unset
+Pass	font: xx-large simple, bongo unset (setter)
+Pass	font: lighter larger simple, bongo unset
+Pass	font: lighter larger simple, bongo unset (setter)
+Pass	font: italic 16px simple, bongo unset
+Pass	font: italic 16px simple, bongo unset (setter)
+Pass	font: italic bold 16px simple, bongo unset
+Pass	font: italic bold 16px simple, bongo unset (setter)
+Pass	font: normal smaller simple, bongo unset
+Pass	font: normal smaller simple, bongo unset (setter)
+Pass	font: normal normal 16px simple, bongo unset
+Pass	font: normal normal 16px simple, bongo unset (setter)
+Pass	font: 400 normal 16px simple, bongo unset
+Pass	font: 400 normal 16px simple, bongo unset (setter)
+Pass	font: bolder oblique 16px simple, bongo unset
+Pass	font: bolder oblique 16px simple, bongo unset (setter)
+Pass	font-family: simple unset
+Pass	font-family: simple unset (setter)
+Pass	font: 16px simple unset
+Pass	font: 16px simple unset (setter)
+Pass	font: 900px simple unset
+Pass	font: 900px simple unset (setter)
+Pass	font: 900em simple unset
+Pass	font: 900em simple unset (setter)
+Pass	font: 35% simple unset
+Pass	font: 35% simple unset (setter)
+Pass	font: 7832.3% simple unset
+Pass	font: 7832.3% simple unset (setter)
+Pass	font: xx-large simple unset
+Pass	font: xx-large simple unset (setter)
+Pass	font: lighter larger simple unset
+Pass	font: lighter larger simple unset (setter)
+Pass	font: italic 16px simple unset
+Pass	font: italic 16px simple unset (setter)
+Pass	font: italic bold 16px simple unset
+Pass	font: italic bold 16px simple unset (setter)
+Pass	font: normal smaller simple unset
+Pass	font: normal smaller simple unset (setter)
+Pass	font: normal normal 16px simple unset
+Pass	font: normal normal 16px simple unset (setter)
+Pass	font: 400 normal 16px simple unset
+Pass	font: 400 normal 16px simple unset (setter)
+Pass	font: bolder oblique 16px simple unset
+Pass	font: bolder oblique 16px simple unset (setter)
+Pass	font-family: unset simple
+Pass	font-family: unset simple (setter)
+Pass	font: 16px unset simple
+Pass	font: 16px unset simple (setter)
+Pass	font: 900px unset simple
+Pass	font: 900px unset simple (setter)
+Pass	font: 900em unset simple
+Pass	font: 900em unset simple (setter)
+Pass	font: 35% unset simple
+Pass	font: 35% unset simple (setter)
+Pass	font: 7832.3% unset simple
+Pass	font: 7832.3% unset simple (setter)
+Pass	font: xx-large unset simple
+Pass	font: xx-large unset simple (setter)
+Pass	font: lighter larger unset simple
+Pass	font: lighter larger unset simple (setter)
+Pass	font: italic 16px unset simple
+Pass	font: italic 16px unset simple (setter)
+Pass	font: italic bold 16px unset simple
+Pass	font: italic bold 16px unset simple (setter)
+Pass	font: normal smaller unset simple
+Pass	font: normal smaller unset simple (setter)
+Pass	font: normal normal 16px unset simple
+Pass	font: normal normal 16px unset simple (setter)
+Pass	font: 400 normal 16px unset simple
+Pass	font: 400 normal 16px unset simple (setter)
+Pass	font: bolder oblique 16px unset simple
+Pass	font: bolder oblique 16px unset simple (setter)

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#trig-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#angles">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-serialize">
+<link rel="author" title="Apple Inc">
+<link rel="author" title="Seokho Song" href="seokho@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/serialize-testcommon.js"></script>
+<div id=target></div>
+<script>
+
+function test_serialization(specified, expected, {prop="transform"}={}) {
+
+    // We only test the specified serialization,
+    // and not the computed or used serialization,
+    // since we'd need to do that by retrieving the rotation matrix,
+    // and that isn't perfectly interoperable in corner cases.
+    // Plus the point of this test is to check the trig functions themselves.
+    test_specified_serialization(prop, `rotate(${specified})`, `rotate(${expected})`)
+}
+//TEST CASE                                            | EXPECTED
+var test_map = {
+    "acos(1)"                                           :"calc(0deg)",
+    "acos(-1)"                                          :"calc(180deg)",
+    "acos(-1.5)"                                        :"calc(NaN * 1deg)",
+    "acos(1.5)"                                         :"calc(NaN * 1deg)",
+    "acos(2)"                                           :"calc(NaN * 1deg)",
+    "acos(0.5)"                                         :"calc(60deg)",
+    "acos(1 - 0.5)"                                     :"calc(60deg)",
+    "acos(0)"                                           :"calc(90deg)",
+    "asin(1)"                                           :"calc(90deg)",
+    "asin(-1)"                                          :"calc(-90deg)",
+    "asin(-1.5)"                                        :"calc(NaN * 1deg)",
+    "asin(1.5)"                                         :"calc(NaN * 1deg)",
+    "asin(2)"                                           :"calc(NaN * 1deg)",
+    "asin(0.5)"                                         :"calc(30deg)",
+    "asin(1 - 0.5)"                                     :"calc(30deg)",
+    "asin(0)"                                           :"calc(0deg)",
+    "acos(pi - pi)"                                     :"calc(90deg)",
+    "asin(pi - pi + 1)"                                 :"calc(90deg)",
+    "atan(1)"                                           :"calc(45deg)",
+    "atan(0.577350269)"                                 :"calc(30deg)",
+    "atan(0)"                                           :"calc(0deg)",
+    "atan(infinity)"                                    :"calc(90deg)",
+    "atan2(37.320508075, 10)"                           :"calc(75deg)",
+    "atan2(1s, 1000ms)"                                 :"calc(45deg)",
+    "atan2(infinity, infinity)"                         :"calc(45deg)",
+    "atan2(-infinity, -infinity)"                       :"calc(-135deg)",
+    "atan2(infinity, 10)"                               :"calc(90deg)",
+    "atan2(10, infinity)"                               :"calc(0deg)",
+    "atan2(NaN, 10)"                                    :"calc(NaN * 1deg)",
+    "atan2(10, NaN)"                                    :"calc(NaN * 1deg)",
+    "atan2(NaN, NaN)"                                   :"calc(NaN * 1deg)",
+};
+
+for (var exp in test_map) {
+    test_serialization(exp, test_map[exp]);
+    test_serialization(`calc(${exp})`, test_map[exp]);
+}
+</script>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const html = `<!DOCTYPE html><script>parent.postMessage(document.referrer, "*");<\/script>`;
+
+        async function testReferrerPolicy(policy, validate) {
+            const url = await server.createEcho("GET", `/referrer-test-${policy}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: html,
+            });
+
+            const referrer = await new Promise(resolve => {
+                const iframe = document.createElement("iframe");
+                iframe.referrerPolicy = policy;
+                window.onmessage = e => {
+                    if (e.source === iframe.contentWindow) {
+                        iframe.remove();
+                        resolve(e.data);
+                    }
+                };
+                document.body.appendChild(iframe);
+                iframe.src = url;
+            });
+
+            println(`${policy}: ${validate(referrer) ? "PASS" : "FAIL"}`);
+        }
+
+        await testReferrerPolicy("no-referrer", r => r === "");
+        await testReferrerPolicy("origin", r => r.endsWith("/"));
+        await testReferrerPolicy("unsafe-url", r => r.includes(".html"));
+    });
+</script>

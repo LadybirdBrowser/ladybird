@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#function-contains">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="helpers.js"></script>
+<body>
+<div id="context"></div>
+<script>
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span>bar bar</span><span>bar<b>ber</b></span><b>bar</b>';
+  assert_true(evaluateBoolean('contains((./span)[1], ./b)', context));
+}, 'contains() arguments depending on the context node');
+</script>
+</body>

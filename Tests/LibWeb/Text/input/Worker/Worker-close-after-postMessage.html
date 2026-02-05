@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let work = new Worker("worker-close-after-postMessage.js");
+        work.onmessage = (evt) => {
+            println(evt.data);
+            done();
+        };
+        work.postMessage("")
+    });
+</script>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style id="styleElement">
+    .green-background { background-color: rgb(0, 255, 0) !important; }
+    .red-background { background-color: rgb(255, 0, 0); }
+</style>
+<script src="../include.js"></script>
+<iframe id="iframe"></iframe>
+<script>
+
+    function testSetSelectorText(doc) {
+        const divElement = doc.createElement("div");
+        divElement.classList.add("red-background");
+        divElement.id = "container";
+        divElement.innerHTML = "This shouldn't be visible";
+        doc.body.appendChild(divElement);
+        const divStyle = getComputedStyle(divElement);
+        const greenBackgroundRule = doc.styleSheets[0].cssRules[0];
+        println(`selectorText initial value: ${greenBackgroundRule.selectorText}`);
+        println(`container element backgroundColor initial value: ${divStyle.backgroundColor}`);
+        greenBackgroundRule.selectorText = "#container";
+        println(`selectorText after setting selectorText value to #container: ${greenBackgroundRule.selectorText}`);
+        println(`container element backgroundColor after setting selectorText value to #container: ${divStyle.backgroundColor}`);
+        doc.body.removeChild(divElement);        
+    }
+
+    test(() => {
+        const frameDocument = document.getElementById("iframe").contentDocument;
+        frameDocument.body.appendChild(document.getElementById("styleElement").cloneNode(true));
+
+        println("Testing window.document:");
+        testSetSelectorText(document);
+        
+        println("Testing iframe.contentDocument:");
+        testSetSelectorText(frameDocument);
+    });
+</script>

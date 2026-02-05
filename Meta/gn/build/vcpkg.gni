@@ -1,0 +1,32 @@
+declare_args() {
+  # Root directory for vcpkg port files. Should be a checkout of microsoft/vcpkg.
+  vcpkg_root = "//Toolchain/Tarballs/vcpkg"
+
+  # The os name to use for the default vcpkg triplet.
+  # If vcpkg_triplet is explicitly set, this is ignored.
+  vcpkg_os = current_os
+  if (current_os == "mac") {
+    vcpkg_os = "osx"
+  } else if (current_os == "win") {
+    vcpkg_os = "windows"
+  }
+
+  # Location to cache vcpkg build artifacts.
+  vcpkg_binary_cache = "//Toolchain/Build/vcpkg-binary-cache"
+
+  # Path to the vcpkg manifest file that describes all the vcpkg dependencies of the project
+  vcpkg_manifest = "//vcpkg.json"
+
+  # The directory to install vcpkg dependencies into.
+  vcpkg_install_root = "${root_build_dir}/vcpkg_installed"
+}
+
+declare_args() {
+  # Path to the vcpkg-tool binary, as bootstrapped in the vcpkg root directory.
+  vcpkg_binary = "${vcpkg_root}/vcpkg"
+}
+
+declare_args() {
+  # The vcpkg triplet to use. If not set, it is derived from the current_os and current_cpu.
+  vcpkg_triplet = "${current_cpu}-${vcpkg_os}"
+}

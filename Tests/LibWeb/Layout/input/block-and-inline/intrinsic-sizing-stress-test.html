@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    width: max-content;
+    margin: 0;
+    font: 16px/1 monospace;
+}
+.section {
+    border: 2px solid black;
+    margin: 10px 0;
+    background: #eee;
+}
+.section-title {
+    background: #333;
+    color: white;
+    padding: 4px;
+}
+
+/* Various wrapper types */
+.plain { background: rgba(255,0,0,0.1); padding: 2px; }
+.with-min-width { min-width: 50px; background: rgba(0,255,0,0.1); padding: 2px; }
+.with-max-width { max-width: 300px; background: rgba(0,0,255,0.1); padding: 2px; }
+.with-border { border: 3px solid orange; }
+.with-margin { margin: 5px; background: rgba(255,0,255,0.1); }
+.creates-bfc { overflow: hidden; background: rgba(255,255,0,0.2); padding: 2px; }
+.inline-block { display: inline-block; background: rgba(0,255,255,0.2); padding: 2px; }
+.flex-container { display: flex; background: rgba(128,0,128,0.2); padding: 2px; }
+.grid-container { display: grid; background: rgba(128,128,0,0.2); padding: 2px; }
+.floated { float: left; background: rgba(0,128,128,0.2); padding: 2px; }
+.clearfix::after { content: ""; display: block; clear: both; }
+
+.content { white-space: nowrap; background: yellow; }
+.short-content { white-space: nowrap; background: lime; }
+</style>
+</head>
+<body>
+
+<!-- Test 1: Plain nested divs (the simple case) -->
+<div class="section">
+<div class="section-title">Test 1: Plain nested divs</div>
+<div class="plain"><div class="plain"><div class="plain"><div class="plain"><div class="plain">
+<div class="content">Plain nesting works correctly</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 2: min-width on intermediate boxes -->
+<div class="section">
+<div class="section-title">Test 2: min-width on intermediate boxes</div>
+<div class="plain"><div class="with-min-width"><div class="plain"><div class="with-min-width"><div class="plain">
+<div class="short-content">Hi</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 3: max-width on intermediate boxes -->
+<div class="section">
+<div class="section-title">Test 3: max-width on intermediate boxes</div>
+<div class="plain"><div class="with-max-width"><div class="plain"><div class="plain"><div class="plain">
+<div class="content">This text is longer than 300px and should be constrained by max-width</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 4: overflow:hidden creates BFC -->
+<div class="section">
+<div class="section-title">Test 4: overflow:hidden (creates BFC) in the middle</div>
+<div class="plain"><div class="plain"><div class="creates-bfc"><div class="plain"><div class="plain">
+<div class="content">BFC in the middle of nesting</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 5: Multiple siblings at different levels -->
+<div class="section">
+<div class="section-title">Test 5: Multiple siblings</div>
+<div class="plain">
+  <div class="plain">
+    <div class="content">First sibling</div>
+    <div class="content">Second sibling is longer than first</div>
+  </div>
+  <div class="plain">
+    <div class="content">Another branch</div>
+  </div>
+</div>
+</div>
+
+<!-- Test 6: Flex container in the middle -->
+<div class="section">
+<div class="section-title">Test 6: Flex container in the middle</div>
+<div class="plain"><div class="plain"><div class="flex-container"><div class="plain"><div class="plain">
+<div class="content">Flex container ancestor</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 7: Grid container in the middle -->
+<div class="section">
+<div class="section-title">Test 7: Grid container in the middle</div>
+<div class="plain"><div class="plain"><div class="grid-container"><div class="plain"><div class="plain">
+<div class="content">Grid container ancestor</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 8: inline-block in the middle -->
+<div class="section">
+<div class="section-title">Test 8: inline-block in the middle</div>
+<div class="plain"><div class="plain"><div class="inline-block"><div class="plain"><div class="plain">
+<div class="content">inline-block ancestor</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 9: Floats inside -->
+<div class="section clearfix">
+<div class="section-title">Test 9: Float inside nested structure</div>
+<div class="plain"><div class="plain"><div class="plain">
+<div class="floated"><div class="content">Floated content</div></div>
+<div class="content">Non-floated sibling</div>
+</div></div></div>
+</div>
+
+<!-- Test 10: Deep nesting with borders and padding accumulating -->
+<div class="section">
+<div class="section-title">Test 10: Borders and padding accumulating</div>
+<div class="with-border"><div class="with-border"><div class="with-border"><div class="with-border"><div class="with-border">
+<div class="content">Accumulated borders</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 11: Mix of everything -->
+<div class="section">
+<div class="section-title">Test 11: Mixed nesting types</div>
+<div class="plain">
+  <div class="with-min-width">
+    <div class="creates-bfc">
+      <div class="plain">
+        <div class="with-border">
+          <div class="content">Complex mixed nesting</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Test 12: Deeply nested with min-content trigger -->
+<div class="section" style="width: min-content;">
+<div class="section-title">Test 12: min-content sizing</div>
+<div class="plain"><div class="plain"><div class="plain"><div class="plain"><div class="plain">
+<div class="content">min-content test with some words</div>
+</div></div></div></div></div>
+</div>
+
+<!-- Test 13: Auto margins -->
+<div class="section">
+<div class="section-title">Test 13: Auto margins in intrinsic context</div>
+<div class="plain"><div class="with-margin" style="margin-left: auto; margin-right: auto;"><div class="plain">
+<div class="content">Auto margins</div>
+</div></div></div>
+</div>
+
+<!-- Test 14: Percentage padding -->
+<div class="section">
+<div class="section-title">Test 14: Percentage padding</div>
+<div class="plain"><div class="plain" style="padding: 5%;"><div class="plain"><div class="plain">
+<div class="content">Percentage padding</div>
+</div></div></div></div>
+</div>
+
+<!-- Test 15: Generated content stress test -->
+<div class="section">
+<div class="section-title">Test 15: Deep generated nesting (100 levels)</div>
+<div id="deep-container"></div>
+</div>
+
+<script>
+// Generate deep nesting programmatically
+const container = document.getElementById("deep-container");
+let current = container;
+
+for (let i = 0; i < 100; i++) {
+    const wrapper = document.createElement("div");
+    // Alternate between different wrapper types
+    switch (i % 5) {
+        case 0: wrapper.className = "plain"; break;
+        case 1: wrapper.className = "with-border"; break;
+        case 2: wrapper.className = "plain"; break;
+        case 3: wrapper.className = "with-margin"; break;
+        case 4: wrapper.className = "plain"; break;
+    }
+    current.appendChild(wrapper);
+    current = wrapper;
+}
+
+const content = document.createElement("div");
+content.className = "content";
+content.textContent = "Deep generated nesting complete!";
+current.appendChild(content);
+</script>
+
+</body>
+</html>

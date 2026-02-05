@@ -1,0 +1,55 @@
+/*
+ * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibJS/Export.h>
+#include <LibJS/Runtime/Object.h>
+
+namespace JS {
+
+class JS_API JSONObject final : public Object {
+    JS_OBJECT(JSONObject, Object);
+    GC_DECLARE_ALLOCATOR(JSONObject);
+
+public:
+    virtual void initialize(Realm&) override;
+    virtual ~JSONObject() override = default;
+
+    // The base implementation of stringify is exposed because it is used by
+    // test-js to communicate between the JS tests and the C++ test runner.
+    static ThrowCompletionOr<Optional<String>> stringify_impl(VM&, Value value, Value replacer, Value space);
+
+    static ThrowCompletionOr<Value> parse_json(VM&, StringView text);
+
+private:
+    explicit JSONObject(Realm&);
+
+    struct StringifyState {
+        GC::Ptr<FunctionObject> replacer_function;
+        HashTable<GC::Ptr<Object>> seen_objects;
+        size_t indent_depth { 0 };
+        String gap;
+        Optional<Vector<Utf16String>> property_list;
+        StringBuilder builder;
+    };
+
+    // Stringify helpers
+    static ThrowCompletionOr<bool> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
+    static ThrowCompletionOr<void> serialize_json_object(VM&, StringifyState&, Object&);
+    static ThrowCompletionOr<void> serialize_json_array(VM&, StringifyState&, Object&);
+    static void quote_json_string(StringBuilder&, Utf16View const&);
+
+    // Parse helpers
+    static ThrowCompletionOr<Value> internalize_json_property(VM&, Object* holder, PropertyKey const& name, FunctionObject& reviver);
+
+    JS_DECLARE_NATIVE_FUNCTION(stringify);
+    JS_DECLARE_NATIVE_FUNCTION(parse);
+    JS_DECLARE_NATIVE_FUNCTION(raw_json);
+    JS_DECLARE_NATIVE_FUNCTION(is_raw_json);
+};
+
+}

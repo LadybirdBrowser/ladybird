@@ -1,0 +1,27 @@
+deltaX: 0
+deltaY: 0
+deltaZ: 0
+deltaMode: 0
+view: null
+screenX: 0
+screenY: 0
+clientX: 0
+clientY: 0
+ctrlKey: false
+altKey: false
+shiftKey: false
+metaKey: false
+
+deltaX: 10
+deltaY: 20
+deltaZ: 35
+deltaMode: 2
+view: null
+screenX: 1
+screenY: 2
+clientX: 3
+clientY: 4
+ctrlKey: true
+altKey: true
+shiftKey: false
+metaKey: true

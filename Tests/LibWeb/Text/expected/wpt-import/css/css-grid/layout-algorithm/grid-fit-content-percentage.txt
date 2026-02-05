@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	fit-content(0%); min-width: 0px
+Pass	fit-content(50%); min-width: 0px
+Pass	fit-content(75%); min-width: 0px
+Pass	fit-content(100%); min-width: 0px
+Pass	fit-content(150%); min-width: 0px
+Pass	fit-content(calc(0px + 0%)); min-width: 0px
+Pass	fit-content(calc(0px + 50%)); min-width: 0px
+Pass	fit-content(calc(0px + 75%)); min-width: 0px
+Pass	fit-content(calc(0px + 100%)); min-width: 0px
+Pass	fit-content(calc(0px + 150%)); min-width: 0px
+Pass	fit-content(0%); min-width: auto
+Pass	fit-content(50%); min-width: auto
+Pass	fit-content(75%); min-width: auto
+Pass	fit-content(100%); min-width: auto
+Pass	fit-content(150%); min-width: auto
+Pass	fit-content(calc(0px + 0%)); min-width: auto
+Pass	fit-content(calc(0px + 50%)); min-width: auto
+Pass	fit-content(calc(0px + 75%)); min-width: auto
+Pass	fit-content(calc(0px + 100%)); min-width: auto
+Pass	fit-content(calc(0px + 150%)); min-width: auto

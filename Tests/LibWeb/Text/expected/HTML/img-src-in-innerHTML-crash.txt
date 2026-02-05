@@ -1,0 +1,2 @@
+PASS! (Didn't crash)
+data:text/png,

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe src="about:blank"></iframe>
+<script>
+    test(() => {
+        println(0 in window)
+        println(window[0])
+        println(1 in window)
+    });
+</script>

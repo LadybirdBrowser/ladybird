@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" title="2.4 Text Underline Offset: the 'text-underline-offset' property"
+      href="https://drafts.csswg.org/css-text-decor-4/#underline-offset" />
+</head>
+<body>
+<script>
+test(function() {
+   assert_equals(getComputedStyle(document.body)["text-underline-offset"], "auto", "Must be set to value auto as initial value.");
+}, "Initial value of text-underline-offset");
+</script>
+</body>
+</html>

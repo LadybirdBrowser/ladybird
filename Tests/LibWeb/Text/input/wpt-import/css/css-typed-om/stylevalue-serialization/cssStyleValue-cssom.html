@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSStyleValue serialization from CSSOM</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  const result = createInlineStyleMap(t, 'color: red').get('color');
+  assert_equals(result.toString(), 'red');
+}, 'CSSStyleValue from specified CSSOM serializes correctly');
+
+test(t => {
+  const result = createComputedStyleMap(t, 'color: red').get('color');
+  assert_equals(result.toString(), 'rgb(255, 0, 0)');
+}, 'CSSStyleValue from computed CSSOM serializes correctly');
+
+test(t => {
+  const result = createInlineStyleMap(t, 'background: blue').get('background');
+  assert_equals(result.toString(), 'blue');
+}, 'Shorthand CSSStyleValue from inline CSSOM serializes correctly');
+
+test(t => {
+  const result = createComputedStyleMap(t, 'background: blue').get('background');
+  assert_equals(result.toString(), 'rgb(0, 0, 255) none repeat scroll 0% 0% / auto padding-box border-box');
+}, 'Shorthand CSSStyleValue from computed CSSOM serializes correctly');
+
+</script>

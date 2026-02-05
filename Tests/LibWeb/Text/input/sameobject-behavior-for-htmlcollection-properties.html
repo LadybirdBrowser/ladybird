@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<form><table><thead><tr><td></td></tr></thead></table></form>
+<script src="include.js"></script>
+<script>
+  test(() => {
+      function testElement(expr) {
+        let a = eval(expr);
+        let b = eval(expr);
+        println(`${expr} ${(a === b) ? "pass" : "fail"}`);
+      }
+
+      let table = document.querySelector("table")
+      let tr = document.querySelector("tr")
+      let form = document.querySelector("form")
+      let thead = document.querySelector("thead")
+
+      testElement("table.tBodies")
+      testElement("table.rows")
+      testElement("thead.rows")
+      testElement("tr.cells")
+      testElement("form.elements")
+
+      testElement("document.applets")
+      testElement("document.anchors")
+      testElement("document.images")
+      testElement("document.embeds")
+      testElement("document.plugins")
+      testElement("document.links")
+      testElement("document.forms")
+      testElement("document.scripts")
+  });
+</script>
+</html>

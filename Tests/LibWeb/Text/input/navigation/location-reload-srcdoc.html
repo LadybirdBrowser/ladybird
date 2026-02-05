@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    let reloaded = false;
+
+    asyncTest(done => {
+        window.addEventListener("message", event => {
+            switch (event.data.action) {
+                case "loaded":
+                    println("iframe is loaded");
+                    if (!reloaded) {
+                        event.source.postMessage({ action: "reload" });
+                        reloaded = true;
+                    } else {
+                        done();
+                    }
+                    break;
+                case "acknowledge-asked-to-reload":
+                    println("iframe is going to reload");
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        const iframeScript = `
+        window.addEventListener('message', event => {
+            if (event.data && event.data.action === 'reload') {
+                window.parent.postMessage({ action: 'acknowledge-asked-to-reload' });
+                location.reload();
+            }
+        });
+        window.addEventListener('load', () => {
+            window.parent.postMessage({ action: 'loaded' });
+        });
+    `;
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<script>" + iframeScript + "<\/script>";
+        document.body.appendChild(iframe);
+    });
+</script>

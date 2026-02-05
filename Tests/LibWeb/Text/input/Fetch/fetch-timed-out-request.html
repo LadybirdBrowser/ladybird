@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        try {
+            await fetch("about:srcdoc", { signal: AbortSignal.timeout(0) });
+        } finally {
+            println("PASS (didn't crash)");
+            done();
+        }
+    });
+</script>

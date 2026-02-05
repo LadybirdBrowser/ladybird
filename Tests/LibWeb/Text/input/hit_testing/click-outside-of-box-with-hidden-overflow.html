@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .overflow-hidden {
+        overflow: hidden;
+        border: 1px solid black;
+        width: 200px;
+        height: 200px;
+    }
+
+    #box {
+        width: 400px;
+        height: 400px;
+        background-color: red;
+    }
+</style>
+<div class="overflow-hidden">
+    <div id="box"></div>
+</div>
+<script type="text/javascript">
+    test(() => {
+        printElement(internals.hitTest(300, 300).node);
+    });
+</script>

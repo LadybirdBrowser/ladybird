@@ -1,0 +1,13 @@
+#import <DOM/Event.idl>
+
+[Exposed=(Window,Worker)]
+interface IDBVersionChangeEvent : Event {
+    constructor(DOMString type, optional IDBVersionChangeEventInit eventInitDict = {});
+    readonly attribute unsigned long long oldVersion;
+    readonly attribute unsigned long long? newVersion;
+};
+
+dictionary IDBVersionChangeEventInit : EventInit {
+    unsigned long long oldVersion = 0;
+    unsigned long long? newVersion;
+};

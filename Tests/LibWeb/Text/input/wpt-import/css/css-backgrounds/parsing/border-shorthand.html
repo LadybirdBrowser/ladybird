@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: border sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-shorthands">
+<meta name="assert" content="border supports the full grammar '<line-width> || <line-style> || <color>'.">
+<meta name="assert" content="The border shorthand also resets border-image to its initial value.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+
+test_invalid_value('border', '2px solid color-mix(42deg)');
+test_invalid_value('border', '2px solid color-contrast(42deg)');
+
+test_shorthand_value('border', '5px dotted blue', {
+  'border-top-width': '5px',
+  'border-right-width': '5px',
+  'border-bottom-width': '5px',
+  'border-left-width': '5px',
+  'border-top-style': 'dotted',
+  'border-right-style': 'dotted',
+  'border-bottom-style': 'dotted',
+  'border-left-style': 'dotted',
+  'border-top-color': 'blue',
+  'border-right-color': 'blue',
+  'border-bottom-color': 'blue',
+  'border-left-color': 'blue',
+
+  'border-image-source': 'none',
+  'border-image-slice': '100%',
+  'border-image-width': '1',
+  'border-image-outset': '0',
+  'border-image-repeat': 'stretch'
+});
+
+test_shorthand_value('border-top', 'thin', {
+  'border-top-width': 'thin',
+  'border-top-style': 'none',
+  'border-top-color': 'currentcolor'
+});
+
+test_shorthand_value('border-right', 'double', {
+  'border-right-width': 'medium',
+  'border-right-style': 'double',
+  'border-right-color': 'currentcolor'
+});
+
+test_shorthand_value('border-bottom', 'green', {
+  'border-bottom-width': 'medium',
+  'border-bottom-style': 'none',
+  'border-bottom-color': 'green'
+});
+
+test_shorthand_value('border-left', '1px dotted red', {
+  'border-left-width': '1px',
+  'border-left-style': 'dotted',
+  'border-left-color': 'red'
+});
+</script>
+</body>
+</html>

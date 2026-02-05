@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>XPathNSResolver non-string return value</title>
+<link rel="help" href="https://www.w3.org/TR/DOM-Level-3-XPath/xpath.html#XPathEvaluator">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/invalid_namespace_test.js"></script>
+<div id=log></div>
+<script>
+"use strict";
+
+promise_test(t => {
+  return invalid_namespace_test(t, () => undefined);
+}, "undefined");
+
+promise_test(t => {
+  return invalid_namespace_test(t, () => null);
+}, "null");
+
+test(t => {
+  let resolverCalls = 0;
+
+  document.evaluate("/foo:bar", document.documentElement, () => {
+    resolverCalls++;
+    return 0;
+  });
+
+  assert_equals(resolverCalls, 1);
+}, "number");
+
+test(t => {
+  let resolverCalls = 0;
+
+  document.evaluate("/foo:bar", document.documentElement, () => {
+    resolverCalls++;
+    return false;
+  });
+
+  assert_equals(resolverCalls, 1);
+}, "boolean");
+
+promise_test(t => {
+  return promise_rejects_js(t, TypeError,
+    invalid_namespace_test(t, () => Symbol())
+  );
+}, "symbol");
+
+promise_test(t => {
+  const testError = { name: "test" };
+  const resolverResult = {
+    toString: () => { throw testError; },
+    valueOf: t.unreached_func("`valueOf` should not be called."),
+  };
+
+  return promise_rejects_exactly(t, testError,
+    invalid_namespace_test(t, () => resolverResult)
+  );
+}, "object coercion (abrupt completion)");
+</script>
+</body>

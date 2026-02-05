@@ -1,0 +1,12 @@
+#import <DOM/ChildNode.idl>
+#import <DOM/Node.idl>
+
+// https://dom.spec.whatwg.org/#documenttype
+[Exposed=Window]
+interface DocumentType : Node {
+    readonly attribute DOMString name;
+    readonly attribute DOMString publicId;
+    readonly attribute DOMString systemId;
+};
+
+DocumentType includes ChildNode;

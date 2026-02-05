@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['animation-timing-function'] = "steps(2,()start)" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(2,() start)" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(2, ()start)" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(2())" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(2 ())" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(2,())" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(2, ())" should not set the property value

@@ -1,0 +1,118 @@
+/* https://w3c.github.io/mathml-core/#user-agent-stylesheet */
+@namespace url(http://www.w3.org/1998/Math/MathML);
+
+/* Universal rules */
+* {
+  font-size: math;
+  display: block math;
+  writing-mode: horizontal-tb !important;
+}
+
+/* The <math> element */
+math {
+  direction: ltr;
+  text-indent: 0;
+  letter-spacing: normal;
+  line-height: normal;
+  word-spacing: normal;
+  font-family: math;
+  font-size: inherit;
+  font-style: normal;
+  font-weight: normal;
+  display: inline math;
+  math-shift: normal;
+  math-style: compact;
+  math-depth: 0;
+}
+math[display="block" i] {
+  display: block math;
+  math-style: normal;
+}
+math[display="inline" i] {
+  display: inline math;
+  math-style: compact;
+}
+
+/* <mrow>-like elements */
+semantics > :not(:first-child) {
+  display: none;
+}
+maction > :not(:first-child) {
+  display: none;
+}
+merror {
+  border: 1px solid red;
+  background-color: lightYellow;
+}
+mphantom {
+  visibility: hidden;
+}
+
+/* Token elements */
+mi {
+  text-transform: math-auto;
+}
+
+/* Tables */
+mtable {
+  display: inline-table;
+  math-style: compact;
+}
+mtr {
+  display: table-row;
+}
+mtd {
+  display: table-cell;
+  /* Centering inside table cells should rely on box alignment properties.
+     See https://github.com/w3c/mathml-core/issues/156 */
+  text-align: center;
+  padding: 0.5ex 0.4em;
+}
+
+/* Fractions */
+mfrac {
+  padding-inline: 1px;
+}
+mfrac > * {
+  math-depth: auto-add;
+  math-style: compact;
+}
+mfrac > :nth-child(2) {
+  math-shift: compact;
+}
+
+/* Other rules for scriptlevel, displaystyle and math-shift */
+mroot > :not(:first-child) {
+  math-depth: add(2);
+  math-style: compact;
+}
+mroot, msqrt {
+  math-shift: compact;
+}
+msub > :not(:first-child),
+msup > :not(:first-child),
+msubsup > :not(:first-child),
+mmultiscripts > :not(:first-child),
+munder > :not(:first-child),
+mover > :not(:first-child),
+munderover > :not(:first-child) {
+  math-depth: add(1);
+  math-style: compact;
+}
+munder[accentunder="true" i] > :nth-child(2),
+mover[accent="true" i] > :nth-child(2),
+munderover[accentunder="true" i] > :nth-child(2),
+munderover[accent="true" i] > :nth-child(3) {
+  font-size: inherit;
+}
+msub > :nth-child(2),
+msubsup > :nth-child(2),
+mmultiscripts > :nth-child(even),
+mmultiscripts > mprescripts ~ :nth-child(odd),
+mover[accent="true" i] > :first-child,
+munderover[accent="true" i] > :first-child {
+  math-shift: compact;
+}
+mmultiscripts > mprescripts ~ :nth-child(even) {
+  math-shift: inherit;
+}

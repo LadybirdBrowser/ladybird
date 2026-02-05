@@ -1,0 +1,185 @@
+:root {
+    --indigo-10: #a5a6f2;
+    --indigo-20: #8a88eb;
+    --indigo-30: #6851d6;
+    --indigo-40: #553fc4;
+    --indigo-50: #4d37b8;
+    --indigo-60: #3c28a1;
+    --indigo-80: #301f82;
+    --indigo-100: #2a1373;
+    --indigo-300: #260f73;
+    --indigo-500: #1d0c59;
+    --indigo-900: #190c4a;
+    --indigo: var(--indigo-100);
+
+    --violet-10: #e0d4ff;
+    --violet-20: #cab5ff;
+    --violet-30: #c3abff;
+    --violet-40: #b496ff;
+    --violet-50: #ab8ef5;
+    --violet-60: #9d7cf2;
+    --violet-80: #936fed;
+    --violet-100: #8a64e5;
+    --violet-300: #8257e6;
+    --violet-500: #7a4ce6;
+    --violet-900: #6a39db;
+    --violet: var(--violet-100);
+
+    --slate-blue-10: #cbe0f7;
+    --slate-blue-20: #c1d9f5;
+    --slate-blue-30: #b6d2f2;
+    --slate-blue-40: #a8c8ed;
+    --slate-blue-50: #97bce6;
+    --slate-blue-60: #86add9;
+    --slate-blue-80: #77a1d1;
+    --slate-blue-100: #6d98cc;
+    --slate-blue-300: #5c8ecc;
+    --slate-blue-500: #5484bf;
+    --slate-blue-900: #4872a3;
+    --slate-blue: var(--slate-blue-100);
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --text-color: #2f3640;
+        --toggle-background-color: #cccccc;
+        --secondary-button-color: #dddddd;
+        --secondary-button-hover: #e1e1e1;
+        --secondary-button-active: #e9e9e9;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text-color: #e0e0e0;
+        --toggle-background-color: #555555;
+        --secondary-button-color: #555555;
+        --secondary-button-hover: #505050;
+        --secondary-button-active: #444444;
+    }
+}
+
+* {
+    color-scheme: light dark;
+    font-family: sans-serif;
+
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    color: var(--text-color);
+}
+
+.hidden {
+    display: none;
+    opacity: 0;
+}
+
+/**
+ * Generic form controls.
+ */
+
+button.primary-button,
+button.secondary-button {
+    font-size: 14px;
+
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+
+    cursor: pointer;
+}
+
+button.primary-button:hover,
+button.secondary-button:hover {
+    filter: unset;
+}
+
+button.primary-button:active,
+button.secondary-button:active {
+    outline: none;
+}
+
+button.primary-button {
+    color: white;
+    background-color: var(--violet-100);
+}
+
+button.primary-button:hover {
+    background-color: var(--violet-500);
+}
+
+button.primary-button:active {
+    background-color: var(--violet-900);
+}
+
+button.primary-button:disabled {
+    background-color: var(--violet-60);
+}
+
+button.secondary-button {
+    background-color: var(--secondary-button-color);
+}
+
+button.secondary-button:hover {
+    background-color: var(--secondary-button-hover);
+}
+
+button.secondary-button:active {
+    background-color: var(--secondary-button-active);
+}
+
+input[type="search"],
+input[type="text"],
+input[type="url"],
+select {
+    color: var(--text-color);
+
+    font-size: 14px;
+
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+input[type="search"]:focus,
+input[type="text"]:focus,
+input[type="url"]:focus,
+select:focus {
+    border-color: var(--violet-100);
+    outline: none;
+}
+
+input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+
+    accent-color: var(--violet-100);
+
+    outline: none;
+}
+
+input[type="checkbox"][switch] {
+    width: 50px;
+    height: 24px;
+
+    background-color: var(--toggle-background-color);
+    cursor: pointer;
+
+    outline: none;
+}
+
+input[type="checkbox"][switch]:checked {
+    background-color: var(--violet-100);
+}
+
+input[type="checkbox"][switch]::before {
+    background-color: white;
+    border: 0.6em solid white;
+
+    left: 3px;
+}
+
+input[type="checkbox"][switch]:checked::before {
+    left: calc(100% - 1.3em);
+}

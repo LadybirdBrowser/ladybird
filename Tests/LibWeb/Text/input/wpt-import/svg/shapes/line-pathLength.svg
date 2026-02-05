@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <h:link rel="help" href="https://www.w3.org/TR/SVG2/shapes.html#InterfaceSVGLineElement"/>
+    <h:link rel="help" href="https://www.w3.org/TR/SVG2/types.html#InterfaceSVGGeometryElement"/>
+    <h:meta name="assert" content="The pathLength IDL attribute reflects the ‘pathLength’ content attribute."/>
+  </metadata>
+  <line id="interval" x1="300" y1="400" x2="500" y2="400" pathLength="25"/>
+  <h:script src="../../resources/testharness.js"/>
+  <h:script src="../../resources/testharnessreport.js"/>
+  <script><![CDATA[
+  test(function() {
+    var interval = document.getElementById('interval');
+    assert_not_equals(interval.pathLength, undefined, "pathLength is defined for SVGLineElement");
+    assert_equals(interval.pathLength.baseVal, 25);
+  }, 'line supports pathLength attribute');
+  ]]></script>
+</svg>

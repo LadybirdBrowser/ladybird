@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Reversing an animation</title>
+<link rel="help"
+      href="https://drafts.csswg.org/web-animations/#reversing-an-animation-section">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, { duration: 100 * MS_PER_SEC,
+                                      iterations: Infinity });
+
+  await animation.ready;
+  // Wait a frame because if currentTime is still 0 when we call
+  // reverse(), it will throw (per spec).
+  await waitForAnimationFrames(1);
+
+  assert_greater_than_equal(animation.currentTime, 0,
+    'currentTime expected to be greater than 0, one frame after starting');
+  animation.currentTime = 50 * MS_PER_SEC;
+  const previousPlaybackRate = animation.playbackRate;
+  animation.reverse();
+  assert_equals(animation.playbackRate, previousPlaybackRate,
+                'Playback rate should not have changed');
+  await animation.ready;
+
+  assert_equals(animation.playbackRate, -previousPlaybackRate,
+                'Playback rate should be inverted');
+}, 'Reversing an animation inverts the playback rate');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, { duration: 100 * MS_PER_SEC,
+                                      iterations: Infinity });
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.pause();
+
+  await animation.ready;
+
+  animation.reverse();
+  await animation.ready;
+
+  assert_equals(animation.playState, 'running',
+    'Animation.playState should be "running" after reverse()');
+}, 'Reversing an animation plays a pausing animation');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, 100 * MS_PER_SEC);
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.reverse();
+
+  assert_equals(animation.currentTime, 50 * MS_PER_SEC,
+    'The current time should not change it is in the middle of ' +
+    'the animation duration');
+}, 'Reversing an animation maintains the same current time');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, { duration: 200 * MS_PER_SEC,
+                                      delay: -100 * MS_PER_SEC });
+  assert_true(animation.pending,
+              'The animation is pending before we call reverse');
+
+  animation.reverse();
+
+  assert_true(animation.pending,
+              'The animation is still pending after calling reverse');
+}, 'Reversing an animation does not cause it to leave the pending state');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, { duration: 200 * MS_PER_SEC,
+                                      delay: -100 * MS_PER_SEC });
+  let readyResolved = false;
+  animation.ready.then(() => { readyResolved = true; });
+
+  animation.reverse();
+
+  await Promise.resolve();
+  assert_false(readyResolved,
+               'ready promise should not have been resolved yet');
+}, 'Reversing an animation does not cause it to resolve the ready promise');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, 100 * MS_PER_SEC);
+  animation.currentTime = 200 * MS_PER_SEC;
+  animation.reverse();
+
+  assert_equals(animation.currentTime, 100 * MS_PER_SEC,
+    'reverse() should start playing from the animation effect end ' +
+    'if the playbackRate > 0 and the currentTime > effect end');
+}, 'Reversing an animation when playbackRate > 0 and currentTime > ' +
+   'effect end should make it play from the end');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, 100 * MS_PER_SEC);
+
+  animation.currentTime = -200 * MS_PER_SEC;
+  animation.reverse();
+
+  assert_equals(animation.currentTime, 100 * MS_PER_SEC,
+    'reverse() should start playing from the animation effect end ' +
+    'if the playbackRate > 0 and the currentTime < 0');
+}, 'Reversing an animation when playbackRate > 0 and currentTime < 0 ' +
+   'should make it play from the end');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, 100 * MS_PER_SEC);
+  animation.playbackRate = -1;
+  animation.currentTime = -200 * MS_PER_SEC;
+  animation.reverse();
+
+  assert_equals(animation.currentTime, 0,
+    'reverse() should start playing from the start of animation time ' +
+    'if the playbackRate < 0 and the currentTime < 0');
+}, 'Reversing an animation when playbackRate < 0 and currentTime < 0 ' +
+   'should make it play from the start');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, 100 * MS_PER_SEC);
+  animation.playbackRate = -1;
+  animation.currentTime = 200 * MS_PER_SEC;
+  animation.reverse();
+
+  assert_equals(animation.currentTime, 0,
+    'reverse() should start playing from the start of animation time ' +
+    'if the playbackRate < 0 and the currentTime > effect end');
+}, 'Reversing an animation when playbackRate < 0 and currentTime > effect ' +
+   'end should make it play from the start');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, { duration: 100 * MS_PER_SEC,
+                                      iterations: Infinity });
+  animation.currentTime = -200 * MS_PER_SEC;
+
+  assert_throws_dom('InvalidStateError',
+    () => { animation.reverse(); },
+    'reverse() should throw InvalidStateError ' +
+    'if the playbackRate > 0 and the currentTime < 0 ' +
+    'and the target effect is positive infinity');
+}, 'Reversing an animation when playbackRate > 0 and currentTime < 0 ' +
+   'and the target effect end is positive infinity should throw an exception');
+
+promise_test(async t => {
+  const animation = createDiv(t).animate({}, { duration: 100 * MS_PER_SEC,
+                                               iterations: Infinity });
+  animation.currentTime = -200 * MS_PER_SEC;
+
+  try { animation.reverse(); } catch(e) { }
+
+  assert_equals(animation.playbackRate, 1, 'playbackRate is unchanged');
+
+  await animation.ready;
+  assert_equals(animation.playbackRate, 1, 'playbackRate remains unchanged');
+}, 'When reversing throws an exception, the playback rate remains unchanged');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, { duration: 100 * MS_PER_SEC,
+                                      iterations: Infinity });
+  animation.currentTime = -200 * MS_PER_SEC;
+  animation.playbackRate = 0;
+
+  try {
+    animation.reverse();
+  } catch (e) {
+    assert_unreached(`Unexpected exception when calling reverse(): ${e}`);
+  }
+}, 'Reversing animation when playbackRate = 0 and currentTime < 0 ' +
+   'and the target effect end is positive infinity should NOT throw an ' +
+   'exception');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, { duration: 100 * MS_PER_SEC,
+                                      iterations: Infinity });
+  animation.playbackRate = -1;
+  animation.currentTime = -200 * MS_PER_SEC;
+  animation.reverse();
+
+  assert_equals(animation.currentTime, 0,
+    'reverse() should start playing from the start of animation time ' +
+    'if the playbackRate < 0 and the currentTime < 0 ' +
+    'and the target effect is positive infinity');
+}, 'Reversing an animation when playbackRate < 0 and currentTime < 0 ' +
+   'and the target effect end is positive infinity should make it play ' +
+   'from the start');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, 100 * MS_PER_SEC);
+  animation.playbackRate = 0;
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.reverse();
+
+  await animation.ready;
+  assert_equals(animation.playbackRate, 0,
+    'reverse() should preserve playbackRate if the playbackRate == 0');
+  assert_equals(animation.currentTime, 50 * MS_PER_SEC,
+    'reverse() should not affect the currentTime if the playbackRate == 0');
+}, 'Reversing when when playbackRate == 0 should preserve the current ' +
+   'time and playback rate');
+
+test(t => {
+  const div = createDiv(t);
+  const animation =
+    new Animation(new KeyframeEffect(div, null, 100 * MS_PER_SEC));
+  assert_equals(animation.currentTime, null);
+
+  animation.reverse();
+
+  assert_equals(animation.currentTime, 100 * MS_PER_SEC,
+    'animation.currentTime should be at its effect end');
+}, 'Reversing an idle animation from starts playing the animation');
+
+test(t => {
+  const div = createDiv(t);
+  const animation =
+    new Animation(new KeyframeEffect(div, null, 100 * MS_PER_SEC), null);
+
+  assert_throws_dom('InvalidStateError', () => { animation.reverse(); });
+}, 'Reversing an animation without an active timeline throws an ' +
+   'InvalidStateError');
+
+promise_test(async t => {
+  const animation = createDiv(t).animate(null, 100 * MS_PER_SEC);
+  await animation.ready;
+
+  animation.updatePlaybackRate(2);
+  animation.reverse();
+
+  await animation.ready;
+  assert_equals(animation.playbackRate, -2);
+}, 'Reversing should use the negative pending playback rate');
+
+promise_test(async t => {
+  const animation = createDiv(t).animate(null, {
+    duration: 100 * MS_PER_SEC,
+    iterations: Infinity,
+  });
+  animation.currentTime = -200 * MS_PER_SEC;
+  await animation.ready;
+
+  animation.updatePlaybackRate(2);
+  assert_throws_dom('InvalidStateError', () => { animation.reverse(); });
+  assert_equals(animation.playbackRate, 1);
+
+  await animation.ready;
+  assert_equals(animation.playbackRate, 2);
+}, 'When reversing fails, it should restore any previous pending playback'
+   + ' rate');
+
+</script>
+</body>

@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<meta name="timeout" content="long" />
+<link rel="help" href="https://open-ui.org/components/invokers.explainer/" />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<script src="resources/invoker-utils.js"></script>
+
+<div id="invokee"></div>
+<button id="invokerbutton" commandfor="invokee"></button>
+
+<script>
+  ['', 'show-modal', 'toggle-popover', 'hide-popover', 'show-popover', 'close', '--custom'].forEach(command => {
+    test(function (t) {
+      invokerbutton.command = command
+      assert_equals(invokerbutton.command, command, `invoker should reflect ${command} properly`);
+    }, `invoker should reflect ${command} properly`);
+  });
+  [
+    ['sHoW-MoDaL', 'show-modal'],
+    ['tOgGlE-pOpOvEr', 'toggle-popover'],
+    ['hIdE-pOpOvEr', 'hide-popover'],
+    ['sHoW-pOpOvEr', 'show-popover'],
+    ['ClOsE', 'close'],
+    ['--cUsToM', '--cUsToM'
+  ]].forEach(([cased, command]) => {
+    test(function (t) {
+      invokerbutton.command = cased
+        assert_equals(invokerbutton.command, command, `invoker should reflect odd cased ${cased} properly - as ${command}`);
+    }, `invoker should reflect odd cased ${cased} properly - as ${command}`);
+  });
+  ['invalid', 'show-invalid', 'foo-bar'].forEach(command => {
+    test(function (t) {
+      invokerbutton.command = command
+      assert_equals(invokerbutton.command, '', `invoker should reflect the invalid value "${command}" as the empty string`);
+    }, `invoker should reflect the invalid value "${command}" as the empty string`);
+  });
+</script>

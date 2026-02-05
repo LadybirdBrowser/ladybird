@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>SVG Painting: parsing shape-rendering with invalid values</title>
+  <metadata>
+    <h:link rel="help" href="https://svgwg.org/svg2-draft/painting.html#ShapeRenderingProperty"/>
+    <h:meta name="assert" content="shape-rendering supports only the grammar 'auto | optimizeSpeed | crispEdges | geometricPrecision'."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_invalid_value("shape-rendering", "optimizelegibility");
+test_invalid_value("shape-rendering", "auto optimizespeed");
+
+  ]]></script>
+</svg>

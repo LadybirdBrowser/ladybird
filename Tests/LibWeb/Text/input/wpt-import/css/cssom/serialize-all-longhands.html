@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Serialize all longhands</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue">
+<meta name="assert" content="Checks that all longhands indexed in a CSSStyleDeclaration can be serialized to a non-empty string when set to their initial value.">
+
+<div id="target"></div>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+function nonSerializableProperties(style) {
+  const result = [];
+  assert_greater_than(style.length, 0, "Should have longhands");
+  for (let property of style) {
+    if (!style.getPropertyValue(property)) {
+      result.push(property);
+    }
+  }
+  return result;
+}
+
+const target = document.getElementById("target");
+target.style.cssText = "all: initial; direction: initial; unicode-bidi: initial;";
+
+test(function() {
+  const props = nonSerializableProperties(target.style);
+  assert_array_equals(props, []);
+}, "Specified style");
+
+test(function() {
+  const props = nonSerializableProperties(getComputedStyle(target));
+  assert_array_equals(props, []);
+}, "Computed style");
+</script>

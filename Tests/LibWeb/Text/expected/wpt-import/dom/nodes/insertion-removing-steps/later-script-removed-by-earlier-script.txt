@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	A later-inserted script removed by an earlier-inserted script in the same document fragment should not run
+Pass	A later-inserted script removed by an earlier-inserted script in the same append() call should not run

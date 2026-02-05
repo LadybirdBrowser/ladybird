@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# https://docs.astral.sh/ruff/rules/
+extend-select = [
+    "B", # flake8-bugbear
+    "I", # isort
+]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+lines-between-types = 1

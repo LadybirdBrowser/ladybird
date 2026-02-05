@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Test circle with negative easing on shape-outside
+Pass	Test ellipse with negative easing on shape-outside
+Pass	Test inset with negative easing on shape-outside

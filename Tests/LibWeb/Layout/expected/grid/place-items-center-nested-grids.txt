@@ -1,0 +1,26 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 106 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 90 0+0+8] [GFC] children: not-inline
+      Box <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 90 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 65.328125 0+0+0] [0+0+0 90 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [8,8 50.5625x18] baseline: 13.796875
+              "Making"
+          frag 1 from TextNode start: 7, length: 8, rect: [8,26 80.234375x18] baseline: 13.796875
+              "Commerce"
+          frag 2 from TextNode start: 16, length: 6, rect: [8,44 49.328125x18] baseline: 13.796875
+              "Better"
+          frag 3 from TextNode start: 23, length: 3, rect: [8,62 25.625x18] baseline: 13.796875
+              "for"
+          frag 4 from TextNode start: 27, length: 8, rect: [8,80 73.46875x18] baseline: 13.796875
+              "Everyone"
+          TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x106]
+    PaintableBox (Box<BODY>) [8,8 784x90]
+      PaintableBox (Box<DIV>) [8,8 784x90]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 65.328125x90]
+          TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x106] [children: 0] (z-index: auto)

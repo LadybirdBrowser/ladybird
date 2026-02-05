@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        input.addEventListener("keydown", e => {
+            println(`key="${e.key}" code=${e.code} ctrlKey=${e.ctrlKey}`);
+            e.preventDefault();
+        });
+
+        internals.sendKey(input, "C", internals.MOD_CTRL);
+        internals.sendKey(input, "C", internals.MOD_CTRL | internals.MOD_SHIFT);
+    });
+</script>

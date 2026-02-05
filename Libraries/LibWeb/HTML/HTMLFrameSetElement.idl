@@ -1,0 +1,15 @@
+#import <DOM/EventHandler.idl>
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmlframesetelement
+[Exposed=Window]
+interface HTMLFrameSetElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString cols;
+    [CEReactions, Reflect] attribute DOMString rows;
+
+};
+
+HTMLFrameSetElement includes WindowEventHandlers;

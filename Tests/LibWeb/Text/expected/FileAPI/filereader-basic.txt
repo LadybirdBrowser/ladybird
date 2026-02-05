@@ -1,0 +1,3 @@
+1: readAsText(): 'This is some data to be read! 🦬' error: 'null'
+2: readAsDataURL(): 'data:application/octet-stream;base64,VGhpcyBpcyBzb21lIGRhdGEgdG8gYmUgcmVhZCEg8J+mrA==' error: 'null'
+3: readAsArrayBuffer(): 'This is some data to be read! 🦬' error: 'null'

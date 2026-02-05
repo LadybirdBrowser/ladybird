@@ -1,0 +1,17 @@
+> move pointer over #inner
+mouseover target.id=(inner) currentTarget.id=(inner), relatedTarget.id=(body)
+mouseover target.id=(inner) currentTarget.id=(outer), relatedTarget.id=(body)
+mouseenter target.id=(inner) currentTarget.id=(inner), relatedTarget.id=(body)
+mouseenter target.id=(outer) currentTarget.id=(outer), relatedTarget.id=(body)
+> move pointer over #outer
+mouseout target.id=(inner) currentTarget.id=(inner), relatedTarget.id=(outer)
+mouseout target.id=(inner) currentTarget.id=(outer), relatedTarget.id=(outer)
+mouseleave target.id=(inner) currentTarget.id=(inner), relatedTarget.id=(outer)
+mouseover target.id=(outer) currentTarget.id=(outer), relatedTarget.id=(inner)
+> click #outer
+click target.id=(outer) currentTarget.id=(outer), button=0
+> auxclick #outer
+auxclick target.id=(outer) currentTarget.id=(outer), button=1
+> click document.body
+mouseout target.id=(outer) currentTarget.id=(outer), relatedTarget.id=(body)
+mouseleave target.id=(outer) currentTarget.id=(outer), relatedTarget.id=(body)

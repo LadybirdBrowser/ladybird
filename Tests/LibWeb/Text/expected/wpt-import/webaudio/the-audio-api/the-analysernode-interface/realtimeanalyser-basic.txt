@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Basic AnalyserNode test"
+Pass	Audit report
+Pass	> [Basic AnalyserNode test] 
+Pass	  Number of inputs for AnalyserNode is equal to 1.
+Pass	  Number of outputs for AnalyserNode is equal to 1.
+Pass	  Default minDecibels value is equal to -100.
+Pass	  Default maxDecibels value is equal to -30.
+Pass	  Default smoothingTimeConstant value is equal to 0.8.
+Pass	  node.minDecibels = -50.333333333333336 is equal to -50.333333333333336.
+Pass	  node.maxDecibels = -40.333333333333336 is equal to -40.333333333333336.
+Pass	< [Basic AnalyserNode test] All assertions passed. (total 7 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

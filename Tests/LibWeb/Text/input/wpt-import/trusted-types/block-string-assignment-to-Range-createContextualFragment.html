@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<body>
+<script>
+  // TrustedHTML assignments do not throw.
+  test(t => {
+    let p = createHTML_policy(window, 1);
+    let html = p.createHTML(INPUTS.HTML);
+    var range = document.createRange();
+    range.selectNodeContents(document.documentElement);
+    var result = range.createContextualFragment(html);
+    assert_equals(result.textContent, RESULTS.HTML);
+  }, "range.createContextualFragment assigned via policy (successful HTML transformation).");
+
+  // String assignments throw.
+  test(t => {
+    var range = document.createRange();
+    range.selectNodeContents(document.documentElement);
+    assert_throws_js(TypeError, _ => {
+      var result = range.createContextualFragment("A string");
+    });
+  }, "`range.createContextualFragment(string)` throws.");
+
+  // Null assignment throws.
+  test(t => {
+    var range = document.createRange();
+    range.selectNodeContents(document.documentElement);
+    assert_throws_js(TypeError, _ => {
+      var result = range.createContextualFragment(null);
+    });
+  }, "`range.createContextualFragment(null)` throws.");
+
+  // After default policy creation string assignment implicitly calls createHTML
+  test(t => {
+    let p = window.trustedTypes.createPolicy("default", { createHTML:
+      (value, _, sink) => {
+        assert_equals(sink, "Range createContextualFragment");
+        return createHTMLJS(value);
+      }
+    });
+
+    var range = document.createRange();
+    range.selectNodeContents(document.documentElement);
+    var result = range.createContextualFragment(INPUTS.HTML);
+    assert_equals(result.textContent, RESULTS.HTML);
+  }, "`range.createContextualFragment(string)` assigned via default policy (successful HTML transformation).");
+
+  // After default policy creation null assignment implicitly calls createHTML
+  test(t => {
+    var range = document.createRange();
+    range.selectNodeContents(document.documentElement);
+    var result = range.createContextualFragment(null);
+    assert_equals(result.textContent, "null");
+  }, "`range.createContextualFragment(null)` assigned via default policy does not throw.");
+</script>

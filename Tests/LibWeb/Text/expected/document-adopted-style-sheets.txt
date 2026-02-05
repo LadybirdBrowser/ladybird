@@ -1,0 +1,11 @@
+color with no adopted style sheets: rgb(0, 0, 0)
+document.adoptedStyleSheets.length=(1)
+add style sheet using Array.prototype.push(): rgb(255, 0, 0)
+document.adoptedStyleSheets.length=(0)
+delete added style sheet using Array.prototype.pop(): rgb(0, 0, 0)
+document.adoptedStyleSheets.length=(1)
+add style by assigning array to document.adoptedStyleSheets: rgb(255, 0, 0)
+document.adoptedStyleSheets.length=(1)
+add style by assigning Set to document.adoptedStyleSheets: rgb(0, 128, 0)
+assignment of non-iterable value to document.adoptedStyleSheets throws "1 is not iterable"
+assignment of value that is not CSSStyleSheet throws "Not an object of type CSSStyleSheet"

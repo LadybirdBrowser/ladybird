@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Don't crash when setting a CSS-wide keyword on a custom property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://crbug.com/1310761<">
+<div id="target">
+  Don't crash
+</div>
+<script>
+  for (let keyword of ['initial', 'inherit', 'unset', 'revert', 'revert-layer']) {
+    try {
+      target.attributeStyleMap.set('--x', new CSSKeywordValue(keyword));
+    } catch (e) {
+    }
+  }
+</script>

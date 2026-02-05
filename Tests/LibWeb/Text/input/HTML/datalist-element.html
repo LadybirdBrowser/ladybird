@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Get options from datalist
+        testPart(() => {
+            const datalist = document.createElement('datalist');
+            for (let i = 0; i < 10; i++) {
+                datalist.appendChild(document.createElement('div'));
+            }
+            for (let i = 0; i < 10; i++) {
+                datalist.appendChild(document.createElement('option'));
+            }
+            return datalist.options.length;
+        });
+
+        // 2. Check if options is same object and live
+        testPart(() => {
+            const datalist = document.createElement('datalist');
+            for (let i = 0; i < 10; i++) {
+                datalist.appendChild(document.createElement('option'));
+            }
+            for (let i = 0; i < 10; i++) {
+                datalist.appendChild(document.createElement('div'));
+            }
+            const options = datalist.options;
+            datalist.appendChild(document.createElement('option'));
+            return options.length;
+        });
+    });
+</script>

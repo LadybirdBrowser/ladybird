@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	getBoundingClientRect() should return a DOMRect where height=bottom-top
+Pass	getBoundingClientRect() should return a DOMRect where width=right-left

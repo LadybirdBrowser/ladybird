@@ -1,0 +1,30 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 134 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 118 0+0+8] children: not-inline
+      Box <div.grid-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 118 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.headline> at [8,8] [0+0+0 100 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 8, rect: [8,8 65.28125x18] baseline: 13.796875
+              "Headline"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.content> at [8,26] [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 7, rect: [8,26 62.328125x18] baseline: 13.796875
+              "Content"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x134]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x118]
+      PaintableBox (Box<DIV>.grid-container) [8,8 784x118]
+        PaintableWithLines (BlockContainer<DIV>.headline) [8,8 100x18]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.content) [8,26 400x100]
+          TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x134] [children: 0] (z-index: auto)

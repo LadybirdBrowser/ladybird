@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let xmlDoc = new DOMParser().parseFromString(
+            '<?xml version="1.0" encoding="UTF-8"?><root xmlns="http://www.w3.org/1999/xhtml"><element Attribute="Value">Text</element></root>',
+            'text/xml'
+        );
+
+        let element = xmlDoc.querySelector('element');
+        println(new XMLSerializer().serializeToString(element));
+        element.toggleAttribute('Attribute');
+        println(new XMLSerializer().serializeToString(element));
+        element.toggleAttribute('Attribute');
+        println(new XMLSerializer().serializeToString(element));
+    });
+</script>

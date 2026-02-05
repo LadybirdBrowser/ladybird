@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	::part with host selector styles in first host
+Pass	::part with host selector styles in second host

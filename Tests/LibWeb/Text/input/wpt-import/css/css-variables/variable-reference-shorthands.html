@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parse, store, and serialize CSS variable references - shorthand properties</title>
+
+    <meta rel="author" title="Kevin Babbitt">
+    <meta rel="author" title="Greg Whitworth">
+    <link rel="author" title="Microsoft Corporation" href="http://microsoft.com" />
+    <link rel="help" href="http://www.w3.org/TR/css-variables-1/#serializing-custom-props">
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+
+<div id="target1" style="margin: var(--prop); margin-top: 10px"></div>
+<div id="target2" style="margin: var(--prop) !important; margin-top: 10px"></div>
+<div id="target3" style="margin: var(--prop); margin-top: 10px !important"></div>
+<div id="target4" style="background: var(--prop);"></div>
+
+<script type="text/javascript">
+    "use strict";
+
+    var testcases = [
+        { element: "target1",   propertyName: "margin",         expectedPropertyValue: "" },
+        { element: "target1",   propertyName: "margin-left",    expectedPropertyValue: "" },
+        { element: "target1",   propertyName: "margin-top",     expectedPropertyValue: "10px" },
+        { element: "target1",   propertyName: "margin-right",   expectedPropertyValue: "" },
+        { element: "target1",   propertyName: "margin-bottom",  expectedPropertyValue: "" },
+
+        { element: "target2",   propertyName: "margin",         expectedPropertyValue: "var(--prop)" },
+        { element: "target2",   propertyName: "margin-left",    expectedPropertyValue: "" },
+        { element: "target2",   propertyName: "margin-top",     expectedPropertyValue: "" },
+        { element: "target2",   propertyName: "margin-right",   expectedPropertyValue: "" },
+        { element: "target2",   propertyName: "margin-bottom",  expectedPropertyValue: "" },
+
+        { element: "target3",   propertyName: "margin",         expectedPropertyValue: "" },
+        { element: "target3",   propertyName: "margin-left",    expectedPropertyValue: "" },
+        { element: "target3",   propertyName: "margin-top",     expectedPropertyValue: "10px" },
+        { element: "target3",   propertyName: "margin-right",   expectedPropertyValue: "" },
+        { element: "target3",   propertyName: "margin-bottom",  expectedPropertyValue: "" },
+
+        { element: "target4",   propertyName: "background",     expectedPropertyValue: "var(--prop)" }
+    ];
+
+    testcases.forEach(function (testcase) {
+        test( function () {
+            var div = document.getElementById(testcase.element);
+            var actualPropertyValue = div.style.getPropertyValue(testcase.propertyName).trim();
+            assert_equals(actualPropertyValue, testcase.expectedPropertyValue);
+        }, testcase.element + " " + testcase.propertyName);
+    });
+</script>
+
+</body>
+</html>

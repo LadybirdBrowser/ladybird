@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src='../resources/testharness.js'></script>
+<script src='../resources/testharnessreport.js'></script>
+<body>
+<script>
+[document, new XPathEvaluator()].forEach(evaluator => {
+  test(() => {
+    assert_equals(evaluator.createNSResolver(document), document, 'Document');
+    const fragment = document.createDocumentFragment();
+    assert_equals(evaluator.createNSResolver(fragment), fragment,
+                  'DocumentFragment');
+    assert_equals(evaluator.createNSResolver(document.doctype),
+                  document.doctype, 'DocumentType');
+    assert_equals(evaluator.createNSResolver(document.body), document.body,
+                  'Element');
+    assert_equals(evaluator.createNSResolver(document.body.firstChild),
+                  document.body.firstChild, 'Text');
+    const attr = document.createAttribute('foo');
+    assert_equals(evaluator.createNSResolver(attr), attr, 'Attr');
+  }, `createNSResolver() should return the specified node as is. (${evaluator.constructor.name})`);
+
+  function createAndLookup(evaluator, node) {
+    return evaluator.createNSResolver(node).lookupNamespaceURI('xml');
+  }
+
+  test(() => {
+    assert_equals(createAndLookup(evaluator, new Document()), null, 'Document');
+    assert_equals(createAndLookup(evaluator, new DocumentFragment()), null,
+                  'DocumentFragment');
+    assert_equals(createAndLookup(evaluator, document.doctype), null,
+                  'DocumentType');
+    assert_equals(createAndLookup(evaluator, document.createElement('body')),
+                  'http://www.w3.org/XML/1998/namespace', 'Element');
+    assert_equals(createAndLookup(evaluator, document.createTextNode('foo')),
+                  null, 'Text');
+    assert_equals(createAndLookup(evaluator, document.createAttribute('bar')),
+                  null, 'Attr');
+  }, `createNSResolver() resultant object should not add support of 'xml' prefix. (${evaluator.constructor.name})`);
+});
+</script>
+</body>

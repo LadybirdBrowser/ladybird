@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<link title="preferred" disabled rel="stylesheet" href="data:text/css,html { background: rgb(255, 0, 0) }">
+<link title="alternative" disabled rel="alternate stylesheet" href="data:text/css,html { background: rgb(0, 128, 0) !important }">
+<script>
+    asyncTest(done => {
+        const documentStyle = getComputedStyle(document.documentElement);    
+        println(`background color initial value: ${documentStyle.backgroundColor}`);
+        const primaryLink = document.querySelector("link[title=preferred]");
+        const alternativeLink = document.querySelector("link[title=alternative]");
+        primaryLink.onload = () => {
+            println(`background color after preferred style sheet enabled: ${documentStyle.backgroundColor}`);
+            alternativeLink.disabled = false;
+        };
+        alternativeLink.onload = () => {
+            println(`background color after alternate style sheet enabled: ${documentStyle.backgroundColor}`);
+            done();
+        };
+        primaryLink.disabled = false;
+    });
+</script>

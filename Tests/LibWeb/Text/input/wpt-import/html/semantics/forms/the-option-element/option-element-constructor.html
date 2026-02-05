@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Option element constructor</title>
+<link rel="author" title="Alex Pearson" href="mailto:alex@alexpear.com">
+<link rel="help" href="https://html.spec.whatwg.org/#the-option-element">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<div id="parent">
+  <div id="child" tabindex="0"></div>
+</div>
+
+<body>
+<script>
+  "use strict";
+
+  test(() => {
+    const option = new Option();
+
+    assert_true(option instanceof HTMLOptionElement);
+
+    assert_false(option.hasChildNodes());
+    assert_false(option.hasAttribute("value"));
+    assert_false(option.hasAttribute("selected"));
+    assert_false(option.selected);
+
+    assert_equals(option.textContent, "");
+    assert_equals(option.value, "");
+  }, "Option constructor with no arguments");
+
+  test(() => {
+    const option = new Option(false, false);
+
+    assert_true(option instanceof HTMLOptionElement);
+
+    assert_true(option.hasChildNodes());
+    assert_equals(option.childNodes.length, 1);
+    assert_equals(option.childNodes[0].nodeType, Node.TEXT_NODE);
+    assert_equals(option.childNodes[0].data, "false");
+    assert_equals(option.getAttribute("value"), "false");
+    assert_false(option.hasAttribute("selected"));
+    assert_false(option.selected);
+
+    assert_equals(option.textContent, "false");
+    assert_equals(option.value, "false");
+  }, "Option constructor with falsy arguments");
+
+  test(() => {
+    const option = new Option("text", "value");
+
+    assert_true(option.hasChildNodes());
+    assert_equals(option.childNodes.length, 1);
+    assert_equals(option.childNodes[0].nodeType, Node.TEXT_NODE);
+    assert_equals(option.childNodes[0].data, "text");
+    assert_equals(option.getAttribute("value"), "value");
+    assert_false(option.hasAttribute("selected"));
+    assert_false(option.selected);
+
+    assert_equals(option.textContent, "text");
+    assert_equals(option.value, "value");
+  }, "Option constructor creates HTMLOptionElement with specified text and value");
+
+  test(() => {
+    const notSelected = new Option("text", "value", false);
+    const selected = new Option("text", "value", true);
+
+    assert_false(notSelected.hasAttribute("selected"));
+    assert_equals(notSelected.getAttribute("selected"), null);
+    assert_false(notSelected.selected);
+
+    assert_equals(selected.getAttribute("selected"), "");
+    assert_false(selected.selected);
+  }, "Option constructor handles selectedness correctly when specified with defaultSelected only");
+
+  test(() => {
+    const notSelected = new Option("text", "value", true, false);
+    const selected = new Option("text", "value", false, true);
+
+    assert_equals(notSelected.selected, false);
+    assert_equals(selected.selected, true);
+  }, "Option constructor handles selectedness correctly, even when incongruous with defaultSelected");
+
+  test(() => {
+    const option = new Option(undefined, undefined);
+
+    assert_false(option.hasChildNodes());
+    assert_false(option.hasAttribute("value"));
+
+    assert_equals(option.textContent, "");
+    assert_equals(option.value, "");
+  }, "Option constructor treats undefined text and value correctly");
+
+  test(() => {
+    const option = new Option("", "");
+
+    assert_false(option.hasChildNodes());
+    assert_true(option.hasAttribute("value"));
+
+    assert_equals(option.textContent, "");
+    assert_equals(option.value, "");
+  }, "Option constructor treats empty text and value correctly");
+
+  test(() => {
+    const option = new Option("text", "value", 0, "");
+
+    assert_false(option.hasAttribute("selected"));
+    assert_false(option.selected);
+  }, "Option constructor treats falsy selected and defaultSelected correctly");
+
+  test(() => {
+    const option = new Option("text", "value", {}, 1);
+
+    assert_true(option.hasAttribute("selected"));
+    assert_true(option.selected);
+  }, "Option constructor treats truthy selected and defaultSelected correctly");
+
+  test(() => {
+    const option = new Option("text", "value", false, true);
+
+    assert_false(option.hasAttribute("selected"));
+    assert_true(option.selected);
+
+    option.setAttribute("selected", "");
+    assert_true(option.selected);
+
+    option.removeAttribute("selected");
+    assert_false(option.selected);
+  }, "Option constructor does not set dirtiness (so, manipulating the selected content attribute still updates the " +
+     "selected IDL attribute)");
+
+  test(function() {
+    var option = new Option();
+    assert_equals(Object.getPrototypeOf(option), HTMLOptionElement.prototype);
+  }, "Prototype of object created with named constructor");
+</script>

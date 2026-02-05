@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+    	const foo = document.getElementById("foo");
+
+    	let anim = foo.animate({}, { duration: Infinity });
+    	anim.cancel();
+    	anim.playbackRate = -1;
+    	try {
+    		anim.pause();
+    	} catch {
+    		println("Cannot pause a reversing idle animation with infinite effect end");
+    	}
+
+    	anim = foo.animate({}, {});
+
+    	let events = {
+    		remove: false,
+    		finish: false,
+    		cancel: false,
+    	};
+    	anim.onremove = () => { events.remove = true; };
+    	anim.onfinish = () => { events.finish = true; };
+    	anim.oncancel = () => { events.cancel = true; };
+
+    	let readyResolved = false;
+    	anim.ready.then(() => readyResolved = true);
+
+    	anim.updatePlaybackRate(2.0);
+    	anim.pause();
+
+    	if (anim.playbackRate === 1.0)
+    		println("Calling pause() does not synchronously update pending playback rate");
+    	if (!readyResolved)
+    		println("Calling pause() does not synchronously resolve animation's ready promise");
+
+    	// Ensure we cross both a task boundary and an animation frame boundary
+        await animationFrame();
+        await timeout(0);
+        if (!events.remove && !events.finish && !events.cancel)
+        	println("Calling pause() does not send any events");
+        if (anim.playbackRate === 2.0)
+        	println("Calling pause() does asynchronously update pending playback rate");
+        if (readyResolved)
+        	println("Calling pause() asynchronously resolves animation's ready promise");
+    });
+</script>

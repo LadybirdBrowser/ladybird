@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	HTMLIFrameElement.setAttribute('srcdoc', plain_string)
+Pass	HTMLIFrameElement.setAttributeNS(null, 'srcdoc', plain_string)
+Pass	HTMLScriptElement.setAttribute('src', plain_string)
+Pass	HTMLScriptElement.setAttributeNS(null, 'src', plain_string)
+Pass	SVGScriptElement.setAttribute('href', plain_string)
+Pass	SVGScriptElement.setAttributeNS(null, 'href', plain_string)
+Pass	SVGScriptElement.setAttributeNS(NSURI_XLINK, 'href', plain_string)

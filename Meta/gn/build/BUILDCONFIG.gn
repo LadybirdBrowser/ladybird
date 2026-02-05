@@ -1,0 +1,44 @@
+# All targets will get this list of configs by default.
+# Targets can opt out of a config by removing it from their local configs list.
+# If you're adding global flags and don't need targets to be able to opt out,
+# add the flags to compiler_defaults, not to a new config.
+shared_binary_target_configs = [
+  "//Meta/gn/build:compiler_defaults",
+  "//Meta/gn/build:no_exceptions",
+  "//Meta/gn/build:pic",
+]
+
+# Apply that default list to the binary target types.
+set_defaults("executable") {
+  configs = shared_binary_target_configs
+}
+set_defaults("loadable_module") {
+  configs = shared_binary_target_configs
+}
+set_defaults("static_library") {
+  configs = shared_binary_target_configs
+}
+set_defaults("shared_library") {
+  configs = shared_binary_target_configs + [ "//Meta/gn/build:zdefs" ]
+}
+set_defaults("source_set") {
+  configs = shared_binary_target_configs
+}
+
+if (target_os == "") {
+  target_os = host_os
+}
+if (current_os == "") {
+  current_os = target_os
+}
+
+if (target_cpu == "") {
+  target_cpu = host_cpu
+}
+if (current_cpu == "") {
+  current_cpu = target_cpu
+}
+
+host_toolchain = "//Meta/gn/build/toolchain:unix"
+
+set_default_toolchain(host_toolchain)

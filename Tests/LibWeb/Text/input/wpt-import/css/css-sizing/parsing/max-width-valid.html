@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic & Extrinsic Sizing Test: parsing max-width with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-width">
+<meta name="assert" content="max-width supports the full grammar 'none | <length-percentage> | min-content | max-content | fit-content(<length-percentage>)'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("max-width", "none");
+test_valid_value("max-width", "min-content");
+test_valid_value("max-width", "max-content");
+
+test_valid_value("max-width", "0", "0px");
+test_valid_value("max-width", "10%");
+test_valid_value("max-width", "0.5em");
+test_valid_value("max-width", "calc(10% - 0.5em)");
+
+test_valid_value("max-width", "fit-content(10%)");
+test_valid_value("max-width", "fit-content(0.5em)");
+test_valid_value("max-width", "fit-content(calc(10% - 0.5em))");
+</script>
+</body>
+</html>

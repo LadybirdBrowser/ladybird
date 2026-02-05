@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property inset value 'auto'
+Pass	Property inset value '-10px'
+Pass	Property inset value 'calc(10px - 0.5em) -20%'
+Pass	Property inset value 'auto auto'
+Pass	Property inset value '10px calc(10px - 0.5em) -30px'
+Pass	Property inset value 'auto auto auto'
+Pass	Property inset value '10px 20px auto -30px'
+Pass	Property inset value 'auto auto auto auto'

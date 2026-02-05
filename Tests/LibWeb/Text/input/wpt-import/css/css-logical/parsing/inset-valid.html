@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing inset with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-inset">
+<meta name="assert" content="inset supports the full grammar '<'top'>{1,4}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("inset", "auto");
+test_valid_value("inset", "-10px");
+
+test_valid_value("inset", "calc(-0.5em + 10px) -20%");
+test_valid_value("inset", "auto auto", "auto");
+
+test_valid_value("inset", "10px calc(-0.5em + 10px) -30px");
+test_valid_value("inset", "auto auto auto", "auto");
+
+test_valid_value("inset", "10px calc(-0.5em + 10px) auto -30px");
+test_valid_value("inset", "auto auto auto auto", "auto");
+</script>
+</body>
+</html>

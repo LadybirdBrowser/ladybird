@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const INVALID_STATE_ERR = 11;
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.send();
+        }
+        catch (e) {
+            if (e.code === INVALID_STATE_ERR)
+                println("PASS");
+        }
+    });
+</script>

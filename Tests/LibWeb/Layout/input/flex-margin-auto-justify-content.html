@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        font-family: "SerenitySans";
+    }
+
+    .container {
+        display: flex;
+        justify-content: space-between;
+        border: 1px solid salmon;
+        width: 600px;
+    }
+
+    .box {
+        width: 150px;
+        height: 50px;
+        border: 1px solid black;
+    }
+
+    .box:nth-child(1) {
+        margin-left: 10px;
+    }
+
+    .box:nth-child(2) {
+        margin-right: auto;
+    }
+</style>
+<div class="container"><div class="box">left margin</div><div class="box">follow immediately</div><div class="box">over at the right</div></div>

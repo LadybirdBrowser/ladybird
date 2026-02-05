@@ -1,0 +1,11 @@
+#import <SVG/SVGAnimatedLength.idl>
+#import <SVG/SVGAnimatedString.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFilterPrimitiveStandardAttributes
+interface mixin SVGFilterPrimitiveStandardAttributes {
+    [SameObject] readonly attribute SVGAnimatedLength x;
+    [SameObject] readonly attribute SVGAnimatedLength y;
+    [SameObject] readonly attribute SVGAnimatedLength width;
+    [SameObject] readonly attribute SVGAnimatedLength height;
+    [SameObject] readonly attribute SVGAnimatedString result;
+};

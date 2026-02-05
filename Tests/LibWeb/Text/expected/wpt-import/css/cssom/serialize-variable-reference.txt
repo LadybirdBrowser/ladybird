@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Longhand with variable preserves original serialization: with whitespace
+Pass	Shorthand with variable preserves original serialization: with whitespace
+Pass	Longhand with variable preserves original serialization but trims whitespace: without whitespace
+Pass	Shorthand with variable preserves original serialization but trims whitespace: without whitespace

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+div#a p:only-child {
+    background-color: green;
+}
+div#b p:first-of-type {
+    background-color: green;
+}
+div#c p:last-of-type {
+    background-color: green;
+}
+</style>
+<div id="a"><p>foo</p><p>bar</p></div>
+<div id="b"><p>foo</p><p>bar</p></div>
+<div id="c"><p>foo</p><p>bar</p></div>
+<script>
+    test(() => {
+        document.body.offsetWidth;  // force layout
+
+        document.querySelector('div#a p:last-child').remove();
+        println(`div#a p: ${getComputedStyle(document.querySelector('div#a p')).backgroundColor}`);
+
+        document.querySelector('div#b p:first-child').remove();
+        println(`div#b p: ${getComputedStyle(document.querySelector('div#b p')).backgroundColor}`);
+
+        document.querySelector('div#c p:last-child').remove();
+        println(`div#c p: ${getComputedStyle(document.querySelector('div#c p')).backgroundColor}`);
+    });
+</script>

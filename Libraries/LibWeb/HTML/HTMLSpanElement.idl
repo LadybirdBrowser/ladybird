@@ -1,0 +1,9 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/text-level-semantics.html#htmlspanelement
+[Exposed=Window]
+interface HTMLSpanElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+};

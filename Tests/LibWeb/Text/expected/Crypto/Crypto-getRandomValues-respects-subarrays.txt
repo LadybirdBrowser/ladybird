@@ -1,0 +1,2 @@
+Is first 2 bytes still 0x41? true
+Is last 6 bytes still 0x41? true

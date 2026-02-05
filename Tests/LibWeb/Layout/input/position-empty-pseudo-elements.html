@@ -1,0 +1,20 @@
+<!doctype html><style>
+div {
+    background: green;
+    display: block;
+    width: 50px;
+    margin: 25px;
+}
+
+div.empty_content::after {
+    content: "";
+    display: block;
+    padding-top: 100%;
+}
+
+div.content_with_space::after {
+    content: " ";
+    display: block;
+    padding-top: 100%;
+}
+</style><div class=empty_content></div><div class=content_with_space></div></div>

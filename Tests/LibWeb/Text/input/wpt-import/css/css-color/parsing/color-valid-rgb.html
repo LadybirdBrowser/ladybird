@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Parsing and serialization of colors using valid RGB notation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#rgb-functions">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-sRGB-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-sRGB-values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+tests = [
+    ["rgb(none none none)", "rgb(0, 0, 0)"],
+    ["rgb(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["rgb(128 none none)", "rgb(128, 0, 0)"],
+    ["rgb(128 none none / none)", "rgba(128, 0, 0, 0)"],
+    ["rgb(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
+    ["rgb(20% none none)", "rgb(51, 0, 0)"],
+    ["rgb(20% none none / none)", "rgba(51, 0, 0, 0)"],
+    ["rgb(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
+    ["rgba(none none none)", "rgb(0, 0, 0)"],
+    ["rgba(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["rgba(128 none none)", "rgb(128, 0, 0)"],
+    ["rgba(128 none none / none)", "rgba(128, 0, 0, 0)"],
+    ["rgba(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
+    ["rgba(20% none none)", "rgb(51, 0, 0)"],
+    ["rgba(20% none none / none)", "rgba(51, 0, 0, 0)"],
+    ["rgba(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
+    ["rgb(-2 3 4)", "rgb(0, 3, 4)"],
+    ["rgb(-20% 20% 40%)", "rgb(0, 51, 102)"],
+    ["rgb(257 30 40)", "rgb(255, 30, 40)"],
+    ["rgb(250% 20% 40%)", "rgb(255, 51, 102)"],
+    ["rgba(-2 3 4)", "rgb(0, 3, 4)"],
+    ["rgba(-20% 20% 40%)", "rgb(0, 51, 102)"],
+    ["rgba(257 30 40)", "rgb(255, 30, 40)"],
+    ["rgba(250% 20% 40%)", "rgb(255, 51, 102)"],
+    ["rgba(-2 3 4 / .5)", "rgba(0, 3, 4, 0.5)"],
+    ["rgba(-20% 20% 40% / 50%)", "rgba(0, 51, 102, 0.5)"],
+    ["rgba(257 30 40 / 50%)", "rgba(255, 30, 40, 0.5)"],
+    ["rgba(250% 20% 40% / .5)", "rgba(255, 51, 102, 0.5)"],
+
+    // Test with mixed components.
+    ["rgb(250% 51 40%)", "rgb(255, 51, 102)"],
+    ["rgb(255 20% 102)", "rgb(255, 51, 102)"],
+
+    // rgb are in the range [0, 255], alpha is in the range [0, 1].
+    // Values above or below these numbers should get resolved to the upper/lower bound.
+    ["rgb(500, 0, 0)", "rgb(255, 0, 0)"],
+    ["rgb(-500, 64, 128)", "rgb(0, 64, 128)"],
+
+    // calc(infinity) resolves to the upper bound while calc(-infinity) and calc(NaN) resolves the lower bound.
+    // See: https://github.com/w3c/csswg-drafts/issues/8629
+    ["rgb(calc(infinity), 0, 0)", "rgb(255, 0, 0)"],
+    ["rgb(0, calc(infinity), 0)", "rgb(0, 255, 0)"],
+    ["rgb(0, 0, calc(infinity))", "rgb(0, 0, 255)"],
+    ["rgba(0, 0, 0, calc(infinity))", "rgb(0, 0, 0)"],
+    ["rgb(calc(-infinity), 0, 0)", "rgb(0, 0, 0)"],
+    ["rgb(0, calc(-infinity), 0)", "rgb(0, 0, 0)"],
+    ["rgb(0, 0, calc(-infinity))", "rgb(0, 0, 0)"],
+    ["rgba(0, 0, 0, calc(-infinity))", "rgba(0, 0, 0, 0)"],
+    ["rgb(calc(NaN), 0, 0)", "rgb(0, 0, 0)"],
+    ["rgb(0, calc(NaN), 0)", "rgb(0, 0, 0)"],
+    ["rgb(0, 0, calc(NaN))", "rgb(0, 0, 0)"],
+    ["rgba(0, 0, 0, calc(NaN))", "rgba(0, 0, 0, 0)"],
+    ["rgb(calc(0 / 0), 0, 0)", "rgb(0, 0, 0)"],
+    ["rgb(0, calc(0 / 0), 0)", "rgb(0, 0, 0)"],
+    ["rgb(0, 0, calc(0 / 0))", "rgb(0, 0, 0)"],
+    ["rgba(0, 0, 0, calc(0 / 0))", "rgba(0, 0, 0, 0)"],
+
+    // calc(50% + (sign(1em - 10px) * 10%)) cannot be evaluated eagerly because font relative units are not yet known at parse time.
+    ["rgb(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)", "rgb(calc(50% + (10% * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)", "rgb(calc(50% + (10% * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgb(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)", "rgb(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgba(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)", "rgb(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgb(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "rgb(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["rgba(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "rgb(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["rgb(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgb(0 0 0 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+    ["rgba(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgb(0 0 0 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+
+    ["rgb(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)", "rgb(calc(50% + (10% * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)", "rgb(calc(50% + (10% * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgb(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)", "rgb(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgba(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)", "rgb(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgb(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))", "rgb(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["rgba(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))", "rgb(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["rgb(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgb(0 0 0 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+    ["rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgb(0 0 0 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)", "rgb(calc(50% + (10% * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgb(0 0 0 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+
+    ["rgba(calc(50 + (sign(1em - 10px) * 10)) 400 -400 / 0.5)", "rgb(calc(50 + (10 * sign(1em - 10px))) 255 0 / 0.5)"],
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)) 400% -400% / 0.5)", "rgb(calc(50% + (10% * sign(1em - 10px))) 255 0 / 0.5)"],
+    ["rgba(calc(50 + (sign(1em - 10px) * 10)), 400, -400, 0.5)", "rgb(calc(50 + (10 * sign(1em - 10px))) 255 0 / 0.5)"],
+    ["rgba(calc(50% + (sign(1em - 10px) * 10%)), 400%, -400%, 0.5)", "rgb(calc(50% + (10% * sign(1em - 10px))) 255 0 / 0.5)"],
+];
+
+for (const test of tests) {
+    test_valid_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+}
+
+</script>
+</body>
+</html>

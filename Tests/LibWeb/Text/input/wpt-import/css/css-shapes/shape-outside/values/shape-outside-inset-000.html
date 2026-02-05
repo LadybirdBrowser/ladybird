@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Inset Valid Formats</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Bear Travis" href="mailto:betravis@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-inset">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="An inset has 1 to 4 insets, and optional border radii that follow the border-radius format">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+             var valid_inset_tests = [
+                    {
+                      "name": "1 inset",
+                      "actual": "inset(10px)",
+                      "expected_inline": "inset(10px)",
+                      "expected_computed": "inset(10px)"
+                    },
+                    {
+                      "name": "2 insets",
+                      "actual": "inset(10px 20px)",
+                      "expected_inline": "inset(10px 20px)",
+                      "expected_computed": "inset(10px 20px)"
+                    },
+                    {
+                      "name": "3 insets",
+                      "actual": "inset(10px 20px 30px)",
+                      "expected_inline": "inset(10px 20px 30px)",
+                      "expected_computed": "inset(10px 20px 30px)"
+                    },
+                    {
+                      "name": "4 insets",
+                      "actual": "inset(10px 20px 30px 40px)",
+                      "expected_inline": "inset(10px 20px 30px 40px)",
+                      "expected_computed": "inset(10px 20px 30px 40px)"
+                    },
+                    {
+                      "name": "1 inset and round",
+                      "actual": "inset(10px round 20px)",
+                      "expected_inline": "inset(10px round 20px)",
+                      "expected_computed": "inset(10px round 20px)"
+                    },
+                    {
+                      "name": "2 insets and round",
+                      "actual": "inset(10px 20px round 30px)",
+                      "expected_inline": "inset(10px 20px round 30px)",
+                      "expected_computed": "inset(10px 20px round 30px)"
+                    },
+                    {
+                      "name": "3 insets and round",
+                      "actual": "inset(10px 20px 30px round 40px)",
+                      "expected_inline": "inset(10px 20px 30px round 40px)",
+                      "expected_computed": "inset(10px 20px 30px round 40px)"
+                    },
+                    {
+                      "name": "4 insets and round",
+                      "actual": "inset(10px 20px 30px 40px round 50px)",
+                      "expected_inline": "inset(10px 20px 30px 40px round 50px)",
+                      "expected_computed": "inset(10px 20px 30px 40px round 50px)"
+                    }
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(valid_inset_tests, "inline") );
+            generate_tests( ParsingUtils.testComputedStyle,
+                            ParsingUtils.buildTestCases(valid_inset_tests, "computed") );
+        </script>
+    </body>
+</html>

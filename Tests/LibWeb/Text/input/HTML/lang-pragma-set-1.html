@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Language" content="ko" >
+        <style type='text/css'>
+            .test div { width: 50px; background-color: red; }
+            #box:lang(ko) { width: 100px; background-color: limegreen; }
+        </style>
+    </head>
+    <body>
+        <div class="test"><div id="box">TEST</div></div>
+    </body>
+</html>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest((done) => {
+            if (document.getElementById('box').offsetWidth == 100) {
+                println("OK");
+            } else {
+                println("FAIL. If there is a pragma-set default language set, then that is the language of the node.");
+            }
+            done();
+        });
+    </script>
+</html>

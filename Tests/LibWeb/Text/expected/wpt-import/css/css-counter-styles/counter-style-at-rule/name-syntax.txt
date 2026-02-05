@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	@counter-style name foo is valid
+Pass	@counter-style name decimal-leading-zero is valid
+Pass	@counter-style name lower-alpha is valid
+Pass	@counter-style name cjk-decimal is valid
+Pass	@counter-style name japanese-informal is valid
+Pass	@counter-style name ethiopic-numeric is valid
+Pass	@counter-style name  is invalid
+Pass	@counter-style name none is invalid
+Pass	@counter-style name initial is invalid
+Pass	@counter-style name inherit is invalid
+Pass	@counter-style name unset is invalid
+Pass	@counter-style name decimal is invalid
+Pass	@counter-style name disc is invalid
+Pass	@counter-style name square is invalid
+Pass	@counter-style name circle is invalid
+Pass	@counter-style name disclosure-open is invalid
+Pass	@counter-style name disclosure-closed is invalid

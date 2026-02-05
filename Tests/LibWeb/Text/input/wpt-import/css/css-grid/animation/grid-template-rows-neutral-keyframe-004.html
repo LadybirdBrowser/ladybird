@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>grid-template-rows neutral keyframe</title>
+    <link rel="help" href="https://drafts.csswg.org/css-grid/#track-sizing">
+    <meta name="assert" content="grid-template-rows supports neutral keyframe.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <body>
+    <div id="target"></div>
+    <script>
+      test(() => {
+        target.style.gridTemplateRows = '10px [a] 20px [b]';
+        var animation = target.animate([{}, {gridTemplateRows: '30px 40px [c]'}], 1000);
+        animation.pause();
+        animation.currentTime = 250;
+        assert_equals(getComputedStyle(target).gridTemplateRows, '15px [a] 25px [b]');
+        target.style.gridTemplateRows = '10px 20px [d]';
+        assert_equals(getComputedStyle(target).gridTemplateRows, '15px 25px [d]');
+      }, 'Invalidate the result for the neutral keyframe if the named lines change.');
+    </script>
+  </body>
+</html>

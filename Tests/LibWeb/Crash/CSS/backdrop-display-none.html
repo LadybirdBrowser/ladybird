@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<dialog id="d"><div id="x"></div></dialog>
+<script>
+    d.showModal();
+    document.body.offsetWidth;
+
+    const style = document.createElement('style');
+    style.textContent = "dialog::backdrop { display: none }";
+    document.head.appendChild(style);
+    document.body.offsetWidth;
+
+    x.hidden = true;
+    document.body.offsetWidth;
+    
+    // And now show it again, to ensure that works
+    style.textContent = "";
+    document.body.offsetWidth;
+</script>

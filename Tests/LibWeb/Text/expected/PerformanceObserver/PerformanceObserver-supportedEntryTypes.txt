@@ -1,0 +1,5 @@
+PerformanceObserver.supportedEntryTypes: mark,measure,resource
+PerformanceObserver.supportedEntryTypes instanceof Array: true
+Object.isFrozen(PerformanceObserver.supportedEntryTypes): true
+PerformanceObserver.supportedEntryTypes === PerformanceObserver.supportedEntryTypes: true
+sorted alphabetically: true

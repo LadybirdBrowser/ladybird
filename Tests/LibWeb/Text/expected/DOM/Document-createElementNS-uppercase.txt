@@ -1,0 +1,4 @@
+document.createElementNS(HTMLNS, "DIV") is instance of HTMLUnknownElement: true
+document.createElementNS(HTMLNS, "div") is instance of HTMLDivElement: true
+document.createElement("DIV") is instance of HTMLDivElement: true
+document.createElement("div") is instance of HTMLDivElement: true

@@ -1,0 +1,24 @@
+source_set("Streams") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "AbstractOperations.cpp",
+    "ByteLengthQueuingStrategy.cpp",
+    "CountQueuingStrategy.cpp",
+    "ReadableByteStreamController.cpp",
+    "ReadableStream.cpp",
+    "ReadableStreamBYOBReader.cpp",
+    "ReadableStreamBYOBRequest.cpp",
+    "ReadableStreamDefaultController.cpp",
+    "ReadableStreamDefaultReader.cpp",
+    "ReadableStreamGenericReader.cpp",
+    "TransformStream.cpp",
+    "TransformStreamDefaultController.cpp",
+    "Transformer.cpp",
+    "UnderlyingSink.cpp",
+    "UnderlyingSource.cpp",
+    "WritableStream.cpp",
+    "WritableStreamDefaultController.cpp",
+    "WritableStreamDefaultWriter.cpp",
+  ]
+}

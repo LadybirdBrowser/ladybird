@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: attr() security limitations in universal selector </title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#attr-security">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  @property --some-string {
+    syntax: "<string>";
+    inherits: true;
+    initial-value: "empty";
+  }
+  * {
+    --some-string: "https://does-not-exist.test/404.png";
+  }
+  div {
+    --some-string: attr(data-foo);
+    background-image: image-set(var(--some-string));
+  }
+</style>
+
+<html>
+  <body>
+    <div id="attr" data-foo="https://does-not-exist.test/404.png"></div>
+  </body>
+</html>
+
+<script>
+    var elem = document.getElementById("attr");
+    test(() => {
+        assert_equals(window.getComputedStyle(elem).getPropertyValue('background-image'),
+                    'none',
+                    "'background-image: attr(data-foo)' with data-foo='https://does-not-exist.test/404.png'");
+    });
+</script>

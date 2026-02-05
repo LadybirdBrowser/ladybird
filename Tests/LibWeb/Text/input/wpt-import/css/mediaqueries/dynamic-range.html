@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<link rel="help" title="6.5 dynamic-range" href="https://www.w3.org/TR/mediaqueries-5/#dynamic-range">
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+
+<script>
+query_should_be_known("(dynamic-range: standard)");
+query_should_be_known("(dynamic-range: high)");
+query_should_be_known("(video-dynamic-range: standard)");
+query_should_be_known("(video-dynamic-range: high)");
+
+query_should_be_known("(dynamic-range)");
+query_should_be_known("(video-dynamic-range)");
+
+query_should_be_unknown("(dynamic-range: 0)");
+query_should_be_unknown("(dynamic-range: 10px)");
+query_should_be_unknown("(dynamic-range: invalid)");
+query_should_be_unknown("(video-dynamic-range: 0)");
+query_should_be_unknown("(video-dynamic-range: 10px)");
+query_should_be_unknown("(video-dynamic-range: invalid)");
+
+test(() => {
+  let match_boolean = window.matchMedia("(dynamic-range)");
+  assert_false(match_boolean.matches);
+}, "Check that dynamic-range evaluates to false in the boolean context");
+
+test(() => {
+  let match_boolean = window.matchMedia("(video-dynamic-range)");
+  assert_false(match_boolean.matches);
+}, "Check that video-dynamic-range evaluates to false in the boolean context");
+
+test(() => {
+  let match_standard = window.matchMedia("(dynamic-range: standard)");
+  assert_true(match_standard.matches);
+}, "Check that dynamic-range always matches 'standard'");
+
+test(() => {
+  let match_standard = window.matchMedia("(video-dynamic-range: standard)");
+  assert_true(match_standard.matches);
+}, "Check that video-dynamic-range always matches 'standard'");
+
+test(() => {
+  let match_invalid = window.matchMedia("(video-dynamic-range: invalid)");
+  assert_false(match_invalid.matches);
+}, "Check that video-dynamic-range is not 'invalid'");
+</script>

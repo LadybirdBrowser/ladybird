@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<head>
+<link rel="match" href="../expected/svg-url-in-shadow-root-ref.html" />
+</head>
+<body>
+    <svg>
+        <defs>
+            <lineargradient id="fill">
+                <stop stop-color="crimson"/>
+            </lineargradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#fill)"/>
+    </svg>
+</body>
+<script>
+    const svg = document.querySelector("svg");
+    const shadowRoot = document.body.attachShadow({
+        mode: "open",
+    });
+
+    shadowRoot.innerHTML = svg.outerHTML;
+    svg.remove();
+</script>

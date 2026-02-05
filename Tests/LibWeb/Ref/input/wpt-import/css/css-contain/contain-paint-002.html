@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: paint containment on non-atomic inlines</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+  <meta name=flags content="">
+  <meta name=assert content="paint containment does not apply to non atomic inlines">
+  <link rel="match" href="../../../../expected/wpt-import/css/reference/pass_if_pass_below.html">
+  <link rel=help href="https://drafts.csswg.org/css-contain-1/#containment-paint">
+
+<style>
+span {
+  contain: paint;
+  width: 0; /* Because if the test fails, the span may get blockified, and which would make wide enough to hold the PASS */
+}
+span::after {
+  content: "PASS";
+  position: absolute;
+}
+</style>
+
+<p>Test passes if there is the word "PASS" below.</p>
+<div><span></span></div>

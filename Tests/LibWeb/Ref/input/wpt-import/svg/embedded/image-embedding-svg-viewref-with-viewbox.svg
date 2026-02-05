@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>&#x3c;image&#x3e; referencing SVG image with &#x3c;view&#x3e; with 'viewBox'</title>
+  <h:link rel="help" href="https://svgwg.org/svg2-draft/embedded.html#ImageElement"/>
+  <h:link rel="help" href="https://svgwg.org/svg2-draft/linking.html#LinksIntoSVG"/>
+  <h:link rel="match" href="../../../../expected/wpt-import/svg/embedded/reference/green-rect-100x100.svg"/>
+  <rect x="-355" y="-1110" width="455" height="1210" fill="red"/>
+  <image preserveAspectRatio="none" x="-355" y="-1110" width="455" height="1210"
+         xlink:href="data:image/svg+xml,
+                       %3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2317 2320'%3e
+                         %3cview id='view' preserveAspectRatio='none' viewBox='0 0 455 1210'/%3e
+                         %3crect width='455' height='1210' fill='green'/%3e
+                       %3c/svg%3e#view"/>
+</svg>

@@ -1,0 +1,29 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: inline
+      frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 200x200] baseline: 200
+      SVGSVGBox <svg#a> at [8,8] [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] [SVG] children: inline
+        TextNode <#text> (not painted)
+        SVGSVGBox <svg#b> at [8,8] [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] [SVG] children: inline
+          TextNode <#text> (not painted)
+          SVGSVGBox <svg#c> at [8,8] [0+0+0 266.671875 0+0+0] [0+0+0 266.671875 0+0+0] [SVG] children: inline
+            TextNode <#text> (not painted)
+            SVGGeometryBox <rect> at [34.671875,34.671875] [0+0+0 266.671875 0+0+0] [0+0+0 266.671875 0+0+0] children: not-inline
+            TextNode <#text> (not painted)
+            SVGGeometryBox <rect> at [34.671875,34.671875] [0+0+0 133.328125 0+0+0] [0+0+0 133.328125 0+0+0] children: not-inline
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x200]
+      SVGSVGPaintable (SVGSVGBox<svg>#a) [8,8 200x200]
+        SVGSVGPaintable (SVGSVGBox<svg>#b) [8,8 200x200] overflow: [8,8 266.671875x266.671875]
+          SVGSVGPaintable (SVGSVGBox<svg>#c) [8,8 266.671875x266.671875] overflow: [8,8 293.34375x293.34375]
+            SVGPathPaintable (SVGGeometryBox<rect>) [34.671875,34.671875 266.671875x266.671875]
+            SVGPathPaintable (SVGGeometryBox<rect>) [34.671875,34.671875 133.328125x133.328125]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x216] [children: 0] (z-index: auto)

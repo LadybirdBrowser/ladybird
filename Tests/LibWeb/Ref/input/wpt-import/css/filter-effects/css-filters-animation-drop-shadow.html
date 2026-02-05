@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Filters Animation: Drop Shadow</title>
+    <link rel="author" title="Gunther Brunner" href="mailto:takeshimiya@gmail.com">
+    <link rel="reviewer" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="reviewer" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/filter-effects-1/#FilterProperty">
+    <link rel="help" href="https://www.w3.org/TR/filter-effects-1/#funcdef-filter-drop-shadow">
+    <link rel="help" href="http://www.w3.org/TR/css3-animations/#animations">
+    <link rel="match" href="../../../../expected/wpt-import/css/filter-effects/css-filters-animation-drop-shadow-ref.html">
+    <meta name="assert" content="The blue square should be on top of a gray one">
+    <style type="text/css">
+        @keyframes animate {
+            0% {
+                filter: drop-shadow(30px 30px 0px black);
+            }
+            100% {
+                filter: none;
+            }
+        }
+
+        .square {
+            width: 100px;
+            height: 100px;
+            background: blue;
+            animation-name: animate;
+            animation-play-state: paused;
+            animation-delay: -2s;
+            animation-duration: 4s;
+            animation-timing-function: linear;
+        }
+    </style>
+</head>
+<body>
+<p>You should see a blue rectangle in top of a gray one.</p>
+<div class="square"></div>
+</body>
+</html>

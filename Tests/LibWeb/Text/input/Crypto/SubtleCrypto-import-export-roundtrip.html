@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+
+        let jwk = {
+            alg: "RSA-OAEP-256",
+            kty: "RSA",
+            ext: true,
+            key_ops: [ "encrypt", "decrypt" ],
+            e: "AQAB",
+            n: "xXyO27tsz-XjK5UI3Y_RRo2G23M1miuBgzcqC-0fAMFeEoEyMPlZIuJKnMH4I2AW-MQ-4jGLvajIbIc2knKxwQ",
+        };
+
+        let key = await window.crypto.subtle.importKey(
+            "jwk",
+            jwk,
+            { name: "RSA-OAEP", hash: "SHA-256" },
+            true,
+            [ "encrypt" ]
+        );
+
+        let exported = await window.crypto.subtle.exportKey("jwk", key);
+
+        println("Public key:");
+        println(`exported kty: ${exported.kty}`);
+        println(`exported alg: ${exported.alg}`);
+        println(`exported ext: ${exported.ext}`);
+        println(`exported key_ops: ${exported.key_ops}`);
+        println(`exported e: ${exported.e}`);
+        println(`exported n: ${exported.n}`);
+        println(`exported d: ${exported.d}`);
+        println(`exported p: ${exported.p}`);
+        println(`exported q: ${exported.q}`);
+        println(`exported dp: ${exported.dp}`);
+        println(`exported dq: ${exported.dq}`);
+        println(`exported qi: ${exported.qi}`);
+
+        // Add private key parameters
+        jwk.d = "vmh-BPYMz9ZC1b54Mcd8a54BLI1EXUUdNjp129HgVoRoaYRgedQ5DXF4D-9i5zGjWjb-ZKlyrArt5z896d0B";
+        jwk.p = "4tConw6cko5LVskz7POlxGn0nLZdahFBYchQTD6eKwE";
+        jwk.q = "3uXPp1FGWgdMh7qym7a8C9IrFErhFR_QUwpBr_dyRsE";
+        jwk.dp = "VTarg0aMEIuhRnPFLGrFhquAGThylBzzgXcuo9aKugE";
+        jwk.dq = "aWZmUQo_qCa3a58_Ah7gwP463Lejw6dtjTbWZO0vnoE";
+        jwk.qi = "CjE8i_twYrw9nyR_e-jTcMPVuxpx8N9lxr4ZkTVpSEs";
+
+        key = await window.crypto.subtle.importKey(
+            "jwk",
+            jwk,
+            { name: "RSA-OAEP", hash: "SHA-256" },
+            true,
+            [ "decrypt" ]
+        );
+
+        exported = await window.crypto.subtle.exportKey("jwk", key);
+
+        println("Private key:");
+        println(`exported kty: ${exported.kty}`);
+        println(`exported alg: ${exported.alg}`);
+        println(`exported ext: ${exported.ext}`);
+        println(`exported key_ops: ${exported.key_ops}`);
+        println(`exported e: ${exported.e}`);
+        println(`exported n: ${exported.n}`);
+        println(`exported d: ${exported.d}`);
+        println(`exported p: ${exported.p}`);
+        println(`exported q: ${exported.q}`);
+        println(`exported dp: ${exported.dp}`);
+        println(`exported dq: ${exported.dq}`);
+        println(`exported qi: ${exported.qi}`);
+
+        done();
+    });
+</script>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Inset round args - calc() values</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-inset">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <link rel="help" href="http://www.w3.org/TR/css3-values/#calc-notation">
+        <meta name="assert" content="An inset's radial component arguments may be in calc() values.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+            var fullInset = '10px 10px 10px 10px';
+            var serializedInset = "10px";
+
+            var inset_round_calc_tests = [];
+            ParsingUtils.calcTestValues.forEach(function(value) {
+                testCase = ['inset('+ fullInset +' round '+ value[0] +')',
+                            'inset('+ serializedInset +' round '+ value[1] +')'];
+                // array check
+                if(Object.prototype.toString.call( value[2] ) === '[object Array]' && value[2].length == 2) {
+                    testCase.push([
+                                    'inset('+ serializedInset +' round '+ value[2][0] +')',
+                                    'inset('+ serializedInset +' round '+ value[2][1] +')'
+                                 ]);
+                } else {
+                    testCase.push('inset('+ serializedInset +' round '+ value[2] +')');
+                }
+                inset_round_calc_tests.push(testCase);
+            });
+            ParsingUtils.calcTestValues.forEach(function(value) {
+                testCase = ['inset('+ fullInset +' round '+ value[0] +' '+  value[0] +')',
+                            'inset('+ serializedInset +' round '+ value[1] +')'];
+                if(Object.prototype.toString.call( value[2] ) === '[object Array]' && value[2].length == 2) {
+                    testCase.push([
+                                    'inset('+ serializedInset +' round '+ value[2][0] +')',
+                                    'inset('+ serializedInset +' round '+ value[2][1] +')'
+                                 ]);
+                } else {
+                    testCase.push('inset('+ serializedInset +' round '+ value[2] +')');
+                }
+                inset_round_calc_tests.push(testCase);
+            });
+            generate_tests(ParsingUtils.testInlineStyle, ParsingUtils.buildCalcTests(inset_round_calc_tests, 'inline'));
+            generate_tests(ParsingUtils.testComputedStyle, ParsingUtils.buildCalcTests(inset_round_calc_tests, 'computed'));
+        </script>
+    </body>
+</html>

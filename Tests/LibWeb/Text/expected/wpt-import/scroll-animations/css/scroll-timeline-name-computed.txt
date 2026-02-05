@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	Property scroll-timeline-name value 'initial'
+Pass	Property scroll-timeline-name value 'inherit'
+Pass	Property scroll-timeline-name value 'unset'
+Pass	Property scroll-timeline-name value 'revert'
+Pass	Property scroll-timeline-name value 'none'
+Pass	Property scroll-timeline-name value '--foo'
+Pass	Property scroll-timeline-name value '--foo, --bar'
+Pass	Property scroll-timeline-name value '--bar, --foo'
+Pass	Property scroll-timeline-name value '--a, --b, --c, --D, --e'
+Pass	Property scroll-timeline-name value 'none, none'
+Pass	Property scroll-timeline-name value '--a, --b, --c, none, --d, --e'
+Pass	The scroll-timeline-name property shows up in CSSStyleDeclaration enumeration
+Pass	The scroll-timeline-name property shows up in CSSStyleDeclaration.cssText

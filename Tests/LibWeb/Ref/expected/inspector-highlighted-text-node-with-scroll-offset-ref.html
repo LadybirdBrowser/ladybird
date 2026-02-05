@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+html {
+  height: calc(100vh + 200px);
+  scrollbar-width: none;
+}
+</style>
+<div id="highlight-parent">Hello world</div>
+<script>
+const highlightParent = document.getElementById("highlight-parent");
+window.internals.setHighlightedNode(highlightParent.childNodes[0]);
+</script>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let blob = structuredClone(new Blob(["Hello, Blob!"], {type: "text/plain"}));
+        println(`instanceOf Blob: ${blob instanceof Blob}`);
+        println(`Blob.type: ${blob.type}`);
+        let text = await blob.text();
+        println(`Blob.text(): ${text}`);
+
+        let file = structuredClone(new File(["Hello, File!"], "hello.txt", {type: "text/plain"}));
+        println(`instanceOf File: ${file instanceof File}`);
+        println(`File.name: ${file.name}`);
+        println(`File.type: ${file.type}`);
+        text = await file.text();
+        println(`File.text(): ${text}`);
+        println(`File.size: ${file.size}`);
+
+        let domMatrixReadOnly = structuredClone(new DOMMatrixReadOnly([1.7976931348623157e+308, 2.2250738585072014e-308, 2.2204460492503131e-016, 40, 50, 60]));
+        println(`instanceOf DOMMatrixReadOnly: ${domMatrixReadOnly instanceof DOMMatrixReadOnly}`);
+        println(`DOMMatrixReadOnly: ${JSON.stringify(domMatrixReadOnly)}`);
+        domMatrixReadOnly = structuredClone(new DOMMatrixReadOnly([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]));
+        println(`DOMMatrixReadOnly: ${JSON.stringify(domMatrixReadOnly)}`);
+
+        let domMatrix = structuredClone(new DOMMatrix([10, 20, 30, 40, 50, 60]));
+        println(`instanceOf DOMMatrix: ${domMatrix instanceof DOMMatrix}`);
+        println(`DOMMatrix: ${JSON.stringify(domMatrix)}`);
+        domMatrix = structuredClone(new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]));
+        println(`DOMMatrix: ${JSON.stringify(domMatrix)}`);
+
+        let domPointReadOnly = structuredClone(new DOMPointReadOnly(10, 20, 30, 40));
+        println(`instanceOf DOMPointReadOnly: ${domPointReadOnly instanceof DOMPointReadOnly}`);
+        println(`DOMPointReadOnly: ${JSON.stringify(domPointReadOnly)}`);
+
+        let domPoint = structuredClone(new DOMPoint(10, 20, 30, 40));
+        println(`instanceOf DOMPoint: ${domPoint instanceof DOMPoint}`);
+        println(`DOMPoint: ${JSON.stringify(domPoint)}`);
+
+        let domRectReadOnly = structuredClone(new DOMRectReadOnly(10, 20, 30, 40));
+        println(`instanceOf DOMRectReadOnly: ${domRectReadOnly instanceof DOMRectReadOnly}`);
+        println(`DOMRectReadOnly: ${JSON.stringify(domRectReadOnly)}`);
+
+        let domRect = structuredClone(new DOMRect(10, 20, 30, 40));
+        println(`instanceOf DOMRect: ${domRect instanceof DOMRect}`);
+        println(`DOMRect: ${JSON.stringify(domRect)}`);
+
+        let domQuad = structuredClone(new DOMQuad(new DOMPoint(10, 20, 30, 40), new DOMPoint(50, 60, 70, 80), new DOMPoint(90, 100, 110, 120), new DOMPoint(130, 140, 150, 160)));
+        println(`instanceOf DOMQuad: ${domQuad instanceof DOMQuad}`);
+        println(`DOMQuad: ${JSON.stringify(domQuad)}`);
+
+        let cryptoKey = await window.crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode("password"),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits", "deriveKey"]
+        );
+        let clonedCryptoKey = structuredClone(cryptoKey);
+        println(`instanceOf CryptoKey: ${clonedCryptoKey instanceof CryptoKey}`);
+        println(`CryptoKey.type: ${JSON.stringify(clonedCryptoKey.type)}`);
+        println(`CryptoKey.extractable: ${JSON.stringify(clonedCryptoKey.extractable)}`);
+        println(`CryptoKey.algorithm: ${JSON.stringify(clonedCryptoKey.algorithm)}`);
+        println(`CryptoKey.usages: ${JSON.stringify(clonedCryptoKey.usages)}`);
+
+        let domException = structuredClone(new DOMException("Index out of bounds", "IndexSizeError"));
+        println(`instanceOf DOMException: ${domException instanceof DOMException}`);
+        println(`DOMException: ${domException.message} - ${domException.name}`);
+
+        const data = new Uint8ClampedArray([
+            255, 0, 0, 255,
+            0, 255, 0, 255,
+            0, 0, 255, 255,
+            255, 255, 0, 255
+        ]);
+        const imageData = structuredClone(new ImageData(data, 2, 2));
+        println(`instanceOf ImageData: ${imageData instanceof ImageData}`);
+        println(`ImageData.width: ${imageData.width}`);
+        println(`ImageData.height: ${imageData.height}`);
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const r = imageData.data[i];
+            const g = imageData.data[i + 1];
+            const b = imageData.data[i + 2];
+            const a = imageData.data[i + 3];
+            println(`${r}, ${g}, ${b}, ${a}`);
+        }
+
+        done();
+    });
+</script>

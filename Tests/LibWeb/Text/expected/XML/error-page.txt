@@ -1,0 +1,3 @@
+Got load event
+[object HTMLDocument]
+Failed to parse XML document: error parsing attribute name at line: 2, col: 21 (offset 59)

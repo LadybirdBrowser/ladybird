@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml" viewBox="0 0 3 3" width="200" height="200">
+  <metadata>
+    <title>&lt;image&gt; embedding SVG image with auto height</title>
+    <h:link rel="match" href="../../../../expected/wpt-import/svg/embedded/reference/green-rect-100x100.svg"/>
+  </metadata>
+  <image href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' &gt;&lt;rect width='50' height='50' fill='green'/&gt;&lt;/svg&gt;" width="1.5"/>
+</svg>

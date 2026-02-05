@@ -1,0 +1,62 @@
+<!doctype html>
+<title>The legend element</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<style>
+#ref {
+  display: block;
+  unicode-bidi: isolate;
+  padding-left: 2px;
+  padding-right: 2px;
+  /* TODO: uncomment this when these properties are widely supported
+  padding-inline-start: 2px; padding-inline-end: 2px;
+  */
+}
+</style>
+
+<legend id=in-body></legend>
+<fieldset>
+ <legend id=rendered-legend></legend>
+ <legend id=in-fieldset-second-child></legend>
+ <div><legend id=in-fieldset-descendant></legend></div>
+</fieldset>
+<div id=ref></div>
+
+<script>
+setup(() => {
+  self.legends = [].slice.call(document.querySelectorAll('legend'));
+  self.refStyle = getComputedStyle(document.getElementById('ref'));
+  self.props = ['display',
+                'unicodeBidi',
+                'marginTop',
+                'marginRight',
+                'marginBottom',
+                'marginLeft',
+                'paddingTop',
+                'paddingRight',
+                'paddingBottom',
+                'paddingLeft',
+                'overflow',
+                // Extra tests
+                'height',
+                'box-sizing',
+               ];
+});
+legends.forEach(legend => {
+  const testStyle = getComputedStyle(legend);
+  props.forEach(prop => {
+    test(() => {
+      assert_equals(testStyle[prop], refStyle[prop]);
+    }, `${legend.id}: ${prop}`);
+  });
+
+  // Test width separately since it differs outside fieldset vs. in fieldset vs. rendered legend
+  test(() => {
+    if (legend.id === 'rendered-legend') {
+      assert_equals(testStyle.width, '0px');
+    } else {
+      assert_not_equals(testStyle.width, '0px');
+    }
+  }, `${legend.id}: width`);
+});
+</script>

@@ -1,0 +1,7 @@
+Exception thrown when calling replace() on non-constructed stylesheet: NotAllowedError
+Number of CSS rules after replace(): 2
+Rule: .test { font-size: 14px; }
+Rule: .test2 { font-size: 16px; }
+cssRules returns the same object before and after replace(): true
+@import rule should be not appear below:
+Rule: .test { padding: 100px; }

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #bar {
+            color: inherit;
+        }
+    </style>
+    <div id="foo"><div id="bar"></div></div>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest(done => {
+            // Wait for first layout to complete so we ensure this is done via `recompute_inherited_style()`
+            setTimeout(() => {
+                const animation = foo.animate([{ color: "red" }, { color: "blue" }], {
+                    duration: 1000,
+                });
+
+                animation.pause();
+                animation.currentTime = 500;
+
+                println(getComputedStyle(bar).color);
+                done();
+            }, 100);
+        });
+    </script>
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Computation of colors using color() function syntax</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#color-function">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-color-function-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-color-function-values">
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  #container {
+    container-type: inline-size;
+    color: rgb(255, 0, 0);
+  }
+</style>
+<script>
+for (const colorSpace of [ "srgb", "srgb-linear", "a98-rgb", "rec2020", "prophoto-rgb", "display-p3", "display-p3-linear" ]) {
+    test_computed_value("color", `color(${colorSpace} 0% 0% 0%)`, `color(${colorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} 10% 10% 10%)`, `color(${colorSpace} 0.1 0.1 0.1)`);
+    test_computed_value("color", `color(${colorSpace} .2 .2 25%)`, `color(${colorSpace} 0.2 0.2 0.25)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / 1)`, `color(${colorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} 0% 0 0 / 0.5)`, `color(${colorSpace} 0 0 0 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 20% 0 10/0.5)`, `color(${colorSpace} 0.2 0 10 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 20% 0 10/50%)`, `color(${colorSpace} 0.2 0 10 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 400% 0 10/50%)`, `color(${colorSpace} 4 0 10 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 50% -160 160)`, `color(${colorSpace} 0.5 -160 160)`);
+    test_computed_value("color", `color(${colorSpace} 50% -200 200)`, `color(${colorSpace} 0.5 -200 200)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / -10%)`, `color(${colorSpace} 0 0 0 / 0)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / 110%)`, `color(${colorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / 300%)`, `color(${colorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} 200 200 200)`, `color(${colorSpace} 200 200 200)`);
+    test_computed_value("color", `color(${colorSpace} 200 200 200 / 200)`, `color(${colorSpace} 200 200 200)`);
+    test_computed_value("color", `color(${colorSpace} -200 -200 -200)`, `color(${colorSpace} -200 -200 -200)`);
+    test_computed_value("color", `color(${colorSpace} -200 -200 -200 / -200)`, `color(${colorSpace} -200 -200 -200 / 0)`);
+    test_computed_value("color", `color(${colorSpace} 200% 200% 200%)`, `color(${colorSpace} 2 2 2)`);
+    test_computed_value("color", `color(${colorSpace} 200% 200% 200% / 200%)`, `color(${colorSpace} 2 2 2)`);
+    test_computed_value("color", `color(${colorSpace} -200% -200% -200% / -200%)`, `color(${colorSpace} -2 -2 -2 / 0)`);
+    test_computed_value("color", `color(${colorSpace} calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))`, `color(${colorSpace} 1.5 -0.5 0.5 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))`, `color(${colorSpace} 1.5 -0.5 0.5 / 0)`);
+
+    test_computed_value("color", `color(${colorSpace} none none none / none)`, `color(${colorSpace} none none none / none)`);
+    test_computed_value("color", `color(${colorSpace} none none none)`, `color(${colorSpace} none none none)`);
+    test_computed_value("color", `color(${colorSpace} 10% none none / none)`, `color(${colorSpace} 0.1 none none / none)`);
+    test_computed_value("color", `color(${colorSpace} none none none / 0.5)`, `color(${colorSpace} none none none / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / none)`, `color(${colorSpace} 0 0 0 / none)`);
+
+    test_computed_value("color", `color(${colorSpace} calc(NaN) 0 0)`, `color(${colorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} calc(0 / 0) 0 0)`, `color(${colorSpace} 0 0 0)`);
+
+    // calc(50% + (sign(1em - 10px) * 10%)), with its font relative units, must be evaluatated for computed value.
+    test_computed_value("color", `color(${colorSpace} calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)`, `color(${colorSpace} 0.6 0 0 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))`, `color(${colorSpace} 0.5 0 0 / 0.6)`);
+}
+
+for (const colorSpace of [ "xyz", "xyz-d50", "xyz-d65" ]) {
+    const resultColorSpace = colorSpace == "xyz" ? "xyz-d65" : colorSpace;
+
+    test_computed_value("color", `color(${colorSpace} 0 0 0)`, `color(${resultColorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / 1)`, `color(${resultColorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} 1 1 1)`, `color(${resultColorSpace} 1 1 1)`);
+    test_computed_value("color", `color(${colorSpace} 1 1 1 / 1)`, `color(${resultColorSpace} 1 1 1)`);
+    test_computed_value("color", `color(${colorSpace} -1 -1 -1)`, `color(${resultColorSpace} -1 -1 -1)`);
+    test_computed_value("color", `color(${colorSpace} 0.1 0.1 0.1)`, `color(${resultColorSpace} 0.1 0.1 0.1)`);
+    test_computed_value("color", `color(${colorSpace} 10 10 10)`, `color(${resultColorSpace} 10 10 10)`);
+    test_computed_value("color", `color(${colorSpace} .2 .2 .25)`, `color(${resultColorSpace} 0.2 0.2 0.25)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / 0.5)`, `color(${resultColorSpace} 0 0 0 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} .20 0 10/0.5)`, `color(${resultColorSpace} 0.2 0 10 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} .20 0 10/50%)`, `color(${resultColorSpace} 0.2 0 10 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / -10%)`, `color(${resultColorSpace} 0 0 0 / 0)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / 110%)`, `color(${resultColorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / 300%)`, `color(${resultColorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))`, `color(${resultColorSpace} 1.5 -0.5 0.5 / 0.5)`);
+
+    test_computed_value("color", `color(${colorSpace} none none none / none)`, `color(${resultColorSpace} none none none / none)`);
+    test_computed_value("color", `color(${colorSpace} none none none)`, `color(${resultColorSpace} none none none)`);
+    test_computed_value("color", `color(${colorSpace} 0.2 none none / none)`, `color(${resultColorSpace} 0.2 none none / none)`);
+    test_computed_value("color", `color(${colorSpace} none none none / 0.5)`, `color(${resultColorSpace} none none none / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 0 0 0 / none)`, `color(${resultColorSpace} 0 0 0 / none)`);
+
+    test_computed_value("color", `color(${colorSpace} calc(NaN) 0 0)`, `color(${resultColorSpace} 0 0 0)`);
+    test_computed_value("color", `color(${colorSpace} calc(0 / 0) 0 0)`, `color(${resultColorSpace} 0 0 0)`);
+
+    // calc(50% + (sign(1em - 10px) * 10%)), with its font relative units, must be evaluatated for computed value.
+    test_computed_value("color", `color(${colorSpace} calc(0.5 + (sign(1em - 10px) * 0.1)) 0 0 / 0.5)`, `color(${resultColorSpace} 0.6 0 0 / 0.5)`);
+    test_computed_value("color", `color(${colorSpace} 0.5 0 0 / calc(0.5 + (sign(1em - 10px) * 0.1)))`, `color(${resultColorSpace} 0.5 0 0 / 0.6)`);
+}
+
+// Opaque sRGB in color()
+test_computed_value("color", "color(srgb 1.00 0.50 0.200)", "color(srgb 1 0.5 0.2)", "[sRGB all numbers]");
+test_computed_value("color", "color(srgb 100% 50% 20%)", "color(srgb 1 0.5 0.2)", "[sRGB all percent]");
+test_computed_value("color", "color(srgb 100% 0.5 20%)", "color(srgb 1 0.5 0.2)", "[sRGB mixed number and percent]");
+test_computed_value("color", "color(srgb 1.00 50% 0.2)", "color(srgb 1 0.5 0.2)", "[sRGB mixed number and percent 2]");
+test_computed_value("color", "color(srgb none none none)", "color(srgb none none none)", "[sRGB all none]");
+test_computed_value("color", "color(srgb 1.00 none 0.2)", "color(srgb 1 none 0.2)", "[sRGB number and none]");
+test_computed_value("color", "color(srgb 100% none 20%)", "color(srgb 1 none 0.2)", "[sRGB percent and none]");
+test_computed_value("color", "color(srgb 100% none 0.2)", "color(srgb 1 none 0.2)", "[sRGB number, percent and none]");
+
+// non-unity alpha, sRGB in  color()
+test_computed_value("color", "color(srgb 1.00 0.50 0.200 / 0.6)", "color(srgb 1 0.5 0.2 / 0.6)", "[sRGB with alpha, all numbers]");
+test_computed_value("color", "color(srgb 100% 50% 20% / 60%)", "color(srgb 1 0.5 0.2 / 0.6)", "[sRGB with alpha, all percent]");
+test_computed_value("color", "color(srgb 100% 0.5 20% / 0.6)", "color(srgb 1 0.5 0.2 / 0.6)", "[sRGB with alpha, mixed number and percent]");
+test_computed_value("color", "color(srgb 1.00 50% 0.2 / 60%)", "color(srgb 1 0.5 0.2 / 0.6)", "[sRGB with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(srgb none none none / none)", "color(srgb none none none / none)", "[sRGB with alpha, all none]");
+test_computed_value("color", "color(srgb 1.00 none 0.2 / none)", "color(srgb 1 none 0.2 / none)", "[sRGB with alpha, number and none]");
+test_computed_value("color", "color(srgb 100% none 20% / 30%)", "color(srgb 1 none 0.2 / 0.3)", "[sRGB with alpha, percent and none]");
+test_computed_value("color", "color(srgb 100% none 0.2 / 23.7%)", "color(srgb 1 none 0.2 / 0.237)", "[sRGB with alpha, number, percent and none]");
+
+// Opaque linear-light sRGB in color()
+test_computed_value("color", "color(srgb-linear 1.00 0.50 0.200)", "color(srgb-linear 1 0.5 0.2)", "[Linear-light sRGB all numbers]");
+test_computed_value("color", "color(srgb-linear 100% 50% 20%)", "color(srgb-linear 1 0.5 0.2)", "[Linear-light sRGB all percent]");
+test_computed_value("color", "color(srgb-linear 100% 0.5 20%)", "color(srgb-linear 1 0.5 0.2)", "[Linear-light sRGB mixed number and percent]");
+test_computed_value("color", "color(srgb-linear 1.00 50% 0.2)", "color(srgb-linear 1 0.5 0.2)", "[Linear-light sRGB mixed number and percent 2]");
+test_computed_value("color", "color(srgb-linear none none none)", "color(srgb-linear none none none)", "[Linear-light sRGB all none]");
+test_computed_value("color", "color(srgb-linear 1.00 none 0.2)", "color(srgb-linear 1 none 0.2)", "[Linear-light sRGB number and none]");
+test_computed_value("color", "color(srgb-linear 100% none 20%)", "color(srgb-linear 1 none 0.2)", "[Linear-light sRGB percent and none]");
+test_computed_value("color", "color(srgb-linear 100% none 0.2)", "color(srgb-linear 1 none 0.2)", "[Linear-light sRGB number, percent and none]");
+
+// non-unity alpha, linear-light sRGB in  color()
+test_computed_value("color", "color(srgb-linear 1.00 0.50 0.200 / 0.6)", "color(srgb-linear 1 0.5 0.2 / 0.6)", "[Linear-light sRGB with alpha, all numbers]");
+test_computed_value("color", "color(srgb-linear 100% 50% 20% / 60%)", "color(srgb-linear 1 0.5 0.2 / 0.6)", "[Linear-light sRGB with alpha, all percent]");
+test_computed_value("color", "color(srgb-linear 100% 0.5 20% / 0.6)", "color(srgb-linear 1 0.5 0.2 / 0.6)", "[Linear-light sRGB with alpha, mixed number and percent]");
+test_computed_value("color", "color(srgb-linear 1.00 50% 0.2 / 60%)", "color(srgb-linear 1 0.5 0.2 / 0.6)", "[Linear-light sRGB with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(srgb-linear none none none / none)", "color(srgb-linear none none none / none)", "[Linear-light sRGB with alpha, all none]");
+test_computed_value("color", "color(srgb-linear 1.00 none 0.2 / none)", "color(srgb-linear 1 none 0.2 / none)", "[Linear-light sRGB with alpha, number and none]");
+test_computed_value("color", "color(srgb-linear 100% none 20% / 30%)", "color(srgb-linear 1 none 0.2 / 0.3)", "[Linear-light sRGB with alpha, percent and none]");
+test_computed_value("color", "color(srgb-linear 100% none 0.2 / 23.7%)", "color(srgb-linear 1 none 0.2 / 0.237)", "[Linear-light sRGB with alpha, number, percent and none]");
+
+// Opaque Display P3 in color()
+test_computed_value("color", "color(display-p3 1.00 0.50 0.200)", "color(display-p3 1 0.5 0.2)", "[Display P3 all numbers]");
+test_computed_value("color", "color(display-p3 100% 50% 20%)", "color(display-p3 1 0.5 0.2)", "[Display P3 all percent]");
+test_computed_value("color", "color(display-p3 100% 0.5 20%)", "color(display-p3 1 0.5 0.2)", "[Display P3 mixed number and percent]");
+test_computed_value("color", "color(display-p3 1.00 50% 0.2)", "color(display-p3 1 0.5 0.2)", "[Display P3 mixed number and percent 2]");
+test_computed_value("color", "color(display-p3 none none none)", "color(display-p3 none none none)", "[Display P3 all none]");
+test_computed_value("color", "color(display-p3 1.00 none 0.2)", "color(display-p3 1 none 0.2)", "[Display P3 number and none]");
+test_computed_value("color", "color(display-p3 100% none 20%)", "color(display-p3 1 none 0.2)", "[Display P3 percent and none]");
+test_computed_value("color", "color(display-p3 100% none 0.2)", "color(display-p3 1 none 0.2)", "[Display P3 number, percent and none]");
+
+// non-unity alpha, Display P3 in  color()
+test_computed_value("color", "color(display-p3 1.00 0.50 0.200 / 0.6)", "color(display-p3 1 0.5 0.2 / 0.6)", "[Display P3 with alpha, all numbers]");
+test_computed_value("color", "color(display-p3 100% 50% 20% / 60%)", "color(display-p3 1 0.5 0.2 / 0.6)", "[Display P3 with alpha, all percent]");
+test_computed_value("color", "color(display-p3 100% 0.5 20% / 0.6)", "color(display-p3 1 0.5 0.2 / 0.6)", "[Display P3 with alpha, mixed number and percent]");
+test_computed_value("color", "color(display-p3 1.00 50% 0.2 / 60%)", "color(display-p3 1 0.5 0.2 / 0.6)", "[Display P3 with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(display-p3 none none none / none)", "color(display-p3 none none none / none)", "[Display P3 with alpha, all none]");
+test_computed_value("color", "color(display-p3 1.00 none 0.2 / none)", "color(display-p3 1 none 0.2 / none)", "[Display P3 with alpha, number and none]");
+test_computed_value("color", "color(display-p3 100% none 20% / 30%)", "color(display-p3 1 none 0.2 / 0.3)", "[Display P3 with alpha, percent and none]");
+test_computed_value("color", "color(display-p3 100% none 0.2 / 23.7%)", "color(display-p3 1 none 0.2 / 0.237)", "[Display P3 with alpha, number, percent and none]");
+
+// Opaque Display P3 Linear in color()
+test_computed_value("color", "color(display-p3-linear 1.00 0.50 0.200)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear all numbers]");
+test_computed_value("color", "color(display-p3-linear 100% 50% 20%)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear all percent]");
+test_computed_value("color", "color(display-p3-linear 100% 0.5 20%)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear mixed number and percent]");
+test_computed_value("color", "color(display-p3-linear 1.00 50% 0.2)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear mixed number and percent 2]");
+test_computed_value("color", "color(display-p3-linear none none none)", "color(display-p3-linear none none none)", "[Display P3 Linear all none]");
+test_computed_value("color", "color(display-p3-linear 1.00 none 0.2)", "color(display-p3-linear 1 none 0.2)", "[Display P3 Linear number and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 20%)", "color(display-p3-linear 1 none 0.2)", "[Display P3 Linear percent and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 0.2)", "color(display-p3-linear 1 none 0.2)", "[Display P3 Linear number, percent and none]");
+
+// non-unity alpha, Display P3 Linear in  color()
+test_computed_value("color", "color(display-p3-linear 1.00 0.50 0.200 / 0.6)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, all numbers]");
+test_computed_value("color", "color(display-p3-linear 100% 50% 20% / 60%)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, all percent]");
+test_computed_value("color", "color(display-p3-linear 100% 0.5 20% / 0.6)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, mixed number and percent]");
+test_computed_value("color", "color(display-p3-linear 1.00 50% 0.2 / 60%)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(display-p3-linear none none none / none)", "color(display-p3-linear none none none / none)", "[Display P3 Linear with alpha, all none]");
+test_computed_value("color", "color(display-p3-linear 1.00 none 0.2 / none)", "color(display-p3-linear 1 none 0.2 / none)", "[Display P3 Linear with alpha, number and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 20% / 30%)", "color(display-p3-linear 1 none 0.2 / 0.3)", "[Display P3 Linear with alpha, percent and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 0.2 / 23.7%)", "color(display-p3-linear 1 none 0.2 / 0.237)", "[Display P3 Linear with alpha, number, percent and none]");
+
+// Opaque A98 RGB in color()
+test_computed_value("color", "color(a98-rgb 1.00 0.50 0.200)", "color(a98-rgb 1 0.5 0.2)", "[A98 RGB all numbers]");
+test_computed_value("color", "color(a98-rgb 100% 50% 20%)", "color(a98-rgb 1 0.5 0.2)", "[A98 RGB all percent]");
+test_computed_value("color", "color(a98-rgb 100% 0.5 20%)", "color(a98-rgb 1 0.5 0.2)", "[A98 RGB mixed number and percent]");
+test_computed_value("color", "color(a98-rgb 1.00 50% 0.2)", "color(a98-rgb 1 0.5 0.2)", "[A98 RGB mixed number and percent 2]");
+test_computed_value("color", "color(a98-rgb none none none)", "color(a98-rgb none none none)", "[A98 RGB all none]");
+test_computed_value("color", "color(a98-rgb 1.00 none 0.2)", "color(a98-rgb 1 none 0.2)", "[A98 RGB number and none]");
+test_computed_value("color", "color(a98-rgb 100% none 20%)", "color(a98-rgb 1 none 0.2)", "[A98 RGB percent and none]");
+test_computed_value("color", "color(a98-rgb 100% none 0.2)", "color(a98-rgb 1 none 0.2)", "[A98 RGB number, percent and none]");
+
+// non-unity alpha, A98 RGB in  color()
+test_computed_value("color", "color(a98-rgb 1.00 0.50 0.200 / 0.6)", "color(a98-rgb 1 0.5 0.2 / 0.6)", "[A98 RGB with alpha, all numbers]");
+test_computed_value("color", "color(a98-rgb 100% 50% 20% / 60%)", "color(a98-rgb 1 0.5 0.2 / 0.6)", "[A98 RGB with alpha, all percent]");
+test_computed_value("color", "color(a98-rgb 100% 0.5 20% / 0.6)", "color(a98-rgb 1 0.5 0.2 / 0.6)", "[A98 RGB with alpha, mixed number and percent]");
+test_computed_value("color", "color(a98-rgb 1.00 50% 0.2 / 60%)", "color(a98-rgb 1 0.5 0.2 / 0.6)", "[A98 RGB with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(a98-rgb none none none / none)", "color(a98-rgb none none none / none)", "[A98 RGB with alpha, all none]");
+test_computed_value("color", "color(a98-rgb 1.00 none 0.2 / none)", "color(a98-rgb 1 none 0.2 / none)", "[A98 RGB with alpha, number and none]");
+test_computed_value("color", "color(a98-rgb 100% none 20% / 30%)", "color(a98-rgb 1 none 0.2 / 0.3)", "[A98 RGB with alpha, percent and none]");
+test_computed_value("color", "color(a98-rgb 100% none 0.2 / 23.7%)", "color(a98-rgb 1 none 0.2 / 0.237)", "[A98 RGB with alpha, number, percent and none]");
+
+// Opaque ProPhoto RGB in color()
+test_computed_value("color", "color(prophoto-rgb 1.00 0.50 0.200)", "color(prophoto-rgb 1 0.5 0.2)", "[ProPhoto RGB all numbers]");
+test_computed_value("color", "color(prophoto-rgb 100% 50% 20%)", "color(prophoto-rgb 1 0.5 0.2)", "[ProPhoto RGB all percent]");
+test_computed_value("color", "color(prophoto-rgb 100% 0.5 20%)", "color(prophoto-rgb 1 0.5 0.2)", "[ProPhoto RGB mixed number and percent]");
+test_computed_value("color", "color(prophoto-rgb 1.00 50% 0.2)", "color(prophoto-rgb 1 0.5 0.2)", "[ProPhoto RGB mixed number and percent 2]");
+test_computed_value("color", "color(prophoto-rgb none none none)", "color(prophoto-rgb none none none)", "[ProPhoto RGB all none]");
+test_computed_value("color", "color(prophoto-rgb 1.00 none 0.2)", "color(prophoto-rgb 1 none 0.2)", "[ProPhoto RGB number and none]");
+test_computed_value("color", "color(prophoto-rgb 100% none 20%)", "color(prophoto-rgb 1 none 0.2)", "[ProPhoto RGB percent and none]");
+test_computed_value("color", "color(prophoto-rgb 100% none 0.2)", "color(prophoto-rgb 1 none 0.2)", "[ProPhoto RGB number, percent and none]");
+
+// non-unity alpha, ProPhoto RGB in  color()
+test_computed_value("color", "color(prophoto-rgb 1.00 0.50 0.200 / 0.6)", "color(prophoto-rgb 1 0.5 0.2 / 0.6)", "[ProPhoto RGB with alpha, all numbers]");
+test_computed_value("color", "color(prophoto-rgb 100% 50% 20% / 60%)", "color(prophoto-rgb 1 0.5 0.2 / 0.6)", "[ProPhoto RGB with alpha, all percent]");
+test_computed_value("color", "color(prophoto-rgb 100% 0.5 20% / 0.6)", "color(prophoto-rgb 1 0.5 0.2 / 0.6)", "[ProPhoto RGB with alpha, mixed number and percent]");
+test_computed_value("color", "color(prophoto-rgb 1.00 50% 0.2 / 60%)", "color(prophoto-rgb 1 0.5 0.2 / 0.6)", "[ProPhoto RGB with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(prophoto-rgb none none none / none)", "color(prophoto-rgb none none none / none)", "[ProPhoto RGB with alpha, all none]");
+test_computed_value("color", "color(prophoto-rgb 1.00 none 0.2 / none)", "color(prophoto-rgb 1 none 0.2 / none)", "[ProPhoto RGB with alpha, number and none]");
+test_computed_value("color", "color(prophoto-rgb 100% none 20% / 30%)", "color(prophoto-rgb 1 none 0.2 / 0.3)", "[ProPhoto RGB with alpha, percent and none]");
+test_computed_value("color", "color(prophoto-rgb 100% none 0.2 / 23.7%)", "color(prophoto-rgb 1 none 0.2 / 0.237)", "[ProPhoto RGB with alpha, number, percent and none]");
+
+// Opaque Rec BT.2020 in  color()
+test_computed_value("color", "color(rec2020 1.00 0.50 0.200)", "color(rec2020 1 0.5 0.2)", "[Rec BT.2020 all numbers]");
+test_computed_value("color", "color(rec2020 100% 50% 20%)", "color(rec2020 1 0.5 0.2)", "[Rec BT.2020 all percent]");
+test_computed_value("color", "color(rec2020 100% 0.5 20%)", "color(rec2020 1 0.5 0.2)", "[Rec BT.2020 mixed number and percent]");
+test_computed_value("color", "color(rec2020 1.00 50% 0.2)", "color(rec2020 1 0.5 0.2)", "[Rec BT.2020 mixed number and percent 2]");
+test_computed_value("color", "color(rec2020 none none none)", "color(rec2020 none none none)", "[Rec BT.2020 all none]");
+test_computed_value("color", "color(rec2020 1.00 none 0.2)", "color(rec2020 1 none 0.2)", "[Rec BT.2020 number and none]");
+test_computed_value("color", "color(rec2020 100% none 20%)", "color(rec2020 1 none 0.2)", "[Rec BT.2020 percent and none]");
+test_computed_value("color", "color(rec2020 100% none 0.2)", "color(rec2020 1 none 0.2)", "[Rec BT.2020 number, percent and none]");
+
+// non-unity alpha, Rec BT.2020 in  color()
+test_computed_value("color", "color(rec2020 1.00 0.50 0.200 / 0.6)", "color(rec2020 1 0.5 0.2 / 0.6)", "[Rec BT.2020 with alpha, all numbers]");
+test_computed_value("color", "color(rec2020 100% 50% 20% / 60%)", "color(rec2020 1 0.5 0.2 / 0.6)", "[Rec BT.2020 with alpha, all percent]");
+test_computed_value("color", "color(rec2020 100% 0.5 20% / 0.6)", "color(rec2020 1 0.5 0.2 / 0.6)", "[Rec BT.2020 with alpha, mixed number and percent]");
+test_computed_value("color", "color(rec2020 1.00 50% 0.2 / 60%)", "color(rec2020 1 0.5 0.2 / 0.6)", "[Rec BT.2020 with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(rec2020 none none none / none)", "color(rec2020 none none none / none)", "[Rec BT.2020 with alpha, all none]");
+test_computed_value("color", "color(rec2020 1.00 none 0.2 / none)", "color(rec2020 1 none 0.2 / none)", "[Rec BT.2020 with alpha, number and none]");
+test_computed_value("color", "color(rec2020 100% none 20% / 30%)", "color(rec2020 1 none 0.2 / 0.3)", "[Rec BT.2020 with alpha, percent and none]");
+test_computed_value("color", "color(rec2020 100% none 0.2 / 23.7%)", "color(rec2020 1 none 0.2 / 0.237)", "[Rec BT.2020 with alpha, number, percent and none]");
+
+// Opaque CIE XYZ D50 in color()
+test_computed_value("color", "color(xyz-d50 1.00 0.50 0.200)", "color(xyz-d50 1 0.5 0.2)", "[CIE XYZ D50 all numbers]");
+test_computed_value("color", "color(xyz-d50 100% 50% 20%)", "color(xyz-d50 1 0.5 0.2)", "[CIE XYZ D50 all percent]");
+test_computed_value("color", "color(xyz-d50 100% 0.5 20%)", "color(xyz-d50 1 0.5 0.2)", "[CIE XYZ D50 mixed number and percent]");
+test_computed_value("color", "color(xyz-d50 1.00 50% 0.2)", "color(xyz-d50 1 0.5 0.2)", "[CIE XYZ D50 mixed number and percent 2]");
+test_computed_value("color", "color(xyz-d50 none none none)", "color(xyz-d50 none none none)", "[CIE XYZ D50 all none]");
+test_computed_value("color", "color(xyz-d50 1.00 none 0.2)", "color(xyz-d50 1 none 0.2)", "[CIE XYZ D50 number and none]");
+test_computed_value("color", "color(xyz-d50 100% none 20%)", "color(xyz-d50 1 none 0.2)", "[CIE XYZ D50 percent and none]");
+test_computed_value("color", "color(xyz-d50 100% none 0.2)", "color(xyz-d50 1 none 0.2)", "[CIE XYZ D50 number, percent and none]");
+
+// non-unity alpha, CIE XYZ D50 in  color()
+test_computed_value("color", "color(xyz-d50 1.00 0.50 0.200 / 0.6)", "color(xyz-d50 1 0.5 0.2 / 0.6)", "[CIE XYZ D50 with alpha, all numbers]");
+test_computed_value("color", "color(xyz-d50 100% 50% 20% / 60%)", "color(xyz-d50 1 0.5 0.2 / 0.6)", "[CIE XYZ D50 with alpha, all percent]");
+test_computed_value("color", "color(xyz-d50 100% 0.5 20% / 0.6)", "color(xyz-d50 1 0.5 0.2 / 0.6)", "[CIE XYZ D50 with alpha, mixed number and percent]");
+test_computed_value("color", "color(xyz-d50 1.00 50% 0.2 / 60%)", "color(xyz-d50 1 0.5 0.2 / 0.6)", "[CIE XYZ D50 with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(xyz-d50 none none none / none)", "color(xyz-d50 none none none / none)", "[CIE XYZ D50 with alpha, all none]");
+test_computed_value("color", "color(xyz-d50 1.00 none 0.2 / none)", "color(xyz-d50 1 none 0.2 / none)", "[CIE XYZ D50 with alpha, number and none]");
+test_computed_value("color", "color(xyz-d50 100% none 20% / 30%)", "color(xyz-d50 1 none 0.2 / 0.3)", "[CIE XYZ D50 with alpha, percent and none]");
+test_computed_value("color", "color(xyz-d50 100% none 0.2 / 23.7%)", "color(xyz-d50 1 none 0.2 / 0.237)", "[CIE XYZ D50 with alpha, number, percent and none]");
+
+// Opaque CIE XYZ D65 in color()
+test_computed_value("color", "color(xyz-d65 1.00 0.50 0.200)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ D65 all numbers]");
+test_computed_value("color", "color(xyz-d65 100% 50% 20%)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ D65 all percent]");
+test_computed_value("color", "color(xyz-d65 100% 0.5 20%)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ D65 mixed number and percent]");
+test_computed_value("color", "color(xyz-d65 1.00 50% 0.2)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ D65 mixed number and percent 2]");
+test_computed_value("color", "color(xyz-d65 none none none)", "color(xyz-d65 none none none)", "[CIE XYZ D65 all none]");
+test_computed_value("color", "color(xyz-d65 1.00 none 0.2)", "color(xyz-d65 1 none 0.2)", "[CIE XYZ D65 number and none]");
+test_computed_value("color", "color(xyz-d65 100% none 20%)", "color(xyz-d65 1 none 0.2)", "[CIE XYZ D65 percent and none]");
+test_computed_value("color", "color(xyz-d65 100% none 0.2)", "color(xyz-d65 1 none 0.2)", "[CIE XYZ D65 number, percent and none]");
+
+// non-unity alpha, CIE XYZ D65 in  color()
+test_computed_value("color", "color(xyz-d65 1.00 0.50 0.200 / 0.6)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ D65 with alpha, all numbers]");
+test_computed_value("color", "color(xyz-d65 100% 50% 20% / 60%)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ D65 with alpha, all percent]");
+test_computed_value("color", "color(xyz-d65 100% 0.5 20% / 0.6)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ D65 with alpha, mixed number and percent]");
+test_computed_value("color", "color(xyz-d65 1.00 50% 0.2 / 60%)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ D65 with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(xyz-d65 none none none / none)", "color(xyz-d65 none none none / none)", "[CIE XYZ D65 with alpha, all none]");
+test_computed_value("color", "color(xyz-d65 1.00 none 0.2 / none)", "color(xyz-d65 1 none 0.2 / none)", "[CIE XYZ D65 with alpha, number and none]");
+test_computed_value("color", "color(xyz-d65 100% none 20% / 30%)", "color(xyz-d65 1 none 0.2 / 0.3)", "[CIE XYZ D65 with alpha, percent and none]");
+test_computed_value("color", "color(xyz-d65 100% none 0.2 / 23.7%)", "color(xyz-d65 1 none 0.2 / 0.237)", "[CIE XYZ D65 with alpha, number, percent and none]");
+
+// Opaque CIE XYZ (implicit D65) in color()
+test_computed_value("color", "color(xyz 1.00 0.50 0.200)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ (implicit D65) all numbers]");
+test_computed_value("color", "color(xyz 100% 50% 20%)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ (implicit D65) all percent]");
+test_computed_value("color", "color(xyz 100% 0.5 20%)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ (implicit D65) mixed number and percent]");
+test_computed_value("color", "color(xyz 1.00 50% 0.2)", "color(xyz-d65 1 0.5 0.2)", "[CIE XYZ (implicit D65) mixed number and percent 2]");
+test_computed_value("color", "color(xyz none none none)", "color(xyz-d65 none none none)", "[CIE XYZ (implicit D65) all none]");
+test_computed_value("color", "color(xyz 1.00 none 0.2)", "color(xyz-d65 1 none 0.2)", "[CIE XYZ (implicit D65) number and none]");
+test_computed_value("color", "color(xyz 100% none 20%)", "color(xyz-d65 1 none 0.2)", "[CIE XYZ (implicit D65) percent and none]");
+test_computed_value("color", "color(xyz 100% none 0.2)", "color(xyz-d65 1 none 0.2)", "[CIE XYZ (implicit D65) number, percent and none]");
+
+// non-unity alpha, CIE XYZ (implicit D65) in  color()
+test_computed_value("color", "color(xyz 1.00 0.50 0.200 / 0.6)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ (implicit D65) with alpha, all numbers]");
+test_computed_value("color", "color(xyz 100% 50% 20% / 60%)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ (implicit D65) with alpha, all percent]");
+test_computed_value("color", "color(xyz 100% 0.5 20% / 0.6)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ (implicit D65) with alpha, mixed number and percent]");
+test_computed_value("color", "color(xyz 1.00 50% 0.2 / 60%)", "color(xyz-d65 1 0.5 0.2 / 0.6)", "[CIE XYZ (implicit D65) with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(xyz none none none / none)", "color(xyz-d65 none none none / none)", "[CIE XYZ (implicit D65) with alpha, all none]");
+test_computed_value("color", "color(xyz 1.00 none 0.2 / none)", "color(xyz-d65 1 none 0.2 / none)", "[CIE XYZ (implicit D65) with alpha, number and none]");
+test_computed_value("color", "color(xyz 100% none 20% / 30%)", "color(xyz-d65 1 none 0.2 / 0.3)", "[CIE XYZ (implicit D65) with alpha, percent and none]");
+test_computed_value("color", "color(xyz 100% none 0.2 / 23.7%)", "color(xyz-d65 1 none 0.2 / 0.237)", "[CIE XYZ (implicit D65) with alpha, number, percent and none]");
+
+// Tests basic parsing of the color function
+test_computed_value("color", "color(srgb 1 1 1)", "color(srgb 1 1 1)", "[Basic sRGB white]");
+test_computed_value("color", "color(    srgb         1      1 1       )", "color(srgb 1 1 1)", "[White with lots of space]");
+test_computed_value("color", "color(srgb 0.25 0.5 0.75)", "color(srgb 0.25 0.5 0.75)", "[sRGB color]");
+test_computed_value("color", "color(SrGb 0.25 0.5 0.75)", "color(srgb 0.25 0.5 0.75)", "[Different case for sRGB]");
+test_computed_value("color", "color(srgb 1.00000 0.500000 0.20)", "color(srgb 1 0.5 0.2)", "[sRGB color with unnecessary decimals]");
+test_computed_value("color", "color(srgb 1 1 1 / 0.5)", "color(srgb 1 1 1 / 0.5)", "[sRGB white with 0.5 alpha]");
+test_computed_value("color", "color(srgb 1 1 1 / 0)", "color(srgb 1 1 1 / 0)", "[sRGB white with 0 alpha]");
+test_computed_value("color", "color(srgb 1 1 1 / 50%)", "color(srgb 1 1 1 / 0.5)", "[sRGB white with 50% alpha]");
+test_computed_value("color", "color(srgb 1 1 1 / 0%)", "color(srgb 1 1 1 / 0)", "[sRGB white with 0% alpha]");
+test_computed_value("color", "color(display-p3 0.6 0.7 0.8)", "color(display-p3 0.6 0.7 0.8)", "[Display P3 color]");
+test_computed_value("color", "color(dIspLaY-P3 0.6 0.7 0.8)", "color(display-p3 0.6 0.7 0.8)", "[Different case for Display P3]");
+
+test_computed_value("color", "color(srgb -0.25 0.5 0.75)", "color(srgb -0.25 0.5 0.75)", "[sRGB color with negative component should not clamp to 0]");
+test_computed_value("color", "color(srgb 0.25 1.5 0.75)", "color(srgb 0.25 1.5 0.75)", "[sRGB color with component > 1 should not clamp]");
+test_computed_value("color", "color(display-p3 0.5 -199 0.75)", "color(display-p3 0.5 -199 0.75)", "[Display P3 color with negative component should not clamp to 0]");
+test_computed_value("color", "color(display-p3 184 1.00001 1103)", "color(display-p3 184 1.00001 1103)", "[Display P3 color with component > 1 should not clamp]");
+test_computed_value("color", "color(srgb 0.1 0.2 0.3 / 1.9)", "color(srgb 0.1 0.2 0.3)", "[Alpha > 1 should clamp]");
+test_computed_value("color", "color(srgb 1 1 1 / -0.2)", "color(srgb 1 1 1 / 0)", "[Negative alpha should clamp]");
+
+
+// Ensure that `calc` values work with dynamically changing relative units (slighly different alpha values to make test harness not complain about duplicate tests).
+document.getElementById("container").style.width = "1000px";
+test_computed_value("color", `color(srgb calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0 0 / 0.51)`, `color(srgb 0.6 0 0 / 0.51)`);
+document.getElementById("container").style.width = "100px";
+test_computed_value("color", `color(srgb calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0 0 / 0.52)`, `color(srgb 0.4 0 0 / 0.52)`);
+</script>

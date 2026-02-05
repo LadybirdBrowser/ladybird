@@ -1,0 +1,23 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [5,2 98.015625x18] baseline: 15.796875
+      TextNode <#text> (not painted)
+      BlockContainer <button> at [5,2] inline-block [0+1+4 98.015625 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [5,2] flex-container(column) [0+0+0 98.015625 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [5,2] flex-item [0+0+0 98.015625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 11, rect: [5,2 98.015625x18] baseline: 13.796875
+                "Test Button"
+            TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x600]
+      PaintableWithLines (BlockContainer<BUTTON>) [0,0 108.015625x22]
+        PaintableWithLines (BlockContainer(anonymous)) [5,2 98.015625x18]
+          PaintableWithLines (BlockContainer(anonymous)) [5,2 98.015625x18]
+            TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x600] [children: 0] (z-index: auto)

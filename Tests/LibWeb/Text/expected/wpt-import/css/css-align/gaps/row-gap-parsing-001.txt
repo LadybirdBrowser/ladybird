@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	Default row-gap is 'normal'
+Pass	row-gap accepts pixels
+Pass	row-gap accepts em
+Pass	row-gap accepts vw
+Pass	row-gap accepts percentage
+Pass	row-gap accepts calc()
+Pass	row-gap accepts calc() mixing fixed and percentage values
+Pass	Initial row-gap is 'normal'
+Pass	Initial row-gap is 'normal' 2
+Pass	Initial inherited row-gap is 'normal'
+Pass	row-gap is inheritable
+Pass	Negative row-gap is invalid
+Pass	'max-content' row-gap is invalid
+Pass	'none' row-gap is invalid
+Pass	row-gap with multiple values is invalid
+Pass	Angle row-gap is invalid
+Pass	Resolution row-gap is invalid
+Pass	Time row-gap is invalid

@@ -1,0 +1,6 @@
+#import <DOM/Text.idl>
+
+// https://dom.spec.whatwg.org/#interface-cdatasection
+[Exposed=Window]
+interface CDATASection : Text {
+};

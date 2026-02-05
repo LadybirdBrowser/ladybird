@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: serialization of font-variant</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#propdef-font-variant">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1797146">
+<meta name="assert" content="re-setting font-variant to its serialization should be idempotent">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id=target style=""></div>
+<script>
+test(function(){
+    let div = document.getElementById("target");
+    let sty = div.style;
+
+    sty.font = "12px serif";
+    v = sty.fontVariant;
+    assert_in_array(v, ["", "normal"]);  // Accept either explicit 'normal' or empty.
+    sty.fontVariant = v;
+    assert_equals(sty.fontVariant, v);
+
+    sty.font = "menu";
+    v = sty.fontVariant;
+    assert_in_array(v, ["", "normal"]);
+
+    sty.font = "12px serif"
+    sty.fontVariantNumeric = "tabular-nums";
+    v = sty.fontVariant;
+    assert_equals(v, "tabular-nums");
+    sty.fontVariant = v;
+    assert_equals(sty.fontVariant, v);
+
+    sty.font = "menu"
+    sty.fontVariantNumeric = "tabular-nums";
+    v = sty.fontVariant;
+    assert_equals(v, "tabular-nums");
+    sty.fontVariant = v;
+    assert_equals(sty.fontVariant, v);
+
+    sty.font = "12px serif"
+    sty.fontVariantNumeric = "tabular-nums";
+    sty.fontVariantCaps = "small-caps";
+    v = sty.fontVariant;
+    sty.fontVariant = v;
+    assert_equals(sty.fontVariant, v);
+
+    sty.font = "menu"
+    sty.fontVariantNumeric = "tabular-nums";
+    sty.fontVariantCaps = "small-caps";
+    v = sty.fontVariant;
+    sty.fontVariant = v;
+    assert_equals(sty.fontVariant, v);
+}, "checking serialized value of font-variant");
+</script>
+</body>
+</html>

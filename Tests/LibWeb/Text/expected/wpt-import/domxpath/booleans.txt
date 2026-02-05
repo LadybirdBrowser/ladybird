@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	"or" operator depending on the context node
+Pass	"=" operator depending on the context node
+Pass	"!=" operator depending on the context node
+Pass	"<" operator depending on the context node
+Pass	">" operator depending on the context node
+Pass	">=" operator depending on the context node
+Pass	"<=" operator depending on the context node

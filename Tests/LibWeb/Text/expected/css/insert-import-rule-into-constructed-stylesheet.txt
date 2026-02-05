@@ -1,0 +1,1 @@
+Inserting an @import rule into a constructed stylesheet throws: SyntaxError

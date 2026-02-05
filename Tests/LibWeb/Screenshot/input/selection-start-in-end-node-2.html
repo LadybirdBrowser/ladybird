@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-start-in-end-node-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-268">
+<!-- The space after the start node, as well as "NOT SELECTED" must not be selected. -->
+<span id="end">End Node <span id="start">Start Node</span> </span>NOT SELECTED
+<script>
+  let range = document.createRange();
+  range.setStart(start, 0);
+  range.setEnd(end, 2);
+  window.getSelection().addRange(range);
+</script>

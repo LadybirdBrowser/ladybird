@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Property font-variant-caps value 'normal'
+Pass	Property font-variant-caps value 'small-caps'
+Pass	Property font-variant-caps value 'all-small-caps'
+Pass	Property font-variant-caps value 'petite-caps'
+Pass	Property font-variant-caps value 'all-petite-caps'
+Pass	Property font-variant-caps value 'unicase'
+Pass	Property font-variant-caps value 'titling-caps'

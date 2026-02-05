@@ -1,0 +1,9 @@
+<!doctype html>
+<script src="../include.js"></script>
+<body><div id=foo><div id=bar></div></div>
+<script>
+    test(() => {
+        bar.scrollParent;
+        println("PASS (didn't hang)");
+    });
+</script>

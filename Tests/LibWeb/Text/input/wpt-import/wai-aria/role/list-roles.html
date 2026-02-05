@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <title>List-related Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests <a href="https://w3c.github.io/aria/#list">list</a> and related roles.</p>
+
+<div role="list" data-testname="first simple list" data-expectedrole="list" class="ex">
+  <div role="listitem" data-testname="first simple listitem" data-expectedrole="listitem" class="ex">x</div>
+  <div role="listitem" data-testname="last simple listitem" data-expectedrole="listitem" class="ex">x</div>
+</div>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

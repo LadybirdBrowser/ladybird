@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#angles">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+<div id="target"></div>
+<div id="reference"></div>
+<script>
+function test_angle_equals(value, expected) {
+  test_math_used(value, expected, {type: "angle"});
+}
+
+// Identity tests
+test_angle_equals('min(1deg)', '1deg');
+test_angle_equals('min(1grad)', '1grad');
+test_angle_equals('min(1rad)', '1rad');
+test_angle_equals('min(1turn)', '1turn');
+test_angle_equals('max(1deg)', '1deg');
+test_angle_equals('max(1grad)', '1grad');
+test_angle_equals('max(1rad)', '1rad');
+test_angle_equals('max(1turn)', '1turn');
+
+// Comparisons between same units
+test_angle_equals('min(1deg, 2deg)', '1deg');
+test_angle_equals('min(1grad, 2grad)', '1grad');
+test_angle_equals('min(1rad, 2rad)', '1rad');
+test_angle_equals('min(1turn, 2turn)', '1turn');
+test_angle_equals('max(1deg, 2deg)', '2deg');
+test_angle_equals('max(1grad, 2grad)', '2grad');
+test_angle_equals('max(1rad, 2rad)', '2rad');
+test_angle_equals('max(1turn, 2turn)', '2turn');
+
+// Comparisons between different units
+test_angle_equals('min(90deg, 0.26turn)', '90deg');
+test_angle_equals('min(1.57rad, 95deg)', '1.57rad');
+test_angle_equals('max(91deg, 0.25turn)', '91deg');
+test_angle_equals('max(1.58rad, 90deg)', '1.58rad');
+
+// Nestings
+test_angle_equals('min(270deg, max(0.25turn, 3.14rad))', '3.14rad');
+test_angle_equals('max(0.25turn, min(270deg, 3.14rad))', '3.14rad');
+
+// General calculations
+test_angle_equals('calc(min(90deg, 1.58rad) + 0.125turn)', '135deg');
+test_angle_equals('calc(min(90deg, 1.58rad) - 0.125turn)', '45deg');
+test_angle_equals('calc(min(90deg, 1.58rad) * 1.5', '135deg');
+test_angle_equals('calc(min(90deg, 1.58rad) / 2', '45deg');
+test_angle_equals('calc(max(90deg, 1.56rad) + 0.125turn', '135deg');
+test_angle_equals('calc(max(90deg, 1.56rad) - 0.125turn)', '45deg');
+test_angle_equals('calc(max(90deg, 1.56rad) * 1.5', '135deg');
+test_angle_equals('calc(max(90deg, 1.56rad) / 2', '45deg');
+test_angle_equals('calc(min(90deg, 1.58rad) + max(0.125turn, 49grad))', '135deg');
+test_angle_equals('calc(min(90deg, 1.58rad) - max(0.25turn, 99grad))', '0deg');
+</script>

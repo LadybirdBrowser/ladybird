@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	x-prefixed pseudo-elements should make the whole rule invalid

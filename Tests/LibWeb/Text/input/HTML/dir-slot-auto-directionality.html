@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="root">
+    <span></span>
+</div>
+<script>
+    const root = document.getElementById("root");
+    test(() => {
+        const shadowTree = `<slot dir="auto"></slot>`;
+        const shadow = document.querySelector("#root").attachShadow({mode: "open"});
+        shadow.innerHTML = shadowTree;
+        println(`Slot directionality: ${getComputedStyle(shadow.querySelector("slot")).direction}`);
+    });
+</script>

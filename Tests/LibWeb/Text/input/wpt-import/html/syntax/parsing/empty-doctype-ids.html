@@ -1,0 +1,10 @@
+<!doctype html PUBLIC "" "">
+<meta charset=utf-8>
+<title>Doctype with empty ids should trigger the standards mode.</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+test(function () {
+  assert_equals(document.compatMode, "CSS1Compat");
+}, "Doctype with empty ids should trigger the standards mode.");
+</script>

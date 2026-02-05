@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+        let animation = foo.animate({ color: ["red", "blue"] });
+        println(`Element.animate creates Animation with effect: ${animation.effect instanceof KeyframeEffect}`);
+
+        animation.effect = null;
+        println(`Setting effect to null clears the effect: ${animation.effect === null}`);
+
+        animation = new Animation(null, null);
+        println(`Accessing effect property on animation with no effect produces null: ${animation.effect === null}`);
+
+        animation.effect = new KeyframeEffect(foo, {});
+        println(`Setting effect on animation with no effect works: ${animation.effect instanceof KeyframeEffect}`);
+    });
+</script>

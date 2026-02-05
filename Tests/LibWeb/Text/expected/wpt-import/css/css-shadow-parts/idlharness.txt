@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Element: original interface defined
+Pass	Partial interface Element: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	Element interface: attribute part
+Pass	Element interface: element must inherit property "part" with the proper type
+Pass	Element interface: htmlElement must inherit property "part" with the proper type
+Pass	Element interface: svgElement must inherit property "part" with the proper type

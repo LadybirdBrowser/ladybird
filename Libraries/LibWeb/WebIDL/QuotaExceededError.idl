@@ -1,0 +1,14 @@
+// https://webidl.spec.whatwg.org/#quotaexceedederror
+[Exposed=*, Serializable]
+interface QuotaExceededError : DOMException {
+    constructor(optional Utf16DOMString message = "", optional QuotaExceededErrorOptions options = {});
+
+    readonly attribute double? quota;
+    readonly attribute double? requested;
+};
+
+// https://webidl.spec.whatwg.org/#dictdef-quotaexceedederroroptions
+dictionary QuotaExceededErrorOptions {
+    double quota;
+    double requested;
+};

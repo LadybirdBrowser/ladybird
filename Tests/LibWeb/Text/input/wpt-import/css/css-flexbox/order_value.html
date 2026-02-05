@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Flexible Box Test: order_check</title>
+    <link rel="author" title="Intel" href="http://www.intel.com" />
+    <link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#order-property" />
+    <link rel="stylesheet" href="support/test-style.css">
+    <meta name="assert" content="Check if the web engine can indentify order property." />
+    <style>
+      #test{
+	height: 200px;
+ 	width: 200px;
+        display: flex;
+      }
+      div#test02{
+	order: -1;
+      }
+    </style>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id=log></div>
+    <div id=test><div id=test01>1</div><div id=test02>2</div><div id=test03>3</div></div>
+    <script type="text/javascript">
+        var t = async_test();
+        t.step(function () {
+            assert_equals(document.getElementById("test01").offsetTop, document.getElementById("test02").offsetTop, "Rectangle 1 and 2 have the same offsetTop value");
+            assert_equals((document.getElementById("test02").offsetLeft >= document.getElementById("test01").offsetLeft), false, "Rectangle 2 have a smaller offsetLeft value than 1.");
+        });
+        t.done();
+    </script>
+  </body>
+</html>

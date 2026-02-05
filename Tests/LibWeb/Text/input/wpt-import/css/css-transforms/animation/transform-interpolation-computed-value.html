@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform interpolation</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om/#transformvalue-objects">
+<meta name="assert" content="transform gives the correct computed values when interpolated">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../web-animations/testcommon.js"></script>
+
+<body>
+<script>
+function interpolation_test(from, to, expected_50) {
+  test(t => {
+    let div = createDiv(t);
+    let anim = div.animate({transform: [from, to]}, 2000);
+    anim.pause();
+    anim.currentTime = 1000;
+    let halfway = div.computedStyleMap().get('transform').toString();
+    assert_equals(halfway, expected_50, "The value at 50% progress is as expected");
+  }, "Interpolation between " + from + " and " + to + " gives the correct " +
+     "computed value halfway according to computedStyleMap.");
+
+  test(t => {
+    let div = createDiv(t);
+    div.style.zoom = 1.25;
+    let anim = div.animate({transform: [from, to]}, 2000);
+    anim.pause();
+    anim.currentTime = 1000;
+    let halfway = div.computedStyleMap().get('transform').toString();
+    assert_equals(halfway, expected_50, "The value at 50% progress is as expected");
+  }, "Interpolation between " + from + " and " + to + " gives the correct " +
+     "computed value halfway according to computedStyleMap with zoom active.");
+}
+
+interpolation_test('translateX(0px)', 'translateX(50px)', 'translate(25px, 0px)');
+interpolation_test('translateX(0%)', 'translateX(50%)', 'translate(25%, 0px)');
+interpolation_test('translateY(0%)', 'translateX(50%)', 'translate(25%, 0px)');
+interpolation_test('translateX(50px)', 'translateY(50px)', 'translate(25px, 25px)');
+interpolation_test('translateX(50px)', 'translateZ(50px)', 'translate3d(25px, 0px, 25px)');
+interpolation_test('translateZ(50px)', 'translateX(50px)', 'translate3d(25px, 0px, 25px)');
+interpolation_test('translateZ(-50px)','translateZ(50px)', 'translate3d(0px, 0px, 0px)');
+interpolation_test('translate(0%)', 'translate(50%)', 'translate(25%, 0px)');
+interpolation_test('translate(50%)', 'translate(100%, 50%)', 'translate(75%, 25%)');
+interpolation_test('translate(0%, 50%)', 'translate(50%, 100%)', 'translate(25%, 75%)');
+interpolation_test('translate3d(0,0,-50px)','translateZ(50px)', 'translate3d(0px, 0px, 0px)');
+interpolation_test('translate(50px, 0px)', 'translate(100px, 0px)', 'translate(75px, 0px)');
+interpolation_test('translate(50px, -50px)', 'translate(100px, 50px)', 'translate(75px, 0px)');
+
+interpolation_test('rotate(30deg)', 'rotate(90deg)', 'rotate(60deg)');
+interpolation_test('rotateZ(30deg)', 'rotateZ(90deg)', 'rotate3d(0, 0, 1, 60deg)');
+interpolation_test('rotate(0deg)', 'rotateZ(90deg)', 'rotate3d(0, 0, 1, 45deg)');
+interpolation_test('rotateX(0deg)','rotateX(90deg)', 'rotate3d(1, 0, 0, 45deg)');
+interpolation_test('rotate(0deg)', 'rotateX(90deg)', 'rotate3d(1, 0, 0, 45deg)');
+
+interpolation_test('scale(1)', 'scale(2)', 'scale(1.5, 1.5)');
+interpolation_test('scale(1, 3)', 'scale(2)', 'scale(1.5, 2.5)');
+interpolation_test('scaleX(1)', 'scaleX(2)', 'scale(1.5, 1)');
+interpolation_test('scaleY(1)', 'scaleY(2)', 'scale(1, 1.5)');
+interpolation_test('scaleZ(1)', 'scaleZ(2)', 'scale3d(1, 1, 1.5)');
+interpolation_test('scaleX(2)', 'scaleY(2)', 'scale(1.5, 1.5)');
+interpolation_test('scaleX(2)', 'scaleY(3)', 'scale(1.5, 2)');
+interpolation_test('scaleZ(1)', 'scale(2)', 'scale3d(1.5, 1.5, 1)');
+interpolation_test('scale(1, 2)', 'scale(3, 4)', 'scale(2, 3)');
+interpolation_test('scale3d(1, 2, 3)', 'scale3d(4, 5, 6)', 'scale3d(2.5, 3.5, 4.5)');
+interpolation_test('scale3d(1, 2, 3)', 'scale(4, 5)', 'scale3d(2.5, 3.5, 2)');
+interpolation_test('scale(1, 2)', 'scale3d(3, 4, 5)', 'scale3d(2, 3, 3)');
+
+interpolation_test('skewX(0deg)', 'skewX(60deg)', 'skewX(30deg)');
+interpolation_test('skewX(0deg)', 'skewX(90deg)', 'skewX(45deg)');
+interpolation_test('skewX(0deg)', 'skewX(180deg)', 'skewX(90deg)');
+interpolation_test('skew(0deg, 0deg)', 'skew(60deg, 60deg)', 'skew(30deg, 30deg)');
+interpolation_test('skew(45deg, 0deg)', 'skew(0deg, 45deg)', 'skew(22.5deg, 22.5deg)');
+
+interpolation_test('perspective(10px)', 'perspective(2.5px)', 'perspective(4px)');
+interpolation_test('perspective(10px)', 'perspective(none)', 'perspective(20px)');
+interpolation_test('perspective(none)', 'perspective(none)', 'perspective(none)');
+
+// A matrix() with just scale and translation.
+interpolation_test('matrix(2, 0, 0, 2, 10, 30)', 'matrix(4, 0, 0, 6, 14, 10)', 'matrix(3, 0, 0, 4, 12, 20)');
+
+// A matrix3d() with just scale and translation.
+interpolation_test('matrix3d(1, 0, 0, 0, 0, 4, 0, 0, 0, 0, 1, 0, 5, 10, 4, 1)', 'matrix3d(3, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, -11, 2, 2, 1)', 'matrix3d(2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 2, 0, -3, 6, 3, 1)');
+// A matrix3d() with just perspective.
+interpolation_test('matrix3d(1, 0, 0, 3, 0, 1, 0, 2, 0, 0, 1, 8, 0, 0, 0, 1)', 'matrix3d(1, 0, 0, 5, 0, 1, 0, 8, 0, 0, 1, 14, 0, 0, 0, 1)', 'matrix3d(1, 0, 0, 4, 0, 1, 0, 5, 0, 0, 1, 11, 0, 0, 0, 1)');
+
+// NOTE: New tests added here should also be added in
+// transform-interpolation-inline-value.html.
+
+</script>

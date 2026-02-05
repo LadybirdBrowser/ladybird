@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    #container {
+        border: 1px solid #000;
+        padding: 10px;
+        margin: 20px;
+    }
+</style>
+<div id="container"><p>This is the original content.</p></div>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        let container = document.getElementById('container');
+        container.insertAdjacentHTML('beforebegin', '<div>This is inserted before the container.</div>');
+        container.insertAdjacentHTML('afterend', '<div>This is inserted after the container.</div>');
+        container.insertAdjacentHTML('afterbegin', '<p>This is inserted at the beginning.</p>');
+        container.insertAdjacentHTML('beforeend', '<p>This is inserted at the end.</p>');
+    });
+</script>
+</html>

@@ -1,0 +1,11 @@
+source_set("Fetching") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "Checks.cpp",
+    "FetchedDataReceiver.cpp",
+    "Fetching.cpp",
+    "PendingResponse.cpp",
+    "RefCountedFlag.cpp",
+  ]
+}

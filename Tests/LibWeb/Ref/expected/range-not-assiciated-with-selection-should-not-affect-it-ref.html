@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <p id="text">This is a simple sentence used to test range and selection rectangles.</p>
+        <script>
+            const textNode = document.getElementById("text").firstChild;
+
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+
+            const selRange = document.createRange();
+            selRange.setStart(textNode, 5);
+            selRange.setEnd(textNode, 16);
+            sel.addRange(selRange);
+        </script>
+    </body>
+</html>

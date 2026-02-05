@@ -1,0 +1,17 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/embedded-content.html#htmlsourceelement
+[Exposed=Window]
+interface HTMLSourceElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect] attribute USVString srcset;
+    [CEReactions, Reflect] attribute DOMString sizes;
+    [CEReactions, Reflect] attribute DOMString media;
+    [CEReactions, Reflect] attribute unsigned long width;
+    [CEReactions, Reflect] attribute unsigned long height;
+
+};

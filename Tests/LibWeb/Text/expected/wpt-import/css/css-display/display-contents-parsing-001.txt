@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Tests that the 'contents' value for the 'display' property is correctly parsed

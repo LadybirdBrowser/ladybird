@@ -1,0 +1,21 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#scope"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-1.xml"/>
+  <title>CSS Namespaces Test Suite: scope @import</title>
+  <style>
+   test { background:lime }
+  </style>
+  <style>
+   @import url("support/scope-002a.css");
+   @import url("support/scope-002b.css");
+   @namespace w "test";
+   x|test { background:red }
+  </style>
+ </head>
+ <body>
+  <p><test xmlns="test">This sentence should have a green background.</test></p>
+ </body>
+</html>

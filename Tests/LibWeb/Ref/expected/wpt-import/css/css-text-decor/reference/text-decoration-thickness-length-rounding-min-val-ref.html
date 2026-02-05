@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>
+            CSS Text Decoration Test: text-decoration-thickness length min rounding
+        </title>
+
+        <link rel="author" title="Traian Captan" href="mailto:tcaptan@chromium.org">
+
+        <style>
+            table {
+                border: 3px solid gray;
+                border-collapse: collapse;
+            }
+
+            th,
+            td{
+                border: 2px solid gray;
+                padding: 10px;
+                text-align: center;
+            }
+
+            .one_px {
+                text-decoration-thickness: 1px;
+            }
+
+            .solid {
+                text-decoration-style: solid;
+            }
+
+            .double {
+                text-decoration-style: double;
+            }
+
+            .dotted {
+                text-decoration-style: dotted;
+            }
+
+            .dashed {
+                text-decoration-style: dashed;
+            }
+
+            .wavy {
+                text-decoration-style: wavy;
+            }
+
+            .underline {
+                text-decoration-line: underline;
+            }
+
+            .line_through {
+                text-decoration-line: line-through;
+            }
+
+            .overline {
+                text-decoration-line: overline;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>
+            Test passes if text-decoration-thickness length is rounded up to 1px
+        </h1>
+
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">
+                        Line Type
+                    </th>
+                    <th colspan="5">
+                        Line Style
+                    </th>
+                </tr>
+                <tr>
+                    <th>
+                        Solid
+                    </th>
+                    <th>
+                        Double
+                    </th>
+                    <th>
+                        Dotted
+                    </th>
+                    <th>
+                        Dashed
+                    </th>
+                    <th>
+                        Wavy
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th>
+                        Underline
+                    </th>
+                    <td class="one_px solid underline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px double underline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px dotted underline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px dashed underline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px wavy underline">
+                        Thickness test.
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        Line-through
+                    </th>
+                    <td class="one_px solid line_through">
+                        Thickness test.
+                    </td>
+                    <td class="one_px double line_through">
+                        Thickness test.
+                    </td>
+                    <td class="one_px dotted line_through">
+                        Thickness test.
+                    </td>
+                    <td class="one_px dashed line_through">
+                        Thickness test.
+                    </td>
+                    <td class="one_px wavy line_through">
+                        Thickness test.
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        Overline
+                    </th>
+                    <td class="one_px solid overline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px double overline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px dotted overline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px dashed overline">
+                        Thickness test.
+                    </td>
+                    <td class="one_px wavy overline">
+                        Thickness test.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </body>
+</html>

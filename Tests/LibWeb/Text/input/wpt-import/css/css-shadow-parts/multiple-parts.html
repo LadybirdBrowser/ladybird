@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Shadow Parts - Multiple parts</title>
+    <meta href="mailto:fergal@chromium.org" rel="author" title="Fergal Daly">
+    <link href="http://www.google.com/" rel="author" title="Google">
+    <link href="https://drafts.csswg.org/css-shadow-parts/" rel="help">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="support/shadow-helper.js"></script>
+  </head>
+  <body>
+    <style>#c-e::part(partp1 partp2) { color: green; }</style>
+    <script>installCustomElement("custom-element", "custom-element-template");</script>
+    <template id="custom-element-template">
+      <style>
+        .red { color: red; }
+        .blue { color: blue; }
+      </style>
+      <span id="greenpart" class="red" part="partp1 partp2">green</span>
+      <span id="bluepart1" class="blue" part="partp1">blue</span>
+      <span id="bluepart2" class="blue" part="partp2">blue</span>
+    </template>
+    The following text should match its stated colour:
+    <custom-element id="c-e"></custom-element>
+    <script>
+      "use strict";
+      const colorBlue = "rgb(0, 0, 255)";
+      const colorGreen = "rgb(0, 128, 0)";
+      test(function() {
+        const el = getElementByShadowIds(document, ["c-e", "greenpart"]);
+        assert_equals(window.getComputedStyle(el).color, colorGreen);
+      }, "Double-part in selected host is styled");
+      test(function() {
+        const el = getElementByShadowIds(document, ["c-e", "bluepart1"]);
+        assert_equals(window.getComputedStyle(el).color, colorBlue);
+      }, "Single-part-1 in selected host is not styled");
+      test(function() {
+        const el = getElementByShadowIds(document, ["c-e", "bluepart2"]);
+        assert_equals(window.getComputedStyle(el).color, colorBlue);
+      }, "Single-part-2 in selected host is not styled");
+    </script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+<!doctype html><script src="../include.js"></script><body><script>
+    test(() => {
+        let body = document.body;
+        body.style.width = 'max(10px, 20px, 30px)';
+        body.style.width = 'max(10px, 20px)';
+        body.style.width = 'min(10px, 20px, 30px)';
+        body.style.width = 'min(10px, 20px)';
+        body.style.width = 'calc(10px + 20px + 30px)';
+        body.style.width = 'calc(10px + 20px)';
+        body.style.width = 'calc(10px * 20px * 30px)';
+        body.style.width = 'calc(10px * 20px)';
+        println("PASS! (didn't crash)")
+    });
+</script>

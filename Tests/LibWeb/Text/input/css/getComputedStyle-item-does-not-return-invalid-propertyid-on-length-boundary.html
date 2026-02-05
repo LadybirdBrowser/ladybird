@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.body);
+        println(`getComputedStyle().item(length) should return empty string: '${style.item(style.length)}'`);
+    });
+</script>

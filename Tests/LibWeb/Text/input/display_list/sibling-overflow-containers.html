@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .wrapper {
+        display: flex;
+        gap: 20px;
+    }
+    .scroll-box {
+        width: 100px;
+        height: 80px;
+        overflow: hidden;
+        border: 1px solid black;
+    }
+    .content {
+        width: 150px;
+        height: 120px;
+    }
+    .red { background: lightcoral; }
+    .green { background: lightgreen; }
+</style>
+<div class="wrapper">
+    <div class="scroll-box">
+        <div class="content red">Left overflow</div>
+    </div>
+    <div class="scroll-box">
+        <div class="content green">Right overflow</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSStyleValue.parseAll Error Handling</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parseall">
+<meta name="assert" content="Test CSSStyleValue.parseAll error handling" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parseAll('', 'auto'));
+}, 'CSSStyleValue.parseAll() with empty property name throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parseAll('lemon', 'auto'));
+}, 'CSSStyleValue.parseAll() with unsupported property name throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parseAll('width', '10deg'));
+}, 'CSSStyleValue.parseAll() with invalid value for valid property throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parseAll('margin', '10deg'));
+}, 'CSSStyleValue.parseAll() with invalid value for shorthand property throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parseAll('--foo', ''));
+}, 'CSSStyleValue.parseAll() with invalid value for custom property throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => CSSStyleValue.parseAll('width', ''));
+}, 'CSSStyleValue.parseAll() with invalid value for property throws TypeError');
+
+</script>

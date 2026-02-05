@@ -1,0 +1,207 @@
+import("//Meta/gn/build/buildflags.gni")
+import("//Meta/gn/build/mac_sdk.gni")
+import("//Meta/gn/build/sysroot.gni")
+import("//Meta/gn/build/toolchain/compiler.gni")
+
+declare_args() {
+  # If set, puts relative paths in debug info.
+  # Makes the build output independent of the build directory, but makes
+  # most debuggers harder to use. See "Getting to local determinism" and
+  # "Getting debuggers to work well with locally deterministic builds" in
+  # http://blog.llvm.org/2019/11/deterministic-builds-with-clang-and-lld.html
+  # for more information.
+  use_relative_paths_in_debug_info = false
+
+  # The version of host gcc. Ignored if is_clang is true.
+  gcc_version = 12
+}
+
+config("compiler_defaults") {
+  defines = []
+  asmflags = []
+  cflags = []
+  cflags_cc = []
+  ldflags = []
+
+  if (symbol_level == 2) {
+    if (is_debug_gdb) {
+      cflags += [ "-ggdb" ]
+    } else if (is_clang && is_debug_lldb) {
+      # GCC (as of version 13) does not support lldb-specific debug information
+      cflags += [ "-glldb" ]
+    } else {
+      cflags += [ "-g" ]
+    }
+
+    # For full debug-info -g builds, --gdb-index makes links ~15% slower, and
+    # gdb symbol reading time 1500% faster (lld links in 4.4 instead of 3.9s,
+    # and gdb loads and runs it in 2s instead of in 30s).  It's likely that
+    # people doing symbol_level=2 want to run a debugger (since
+    # symbol_level=2 isn't the default). So this seems like the right
+    # tradeoff.
+    if (current_os != "mac" && use_lld) {
+      cflags += [ "-ggnu-pubnames" ]  #  llvm PR34820
+      ldflags += [ "-Wl,--gdb-index" ]
+
+      # Use debug fission. In this mode, detailed debug information is
+      # written to a .dwo file next to each .o file instead of into the .o
+      # file directly. The linker then only links the .o files, which contain
+      # a pointer to each .dwo file. The debugger then reads debug info out
+      # of all the .dwo files instead of from the binary.
+      #
+      # (The dwp tool can link all the debug info together into a single
+      # "debug info binary", but that's not done as part of the build.)
+      #
+      # This requires `-Wl,--gdb-index` (above) to work well.
+      #
+      # With lld, this reduces link time:
+      # - in release + symbol_level=2 builds: From 2.3s to 1.3s
+      # - in debug builds: From 5.2s to 4.6s
+      #
+      # Time needed for gdb startup and setting a breakpoint is comparable,
+      # the time from from `r` to hititng a breakpoint on main goes from 4s
+      # to 2s.
+      #
+      # (macOS's linker always keeps debug info out of its output executables
+      # and debuggers there also know to load debug info from the .o files.
+      # macOS also has a debug info linker like dwp, it's called dsymutil.
+      # This happens by default, so there's no need to pass a flag there.)
+      cflags += [ "-gsplit-dwarf" ]
+      ldflags += [ "-gsplit-dwarf" ]  # Needed for ThinLTO builds.
+    }
+  } else if (symbol_level == 1) {
+    cflags += [ "-g1" ]
+    # For linetable-only -g1 builds, --gdb-index makes links ~8% slower, but
+    # links are 4x faster than -g builds so it's a fairly small absolute cost.
+    # On the other hand, gdb startup is well below 1s with and without the
+    # index, and people using -g1 likely don't use a debugger. So don't use
+    # the flag here.
+    # Linetables always go in the .o file, even with -gsplit-dwarf, so there's
+    # no point in passing -gsplit-dwarf here.
+  }
+
+  if (is_optimized) {
+    cflags += [ "-O2" ]
+  }
+
+  cflags += [
+    "-D_FILE_OFFSET_BITS=64",
+    "-DENABLE_COMPILETIME_FORMAT_CHECK",
+  ]
+
+  cflags += [
+    "-fdiagnostics-color",
+    "-ffp-contract=off",
+    "-fsigned-char",
+  ]
+
+  if (use_lld) {
+    ldflags += [ "-Wl,--color-diagnostics" ]
+  }
+
+  if (current_os == "mac") {
+    # FIXME: Use -std=c++23 once Xcode's clang supports that.
+    cflags_cc += [ "-std=c++2b" ]
+  } else {
+    cflags_cc += [ "-std=c++23" ]
+  }
+
+  cflags_cc += [ "-fvisibility-inlines-hidden" ]
+
+  # Warning setup.
+  cflags += [
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+  ]
+  cflags += [
+    "-Wno-invalid-offsetof",
+    "-Wno-unknown-warning-option",
+    "-Wno-unused-parameter",
+  ]
+
+  if (is_clang) {
+    cflags += [
+      "-Wdelete-non-virtual-dtor",
+      "-Wstring-conversion",
+      "-Wno-user-defined-literals",
+      "-fconstexpr-steps=16777216",
+      "-Wno-implicit-const-int-float-conversion",
+      "-Wno-vla-cxx-extension",
+      "-Wno-unqualified-std-cast-call",
+    ]
+  } else {
+    cflags += [
+      # Disable gcc's potentially uninitialized use analysis as it presents
+      # lots of false positives.
+      "-Wno-maybe-uninitialized",
+
+      # Disable -Wredundant-move on GCC>=9. GCC wants to remove std::move
+      # in code like "A foo(ConvertibleToA a) { return std::move(a); }",
+      # but this code does not compile (or uses the copy constructor
+      # instead) on clang<=3.8. Clang also has a -Wredundant-move, but it
+      # only fires when the types match exactly, so we can keep it here.
+      "-Wno-redundant-move",
+
+      "-Wno-literal-suffix",
+    ]
+  }
+
+  if (use_lld) {
+    ldflags += [ "-fuse-ld=lld" ]
+  }
+
+  # Deterministic build setup, see
+  # http://blog.llvm.org/2019/11/deterministic-builds-with-clang-and-lld.html
+  if (is_clang) {
+    cflags += [
+      "-no-canonical-prefixes",
+      "-Werror=date-time",
+    ]
+    if (use_relative_paths_in_debug_info) {
+      cflags += [ "-fdebug-compilation-dir=." ]
+    }
+  }
+  if (sysroot != "") {
+    if (current_os != "mac" && current_os != "android") {
+      cflags += [ "--sysroot=" + rebase_path(sysroot, root_build_dir) ]
+      ldflags += [ "--sysroot=" + rebase_path(sysroot, root_build_dir) ]
+    }
+  }
+
+  if (current_os == "mac") {
+    sdk_path = mac_sdk_path
+    cflags += [
+      "-isysroot",
+      rebase_path(sdk_path, root_build_dir),
+    ]
+    ldflags += [
+      "-isysroot",
+      rebase_path(sdk_path, root_build_dir),
+    ]
+  } else {
+    cflags += [ "-fno-semantic-interposition" ]
+  }
+
+  if (sysroot != "" && current_os != "win" && is_clang) {
+    cflags += [ "-Wpoison-system-directories" ]
+  }
+  cflags_objcc = cflags_cc
+}
+
+config("no_exceptions") {
+  cflags_cc = [ "-fno-exceptions" ]
+  cflags_objcc = cflags_cc
+}
+
+config("zdefs") {
+  if (current_os != "mac" && current_os != "android") {
+    ldflags = [ "-Wl,-z,defs" ]
+  }
+}
+
+config("pic") {
+  if (current_os != "mac") {
+    cflags_cc = [ "-fPIC" ]
+  }
+}

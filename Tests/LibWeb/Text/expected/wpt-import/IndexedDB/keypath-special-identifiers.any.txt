@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Type: String, identifier: length
+Pass	Type: Array, identifier: length
+Pass	Type: Blob, identifier: size
+Pass	Type: Blob, identifier: type
+Pass	Type: File, identifier: name
+Pass	Type: File, identifier: lastModified

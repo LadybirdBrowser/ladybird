@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Display: getComputedStyle().display</title>
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#display-prop">
+<link rel="help" href="https://drafts.csswg.org/css-display/#the-display-properties">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-containers">
+<link rel="help" href="https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo">
+<meta name="assert" content="position and float can change display computed value.">
+<meta name="assert" content="display computed value is otherwise as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+'use strict';
+
+// https://drafts.csswg.org/css-grid-1/#grid-containers
+test_computed_value("display", "grid");
+test_computed_value("display", "inline-grid");
+
+// https://drafts.csswg.org/css2/visuren.html#display-prop
+test_computed_value("display", "inline");
+test_computed_value("display", "block");
+test_computed_value("display", "list-item");
+test_computed_value("display", "inline-block");
+test_computed_value("display", "table");
+test_computed_value("display", "inline-table");
+test_computed_value("display", "table-row-group");
+test_computed_value("display", "table-header-group");
+test_computed_value("display", "table-footer-group");
+test_computed_value("display", "table-row");
+test_computed_value("display", "table-column-group");
+test_computed_value("display", "table-column");
+test_computed_value("display", "table-cell");
+test_computed_value("display", "table-caption");
+test_computed_value("display", "none");
+
+// https://drafts.csswg.org/css-flexbox-1/#flex-containers
+test_computed_value("display", "flex");
+test_computed_value("display", "inline-flex");
+
+test_computed_value("display", "contents");
+
+test_computed_value("display", "run-in");
+test_computed_value("display", "flow", "block");
+test_computed_value("display", "flow-root");
+test_computed_value("display", "ruby");
+test_computed_value("display", "ruby-base");
+test_computed_value("display", "ruby-text");
+
+test_computed_value("display", "flow list-item", "list-item");
+test_computed_value("display", "list-item flow", "list-item");
+test_computed_value("display", "flow-root list-item", "flow-root list-item");
+test_computed_value("display", "list-item flow-root", "flow-root list-item");
+
+test_computed_value("display", "block flow", "block");
+test_computed_value("display", "flow block", "block");
+test_computed_value("display", "flow-root block", "flow-root");
+test_computed_value("display", "block flow-root", "flow-root");
+test_computed_value("display", "flex block", "flex");
+test_computed_value("display", "block flex", "flex");
+test_computed_value("display", "grid block", "grid");
+test_computed_value("display", "block grid", "grid");
+test_computed_value("display", "table block", "table");
+test_computed_value("display", "block table", "table");
+test_computed_value("display", "block ruby", "block ruby");
+test_computed_value("display", "ruby block", "block ruby");
+test_computed_value("display", "block list-item", "list-item");
+test_computed_value("display", "list-item block", "list-item");
+test_computed_value("display", "flow block list-item", "list-item");
+test_computed_value("display", "block flow list-item", "list-item");
+test_computed_value("display", "flow list-item block", "list-item");
+test_computed_value("display", "block list-item flow", "list-item");
+test_computed_value("display", "list-item block flow", "list-item");
+test_computed_value("display", "list-item flow block", "list-item");
+test_computed_value("display", "flow-root block list-item", "flow-root list-item");
+test_computed_value("display", "block flow-root list-item", "flow-root list-item");
+test_computed_value("display", "flow-root list-item block", "flow-root list-item");
+test_computed_value("display", "block list-item flow-root", "flow-root list-item");
+test_computed_value("display", "list-item block flow-root", "flow-root list-item");
+test_computed_value("display", "list-item flow-root block", "flow-root list-item");
+
+test_computed_value("display", "inline flow", "inline");
+test_computed_value("display", "flow inline", "inline");
+test_computed_value("display", "flow-root inline", "inline-block");
+test_computed_value("display", "inline flow-root", "inline-block");
+test_computed_value("display", "flex inline", "inline-flex");
+test_computed_value("display", "inline flex", "inline-flex");
+test_computed_value("display", "grid inline", "inline-grid");
+test_computed_value("display", "inline grid", "inline-grid");
+test_computed_value("display", "table inline", "inline-table");
+test_computed_value("display", "inline table", "inline-table");
+test_computed_value("display", "inline ruby", "ruby");
+test_computed_value("display", "ruby inline", "ruby");
+test_computed_value("display", "inline list-item", "inline list-item");
+test_computed_value("display", "list-item inline", "inline list-item");
+test_computed_value("display", "flow inline list-item", "inline list-item");
+test_computed_value("display", "inline flow list-item", "inline list-item");
+test_computed_value("display", "flow list-item inline", "inline list-item");
+test_computed_value("display", "inline list-item flow", "inline list-item");
+test_computed_value("display", "list-item inline flow", "inline list-item");
+test_computed_value("display", "list-item flow inline", "inline list-item");
+test_computed_value("display", "flow-root inline list-item", "inline flow-root list-item");
+test_computed_value("display", "inline flow-root list-item", "inline flow-root list-item");
+test_computed_value("display", "flow-root list-item inline", "inline flow-root list-item");
+test_computed_value("display", "inline list-item flow-root", "inline flow-root list-item");
+test_computed_value("display", "list-item inline flow-root", "inline flow-root list-item");
+test_computed_value("display", "list-item flow-root inline", "inline flow-root list-item");
+
+test_computed_value("display", "run-in flow", "run-in");
+test_computed_value("display", "flow run-in", "run-in");
+test_computed_value("display", "flow-root run-in", "run-in flow-root");
+test_computed_value("display", "run-in flow-root", "run-in flow-root");
+test_computed_value("display", "flex run-in", "run-in flex");
+test_computed_value("display", "run-in flex", "run-in flex");
+test_computed_value("display", "grid run-in", "run-in grid");
+test_computed_value("display", "run-in grid", "run-in grid");
+test_computed_value("display", "table run-in", "run-in table");
+test_computed_value("display", "run-in table", "run-in table");
+test_computed_value("display", "run-in ruby", "run-in ruby");
+test_computed_value("display", "ruby run-in", "run-in ruby");
+test_computed_value("display", "run-in list-item", "run-in list-item");
+test_computed_value("display", "list-item run-in", "run-in list-item");
+test_computed_value("display", "flow run-in list-item", "run-in list-item");
+test_computed_value("display", "run-in flow list-item", "run-in list-item");
+test_computed_value("display", "flow list-item run-in", "run-in list-item");
+test_computed_value("display", "run-in list-item flow", "run-in list-item");
+test_computed_value("display", "list-item run-in flow", "run-in list-item");
+test_computed_value("display", "list-item flow run-in", "run-in list-item");
+test_computed_value("display", "flow-root run-in list-item", "run-in flow-root list-item");
+test_computed_value("display", "run-in flow-root list-item", "run-in flow-root list-item");
+test_computed_value("display", "flow-root list-item run-in", "run-in flow-root list-item");
+test_computed_value("display", "run-in list-item flow-root", "run-in flow-root list-item");
+test_computed_value("display", "list-item run-in flow-root", "run-in flow-root list-item");
+test_computed_value("display", "list-item flow-root run-in", "run-in flow-root list-item");
+
+// https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo
+function test_display_affected(property, value) {
+  const target = document.getElementById('target');
+  test(() => {
+    target.style[property] = value;
+    target.style.display = 'inline-table';
+    assert_equals(getComputedStyle(target).display, 'table', 'inline-table -> block');
+
+    const displayValues = [
+      'inline',
+      'table-row-group',
+      'table-column',
+      'table-column-group',
+      'table-header-group',
+      'table-footer-group',
+      'table-row',
+      'table-cell',
+      'table-caption',
+      'ruby-base',
+      'ruby-text',
+      'inline-block'
+    ];
+
+    for (let displayValue of displayValues) {
+      target.style.display = displayValue;
+      assert_equals(getComputedStyle(target).display, 'block', displayValue + ' -> block');
+    }
+
+    target.style.display = 'inline-flex';
+    assert_equals(getComputedStyle(target).display, 'flex', 'inline-flex -> flex');
+
+    target.style.display = 'inline-grid';
+    assert_equals(getComputedStyle(target).display, 'grid', 'inline-grid -> grid');
+
+    // Other values are not affected.
+    target.style.display = 'list-item';
+    assert_equals(getComputedStyle(target).display, 'list-item', 'list-item -> list-item');
+
+    target.style.display = 'contents';
+    assert_equals(getComputedStyle(target).display, 'contents', 'contents -> contents');
+
+    target.style[property] = '';
+    target.style.display = '';
+  }, property + ' ' + value + ' affects computed display');
+}
+
+test_display_affected("position", "absolute");
+test_display_affected("position", "fixed");
+test_display_affected("float", "left");
+test_display_affected("float", "right");
+</script>
+</body>
+</html>

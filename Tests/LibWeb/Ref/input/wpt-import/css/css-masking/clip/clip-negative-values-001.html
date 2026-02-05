@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Masking: Test clip property does not clip on with negative values - 1</title>
+    <link rel="author" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#clipping-paths">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#clip-property">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip/reference/clip-full-ref.html">
+    <meta name="assert" content="Negative values are permitted on rect function
+    for clip. Test that whole element is clipped if bottom edge is before top
+    edge. On pass you should see a green square and no red.">
+</head>
+<body>
+    <p>The test passes if there is a green square and no red.</p>
+    <div style="background-color: green; width: 200px; height: 200px;">
+        <div style="width: 200px; height: 200px; background-color: red; position: absolute; clip: rect(0, -50px, 200px, 50px);"></div>
+    </div>
+</body>
+</html>

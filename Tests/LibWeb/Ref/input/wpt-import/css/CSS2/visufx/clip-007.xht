@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Clip using pixels with a nominal value, 96px</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visufx.html#propdef-clip" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visufx.html#clipping" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visufx/../reference/no-red-on-blank-page-ref.xht"/>
+        <meta name="assert" content="The 'clip' property sets a value of ninety-six pixels, for all sides of the clipping rectangle." />
+        <style type="text/css">
+            div
+            {
+                background: red;
+                clip: rect(96px, 96px, 96px, 96px);
+                height: 3in;
+                position: absolute;
+                width: 3in;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is no red visible on the page.</p>
+        <div></div>
+    </body>
+</html>

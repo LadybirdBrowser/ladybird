@@ -1,0 +1,78 @@
+#import <HTML/HTMLDataListElement.idl>
+#import <HTML/HTMLElement.idl>
+#import <HTML/HTMLFormElement.idl>
+#import <HTML/PopoverTargetAttributes.idl>
+#import <HTML/ValidityState.idl>
+#import <FileAPI/FileList.idl>
+
+// https://html.spec.whatwg.org/multipage/input.html#htmlinputelement
+[Exposed=Window]
+interface HTMLInputElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString accept;
+    [CEReactions, Reflect] attribute DOMString alt;
+    [CEReactions] attribute DOMString autocomplete;
+    [CEReactions, Reflect=checked] attribute boolean defaultChecked;
+    [ImplementedAs=checked_binding] attribute boolean checked;
+    [CEReactions, Reflect=dirname] attribute DOMString dirName;
+    [CEReactions, Reflect] attribute boolean disabled;
+    readonly attribute HTMLFormElement? form;
+    attribute FileList? files;
+    [CEReactions] attribute USVString formAction;
+    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute DOMString formEnctype;
+    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute DOMString formMethod;
+    [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
+    [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
+    [CEReactions] attribute unsigned long height;
+    attribute boolean indeterminate;
+    readonly attribute HTMLDataListElement? list;
+    [CEReactions, Reflect] attribute DOMString max;
+    [CEReactions] attribute long maxLength;
+    [CEReactions, Reflect] attribute DOMString min;
+    [CEReactions] attribute long minLength;
+    [CEReactions, Reflect] attribute boolean multiple;
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute DOMString pattern;
+    [CEReactions, Reflect] attribute DOMString placeholder;
+    [CEReactions, Reflect=readonly] attribute boolean readOnly;
+    [CEReactions, Reflect] attribute boolean required;
+    [CEReactions] attribute unsigned long size;
+    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect] attribute DOMString step;
+    // https://whatpr.org/html-attr-input-switch/9546/input.html#the-input-element:dom-input-switch
+    [CEReactions, Reflect] attribute boolean switch;
+    [CEReactions] attribute DOMString type;
+    [CEReactions, Reflect=value] attribute DOMString defaultValue;
+    [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString value;
+    attribute object? valueAsDate;
+    attribute unrestricted double valueAsNumber;
+    [CEReactions] attribute unsigned long width;
+
+    undefined stepUp(optional long n = 1);
+    undefined stepDown(optional long n = 1);
+
+    readonly attribute boolean willValidate;
+    readonly attribute ValidityState validity;
+    readonly attribute Utf16DOMString validationMessage;
+    boolean checkValidity();
+    boolean reportValidity();
+    undefined setCustomValidity(DOMString error);
+
+    readonly attribute NodeList? labels;
+
+    undefined select();
+    [ImplementedAs=selection_start_binding] attribute unsigned long? selectionStart;
+    [ImplementedAs=selection_end_binding] attribute unsigned long? selectionEnd;
+    [ImplementedAs=selection_direction_binding] attribute DOMString? selectionDirection;
+    [ImplementedAs=set_range_text_binding] undefined setRangeText(Utf16DOMString replacement);
+    [ImplementedAs=set_range_text_binding] undefined setRangeText(Utf16DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
+    undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
+
+    undefined showPicker();
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect=usemap] attribute DOMString useMap;
+};
+HTMLInputElement includes PopoverTargetAttributes;

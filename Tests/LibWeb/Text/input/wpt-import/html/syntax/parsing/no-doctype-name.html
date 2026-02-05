@@ -1,0 +1,22 @@
+<!doctype>
+<meta charset=utf-8>
+<title>Doctype without root name should have empty-string name in the DOM even if null in the tokenizer spec.</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+setup({explicit_done:true});
+window.onload = function() {
+  test(function () {
+    assert_equals(document.doctype.name, "", "Top-level");
+    let iframes = document.getElementsByTagName("iframe");
+    for (let i = 0; i < iframes.length; ++i) {
+      let iframe = iframes[i];
+      assert_equals(iframe.contentDocument.doctype.name, "", iframe.title);
+    }
+  }, "Doctype without root name should have the empty string as the name.");
+  done();
+}
+</script>
+<iframe src="support/no-doctype-name-space.html" title='space'></iframe>
+<iframe src="support/no-doctype-name-line.html" title='line'></iframe>
+<iframe src="support/no-doctype-name-eof.html" title='eof'></iframe>

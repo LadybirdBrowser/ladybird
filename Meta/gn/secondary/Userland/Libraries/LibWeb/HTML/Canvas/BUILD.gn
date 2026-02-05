@@ -1,0 +1,9 @@
+source_set("Canvas") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "CanvasDrawImage.cpp",
+    "CanvasPath.cpp",
+    "CanvasState.cpp",
+  ]
+}

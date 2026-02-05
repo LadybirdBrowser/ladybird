@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	e.style['font-variant-alternates'] = "character-variant(more, than, one)" should set the property value
+Fail	e.style['font-variant-alternates'] = "styleset(more, than, one)" should set the property value
+Fail	e.style['font-variant-alternates'] = "styleset(more, than, one) character-variant(more, than, one)" should set the property value

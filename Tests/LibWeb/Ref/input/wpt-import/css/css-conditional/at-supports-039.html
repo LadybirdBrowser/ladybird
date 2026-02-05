@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>CSS Test (Conditional Rules): a supports condition declaration can not end with a semi-colon</title>
+		<link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+		<link rel="help" href="http://www.w3.org/TR/css3-conditional/#at-supports" title="6. Feature queries: the '@supports' rule">
+		<link rel="match" href="../../../../expected/wpt-import/css/css-conditional/at-supports-001-ref.html">
+		<meta name="flags" content="invalid">
+		<meta name="assert" content="Each individual single supports condition declaration can not end up with a semi-colon ';'. A semi-colon is a punctuation separator of multiple CSS declarations and thus is not part of an individual CSS declaration per se.">
+
+    <!--
+
+    supports_condition_in_parens
+      : ( '(' S* supports_condition ')' S* ) | supports_declaration_condition |
+        general_enclosed
+      ;
+
+    -->
+
+		<style>
+			div
+			{
+				background-color: red;
+				height: 100px;
+				width: 100px;
+			}
+
+			@supports (margin: 0) { div {background-color: green;} }
+
+			@supports (margin: 0;) { div {background-color: red;}	}
+		</style>
+	</head>
+
+	<body>
+
+		<p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+
+		<div></div>
+
+	</body>
+</html>

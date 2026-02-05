@@ -1,0 +1,192 @@
+/*
+ * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/MutationObserverPrototype.h>
+#include <LibWeb/DOM/MutationObserver.h>
+#include <LibWeb/DOM/Node.h>
+#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
+
+namespace Web::DOM {
+
+GC_DEFINE_ALLOCATOR(MutationObserver);
+GC_DEFINE_ALLOCATOR(RegisteredObserver);
+GC_DEFINE_ALLOCATOR(TransientRegisteredObserver);
+
+WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
+{
+    return realm.create<MutationObserver>(realm, callback);
+}
+
+// https://dom.spec.whatwg.org/#dom-mutationobserver-mutationobserver
+MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
+    : PlatformObject(realm)
+    , m_callback(move(callback))
+{
+    // The new MutationObserver(callback) constructor steps are to set this’s callback to callback.
+}
+
+MutationObserver::~MutationObserver() = default;
+
+void MutationObserver::initialize(JS::Realm& realm)
+{
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(MutationObserver);
+    Base::initialize(realm);
+}
+
+void MutationObserver::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_callback);
+    visitor.visit(m_record_queue);
+}
+
+// https://dom.spec.whatwg.org/#dom-mutationobserver-observe
+WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserverInit options)
+{
+    // 1. If either options["attributeOldValue"] or options["attributeFilter"] exists, and options["attributes"] does not exist, then set options["attributes"] to true.
+    if ((options.attribute_old_value.has_value() || options.attribute_filter.has_value()) && !options.attributes.has_value())
+        options.attributes = true;
+
+    // 2. If options["characterDataOldValue"] exists and options["characterData"] does not exist, then set options["characterData"] to true.
+    if (options.character_data_old_value.has_value() && !options.character_data.has_value())
+        options.character_data = true;
+
+    // 3. If none of options["childList"], options["attributes"], and options["characterData"] is true, then throw a TypeError.
+    if (!options.child_list && (!options.attributes.has_value() || !options.attributes.value()) && (!options.character_data.has_value() || !options.character_data.value()))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options must have one of childList, attributes or characterData set to true."sv };
+
+    // 4. If options["attributeOldValue"] is true and options["attributes"] is false, then throw a TypeError.
+    // NOTE: If attributeOldValue is present, attributes will be present because of step 1.
+    if (options.attribute_old_value.has_value() && options.attribute_old_value.value() && !options.attributes.value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "attributes must be true if attributeOldValue is true."sv };
+
+    // 5. If options["attributeFilter"] is present and options["attributes"] is false, then throw a TypeError.
+    // NOTE: If attributeFilter is present, attributes will be present because of step 1.
+    if (options.attribute_filter.has_value() && !options.attributes.value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "attributes must be true if attributeFilter is present."sv };
+
+    // 6. If options["characterDataOldValue"] is true and options["characterData"] is false, then throw a TypeError.
+    // NOTE: If characterDataOldValue is present, characterData will be present because of step 2.
+    if (options.character_data_old_value.has_value() && options.character_data_old_value.value() && !options.character_data.value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "characterData must be true if characterDataOldValue is true."sv };
+
+    // 7. For each registered of target’s registered observer list, if registered’s observer is this:
+    bool updated_existing_observer = false;
+    if (target.registered_observer_list()) {
+        for (auto& registered_observer : *target.registered_observer_list()) {
+            if (registered_observer->observer().ptr() != this)
+                continue;
+
+            updated_existing_observer = true;
+
+            // 1. For each node of this’s node list, remove all transient registered observers whose source is registered from node’s registered observer list.
+            for (auto& node : m_node_list) {
+                // FIXME: Is this correct?
+                if (!node)
+                    continue;
+
+                if (node->registered_observer_list()) {
+                    node->registered_observer_list()->remove_all_matching([&registered_observer](RegisteredObserver& observer) {
+                        return is<TransientRegisteredObserver>(observer) && as<TransientRegisteredObserver>(observer).source().ptr() == registered_observer;
+                    });
+                }
+            }
+
+            // 2. Set registered’s options to options.
+            registered_observer->set_options(options);
+            break;
+        }
+    }
+
+    // 8. Otherwise:
+    if (!updated_existing_observer) {
+        // 1. Append a new registered observer whose observer is this and options is options to target’s registered observer list.
+        auto new_registered_observer = RegisteredObserver::create(*this, options);
+        target.add_registered_observer(new_registered_observer);
+
+        // 2. Append a weak reference to target to this’s node list.
+        m_node_list.append(target);
+    }
+
+    return {};
+}
+
+// https://dom.spec.whatwg.org/#dom-mutationobserver-disconnect
+void MutationObserver::disconnect()
+{
+    // 1. For each node of this’s node list, remove any registered observer from node’s registered observer list for which this is the observer.
+    for (auto& node : m_node_list) {
+        // FIXME: Is this correct?
+        if (!node)
+            continue;
+
+        if (node->registered_observer_list()) {
+            node->registered_observer_list()->remove_all_matching([this](RegisteredObserver& registered_observer) {
+                return registered_observer.observer().ptr() == this;
+            });
+        }
+    }
+
+    // 2. Empty this’s record queue.
+    m_record_queue.clear();
+}
+
+// https://dom.spec.whatwg.org/#dom-mutationobserver-takerecords
+Vector<GC::Root<MutationRecord>> MutationObserver::take_records()
+{
+    // 1. Let records be a clone of this’s record queue.
+    Vector<GC::Root<MutationRecord>> records;
+    for (auto& record : m_record_queue)
+        records.append(*record);
+
+    // 2. Empty this’s record queue.
+    m_record_queue.clear();
+
+    // 3. Return records.
+    return records;
+}
+
+GC::Ref<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options)
+{
+    return observer.heap().allocate<RegisteredObserver>(observer, options);
+}
+
+RegisteredObserver::RegisteredObserver(MutationObserver& observer, MutationObserverInit const& options)
+    : m_observer(observer)
+    , m_options(options)
+{
+}
+
+RegisteredObserver::~RegisteredObserver() = default;
+
+void RegisteredObserver::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_observer);
+}
+
+GC::Ref<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options, RegisteredObserver& source)
+{
+    return observer.heap().allocate<TransientRegisteredObserver>(observer, options, source);
+}
+
+TransientRegisteredObserver::TransientRegisteredObserver(MutationObserver& observer, MutationObserverInit const& options, RegisteredObserver& source)
+    : RegisteredObserver(observer, options)
+    , m_source(source)
+{
+}
+
+TransientRegisteredObserver::~TransientRegisteredObserver() = default;
+
+void TransientRegisteredObserver::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_source);
+}
+
+}

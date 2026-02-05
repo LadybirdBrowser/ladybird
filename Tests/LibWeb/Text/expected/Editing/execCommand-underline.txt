@@ -1,0 +1,4 @@
+Div contents: "foobar" state: false selection: #document 0 #document 0
+Div contents: "foo<u>bar</u>" state: true selection: #text 0 #text 3
+Div contents: "<u>foobar</u>" state: true selection: #text 0 #text 3
+Div contents: "<u>foo</u>bar" state: false selection: #text 0 #text 3

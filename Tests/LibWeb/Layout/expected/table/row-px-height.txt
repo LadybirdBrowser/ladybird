@@ -1,0 +1,16 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+    TableWrapper <(anonymous)> at [8,8] [8+0+0 102 0+0+690] [8+0+0 100 0+0+8] [BFC] children: not-inline
+      Box <body> at [8,8] table-box [0+0+0 102 0+0+0] [0+0+0 100 0+0+0] [TFC] children: not-inline
+        Box <div.row> at [8,8] table-row [0+0+0 102 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+          BlockContainer <div.cell> at [9,9] table-cell [0+1+0 100 0+1+0] [0+1+0 0 98+1+0] [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
+    PaintableWithLines (TableWrapper(anonymous)) [8,8 102x100]
+      PaintableBox (Box<BODY>) [8,8 102x100]
+        PaintableBox (Box<DIV>.row) [8,8 102x100]
+          PaintableWithLines (BlockContainer<DIV>.cell) [8,8 102x100]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x116] [children: 0] (z-index: auto)

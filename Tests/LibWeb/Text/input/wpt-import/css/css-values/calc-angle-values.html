@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Values and Units Test: calc() function with angle values</title>
+
+  <!--
+
+  Original test is:
+
+  https://chromium.googlesource.com/chromium/src/+/c825d655f6aaf73484f9d56e9012793f5b9668cc/third_party/WebKit/LayoutTests/css3/calc/calc-with-time-angle-and-frequency-values.html
+
+  Issue 917718: [css-values] calc-with-time-angle-and-frequency-values
+  test is highly unreliable, transition-delay testing causes side effects
+  https://bugs.chromium.org/p/chromium/issues/detail?id=917718
+
+  -->
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-values-3/#calc-computed-value">
+  <link rel="help" href="https://www.w3.org/TR/css-values-3/#angles">
+
+  <meta content="This test checks that additions, subtractions, multiplications and divisions in calc() function when applied to angle units." name="assert">
+
+  <script src="../../resources/testharness.js"></script>
+
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../css/support/computed-testcommon.js"></script>
+
+  <div id="log"></div>
+
+  <div id="target"></div>
+
+  <script>
+  function startTesting()
+  {
+    /*
+    In this mega-test of 27 sub-tests, we intentionally
+    set the tolerance precision (epsilon) to a rather big
+    value (0.0001 === 100 millionths). The reason for this
+    is we want to verify if browsers and CSS-capable
+    applications do the right calculations. We do not want
+    to penalize browsers and CSS-capable applications that
+    have modest precision (not capable of a 1 millionth
+    level precision).
+    */
+
+    // testTransformValuesCloseTo(property_name, calcValue, epsilon, expectedValue, description)
+
+    testTransformValuesCloseTo("rotate(calc(45deg + 45deg))", 0.0001, "rotate(90deg)", "addition of 2 angle units: deg plus deg");
+
+    testTransformValuesCloseTo("rotate(calc(45deg + 1rad))", 0.0001, "rotate(102.29578deg)", "addition of 2 angle units: deg plus rad");
+    /*
+    1 radian == 57.295779513 degrees
+    The original test was using the slightly imprecise rotate(102.3deg)
+    */
+
+    testTransformValuesCloseTo("rotate(calc(20deg + 200grad))", 0.0001, "rotate(200deg)", "addition of 2 angle units: deg plus grad");
+
+    testTransformValuesCloseTo("rotate(calc(200deg + 0.5turn))", 0.0001, "rotate(380deg)", "addition of 2 angle units: deg plus turn");
+
+    testTransformValuesCloseTo("rotate(calc(45rad + 45rad))", 0.0001, "rotate(90rad)", "addition of 2 angle units: rad plus rad");
+
+    testTransformValuesCloseTo("rotate(calc(1rad + 40grad))", 0.0001, "rotate(93.29578deg)", "addition of 2 angle units: rad plus grad");
+
+
+    // 1 radian == 57.295779513 degrees; 40 gradians is 36 degrees.
+
+
+    testTransformValuesCloseTo("rotate(calc(1rad + 0.5turn))", 0.0001, "rotate(237.29578deg)", "addition of 2 angle units: rad plus turn");
+
+    testTransformValuesCloseTo("rotate(calc(45grad + 45grad))", 0.0001, "rotate(90grad)", "addition of 2 angle units: grad plus grad");
+
+    testTransformValuesCloseTo("rotate(calc(10grad + 0.5turn))", 0.0001, "rotate(189deg)", "addition of 2 angle units: grad plus turn");
+
+    // 10 gradians is 9 degrees.
+
+    // subtraction of angle unit
+
+    testTransformValuesCloseTo("rotate(calc(45deg - 15deg))", 0.0001, "rotate(30deg)", "subtraction of angle unit: deg minus deg");
+
+    testTransformValuesCloseTo("rotate(calc(90deg - 1rad))", 0.0001, "rotate(32.70422deg)", "subtraction of angle unit: deg minus rad");
+
+    // 1 radian == 57.295779513 degrees
+
+    testTransformValuesCloseTo("rotate(calc(38deg - 20grad))", 0.0001, "rotate(20deg)", "subtraction of angle unit: deg minus grad");
+
+    testTransformValuesCloseTo("rotate(calc(360deg - 0.5turn))", 0.0001, "rotate(180deg)", "subtraction of angle unit: deg minus turn");
+
+    testTransformValuesCloseTo("rotate(calc(45rad - 15rad))", 0.0001, "rotate(30rad)", "subtraction of angle unit: rad minus rad");
+
+    testTransformValuesCloseTo("rotate(calc(30rad - 10grad))", 0.0001, "rotate(1709.87339deg)", "subtraction of angle unit: rad minus grad");
+
+    // 30 radians is 1718.8733854 degrees ; 10 gradians is 9 degrees.
+
+    testTransformValuesCloseTo("rotate(calc(4rad - 0.1turn))", 0.0001, "rotate(193.18312deg)", "subtraction of angle unit: rad minus turn");
+
+    // 4 radians is 229.183118052 degrees ; 0.1 turn is 36 degrees.
+
+    testTransformValuesCloseTo("rotate(calc(45grad - 15grad))", 0.0001, "rotate(30grad)", "subtraction of angle unit: grad minus grad");
+
+    testTransformValuesCloseTo("rotate(calc(100grad - 0.25turn))", 0.0001, "rotate(0deg)", "subtraction of angle unit: grad minus turn");
+
+
+    // Multiplication of angle unit
+
+    testTransformValuesCloseTo("rotate(calc(45deg * 2))", 0.0001, "rotate(90deg)", "multiplication of angle unit: deg multiplied by int");
+
+    testTransformValuesCloseTo("rotate(calc(2 * 45rad))", 0.0001, "rotate(90rad)", "multiplication of angle unit: int multiplied by rad");
+
+    testTransformValuesCloseTo("rotate(calc(45grad * 2))", 0.0001, "rotate(90grad)", "multiplication of angle unit: grad multiplied by int");
+
+    testTransformValuesCloseTo("rotate(calc(2 * 45turn))", 0.0001, "rotate(90turn)", "multiplication of angle unit: int multiplied by turn");
+
+
+   // Division of angle unit
+
+    testTransformValuesCloseTo( "rotate(calc(90deg / 2))", 0.0001, "rotate(45deg)", "division of angle unit: deg divided by int");
+
+    testTransformValuesCloseTo("rotate(calc(90rad / 2))", 0.0001, "rotate(45rad)", "division of angle unit: rad divided by int");
+
+    testTransformValuesCloseTo("rotate(calc(90grad / 2))", 0.0001, "rotate(45grad)", "division of angle unit: grad divided by int");
+
+    testTransformValuesCloseTo("rotate(calc(90turn / 2))", 0.0001, "rotate(45turn)", "division of angle unit: turn divided by int");
+
+    /*
+
+    deg
+       Degrees. There are 360 degrees in a full circle.
+
+    grad
+       Gradians, also known as "gons" or "grades". There are 400 gradians in a full circle.
+
+    rad
+       Radians. There are 2π radians in a full circle.
+
+    1rad == 57.295779513°
+    https://www.rapidtables.com/convert/number/radians-to-degrees.html
+
+    π == Math.PI == 3.141592653589793
+
+    turn
+       Turns. There is 1 turn in a full circle.
+
+   */
+
+
+
+   // Testing conversion of angle unit
+
+    testTransformValuesCloseTo("rotate(calc(50grad)", 0.0001, "rotate(45deg)", "conversion of angle unit: grad into deg");
+
+  }
+
+  startTesting();
+
+  </script>

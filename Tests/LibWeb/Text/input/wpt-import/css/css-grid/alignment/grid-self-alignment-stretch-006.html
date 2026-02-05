@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Self-Alignment and stretch on fixed-sized tracks</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-self">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-self">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-justify-self-stretch">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-align-self-stretch">
+<meta name="assert" content="The stretched orthogonal grid items along the column and/or row axis respect their defined margin-box's boundaries.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 100px 150px;
+  grid-template-rows: 150px 100px;
+  font: 10px/1 Ahem;
+  background: grey;
+}
+.grid > div { writing-mode: vertical-lr; }
+.firstRowFirstColumn {
+  grid-row: 1;
+  grid-column: 1;
+  background: green;
+  justify-self: stretch;
+  align-self: start;
+  margin-right: 10px;
+}
+.firstRowSecondColumn {
+  grid-row: 1;
+  grid-column: 2;
+  background: blue;
+  justify-self: start;
+  align-self: stretch;
+  margin-bottom: 20px;
+}
+.secondRowFirstColumn {
+  grid-row: 2;
+  grid-column: 1;
+  background: yellow;
+  justify-self: start;
+  align-self: start;
+}
+.secondRowSecondColumn {
+  grid-row: 2;
+  grid-column: 2;
+  background: red;
+  justify-self: stretch;
+  align-self: stretch;
+  margin-right: 20px;
+  margin-bottom: 10px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+<div class="grid">
+  <div data-offset-x="0"   data-offset-y="0"   data-expected-width="90"  data-expected-height="60"  class="firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="100" data-offset-y="0"   data-expected-width="40"  data-expected-height="130" class="firstRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+  <div data-offset-x="0"   data-offset-y="150" data-expected-width="10"  data-expected-height="60"  class="secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="100" data-offset-y="150" data-expected-width="130" data-expected-height="90"  class="secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>

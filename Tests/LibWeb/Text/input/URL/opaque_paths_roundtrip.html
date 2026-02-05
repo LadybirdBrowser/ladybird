@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let url = new URL("scheme:foobar                 ?well=hello");
+        println(`pathname => '${url.pathname}'`);
+        url.search = "";
+        println(`pathname => '${url.pathname}'`);
+
+        url = new URL("scheme:baz #friends");
+        println(`pathname => '${url.pathname}'`);
+        url.hash = "";
+        println(`pathname => '${url.pathname}'`);
+    });
+</script>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Property font-variant-emoji value 'normal'
+Pass	Property font-variant-emoji value 'text'
+Pass	Property font-variant-emoji value 'emoji'
+Pass	Property font-variant-emoji value 'unicode'

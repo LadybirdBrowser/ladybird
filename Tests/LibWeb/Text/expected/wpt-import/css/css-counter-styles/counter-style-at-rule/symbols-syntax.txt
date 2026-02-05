@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+10 Pass
+1 Fail
+Pass	@counter-style 'symbols: "X"' is valid
+Pass	@counter-style 'symbols: "X" "X"' is valid
+Pass	@counter-style 'symbols: ident "X"' is valid
+Fail	@counter-style 'symbols: ident "X" url("foo.jpg")' is valid
+Pass	@counter-style 'symbols: ' is invalid
+Pass	@counter-style 'symbols: initial "X" "X"' is invalid
+Pass	@counter-style 'symbols: inherit "X" "X"' is invalid
+Pass	@counter-style 'symbols: unset "X" "X"' is invalid
+Pass	@counter-style 'symbols: default "X"' is invalid
+Pass	@counter-style 'symbols: revert "X"' is invalid
+Pass	@counter-style 'symbols: revert-layer "X"' is invalid

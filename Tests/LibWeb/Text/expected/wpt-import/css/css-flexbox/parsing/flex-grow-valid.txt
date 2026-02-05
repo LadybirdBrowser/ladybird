@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['flex-grow'] = "1" should set the property value
+Pass	e.style['flex-grow'] = "23.4e5" should set the property value
+Pass	e.style['flex-grow'] = "+.678E9" should set the property value
+Pass	e.style['flex-grow'] = ".0" should set the property value

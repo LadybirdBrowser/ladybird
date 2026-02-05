@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1114306">
+<style>
+.container {
+  width: 100px; height: 100px;
+  overflow: scroll;
+  border: solid 3px;
+  display: inline-flex;
+  padding: 10px;
+  gap: 10px;
+  align-items: start;
+  margin: 10px;
+  vertical-align: bottom;
+}
+
+.item {
+  min-width: 110px; min-height: 110px;
+  background: cyan;
+}
+
+.container:hover::before {
+  position: fixed;
+  top: 0; left: 0;
+  font-size: 10px;
+  content: attr(style);
+  background: yellow;
+  direction: ltr;
+  writing-mode: horizontal-tb;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.container')">
+<script>
+const writingModes = ['horizontal-tb', 'vertical-rl', 'vertical-lr'];
+const directions = ['ltr', 'rtl'];
+const flexDirections = ['row', 'row-reverse', 'column', 'column-reverse'];
+const flexWraps = ['nowrap', 'wrap', 'wrap-reverse'];
+
+for (let writingMode of writingModes) {
+  for (let direction of directions) {
+    for (let flexDirection of flexDirections) {
+      for (let flexWrap of flexWraps) {
+        let container = document.createElement('div');
+        container.className = 'container';
+        container.style.writingMode = writingMode;
+        container.style.direction = direction;
+        container.style.flexDirection = flexDirection;
+        container.style.flexWrap = flexWrap;
+
+        for (let i = 0; i < 3; i++) {
+          let item = document.createElement('div');
+          item.className = 'item';
+          item.textContent = (i+1);
+          container.appendChild(item);
+        }
+
+        let bias = writingMode == 'horizontal-tb';
+        if (flexWrap != 'nowrap') {
+          bias = !bias;
+        }
+        if (flexDirection == 'row' || flexDirection == 'row-reverse') {
+          bias = !bias;
+        }
+        container.setAttribute('data-expected-scroll-width', bias ? 130 : 370);
+        container.setAttribute('data-expected-scroll-height', bias ? 370 : 130);
+
+        document.body.appendChild(container);
+      }
+    }
+  }
+}
+</script>

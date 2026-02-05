@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    .background {
+        background-color: var(--bg-color);
+    }
+
+    @property --bg-color {
+        syntax: '*';
+        inherits: false;
+        initial-value: red;
+    }
+</style>
+<div class="background">It should have red bg</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const el = document.querySelector(".background");
+        const style = getComputedStyle(el);
+        println(`Computed background-color: ${style.backgroundColor}`);
+    });
+</script>

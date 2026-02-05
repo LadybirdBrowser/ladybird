@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	new Document(): interfaces
+Pass	new Document(): children
+Pass	new Document(): metadata
+Pass	new Document(): characterSet aliases

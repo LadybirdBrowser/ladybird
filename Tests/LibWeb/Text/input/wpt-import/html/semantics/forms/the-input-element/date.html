@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Inputs Date</title>
+    <link rel="author" title="Morishita Hiromitsu" href="mailto:hero@asterisk-works.jp">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#date-state-(type=date)">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dates-and-times">
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <h1>Inputs Date</h1>
+    <div style="display: none">
+      <input id="valid" type="date" value="2011-11-01" min="2011-01-01" max="2011-12-31" />
+      <input id="too_small_value" type="date" value="1999-01-31" min="2011-01-01" max="2011-12-31"/>
+      <input id="too_large_value" type="date" value="2099-01-31" min="2011-01-01" max="2011-12-31"/>
+      <input id="invalid_min" type="date" value="2011-01-01" min="1999-1" max="2011-12-31"/>
+      <input id="invalid_max" type="date" value="2011-01-01" min="2011-01-01" max="2011-13-162-777"/>
+      <input id="min_larger_than_max" type="date" value="2011-01-01" min="2099-01-01" max="2011-12-31"/>
+      <input id="invalid_value" type="date" value="invalid-date" min="2011-01-01" max="2011-12-31"/>
+    </div>
+
+    <div id="log"></div>
+
+    <script type="text/javascript">
+      test(function() {
+        assert_equals(document.getElementById("valid").type, "date")
+      }, "date type support on input element");
+
+      test(function() {
+        assert_equals(document.getElementById("valid").value, "2011-11-01");
+        assert_equals(document.getElementById("too_small_value").value, "1999-01-31");
+        assert_equals(document.getElementById("too_large_value").value, "2099-01-31");
+      }, "The value attribute, if specified and not empty, must have a value that is a valid date string.");
+
+      test(function() {
+        assert_equals(document.getElementById("valid").min, "2011-01-01");
+        assert_equals(document.getElementById("invalid_min").min, "1999-1");
+      }, "The min attribute must be reflected verbatim by the min property.");
+
+      test(function() {
+        assert_equals(document.getElementById("valid").max, "2011-12-31");
+        assert_equals(document.getElementById("min_larger_than_max").max, "2011-12-31");
+        assert_equals(document.getElementById("invalid_max").max, "2011-13-162-777");
+      }, "The max attribute must be reflected verbatim by the max property.");
+
+      test(function() {
+        assert_equals(document.getElementById("invalid_value").value, "");
+      }, "User agents must not allow the user to set the value to a non-empty string that is not a valid date string.");
+      test(function() {
+        var numDays = [
+          // the number of days in month month of year year is: 31 if month is 1, 3, 5, 7, 8, 10, or 12;
+          {value: "2014-01-31", expected: "2014-01-31", testname: "January has 31 days"},
+          {value: "2014-01-32", expected: "", testname: "January has 31 days"},
+          {value: "2014-03-31", expected: "2014-03-31", testname: "March has 31 days"},
+          {value: "2014-03-32", expected: "", testname: "March has 31 days"},
+          {value: "2014-05-31", expected: "2014-05-31", testname: "May has 31 days"},
+          {value: "2014-05-32", expected: "", testname: "May has 31 days"},
+          {value: "2014-07-31", expected: "2014-07-31", testname: "July has 31 days"},
+          {value: "2014-07-32", expected: "", testname: "July has 31 days"},
+          {value: "2014-08-31", expected: "2014-08-31", testname: "August has 31 days"},
+          {value: "2014-08-32", expected: "", testname: "August has 31 days"},
+          {value: "2014-10-31", expected: "2014-10-31", testname: "October has 31 days"},
+          {value: "2014-10-32", expected: "", testname: "October has 31 days"},
+          {value: "2014-12-31", expected: "2014-12-31", testname: "December has 31 days"},
+          {value: "2014-12-32", expected: "", testname: "December has 31 days"},
+          // the number of days in month month of year year is: 30 if month is 4, 6, 9, or 11;
+          {value: "2014-04-30", expected: "2014-04-30", testname: "April has 30 days"},
+          {value: "2014-04-31", expected: "", testname: "April has 30 days"},
+          {value: "2014-06-30", expected: "2014-06-30", testname: "June has 30 days"},
+          {value: "2014-06-31", expected: "", testname: "June has 30 days"},
+          {value: "2014-09-30", expected: "2014-09-30", testname: "September has 30 days"},
+          {value: "2014-09-31", expected: "", testname: "September has 30 days"},
+          {value: "2014-11-30", expected: "2014-11-30", testname: "November has 30 days"},
+          {value: "2014-11-31", expected: "", testname: "November has 30 days"},
+          // leap years
+          {value: "2014-02-28", expected: "2014-02-28", testname: "2014 is not a leap year: February has 28 days"},
+          {value: "2014-02-29", expected: "", testname: "2014 is not a leap year: February has 28 days: value should be empty"},
+          {value: "2016-02-29", expected: "2016-02-29", testname: "2016 is a leap year: February has 29 days"}
+        ];
+        for (var i = 0; i < numDays.length; i++) {
+          var input = document.createElement("input");
+          input.type = "date";
+          input.value = numDays[i].value;
+          assert_equals(input.value, numDays[i].expected, numDays[i].testname);
+        }
+      }, "Number of days");
+    </script>
+  </body>
+</html>

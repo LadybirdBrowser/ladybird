@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<title>CSS Media Query Test: update media feature</title>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#descdef-media-update">
+<meta assert="The test is supposed to be run on fast computer displays as it will no match otherwise. The definition of fast can be found in the spec link.">
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+
+<script>
+query_should_be_known("(update)");
+query_should_be_known("(update: none)");
+query_should_be_known("(update: slow)");
+query_should_be_known("(update: fast)");
+
+query_should_be_unknown("(update: ?)");
+query_should_be_unknown("(update: 10px)");
+query_should_be_unknown("(update: 0)");
+
+test(() => {
+  let match_standard = window.matchMedia("(update: fast)");
+  assert_true(match_standard.matches);
+}, "Check that update: fast always matches fast displays");
+
+test(() => {
+  let match_standard = window.matchMedia("(update: slow)");
+  assert_false(match_standard.matches);
+}, "Check that update: slow doesn't match fast displays");
+
+test(() => {
+  let match_standard = window.matchMedia("(update: none)");
+  assert_false(match_standard.matches);
+}, "Check that update: none doesn't match fast displays");
+
+test(() => {
+  let match_standard = window.matchMedia("(update)");
+  assert_true(match_standard.matches);
+}, "Check that update always matches non printing documents");
+</script>

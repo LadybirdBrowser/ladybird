@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+
+<head>
+    <script src="include.js"></script>
+    <style>
+        #b input:placeholder-shown {
+            border: 2px dashed red;
+            background-color: #ffecec;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="a"><input type="text" placeholder=""></input></div>
+    <script>
+        test(() => {
+            document.documentElement.offsetHeight; // force style recalculation
+            const a = document.getElementById('a');
+            a.id = 'b';
+            println("PASS (didn't crash)");
+        });
+    </script>
+</body>
+
+</html>

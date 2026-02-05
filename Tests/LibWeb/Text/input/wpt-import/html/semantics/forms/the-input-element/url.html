@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Input url</title>
+  <link rel="author" title="Hyeonseok Shin" href="mailto:hyeonseok@gmail.com">
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/#url-state-%28type=url%29">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <h1>Input url</h1>
+  <div style="display: none">
+  <input type="url" id="type_support" />
+  <input type="url" id="set_value_LF" />
+  <input type="url" id="set_value_CR" />
+  <input type="url" id="set_value_CRLF" />
+  <input type="url" id="value_with_CRLF" value="a&#x000D;&#x000A;a" />
+  <input type="url" id="value_with_leading_trailing_white_space" value=" aa " />
+  <input type="url" id="value_with_leading_trailing_inner_white_space" value=" a a " />
+  </div>
+  <div id="log">
+  </div>
+
+  <script type="text/javascript">
+    test(function(){
+      var element = document.getElementById('type_support');
+      assert_equals(element.type, 'url');
+    }, 'url type supported on input element');
+
+    test(function(){
+      var element = document.getElementById('set_value_LF');
+      element.value = 'a\u000Aa';
+      assert_equals(element.value, 'aa');
+
+      element = document.getElementById('set_value_CR');
+      element.value = 'a\u000Da';
+      assert_equals(element.value, 'aa');
+
+      element = document.getElementById('set_value_CRLF');
+      element.value = 'a\u000D\u000Aa';
+      assert_equals(element.value, 'aa');
+    }, 'The value must not be set with "LF" (U+000A) or "CR" (U+000D)');
+
+    test(function(){
+      var element = document.getElementById('value_with_CRLF');
+      assert_equals(element.value, 'aa');
+    }, 'The value sanitization algorithm is as follows: Strip line breaks from the value');
+
+    test(function(){
+      var element = document.getElementById('value_with_leading_trailing_white_space');
+      assert_equals(element.value, 'aa');
+
+      element = document.getElementById('value_with_leading_trailing_inner_white_space');
+      assert_equals(element.value, 'a a');
+    }, 'The value sanitization algorithm is as follows: Strip leading and trailing whitespace from the value.');
+  </script>
+
+</body>
+</html>

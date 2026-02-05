@@ -1,0 +1,2 @@
+Size changed: 200px x 200px
+Size changed: 400px x 400px

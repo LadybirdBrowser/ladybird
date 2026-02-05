@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Animations Test: AnimationEvent pseudoElement</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#interface-animationevent">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #target::before {
+    content: "";
+    animation: move 1s;
+  }
+
+  @keyframes move {
+    to { transform: translate(100px); }
+  }
+</style>
+<div id='target'></div>
+<script>
+  async_test(function(t) {
+    var target = document.getElementById('target');
+    target.addEventListener("animationstart", t.step_func(function(evt) {
+      assert_true(evt instanceof window.AnimationEvent);
+      assert_equals(evt.pseudoElement, "::before");
+
+      t.done();
+    }), true);
+  }, "AnimationEvent should have the correct pseudoElement memeber");
+</script>
+

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Test (CSSOM View): getBoundingClientRect of element outside DOM</title>
+    <link rel="author" title="Chris Rebert" href="http://chrisrebert.com">
+    <link rel="help" href="http://www.w3.org/TR/cssom-view/#dom-element-getclientrects">
+    <link rel="help" href="http://www.w3.org/TR/cssom-view/#dom-element-getboundingclientrect">
+    <meta name="flags" content="dom">
+    <meta name="assert" content="Calling getBoundingClientRect on an element that is outside of the DOM (and therefore does not have an associated layout box) should result in an all-zeroes DOMRect and should definitely not throw an error.">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script>
+        test(
+            function () {
+                var rect = document.createElement('div').getBoundingClientRect();
+                assert_equals(rect.x, 0, "DOMRect's x should be zero");
+                assert_equals(rect.y, 0, "DOMRect's y should be zero");
+                assert_equals(rect.width, 0, "DOMRect's width should be zero");
+                assert_equals(rect.height, 0, "DOMRect's height should be zero");
+            },
+            "getBoundingClientRect on a newly-created Element not yet inserted into the DOM should return an all-zeroes DOMRect"
+        );
+    </script>
+</head>
+<body></body>
+</html>

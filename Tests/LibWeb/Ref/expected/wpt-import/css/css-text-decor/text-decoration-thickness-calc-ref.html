@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<meta charset="UTF-8" />
+<title>text-decoration-thickness calc() support</title>
+<link rel="author" title="ChangSeok Oh" href="mailto:changseok@webkit.org" />
+<link rel="stylesheet" type="text/css" href="../../../../../Text/input/wpt-import/fonts/ahem.css" />
+<style type="text/css">
+    div {
+        display: flex;
+        font-family: Ahem;
+        font-size: 8px;
+    }
+    .underline {
+        text-decoration-color: green;
+        text-decoration-line: underline;
+        text-decoration-skip-ink: none;
+    }
+    .overline {
+        text-decoration-color: green;
+        text-decoration-line: overline;
+        text-decoration-skip-ink: none;
+    }
+    .line-through {
+        text-decoration-color: green;
+        text-decoration-line: line-through;
+        text-decoration-skip-ink: none;
+    }
+    .ref {
+        text-decoration-thickness: 8px;
+    }
+</style>
+<p>Test passes if black and green bar pairs are the same shape and size.</p>
+<div>
+    <span class="underline ref">XXXXXX</span>
+</div>
+<br />
+<br />
+<div>
+    <span class="overline ref">XXXXXX</span>
+</div>
+<br />
+<div>
+    <span class="ref">XXXXXX</span>
+</div>
+<div>
+    <span class="line-through ref">XXXXXX</span>
+</div>

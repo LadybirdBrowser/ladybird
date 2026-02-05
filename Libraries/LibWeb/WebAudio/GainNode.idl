@@ -1,0 +1,15 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/AudioParam.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#GainOptions
+dictionary GainOptions : AudioNodeOptions {
+    float gain = 1.0;
+};
+
+// https://webaudio.github.io/web-audio-api/#GainNode
+[Exposed=Window]
+interface GainNode : AudioNode {
+    constructor(BaseAudioContext context, optional GainOptions options = {});
+    readonly attribute AudioParam gain;
+};

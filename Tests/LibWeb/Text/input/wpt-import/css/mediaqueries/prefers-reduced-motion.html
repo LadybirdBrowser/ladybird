@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#prefers-reduced-motion" />
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+<script>
+query_should_be_known("(prefers-reduced-motion)");
+query_should_be_known("(prefers-reduced-motion: no-preference)");
+query_should_be_known("(prefers-reduced-motion: reduce)");
+
+query_should_be_unknown("(prefers-reduced-motion: 0)");
+query_should_be_unknown("(prefers-reduced-motion: none)");
+query_should_be_unknown("(prefers-reduced-motion: 10px)");
+query_should_be_unknown("(prefers-reduced-motion: no-preference reduce)");
+query_should_be_unknown("(prefers-reduced-motion: reduced)");
+query_should_be_unknown("(prefers-reduced-motion: no-preference/reduce)");
+
+test(() => {
+  // What this is saying is that 'no-preference' is not the default, so
+  // irregardless of the current OS settings, (prefers-reduced-motion).matches
+  // should not be equivalent to (prefers-reduced-motion: no-preference).matches.
+  let booleanContext = window.matchMedia("(prefers-reduced-motion)");
+  let noPreference = window.matchMedia("(prefers-reduced-motion: no-preference)");
+  assert_equals(booleanContext.matches, !noPreference.matches);
+}, "Check that no-preference evaluates to false in the boolean context");
+</script>

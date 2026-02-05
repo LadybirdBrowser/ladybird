@@ -1,0 +1,11 @@
+#import <Geometry/DOMRect.idl>
+
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedRect
+[Exposed=Window]
+interface SVGAnimatedRect {
+    // NOTE: The spec says that baseVal and animVal are not nullable, but they are nullable in some other engines.
+    [SameObject] readonly attribute DOMRect? baseVal;
+
+    // NOTE: animVal is a DOMRectReadOnly in the spec, but other engines expose a DOMRect (sometimes aliased as SVGRect).
+    [SameObject] readonly attribute DOMRect? animVal;
+};

@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Test default caret-color
+Pass	Test caret-color: initial
+Pass	Test caret-color: inherit
+Pass	Test caret-color: auto
+Pass	Test caret-color: currentcolor
+Pass	Test caret-color: lime
+Pass	Reset caret-color: initial
+Pass	Test caret-color: rgb(0, 100, 100)
+Pass	Test caret-color: initial (inherited)
+Pass	Test caret-color: inherit (inherited)
+Pass	Test caret-color: blue (inherited)

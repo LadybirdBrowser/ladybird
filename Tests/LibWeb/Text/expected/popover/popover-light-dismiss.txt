@@ -1,0 +1,26 @@
+p1 open: false (should be false)
+p2 open: false (should be false)
+Opening p1
+p1 open: true (should be true)
+p2 open: false (should be false)
+Opening p2
+p1 open: true (should be true)
+p2 open: true (should be true)
+Clicking p2
+p1 open: true (should be true)
+p2 open: true (should be true)
+Clicking p1
+p1 open: true (should be true)
+p2 open: false (should be false)
+Clicking p1's show invoker
+p1 open: true (should be true)
+p2 open: false (should be false)
+Clicking p1's toggle invoker
+p1 open: false (should be false)
+p2 open: false (should be false)
+Re-opening both popovers
+p1 open: true (should be true)
+p2 open: true (should be true)
+Clicking outside both popovers
+p1 open: false (should be false)
+p2 open: false (should be false)

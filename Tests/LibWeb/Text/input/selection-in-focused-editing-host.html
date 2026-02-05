@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<div contenteditable>foo</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const divElm = document.querySelector('div[contenteditable]');
+
+    // Select the middle 'o'
+    let range = document.createRange();
+    range.setStart(divElm.childNodes[0], 1);
+    range.setEnd(divElm.childNodes[0], 2);
+    getSelection().addRange(range);
+
+    println(`Range: ${range.startContainer} ${range.startOffset} ${range.endContainer} ${range.endOffset}`);
+    println(`document.activeElement: ${document.activeElement}`);
+
+    // Refocus on the editing host
+    document.body.focus();
+    divElm.focus();
+
+    println('Selection must be the same as above:');
+    range = getSelection().getRangeAt(0);
+    println(`Range: ${range.startContainer} ${range.startOffset} ${range.endContainer} ${range.endOffset}`);
+    println(`document.activeElement: ${document.activeElement}`);
+});
+</script>

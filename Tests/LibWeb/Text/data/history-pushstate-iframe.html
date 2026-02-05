@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script>
+    try {
+        const initialHistoryLength = window.history.length;
+
+        history.pushState({}, "hello", "history-pushstate-iframe.html#hello");
+
+        parent.postMessage(
+            "history object length has changed by " +
+                (window.history.length - initialHistoryLength),
+            "*"
+        );
+    } catch (e) {
+        parent.postMessage("ERROR:" + e, "*");
+    }
+</script>

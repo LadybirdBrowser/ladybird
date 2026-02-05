@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Basic Functionality of AudioBuffer.copyFromChannel and
+      AudioBuffer.copyToChannel
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      // Define utility routines.
+
+      // Initialize the AudioBuffer |buffer| with a ramp signal on each channel.
+      // The ramp starts at channel number + 1.
+      function initializeAudioBufferRamp(buffer) {
+        for (let c = 0; c < buffer.numberOfChannels; ++c) {
+          let d = buffer.getChannelData(c);
+          for (let k = 0; k < d.length; ++k) {
+            d[k] = k + c + 1;
+          }
+        }
+      }
+
+      // Create a Float32Array of length |length| and initialize the array to
+      // -1.
+      function createInitializedF32Array(length) {
+        let x = new Float32Array(length);
+        for (let k = 0; k < length; ++k) {
+          x[k] = -1;
+        }
+        return x;
+      }
+
+      // Create a Float32Array of length |length| that is initialized to be a
+      // ramp starting at 1.
+      function createFloat32RampArray(length) {
+        let x = new Float32Array(length);
+        for (let k = 0; k < x.length; ++k) {
+          x[k] = k + 1;
+        }
+
+        return x;
+      }
+
+      // Test that the array |x| is a ramp starting at value |start| of length
+      // |length|, starting at |startIndex| in the array.  |startIndex| is
+      // optional and defaults to 0. Any other values must be -1.
+      function shouldBeRamp(
+          should, testName, x, startValue, length, startIndex) {
+        let k;
+        let startingIndex = startIndex || 0;
+        let expected = Array(x.length);
+
+        // Fill the expected array with the correct results.
+
+        // The initial part (if any) must be -1.
+        for (k = 0; k < startingIndex; ++k) {
+          expected[k] = -1;
+        }
+
+        // The second part should be a ramp starting with |startValue|
+        for (; k < startingIndex + length; ++k) {
+          expected[k] = startValue + k - startingIndex;
+        }
+
+        // The last part (if any) should be -1.
+        for (; k < x.length; ++k) {
+          expected[k] = -1;
+        }
+
+        should(x, testName, {numberOfArrayLog: 32}).beEqualToArray(expected);
+      }
+
+      let audit = Audit.createTaskRunner();
+
+      let context = new AudioContext();
+      // Temp array for testing exceptions for copyToChannel/copyFromChannel.
+      // The length is arbitrary.
+      let x = new Float32Array(8);
+
+      // Number of frames in the AudioBuffer for testing.  This is pretty
+      // arbitrary so choose a fairly small value.
+      let bufferLength = 16;
+
+      // Number of channels in the AudioBuffer.  Also arbitrary, but it should
+      // be greater than 1 for test coverage.
+      let numberOfChannels = 3;
+
+      // AudioBuffer that will be used for testing copyFrom and copyTo.
+      let buffer = context.createBuffer(
+          numberOfChannels, bufferLength, context.sampleRate);
+
+      let initialValues = Array(numberOfChannels);
+
+      // Initialize things
+      audit.define('initialize', (task, should) => {
+        // Initialize to -1.
+        initialValues.fill(-1);
+        should(initialValues, 'Initialized values').beConstantValueOf(-1)
+        task.done();
+      });
+
+      // Test that expected exceptions are signaled for copyFrom.
+      audit.define('copyFrom-exceptions', (task, should) => {
+        should(
+            AudioBuffer.prototype.copyFromChannel,
+            'AudioBuffer.prototype.copyFromChannel')
+            .exist();
+
+        should(
+            () => {
+              buffer = context.createBuffer(
+                  numberOfChannels, bufferLength, context.sampleRate);
+            },
+            '0: buffer = context.createBuffer(' + numberOfChannels + ', ' +
+                bufferLength + ', context.sampleRate)')
+            .notThrow();
+        should(() => {
+          buffer.copyFromChannel(null, 0);
+        }, '1: buffer.copyFromChannel(null, 0)').throw(TypeError);
+        should(() => {
+          buffer.copyFromChannel(context, 0);
+        }, '2: buffer.copyFromChannel(context, 0)').throw(TypeError);
+        should(() => {
+          buffer.copyFromChannel(x, -1);
+        }, '3: buffer.copyFromChannel(x, -1)').throw(DOMException, 'IndexSizeError');
+        should(
+            () => {
+              buffer.copyFromChannel(x, numberOfChannels);
+            },
+            '4: buffer.copyFromChannel(x, ' + numberOfChannels + ')')
+            .throw(DOMException, 'IndexSizeError');
+        ;
+        should(() => {
+          buffer.copyFromChannel(x, 0, -1);
+        }, '5: buffer.copyFromChannel(x, 0, -1)').notThrow();
+        should(
+            () => {
+              buffer.copyFromChannel(x, 0, bufferLength);
+            },
+            '6: buffer.copyFromChannel(x, 0, ' + bufferLength + ')')
+            .notThrow();
+
+        should(() => {
+          buffer.copyFromChannel(x, 3);
+        }, '7: buffer.copyFromChannel(x, 3)').throw(DOMException, 'IndexSizeError');
+
+        // See https://github.com/whatwg/html/issues/5380 for why not `new SharedArrayBuffer()`
+        // WebAssembly.Memory's size is in multiples of 64 KiB
+        const shared_buffer = new Float32Array(new WebAssembly.Memory({ shared:true, initial:1, maximum:1 }).buffer);
+        should(
+            () => {
+              buffer.copyFromChannel(shared_buffer, 0);
+            },
+            '8: buffer.copyFromChannel(SharedArrayBuffer view, 0)')
+            .throw(TypeError);
+
+        should(
+            () => {
+              buffer.copyFromChannel(shared_buffer, 0, 0);
+            },
+            '9: buffer.copyFromChannel(SharedArrayBuffer view, 0, 0)')
+            .throw(TypeError);
+
+        task.done();
+      });
+
+      // Test that expected exceptions are signaled for copyTo.
+      audit.define('copyTo-exceptions', (task, should) => {
+        should(
+            AudioBuffer.prototype.copyToChannel,
+            'AudioBuffer.prototype.copyToChannel')
+            .exist();
+        should(() => {
+          buffer.copyToChannel(null, 0);
+        }, '0: buffer.copyToChannel(null, 0)').throw(TypeError);
+        should(() => {
+          buffer.copyToChannel(context, 0);
+        }, '1: buffer.copyToChannel(context, 0)').throw(TypeError);
+        should(() => {
+          buffer.copyToChannel(x, -1);
+        }, '2: buffer.copyToChannel(x, -1)').throw(DOMException, 'IndexSizeError');
+        should(
+            () => {
+              buffer.copyToChannel(x, numberOfChannels);
+            },
+            '3: buffer.copyToChannel(x, ' + numberOfChannels + ')')
+            .throw(DOMException, 'IndexSizeError');
+        should(() => {
+          buffer.copyToChannel(x, 0, -1);
+        }, '4: buffer.copyToChannel(x, 0, -1)').notThrow();
+        should(
+            () => {
+              buffer.copyToChannel(x, 0, bufferLength);
+            },
+            '5: buffer.copyToChannel(x, 0, ' + bufferLength + ')')
+            .notThrow();
+
+        should(() => {
+          buffer.copyToChannel(x, 3);
+        }, '6: buffer.copyToChannel(x, 3)').throw(DOMException, 'IndexSizeError');
+
+        // See https://github.com/whatwg/html/issues/5380 for why not `new SharedArrayBuffer()`
+        // WebAssembly.Memory's size is in multiples of 64 KiB
+        const shared_buffer = new Float32Array(new WebAssembly.Memory({ shared:true, initial:1, maximum:1 }).buffer);
+        should(
+            () => {
+              buffer.copyToChannel(shared_buffer, 0);
+            },
+            '7: buffer.copyToChannel(SharedArrayBuffer view, 0)')
+            .throw(TypeError);
+
+        should(
+            () => {
+              buffer.copyToChannel(shared_buffer, 0, 0);
+            },
+            '8: buffer.copyToChannel(SharedArrayBuffer view, 0, 0)')
+            .throw(TypeError);
+
+        task.done();
+      });
+
+      // Test copyFromChannel
+      audit.define('copyFrom-validate', (task, should) => {
+        // Initialize the AudioBuffer to a ramp for testing copyFrom.
+        initializeAudioBufferRamp(buffer);
+
+        // Test copyFrom operation with a short destination array, filling the
+        // destination completely.
+        for (let c = 0; c < numberOfChannels; ++c) {
+          let dst8 = createInitializedF32Array(8);
+          buffer.copyFromChannel(dst8, c);
+          shouldBeRamp(
+              should, 'buffer.copyFromChannel(dst8, ' + c + ')', dst8, c + 1, 8)
+        }
+
+        // Test copyFrom operation with a short destination array using a
+        // non-zero start index that still fills the destination completely.
+        for (let c = 0; c < numberOfChannels; ++c) {
+          let dst8 = createInitializedF32Array(8);
+          buffer.copyFromChannel(dst8, c, 1);
+          shouldBeRamp(
+              should, 'buffer.copyFromChannel(dst8, ' + c + ', 1)', dst8, c + 2,
+              8)
+        }
+
+        // Test copyFrom operation with a short destination array using a
+        // non-zero start index that does not fill the destinatiom completely.
+        // The extra elements should be unchanged.
+        for (let c = 0; c < numberOfChannels; ++c) {
+          let dst8 = createInitializedF32Array(8);
+          let startInChannel = bufferLength - 5;
+          buffer.copyFromChannel(dst8, c, startInChannel);
+          shouldBeRamp(
+              should,
+              'buffer.copyFromChannel(dst8, ' + c + ', ' + startInChannel + ')',
+              dst8, c + 1 + startInChannel, bufferLength - startInChannel);
+        }
+
+        // Copy operation with the destination longer than the buffer, leaving
+        // the trailing elements of the destination untouched.
+        for (let c = 0; c < numberOfChannels; ++c) {
+          let dst26 = createInitializedF32Array(bufferLength + 10);
+          buffer.copyFromChannel(dst26, c);
+          shouldBeRamp(
+              should, 'buffer.copyFromChannel(dst26, ' + c + ')', dst26, c + 1,
+              bufferLength);
+        }
+
+        task.done();
+      });
+
+      // Test copyTo
+      audit.define('copyTo-validate', (task, should) => {
+        // Create a source consisting of a ramp starting at 1, longer than the
+        // AudioBuffer
+        let src = createFloat32RampArray(bufferLength + 10);
+
+        // Test copyTo with AudioBuffer shorter than Float32Array. The
+        // AudioBuffer should be completely filled with the Float32Array.
+        should(
+            () => {
+              buffer =
+                  createConstantBuffer(context, bufferLength, initialValues);
+            },
+            'buffer = createConstantBuffer(context, ' + bufferLength + ', [' +
+                initialValues + '])')
+            .notThrow();
+
+        for (let c = 0; c < numberOfChannels; ++c) {
+          buffer.copyToChannel(src, c);
+          shouldBeRamp(
+              should, 'buffer.copyToChannel(src, ' + c + ')',
+              buffer.getChannelData(c), 1, bufferLength);
+        }
+
+        // Test copyTo with AudioBuffer longer than the Float32Array.  The tail
+        // of the AudioBuffer should be unchanged.
+        buffer = createConstantBuffer(context, bufferLength, initialValues);
+        let src10 = createFloat32RampArray(10);
+        for (let c = 0; c < numberOfChannels; ++c) {
+          buffer.copyToChannel(src10, c);
+          shouldBeRamp(
+              should, 'buffer.copyToChannel(src10, ' + c + ')',
+              buffer.getChannelData(c), 1, 10);
+        }
+
+        // Test copyTo with non-default startInChannel.  Part of the AudioBuffer
+        // should filled with the beginning and end sections untouched.
+        buffer = createConstantBuffer(context, bufferLength, initialValues);
+        for (let c = 0; c < numberOfChannels; ++c) {
+          let startInChannel = 5;
+          buffer.copyToChannel(src10, c, startInChannel);
+
+          shouldBeRamp(
+              should,
+              'buffer.copyToChannel(src10, ' + c + ', ' + startInChannel + ')',
+              buffer.getChannelData(c), 1, src10.length, startInChannel);
+        }
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

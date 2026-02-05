@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="CGQAQ" href="mailto:m.jason.liu@gmail.com">
+<link rel="author" title="一丝" href="mailto:yiorsi@gmail.com">
+<link rel="help" href="https://www.w3.org/TR/css-color-4/#interpolation">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-images/gradient/conic-gradient-001-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-40000">
+<title>Tests the maximum value of color stops in conic-gradient().</title>
+<style>
+    body {
+        background-color: lightblue;
+    }
+
+    .test {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    li {
+        width: 100px;
+        height: 100px;
+        margin-right: 30px;
+        margin-bottom: 30px;
+        outline: 1px solid black;
+        font-size: 14px;
+        text-align: center;
+        background: red;
+    }
+
+    li:nth-child(1) {
+        background: conic-gradient(lime 0 999999999%);
+    }
+
+    li:nth-child(2) {
+        background: conic-gradient(in hsl, lime 0 calc(Infinity * 0%));
+    }
+
+    li:nth-child(3) {
+        background: conic-gradient(in lch, lime 0 calc(Infinity * 1%));
+    }
+
+    li:nth-child(4) {
+        background: conic-gradient(in oklab, lime calc(Infinity * 0%) 100%);
+    }
+
+    li:nth-child(5) {
+        background: conic-gradient(in srgb, lime calc(Infinity * 1%) 100%);
+    }
+
+    li:nth-child(6) {
+        background: conic-gradient(in srgb, lime calc(Infinity * -1%) 100%);
+    }
+
+    li:nth-child(7) {
+        background: conic-gradient(in srgb, lime 0 calc(Infinity * 1%));
+    }
+
+    li:nth-child(8) {
+        background: conic-gradient(from calc(Infinity * 1deg), lime 0 100%);
+    }
+
+    li:nth-child(9) {
+        background: conic-gradient(from calc(Infinity * 0deg), lime 0 100%);
+    }
+</style>
+
+<p>Should be lime in the background of all boxes.</p>
+<ol class="test">
+    <li>0 999999999%</li>
+    <li>0 calc(Infinity * 0%)</li>
+    <li>0 calc(Infinity * 1%)</li>
+    <li>calc(Infinity * 0%) 100%</li>
+    <li>calc(Infinity * 1%) 100%</li>
+    <li>calc(Infinity * -1%) 100%</li>
+    <li>0% calc(Infinity * 1%)</li>
+    <li>from calc(Infinity * 1deg)</li>
+    <li>from calc(Infinity * 0deg)</li>
+</ol>

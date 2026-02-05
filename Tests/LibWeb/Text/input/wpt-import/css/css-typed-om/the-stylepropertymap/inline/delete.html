@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Inline StylePropertyMap.delete</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#delete-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, '');
+  assert_equals(elem.style.getPropertyValue('width'), '');
+
+  styleMap.delete('width');
+  assert_equals(elem.style.getPropertyValue('width'), '');
+}, 'Deleting a property not in the inline style is a no-op');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, 'width: 10px');
+  assert_not_equals(elem.style.getPropertyValue('width'), '');
+
+  styleMap.delete('width');
+  assert_equals(elem.style.getPropertyValue('width'), '');
+}, 'Deleting a property in the inline style removes it from the inline style');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, '--Foo: 10px');
+  assert_not_equals(elem.style.getPropertyValue('--Foo'), '');
+
+  styleMap.delete('--Foo');
+  assert_equals(elem.style.getPropertyValue('--Foo'), '');
+}, 'Deleting a custom property in the inline style removes it from the ' +
+   'inline style');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t,
+      'transition-duration: 1s, 2s');
+  assert_not_equals(elem.style.getPropertyValue('transition-duration'), '');
+
+  styleMap.delete('transition-duration');
+  assert_equals(elem.style.getPropertyValue('transition-duration'), '');
+}, 'Deleting a list-valued property in the inline style removes it from ' +
+   'the inline style');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, 'width: 10px');
+  assert_not_equals(elem.style.getPropertyValue('width'), '');
+
+  styleMap.delete('wIdTh');
+  assert_equals(elem.style.getPropertyValue('width'), '');
+}, 'Inline StylePropertyMap.delete is not case-sensitive');
+
+</script>

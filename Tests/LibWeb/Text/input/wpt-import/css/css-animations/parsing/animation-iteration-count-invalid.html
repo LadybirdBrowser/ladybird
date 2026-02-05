@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: parsing animation-iteration-count with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#propdef-animation-iteration-count">
+<meta name="assert" content="animation-iteration-count supports only the grammar '<single-animation-iteration-count> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("animation-iteration-count", "auto");
+test_invalid_value("animation-iteration-count", "-2");
+test_invalid_value("animation-iteration-count", "3 4");
+
+test_invalid_value("animation-iteration-count", "initial, 4");
+test_invalid_value("animation-iteration-count", "4, initial");
+</script>
+</body>
+</html>

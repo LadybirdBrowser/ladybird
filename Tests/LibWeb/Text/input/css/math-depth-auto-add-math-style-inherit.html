@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <style>
+            #foo {
+                math-style: compact;
+                math-depth: auto-add;
+            }
+
+            #bar {
+                math-depth: auto-add;
+            }
+        </style>
+        <div id="foo">
+            <div id="bar"></div>
+        </div>
+        <script src="../include.js"></script>
+        <script>
+            test(() => {
+                println("Foo: " + getComputedStyle(foo).mathDepth);
+                println("Bar: " + getComputedStyle(bar).mathDepth);
+            });
+        </script>
+    </body>
+</html>

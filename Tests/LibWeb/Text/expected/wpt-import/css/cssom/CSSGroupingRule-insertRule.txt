@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	index before first
+Pass	index after final
+Pass	index not specified
+Pass	index exceeds length
+Pass	CSS parsing error
+Pass	constraint violation
+Pass	disallowed namespace rule

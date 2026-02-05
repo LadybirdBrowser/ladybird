@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title id='title'>HTMLOptionsCollection</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<select id="selly">
+  <option>1</option>
+  <option>2</option>
+  <option>3</option>
+  <option>4</option>
+</select>
+
+<script>
+var selly;
+setup(function() {
+    selly = document.getElementById('selly');
+});
+
+test(function () {
+    assert_equals(selly.length, 4);
+}, "On getting, the length attribute must return the number of nodes represented by the collection.");
+
+test(function () {
+    selly.length = 7;
+    assert_equals(selly.length, 7,
+                  "Number of nodes in collection should have changed");
+    assert_equals(selly.children.length, 7,
+                  "Number of children should have changed");
+    for (var i = 4; i < 7; ++i) {
+        var child = selly.children[i];
+        assert_equals(child.localName, "option",
+                      "new child should be an option");
+        assert_equals(child.namespaceURI, "http://www.w3.org/1999/xhtml",
+                      "new child should be an HTML element");
+        assert_equals(child.attributes.length, 0,
+                      "new child should not have attributes");
+        assert_equals(child.childNodes.length, 0,
+                      "new child should not have child nodes");
+    }
+}, "Changing the length adds new nodes; The number of new nodes = new length minus old length");
+
+test(function () {
+    var elarray = [];
+    for (var i = 0; i < selly.length; i++) {
+        elarray.push(selly[i].value);
+    }
+    assert_array_equals(elarray, ["1", "2", "3", "4", "", "", ""]);
+}, "New nodes have no value");
+
+test(function () {
+    selly.length = 7;
+    assert_equals(selly.length, 7,
+                  "Number of nodes in collection should not have changed");
+    assert_equals(selly.children.length, 7,
+                  "Number of children should not have changed");
+}, "Setting a length equal to existing length changes nothing");
+
+test(function () {
+    selly.length = 4;
+    assert_equals(selly[6], undefined,
+                  "previously set node is now undefined");
+    assert_equals(selly.length, 4,
+                  "Number of nodes in collection is correctly changed");
+    assert_equals(selly.children.length, 4,
+                  "Number of children should have changed");
+}, "Setting a length lower than the old length trims nodes from the end");
+
+test(function () {
+    var opts = selly.options;
+    opts[3] = null;
+    assert_equals(selly[3], undefined,
+                  "previously set node is now undefined");
+    assert_equals(selly.length, 3,
+                  "Number of nodes in collection is correctly changed");
+    assert_equals(selly.children.length, 3,
+                  "Number of children should have changed");
+}, "Setting element to null by index removed the element");
+
+test(function () {
+    var opts = selly.options;
+    var new_option = document.createElement("option");
+    var replace_option = new_option.cloneNode(true);
+    new_option.value = "-1";
+    replace_option.value = "a";
+    opts[5] = new_option;
+    opts[0] = replace_option;
+
+    var elarray = [];
+    for (var i = 0; i < selly.length; i++) {
+        elarray.push(selly[i].value);
+    }
+    assert_array_equals(elarray, ["a", "2", "3", "", "", "-1"]);
+
+}, "Setting element by index should correctly append and replace elements");
+
+test(function () {
+    var selection = document.createElementNS("http://www.w3.org/1999/xhtml", "foo:select");
+
+    selection.length = 5;
+    assert_equals(selection.length, 5,
+                  "Number of nodes in collection should have changed");
+    for (var i = 0; i < 5; ++i) {
+        var child = selection.children[i];
+        assert_equals(child.localName, "option",
+                      "new child should be an option");
+        assert_equals(child.namespaceURI, "http://www.w3.org/1999/xhtml",
+                      "new child should be an HTML element");
+        assert_equals(child.prefix, null,
+                      "new child should not copy select's prefix");
+    }
+
+}, "Changing the length adds new nodes; The new nodes will not copy select's prefix");
+
+</script>

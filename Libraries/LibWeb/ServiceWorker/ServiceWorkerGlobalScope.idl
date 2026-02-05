@@ -1,0 +1,19 @@
+#import <CookieStore/CookieStore.idl>
+#import <DOM/EventHandler.idl>
+
+// https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope
+[Global=(Worker,ServiceWorker), Exposed=ServiceWorker, SecureContext]
+interface ServiceWorkerGlobalScope : WorkerGlobalScope {
+    [FIXME, SameObject] readonly attribute Clients clients;
+    [FIXME, SameObject] readonly attribute ServiceWorkerRegistration registration;
+    [FIXME, SameObject] readonly attribute ServiceWorker serviceWorker;
+
+    [FIXME, NewObject] Promise<undefined> skipWaiting();
+
+    attribute EventHandler oninstall;
+    attribute EventHandler onactivate;
+    attribute EventHandler onfetch;
+
+    attribute EventHandler onmessage;
+    attribute EventHandler onmessageerror;
+};

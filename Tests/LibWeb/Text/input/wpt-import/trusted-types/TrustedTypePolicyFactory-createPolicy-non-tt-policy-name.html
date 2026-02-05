@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<meta charset="UTF-8">
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy">
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#tt-policy-name">
+<link rel="help" href="https://github.com/w3c/trusted-types/issues/466">
+<link rel="help" href="https://github.com/w3c/trusted-types/issues/504">
+<body>
+<script>
+  function is_tt_policy_name(aName) {
+    // tt-policy-name = 1*( ALPHA / DIGIT / "-" / "#" / "=" / "_" / "/" / "@" / "." / "%")
+    return /^([A-Za-z0-9\-\#\=\_\/\@$\.\%]+)$/.test(aName);
+  }
+
+  function tryCreatePolicy(aName) {
+    return window.trustedTypes.createPolicy(aName, { createHTML: s => s } );
+  }
+
+  test(() => {
+    assert_false(is_tt_policy_name(""));
+    assert_equals(tryCreatePolicy("").name, "");
+  }, "Creating an empty policy name works.");
+
+  test(() => {
+    for (let codePoint = 0; codePoint < 0x80; codePoint++) {
+      let policyName = String.fromCharCode(codePoint);
+      assert_equals(tryCreatePolicy(policyName).name, policyName);
+    }
+  }, "Creating policy names made of a single ASCII character works.");
+
+  test(() => {
+    for (let codePoint = 0; codePoint < 0x80; codePoint++) {
+      let policyName = `policy${String.fromCharCode(codePoint)}name`;
+      assert_equals(tryCreatePolicy(policyName).name, policyName);
+    }
+  }, "Creating policy names made of multiple ASCII characters works.");
+
+  test(() => {
+    // C1 Controls and Latin-1 Supplement
+    for (let codePoint = 0x80; codePoint <= 0xFF; codePoint++) {
+      let policyName = `policy${String.fromCharCode(codePoint)}name`;
+      assert_false(is_tt_policy_name(policyName));
+      assert_equals(tryCreatePolicy(policyName).name, policyName);
+    }
+
+    // Try U+1000, U+2000, U+3000, ..., U+F000.
+    for (let i = 0x1; i <= 0xF; i++) {
+      let codePoint = i * 0x1000;
+      let policyName = `policy${String.fromCharCode(codePoint)}name`;
+      assert_false(is_tt_policy_name(policyName));
+      assert_equals(tryCreatePolicy(policyName).name, policyName);
+    }
+  }, "Creating policy names containing a non-ASCII BMP character works.");
+
+  test(() => {
+    // Try U+1000, U+2000, U+3000, ..., U+1F000.
+    for (let i = 0x10; i <= 0x1F; i++) {
+      let codePoint = i * 0x1000;
+      let policyName = `policy${String.fromCharCode(codePoint)}name`;
+      assert_false(is_tt_policy_name(policyName));
+      assert_equals(tryCreatePolicy(policyName).name, policyName);
+    }
+  }, "Creating policy names containing a non-BMP character works.");
+
+</script>

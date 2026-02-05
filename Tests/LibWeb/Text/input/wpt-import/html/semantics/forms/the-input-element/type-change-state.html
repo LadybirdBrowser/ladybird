@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Input element's type attribute changes state</title>
+<link rel="author" title="Denis Ah-Kang" href="mailto:denis@w3.org">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#the-input-element">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+
+  const INITIAL_VALUE = "  foo\rbar  ";
+
+  // Sanitize algorithm implementations only for values used in this test.
+  function sanitizeText(value) {
+    switch (value) {
+      case INITIAL_VALUE: return "  foobar  ";
+      case "  foobar  ": return value;
+      case "foobar": return value;
+      case "50": return value;
+      case "#000000": return value;
+      case "": return value;
+      default: throw new DOMException(`Internal Error: Should add support of "${value}"`, "NotSupportedError");
+    }
+  }
+  function sanitizeEmailOrUrl(value) {
+    switch (value) {
+      case INITIAL_VALUE: return "foobar";
+      case "  foobar  ": return "foobar";
+      case "foobar": return value;
+      case "50": return value;
+      case "#000000": return value;
+      case "": return value;
+      default: throw new DOMException(`Internal Error: Should add support of "${value}"`, "NotSupportedError");
+    }
+  }
+  function sanitizeTemporal(value) {
+    // We have no test cases using valid temporal values.
+    return "";
+  }
+  function sanitizeNumber(value) {
+    switch (value) {
+      case "50": return value;
+      default:
+      // We have no test cases using valid numbers other than "50".
+        return "";
+    }
+  }
+  function sanitizeRange(value) {
+    // We have no test cases using valid numbers other than "50".
+    return "50";
+  }
+  function sanitizeColor(value) {
+    // We have no test cases using valid colors other than "#000000".
+    return "#000000";
+  }
+  function browserSupportsInputTypeOf(inputType) {
+    var inputTest = document.createElement("input");
+    inputTest.type = inputType;
+    return (inputTest.type === inputType);
+  }
+
+
+  var types = [
+    { type: "hidden" },
+    { type: "text", sanitizer: sanitizeText },
+    { type: "search", sanitizer: sanitizeText },
+    { type: "tel", sanitizer: sanitizeText },
+    { type: "url", sanitizer: sanitizeEmailOrUrl },
+    { type: "email", sanitizer: sanitizeEmailOrUrl },
+    { type: "password", sanitizer: sanitizeText },
+    { type: "datetime-local", sanitizer: sanitizeTemporal },
+    { type: "date", sanitizer: sanitizeTemporal },
+    { type: "time", sanitizer: sanitizeTemporal },
+    { type: "number", sanitizer: sanitizeNumber },
+    { type: "range", sanitizer: sanitizeRange },
+    { type: "color", sanitizer: sanitizeColor },
+    { type: "checkbox", defaultValue: "on" },
+    { type: "radio", defaultValue: "on" },
+    { type: "file" },
+    { type: "submit" },
+    { type: "image" },
+    { type: "reset" },
+    { type: "button" }
+  ];
+
+  const selectionStart = 2;
+  const selectionEnd = 5;
+  const selectionDirection = "backward";
+
+  // Obtain selectionDirection after setting it to "none".
+  // Some platforms don't support "none" direction, and "forward" is returned
+  // in such platforms.
+  // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-direction
+  function testNoneDirection() {
+    const input = document.createElement("input");
+    input.selectionDirection = "none";
+    return input.selectionDirection;
+  }
+  const noneDirectionResult = testNoneDirection();
+
+  for (var i = 0; i < types.length; i++) {
+    for (var j = 0; j < types.length; j++) {
+      if (types[i] != types[j]) {
+        test(function() {
+          assert_implements(browserSupportsInputTypeOf(types[i].type), "Support for input type " + types[i].type + " is required for this test.");
+          assert_implements(browserSupportsInputTypeOf(types[j].type), "Support for input type " + types[j].type + " is required for this test.");
+          var input = document.createElement("input");
+          var expected = INITIAL_VALUE;
+          input.type = types[i].type;
+          if (types[i].type === "file") {
+            assert_throws_dom("INVALID_STATE_ERR", function() {
+              input.value = expected;
+            });
+            assert_equals(input.value, "");
+          } else if (types[j].type === "file") {
+            input.value = expected;
+            input.type = types[j].type;  // change state
+            assert_equals(input.value, "");
+          } else {
+            input.value = expected;
+            expected = input.value;
+
+            const previouslySelectable = (input.selectionStart !== null);
+
+            if (previouslySelectable) {
+              input.setSelectionRange(selectionStart, selectionEnd, selectionDirection);
+            }
+
+            input.type = types[j].type;  // change state
+
+            var preSanitizeValue = expected;
+            // type[j] sanitization
+            if (types[j].sanitizer) {
+              expected = types[j].sanitizer(expected);
+            }
+
+            // type[j] defaultValue
+            if (expected === "" && types[j].defaultValue) {
+              expected = types[j].defaultValue;
+            }
+
+            assert_equals(input.value, expected, "input.value should be '" + expected + "' after change of state");
+
+            const nowSelectable = (input.selectionStart !== null);
+
+            if (nowSelectable) {
+              if (previouslySelectable) {
+                // Value might change after sanitization. The following checks are only valid when the value stays the same.
+                if (preSanitizeValue === expected) {
+                  assert_equals(input.selectionStart, selectionStart, "selectionStart should be unchanged");
+                  assert_equals(input.selectionEnd, selectionEnd, "selectionEnd should be unchanged");
+                  assert_equals(input.selectionDirection, selectionDirection, "selectionDirection should be unchanged");
+                }
+              } else {
+                assert_equals(input.selectionStart, 0, "selectionStart should be 0");
+                assert_equals(input.selectionEnd, 0, "selectionEnd should be 0");
+                assert_equals(input.selectionDirection, noneDirectionResult,
+                              `selectionDirection should be '{noneDirectionResult}'`);
+              }
+            }
+          }
+        }, "change state from " + types[i].type + " to " + types[j].type);
+      }
+    }
+  }
+</script>

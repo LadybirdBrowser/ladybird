@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Scale DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).scale(1, 2, 3));
+
+        // 2. Scale DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().scale(1, 2, 3)));
+
+        // 3. Scale DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).multiply(new DOMMatrix().scale(1, 2, 3)));
+
+        // 4. Scale 3D DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).scale3d(5, 4, 3, 2));
+
+        // 5. Scale 3D DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().scale3d(5, 4, 3, 2)));
+
+        // 6. Scale 3D DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).multiply(new DOMMatrix().scale3d(5, 4, 3, 2)));
+    });
+</script>

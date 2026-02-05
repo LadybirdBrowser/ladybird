@@ -1,0 +1,11 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <svg> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+    TextNode <#text> (not painted)
+    InlineNode <rect> at [0,0] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+    TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<svg>) [0,0 800x0]
+    PaintableWithLines (InlineNode<rect>) [0,0 0x18]
+
+SC for Viewport<#document> [0,0 800x600] [children: 0] (z-index: auto)

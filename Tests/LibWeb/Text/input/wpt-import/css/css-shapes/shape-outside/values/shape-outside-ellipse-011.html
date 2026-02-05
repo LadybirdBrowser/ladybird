@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Ellipse position args - calc() values</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-ellipse">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <link rel="help" href="http://www.w3.org/TR/css3-values/#calc-notation">
+        <meta name="assert" content="An ellipse's <position> arguments may be in calc() values.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+            var ellipse_position_calc_tests = [];
+            ParsingUtils.calcTestValues.forEach(function(value) {
+                testCase = ['ellipse(at '+ value[0] +' 50%)',
+                            'ellipse(at '+ value[1] +' 50%)'];
+                if(Object.prototype.toString.call( value[2] ) === '[object Array]' && value[2].length == 2) {
+                    testCase.push([
+                                    'ellipse(at '+ value[2][0] +' 50%)',
+                                    'ellipse(at '+ value[2][1] +' 50%)'
+                                 ]);
+                } else {
+                    testCase.push('ellipse(at '+ value[2] +' 50%)');
+                }
+                ellipse_position_calc_tests.push(testCase);
+            });
+            ParsingUtils.calcTestValues.forEach(function(value) {
+                testCase = ['ellipse(closest-side farthest-side at '+ value[0] +' '+ value[0] +')',
+                            'ellipse(closest-side farthest-side at '+ value[1] +' '+ value[1] +')'];
+                if(Object.prototype.toString.call( value[2] ) === '[object Array]' && value[2].length == 2) {
+                    testCase.push([
+                                    'ellipse(closest-side farthest-side at '+ value[2][0] +' '+ value[2][0] +')',
+                                    'ellipse(closest-side farthest-side at '+ value[2][1] +' '+ value[2][1] +')'
+                                 ]);
+                } else {
+                    testCase.push('ellipse(closest-side farthest-side at '+ value[2] +' '+ value[2] +')');
+                }
+                ellipse_position_calc_tests.push(testCase);
+            });
+            generate_tests(ParsingUtils.testInlineStyle, ParsingUtils.buildCalcTests(ellipse_position_calc_tests, 'inline'));
+            generate_tests(ParsingUtils.testComputedStyle, ParsingUtils.buildCalcTests(ellipse_position_calc_tests, 'computed'));
+        </script>
+    </body>
+</html>

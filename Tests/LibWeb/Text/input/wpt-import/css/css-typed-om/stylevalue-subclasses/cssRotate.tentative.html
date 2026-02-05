@@ -1,0 +1,126 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSRotate tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssrotate">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gInvalidAngleTestCases = [
+  { angle: CSS.number(10), desc: 'a CSSUnitValue with type other than angle'},
+  { angle: new CSSMathSum(CSS.s(10)), desc: 'a CSSMathValue that doesn\'t match <angle>'},
+];
+
+const gInvalidCoordTestCases = [
+  { coord: CSS.px(10), desc: 'a CSSUnitValue with type other than number'},
+  { coord: new CSSMathSum(CSS.px(10)), desc: 'a CSSMathValue that doesn\'t match <number>'},
+];
+
+for (const {angle, desc} of gInvalidAngleTestCases) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSRotate(angle));
+    assert_throws_js(TypeError, () => new CSSRotate(0, 0, 0, angle));
+  }, 'Constructing a CSSRotate with ' + desc + ' for the angle throws a TypeError');
+}
+
+for (const {coord, desc} of gInvalidCoordTestCases) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSRotate(coord, 0, 0, CSS.deg(0)));
+    assert_throws_js(TypeError, () => new CSSRotate(0, coord, 0, CSS.deg(0)));
+    assert_throws_js(TypeError, () => new CSSRotate(0, 0, coord, CSS.deg(0)));
+  }, 'Constructing a CSSRotate with ' + desc + ' for the coordinates throws a TypeError');
+}
+
+for (const attr of ['x', 'y', 'z']) {
+  for (const {value, desc} of gInvalidCoordTestCases) {
+    test(() => {
+      let result = new CSSRotate(0, 0, 0, CSS.deg(0));
+      assert_throws_js(TypeError, () => result[attr] = value);
+      assert_style_value_equals(result[attr], CSS.number(0));
+    }, 'Updating CSSRotate.' + attr + ' to ' + desc + ' throws a TypeError');
+  }
+}
+
+for (const {angle, desc} of gInvalidAngleTestCases) {
+  test(() => {
+    let result = new CSSRotate(CSS.deg(0));
+    assert_throws_js(TypeError, () => result.angle = angle);
+    assert_style_value_equals(result.angle, CSS.deg(0));
+  }, 'Updating CSSRotate.angle to ' + desc + ' throws a TypeError');
+}
+
+test(() => {
+  const result = new CSSRotate(CSS.deg(3.14));
+  assert_style_value_equals(result.x, CSS.number(0));
+  assert_style_value_equals(result.y, CSS.number(0));
+  assert_style_value_equals(result.z, CSS.number(1));
+  assert_style_value_equals(result.angle, CSS.deg(3.14));
+  assert_true(result.is2D);
+}, 'CSSRotate can be constructed from a single angle');
+
+test(() => {
+  const result = new CSSRotate(-3.14, CSS.number(3.14), 3.14, CSS.deg(3.14));
+  assert_style_value_equals(result.x, CSS.number(-3.14));
+  assert_style_value_equals(result.y, CSS.number(3.14));
+  assert_style_value_equals(result.z, CSS.number(3.14));
+  assert_style_value_equals(result.angle, CSS.deg(3.14));
+  assert_false(result.is2D);
+}, 'CSSRotate can be constructed from numberish coordinates');
+
+test(() => {
+  const result = new CSSRotate(
+    new CSSMathSum(-3.14),
+    new CSSMathProduct(3.14),
+    new CSSMathNegate(-3.14),
+    new CSSMathMax(CSS.deg(3.14))
+  );
+  assert_style_value_equals(result.x, new CSSMathSum(-3.14));
+  assert_style_value_equals(result.y, new CSSMathProduct(3.14));
+  assert_style_value_equals(result.z, new CSSMathNegate(-3.14));
+  assert_style_value_equals(result.angle, new CSSMathMax(CSS.deg(3.14)));
+  assert_false(result.is2D);
+}, 'CSSRotate can be constructed from CSSMathValues');
+
+for (const attr of ['x', 'y', 'z']) {
+  test(() => {
+    let result = new CSSRotate(0, 0, 0, CSS.deg(0));
+    result[attr] = 3.14;
+    assert_style_value_equals(result[attr], CSS.number(3.14));
+  }, 'CSSRotate.' + attr + ' can be updated to a double');
+
+  test(() => {
+    let result = new CSSRotate(0, 0, 0, CSS.deg(0));
+    result[attr] = CSS.number(3.14);
+    assert_style_value_equals(result[attr], CSS.number(3.14));
+  }, 'CSSRotate.' + attr + ' can be updated to a number CSSUnitValue');
+
+  test(() => {
+    let result = new CSSRotate(0, 0, 0, CSS.deg(0));
+    result[attr] = new CSSMathSum(3.14);
+    assert_style_value_equals(result[attr], new CSSMathSum(3.14));
+  }, 'CSSRotate.' + attr + ' can be updated to a CSSMathValue matching <number>');
+}
+
+test(() => {
+  let rotation = new CSSRotate(CSS.deg(0));
+  rotation.angle = CSS.deg(6);
+  assert_style_value_equals(rotation.angle, CSS.deg(6));
+}, 'CSSRotate.angle can be updated to a degree CSSUnitValue');
+
+test(() => {
+  let rotation = new CSSRotate(CSS.deg(0));
+  rotation.angle = new CSSMathSum(CSS.deg(3.14));
+  assert_style_value_equals(rotation.angle, new CSSMathSum(CSS.deg(3.14)));
+}, 'CSSRotate.angle can be updated to a CSSMathValue matching <angle>');
+
+test(() => {
+  let rotation = new CSSRotate(CSS.deg(0));
+  rotation.is2D = true;
+  assert_true(rotation.is2D);
+  rotation.is2D = false;
+  assert_false(rotation.is2D);
+}, 'Modifying CSSRotate.is2D can be updated to true or false');
+
+</script>

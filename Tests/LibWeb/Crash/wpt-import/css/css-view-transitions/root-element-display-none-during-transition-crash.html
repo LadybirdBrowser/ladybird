@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class=test-wait>
+<title>View transitions: entry animation from root display none</title>
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/">
+<link rel="author" href="mailto:vmpstr@chromium.org">
+
+<style>
+.hidden {
+  display: none;
+}
+::view-transition-group(*) {
+  animation-duration: 500s
+}
+</style>
+
+<script>
+async function runTest() {
+  transition = document.startViewTransition();
+  transition.ready.then(() => {
+    requestAnimationFrame(() => {
+      document.documentElement.classList.toggle("hidden");
+    });
+  });
+  transition.finished.then(() => document.documentElement.classList.remove("test-wait"));
+}
+onload = () => requestAnimationFrame(() => requestAnimationFrame(runTest));
+</script>

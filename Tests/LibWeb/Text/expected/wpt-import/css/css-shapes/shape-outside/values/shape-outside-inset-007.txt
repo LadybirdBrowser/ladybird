@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	inset(10px round 10 20 30 40) - invalid
+Pass	inset(10px round 10px 20 30 40) - invalid
+Pass	inset(10px round 10px 20px 30 40) - invalid
+Pass	inset(10px round 10px 20px 30px 40) - invalid
+Pass	inset(10px round 10px 20px 30px 40px / 10 20 30 40) - invalid
+Pass	inset(10px round 10px 20px 30px 40px / 10px 20 30 40) - invalid
+Pass	inset(10px round 10px 20px 30px 40px / 10px 20px 30 40) - invalid
+Pass	inset(10px round 10px 20px 30px 40px / 10px 20px 30px 40) - invalid
+Pass	inset(10px round  10px, 20px, 30px, 40px) - invalid
+Pass	inset(10px round  10px, 20px, 30px 40px) - invalid
+Pass	inset(10px round  10px, 20px 30px 40px) - invalid
+Pass	inset(10px round  10px 20px, 30px, 40px) - invalid
+Pass	inset(10px round  10px 20px 30px, 40px) - invalid
+Pass	inset(10px round  10px, 20px, 30px, 40px / 10px, 20px, 30px, 40px) - invalid
+Pass	inset(10px round  10px 20px, 30px, 40px / 10px 20px, 30px, 40) - invalid
+Pass	inset(10px round  10px 20px 30px, 40px / 10px 20px 30px, 40) - invalid
+Pass	inset(10px round  foo, bar, boo, $$) - invalid
+Pass	inset(10px round  10px, xx, px pt) - invalid
+Pass	inset(10px round  word) - invalid

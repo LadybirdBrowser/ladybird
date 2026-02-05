@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- Ensure the processing model does not block other resources from loading. -->
+<img id="image" src="../../../Assets/120.png" />
+<video>
+    <track src="../../../Assets/track.vtt" />
+</video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const complete = () => {
+            println("PASS!");
+            done();
+        };
+
+        if (image.complete) {
+            complete();
+        } else {
+            image.addEventListener("load", complete);
+        }
+    });
+</script>

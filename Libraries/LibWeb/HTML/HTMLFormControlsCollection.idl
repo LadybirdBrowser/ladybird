@@ -1,0 +1,8 @@
+#import <DOM/HTMLCollection.idl>
+#import <HTML/RadioNodeList.idl>
+
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#htmlformcontrolscollection
+[Exposed=Window]
+interface HTMLFormControlsCollection : HTMLCollection {
+    [ImplementedAs=named_item_or_radio_node_list] getter (RadioNodeList or Element)? namedItem(DOMString name); // shadows inherited namedItem()
+};

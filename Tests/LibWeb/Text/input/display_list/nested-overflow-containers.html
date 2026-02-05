@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .outer-scroll {
+        width: 200px;
+        height: 150px;
+        overflow: auto;
+        border: 2px solid blue;
+    }
+    .inner-scroll {
+        width: 300px;
+        height: 100px;
+        overflow: auto;
+        background: lightyellow;
+        border: 1px solid red;
+    }
+    .content {
+        width: 400px;
+        height: 80px;
+        background: lightcoral;
+    }
+</style>
+<div class="outer-scroll">
+    <div class="inner-scroll">
+        <div class="content">Deeply nested content</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

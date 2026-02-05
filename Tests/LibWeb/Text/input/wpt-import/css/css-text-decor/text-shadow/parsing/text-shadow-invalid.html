@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-shadow with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-shadow-property">
+<meta name="assert" content="text-shadow supports only the grammar 'none | [ <color>? && <length>{2,3} ]#'.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_invalid_value("text-shadow", "auto");
+
+test_invalid_value("text-shadow", "10px 20px -30px");
+
+test_invalid_value("text-shadow", "10px");
+test_invalid_value("text-shadow", "10px 20px 30px 40px");
+test_invalid_value("text-shadow", "red 10px 20px blue");
+test_invalid_value("text-shadow", "10% 20px");
+test_invalid_value("text-shadow", "10px 20% 30px");
+test_invalid_value("text-shadow", "lime 10px 20px 30%");
+</script>

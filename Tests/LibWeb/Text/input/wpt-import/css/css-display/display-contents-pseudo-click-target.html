@@ -1,0 +1,43 @@
+<!doctype html>
+<title>Clicking a display: contents pseudo-element targets that element</title>
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1959364">
+<link rel="help" href="https://drafts.csswg.org/css-display-4/#valdef-display-contents">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<style>
+  div {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+    position: relative;
+  }
+  a {
+    display: contents;
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+    }
+  }
+</style>
+<div>
+  <a href="#"></a>
+</div>
+<script>
+promise_test(async function() {
+  let target = document.querySelector("a");
+  let hitLink = false;
+  target.addEventListener("click", function(e) {
+    hitLink = true;
+    e.preventDefault();
+  });
+  await test_driver.click(target.parentElement);
+  assert_true(hitLink, "Link should've been clicked");
+});
+</script>

@@ -1,0 +1,8 @@
+stream1: abcdefghijklmnopqrstuvwxyz
+stream1: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+stream1: 0123456789!@#$%^&*()-=_+,<
+stream1: Done!
+stream2: abcdefghijklmnopqrstuvwxyz
+stream2: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+stream2: 0123456789!@#$%^&*()-=_+,<
+stream2: Done!

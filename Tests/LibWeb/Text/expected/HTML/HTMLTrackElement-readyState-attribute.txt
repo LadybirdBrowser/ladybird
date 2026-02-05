@@ -1,0 +1,1 @@
+track.readyState == NONE: true

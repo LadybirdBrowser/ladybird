@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing the xywh() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-xywh">
+<meta name="assert" content="Tests parsing of the xywh() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("shape-outside", "xywh(0px 1px -2% 3em)");
+test_invalid_value("shape-outside", "xywh(0px 1px 2% -3em)");
+test_invalid_value("shape-outside", "xywh(10px 20px)");
+test_invalid_value("shape-outside", "xywh(10px 20px 30px)");
+test_invalid_value("shape-outside", "xywh(10px 20px, 30px 25px)");
+test_invalid_value("shape-outside", "xywh(10px 20px 30px 25px round 0px -1px 2%)");
+</script>
+</body>
+</html>

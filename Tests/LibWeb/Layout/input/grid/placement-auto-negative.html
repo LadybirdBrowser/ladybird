@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+  .a {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+
+  .b {
+    width: 48px;
+    height: 48px;
+    background-color: red;
+  }
+
+  .c {
+    width: 48px;
+    height: 48px;
+    background-color: blue;
+    grid-column-end: -1;
+  }
+</style>
+<div class="a">
+  <div class="b"></div>
+  <div class="c"></div>
+</div>

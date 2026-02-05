@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+
+        history.replaceState({}, "hello", "history-replace-push-state-race.html");
+        history.replaceState({}, "hello", "history-replace-push-state-race.html");
+
+        // this test checks a regression for a crash in `finalize_a_same_document_navigation`
+        // when `target_navigable->get_session_history_entries()` does not contain `entry_to_replace` exactly.
+        //
+        // history.replaceState is one possible trigger for the crash.
+
+        println("test done!");
+        done();
+    });
+</script>

@@ -1,0 +1,7 @@
+---
+# Disabled checks:
+#
+# misc-unused-using-decls: AK exports all public names into the global namespace per project style
+#
+Checks: '-misc-unused-using-decls'
+InheritParentConfig: true

@@ -1,0 +1,4 @@
+[object StyleSheetList]
+Before remove, sheet count: 1
+After remove, sheet count: 0
+After setting innerText of removed sheet, we're still alive!

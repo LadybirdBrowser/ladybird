@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    let doc = new DOMParser().parseFromString(`<link rel="stylesheet" href="data:text/css,div{}">`, `text/html`);
+    let link = doc.head.firstChild;
+    document.head.appendChild(link);
+    test(() => {
+        println("Sheets in old doc: " + doc.styleSheets.length)
+        println("Sheets in new doc: " + document.styleSheets.length)
+        println("PASS (didn't crash)");
+    })
+</script>

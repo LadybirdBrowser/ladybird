@@ -1,0 +1,95 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSScale tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssscale">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gInvalidCoordTestCases = [
+  { coord: CSS.deg(1), desc: 'an angle CSSUnitValue'},
+  { coord: new CSSMathSum(CSS.px(1)), desc: 'a CSSMathValue that doesn\'t match <number>'},
+];
+
+for (const {coord, desc} of gInvalidCoordTestCases) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSScale(coord, 0));
+    assert_throws_js(TypeError, () => new CSSScale(0, coord));
+    assert_throws_js(TypeError, () => new CSSScale(coord, 0, 0));
+    assert_throws_js(TypeError, () => new CSSScale(0, coord, 0));
+    assert_throws_js(TypeError, () => new CSSScale(0, 0, coord));
+  }, 'Constructing a CSSScale with ' + desc + ' for the coordinates throws a TypeError');
+}
+
+for (const attr of ['x', 'y', 'z']) {
+  for (const {value, desc} of gInvalidCoordTestCases) {
+    test(() => {
+      let result = new CSSScale(0, 0, 0);
+      assert_throws_js(TypeError, () => result[attr] = value);
+      assert_style_value_equals(result[attr], CSS.number(0));
+    }, 'Updating CSSScale.' + attr + ' to ' + desc + ' throws a TypeError');
+  }
+}
+
+test(() => {
+  const result = new CSSScale(-3.14, CSS.number(3.14));
+  assert_style_value_equals(result.x, CSS.number(-3.14));
+  assert_style_value_equals(result.y, CSS.number(3.14));
+  assert_style_value_equals(result.z, CSS.number(1));
+  assert_true(result.is2D);
+}, 'CSSScale can be constructed from two number coordinates');
+
+test(() => {
+  const result = new CSSScale(-3.14, CSS.number(3.14), -3.14);
+  assert_style_value_equals(result.x, CSS.number(-3.14));
+  assert_style_value_equals(result.y, CSS.number(3.14));
+  assert_style_value_equals(result.z, CSS.number(-3.14));
+  assert_false(result.is2D);
+}, 'CSSScale can be constructed from three number coordinates');
+
+test(() => {
+  const result = new CSSScale(new CSSMathSum(-3.14), new CSSMathMax(3.14), new CSSMathNegate(-3.14));
+  assert_style_value_equals(result.x, new CSSMathSum(-3.14));
+  assert_style_value_equals(result.y, new CSSMathMax(3.14));
+  assert_style_value_equals(result.z, new CSSMathNegate(-3.14));
+  assert_false(result.is2D);
+}, 'CSSScale can be constructed from CSSMathValue coordinates');
+
+test(() => {
+  const result = new CSSScale(new CSSMathProduct(CSS.px(1), new CSSMathInvert(CSS.px(1))), 3.14);
+  assert_style_value_equals(result.x, new CSSMathProduct(CSS.px(1), new CSSMathInvert(CSS.px(1))));
+  assert_style_value_equals(result.y, CSS.number(3.14));
+  assert_style_value_equals(result.z, CSS.number(1));
+}, 'CSSScale can be constructed from unit canceling length value coordinates');
+
+for (const attr of ['x', 'y', 'z']) {
+  test(() => {
+    let result = new CSSScale(0, 0, 0);
+    result[attr] = 3.14;
+    assert_style_value_equals(result[attr], CSS.number(3.14));
+  }, 'CSSScale.' + attr + ' can be updated to a number');
+
+  test(() => {
+    let result = new CSSScale(0, 0, 0);
+    result[attr] = CSS.number(3.14);
+    assert_style_value_equals(result[attr], CSS.number(3.14));
+  }, 'CSSScale.' + attr + ' can be updated to a numberish');
+
+  test(() => {
+    let result = new CSSScale(0, 0, 0);
+    result[attr] = new CSSMathSum(3.14);
+    assert_style_value_equals(result[attr], new CSSMathSum(3.14));
+  }, 'CSSScale.' + attr + ' can be updated to a CSSMathValue');
+}
+
+test(() => {
+  let rotation = new CSSScale(0, 0, 0);
+  rotation.is2D = true;
+  assert_true(rotation.is2D);
+  rotation.is2D = false;
+  assert_false(rotation.is2D);
+}, 'Modifying CSSScale.is2D can be updated to true or false');
+
+</script>

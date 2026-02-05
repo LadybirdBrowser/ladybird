@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>IDL-constructed CSSUnitValue serialization tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#numericvalue-serialization">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+test(() => {
+  assert_equals(new CSSUnitValue(3.14, 'px').toString(), '3.14px');
+  assert_equals(CSS.px(3.14).toString(), '3.14px');
+}, 'CSSUnitValue with length unit constructed from IDL serializes correctly');
+
+test(() => {
+  assert_equals(new CSSUnitValue(3.14, 'percent').toString(), '3.14%');
+  assert_equals(CSS.percent(3.14).toString(), '3.14%');
+}, 'CSSUnitValue with unit "percent" constructed from IDL serializes correctly');
+
+test(() => {
+  assert_equals(new CSSUnitValue(3.14, 'number').toString(), '3.14');
+  assert_equals(CSS.number(3.14).toString(), '3.14');
+}, 'CSSUnitValue with unit "number" constructed from IDL serializes correctly');
+
+test(() => {
+  assert_equals(new CSSUnitValue(3, 'number').toString(), '3');
+}, 'CSSUnitValue with integer values constructed from IDL serializes correctly');
+
+test(() => {
+  let result = CSSStyleValue.parse('width', '1px');
+  result.value = 3.14;
+  assert_equals(result.toString(), '3.14px');
+}, 'CSSKeywordValue from DOMString modified by "value" setter serializes correctly');
+
+test(t => {
+  let result = createInlineStyleMap(t, 'width: 1px').get('width');
+  result.value = 3.14;
+  assert_equals(result.toString(), '3.14px');
+}, 'CSSKeywordValue from CSSOM modified by "value" setter serializes correctly');
+
+</script>

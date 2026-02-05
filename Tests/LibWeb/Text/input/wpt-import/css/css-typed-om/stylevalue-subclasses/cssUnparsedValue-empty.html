@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>CSSUnparsedValue: Don't crash for empty values</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-cssunparsedvalue">
+<link rel="help" href="https://crbug.com/1169941">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+'use strict';
+
+test(() => {
+  const result = new CSSUnparsedValue(['']);
+  assert_equals('', result.toString()); // Don't crash.
+}, `Don't crash when serializing empty CSSUnparsedValue`);
+
+</script>

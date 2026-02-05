@@ -1,0 +1,2 @@
+document.compatMode: BackCompat
+document.scrollingElement is body element: true

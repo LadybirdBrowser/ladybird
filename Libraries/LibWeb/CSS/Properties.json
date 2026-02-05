@@ -1,0 +1,4262 @@
+{
+  "-moz-appearance": {
+    "legacy-alias-for": "appearance"
+  },
+  "-webkit-align-content": {
+    "legacy-alias-for": "align-content"
+  },
+  "-webkit-align-items": {
+    "legacy-alias-for": "align-items"
+  },
+  "-webkit-align-self": {
+    "legacy-alias-for": "align-self"
+  },
+  "-webkit-animation": {
+    "legacy-alias-for": "animation"
+  },
+  "-webkit-animation-delay": {
+    "legacy-alias-for": "animation-delay"
+  },
+  "-webkit-animation-direction": {
+    "legacy-alias-for": "animation-direction"
+  },
+  "-webkit-animation-duration": {
+    "legacy-alias-for": "animation-duration"
+  },
+  "-webkit-animation-fill-mode": {
+    "legacy-alias-for": "animation-fill-mode"
+  },
+  "-webkit-animation-iteration-count": {
+    "legacy-alias-for": "animation-iteration-count"
+  },
+  "-webkit-animation-name": {
+    "legacy-alias-for": "animation-name"
+  },
+  "-webkit-animation-play-state": {
+    "legacy-alias-for": "animation-play-state"
+  },
+  "-webkit-animation-timing-function": {
+    "legacy-alias-for": "animation-timing-function"
+  },
+  "-webkit-appearance": {
+    "legacy-alias-for": "appearance"
+  },
+  "-webkit-background-clip": {
+    "legacy-alias-for": "background-clip"
+  },
+  "-webkit-background-origin": {
+    "legacy-alias-for": "background-origin"
+  },
+  "-webkit-background-size": {
+    "legacy-alias-for": "background-size"
+  },
+  "-webkit-border-bottom-left-radius": {
+    "legacy-alias-for": "border-bottom-left-radius"
+  },
+  "-webkit-border-bottom-right-radius": {
+    "legacy-alias-for": "border-bottom-right-radius"
+  },
+  "-webkit-border-radius": {
+    "legacy-alias-for": "border-radius"
+  },
+  "-webkit-border-top-left-radius": {
+    "legacy-alias-for": "border-top-left-radius"
+  },
+  "-webkit-border-top-right-radius": {
+    "legacy-alias-for": "border-top-right-radius"
+  },
+  "-webkit-box-align": {
+    "legacy-alias-for": "align-items"
+  },
+  "-webkit-box-flex": {
+    "legacy-alias-for": "flex-grow"
+  },
+  "-webkit-box-ordinal-group": {
+    "legacy-alias-for": "order"
+  },
+  "-webkit-box-orient": {
+    "legacy-alias-for": "flex-direction"
+  },
+  "-webkit-box-pack": {
+    "legacy-alias-for": "justify-content"
+  },
+  "-webkit-box-shadow": {
+    "legacy-alias-for": "box-shadow"
+  },
+  "-webkit-box-sizing": {
+    "legacy-alias-for": "box-sizing"
+  },
+  "-webkit-filter": {
+    "legacy-alias-for": "filter"
+  },
+  "-webkit-flex": {
+    "legacy-alias-for": "flex"
+  },
+  "-webkit-flex-basis": {
+    "legacy-alias-for": "flex-basis"
+  },
+  "-webkit-flex-direction": {
+    "legacy-alias-for": "flex-direction"
+  },
+  "-webkit-flex-flow": {
+    "legacy-alias-for": "flex-flow"
+  },
+  "-webkit-flex-grow": {
+    "legacy-alias-for": "flex-grow"
+  },
+  "-webkit-flex-shrink": {
+    "legacy-alias-for": "flex-shrink"
+  },
+  "-webkit-flex-wrap": {
+    "legacy-alias-for": "flex-wrap"
+  },
+  "-webkit-justify-content": {
+    "legacy-alias-for": "justify-content"
+  },
+  "-webkit-mask": {
+    "legacy-alias-for": "mask"
+  },
+  "-webkit-mask-image": {
+    "legacy-alias-for": "mask-image"
+  },
+  "-webkit-order": {
+    "legacy-alias-for": "order"
+  },
+  "-webkit-text-fill-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "currentColor",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ]
+  },
+  "-webkit-transform": {
+    "legacy-alias-for": "transform"
+  },
+  "-webkit-transform-origin": {
+    "legacy-alias-for": "transform-origin"
+  },
+  "-webkit-transition": {
+    "legacy-alias-for": "transition"
+  },
+  "-webkit-transition-delay": {
+    "legacy-alias-for": "transition-delay"
+  },
+  "-webkit-transition-duration": {
+    "legacy-alias-for": "transition-duration"
+  },
+  "-webkit-transition-property": {
+    "legacy-alias-for": "transition-property"
+  },
+  "-webkit-transition-timing-function": {
+    "legacy-alias-for": "transition-timing-function"
+  },
+  "-webkit-user-select": {
+    "legacy-alias-for": "user-select"
+  },
+  "accent-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "color"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
+  "align-content": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "align-content"
+    ]
+  },
+  "align-items": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "align-items"
+    ]
+  },
+  "align-self": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "align-self"
+    ]
+  },
+  "all": {
+    "affects-layout": true,
+    "affects-stacking-context": true,
+    "initial": "initial",
+    "longhands": [ ],
+    "_comment": "The 'longhands' array is populated in the code generator to avoid having to maintain it manually"
+  },
+  "anchor-name": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "dashed-ident"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "anchor-scope": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "dashed-ident"
+    ],
+    "valid-identifiers": [
+      "none",
+      "all"
+    ]
+  },
+  "animation": {
+    "affects-layout": false,
+    "initial": "none 0s ease 1 normal running 0s none",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "animation-duration",
+      "animation-timing-function",
+      "animation-delay",
+      "animation-iteration-count",
+      "animation-direction",
+      "animation-fill-mode",
+      "animation-play-state",
+      "animation-name",
+      "animation-timeline"
+    ]
+  },
+  "animation-composition": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "replace",
+    "valid-types": [
+      "animation-composition"
+    ],
+    "multiplicity": "coordinating-list"
+  },
+  "animation-delay": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "0s",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "time [-∞,∞]"
+    ]
+  },
+  "animation-direction": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "multiplicity": "coordinating-list",
+    "valid-identifiers": [
+      "normal",
+      "reverse",
+      "alternate",
+      "alternate-reverse"
+    ]
+  },
+  "animation-duration": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "0s",
+    "multiplicity": "coordinating-list",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "time [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
+  "animation-fill-mode": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "coordinating-list",
+    "valid-identifiers": [
+      "none",
+      "forwards",
+      "backwards",
+      "both"
+    ]
+  },
+  "animation-iteration-count": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "1",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "number [0,∞]"
+    ],
+    "valid-identifiers": [
+      "infinite"
+    ]
+  },
+  "animation-name": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "string",
+      "custom-ident ![none]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "animation-play-state": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "running",
+    "multiplicity": "coordinating-list",
+    "valid-identifiers": [
+      "running",
+      "paused"
+    ]
+  },
+  "animation-timeline": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "dashed-ident",
+      "scroll-function",
+      "view-function"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "none"
+    ],
+    "multiplicity": "coordinating-list"
+  },
+  "animation-timing-function": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "ease",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "easing-function",
+      "easing-keyword"
+    ]
+  },
+  "appearance": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "appearance"
+    ]
+  },
+  "aspect-ratio": {
+    "affects-layout": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "ratio"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
+  "backdrop-filter": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "needs-layout-node-for-resolved-value": true,
+    "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
+    "multiplicity": "list",
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "background": {
+    "affects-layout": false,
+    "initial": "transparent",
+    "longhands": [
+      "background-attachment",
+      "background-clip",
+      "background-color",
+      "background-image",
+      "background-origin",
+      "background-position",
+      "background-repeat",
+      "background-size"
+    ],
+    "multiplicity": "coordinating-list"
+  },
+  "background-attachment": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "scroll",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "background-attachment"
+    ]
+  },
+  "background-blend-mode": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "mix-blend-mode"
+    ]
+  },
+  "background-clip": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "border-box",
+    "multiplicity": "coordinating-list",
+    "__comment": "FIXME: Support `border-area`",
+    "valid-types": [
+      "background-box"
+    ]
+  },
+  "background-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "transparent",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ],
+    "quirks": [
+      "hashless-hex-color"
+    ]
+  },
+  "background-image": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "image"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "background-origin": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "padding-box",
+    "multiplicity": "coordinating-list",
+    "__comment": "FIXME: This shouldn't allow `text`",
+    "valid-types": [
+      "background-box"
+    ]
+  },
+  "background-position": {
+    "affects-layout": false,
+    "initial": "0% 0%",
+    "max-values": 4,
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "background-position"
+    ],
+    "quirks": [
+      "unitless-length"
+    ],
+    "longhands": [
+      "background-position-x",
+      "background-position-y"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "background-position-x": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "0%",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "center",
+      "left",
+      "right"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "background-position-y": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "0%",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "center",
+      "bottom",
+      "top"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "background-repeat": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "repeat",
+    "multiplicity": "coordinating-list",
+    "max-values": 2,
+    "valid-types": [
+      "repetition"
+    ],
+    "valid-identifiers": [
+      "repeat-x",
+      "repeat-y"
+    ]
+  },
+  "background-size": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "auto",
+    "multiplicity": "coordinating-list",
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "cover",
+      "contain"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "block-size": {
+    "logical-alias-for": {
+      "group": "size",
+      "mapping": "block-size"
+    },
+    "initial": "auto",
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-width",
+      "border-style",
+      "border-color",
+      "border-image"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-block": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-block-width",
+      "border-block-style",
+      "border-block-color"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-block-color": {
+    "affects-layout": false,
+    "initial": "currentcolor",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-block-start-color",
+      "border-block-end-color"
+    ],
+    "valid-types": [
+      "color"
+    ]
+  },
+  "border-block-end": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-block-end-width",
+      "border-block-end-style",
+      "border-block-end-color"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-block-end-color": {
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "block-end"
+    },
+    "max-values": 1
+  },
+  "border-block-end-style": {
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "block-end"
+    },
+    "max-values": 1
+  },
+  "border-block-end-width": {
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "block-end"
+    },
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-block-start": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-block-start-width",
+      "border-block-start-style",
+      "border-block-start-color"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-block-start-color": {
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "block-start"
+    },
+    "max-values": 1
+  },
+  "border-block-start-style": {
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "block-start"
+    },
+    "max-values": 1
+  },
+  "border-block-start-width": {
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "block-start"
+    },
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-block-style": {
+    "initial": "none",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-block-start-style",
+      "border-block-end-style"
+    ],
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "border-block-width": {
+    "initial": "medium",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-block-start-width",
+      "border-block-end-width"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-bottom": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-bottom-width",
+      "border-bottom-style",
+      "border-bottom-color"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-bottom-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "currentcolor",
+    "inherited": false,
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ],
+    "quirks": [
+      "hashless-hex-color"
+    ]
+  },
+  "border-bottom-left-radius": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "0",
+    "inherited": false,
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "border-bottom-right-radius": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "0",
+    "inherited": false,
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "border-bottom-style": {
+    "animation-type": "discrete",
+    "initial": "none",
+    "inherited": false,
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "border-bottom-width": {
+    "animation-type": "by-computed-value",
+    "initial": "medium",
+    "inherited": false,
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ],
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true,
+    "needs-layout-node-for-resolved-value": true
+  },
+  "border-collapse": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "separate",
+    "valid-types": [
+      "border-collapse"
+    ]
+  },
+  "border-color": {
+    "affects-layout": false,
+    "initial": "currentcolor",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-top-color",
+      "border-right-color",
+      "border-bottom-color",
+      "border-left-color"
+    ],
+    "valid-types": [
+      "color"
+    ],
+    "quirks": [
+      "hashless-hex-color"
+    ]
+  },
+  "border-end-end-radius": {
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "end-end"
+    },
+    "max-values": 1
+  },
+  "border-end-start-radius": {
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "end-start"
+    },
+    "max-values": 1
+  },
+  "border-image": {
+    "initial": "none 100% / 1 / 0 stretch",
+    "longhands": [
+      "border-image-source",
+      "border-image-slice",
+      "border-image-width",
+      "border-image-outset",
+      "border-image-repeat"
+    ]
+  },
+  "border-image-outset": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "max-values": 4,
+    "valid-types": [
+      "length [0,∞]",
+      "number [0,∞]"
+    ]
+  },
+  "border-image-repeat": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "stretch",
+    "max-values": 2,
+    "valid-types": [
+      "border-image-repeat"
+    ]
+  },
+  "border-image-slice": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "100%",
+    "valid-identifiers": [
+      "fill"
+    ],
+    "valid-types": [
+      "number [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-image-source": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "image"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "border-image-width": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "1",
+    "max-values": 4,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "number [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-inline": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-inline-width",
+      "border-inline-style",
+      "border-inline-color"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-inline-color": {
+    "affects-layout": false,
+    "initial": "currentcolor",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-inline-start-color",
+      "border-inline-end-color"
+    ],
+    "valid-types": [
+      "color"
+    ]
+  },
+  "border-inline-end": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-inline-end-width",
+      "border-inline-end-style",
+      "border-inline-end-color"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "border-inline-end-color": {
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "inline-end"
+    },
+    "max-values": 1
+  },
+  "border-inline-end-style": {
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "inline-end"
+    },
+    "max-values": 1
+  },
+  "border-inline-end-width": {
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "inline-end"
+    },
+    "max-values": 1
+  },
+  "border-inline-start": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-inline-start-width",
+      "border-inline-start-style",
+      "border-inline-start-color"
+    ]
+  },
+  "border-inline-start-color": {
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "inline-start"
+    },
+    "max-values": 1
+  },
+  "border-inline-start-style": {
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "inline-start"
+    },
+    "max-values": 1
+  },
+  "border-inline-start-width": {
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "inline-start"
+    },
+    "max-values": 1
+  },
+  "border-inline-style": {
+    "initial": "none",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-inline-start-style",
+      "border-inline-end-style"
+    ],
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "border-inline-width": {
+    "initial": "medium",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-inline-start-width",
+      "border-inline-end-width"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ]
+  },
+  "border-left": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-left-width",
+      "border-left-style",
+      "border-left-color"
+    ]
+  },
+  "border-left-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "currentcolor",
+    "inherited": false,
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ],
+    "quirks": [
+      "hashless-hex-color"
+    ]
+  },
+  "border-left-style": {
+    "animation-type": "discrete",
+    "initial": "none",
+    "inherited": false,
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "border-left-width": {
+    "animation-type": "by-computed-value",
+    "initial": "medium",
+    "inherited": false,
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ],
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-node-for-resolved-value": true
+  },
+  "border-radius": {
+    "affects-layout": false,
+    "initial": "0",
+    "longhands": [
+      "border-top-left-radius",
+      "border-top-right-radius",
+      "border-bottom-left-radius",
+      "border-bottom-right-radius"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "border-right": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-right-width",
+      "border-right-style",
+      "border-right-color"
+    ]
+  },
+  "border-right-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "currentcolor",
+    "inherited": false,
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ],
+    "quirks": [
+      "hashless-hex-color"
+    ]
+  },
+  "border-right-style": {
+    "animation-type": "discrete",
+    "initial": "none",
+    "inherited": false,
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "border-right-width": {
+    "animation-type": "by-computed-value",
+    "initial": "medium",
+    "inherited": false,
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ],
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-node-for-resolved-value": true
+  },
+  "border-spacing": {
+    "_comment": "Follows the newer definition from: https://drafts.csswg.org/css-tables-3/#border-spacing-property",
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "0",
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "border-start-end-radius": {
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "start-end"
+    },
+    "max-values": 1
+  },
+  "border-start-start-radius": {
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "start-start"
+    },
+    "max-values": 1
+  },
+  "border-style": {
+    "initial": "none",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-top-style",
+      "border-right-style",
+      "border-bottom-style",
+      "border-left-style"
+    ],
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "border-top": {
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-top-width",
+      "border-top-style",
+      "border-top-color"
+    ]
+  },
+  "border-top-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "currentcolor",
+    "inherited": false,
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ],
+    "quirks": [
+      "hashless-hex-color"
+    ]
+  },
+  "border-top-left-radius": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "0",
+    "inherited": false,
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "border-top-right-radius": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "initial": "0",
+    "inherited": false,
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "border-top-style": {
+    "animation-type": "discrete",
+    "initial": "none",
+    "inherited": false,
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "border-top-width": {
+    "animation-type": "by-computed-value",
+    "initial": "medium",
+    "inherited": false,
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ],
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-node-for-resolved-value": true
+  },
+  "border-width": {
+    "initial": "medium",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "border-top-width",
+      "border-right-width",
+      "border-bottom-width",
+      "border-left-width"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ],
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "bottom": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]",
+      "anchor"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "box-shadow": {
+    "affects-layout": false,
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "needs-layout-node-for-resolved-value": true,
+    "multiplicity": "list",
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "box-sizing": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "content-box",
+    "valid-types": [
+      "box-sizing"
+    ]
+  },
+  "caption-side": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "top",
+    "valid-types": [
+      "caption-side"
+    ]
+  },
+  "caret-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "auto",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "color"
+    ]
+  },
+  "clear": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "clear"
+    ]
+  },
+  "clip": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "rect"
+    ],
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "clip-path": {
+    "animation-type": "by-computed-value",
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "inherited": false,
+    "valid-identifiers": [
+      "none"
+    ],
+    "__comment": "FIXME: This should be a <clip-source> | [ <basic-shape> || <geometry-box> ]",
+    "valid-types": [
+      "basic-shape",
+      "url"
+    ],
+    "initial": "none"
+  },
+  "clip-rule": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "nonzero",
+    "valid-types": [
+      "fill-rule"
+    ]
+  },
+  "color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "canvastext",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ],
+    "quirks": [
+      "hashless-hex-color"
+    ]
+  },
+  "color-interpolation": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "srgb",
+    "valid-types": [
+      "color-interpolation"
+    ]
+  },
+  "color-scheme": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "custom-ident ![normal,light,dark,only]"
+    ],
+    "valid-identifiers": [
+      "normal",
+      "light",
+      "dark"
+    ]
+  },
+  "column-count": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "integer [1,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
+  "column-gap": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "column-height": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
+  "column-span": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "column-span"
+    ]
+  },
+  "column-width": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
+  "columns": {
+    "initial": "auto auto / auto",
+    "longhands": [
+      "column-width",
+      "column-count",
+      "column-height"
+    ]
+  },
+  "contain": {
+    "affects-stacking-context": true,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "contain"
+    ]
+  },
+  "container-type": {
+    "affects-stacking-context": true,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-identifiers": [
+      "normal",
+      "size",
+      "inline-size",
+      "scroll-state"
+    ]
+  },
+  "content": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "__comment": "FIXME: This accepts a whole lot of other types and identifiers!",
+    "valid-types": [
+      "counter",
+      "image",
+      "string"
+    ],
+    "valid-identifiers": [
+      "normal",
+      "none",
+      "open-quote",
+      "close-quote",
+      "no-open-quote",
+      "no-close-quote"
+    ]
+  },
+  "content-visibility": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "visible",
+    "valid-types": [
+      "content-visibility"
+    ]
+  },
+  "corner-block-end-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-end-start-shape",
+      "corner-end-end-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-block-start-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-start-start-shape",
+      "corner-start-end-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-bottom-left-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-bottom-right-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-bottom-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-bottom-left-shape",
+      "corner-bottom-right-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-end-end-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "end-end"
+    }
+  },
+  "corner-end-start-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "end-start"
+    }
+  },
+  "corner-inline-end-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-start-end-shape",
+      "corner-end-end-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-inline-start-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-start-start-shape",
+      "corner-end-start-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-left-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-left-shape",
+      "corner-bottom-left-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-right-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-right-shape",
+      "corner-bottom-right-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-shape": {
+    "initial": "round round round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-left-shape",
+      "corner-top-right-shape",
+      "corner-bottom-right-shape",
+      "corner-bottom-left-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-start-end-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "start-end"
+    }
+  },
+  "corner-start-start-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "start-start"
+    }
+  },
+  "corner-top-left-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-top-right-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-top-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-left-shape",
+      "corner-top-right-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "counter-increment": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "list",
+    "valid-types": [
+      "custom-ident ![none]",
+      "integer [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "counter-reset": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "list",
+    "valid-types": [
+      "custom-ident ![none]",
+      "integer [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "counter-set": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "list",
+    "valid-types": [
+      "custom-ident ![none]",
+      "integer [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "cursor": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "url",
+      "cursor-predefined",
+      "number [-∞,∞]"
+    ]
+  },
+  "cx": {
+    "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CX.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "cy": {
+    "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CY.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "direction": {
+    "animation-type": "none",
+    "inherited": true,
+    "initial": "ltr",
+    "valid-types": [
+      "direction"
+    ]
+  },
+  "display": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "inline",
+    "max-values": 3,
+    "valid-identifiers": [
+      "list-item"
+    ],
+    "valid-types": [
+      "display-outside",
+      "display-inside",
+      "display-internal",
+      "display-box",
+      "display-legacy"
+    ]
+  },
+  "empty-cells": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "show",
+    "valid-types": [
+      "empty-cells"
+    ]
+  },
+  "fill": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "black",
+    "valid-types": [
+      "paint"
+    ]
+  },
+  "fill-opacity": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "1",
+    "valid-types": [
+      "opacity"
+    ]
+  },
+  "fill-rule": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "nonzero",
+    "valid-types": [
+      "fill-rule"
+    ]
+  },
+  "filter": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "needs-layout-node-for-resolved-value": true,
+    "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
+    "multiplicity": "list",
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "flex": {
+    "initial": "0 1 auto",
+    "valid-identifiers": [
+      "none"
+    ],
+    "longhands": [
+      "flex-grow",
+      "flex-shrink",
+      "flex-basis"
+    ]
+  },
+  "flex-basis": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "fit-content",
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "content",
+      "max-content",
+      "min-content"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "flex-direction": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "row",
+    "valid-types": [
+      "flex-direction"
+    ]
+  },
+  "flex-flow": {
+    "initial": "row nowrap",
+    "longhands": [
+      "flex-direction",
+      "flex-wrap"
+    ]
+  },
+  "flex-grow": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "number [0,∞]"
+    ]
+  },
+  "flex-shrink": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "1",
+    "valid-types": [
+      "number [0,∞]"
+    ]
+  },
+  "flex-wrap": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "nowrap",
+    "valid-types": [
+      "flex-wrap"
+    ]
+  },
+  "float": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "float"
+    ]
+  },
+  "flood-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "black",
+    "valid-types": [
+      "color"
+    ]
+  },
+  "flood-opacity": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "1",
+    "valid-types": [
+      "opacity"
+    ]
+  },
+  "font": {
+    "initial": "normal medium serif",
+    "__comment": "FIXME: Support font-size-adjust as a reset-only sub-property",
+    "longhands": [
+      "font-family",
+      "font-size",
+      "font-width",
+      "font-style",
+      "font-variant",
+      "font-weight",
+      "line-height",
+      "font-feature-settings",
+      "font-kerning",
+      "font-language-override",
+      "font-optical-sizing",
+      "font-variation-settings"
+    ]
+  },
+  "font-family": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "serif",
+    "multiplicity": "list",
+    "valid-types": [
+      "custom-ident",
+      "string"
+    ]
+  },
+  "font-feature-settings": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "multiplicity": "list",
+    "valid-types": [
+      "integer [0,∞]",
+      "opentype-tag"
+    ],
+    "valid-identifiers": [
+      "normal",
+      "on",
+      "off"
+    ]
+  },
+  "font-kerning": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "font-kerning"
+    ]
+  },
+  "font-language-override": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "string"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ]
+  },
+  "font-optical-sizing": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "font-optical-sizing"
+    ]
+  },
+  "font-size": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "medium",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "absolute-size",
+      "relative-size"
+    ],
+    "valid-identifiers": [
+      "math"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "font-stretch": {
+    "legacy-alias-for": "font-width"
+  },
+  "font-style": {
+    "animation-type": "custom",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-style"
+    ]
+  },
+  "font-variant": {
+    "initial": "normal",
+    "longhands": [
+      "font-variant-alternates",
+      "font-variant-caps",
+      "font-variant-east-asian",
+      "font-variant-emoji",
+      "font-variant-ligatures",
+      "font-variant-numeric",
+      "font-variant-position"
+    ],
+    "valid-types": [
+      "string"
+    ]
+  },
+  "font-variant-alternates": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-alternates"
+    ]
+  },
+  "font-variant-caps": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-caps"
+    ]
+  },
+  "font-variant-east-asian": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-east-asian"
+    ]
+  },
+  "font-variant-emoji": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-emoji"
+    ]
+  },
+  "font-variant-ligatures": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-ligatures"
+    ]
+  },
+  "font-variant-numeric": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-numeric"
+    ]
+  },
+  "font-variant-position": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-position"
+    ]
+  },
+  "font-variation-settings": {
+    "animation-type": "custom",
+    "inherited": true,
+    "initial": "normal",
+    "multiplicity": "list",
+    "valid-types": [
+      "number",
+      "opentype-tag"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ]
+  },
+  "font-weight": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "normal",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "number [1,1000]"
+    ],
+    "valid-identifiers": [
+      "bold",
+      "bolder",
+      "lighter",
+      "normal"
+    ]
+  },
+  "font-width": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "normal",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "percentage [0,∞]",
+      "font-width"
+    ]
+  },
+  "gap": {
+    "initial": "normal",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ],
+    "percentages-resolve-to": "length",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "row-gap",
+      "column-gap"
+    ]
+  },
+  "grid": {
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "string"
+    ],
+    "percentages-resolve-to": "length",
+    "longhands": [
+      "grid-template-areas",
+      "grid-template-rows",
+      "grid-template-columns"
+    ]
+  },
+  "grid-area": {
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "custom-ident ![auto,span]"
+    ],
+    "longhands": [
+      "grid-column-end",
+      "grid-column-start",
+      "grid-row-end",
+      "grid-row-start"
+    ]
+  },
+  "grid-auto-columns": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "string"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "grid-auto-flow": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "row"
+  },
+  "grid-auto-rows": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "string"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "grid-column": {
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "custom-ident ![auto,span]"
+    ],
+    "longhands": [
+      "grid-column-end",
+      "grid-column-start"
+    ]
+  },
+  "grid-column-end": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "custom-ident ![auto,span]"
+    ]
+  },
+  "grid-column-gap": {
+    "legacy-alias-for": "column-gap"
+  },
+  "grid-column-start": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "custom-ident ![auto,span]"
+    ]
+  },
+  "grid-gap": {
+    "legacy-alias-for": "gap"
+  },
+  "grid-row": {
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "custom-ident ![auto,span]"
+    ],
+    "longhands": [
+      "grid-row-end",
+      "grid-row-start"
+    ]
+  },
+  "grid-row-end": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "custom-ident ![auto,span]"
+    ]
+  },
+  "grid-row-gap": {
+    "legacy-alias-for": "row-gap"
+  },
+  "grid-row-start": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "custom-ident ![auto,span]"
+    ]
+  },
+  "grid-template": {
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "string"
+    ],
+    "percentages-resolve-to": "length",
+    "longhands": [
+      "grid-template-areas",
+      "grid-template-rows",
+      "grid-template-columns"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "grid-template-areas": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "string"
+    ]
+  },
+  "grid-template-columns": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "max-values": 4,
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "string"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "grid-template-rows": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "max-values": 4,
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "string"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "height": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "fit-content",
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "max-content",
+      "min-content"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "image-rendering": {
+    "animation-type": "discrete",
+    "affects-layout": false,
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "image-rendering"
+    ]
+  },
+  "inline-size": {
+    "logical-alias-for": {
+      "group": "size",
+      "mapping": "inline-size"
+    },
+    "initial": "auto",
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "inset": {
+    "initial": "auto",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "top",
+      "right",
+      "bottom",
+      "left"
+    ],
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "inset-block": {
+    "initial": "auto",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "inset-block-start",
+      "inset-block-end"
+    ],
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "inset-block-end": {
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "block-end"
+    },
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "inset-block-start": {
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "block-start"
+    },
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "inset-inline": {
+    "initial": "auto",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "inset-inline-start",
+      "inset-inline-end"
+    ],
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "inset-inline-end": {
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "inline-end"
+    },
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "inset-inline-start": {
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "inline-start"
+    },
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "isolation": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "isolation"
+    ]
+  },
+  "justify-content": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "justify-content"
+    ]
+  },
+  "justify-items": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "legacy",
+    "valid-types": [
+      "justify-items"
+    ]
+  },
+  "justify-self": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "justify-self"
+    ]
+  },
+  "left": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]",
+      "anchor"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "letter-spacing": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "normal",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "valid-identifiers": [
+      "normal"
+    ],
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "line-height": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "normal",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "length [0,∞]",
+      "number [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "list-style": {
+    "initial": "outside none disc",
+    "longhands": [
+      "list-style-position",
+      "list-style-image",
+      "list-style-type"
+    ]
+  },
+  "list-style-image": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "none",
+    "valid-types": [
+      "image"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "list-style-position": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "outside",
+    "valid-types": [
+      "list-style-position"
+    ]
+  },
+  "list-style-type": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "disc",
+    "valid-types": [
+      "counter-style-name-keyword",
+      "string"
+    ]
+  },
+  "margin": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "margin-top",
+      "margin-right",
+      "margin-bottom",
+      "margin-left"
+    ],
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-block": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "margin-block-start",
+      "margin-block-end"
+    ],
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-block-end": {
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "block-end"
+    },
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-block-start": {
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "block-start"
+    },
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-bottom": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-inline": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "margin-inline-start",
+      "margin-inline-end"
+    ],
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-inline-end": {
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "inline-end"
+    },
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-inline-start": {
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "inline-start"
+    },
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-left": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-right": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "margin-top": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "mask": {
+    "__comment": "FIXME: reset mask-border",
+    "affects-layout": false,
+    "initial": "none",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "mask-clip",
+      "mask-composite",
+      "mask-image",
+      "mask-mode",
+      "mask-origin",
+      "mask-position",
+      "mask-repeat",
+      "mask-size"
+    ]
+  },
+  "mask-clip": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "coord-box"
+    ],
+    "valid-identifiers": [
+      "no-clip"
+    ],
+    "initial": "border-box"
+  },
+  "mask-composite": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "compositing-operator"
+    ],
+    "initial": "add"
+  },
+  "mask-image": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "image",
+      "url"
+    ],
+    "valid-identifiers": [
+      "none"
+    ],
+    "initial": "none"
+  },
+  "mask-mode": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "masking-mode"
+    ],
+    "initial": "match-source"
+  },
+  "mask-origin": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "coord-box"
+    ],
+    "initial": "border-box"
+  },
+  "mask-position": {
+    "animation-type": "repeatable-list",
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "0% 0%",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "position"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "mask-repeat": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "repeat",
+    "multiplicity": "coordinating-list",
+    "max-values": 2,
+    "valid-types": [
+      "repetition"
+    ],
+    "valid-identifiers": [
+      "repeat-x",
+      "repeat-y"
+    ]
+  },
+  "mask-size": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "auto",
+    "multiplicity": "coordinating-list",
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "cover",
+      "contain"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "mask-type": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "multiplicity": "single",
+    "valid-types": [
+      "mask-type"
+    ],
+    "initial": "luminance"
+  },
+  "math-depth": {
+    "animation-type": "none",
+    "inherited": true,
+    "initial": "0",
+    "needs-layout-node-for-resolved-value": true,
+    "__comment": "FIXME: `add(<integer>)` is also valid but we can't represent that here yet.",
+    "valid-types": [
+      "integer"
+    ],
+    "valid-identifiers": [
+      "auto-add"
+    ]
+  },
+  "math-shift": {
+    "animation-type": "none",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "math-shift"
+    ]
+  },
+  "math-style": {
+    "animation-type": "none",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "math-style"
+    ]
+  },
+  "max-block-size": {
+    "logical-alias-for": {
+      "group": "max-size",
+      "mapping": "block-size"
+    },
+    "initial": "none"
+  },
+  "max-height": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "fit-content",
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "max-content",
+      "min-content",
+      "none"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "max-inline-size": {
+    "logical-alias-for": {
+      "group": "max-size",
+      "mapping": "inline-size"
+    },
+    "initial": "none"
+  },
+  "max-width": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "fit-content",
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "max-content",
+      "min-content",
+      "none"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "min-block-size": {
+    "logical-alias-for": {
+      "group": "min-size",
+      "mapping": "block-size"
+    },
+    "initial": "0"
+  },
+  "min-height": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "fit-content",
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "max-content",
+      "min-content"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "min-inline-size": {
+    "logical-alias-for": {
+      "group": "min-size",
+      "mapping": "inline-size"
+    },
+    "initial": "0"
+  },
+  "min-width": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "fit-content",
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "max-content",
+      "min-content"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "mix-blend-mode": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "mix-blend-mode"
+    ]
+  },
+  "object-fit": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "fill",
+    "valid-types": [
+      "object-fit"
+    ]
+  },
+  "object-position": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "50% 50%",
+    "valid-types": [
+      "position"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "opacity": {
+    "animation-type": "by-computed-value",
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "inherited": false,
+    "initial": "1",
+    "valid-types": [
+      "opacity"
+    ]
+  },
+  "order": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "integer [-∞,∞]"
+    ]
+  },
+  "orphans": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "2",
+    "valid-types": [
+      "integer [1,∞]"
+    ],
+    "__comment": "FIXME: We don't implement this property any further than compute time"
+  },
+  "outline": {
+    "affects-layout": false,
+    "initial": "medium currentColor none",
+    "longhands": [
+      "outline-color",
+      "outline-style",
+      "outline-width"
+    ]
+  },
+  "outline-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "__comment": "FIXME: We don't yet support `invert`. Until we do, the spec directs us to use `currentColor` as the default instead, and reject `invert`",
+    "initial": "currentColor",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ]
+  },
+  "outline-offset": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]"
+    ]
+  },
+  "outline-style": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "outline-style"
+    ]
+  },
+  "outline-width": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "medium",
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ]
+  },
+  "overflow": {
+    "longhands": [
+      "overflow-x",
+      "overflow-y"
+    ],
+    "positional-value-list-shorthand": true,
+    "initial": "visible",
+    "valid-types": [
+      "overflow"
+    ],
+    "valid-identifiers": [
+      "overlay>auto"
+    ]
+  },
+  "overflow-block": {
+    "logical-alias-for": {
+      "group": "overflow",
+      "mapping": "block-xy"
+    }
+  },
+  "overflow-inline": {
+    "logical-alias-for": {
+      "group": "overflow",
+      "mapping": "inline-xy"
+    }
+  },
+  "overflow-wrap": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-identifiers": [
+      "anywhere",
+      "break-word",
+      "normal"
+    ]
+  },
+  "overflow-x": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "visible",
+    "valid-types": [
+      "overflow"
+    ],
+    "valid-identifiers": [
+      "overlay>auto"
+    ]
+  },
+  "overflow-y": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "visible",
+    "valid-types": [
+      "overflow"
+    ],
+    "valid-identifiers": [
+      "overlay>auto"
+    ]
+  },
+  "padding": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "padding-top",
+      "padding-right",
+      "padding-bottom",
+      "padding-left"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-block": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "padding-block-start",
+      "padding-block-end"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-block-end": {
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "block-end"
+    },
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-block-start": {
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "block-start"
+    },
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-bottom": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-inline": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "padding-inline-start",
+      "padding-inline-end"
+    ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-inline-end": {
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "inline-end"
+    }
+  },
+  "padding-inline-start": {
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "inline-start"
+    },
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-left": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-right": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "padding-top": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "paint-order": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-identifiers": [
+      "normal"
+    ],
+    "valid-types": [
+      "paint-order"
+    ]
+  },
+  "perspective": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "perspective-origin": {
+    "animation-type": "by-computed-value",
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "50% 50%",
+    "valid-types": [
+      "position"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "place-content": {
+    "initial": "normal",
+    "longhands": [
+      "align-content",
+      "justify-content"
+    ]
+  },
+  "place-items": {
+    "initial": "normal",
+    "longhands": [
+      "align-items",
+      "justify-items"
+    ]
+  },
+  "place-self": {
+    "initial": "normal",
+    "longhands": [
+      "align-self",
+      "justify-self"
+    ]
+  },
+  "pointer-events": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "pointer-events"
+    ]
+  },
+  "position": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "static",
+    "valid-types": [
+      "positioning"
+    ]
+  },
+  "position-anchor": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "dashed-ident"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
+  "position-area": {
+    "animation-type": "discrete",
+    "__comment": "Animation type is currently listed as TBD in the specification",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "position-area"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "position-try-fallbacks": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "dashed-ident",
+      "try-tactic"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "position-try-order": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "try-order"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ]
+  },
+  "position-visibility": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "anchors-visible",
+    "valid-identifiers": [
+      "always",
+      "anchors-valid",
+      "anchors-visible",
+      "no-overflow"
+    ]
+  },
+  "quotes": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "multiplicity": "list",
+    "valid-types": [
+      "string"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "none"
+    ]
+  },
+  "r": {
+    "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#R.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "resize": {
+    "animation-type": "none",
+    "inherited": false,
+    "affects-layout": false,
+    "initial": "none",
+    "valid-types": [
+      "resize"
+    ]
+  },
+  "right": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]",
+      "anchor"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "rotate": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "affects-layout": false,
+    "affects-stacking-context": true
+  },
+  "row-gap": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "rx": {
+    "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RX.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "ry": {
+    "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RY.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "scale": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "affects-layout": false,
+    "affects-stacking-context": true
+  },
+  "scroll-timeline": {
+    "affects-layout": false,
+    "initial": "none block",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "scroll-timeline-name",
+      "scroll-timeline-axis"
+    ]
+  },
+  "scroll-timeline-axis": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "block",
+    "valid-types": [
+      "axis"
+    ],
+    "multiplicity": "coordinating-list"
+  },
+  "scroll-timeline-name": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "dashed-ident"
+    ],
+    "multiplicity": "coordinating-list"
+  },
+  "scrollbar-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "auto"
+  },
+  "scrollbar-gutter": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "__comment": "This property should affect layout per-spec, but ladybird always uses overlay scrollbars so it doesn't in practice.",
+    "inherited": false,
+    "initial": "auto"
+  },
+  "scrollbar-width": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "scrollbar-width"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "thin",
+      "none"
+    ]
+  },
+  "shape-image-threshold": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "opacity"
+    ]
+  },
+  "shape-margin": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "shape-outside": {
+    "affects-layout": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none"
+  },
+  "shape-rendering": {
+    "affects-layout": true,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "shape-rendering"
+    ]
+  },
+  "stop-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "black",
+    "valid-types": [
+      "color"
+    ]
+  },
+  "stop-opacity": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "1",
+    "valid-types": [
+      "opacity"
+    ]
+  },
+  "stroke": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "none",
+    "valid-types": [
+      "paint"
+    ]
+  },
+  "stroke-dasharray": {
+    "animation-type": "custom",
+    "inherited": true,
+    "initial": "none",
+    "affects-layout": false,
+    "percentages-resolve-to": "length"
+  },
+  "stroke-dashoffset": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]",
+      "number [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "stroke-linecap": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "butt",
+    "valid-types": [
+      "stroke-linecap"
+    ]
+  },
+  "stroke-linejoin": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "miter",
+    "valid-types": [
+      "stroke-linejoin"
+    ]
+  },
+  "stroke-miterlimit": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "4",
+    "valid-types": [
+      "number [0,∞]"
+    ]
+  },
+  "stroke-opacity": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "1",
+    "valid-types": [
+      "opacity"
+    ]
+  },
+  "stroke-width": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "1px",
+    "valid-types": [
+      "length [0,∞]",
+      "number [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "tab-size": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "8",
+    "valid-types": [
+      "length [0,∞]",
+      "number [0,∞]"
+    ]
+  },
+  "table-layout": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "table-layout"
+    ]
+  },
+  "text-align": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "start",
+    "valid-types": [
+      "text-align"
+    ]
+  },
+  "text-anchor": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "start",
+    "valid-types": [
+      "text-anchor"
+    ]
+  },
+  "text-decoration": {
+    "affects-layout": false,
+    "initial": "none",
+    "longhands": [
+      "text-decoration-color",
+      "text-decoration-line",
+      "text-decoration-style",
+      "text-decoration-thickness"
+    ]
+  },
+  "text-decoration-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "currentcolor",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "color"
+    ]
+  },
+  "text-decoration-line": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "__comment": "FIXME: This property is not supposed to be inherited, but we currently rely on inheritance to propagate decorations into line boxes.",
+    "inherited": true,
+    "initial": "none",
+    "valid-types": [
+      "text-decoration-line"
+    ]
+  },
+  "text-decoration-style": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "solid",
+    "valid-types": [
+      "text-decoration-style"
+    ]
+  },
+  "text-decoration-thickness": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "from-font"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "text-indent": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "each-line",
+      "hanging"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "text-justify": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "text-justify"
+    ],
+    "valid-identifiers": [
+      "distribute>inter-character"
+    ]
+  },
+  "text-overflow": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "clip",
+    "valid-types": [
+      "text-overflow"
+    ]
+  },
+  "text-rendering": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "text-rendering"
+    ]
+  },
+  "text-shadow": {
+    "affects-layout": false,
+    "animation-type": "custom",
+    "inherited": true,
+    "initial": "none",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "text-transform": {
+    "__comment": "NOTE: This property has custom invalidation handling.",
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "none",
+    "valid-types": [
+      "text-transform"
+    ]
+  },
+  "text-underline-offset": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "text-underline-position": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "text-underline-position-horizontal",
+      "text-underline-position-vertical"
+    ]
+  },
+  "text-wrap": {
+    "initial": "wrap",
+    "longhands": [
+      "text-wrap-mode",
+      "text-wrap-style"
+    ]
+  },
+  "text-wrap-mode": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "wrap",
+    "valid-types": [
+      "text-wrap-mode"
+    ]
+  },
+  "text-wrap-style": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "text-wrap-style"
+    ]
+  },
+  "top": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]",
+      "anchor"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "touch-action": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "max-values": 2,
+    "valid-types": [
+      "touch-action"
+    ]
+  },
+  "transform": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "needs-layout-node-for-resolved-value": true,
+    "percentages-resolve-to": "length",
+    "valid-types": [
+      "transform-list"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "transform-box": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "view-box",
+    "affects-layout": false,
+    "valid-types": [
+      "transform-box"
+    ]
+  },
+  "transform-origin": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "50% 50%",
+    "max-values": 3,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "bottom",
+      "center",
+      "left",
+      "right",
+      "top"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "transform-style": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "flat",
+    "valid-identifiers": [
+      "flat",
+      "preserve-3d"
+    ]
+  },
+  "transition": {
+    "affects-layout": false,
+    "initial": "none",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "transition-property",
+      "transition-duration",
+      "transition-timing-function",
+      "transition-delay",
+      "transition-behavior"
+    ]
+  },
+  "transition-behavior": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "transition-behavior"
+    ]
+  },
+  "transition-delay": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "0s",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "time"
+    ]
+  },
+  "transition-duration": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "0s",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "time [0,∞]"
+    ]
+  },
+  "transition-property": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "all",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "custom-ident ![none]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "transition-timing-function": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "ease",
+    "multiplicity": "coordinating-list",
+    "valid-types": [
+      "easing-function",
+      "easing-keyword"
+    ]
+  },
+  "translate": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "unicode-bidi": {
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "unicode-bidi"
+    ]
+  },
+  "user-select": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "user-select"
+    ]
+  },
+  "vertical-align": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "baseline",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]",
+      "vertical-align"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "view-timeline": {
+    "affects-layout": false,
+    "initial": "none",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "view-timeline-name",
+      "view-timeline-axis",
+      "view-timeline-inset"
+    ]
+  },
+  "view-timeline-axis": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "block",
+    "valid-types": [
+      "axis"
+    ],
+    "multiplicity": "coordinating-list"
+  },
+  "view-timeline-inset": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "view-timeline-inset"
+    ],
+    "percentages-resolve-to": "length",
+    "multiplicity": "coordinating-list"
+  },
+  "view-timeline-name": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "dashed-ident"
+    ],
+    "multiplicity": "coordinating-list"
+  },
+  "view-transition-name": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident ![auto,none]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "visibility": {
+    "animation-type": "custom",
+    "inherited": true,
+    "initial": "visible",
+    "valid-types": [
+      "visibility"
+    ]
+  },
+  "white-space": {
+    "initial": "normal",
+    "valid-types": [
+      "white-space"
+    ],
+    "longhands": [
+      "white-space-collapse",
+      "text-wrap-mode",
+      "white-space-trim"
+    ]
+  },
+  "white-space-collapse": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "collapse",
+    "valid-types": [
+      "white-space-collapse"
+    ]
+  },
+  "white-space-trim": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none",
+      "discard-before",
+      "discard-after",
+      "discard-inner"
+    ]
+  },
+  "widows": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "2",
+    "valid-types": [
+      "integer [1,∞]"
+    ],
+    "__comment": "FIXME: We don't implement this property any further than compute time"
+  },
+  "width": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "fit-content",
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "max-content",
+      "min-content"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "will-change": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "auto",
+    "multiplicity": "list",
+    "valid-types": [
+      "custom-ident ![all,auto,contents,none,scroll-position,will-change]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "scroll-position",
+      "contents"
+    ]
+  },
+  "word-break": {
+    "animation-type": "discrete",
+    "initial": "normal",
+    "inherited": true,
+    "valid-identifiers": [
+      "normal",
+      "keep-all",
+      "break-all",
+      "break-word"
+    ]
+  },
+  "word-spacing": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "word-wrap": {
+    "legacy-alias-for": "overflow-wrap"
+  },
+  "writing-mode": {
+    "animation-type": "none",
+    "inherited": true,
+    "initial": "horizontal-tb",
+    "valid-types": [
+      "writing-mode"
+    ]
+  },
+  "x": {
+    "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#X.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "y": {
+    "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#Y.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "z-index": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "needs-layout-node-for-resolved-value": true,
+    "valid-types": [
+      "integer [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  }
+}

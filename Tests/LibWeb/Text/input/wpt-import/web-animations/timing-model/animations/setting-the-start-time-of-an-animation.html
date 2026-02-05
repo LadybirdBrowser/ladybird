@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Setting the start time of an animation</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations/#setting-the-start-time-of-an-animation">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<script src="../../resources/timing-override.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  null);
+
+  assert_throws_js(TypeError, () => {
+    animation.startTime = CSSNumericValue.parse("30%");
+  });
+  assert_throws_js(TypeError, () => {
+    animation.startTime = CSSNumericValue.parse("30deg");
+  });
+
+  animation.startTime = 2000;
+  assert_equals(animation.startTime, 2000, "Set start time using double");
+
+  animation.startTime = CSSNumericValue.parse("3000");
+  assert_equals(animation.startTime, 3000, "Set start time using " +
+    "CSSNumericValue number value");
+
+  animation.startTime = CSSNumericValue.parse("4000ms");
+  assert_equals(animation.startTime, 4000, "Set start time using " +
+    "CSSNumericValue milliseconds value");
+
+  animation.startTime = CSSNumericValue.parse("50s");
+  assert_equals(animation.startTime, 50000, "Set start time using " +
+    "CSSNumericValue seconds value");
+}, 'Validate different value types that can be used to set start time');
+
+test(t => {
+  // It should only be possible to set *either* the start time or the current
+  // time for an animation that does not have an active timeline.
+
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  null);
+
+  assert_equals(animation.currentTime, null, 'Intial current time');
+  assert_equals(animation.startTime, null, 'Intial start time');
+
+  animation.currentTime = 1000;
+  assert_equals(animation.currentTime, 1000,
+                'Setting the current time succeeds');
+  assert_equals(animation.startTime, null,
+                'Start time remains null after setting current time');
+
+  animation.startTime = 1000;
+  assert_equals(animation.startTime, 1000,
+                'Setting the start time succeeds');
+  assert_equals(animation.currentTime, null,
+                'Setting the start time clears the current time');
+
+  animation.startTime = null;
+  assert_equals(animation.startTime, null,
+                'Setting the start time to an unresolved time succeeds');
+  assert_equals(animation.currentTime, null, 'The current time is unaffected');
+
+}, 'Setting the start time of an animation without an active timeline');
+
+test(t => {
+  // Setting an unresolved start time on an animation without an active
+  // timeline should not clear the current time.
+
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  null);
+
+  assert_equals(animation.currentTime, null, 'Intial current time');
+  assert_equals(animation.startTime, null, 'Intial start time');
+
+  animation.currentTime = 1000;
+  assert_equals(animation.currentTime, 1000,
+                'Setting the current time succeeds');
+  assert_equals(animation.startTime, null,
+                'Start time remains null after setting current time');
+
+  animation.startTime = null;
+  assert_equals(animation.startTime, null, 'Start time remains unresolved');
+  assert_equals(animation.currentTime, 1000, 'Current time is unaffected');
+
+}, 'Setting an unresolved start time an animation without an active timeline'
+   + ' does not clear the current time');
+
+test(t => {
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  document.timeline);
+
+  // So long as a hold time is set, querying the current time will return
+  // the hold time.
+
+  // Since the start time is unresolved at this point, setting the current time
+  // will set the hold time
+  animation.currentTime = 1000;
+  assert_equals(animation.currentTime, 1000,
+                'The current time is calculated from the hold time');
+
+  // If we set the start time, however, we should clear the hold time.
+  animation.startTime = document.timeline.currentTime - 2000;
+  assert_time_equals_literal(animation.currentTime, 2000,
+                             'The current time is calculated from the start'
+                             + ' time, not the hold time');
+
+  // Sanity check
+  assert_equals(animation.playState, 'running',
+                'Animation reports it is running after setting a resolved'
+                + ' start time');
+}, 'Setting the start time clears the hold time');
+
+test(t => {
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  document.timeline);
+
+  // Set up a running animation (i.e. both start time and current time
+  // are resolved).
+  animation.startTime = document.timeline.currentTime - 1000;
+  assert_equals(animation.playState, 'running');
+  assert_time_equals_literal(animation.currentTime, 1000,
+                             'Current time is resolved for a running animation');
+
+  // Clear start time
+  animation.startTime = null;
+  assert_time_equals_literal(animation.currentTime, 1000,
+                             'Hold time is set after start time is made'
+                             + ' unresolved');
+  assert_equals(animation.playState, 'paused',
+                'Animation reports it is paused after setting an unresolved'
+                + ' start time');
+}, 'Setting an unresolved start time sets the hold time');
+
+promise_test(async t => {
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  document.timeline);
+
+  let readyPromiseCallbackCalled = false;
+  animation.ready.then(() => { readyPromiseCallbackCalled = true; } );
+
+  // Put the animation in the play-pending state
+  animation.play();
+
+  // Sanity check
+  assert_true(animation.pending && animation.playState === 'running',
+              'Animation is in play-pending state');
+
+  // Setting the start time should resolve the 'ready' promise, i.e.
+  // it should schedule a microtask to run the promise callbacks.
+  animation.startTime = document.timeline.currentTime;
+  assert_false(readyPromiseCallbackCalled,
+               'Ready promise callback is not called synchronously');
+
+  // If we schedule another microtask then it should run immediately after
+  // the ready promise resolution microtask.
+  await Promise.resolve();
+  assert_true(readyPromiseCallbackCalled,
+              'Ready promise callback called after setting startTime');
+}, 'Setting the start time resolves a pending ready promise');
+
+promise_test(async t => {
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  document.timeline);
+
+  let readyPromiseCallbackCalled = false;
+  animation.ready.then(() => { readyPromiseCallbackCalled = true; } );
+
+  // Put the animation in the pause-pending state
+  animation.startTime = document.timeline.currentTime;
+  animation.pause();
+
+  // Sanity check
+  assert_true(animation.pending && animation.playState === 'paused',
+              'Animation is in pause-pending state');
+
+  // Setting the start time should resolve the 'ready' promise although
+  // the resolution callbacks when be run in a separate microtask.
+  animation.startTime = null;
+  assert_false(readyPromiseCallbackCalled,
+               'Ready promise callback is not called synchronously');
+
+  await Promise.resolve();
+  assert_true(readyPromiseCallbackCalled,
+              'Ready promise callback called after setting startTime');
+}, 'Setting the start time resolves a pending pause task');
+
+promise_test(async t => {
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  document.timeline);
+
+  // Put the animation in the play-pending state
+  animation.play();
+
+  // Sanity check
+  assert_true(animation.pending, 'Animation is pending');
+  assert_equals(animation.playState, 'running',
+                'Animation is play-pending');
+  assert_equals(animation.startTime, null, 'Start time is null');
+
+  // Even though the startTime is already null, setting it to the same value
+  // should still cancel the pending task.
+  animation.startTime = null;
+  assert_false(animation.pending, 'Animation is no longer pending');
+  assert_equals(animation.playState, 'paused', 'Animation is paused');
+}, 'Setting an unresolved start time on a play-pending animation makes it'
+   + ' paused');
+
+promise_test(async t => {
+  const animation =
+    new Animation(new KeyframeEffect(createDiv(t), null, 100 * MS_PER_SEC),
+                  document.timeline);
+
+  // Set start time such that the current time is past the end time
+  animation.startTime = document.timeline.currentTime
+                        - 110 * MS_PER_SEC;
+  assert_equals(animation.playState, 'finished',
+                'Seeked to finished state using the startTime');
+
+  // If the 'did seek' flag is true, the current time should be greater than
+  // the effect end.
+  assert_greater_than(animation.currentTime,
+                      animation.effect.getComputedTiming().endTime,
+                      'Setting the start time updated the finished state with'
+                      + ' the \'did seek\' flag set to true');
+
+  // Furthermore, that time should persist if we have correctly updated
+  // the hold time
+  const finishedCurrentTime = animation.currentTime;
+  await waitForAnimationFrames(1);
+  assert_equals(animation.currentTime, finishedCurrentTime,
+                'Current time does not change after seeking past the effect'
+                + ' end time by setting the current time');
+}, 'Setting the start time updates the finished state');
+
+promise_test(async t => {
+  const anim = createDiv(t).animate(null, 100 * MS_PER_SEC);
+
+  // We should be play-pending now
+  assert_true(anim.pending);
+  assert_equals(anim.playState, 'running');
+
+  // Apply a pending playback rate
+  anim.updatePlaybackRate(2);
+  assert_equals(anim.playbackRate, 1);
+  assert_true(anim.pending);
+
+  // Setting the start time should apply the pending playback rate
+  anim.startTime = anim.timeline.currentTime - 25 * MS_PER_SEC;
+  assert_equals(anim.playbackRate, 2);
+  assert_false(anim.pending);
+
+  // Sanity check that the start time is preserved and current time is
+  // calculated using the new playback rate
+  assert_times_equal(anim.startTime,
+                     anim.timeline.currentTime - 25 * MS_PER_SEC);
+  assert_time_equals_literal(anim.currentTime, 50 * MS_PER_SEC);
+}, 'Setting the start time of a play-pending animation applies a pending playback rate');
+
+promise_test(async t => {
+  const anim = createDiv(t).animate(null, 100 * MS_PER_SEC);
+  await anim.ready;
+
+  // We should be running now
+  assert_false(anim.pending);
+  assert_equals(anim.playState, 'running');
+
+  // Apply a pending playback rate
+  anim.updatePlaybackRate(2);
+  assert_equals(anim.playbackRate, 1);
+  assert_true(anim.pending);
+
+  // Setting the start time should apply the pending playback rate
+  anim.startTime = anim.timeline.currentTime - 25 * MS_PER_SEC;
+  assert_equals(anim.playbackRate, 2);
+  assert_false(anim.pending);
+
+  // Sanity check that the start time is preserved and current time is
+  // calculated using the new playback rate
+  assert_times_equal(anim.startTime,
+                     anim.timeline.currentTime - 25 * MS_PER_SEC);
+  assert_time_equals_literal(parseInt(anim.currentTime.toPrecision(5), 10), 50 * MS_PER_SEC);
+}, 'Setting the start time of a playing animation applies a pending playback rate');
+
+promise_test(async t => {
+  const anim = createDiv(t).animate(null, 100 * MS_PER_SEC);
+  await anim.ready;
+  assert_equals(anim.playState, 'running');
+
+  // Setting the start time updates the finished state. The hold time is not
+  // constrained by the effect end time.
+  anim.startTime = -200 * MS_PER_SEC;
+  assert_equals(anim.playState, 'finished');
+
+  assert_times_equal(anim.currentTime,
+                     document.timeline.currentTime + 200 * MS_PER_SEC);
+}, 'Setting the start time on a running animation updates the play state');
+
+promise_test(async t => {
+  const anim = createDiv(t).animate(null, 100 * MS_PER_SEC);
+  await anim.ready;
+
+  // Setting the start time updates the finished state. The hold time is not
+  // constrained by the normal range of the animation time.
+  anim.currentTime = 100 * MS_PER_SEC;
+  assert_equals(anim.playState, 'finished');
+  anim.playbackRate = -1;
+  assert_equals(anim.playState, 'running');
+  anim.startTime = -200 * MS_PER_SEC;
+  assert_equals(anim.playState, 'finished');
+  assert_times_equal(anim.currentTime,
+                     -document.timeline.currentTime - 200 * MS_PER_SEC);
+}, 'Setting the start time on a reverse running animation updates the play '
+   + 'state');
+</script>
+</body>

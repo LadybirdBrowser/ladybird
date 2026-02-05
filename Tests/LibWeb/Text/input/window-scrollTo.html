@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 1000px;
+        height: 1000px;
+        border: 50px solid magenta;
+    }
+
+    #a {
+        background-color: yellow;
+    }
+
+    #b {
+        background-color: blue;
+    }
+</style>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        document.addEventListener("scroll", (event) => {
+            println("The page has been scrolled to y: " + window.scrollY);
+            done();
+        });
+
+        window.scrollTo(0, 2000);
+    });
+</script>
+<div id="a"></div>
+<div id="b"></div>

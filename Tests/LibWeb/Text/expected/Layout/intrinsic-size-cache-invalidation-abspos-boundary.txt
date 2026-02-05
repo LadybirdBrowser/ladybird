@@ -1,0 +1,51 @@
+=== Test 1: Content change inside abspos doesn't affect fit-content ancestor ===
+Initial width: 210
+After abspos content change: 210
+PASS: true
+
+=== Test 2: Content change in in-flow element DOES affect ancestor ===
+Initial width: 94
+After in-flow content change: 609
+PASS: true
+
+=== Test 3: Position toggle static to absolute shrinks container ===
+Initial width: 210
+After static->absolute: 110
+PASS: true
+
+=== Test 4: Position toggle absolute to static grows container ===
+Initial width: 110
+After absolute->static: 210
+PASS: true
+
+=== Test 5: Nested abspos - outer container unaffected ===
+Initial width: 110
+After nested abspos content change: 110
+PASS: true
+
+=== Test 6: Fixed position element (also abspos) doesn't affect ancestor ===
+Initial width: 210
+After fixed content change: 210
+PASS: true
+
+=== Test 7: In-flow sibling of abspos DOES affect ancestor ===
+Initial width: 120
+After sibling content change: 598
+PASS: true
+
+=== Test 8: Abspos with fit-content updates its own size ===
+Initial abspos width: 150
+After content change abspos width: 405
+Container width (should be ~210): 210
+PASS abspos grew: true
+PASS container unchanged: true
+
+=== Test 9: Transform containing block - abspos inside doesn't affect outer ===
+Initial width: 110
+After content change: 110
+PASS: true
+
+=== Test 10: Flex container - abspos child doesn't affect flex sizing ===
+Initial width: 110
+After content change: 110
+PASS: true

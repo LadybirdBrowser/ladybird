@@ -1,0 +1,12 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(
+function() {
+  document.write("PASS");
+  assert_equals(document.body.textContent, "PASS");
+}
+);
+</script>
+<div id="log"></div>

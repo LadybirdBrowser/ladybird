@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1928724">
+
+<style>
+*:only-child {
+  contain: size layout paint;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  a.getBoundingClientRect();
+  a.appendChild(c);
+  b.scrollBy();
+})
+</script>
+
+<body>
+<svg>
+<animateMotion id="b">
+</animateMotion>
+<foreignObject id="a">
+<article>
+<data id="c">

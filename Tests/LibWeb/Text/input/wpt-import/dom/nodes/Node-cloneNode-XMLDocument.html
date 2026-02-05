@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cloning of an XMLDocument</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-node-clonenode">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-node-clone">
+
+<!-- This is testing in particular "that implements the same interfaces as node" -->
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+"use strict";
+
+test(() => {
+  const doc = document.implementation.createDocument("namespace", "");
+
+  assert_equals(
+    doc.constructor, XMLDocument,
+    "Precondition check: document.implementation.createDocument() creates an XMLDocument"
+  );
+
+  const clone = doc.cloneNode(true);
+
+  assert_equals(clone.constructor, XMLDocument);
+}, "Created with createDocument");
+
+</script>

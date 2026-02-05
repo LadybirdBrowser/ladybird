@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	Loading data…
+Pass	"no-cors" Headers object cannot have accept set to sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss, , sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+Pass	"no-cors" Headers object cannot have accept-language set to sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss, , sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+Pass	"no-cors" Headers object cannot have content-language set to sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss, , sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+Pass	"no-cors" Headers object cannot have accept set to , sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+Pass	"no-cors" Headers object cannot have accept-language set to , sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+Pass	"no-cors" Headers object cannot have content-language set to , sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+Pass	"no-cors" Headers object cannot have content-type set to text/plain;ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss, text/plain
+Pass	"no-cors" Headers object cannot have accept/" as header
+Pass	"no-cors" Headers object cannot have accept/012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678 as header
+Pass	"no-cors" Headers object cannot have accept-language/ as header
+Pass	"no-cors" Headers object cannot have accept-language/@ as header
+Pass	"no-cors" Headers object cannot have authorization/basics as header
+Pass	"no-cors" Headers object cannot have content-language/ as header
+Pass	"no-cors" Headers object cannot have content-language/@ as header
+Pass	"no-cors" Headers object cannot have content-type/text/html as header
+Pass	"no-cors" Headers object cannot have content-type/text/plain; long=0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901 as header
+Pass	"no-cors" Headers object cannot have range/bytes 0- as header
+Pass	"no-cors" Headers object cannot have test/hi as header
+Pass	"no-cors" Headers object cannot have dpr/2 as header
+Pass	"no-cors" Headers object cannot have rtt/1.0 as header
+Pass	"no-cors" Headers object cannot have downlink/-1.0 as header
+Pass	"no-cors" Headers object cannot have ect/6g as header
+Pass	"no-cors" Headers object cannot have save-data/on as header
+Pass	"no-cors" Headers object cannot have viewport-width/100 as header
+Pass	"no-cors" Headers object cannot have width/100 as header
+Pass	"no-cors" Headers object cannot have unknown/doesitmatter as header

@@ -1,0 +1,87 @@
+<!doctype html>
+<meta charset="utf8">
+<title>XPath in text/html: elements</title>
+<link rel="help" href="http://www.w3.org/TR/DOM-Level-3-XPath/xpath.html#Interfaces">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<div id="log"><span></span></div>
+<div><span></span></div>
+<dØdd></dØdd>
+<svg>
+<path />
+<path />
+</svg>
+
+<script>
+function test_xpath_succeeds(path, expected, resolver) {
+  resolver = resolver ? resolver : null;
+  var res = document.evaluate(path, document, resolver, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+  actual = [];
+  for (var i=0;;i++) {
+    var node = res.snapshotItem(i);
+    if (node === null) {
+       break;
+    }
+    actual.push(node);
+  }
+  assert_array_equals(actual, expected);
+}
+
+function test_xpath_throws(path, error_code, resolver) {
+  resolver = resolver ? resolver : null;
+  assert_throws_dom(error_code, function() {document.evaluate(path, document, resolver, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null)})
+}
+
+function ns_resolver(x) {
+  map = {"html":"http://www.w3.org/1999/xhtml",
+         "svg":"http://www.w3.org/2000/svg",
+         "math":"http://www.w3.org/1998/Math/MathML"};
+  var rv = map.hasOwnProperty(x) ? map[x] : null;
+  return rv;
+}
+
+test(function() {
+  test_xpath_succeeds("//div", document.getElementsByTagName("div"));
+}, "HTML elements no namespace prefix");
+
+test(function() {
+  test_xpath_succeeds("//html:div", document.getElementsByTagName("div"), ns_resolver);
+}, "HTML elements namespace prefix");
+
+test(function() {
+  test_xpath_succeeds("//html:div/span", document.getElementsByTagName("span"), ns_resolver);
+}, "HTML elements mixed use of prefix");
+
+test(function() {
+  test_xpath_succeeds("//path", []);
+}, "SVG elements no namespace prefix");
+
+test(function() {
+  test_xpath_succeeds("//svg:path", document.getElementsByTagName("path"), ns_resolver);
+}, "SVG elements namespace prefix");
+
+test(function() {
+  test_xpath_succeeds("//DiV", document.getElementsByTagName("div"));
+}, "HTML elements mixed case");
+
+test(function() {
+  test_xpath_succeeds("//svg:PatH", [], ns_resolver);
+}, "SVG elements mixed case selector");
+
+test(function() {
+  test_xpath_succeeds("//dØdd", document.getElementsByTagName("dØdd"), ns_resolver);
+}, "Non-ascii HTML element");
+
+test(function() {
+  test_xpath_succeeds("//dødd", [], ns_resolver);
+}, "Non-ascii HTML element2");
+
+test(function() {
+  test_xpath_succeeds("//DØDD", document.getElementsByTagName("dØdd"), ns_resolver);
+}, "Non-ascii HTML element3");
+
+test(function() {
+  test_xpath_throws("//invalid:path", "NAMESPACE_ERR");
+}, "Throw with invalid prefix");
+</script>

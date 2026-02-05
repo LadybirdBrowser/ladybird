@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>'paint-order' computed style serialization</title>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <text id="text" x="100" y="100"/>
+  <script><![CDATA[
+    'use strict';
+
+    function make_tests(check, type) {
+      let tests = [
+        // Single keyword
+        ["normal", "normal"],
+        ["fill", "fill"],
+        ["stroke", "stroke"],
+        ["markers", "markers"],
+        // Two keywords
+        ["fill stroke", "fill"],
+        ["fill markers", "fill markers"],
+        ["stroke fill", "stroke"],
+        ["stroke markers", "stroke markers"],
+        ["markers fill", "markers"],
+        ["markers stroke", "markers stroke"],
+        // Three keywords
+        ["fill stroke markers", "fill"],
+        ["fill markers stroke", "fill markers"],
+        ["stroke fill markers", "stroke"],
+        ["stroke markers fill", "stroke markers"],
+        ["markers fill stroke", "markers"],
+        ["markers stroke fill", "markers stroke"],
+        // Invalid
+        ["foo", "normal"],
+        ["fill foo", "normal"],
+        ["stroke foo", "normal"],
+        ["markers foo", "normal"],
+        ["normal foo", "normal"],
+        ["fill markers stroke foo", "normal"],
+      ];
+      for (let [value, expected] of tests) {
+        test(() => {
+          check(value, expected);
+        }, `${document.title}, "${value}" => "${expected}" (${type})`);
+      }
+    }
+
+    const text = document.getElementById("text");
+
+    make_tests((value, expected) => {
+      text.setAttribute("style", "paint-order: " + value);
+      let actual = getComputedStyle(text).paintOrder;
+      text.removeAttribute("style");
+      assert_equals(actual, expected, value);
+    }, "property");
+
+    make_tests((value, expected) => {
+      text.setAttribute("paint-order", value);
+      let actual = getComputedStyle(text).paintOrder;
+      text.removeAttribute("paint-order");
+      assert_equals(actual, expected, value);
+    }, "presentation attribute");
+  ]]>
+  </script>
+</svg>

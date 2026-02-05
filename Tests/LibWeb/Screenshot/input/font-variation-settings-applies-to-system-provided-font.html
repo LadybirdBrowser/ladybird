@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/font-variation-settings-applies-to-system-provided-font-ref.html" />
+<html>
+    <style>
+        @font-face {
+            font-family: "Imported Noto Emoji";
+            src: url("../../Assets/NotoEmoji.ttf");
+        }
+
+        #foo {
+            font-size: 64px;
+            font-family: "Imported Noto Emoji";
+            font-variation-settings: "wght" 100;
+        }
+
+        #bar {
+            font-size: 64px;
+            font-family: Noto Emoji;
+            font-variation-settings: "wght" 100;
+        }
+    </style>
+    <body>
+        <span id="foo">🐞</span><span id="bar">🐞</span>
+    </body>
+</html>

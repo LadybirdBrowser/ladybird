@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	e.style['counter-set'] = "none chapter" should not set the property value
+Pass	e.style['counter-set'] = "reversed(none)" should not set the property value
+Pass	e.style['counter-set'] = "reversed(chapter)" should not set the property value
+Pass	e.style['counter-set'] = "3" should not set the property value
+Pass	e.style['counter-set'] = "99 imagenum" should not set the property value
+Pass	e.style['counter-set'] = "section -1, imagenum 99" should not set the property value
+Pass	e.style['counter-set'] = "section 3.14" should not set the property value
+Pass	e.style['counter-set'] = "inherit 2" should not set the property value
+Pass	e.style['counter-set'] = "initial 2" should not set the property value
+Pass	e.style['counter-set'] = "unset 2" should not set the property value
+Pass	e.style['counter-set'] = "default 2" should not set the property value
+Pass	e.style['counter-set'] = "revert 2" should not set the property value
+Pass	e.style['counter-set'] = "revert-layer 2" should not set the property value

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-variant-ligatures with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-variant-ligatures-prop">
+<meta name="assert" content="font-variant-ligatures supports only the grammar 'normal | none | [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-variant-ligatures', 'none normal');
+
+test_invalid_value('font-variant-ligatures', 'normal common-ligatures');
+
+test_invalid_value('font-variant-ligatures', 'common-ligatures no-common-ligatures');
+
+test_invalid_value('font-variant-ligatures', 'discretionary-ligatures no-discretionary-ligatures');
+
+test_invalid_value('font-variant-ligatures', 'historical-ligatures no-historical-ligatures');
+
+test_invalid_value('font-variant-ligatures', 'contextual no-contextual');
+</script>
+</body>
+</html>

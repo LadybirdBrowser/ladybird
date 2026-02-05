@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+span {
+    z-index: 10;
+    background: orange;
+    position: relative;
+    opacity: 0.5;
+    font-size: 100px;
+}
+div {
+    z-index: 5;
+    width: 100px;
+    height: 100px;
+    background: green;
+    position: relative;
+    top: -10px;
+}
+</style><span id="inline-stacking-context">hello</span><div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(internals.hitTest(50, 50).node === document.getElementById("inline-stacking-context"));
+    });
+</script>

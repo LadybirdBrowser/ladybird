@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <script id="explicit-xlink-href" xlink:href="test"></script>
+    <script id="implicit-xlink-href" href="test"></script>
+</svg>
+<script id="svg-script-element">
+    function dumpAttribute(elementName) {
+        println("---------------");
+        println(elementName);
+        println("---------------");
+        const attr = document.getElementById(elementName).attributes[1];
+        println(`localName -> ${attr.localName}`);
+        println(`name -> ${attr.name}`);
+        println(`namespaceURI -> ${attr.namespaceURI}`);
+        println(`ownerElement -> ${attr.ownerElement.id}`);
+        println(`prefix -> ${attr.prefix}`);
+        println(`value -> ${attr.value}`);
+    }
+
+    test(() => {
+        dumpAttribute('explicit-xlink-href');
+        dumpAttribute('implicit-xlink-href');
+    });
+</script>

@@ -1,0 +1,3 @@
+Size before grow: 65536
+Size after grow, before refresh: 0
+Size after grow, after refresh: 131072

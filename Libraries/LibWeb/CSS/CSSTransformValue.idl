@@ -1,0 +1,16 @@
+#import <CSS/CSSStyleValue.idl>
+#import <CSS/CSSTransformComponent.idl>
+#import <Geometry/DOMMatrix.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#csstransformvalue
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSTransformValue : CSSStyleValue {
+    constructor(sequence<CSSTransformComponent> transforms);
+    iterable<CSSTransformComponent>;
+    readonly attribute unsigned long length;
+    getter CSSTransformComponent (unsigned long index);
+    setter undefined (unsigned long index, CSSTransformComponent val);
+
+    [ImplementedAs=is_2d] readonly attribute boolean is2D;
+    DOMMatrix toMatrix();
+};

@@ -1,0 +1,56 @@
+Harness status: OK
+
+Found 51 tests
+
+51 Fail
+Fail	e.style['clip-path'] = "shape(from 20px 40px, line to 20px 30px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, line to 20px 30px )" should set the property value
+Fail	e.style['clip-path'] = "shape(from 0 0, line to 100% 100%)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, line by 20px 30px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to 100px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline by 100%)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline to 100px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline by 100%)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to left, hline to center, hline to right)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to x-start, vline to y-start)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline to top, vline to center, vline to bottom)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline to y-start, vline to y-end)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to 20px 20px with 10px 30px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to 20em 20pt with 10vw 30vh)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to 10% 20% with 10px 30px / 12px 32px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to top left with 10px 30px / 12px 32px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20% 40%, curve to center with center right / bottom center)" should set the property value
+Fail	e.style['clip-path'] = "shape(from bottom right, curve to left with center right / bottom center)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to bottom left with 10px 30px from end)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to right center with 10px 30px from start / 12px 32px from end)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to right center with 10px 30px from start/12px 32px from end)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to right center with 10px 30px from  end / 12px 32px from  origin)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve to right center with 10px 30px from origin / 12px 32px from start)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px with 10px 30px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px with 10px 30px from origin)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px with 10px 30px / 12px 32px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve by 20% 20em with 10px 30px from start / 12px 32px from end)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, curve by 20% 20em with 10.3% 30px from origin / 12pt 5.4% from start)" should set the property value
+Fail	e.style['clip-path'] = "shape(from top left, smooth to top right)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, smooth to center 20%)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, smooth by 20px 20px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from right bottom, smooth by 20px 20px with 12px 32px)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, smooth by 20pt 20px with 12px 32px from start)" should set the property value
+Fail	e.style['clip-path'] = "shape(from center 40px, smooth by 20% 20% with 12px 32px from end)" should set the property value
+Fail	e.style['clip-path'] = "shape(from center, smooth by 20px 20px with 12px 32px from origin)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc to top right of 10%)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10%)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 0)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 0)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20% 20pt of 10% rotate 0deg)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20%)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% large)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of -10% -20% large)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% rotate 1deg)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw rotate 12deg)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10px 20px cw rotate 0.52rad)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% large rotate 12deg)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw large)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% large cw)" should set the property value
+Fail	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% rotate 12deg large)" should set the property value

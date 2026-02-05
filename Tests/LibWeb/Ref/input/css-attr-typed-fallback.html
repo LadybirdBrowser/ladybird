@@ -1,0 +1,21 @@
+<!doctype html>
+<link rel="match" href="../expected/css-attr-typed-ref.html" />
+<style>
+    div {
+        width: 100px;
+        height: 20px;
+        border: 1px solid black;
+    }
+    .string::before {
+        content: attr(foo raw-string, "WHF!");
+    }
+    .string-no-fallback::before {
+        content: attr(foo raw-string);
+    }
+    .px {
+        width: attr(foo px, 200px);
+    }
+</style>
+<div class="string"></div>
+<div class="string-no-fallback"></div>
+<div class="px" foo="twohundred"></div>

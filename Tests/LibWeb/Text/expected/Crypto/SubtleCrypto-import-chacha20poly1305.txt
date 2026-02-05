@@ -1,0 +1,4 @@
+true
+ChaCha20-Poly1305
+secret
+encrypt

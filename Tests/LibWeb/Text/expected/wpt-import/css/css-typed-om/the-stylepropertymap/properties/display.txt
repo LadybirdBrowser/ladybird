@@ -1,0 +1,61 @@
+Harness status: OK
+
+Found 56 tests
+
+56 Pass
+Pass	Can set 'display' to CSS-wide keywords: initial
+Pass	Can set 'display' to CSS-wide keywords: inherit
+Pass	Can set 'display' to CSS-wide keywords: unset
+Pass	Can set 'display' to CSS-wide keywords: revert
+Pass	Can set 'display' to var() references:  var(--A)
+Pass	Can set 'display' to the 'none' keyword: none
+Pass	Can set 'display' to the 'block' keyword: block
+Pass	Can set 'display' to the 'inline' keyword: inline
+Pass	Can set 'display' to the 'flow-root' keyword: flow-root
+Pass	Can set 'display' to the 'table' keyword: table
+Pass	Can set 'display' to the 'flex' keyword: flex
+Pass	Can set 'display' to the 'grid' keyword: grid
+Pass	Can set 'display' to the 'list-item' keyword: list-item
+Pass	Can set 'display' to the 'table-row-group' keyword: table-row-group
+Pass	Can set 'display' to the 'table-header-group' keyword: table-header-group
+Pass	Can set 'display' to the 'table-footer-group' keyword: table-footer-group
+Pass	Can set 'display' to the 'table-row' keyword: table-row
+Pass	Can set 'display' to the 'table-cell' keyword: table-cell
+Pass	Can set 'display' to the 'table-column-group' keyword: table-column-group
+Pass	Can set 'display' to the 'table-column' keyword: table-column
+Pass	Can set 'display' to the 'table-caption' keyword: table-caption
+Pass	Can set 'display' to the 'contents' keyword: contents
+Pass	Can set 'display' to the 'inline-block' keyword: inline-block
+Pass	Can set 'display' to the 'inline-table' keyword: inline-table
+Pass	Can set 'display' to the 'inline-flex' keyword: inline-flex
+Pass	Can set 'display' to the 'inline-grid' keyword: inline-grid
+Pass	Setting 'display' to a length: 0px throws TypeError
+Pass	Setting 'display' to a length: -3.14em throws TypeError
+Pass	Setting 'display' to a length: 3.14cm throws TypeError
+Pass	Setting 'display' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'display' to a percent: 0% throws TypeError
+Pass	Setting 'display' to a percent: -3.14% throws TypeError
+Pass	Setting 'display' to a percent: 3.14% throws TypeError
+Pass	Setting 'display' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'display' to a time: 0s throws TypeError
+Pass	Setting 'display' to a time: -3.14ms throws TypeError
+Pass	Setting 'display' to a time: 3.14s throws TypeError
+Pass	Setting 'display' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'display' to an angle: 0deg throws TypeError
+Pass	Setting 'display' to an angle: 3.14rad throws TypeError
+Pass	Setting 'display' to an angle: -3.14deg throws TypeError
+Pass	Setting 'display' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'display' to a flexible length: 0fr throws TypeError
+Pass	Setting 'display' to a flexible length: 1fr throws TypeError
+Pass	Setting 'display' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'display' to a number: 0 throws TypeError
+Pass	Setting 'display' to a number: -3.14 throws TypeError
+Pass	Setting 'display' to a number: 3.14 throws TypeError
+Pass	Setting 'display' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'display' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'display' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'display' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	'display' does not support setting 'inline math'
+Pass	'display' does not support setting 'math inline'
+Pass	'display' does not support 'block math'
+Pass	'display' does not support 'math block'

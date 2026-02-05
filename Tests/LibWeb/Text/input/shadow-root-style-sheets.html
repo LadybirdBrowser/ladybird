@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<my-custom-element></my-custom-element>
+<script>
+    test(() => {
+        class MyCustomElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadow = this.attachShadow({ mode: 'open' });
+                const style = document.createElement('style');
+                shadow.appendChild(style);
+                println(`shadow.styleSheets.length=${shadow.styleSheets.length}`);
+                println(`document.styleSheets.length=${document.styleSheets.length}`);
+            }
+        }
+
+        customElements.define('my-custom-element', MyCustomElement);
+    });
+</script>

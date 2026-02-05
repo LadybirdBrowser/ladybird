@@ -1,0 +1,15 @@
+#import <DOM/Event.idl>
+#import <Speech/SpeechRecognitionResultList.idl>
+
+// https://wicg.github.io/speech-api/#speechrecognitionevent
+[Exposed=Window]
+interface SpeechRecognitionEvent : Event {
+    constructor(DOMString type, optional SpeechRecognitionEventInit eventInitDict = {});
+    readonly attribute unsigned long resultIndex;
+    readonly attribute SpeechRecognitionResultList results;
+};
+
+dictionary SpeechRecognitionEventInit : EventInit {
+    unsigned long resultIndex = 0;
+    SpeechRecognitionResultList? results = null;
+};

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<style>
+    input.required {
+        border: 2px solid red;
+    }
+
+    input.optional {
+        border: 2px solid blue;
+    }
+
+    input.required + span {
+        color: green;
+    }
+
+    div > input.required {
+        border: 2px dashed red;
+    }
+
+    section input.optional {
+        border: 2px dashed blue;
+    }
+
+    input.required ~ label {
+        color: orange;
+    }
+
+    form.has-required {
+        border: 2px solid purple;
+    }
+</style>
+
+<input type="text" class="required" placeholder="Should be red"><span>Should be green</span>
+<input type="text" class="optional" placeholder="Should be blue">
+
+<div>
+    <input type="text" class="required" placeholder="Should be dashed red">
+</div>
+
+<section>
+    <div>
+        <input type="text" class="optional" placeholder="Should be dashed blue">
+    </div>
+</section>
+
+<p>Other content</p>
+<label>Should be orange</label>
+
+<form class="has-required">
+    <span>Purple border</span>
+    <input id="make-me-required" class="required" type="text" placeholder="Should be red">
+</form>
+<form>
+    <span>No border</span>
+    <input id="make-me-optional" class="optional" type="text" placeholder="Should be blue">
+</form>

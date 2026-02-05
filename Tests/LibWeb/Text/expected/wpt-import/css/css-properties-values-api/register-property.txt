@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	registerProperty requires a Dictionary type
+Pass	registerProperty requires a name matching <custom-property-name>
+Pass	registerProperty only allows omitting initialValue if syntax is '*'
+Pass	registerProperty fails for an already registered property
+Pass	registerProperty requires inherits
+Fail	Registering a property should not cause a transition

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Shadow Parts - Inner Host</title>
+    <meta href="mailto:fergal@chromium.org" rel="author" title="Fergal Daly">
+    <link href="http://www.google.com/" rel="author" title="Google">
+    <link href="https://drafts.csswg.org/css-shadow-parts/" rel="help">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="support/shadow-helper.js"></script>
+  </head>
+  <body>
+    <style>#c-e-outer::part(partp) { color: green; }</style>
+    <script>installCustomElement("custom-element-inner", "custom-element-inner-template");</script>
+    <template id="custom-element-inner-template">
+      <style>span { color: blue; }</style>
+      <span id="blue_part" part="partp">This text</span>
+    </template>
+    <script>installCustomElement("custom-element-outer", "custom-element-outer-template");</script>
+    <template id="custom-element-outer-template">
+      <style>span { color: red; }</style>
+      <span id="green_part" part="partp">This text</span>
+      The following text should be blue:
+      <custom-element-inner id="c-e-inner"></custom-element-inner>
+    </template>
+    The following text should be green:
+    <custom-element-outer id="c-e-outer"></custom-element-outer>
+    <script>
+      "use strict";
+      const colorBlue = "rgb(0, 0, 255)";
+      const colorGreen = "rgb(0, 128, 0)";
+      test(function() {
+        const el = getElementByShadowIds(document, ["c-e-outer", "green_part"]);
+        assert_equals(window.getComputedStyle(el).color, colorGreen);
+      }, "Part in outer host is styled by document style sheet");
+      test(function() {
+        const el = getElementByShadowIds(document, ["c-e-outer", "c-e-inner", "blue_part"]);
+        assert_equals(window.getComputedStyle(el).color, colorBlue);
+      }, "Part in inner host is not styled by document style sheet");
+    </script>
+  </body>
+</html>

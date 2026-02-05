@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("keydown", e => {
+            println(`keydown ${e.key}`);
+        });
+
+        internals.sendText(input, "à");
+        internals.sendText(input, "á");
+        internals.sendText(input, "â");
+        internals.sendText(input, "ã");
+        internals.sendText(input, "ä");
+        internals.sendText(input, "å");
+    });
+</script>

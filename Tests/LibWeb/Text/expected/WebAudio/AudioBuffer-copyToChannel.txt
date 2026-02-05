@@ -1,0 +1,9 @@
+Error calling copyToChannel: IndexSizeError: Channel index is out of range
+Error calling copyToChannel: TypeError: Not an object of type Float32Array
+5,5,5,5,5,5,5
+1,1,1,1,1,1,1
+1,1,1,1,1,1,1
+1,1,1,1,1,1,1
+2,2,3,3,3,3,3
+2,2,3,3,3,3,3
+Done.

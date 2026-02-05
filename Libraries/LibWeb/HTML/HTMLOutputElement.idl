@@ -1,0 +1,26 @@
+#import <HTML/HTMLElement.idl>
+#import <HTML/HTMLFormElement.idl>
+#import <HTML/ValidityState.idl>
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#htmloutputelement
+[Exposed=Window]
+interface HTMLOutputElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList htmlFor;
+    readonly attribute HTMLFormElement? form;
+    [CEReactions, Reflect] attribute DOMString name;
+
+    readonly attribute DOMString type;
+    [CEReactions] attribute Utf16DOMString defaultValue;
+    [CEReactions] attribute Utf16DOMString value;
+
+    readonly attribute boolean willValidate;
+    readonly attribute ValidityState validity;
+    readonly attribute Utf16DOMString validationMessage;
+    boolean checkValidity();
+    boolean reportValidity();
+    undefined setCustomValidity(DOMString error);
+
+    readonly attribute NodeList labels;
+};

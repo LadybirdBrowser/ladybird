@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+@page {}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let page = document.styleSheets[0].cssRules[0];
+        const testCases = [
+            "upright",
+            "rotate-left",
+            "rotate-right",
+            // Invalid
+            "auto",
+            "none",
+            "rotate-left rotate-right",
+            "90deg"
+        ];
+
+        for (let testCase of testCases) {
+            page.style.removeProperty("page-orientation");
+            page.style.pageOrientation = testCase;
+            let parsed = page.style.pageOrientation;
+            if (parsed.length)
+                println(`"page-orientation: ${testCase}": parsed as "${parsed}"`);
+            else
+                println(`"page-orientation: ${testCase}": INVALID`);
+        }
+    });
+</script>

@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	el-b
+Pass	el-bdi
+Pass	el-bdo
+Pass	el-data
+Pass	el-div
+Pass	el-i
+Pass	el-pre
+Pass	el-q
+Pass	el-samp
+Pass	el-small
+Pass	el-span
+Pass	el-u

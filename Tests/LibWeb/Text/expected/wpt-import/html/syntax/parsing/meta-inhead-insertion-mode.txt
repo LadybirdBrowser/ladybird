@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Encoding specified in the 'charset' attribute should have precedence over 'content' attribute.

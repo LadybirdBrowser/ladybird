@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    let testID = 0;
+
+    const runTest = async terminator => {
+        const boundary = "AaB03x";
+        const body =
+            `--${boundary}\r\n` +
+            'Content-Disposition: form-data; name="field"\r\n' +
+            "\r\n" +
+            `value${testID++}\r\n` +
+            `--${boundary}--\r\n` +
+            terminator;
+
+        const response = new Response(
+            new Blob([body], { type: `multipart/form-data; boundary=${boundary}` }),
+            {
+                headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+            }
+        );
+
+        const data = await response.formData();
+        println(`Data: ${data.get("field")}`);
+    };
+
+    asyncTest(async done => {
+        await runTest("");
+        await runTest("\r");
+        await runTest("\n");
+        await runTest("\r\n");
+        await runTest("junk");
+        await runTest("\r\njunk");
+        done();
+    });
+</script>

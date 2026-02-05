@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: min-size when the child has a percentage min-size</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item">
+<meta name="assert" content="This test ensures that min-size can not be negative when the child has a percentage min-size.">
+<link href="support/flexbox.css" rel="stylesheet">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox column" style="max-height: 0; overflow: hidden; line-height: 13px;" data-expected-height="0">
+    <div style="min-height: 100%;" data-expected-height="0">This is a flex item.</div>
+    <div style="flex: none;" data-expected-height="13">Inflexible</div>
+</div>

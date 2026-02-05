@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: parsing animation-duration with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#propdef-animation-duration">
+<meta name="assert" content="animation-duration supports the full grammar '<time> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("animation-duration", '3s');
+test_valid_value("animation-duration", '500ms');
+test_valid_value("animation-duration", '1s, 2s, 3s');
+</script>
+</body>
+</html>

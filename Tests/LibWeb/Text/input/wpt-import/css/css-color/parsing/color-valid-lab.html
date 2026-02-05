@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Parsing and serialization of colors using valid Lab notation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#lab-colors">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-lab-lch-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-oklab-oklch-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-lab-lch">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-oklab-oklch">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+tests = [
+    // lab()
+    ["lab(0 0 0)", "lab(0 0 0)"],
+    ["lab(0 0 0 / 1)", "lab(0 0 0)"],
+    ["lab(0 0 0 / 0.5)", "lab(0 0 0 / 0.5)"],
+    ["lab(20 0 10/0.5)", "lab(20 0 10 / 0.5)"],
+    ["lab(20 0 10/50%)", "lab(20 0 10 / 0.5)"],
+    ["lab(400 0 10/50%)", "lab(100 0 10 / 0.5)"],
+    ["lab(50 -160 160)", "lab(50 -160 160)"],
+    ["lab(50 -200 200)", "lab(50 -200 200)"],
+    ["lab(0 0 0 / -10%)", "lab(0 0 0 / 0)"],
+    ["lab(0 0 0 / 110%)", "lab(0 0 0)"],
+    ["lab(0 0 0 / 300%)", "lab(0 0 0)"],
+    ["lab(-40 0 0)", "lab(0 0 0)"],
+    ["lab(50 -20 0)", "lab(50 -20 0)"],
+    ["lab(50 0 -20)", "lab(50 0 -20)"],
+    ["lab(50% 50% -20%)", "lab(50 62.5 -25)"],
+    ["lab(50 -20% -20%)", "lab(50 -25 -25)"],
+    ["lab(calc(50 * 3) calc(0.5 - 1) calc(1.5) / calc(-0.5 + 1))", "lab(calc(150) calc(-0.5) calc(1.5) / calc(0.5))"],
+    ["lab(calc(-50 * 3) calc(0.5 + 1) calc(-1.5) / calc(-0.5 * 2))", "lab(calc(-150) calc(1.5) calc(-1.5) / calc(-1))"],
+    ["lab(calc(50%) 50% 0.5)", "lab(calc(50%) 62.5 0.5)"],
+    ["lab(200 calc(50%) 0.5)", "lab(100 calc(50%) 0.5)"],
+    ["lab(-200 calc(50%) 0.5)", "lab(0 calc(50%) 0.5)"],
+    ["lab(none 20 calc(0.5))", "lab(none 20 calc(0.5))"],
+
+    ["lab(none none none / none)", "lab(none none none / none)"],
+    ["lab(none none none)", "lab(none none none)"],
+    ["lab(20 none none / none)", "lab(20 none none / none)"],
+    ["lab(none none none / 0.5)", "lab(none none none / 0.5)"],
+    ["lab(0 0 0 / none)", "lab(0 0 0 / none)"],
+
+    ["lab(calc(infinity) 0 0)", "lab(calc(infinity) 0 0)"],
+    ["lab(50 calc(infinity) 0)", "lab(50 calc(infinity) 0)"],
+    ["lab(50 calc(-infinity) 0)", "lab(50 calc(-infinity) 0)"],
+    ["lab(calc(NaN) 0 0)", "lab(calc(NaN) 0 0)"],
+    ["lab(calc(0 / 0) 0 0)", "lab(calc(NaN) 0 0)"],
+
+    // oklab()
+    ["oklab(0 0 0)", "oklab(0 0 0)"],
+    ["oklab(0 0 0 / 1)", "oklab(0 0 0)"],
+    ["oklab(0 0 0 / 0.5)", "oklab(0 0 0 / 0.5)"],
+    ["oklab(0.2 0 0.1/0.5)", "oklab(0.2 0 0.1 / 0.5)"],
+    ["oklab(0.2 0 0.1/50%)", "oklab(0.2 0 0.1 / 0.5)"],
+    ["oklab(4 0 0.1/50%)", "oklab(1 0 0.1 / 0.5)"],
+    ["oklab(0.5 -1.6 1.6)", "oklab(0.5 -1.6 1.6)"],
+    ["oklab(0.5 -2 2)", "oklab(0.5 -2 2)"],
+    ["oklab(0 0 0 / -10%)", "oklab(0 0 0 / 0)"],
+    ["oklab(0 0 0 / 110%)", "oklab(0 0 0)"],
+    ["oklab(0 0 0 / 300%)", "oklab(0 0 0)"],
+    ["oklab(-0.4 0 0)", "oklab(0 0 0)"],
+    ["oklab(0.5 -2 0)", "oklab(0.5 -2 0)"],
+    ["oklab(0.5 0 -2)", "oklab(0.5 0 -2)"],
+    ["oklab(50% 50% -20%)", "oklab(0.5 0.2 -0.08)"],
+    ["oklab(0.5 -20% -20%)", "oklab(0.5 -0.08 -0.08)"],
+    ["oklab(calc(0.5 * 3) calc(0.5 - 1) calc(1.5) / calc(-0.5 + 1))", "oklab(calc(1.5) calc(-0.5) calc(1.5) / calc(0.5))"],
+    ["oklab(calc(-0.5 * 3) calc(0.5 + 1) calc(-1.5) / calc(-0.5 * 2))", "oklab(calc(-1.5) calc(1.5) calc(-1.5) / calc(-1))"],
+    ["oklab(calc(50%) 50% 0.5)", "oklab(calc(50%) 0.2 0.5)"],
+    ["oklab(200 calc(50%) 0.5)", "oklab(1 calc(50%) 0.5)"],
+    ["oklab(-200 calc(50%) 0.5)", "oklab(0 calc(50%) 0.5)"],
+    ["oklab(none 0.2 calc(0.5))", "oklab(none 0.2 calc(0.5))"],
+
+    ["oklab(none none none / none)", "oklab(none none none / none)"],
+    ["oklab(none none none)", "oklab(none none none)"],
+    ["oklab(0.2 none none / none)", "oklab(0.2 none none / none)"],
+    ["oklab(none none none / 0.5)", "oklab(none none none / 0.5)"],
+    ["oklab(0 0 0 / none)", "oklab(0 0 0 / none)"],
+
+    // These tests validate the ranges of lab() vs. oklab() components
+    ["lab(20% -50% 90%/0.5)", "lab(20 -62.5 112.5 / 0.5)"],
+    ["oklab(20% 70% -80%/0.5)", "oklab(0.2 0.28 -0.32 / 0.5)"],
+
+    ["oklab(calc(infinity) 0 0)", "oklab(calc(infinity) 0 0)"],
+    ["oklab(0.5 calc(infinity) 0)", "oklab(0.5 calc(infinity) 0)"],
+    ["oklab(0.5 calc(-infinity) 0)", "oklab(0.5 calc(-infinity) 0)"],
+    ["oklab(calc(NaN) 0 0)", "oklab(calc(NaN) 0 0)"],
+    ["oklab(calc(0 / 0) 0 0)", "oklab(calc(NaN) 0 0)"],
+
+    // lch()
+    ["lch(0 0 0deg)", "lch(0 0 0)"],
+    ["lch(0 0 0deg / 1)", "lch(0 0 0)"],
+    ["lch(0 0 0deg / 0.5)", "lch(0 0 0 / 0.5)"],
+    ["lch(100 230 0deg / 0.5)", "lch(100 230 0 / 0.5)"],
+    ["lch(20 50 20deg/0.5)", "lch(20 50 20 / 0.5)"],
+    ["lch(20 50 20deg/50%)", "lch(20 50 20 / 0.5)"],
+    ["lch(10 20 20deg / -10%)", "lch(10 20 20 / 0)"],
+    ["lch(10 20 20deg / 110%)", "lch(10 20 20)"],
+    ["lch(10 20 1.28rad)", "lch(10 20 73.3386)"],
+    ["lch(10 20 380deg)", "lch(10 20 20)"],
+    ["lch(10 20 -340deg)", "lch(10 20 20)"],
+    ["lch(10 20 740deg)", "lch(10 20 20)"],
+    ["lch(10 20 -700deg)", "lch(10 20 20)"],
+    ["lch(-40 0 0)", "lch(0 0 0)"],
+    ["lch(20 -20 0)", "lch(20 0 0)"],
+    ["lch(0 0 0 / 0.5)", "lch(0 0 0 / 0.5)"],
+    ["lch(10 20 20 / 110%)", "lch(10 20 20)"],
+    ["lch(10 20 -700)", "lch(10 20 20)"],
+    ["lch(50% 50% 20)", "lch(50 75 20)"],
+    ["lch(0.5 -20% -20)", "lch(0.5 0 340)"],
+    ["lch(calc(50 * 3) calc(0.5 - 1) calc(20deg * 2) / calc(-0.5 + 1))", "lch(calc(150) calc(-0.5) calc(40deg) / calc(0.5))"],
+    ["lch(calc(-50 * 3) calc(0.5 + 1) calc(-20deg * 2) / calc(-0.5 * 2))", "lch(calc(-150) calc(1.5) calc(-40deg) / calc(-1))"],
+    ["lch(calc(50%) 50% 0.5)", "lch(calc(50%) 75 0.5)"],
+    ["lch(200 calc(50%) 0.5)", "lch(100 calc(50%) 0.5)"],
+    ["lch(-200 calc(50%) 0.5)", "lch(0 calc(50%) 0.5)"],
+    ["lch(calc(50%) -100 0.5)", "lch(calc(50%) 0 0.5)"],
+    ["lch(none 20 calc(0.5))", "lch(none 20 calc(0.5))"],
+
+    ["lch(none none none / none)", "lch(none none none / none)"],
+    ["lch(none none none)", "lch(none none none)"],
+    ["lch(20 none none / none)", "lch(20 none none / none)"],
+    ["lch(none none none / 0.5)", "lch(none none none / 0.5)"],
+    ["lch(0 0 0 / none)", "lch(0 0 0 / none)"],
+
+    ["lch(calc(infinity) 0 0)", "lch(calc(infinity) 0 0)"],
+    ["lch(50 calc(infinity) 0)", "lch(50 calc(infinity) 0)"],
+    ["lch(50 calc(-infinity) 0)", "lch(50 calc(-infinity) 0)"],
+    ["lch(calc(NaN) 0 0)", "lch(calc(NaN) 0 0)"],
+    ["lch(calc(0 / 0) 0 0)", "lch(calc(NaN) 0 0)"],
+
+    // oklch()
+    ["oklch(0 0 0deg)", "oklch(0 0 0)"],
+    ["oklch(0 0 0deg / 1)", "oklch(0 0 0)"],
+    ["oklch(0 0 0deg / 0.5)", "oklch(0 0 0 / 0.5)"],
+    ["oklch(1 2.3 0deg / 0.5)", "oklch(1 2.3 0 / 0.5)"],
+    ["oklch(0.2 0.5 20deg/0.5)", "oklch(0.2 0.5 20 / 0.5)"],
+    ["oklch(0.2 0.5 20deg/50%)", "oklch(0.2 0.5 20 / 0.5)"],
+    ["oklch(0.1 0.2 20deg / -10%)", "oklch(0.1 0.2 20 / 0)"],
+    ["oklch(0.1 0.2 20deg / 110%)", "oklch(0.1 0.2 20)"],
+    ["oklch(0.1 0.2 1.28rad)", "oklch(0.1 0.2 73.3386)"],
+    ["oklch(0.1 0.2 380deg)", "oklch(0.1 0.2 20)"],
+    ["oklch(0.1 0.2 -340deg)", "oklch(0.1 0.2 20)"],
+    ["oklch(0.1 0.2 740deg)", "oklch(0.1 0.2 20)"],
+    ["oklch(0.1 0.2 -700deg)", "oklch(0.1 0.2 20)"],
+    ["oklch(-4 0 0)", "oklch(0 0 0)"],
+    ["oklch(0.2 -0.2 0)", "oklch(0.2 0 0)"],
+    ["oklch(0 0 0 / 0.5)", "oklch(0 0 0 / 0.5)"],
+    ["oklch(0.1 0.2 20 / 110%)", "oklch(0.1 0.2 20)"],
+    ["oklch(0.1 0.2 -700)", "oklch(0.1 0.2 20)"],
+    ["oklch(50% 50% 20)", "oklch(0.5 0.2 20)"],
+    ["oklch(0.5 -20% -20)", "oklch(0.5 0 340)"],
+    ["oklch(calc(0.5 * 3) calc(0.5 - 1) calc(20deg * 2) / calc(-0.5 + 1))", "oklch(calc(1.5) calc(-0.5) calc(40deg) / calc(0.5))"],
+    ["oklch(calc(-0.5 * 3) calc(0.5 + 1) calc(-20deg * 2) / calc(-0.5 * 2))", "oklch(calc(-1.5) calc(1.5) calc(-40deg) / calc(-1))"],
+    ["oklch(calc(50%) 50% 0.5)", "oklch(calc(50%) 0.2 0.5)"],
+    ["oklch(200 calc(50%) 0.5)", "oklch(1 calc(50%) 0.5)"],
+    ["oklch(-200 calc(50%) 0.5)", "oklch(0 calc(50%) 0.5)"],
+    ["oklch(calc(50%) -100 0.5)", "oklch(calc(50%) 0 0.5)"],
+    ["oklch(none 0.2 calc(0.5))", "oklch(none 0.2 calc(0.5))"],
+
+    ["oklch(none none none / none)", "oklch(none none none / none)"],
+    ["oklch(none none none)", "oklch(none none none)"],
+    ["oklch(0.2 none none / none)", "oklch(0.2 none none / none)"],
+    ["oklch(none none none / 0.5)", "oklch(none none none / 0.5)"],
+    ["oklch(0 0 0 / none)", "oklch(0 0 0 / none)"],
+
+    // These tests validate the ranges of lch() vs. oklch() lightness and chroma
+    ["lch(20% 80% 10/0.5)", "lch(20 120 10 / 0.5)"],
+    ["oklch(20% 60% 10/0.5)", "oklch(0.2 0.24 10 / 0.5)"],
+
+    ["oklch(calc(infinity) 0 0)", "oklch(calc(infinity) 0 0)"],
+    ["oklch(0.5 calc(infinity) 0)", "oklch(0.5 calc(infinity) 0)"],
+    ["oklch(0.5 calc(-infinity) 0)", "oklch(0.5 calc(-infinity) 0)"],
+    ["oklch(calc(NaN) 0 0)", "oklch(calc(NaN) 0 0)"],
+    ["oklch(calc(0 / 0) 0 0)", "oklch(calc(NaN) 0 0)"],
+
+    // calc(50% + (sign(1em - 10px) * 10%)) cannot be evaluated eagerly because font relative units are not yet known at parse time.
+    ["lab(calc(50 + (sign(1em - 10px) * 10)) 30 50 / 50%)", "lab(calc(50 + (10 * sign(1em - 10px))) 30 50 / 0.5)"],
+    ["oklab(calc(0.5 + (sign(1em - 10px) * 0.1)) 0.3 0.5 / 50%)", "oklab(calc(0.5 + (0.1 * sign(1em - 10px))) 0.3 0.5 / 0.5)"],
+    ["lab(60 30 50 / calc(50% + (sign(1em - 10px) * 10%)))", "lab(60 30 50 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["oklab(0.6 0.3 0.5 / calc(50% + (sign(1em - 10px) * 10%)))", "oklab(0.6 0.3 0.5 / calc(50% + (10% * sign(1em - 10px))))"],
+
+    ["lch(calc(50 + (sign(1em - 10px) * 10)) 30 50deg / 50%)", "lch(calc(50 + (10 * sign(1em - 10px))) 30 50 / 0.5)"],
+    ["oklch(calc(0.5 + (sign(1em - 10px) * 0.1)) 0.3 50deg / 50%)", "oklch(calc(0.5 + (0.1 * sign(1em - 10px))) 0.3 50 / 0.5)"],
+    ["lch(60 30 50deg / calc(50% + (sign(1em - 10px) * 10%)))", "lch(60 30 50 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["oklch(0.6 0.3 50deg / calc(50% + (sign(1em - 10px) * 10%)))", "oklch(0.6 0.3 50 / calc(50% + (10% * sign(1em - 10px))))"],
+];
+
+for (const test of tests) {
+    test_valid_value("color", test[0], test[1]);
+}
+
+</script>
+</body>
+</html>

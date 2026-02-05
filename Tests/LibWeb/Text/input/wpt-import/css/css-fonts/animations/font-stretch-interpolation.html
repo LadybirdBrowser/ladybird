@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-size interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-3/#propdef-font-size">
+<meta name="assert" content="font-size supports animation as length">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.container {
+  font-stretch: ultra-expanded;
+}
+.container2 {
+  font-stretch: ultra-condensed;
+}
+.target {
+  display: inline-block;
+  font: 100px sans-serif;
+  font-stretch: normal;
+}
+.expected {
+  color: green;
+  margin-right: 30px;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <span class="container">
+    <div class="target">TT</div>
+  </span>
+</template>
+
+<span id="inv-container" class="container">
+  <div id="inv-target" class="target">TT</div>
+</span>
+</body>
+
+<script>
+test_interpolation({
+  property: 'font-stretch',
+  from: '100%',
+  to: '200%'
+}, [
+  {at: -2, expect: '0%'},  // CSS font-stretch can't be negative.
+  {at: -0.25, expect: '75%'},
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '130%'},
+  {at: 0.6, expect: '160%'},
+  {at: 1, expect: '200%'},
+  {at: 1.5, expect: '250%'},
+]);
+
+test_interpolation({
+  property: 'font-stretch',
+  from: neutralKeyframe,
+  to: '200%'
+}, [
+  {at: -2, expect: '0%'},
+  {at: -0.25, expect: '75%'},
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '130%'},
+  {at: 0.6, expect: '160%'},
+  {at: 1, expect: '200%'},
+  {at: 1.5, expect: '250%'},
+]);
+
+test_interpolation({
+  property: 'font-stretch',
+  from: 'initial',
+  to: 'inherit'
+}, [
+  {at: -2, expect: '0%'},
+  {at: -0.25, expect: '75%'},
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '130%'},
+  {at: 0.6, expect: '160%'},
+  {at: 1, expect: '200%'},
+  {at: 1.5, expect: '250%'},
+]);
+
+// Test interpolation from keywords.
+test_interpolation({
+  property: 'font-stretch',
+  from: 'normal',
+  to: 'ultra-expanded'
+}, [
+  {at: -0.25, expect: '75%'},
+  {at: 0, expect: '100%'},
+  {at: 0.125, expect: '112.5%'},
+  {at: 0.25, expect: '125%'},
+  {at: 0.5, expect: '150%'},
+  {at: 0.75, expect: '175%'},
+  {at: 1, expect: '200%'},
+]);
+
+test_interpolation({
+  property: 'font-stretch',
+  from: 'ultra-condensed',
+  to: 'condensed'
+}, [
+  {at: 0, expect: '50%'},
+  {at: 0.5, expect: '62.5%'},
+  {at: 1, expect: '75%'},
+]);
+
+test_interpolation({
+  property: 'font-stretch',
+  from: 'extra-condensed',
+  to: 'semi-condensed'
+}, [
+  {at: 0, expect: '62.5%'},
+  {at: 0.5, expect: '75%'},
+  {at: 1, expect: '87.5%'},
+]);
+
+test_interpolation({
+  property: 'font-stretch',
+  from: 'condensed',
+  to: 'expanded'
+}, [
+  {at: 0, expect: '75%'},
+  {at: 0.25, expect: '87.5%'},
+  {at: 0.5, expect: '100%'},
+  {at: 0.75, expect: '112.5%'},
+  {at: 1, expect: '125%'},
+]);
+
+test_interpolation({
+  property: 'font-stretch',
+  from: 'semi-condensed',
+  to: 'semi-expanded'
+}, [
+  {at: 0, expect: '87.5%'},
+  {at: 0.5, expect: '100%'},
+  {at: 1, expect: '112.5%'},
+]);
+
+test_interpolation({
+  property: 'font-stretch',
+  from: 'normal',
+  to: 'extra-expanded'
+}, [
+  {at: 0, expect: '100%'},
+  {at: 0.25, expect: '112.5%'},
+  {at: 0.5, expect: '125%'},
+  {at: 1, expect: '150%'},
+]);
+
+test(t => {
+  var container = document.getElementById('inv-container');
+  var target = document.getElementById('inv-target');
+  var anim = target.animate({fontStretch: ['normal', 'inherit']}, 1000);
+  anim.pause();
+  anim.currentTime = 500;
+  assert_equals(getComputedStyle(target).fontStretch, '150%');
+
+  container.setAttribute('class', 'container2');
+  assert_equals(getComputedStyle(target).fontStretch, '75%');
+}, "An interpolation to inherit updates correctly on a parent style change.");
+
+</script>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Creating a DOMQuad
+        testPart(() => new DOMQuad(
+            new DOMPoint(0, 0),
+            new DOMPoint(100, 0),
+            new DOMPoint(100, 100),
+            new DOMPoint(0, 100)
+        ));
+
+        // 2. Creating DOMQuad with fromRect
+        testPart(() => DOMQuad.fromRect({ x: 0, y: 0, width: 100, height: 100 }));
+
+        // 3. Creating DOMQuad with fromQuad
+        testPart(() => DOMQuad.fromQuad({
+            p1: { x: 0, y: 0, z: 0, w: 1 },
+            p2: { x: 100, y: 0, z: 0, w: 1 },
+            p3: { x: 100, y: 100, z: 0, w: 1 },
+            p4: { x: 0, y: 100, z: 0, w: 1 }
+        }));
+
+        // 4. Getting the bounds of a DOMQuad
+        testPart(() => new DOMQuad(
+            new DOMPoint(0, 0),
+            new DOMPoint(100, 0),
+            new DOMPoint(100, 100),
+            new DOMPoint(0, 100)
+        ).getBounds());
+
+        // 5. Getting the bounds of a DOMQuad with points set to Infinity
+        testPart(() => DOMQuad.fromRect({ 
+            x: -Infinity,
+            y: -Infinity,
+            width: Infinity,
+            height: Infinity
+        }).getBounds());
+    });
+</script>

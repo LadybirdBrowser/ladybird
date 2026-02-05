@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        function onFirst(e) {
+            const port = (e.data && e.data.port) || (e.ports && e.ports[0]);
+            if (!port) return;
+
+            println("first receipt: re-transferring same port");
+            window.removeEventListener("message", onFirst);
+            window.addEventListener("message", onSecond);
+            window.postMessage({ port }, "*", [port]);
+        }
+
+        function onSecond(e) {
+            println("we good");
+            done();
+        }
+
+        window.addEventListener("message", onFirst);
+
+        const { port1, port2 } = new MessageChannel();
+        port1.onmessage = e => println("main saw: " + e.data);
+
+        window.postMessage({ port: port2 }, "*", [port2]);
+    });
+</script>

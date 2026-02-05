@@ -1,0 +1,3 @@
+Case 1 (ancestor selector): rgb(0, 128, 0)
+Case 2 (sibling combinator): rgb(0, 128, 0)
+Case 3 (deep nesting): rgb(0, 128, 0)

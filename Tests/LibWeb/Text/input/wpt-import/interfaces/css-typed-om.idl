@@ -1,0 +1,428 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Typed OM Level 1 (https://drafts.css-houdini.org/css-typed-om-1/)
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSStyleValue {
+    stringifier;
+    [Exposed=Window] static CSSStyleValue parse(USVString property, USVString cssText);
+    [Exposed=Window] static sequence<CSSStyleValue> parseAll(USVString property, USVString cssText);
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface StylePropertyMapReadOnly {
+    iterable<USVString, sequence<CSSStyleValue>>;
+    (undefined or CSSStyleValue) get(USVString property);
+    sequence<CSSStyleValue> getAll(USVString property);
+    boolean has(USVString property);
+    readonly attribute unsigned long size;
+};
+
+[Exposed=Window]
+interface StylePropertyMap : StylePropertyMapReadOnly {
+    undefined set(USVString property, (CSSStyleValue or USVString)... values);
+    undefined append(USVString property, (CSSStyleValue or USVString)... values);
+    undefined delete(USVString property);
+    undefined clear();
+};
+
+partial interface Element {
+    [SameObject] StylePropertyMapReadOnly computedStyleMap();
+};
+
+partial interface CSSStyleRule {
+    [SameObject] readonly attribute StylePropertyMap styleMap;
+};
+
+partial interface mixin ElementCSSInlineStyle {
+    [SameObject] readonly attribute StylePropertyMap attributeStyleMap;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSUnparsedValue : CSSStyleValue {
+    constructor(sequence<CSSUnparsedSegment> members);
+    iterable<CSSUnparsedSegment>;
+    readonly attribute unsigned long length;
+    getter CSSUnparsedSegment (unsigned long index);
+    setter undefined (unsigned long index, CSSUnparsedSegment val);
+};
+
+typedef (USVString or CSSVariableReferenceValue) CSSUnparsedSegment;
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSVariableReferenceValue {
+    constructor(USVString variable, optional CSSUnparsedValue? fallback = null);
+    attribute USVString variable;
+    readonly attribute CSSUnparsedValue? fallback;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSKeywordValue : CSSStyleValue {
+    constructor(USVString value);
+    attribute USVString value;
+};
+
+typedef (DOMString or CSSKeywordValue) CSSKeywordish;
+
+typedef (double or CSSNumericValue) CSSNumberish;
+
+enum CSSNumericBaseType {
+    "length",
+    "angle",
+    "time",
+    "frequency",
+    "resolution",
+    "flex",
+    "percent",
+};
+
+dictionary CSSNumericType {
+    long length;
+    long angle;
+    long time;
+    long frequency;
+    long resolution;
+    long flex;
+    long percent;
+    CSSNumericBaseType percentHint;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSNumericValue : CSSStyleValue {
+    CSSNumericValue add(CSSNumberish... values);
+    CSSNumericValue sub(CSSNumberish... values);
+    CSSNumericValue mul(CSSNumberish... values);
+    CSSNumericValue div(CSSNumberish... values);
+    CSSNumericValue min(CSSNumberish... values);
+    CSSNumericValue max(CSSNumberish... values);
+
+    boolean equals(CSSNumberish... value);
+
+    CSSUnitValue to(USVString unit);
+    CSSMathSum toSum(USVString... units);
+    CSSNumericType type();
+
+    [Exposed=Window] static CSSNumericValue parse(USVString cssText);
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSUnitValue : CSSNumericValue {
+    constructor(double value, USVString unit);
+    attribute double value;
+    readonly attribute USVString unit;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathValue : CSSNumericValue {
+    readonly attribute CSSMathOperator operator;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathSum : CSSMathValue {
+    constructor(CSSNumberish... args);
+    readonly attribute CSSNumericArray values;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathProduct : CSSMathValue {
+    constructor(CSSNumberish... args);
+    readonly attribute CSSNumericArray values;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathNegate : CSSMathValue {
+    constructor(CSSNumberish arg);
+    readonly attribute CSSNumericValue value;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathInvert : CSSMathValue {
+    constructor(CSSNumberish arg);
+    readonly attribute CSSNumericValue value;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathMin : CSSMathValue {
+    constructor(CSSNumberish... args);
+    readonly attribute CSSNumericArray values;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathMax : CSSMathValue {
+    constructor(CSSNumberish... args);
+    readonly attribute CSSNumericArray values;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathClamp : CSSMathValue {
+    constructor(CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
+    readonly attribute CSSNumericValue lower;
+    readonly attribute CSSNumericValue value;
+    readonly attribute CSSNumericValue upper;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSNumericArray {
+    iterable<CSSNumericValue>;
+    readonly attribute unsigned long length;
+    getter CSSNumericValue (unsigned long index);
+};
+
+enum CSSMathOperator {
+    "sum",
+    "product",
+    "negate",
+    "invert",
+    "min",
+    "max",
+    "clamp",
+};
+
+partial namespace CSS {
+    CSSUnitValue number(double value);
+    CSSUnitValue percent(double value);
+
+    // <length>
+    CSSUnitValue cap(double value);
+    CSSUnitValue ch(double value);
+    CSSUnitValue em(double value);
+    CSSUnitValue ex(double value);
+    CSSUnitValue ic(double value);
+    CSSUnitValue lh(double value);
+    CSSUnitValue rcap(double value);
+    CSSUnitValue rch(double value);
+    CSSUnitValue rem(double value);
+    CSSUnitValue rex(double value);
+    CSSUnitValue ric(double value);
+    CSSUnitValue rlh(double value);
+    CSSUnitValue vw(double value);
+    CSSUnitValue vh(double value);
+    CSSUnitValue vi(double value);
+    CSSUnitValue vb(double value);
+    CSSUnitValue vmin(double value);
+    CSSUnitValue vmax(double value);
+    CSSUnitValue svw(double value);
+    CSSUnitValue svh(double value);
+    CSSUnitValue svi(double value);
+    CSSUnitValue svb(double value);
+    CSSUnitValue svmin(double value);
+    CSSUnitValue svmax(double value);
+    CSSUnitValue lvw(double value);
+    CSSUnitValue lvh(double value);
+    CSSUnitValue lvi(double value);
+    CSSUnitValue lvb(double value);
+    CSSUnitValue lvmin(double value);
+    CSSUnitValue lvmax(double value);
+    CSSUnitValue dvw(double value);
+    CSSUnitValue dvh(double value);
+    CSSUnitValue dvi(double value);
+    CSSUnitValue dvb(double value);
+    CSSUnitValue dvmin(double value);
+    CSSUnitValue dvmax(double value);
+    CSSUnitValue cqw(double value);
+    CSSUnitValue cqh(double value);
+    CSSUnitValue cqi(double value);
+    CSSUnitValue cqb(double value);
+    CSSUnitValue cqmin(double value);
+    CSSUnitValue cqmax(double value);
+    CSSUnitValue cm(double value);
+    CSSUnitValue mm(double value);
+    CSSUnitValue Q(double value);
+    CSSUnitValue in(double value);
+    CSSUnitValue pt(double value);
+    CSSUnitValue pc(double value);
+    CSSUnitValue px(double value);
+
+    // <angle>
+    CSSUnitValue deg(double value);
+    CSSUnitValue grad(double value);
+    CSSUnitValue rad(double value);
+    CSSUnitValue turn(double value);
+
+    // <time>
+    CSSUnitValue s(double value);
+    CSSUnitValue ms(double value);
+
+    // <frequency>
+    CSSUnitValue Hz(double value);
+    CSSUnitValue kHz(double value);
+
+    // <resolution>
+    CSSUnitValue dpi(double value);
+    CSSUnitValue dpcm(double value);
+    CSSUnitValue dppx(double value);
+
+    // <flex>
+    CSSUnitValue fr(double value);
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSTransformValue : CSSStyleValue {
+    constructor(sequence<CSSTransformComponent> transforms);
+    iterable<CSSTransformComponent>;
+    readonly attribute unsigned long length;
+    getter CSSTransformComponent (unsigned long index);
+    setter undefined (unsigned long index, CSSTransformComponent val);
+
+    readonly attribute boolean is2D;
+    DOMMatrix toMatrix();
+};
+
+typedef (CSSNumericValue or CSSKeywordish) CSSPerspectiveValue;
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSTransformComponent {
+    stringifier;
+    attribute boolean is2D;
+    DOMMatrix toMatrix();
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSTranslate : CSSTransformComponent {
+    constructor(CSSNumericValue x, CSSNumericValue y, optional CSSNumericValue z);
+    attribute CSSNumericValue x;
+    attribute CSSNumericValue y;
+    attribute CSSNumericValue z;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSRotate : CSSTransformComponent {
+    constructor(CSSNumericValue angle);
+    constructor(CSSNumberish x, CSSNumberish y, CSSNumberish z, CSSNumericValue angle);
+    attribute CSSNumberish x;
+    attribute CSSNumberish y;
+    attribute CSSNumberish z;
+    attribute CSSNumericValue angle;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSScale : CSSTransformComponent {
+    constructor(CSSNumberish x, CSSNumberish y, optional CSSNumberish z);
+    attribute CSSNumberish x;
+    attribute CSSNumberish y;
+    attribute CSSNumberish z;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSSkew : CSSTransformComponent {
+    constructor(CSSNumericValue ax, CSSNumericValue ay);
+    attribute CSSNumericValue ax;
+    attribute CSSNumericValue ay;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSSkewX : CSSTransformComponent {
+    constructor(CSSNumericValue ax);
+    attribute CSSNumericValue ax;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSSkewY : CSSTransformComponent {
+    constructor(CSSNumericValue ay);
+    attribute CSSNumericValue ay;
+};
+
+/* Note that skew(x,y) is *not* the same as skewX(x) skewY(y),
+   thus the separate interfaces for all three. */
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSPerspective : CSSTransformComponent {
+    constructor(CSSPerspectiveValue length);
+    attribute CSSPerspectiveValue length;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMatrixComponent : CSSTransformComponent {
+    constructor(DOMMatrixReadOnly matrix, optional CSSMatrixComponentOptions options = {});
+    attribute DOMMatrix matrix;
+};
+
+dictionary CSSMatrixComponentOptions {
+    boolean is2D;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSImageValue : CSSStyleValue {
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSColorValue : CSSStyleValue {
+    [Exposed=Window] static (CSSColorValue or CSSStyleValue) parse(USVString cssText);
+};
+
+typedef (CSSNumberish or CSSKeywordish) CSSColorRGBComp;
+typedef (CSSNumberish or CSSKeywordish) CSSColorPercent;
+typedef (CSSNumberish or CSSKeywordish) CSSColorNumber;
+typedef (CSSNumberish or CSSKeywordish) CSSColorAngle;
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSRGB : CSSColorValue {
+    constructor(CSSColorRGBComp r, CSSColorRGBComp g, CSSColorRGBComp b, optional CSSColorPercent alpha = 1);
+    attribute CSSColorRGBComp r;
+    attribute CSSColorRGBComp g;
+    attribute CSSColorRGBComp b;
+    attribute CSSColorPercent alpha;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSHSL : CSSColorValue {
+    constructor(CSSColorAngle h, CSSColorPercent s, CSSColorPercent l, optional CSSColorPercent alpha = 1);
+    attribute CSSColorAngle h;
+    attribute CSSColorPercent s;
+    attribute CSSColorPercent l;
+    attribute CSSColorPercent alpha;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSHWB : CSSColorValue {
+    constructor(CSSNumericValue h, CSSNumberish w, CSSNumberish b, optional CSSNumberish alpha = 1);
+    attribute CSSNumericValue h;
+    attribute CSSNumberish w;
+    attribute CSSNumberish b;
+    attribute CSSNumberish alpha;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSLab : CSSColorValue {
+    constructor(CSSColorPercent l, CSSColorNumber a, CSSColorNumber b, optional CSSColorPercent alpha = 1);
+    attribute CSSColorPercent l;
+    attribute CSSColorNumber a;
+    attribute CSSColorNumber b;
+    attribute CSSColorPercent alpha;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSLCH : CSSColorValue {
+    constructor(CSSColorPercent l, CSSColorPercent c, CSSColorAngle h, optional CSSColorPercent alpha = 1);
+    attribute CSSColorPercent l;
+    attribute CSSColorPercent c;
+    attribute CSSColorAngle h;
+    attribute CSSColorPercent alpha;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSOKLab : CSSColorValue {
+    constructor(CSSColorPercent l, CSSColorNumber a, CSSColorNumber b, optional CSSColorPercent alpha = 1);
+    attribute CSSColorPercent l;
+    attribute CSSColorNumber a;
+    attribute CSSColorNumber b;
+    attribute CSSColorPercent alpha;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSOKLCH : CSSColorValue {
+    constructor(CSSColorPercent l, CSSColorPercent c, CSSColorAngle h, optional CSSColorPercent alpha = 1);
+    attribute CSSColorPercent l;
+    attribute CSSColorPercent c;
+    attribute CSSColorAngle h;
+    attribute CSSColorPercent alpha;
+};
+
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSColor : CSSColorValue {
+    constructor(CSSKeywordish colorSpace, sequence<CSSColorPercent> channels, optional CSSNumberish alpha = 1);
+    attribute CSSKeywordish colorSpace;
+    attribute ObservableArray<CSSColorPercent> channels;
+    attribute CSSNumberish alpha;
+};

@@ -1,0 +1,75 @@
+<!DOCTYPE HTML>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#register-a-custom-property" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./resources/utils.js"></script>
+<div id=target></div>
+<script>
+// Tests for error checking during property registration
+
+test(function() {
+    assert_throws_js(TypeError, () => CSS.registerProperty());
+    assert_throws_js(TypeError, () => CSS.registerProperty(undefined));
+    assert_throws_js(TypeError, () => CSS.registerProperty(true));
+    assert_throws_js(TypeError, () => CSS.registerProperty(2));
+    assert_throws_js(TypeError, () => CSS.registerProperty("css"));
+    assert_throws_js(TypeError, () => CSS.registerProperty(null));
+}, "registerProperty requires a Dictionary type");
+
+test(function() {
+    // Valid property names, shouldn't throw
+    CSS.registerProperty({name: '--name1', inherits: false});
+    CSS.registerProperty({name: '--name2, no need for escapes', inherits: false});
+    CSS.registerProperty({name: ['--name', 3], inherits: false});
+
+    // Invalid property names
+    assert_throws_js(TypeError, () => CSS.registerProperty({}));
+    assert_throws_dom("SyntaxError", () => CSS.registerProperty({name: 'no-leading-dash', inherits: false}));
+    assert_throws_dom("SyntaxError", () => CSS.registerProperty({name: '', inherits: false}));
+    assert_throws_dom("SyntaxError", () => CSS.registerProperty({name: '\\--name', inherits: false}));
+}, "registerProperty requires a name matching <custom-property-name>");
+
+test(function() {
+    CSS.registerProperty({name: '--syntax-test-1', syntax: '*', inherits: false});
+    CSS.registerProperty({name: '--syntax-test-2', syntax: ' * ', inherits: false});
+    assert_throws_dom("SyntaxError",
+        () => CSS.registerProperty({name: '--syntax-test-3', syntax: 'length', inherits: false}));
+}, "registerProperty only allows omitting initialValue if syntax is '*'");
+
+test(function() {
+    CSS.registerProperty({name: '--re-register', syntax: '<length>', initialValue: '0px', inherits: false});
+    assert_throws_dom('InvalidModificationError',
+        () => CSS.registerProperty({name: '--re-register', syntax: '<percentage>', initialValue: '0%', inherits: false}));
+}, "registerProperty fails for an already registered property");
+
+test(function(){
+    CSS.registerProperty({name: '--inherit-test-1', syntax: '<length>', initialValue: '0px', inherits: true});
+    CSS.registerProperty({name: '--inherit-test-2', syntax: '<length>', initialValue: '0px', inherits: false});
+    assert_throws_js(TypeError, () => CSS.registerProperty({name: '--inherit-test-3', syntax: '<length>', initialValue: '0px'}));
+}, "registerProperty requires inherits");
+
+test(function(){
+    try {
+        let name = generate_name();
+
+        target.style.setProperty(name, 'green');
+        target.style.transitionProperty = name;
+        target.style.transitionDuration = '1s';
+        target.style.transitionTimingFunction = 'steps(1, end)';
+
+        assert_equals(getComputedStyle(target).getPropertyValue(name), 'green');
+
+        CSS.registerProperty({
+            name: name,
+            syntax: '<color>',
+            initialValue: 'red',
+            inherits: false
+        });
+
+        assert_equals(getComputedStyle(target).getPropertyValue(name), 'rgb(0, 128, 0)');
+    } finally {
+        target.style = '';
+    }
+}, 'Registering a property should not cause a transition');
+
+</script>

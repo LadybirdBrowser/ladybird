@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/bitmaps-with-scroll-offset-ref.html" />
+<style>
+html { scrollbar-width: none; }
+body {
+  position: relative;
+  height: 400vh;
+}
+#container {
+  position: absolute;
+  top: 200px;
+}
+#background-image {
+  display: inline-block;
+  width: 120px;
+  height: 120px;
+  background-image: url("../../Assets/120.png");
+  background-repeat: no-repeat;
+}
+</style>
+<div id="container">
+  <img src="../../Assets/120.png" />
+  <div id="background-image"></div>
+</div>
+<script>
+window.scrollTo(0, 200);
+</script>

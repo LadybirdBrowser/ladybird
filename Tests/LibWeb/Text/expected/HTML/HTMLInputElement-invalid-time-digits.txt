@@ -1,0 +1,6 @@
+Parsed invalid as NaN
+Parsed xx:34:56 as NaN
+Parsed 12:xx:56 as NaN
+Parsed 12:34:xx as NaN
+Parsed 12:34:60 as NaN
+PASS (didn't crash)

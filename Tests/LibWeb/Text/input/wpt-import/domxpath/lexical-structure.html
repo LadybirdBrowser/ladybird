@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#exprlex">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+function parse(expression) {
+  document.evaluate(expression, document, null, XPathResult.ANY_TYPE, null);
+}
+
+// https://www.w3.org/TR/1999/REC-xpath-19991116/#NT-Literal
+test(() => {
+  parse(' \'a"bc\' ');
+  parse(' "a\'bc" ');
+
+  assert_throws_dom('SyntaxError', () => { parse(' \u2019xyz\u2019 '); });
+}, 'Literal: Only \' and " should be handled as literal quotes.');
+
+// https://www.w3.org/TR/1999/REC-xpath-19991116/#NT-ExprWhitespace
+test(() => {
+  parse(' \t\r\n.\r\n\t ');
+
+  assert_throws_dom('SyntaxError', () => { parse('\x0B\x0C .'); });
+  assert_throws_dom('SyntaxError', () => { parse('\x0E\x0F .'); });
+  assert_throws_dom('SyntaxError', () => { parse('\u3000 .'); });
+  assert_throws_dom('SyntaxError', () => { parse('\u2029 .'); });
+}, 'ExprWhitespace: Only #x20 #x9 #xD or #xA must be handled as a whitespace.');
+</script>
+</body>

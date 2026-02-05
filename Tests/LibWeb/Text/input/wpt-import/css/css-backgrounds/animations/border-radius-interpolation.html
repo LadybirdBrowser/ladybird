@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-radius interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-radius">
+<meta name="assert" content="border-radius supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  border-radius: 30px;
+}
+.target {
+  width: 80px;
+  height: 80px;
+  display: inline-block;
+  background-color: black;
+  margin-right: 5px;
+  border-radius: 10px;
+}
+.expected {
+  background-color: green;
+  margin-right: 15px;
+}
+</style>
+
+<body></body>
+
+<script>
+// As per https://bugzilla.mozilla.org/show_bug.cgi?id=137688, Firefox does not
+// support getComputedStyle for shorthands. As such, we have one test for this
+// which explicitly checks the shorthand variant, but most tests use one of the
+// longhands instead.
+function compareNotEmpty(actual, expected) {
+  assert_equals(actual, expected);
+  assert_not_equals(actual, '');
+}
+
+test_interpolation({
+  property: 'border-radius',
+  from: '20px 40px 60px 80px / 120px 140px 160px 180px',
+  to: '30px 50px 70px 90px / 130px 150px 170px 190px',
+  comparisonFunction: compareNotEmpty,
+}, [
+  {at: -0.3, expect: '17px 37px 57px 77px / 117px 137px 157px 177px'},
+  {at: 0, expect: '20px 40px 60px 80px / 120px 140px 160px 180px'},
+  {at: 0.3, expect: '23px 43px 63px 83px / 123px 143px 163px 183px'},
+  {at: 0.6, expect: '26px 46px 66px 86px / 126px 146px 166px 186px'},
+  {at: 1, expect: '30px 50px 70px 90px / 130px 150px 170px 190px'},
+  {at: 1.5, expect: '35px 55px 75px 95px / 135px 155px 175px 195px'}
+]);
+
+test_interpolation({
+  property: 'border-top-left-radius',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+test_interpolation({
+  property: 'border-top-left-radius',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+test_interpolation({
+  property: 'border-top-left-radius',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+test_interpolation({
+  property: 'border-top-left-radius',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+test_interpolation({
+  property: 'border-top-left-radius',
+  from: '10px',
+  to: '50px'
+}, [
+  {at: -0.3, expect: '0px'}, // CSS border-top-left-radius can't be negative.
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '22px'},
+  {at: 0.6, expect: '34px'},
+  {at: 1, expect: '50px'},
+  {at: 1.5, expect: '70px'},
+]);
+test_interpolation({
+  property: 'border-top-left-radius',
+  from: '10px',
+  to: '100%'
+}, [
+  {at: -0.3, expect: 'calc(13px + -30%)'},
+  {at: 0, expect: 'calc(10px + 0%)'},
+  {at: 0.3, expect: 'calc(7px + 30%)'},
+  {at: 0.6, expect: 'calc(4px + 60%)'},
+  {at: 1, expect: '100%'},
+  {at: 1.5, expect: 'calc(-5px + 150%)'},
+]);
+
+test_interpolation({
+  property: 'border-top-left-radius',
+  from: '20px',
+  to: '10px 30px'
+}, [
+  {at: -2, expect: '40px 0px'},
+  {at: -0.3, expect: '23px 17px'},
+  {at: 0, expect: '20px'},
+  {at: 0.3, expect: '17px 23px'},
+  {at: 0.6, expect: '14px 26px'},
+  {at: 1, expect: '10px 30px'},
+  {at: 1.5, expect: '5px 35px'}
+]);
+</script>

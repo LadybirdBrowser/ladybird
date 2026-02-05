@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>CSS Selectors Test: Chrome crash issue 1470477</title>
+<link rel="help" href="https://crbug.com/1470477">
+<style>
+  :has(> :where(label:first-child + [a="a"]:only-of-type,
+    [a="a"]:only-of-type + label:last-child)) label:last-child {
+      margin-inline: 1em;
+  }
+</style>
+<p>PASS if this tests does not crash</p>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const encoder = new TextEncoder();
+        const message = "Hello friends";
+        const encodedMessage = encoder.encode(message);
+
+        const format = "raw";
+        const keyData = encodedMessage;
+        const importAlgorithm = {
+            name: "PBKDF2",
+        };
+        const extractable = false;
+        const keyUsages = ["deriveBits", "deriveKey"];
+        const keyMaterial = await window.crypto.subtle.importKey(
+            format,
+            keyData,
+            importAlgorithm,
+            extractable,
+            keyUsages
+        );
+
+        const salt = encodedMessage;
+        const iterations = 100000;
+        const hash = "SHA-256";
+        const derivationAlgorithm = {
+            name: "PBKDF2",
+            salt,
+            iterations,
+            hash,
+        };
+        const length = 256;
+        const derivedBits = await window.crypto.subtle.deriveBits(
+            derivationAlgorithm,
+            keyMaterial,
+            length
+        );
+
+        function arrayBufferToBase64(buffer) {
+            return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+        }
+
+        const expectedResult = "WHYex7U9vTCisuffYpbNHR+Gbto/edldB+P+WB6RNIg=";
+        const actualResult = arrayBufferToBase64(derivedBits);
+
+        if (expectedResult == actualResult) {
+            println("Derived bits OK");
+        } else {
+            println("Derived bits FAIL");
+        }
+
+        done();
+    });
+</script>

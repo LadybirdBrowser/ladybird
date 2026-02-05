@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#the-counter-style-rule">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+test_valid_name('foo');
+test_valid_name('decimal-leading-zero');
+test_valid_name('lower-alpha');
+test_valid_name('cjk-decimal');
+test_valid_name('japanese-informal');
+test_valid_name('ethiopic-numeric');
+
+test_invalid_name('');
+test_invalid_name('none');
+test_invalid_name('initial');
+test_invalid_name('inherit');
+test_invalid_name('unset');
+
+test_invalid_name('decimal');
+test_invalid_name('disc');
+test_invalid_name('square');
+test_invalid_name('circle');
+test_invalid_name('disclosure-open');
+test_invalid_name('disclosure-closed');
+</script>

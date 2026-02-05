@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_scripted_ark.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['b9a7cd0310cab4fd4eb77aed9149b966918e7ca2',];
+      var tests = {
+          "b9a7cd0310cab4fd4eb77aed9149b966918e7ca2":[async_test('html5lib_scripted_ark.html b9a7cd0310cab4fd4eb77aed9149b966918e7ca2'), "%3Cp%3E%3Cfont%20size%3D4%3E%3Cfont%20size%3D4%3E%3Cfont%20size%3D4%3E%3Cscript%3Edocument.getElementsByTagName%28%22font%22%29%5B2%5D.setAttribute%28%22size%22%2C%20%225%22%29%3B%3C/script%3E%3Cfont%20size%3D4%3E%3Cp%3EX", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%3Cfont%3E%0A%7C%20%20%20%20%20%20%20%20%20size%3D%224%22%0A%7C%20%20%20%20%20%20%20%20%20%3Cfont%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20size%3D%224%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Cfont%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20size%3D%225%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cscript%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22document.getElementsByTagName%28%22font%22%29%5B2%5D.setAttribute%28%22size%22%2C%20%225%22%29%3B%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cfont%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20size%3D%224%22%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%3Cfont%3E%0A%7C%20%20%20%20%20%20%20%20%20size%3D%224%22%0A%7C%20%20%20%20%20%20%20%20%20%3Cfont%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20size%3D%224%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Cfont%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20size%3D%224%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%22X%22"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

@@ -1,0 +1,4 @@
+finished promise remains after finishing: true
+finished promise updates after playing: true
+cancel() updates finished promise: true
+Expected finished promise cancellation

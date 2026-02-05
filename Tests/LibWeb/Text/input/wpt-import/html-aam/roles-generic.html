@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTML-AAM Generic Role Verification Tests</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tests ONLY the <code>generic</code> mappings defined in <a href="https://w3c.github.io/html-aam/">HTML-AAM</a>. Most test names correspond to a unique ID defined in the spec.<p>
+
+<p>These should remain in alphabetical order by tagname.</p>
+
+<!-- a -> ./roles-contextual.html -->
+<!-- aside -> ./roles-contextual.html -->
+<b data-testname="el-b" class="ex-generic">x</b>
+<bdi data-testname="el-bdi" class="ex-generic">x</bdi>
+<bdo data-testname="el-bdo" class="ex-generic">x</bdo>
+<data value="1" data-testname="el-data" class="ex-generic">x</data>
+<div open data-testname="el-div" class="ex-generic">x</div>
+<!-- footer -> ./roles-contextual.html -->
+<!-- header -> ./roles-contextual.html -->
+<i data-testname="el-i" class="ex-generic">x</i>
+<pre data-testname="el-pre" class="ex-generic">x</pre>
+<q data-testname="el-q" class="ex-generic">x</q>
+<samp data-testname="el-samp" class="ex-generic">x</samp>
+<!-- section -> ./roles-contextual.html -->
+<small data-testname="el-small" class="ex-generic">x</small>
+<span data-testname="el-span" class="ex-generic">x</span>
+<u data-testname="el-u" class="ex-generic">x</u>
+
+<script>
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>

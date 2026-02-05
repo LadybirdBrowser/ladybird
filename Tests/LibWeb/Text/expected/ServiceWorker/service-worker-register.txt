@@ -1,0 +1,1 @@
+ServiceWorker registration failed: SecurityError: Service Worker script response is not a JavaScript MIME type

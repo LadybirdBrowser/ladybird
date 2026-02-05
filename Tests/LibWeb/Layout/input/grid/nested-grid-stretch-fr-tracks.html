@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+    .outer-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr;
+        width: 400px;
+        height: 200px;
+    }
+    .inner-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        background: lightpink;
+    }
+    .item {
+        background: lightblue;
+    }
+</style>
+<div class="outer-grid">
+    <div class="inner-grid">
+        <div class="item">A</div>
+        <div class="item">B</div>
+        <div class="item">C</div>
+        <div class="item">D</div>
+    </div>
+    <div class="item">E</div>
+</div>

@@ -1,0 +1,19 @@
+#import <DOM/Node.idl>
+#import <DOM/NodeFilter.idl>
+
+// https://dom.spec.whatwg.org/#interface-nodeiterator
+[Exposed=Window]
+interface NodeIterator {
+    [SameObject] readonly attribute Node root;
+    readonly attribute Node referenceNode;
+    readonly attribute boolean pointerBeforeReferenceNode;
+    readonly attribute unsigned long whatToShow;
+
+    // FIXME: `object?` should be `NodeFilter?`, but we don't yet properly support callback interfaces.
+    readonly attribute object? filter;
+
+    Node? nextNode();
+    Node? previousNode();
+
+    undefined detach();
+};

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1903671">
+<style>
+*|*:nth-child(+0n of S) { color: red }
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  let a = document.createElementNS("http://www.w3.org/1999/xhtml", "details")
+  let b = document.createElementNS("http://www.w3.org/1999/xhtml", "summary")
+  a.appendChild(b)
+  document.documentElement.appendChild(a)
+  b.offsetTop;
+  b.setAttributeNS("h", "class", "")
+})
+</script>

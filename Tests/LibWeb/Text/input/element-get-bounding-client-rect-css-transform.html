@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style type="text/css">
+    .transform-1 {
+        transform: translate(100px, 100px);
+    }
+
+    .transform-2 {
+        transform: translate(-50px, 0px);
+    }
+
+    #box {
+        background-color: magenta;
+        width: 100px;
+        height: 100px;
+        opacity: 0.1;
+        transform: translate(10px, 10px) scale(2);
+    }
+</style>
+<div class="transform-1">
+    <div class="transform-2">
+        <div id="box"></div>
+    </div>
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const transformed_box_rect = document.getElementById("box").getBoundingClientRect();
+        println(JSON.stringify(transformed_box_rect));
+    });
+</script>

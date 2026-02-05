@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	div.hidden = false
+Pass	div.hidden = true
+Pass	div.hidden = "foo"
+Pass	div.hidden = "false"
+Pass	div.hidden = ""
+Pass	div.setAttribute('hidden', "false") should make div.hidden return true
+Pass	div.setAttribute('hidden', "foo") should make div.hidden return true
+Pass	div.hidden = "until-found"
+Pass	div.hidden = "UNTIL-FOUND"
+Pass	div.hidden = "UnTiL-FoUnD"
+Pass	div.hidden = "untıl-found"
+Pass	div.hidden = "untİl-found"
+Pass	div.hidden = null
+Pass	div.hidden = undefined
+Pass	div.hidden = 1
+Pass	div.hidden = 0
+Pass	div.hidden = NaN

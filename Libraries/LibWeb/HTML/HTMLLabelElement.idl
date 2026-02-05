@@ -1,0 +1,13 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/forms.html#htmllabelelement
+[Exposed=Window]
+interface HTMLLabelElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    readonly attribute HTMLFormElement? form;
+    [CEReactions, Reflect=for] attribute DOMString htmlFor;
+    readonly attribute HTMLElement? control;
+
+};

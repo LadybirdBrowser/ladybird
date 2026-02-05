@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let c = document.createElement("canvas");
+        c.width = 300;
+        c.height = 0;
+        c.toDataURL();
+        println("PASS (didn't crash!)");
+    });
+</script>

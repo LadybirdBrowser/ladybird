@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['background-image'] = "none, auto" should not set the property value
+Pass	e.style['background-image'] = "radial-gradient(circle -10px at center, red, blue)" should not set the property value
+Pass	e.style['background-image'] = "repeating-radial-gradient(-10px at center, red, blue)" should not set the property value
+Pass	e.style['background-image'] = "radial-gradient(ellipse -20px 30px at center, red, blue)" should not set the property value
+Pass	e.style['background-image'] = "repeating-radial-gradient(-20% 30% at center, red, blue)" should not set the property value
+Pass	e.style['background-image'] = "radial-gradient(20px -30px at center, red, blue)" should not set the property value
+Pass	e.style['background-image'] = "repeating-radial-gradient(20px -30px ellipse at center, red, blue)" should not set the property value
+Pass	e.style['background-image'] = "cross-fade(auto blue, 50% red)" should not set the property value
+Pass	e.style['background-image'] = "cross-fade(1px red, green)" should not set the property value
+Pass	e.style['background-image'] = "cross-fade(calc(1% + 1px) red, green)" should not set the property value
+Pass	e.style['background-image'] = "cross-fade(-1% red, green)" should not set the property value
+Pass	e.style['background-image'] = "cross-fade(101% red, green)" should not set the property value

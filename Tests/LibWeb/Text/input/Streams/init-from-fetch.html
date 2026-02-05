@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        fetch("./../basic.html", { mode: "no-cors" })
+            .then(response => response.body)
+            .then(body => {
+                const reader = body.getReader();
+                reader.read();
+
+                println("Was able to create a reader from a Fetch response!");
+                done();
+            });
+    });
+</script>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+ async function testByobRead(type) {
+    const array = ['This is some data to be read! 🦬'];
+    let blob = new Blob(array);
+
+    const stream = blob.stream();
+    const reader = stream.getReader({ mode: "byob" });
+
+    let buffer = new ArrayBuffer(200);
+    let bytesReceived = 0;
+    let offset = 0;
+
+    println(`About to read into ${type.prototype.constructor.name} with ${reader}`);
+
+    while (true) {
+      let result = await reader.read(new type(buffer, offset, buffer.byteLength - offset));
+
+      if (result.done) {
+        println(`Total bytes: ${bytesReceived}`);
+        println(`'${new TextDecoder().decode(result.value.buffer.slice(0, bytesReceived))}'`);
+        return;
+      }
+
+      buffer = result.value.buffer;
+      offset += result.value.byteLength;
+      bytesReceived += result.value.byteLength;
+    }
+  }
+
+  asyncTest(async done => {
+    await testByobRead(Uint8Array);
+    await testByobRead(DataView);
+    done();
+  });
+</script>

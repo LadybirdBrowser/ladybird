@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script>
+    try {
+        const availableProps = [
+            "locationbar",
+            "menubar",
+            "personalbar",
+            "scrollbars",
+            "statusbar",
+            "toolbar",
+        ];
+
+        let results = [];
+
+        for (const propName of availableProps) {
+            const windowProp = window[propName];
+            results.push(
+                `${propName} is BarProp: ${windowProp instanceof BarProp} visible: ${
+                    windowProp.visible
+                }`
+            );
+        }
+
+        window.opener.postMessage(results.join("\n"), "*");
+    } catch (e) {
+        window.opener.postMessage(`ERROR: ${e}`, "*");
+    }
+</script>

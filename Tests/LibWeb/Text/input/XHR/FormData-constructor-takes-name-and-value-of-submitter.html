@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<form id="test-form">
+    <button id="test-button" name="test-button-name" value="test-button-value"></button>
+</form>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const testForm = document.getElementById("test-form");
+        const testButton = document.getElementById("test-button");
+        const formData = new FormData(testForm, testButton);
+
+        for (const [name, value] of formData.entries()) {
+            println(`'${name}' = '${value}'`);
+        }
+    });
+</script>

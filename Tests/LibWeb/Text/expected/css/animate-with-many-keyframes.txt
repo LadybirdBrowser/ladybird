@@ -1,0 +1,3 @@
+rect.left > 0: true
+rect.left <= 100: true
+rect.top > 0: true

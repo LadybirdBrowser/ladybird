@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            transition: transform 1s;
+            transform: scale(50%);
+        }
+    </style>
+    <div id="foo"></div>
+    <script>
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                foo.style.transform = "scale(calc(50% + 25%))";
+            });
+        });
+    </script>
+</html>

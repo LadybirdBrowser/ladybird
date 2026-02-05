@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>filter interpolation</title>
+    <link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+    <meta name="assert" content="Partially matching lists interpolate.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+      .target {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        background-color: green;
+        color: white;
+        margin-right: 2px;
+      }
+      .expected {
+        margin-right: 20px;
+      }
+      .test {
+        padding-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'filter',
+        from: 'none',
+        to: 'opacity(0.5) hue-rotate(180deg)',
+      }, [
+        {at: -0.5, expect: 'opacity(1) hue-rotate(-90deg)'},
+        {at: 0, expect: 'opacity(1) hue-rotate(0deg)'},
+        {at: 0.25, expect: 'opacity(0.875) hue-rotate(45deg)'},
+        {at: 0.5, expect: 'opacity(0.75) hue-rotate(90deg)'},
+        {at: 1, expect: 'opacity(0.5) hue-rotate(180deg)'},
+        {at: 1.5, expect: 'opacity(0.25) hue-rotate(270deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: 'blur(6px)',
+        to: 'blur(10px) hue-rotate(180deg)'
+      }, [
+        {at: -0.5, expect: 'blur(4px) hue-rotate(-90deg)'},
+        {at: 0, expect: 'blur(6px) hue-rotate(0deg)'},
+        {at: 0.25, expect: 'blur(7px) hue-rotate(45deg)'},
+        {at: 0.5, expect: 'blur(8px) hue-rotate(90deg)'},
+        {at: 1, expect: 'blur(10px) hue-rotate(180deg)'},
+        {at: 1.5, expect: 'blur(12px) hue-rotate(270deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: 'none',
+        to: 'hue-rotate(180deg)'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-90deg)'},
+        {at: 0, expect: 'hue-rotate(0deg)'},
+        {at: 0.25, expect: 'hue-rotate(45deg)'},
+        {at: 0.5, expect: 'hue-rotate(90deg)'},
+        {at: 1, expect: 'hue-rotate(180deg)'},
+        {at: 1.5, expect: 'hue-rotate(270deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: 'hue-rotate(180deg)',
+        to: 'none'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(270deg)'},
+        {at: 0, expect: 'hue-rotate(180deg)'},
+        {at: 0.25, expect: 'hue-rotate(135deg)'},
+        {at: 0.5, expect: 'hue-rotate(90deg)'},
+        {at: 1, expect: 'hue-rotate(0deg)'},
+        {at: 1.5, expect: 'hue-rotate(-90deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: 'drop-shadow(0px 0px 0px currentcolor)',
+        to: 'drop-shadow(20px 10px green)'
+      }, [
+        {at: -1, expect: 'drop-shadow(-20px -10px white)'},
+        {at: 0, expect: 'drop-shadow(0px 0px 0px currentcolor)'},
+        {at: 0.5, expect: 'drop-shadow(10px 5px #80C080)'},
+        {at: 1, expect: 'drop-shadow(20px 10px green)'},
+        {at: 1.5, expect: 'drop-shadow(30px 15px #004100)'}
+      ]);
+
+      // crbug.com/904333: Test that ResolveInterpolableColor doesn't overflow.
+      test_interpolation({
+        property: 'filter',
+        from: 'drop-shadow(20px 10px blue)',
+        to: 'drop-shadow(20px 10px green)'
+      }, [
+        {at: 2147483648, expect: 'drop-shadow(20px 10px #00FF00'}
+      ]);
+
+      // Mismatched lists:
+      test_no_interpolation({
+        property: 'filter',
+        from: 'grayscale(0) blur(0px)',
+        to: 'blur(10px)'
+      });
+    </script>
+  </body>
+</html>

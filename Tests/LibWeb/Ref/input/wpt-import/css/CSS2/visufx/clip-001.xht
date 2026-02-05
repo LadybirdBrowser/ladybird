@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: clip - auto value</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="author" title="Vasil Dinkov" href="http://www.vadikom.com/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visufx.html#clipping" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visufx/../reference/ref-filled-green-100px-square.xht" />
+
+  <meta content="dom" name="flags" />
+  <meta content="An element must not clip when clip is set to auto." name="assert" />
+  <meta http-equiv="Content-Script-Type" content="text/javascript" />
+
+  <style type="text/css"><![CDATA[
+  #red-overlapped-layer
+  {
+  background-color: red;
+  height: 100px;
+  position: absolute;
+  width: 100px;
+  }
+
+  #red-parent
+  {
+  background-color: red;
+  clip: rect(0, 1px, 1px, 0);
+  height: 2px;
+  position: absolute;
+  width: 2px;
+  }
+
+  #green-child
+  {
+  background-color: green;
+  height: 100px;
+  width: 100px;
+  }
+  ]]></style>
+
+  <script type="text/javascript"><![CDATA[
+  function startTest()
+  {
+  document.getElementById("red-parent").style.clip = "auto";
+  }
+  ]]></script>
+
+ </head>
+
+ <body onload="startTest();">
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="red-overlapped-layer"></div>
+
+  <div id="red-parent">
+      <div id="green-child"></div>
+  </div>
+
+ </body>
+</html>

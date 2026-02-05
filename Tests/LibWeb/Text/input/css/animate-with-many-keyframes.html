@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        animation: 1s forwards linear anim;
+        animation-play-state: paused;
+        position: absolute;
+    }
+
+    @keyframes anim {
+        0% {
+            left: 0px;
+            top: 0px;
+        }
+        50% {
+            left: 100px;
+            top: 0px;
+        }
+        100% {
+            left: 100px;
+            top: 100px;
+        }
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const foo = document.getElementById("foo");
+        const anim = foo.getAnimations()[0];
+        anim.onfinish = function () {
+            const rect = foo.getBoundingClientRect();
+            println("rect.left > 0: " + (rect.left > 0));
+            println("rect.left <= 100: " + (rect.left <= 100));
+            println("rect.top > 0: " + (rect.top > 0));
+            done();
+        };
+        anim.play();
+    });
+</script>

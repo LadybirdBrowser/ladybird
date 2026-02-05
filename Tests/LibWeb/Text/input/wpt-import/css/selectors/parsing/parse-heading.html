@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors: The heading pseudo-classes</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-5/#headings">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  test_valid_selector(':heading');
+  test_valid_selector(':heading(2)');
+  test_valid_selector(':heading(99999)');
+  test_valid_selector(':heading(0)');
+  test_valid_selector(':heading(0, 1, 2)');
+  test_valid_selector(':heading(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)');
+  test_valid_selector(':heading(-1)');
+  test_valid_selector('h1:heading');
+  test_valid_selector('h1:heading(1)');
+  test_valid_selector('h1:heading(2)');
+
+  test_invalid_selector(':heading()');
+  test_invalid_selector(':heading(1.0)');
+  test_invalid_selector(':heading(1.4)');
+  test_invalid_selector(':heading(n)');
+  test_invalid_selector(':heading(odd)');
+  test_invalid_selector(':heading(even)');
+  test_invalid_selector(':heading(2n)');
+  test_invalid_selector(':heading(2n+1)');
+  test_invalid_selector(':heading(2n+2)');
+  test_invalid_selector(':heading(-n+3)');
+  test_invalid_selector(':heading(2n, 3n)');
+  test_invalid_selector(':heading(2, 3n)');
+  test_invalid_selector(':heading(2 of .foo)');
+  test_invalid_selector(':heading(2n of .foo)');
+  test_invalid_selector(':heading(calc(1))');
+  test_invalid_selector(':heading(max(1, 2))');
+  test_invalid_selector(':heading(min(1, 2)');
+  test_invalid_selector(':heading(var(--level))');
+</script>

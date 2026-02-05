@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	linear function easing with output greater than 1
+Pass	linear function easing with output less than 1
+Pass	linear function easing, steps equivalent
+Pass	linear function easing, input value being unspecified in the first entry implies zero
+Pass	linear function easing, input value being unspecified in the last entry implies max input value

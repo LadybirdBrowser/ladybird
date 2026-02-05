@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<button id="myButton"></button>
+<script>
+    asyncTest(done => {
+        function handleClick(event) {
+            println(`Event: ${event.constructor.name}`);
+            done();
+        }
+
+        let button = document.getElementById("myButton");
+
+        button.addEventListener("click", handleClick);
+        button.click();
+    });
+</script>

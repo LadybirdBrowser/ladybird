@@ -1,0 +1,474 @@
+Harness status: OK
+
+Found 468 tests
+
+446 Pass
+22 Fail
+Pass	Property color value 'color(srgb 0% 0% 0%)'
+Pass	Property color value 'color(srgb 10% 10% 10%)'
+Pass	Property color value 'color(srgb .2 .2 25%)'
+Pass	Property color value 'color(srgb 0 0 0 / 1)'
+Pass	Property color value 'color(srgb 0% 0 0 / 0.5)'
+Pass	Property color value 'color(srgb 20% 0 10/0.5)'
+Pass	Property color value 'color(srgb 20% 0 10/50%)'
+Pass	Property color value 'color(srgb 400% 0 10/50%)'
+Pass	Property color value 'color(srgb 50% -160 160)'
+Pass	Property color value 'color(srgb 50% -200 200)'
+Pass	Property color value 'color(srgb 0 0 0 / -10%)'
+Pass	Property color value 'color(srgb 0 0 0 / 110%)'
+Pass	Property color value 'color(srgb 0 0 0 / 300%)'
+Pass	Property color value 'color(srgb 200 200 200)'
+Pass	Property color value 'color(srgb 200 200 200 / 200)'
+Pass	Property color value 'color(srgb -200 -200 -200)'
+Pass	Property color value 'color(srgb -200 -200 -200 / -200)'
+Pass	Property color value 'color(srgb 200% 200% 200%)'
+Pass	Property color value 'color(srgb 200% 200% 200% / 200%)'
+Pass	Property color value 'color(srgb -200% -200% -200% / -200%)'
+Pass	Property color value 'color(srgb calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(srgb calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))'
+Pass	Property color value 'color(srgb none none none / none)'
+Pass	Property color value 'color(srgb none none none)'
+Pass	Property color value 'color(srgb 10% none none / none)'
+Pass	Property color value 'color(srgb none none none / 0.5)'
+Pass	Property color value 'color(srgb 0 0 0 / none)'
+Pass	Property color value 'color(srgb calc(NaN) 0 0)'
+Pass	Property color value 'color(srgb calc(0 / 0) 0 0)'
+Fail	Property color value 'color(srgb calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)'
+Fail	Property color value 'color(srgb 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'color(srgb-linear 0% 0% 0%)'
+Pass	Property color value 'color(srgb-linear 10% 10% 10%)'
+Pass	Property color value 'color(srgb-linear .2 .2 25%)'
+Pass	Property color value 'color(srgb-linear 0 0 0 / 1)'
+Pass	Property color value 'color(srgb-linear 0% 0 0 / 0.5)'
+Pass	Property color value 'color(srgb-linear 20% 0 10/0.5)'
+Pass	Property color value 'color(srgb-linear 20% 0 10/50%)'
+Pass	Property color value 'color(srgb-linear 400% 0 10/50%)'
+Pass	Property color value 'color(srgb-linear 50% -160 160)'
+Pass	Property color value 'color(srgb-linear 50% -200 200)'
+Pass	Property color value 'color(srgb-linear 0 0 0 / -10%)'
+Pass	Property color value 'color(srgb-linear 0 0 0 / 110%)'
+Pass	Property color value 'color(srgb-linear 0 0 0 / 300%)'
+Pass	Property color value 'color(srgb-linear 200 200 200)'
+Pass	Property color value 'color(srgb-linear 200 200 200 / 200)'
+Pass	Property color value 'color(srgb-linear -200 -200 -200)'
+Pass	Property color value 'color(srgb-linear -200 -200 -200 / -200)'
+Pass	Property color value 'color(srgb-linear 200% 200% 200%)'
+Pass	Property color value 'color(srgb-linear 200% 200% 200% / 200%)'
+Pass	Property color value 'color(srgb-linear -200% -200% -200% / -200%)'
+Pass	Property color value 'color(srgb-linear calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(srgb-linear calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))'
+Pass	Property color value 'color(srgb-linear none none none / none)'
+Pass	Property color value 'color(srgb-linear none none none)'
+Pass	Property color value 'color(srgb-linear 10% none none / none)'
+Pass	Property color value 'color(srgb-linear none none none / 0.5)'
+Pass	Property color value 'color(srgb-linear 0 0 0 / none)'
+Pass	Property color value 'color(srgb-linear calc(NaN) 0 0)'
+Pass	Property color value 'color(srgb-linear calc(0 / 0) 0 0)'
+Fail	Property color value 'color(srgb-linear calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)'
+Fail	Property color value 'color(srgb-linear 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'color(a98-rgb 0% 0% 0%)'
+Pass	Property color value 'color(a98-rgb 10% 10% 10%)'
+Pass	Property color value 'color(a98-rgb .2 .2 25%)'
+Pass	Property color value 'color(a98-rgb 0 0 0 / 1)'
+Pass	Property color value 'color(a98-rgb 0% 0 0 / 0.5)'
+Pass	Property color value 'color(a98-rgb 20% 0 10/0.5)'
+Pass	Property color value 'color(a98-rgb 20% 0 10/50%)'
+Pass	Property color value 'color(a98-rgb 400% 0 10/50%)'
+Pass	Property color value 'color(a98-rgb 50% -160 160)'
+Pass	Property color value 'color(a98-rgb 50% -200 200)'
+Pass	Property color value 'color(a98-rgb 0 0 0 / -10%)'
+Pass	Property color value 'color(a98-rgb 0 0 0 / 110%)'
+Pass	Property color value 'color(a98-rgb 0 0 0 / 300%)'
+Pass	Property color value 'color(a98-rgb 200 200 200)'
+Pass	Property color value 'color(a98-rgb 200 200 200 / 200)'
+Pass	Property color value 'color(a98-rgb -200 -200 -200)'
+Pass	Property color value 'color(a98-rgb -200 -200 -200 / -200)'
+Pass	Property color value 'color(a98-rgb 200% 200% 200%)'
+Pass	Property color value 'color(a98-rgb 200% 200% 200% / 200%)'
+Pass	Property color value 'color(a98-rgb -200% -200% -200% / -200%)'
+Pass	Property color value 'color(a98-rgb calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(a98-rgb calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))'
+Pass	Property color value 'color(a98-rgb none none none / none)'
+Pass	Property color value 'color(a98-rgb none none none)'
+Pass	Property color value 'color(a98-rgb 10% none none / none)'
+Pass	Property color value 'color(a98-rgb none none none / 0.5)'
+Pass	Property color value 'color(a98-rgb 0 0 0 / none)'
+Pass	Property color value 'color(a98-rgb calc(NaN) 0 0)'
+Pass	Property color value 'color(a98-rgb calc(0 / 0) 0 0)'
+Fail	Property color value 'color(a98-rgb calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)'
+Fail	Property color value 'color(a98-rgb 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'color(rec2020 0% 0% 0%)'
+Pass	Property color value 'color(rec2020 10% 10% 10%)'
+Pass	Property color value 'color(rec2020 .2 .2 25%)'
+Pass	Property color value 'color(rec2020 0 0 0 / 1)'
+Pass	Property color value 'color(rec2020 0% 0 0 / 0.5)'
+Pass	Property color value 'color(rec2020 20% 0 10/0.5)'
+Pass	Property color value 'color(rec2020 20% 0 10/50%)'
+Pass	Property color value 'color(rec2020 400% 0 10/50%)'
+Pass	Property color value 'color(rec2020 50% -160 160)'
+Pass	Property color value 'color(rec2020 50% -200 200)'
+Pass	Property color value 'color(rec2020 0 0 0 / -10%)'
+Pass	Property color value 'color(rec2020 0 0 0 / 110%)'
+Pass	Property color value 'color(rec2020 0 0 0 / 300%)'
+Pass	Property color value 'color(rec2020 200 200 200)'
+Pass	Property color value 'color(rec2020 200 200 200 / 200)'
+Pass	Property color value 'color(rec2020 -200 -200 -200)'
+Pass	Property color value 'color(rec2020 -200 -200 -200 / -200)'
+Pass	Property color value 'color(rec2020 200% 200% 200%)'
+Pass	Property color value 'color(rec2020 200% 200% 200% / 200%)'
+Pass	Property color value 'color(rec2020 -200% -200% -200% / -200%)'
+Pass	Property color value 'color(rec2020 calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(rec2020 calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))'
+Pass	Property color value 'color(rec2020 none none none / none)'
+Pass	Property color value 'color(rec2020 none none none)'
+Pass	Property color value 'color(rec2020 10% none none / none)'
+Pass	Property color value 'color(rec2020 none none none / 0.5)'
+Pass	Property color value 'color(rec2020 0 0 0 / none)'
+Pass	Property color value 'color(rec2020 calc(NaN) 0 0)'
+Pass	Property color value 'color(rec2020 calc(0 / 0) 0 0)'
+Fail	Property color value 'color(rec2020 calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)'
+Fail	Property color value 'color(rec2020 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'color(prophoto-rgb 0% 0% 0%)'
+Pass	Property color value 'color(prophoto-rgb 10% 10% 10%)'
+Pass	Property color value 'color(prophoto-rgb .2 .2 25%)'
+Pass	Property color value 'color(prophoto-rgb 0 0 0 / 1)'
+Pass	Property color value 'color(prophoto-rgb 0% 0 0 / 0.5)'
+Pass	Property color value 'color(prophoto-rgb 20% 0 10/0.5)'
+Pass	Property color value 'color(prophoto-rgb 20% 0 10/50%)'
+Pass	Property color value 'color(prophoto-rgb 400% 0 10/50%)'
+Pass	Property color value 'color(prophoto-rgb 50% -160 160)'
+Pass	Property color value 'color(prophoto-rgb 50% -200 200)'
+Pass	Property color value 'color(prophoto-rgb 0 0 0 / -10%)'
+Pass	Property color value 'color(prophoto-rgb 0 0 0 / 110%)'
+Pass	Property color value 'color(prophoto-rgb 0 0 0 / 300%)'
+Pass	Property color value 'color(prophoto-rgb 200 200 200)'
+Pass	Property color value 'color(prophoto-rgb 200 200 200 / 200)'
+Pass	Property color value 'color(prophoto-rgb -200 -200 -200)'
+Pass	Property color value 'color(prophoto-rgb -200 -200 -200 / -200)'
+Pass	Property color value 'color(prophoto-rgb 200% 200% 200%)'
+Pass	Property color value 'color(prophoto-rgb 200% 200% 200% / 200%)'
+Pass	Property color value 'color(prophoto-rgb -200% -200% -200% / -200%)'
+Pass	Property color value 'color(prophoto-rgb calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(prophoto-rgb calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))'
+Pass	Property color value 'color(prophoto-rgb none none none / none)'
+Pass	Property color value 'color(prophoto-rgb none none none)'
+Pass	Property color value 'color(prophoto-rgb 10% none none / none)'
+Pass	Property color value 'color(prophoto-rgb none none none / 0.5)'
+Pass	Property color value 'color(prophoto-rgb 0 0 0 / none)'
+Pass	Property color value 'color(prophoto-rgb calc(NaN) 0 0)'
+Pass	Property color value 'color(prophoto-rgb calc(0 / 0) 0 0)'
+Fail	Property color value 'color(prophoto-rgb calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)'
+Fail	Property color value 'color(prophoto-rgb 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'color(display-p3 0% 0% 0%)'
+Pass	Property color value 'color(display-p3 10% 10% 10%)'
+Pass	Property color value 'color(display-p3 .2 .2 25%)'
+Pass	Property color value 'color(display-p3 0 0 0 / 1)'
+Pass	Property color value 'color(display-p3 0% 0 0 / 0.5)'
+Pass	Property color value 'color(display-p3 20% 0 10/0.5)'
+Pass	Property color value 'color(display-p3 20% 0 10/50%)'
+Pass	Property color value 'color(display-p3 400% 0 10/50%)'
+Pass	Property color value 'color(display-p3 50% -160 160)'
+Pass	Property color value 'color(display-p3 50% -200 200)'
+Pass	Property color value 'color(display-p3 0 0 0 / -10%)'
+Pass	Property color value 'color(display-p3 0 0 0 / 110%)'
+Pass	Property color value 'color(display-p3 0 0 0 / 300%)'
+Pass	Property color value 'color(display-p3 200 200 200)'
+Pass	Property color value 'color(display-p3 200 200 200 / 200)'
+Pass	Property color value 'color(display-p3 -200 -200 -200)'
+Pass	Property color value 'color(display-p3 -200 -200 -200 / -200)'
+Pass	Property color value 'color(display-p3 200% 200% 200%)'
+Pass	Property color value 'color(display-p3 200% 200% 200% / 200%)'
+Pass	Property color value 'color(display-p3 -200% -200% -200% / -200%)'
+Pass	Property color value 'color(display-p3 calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(display-p3 calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))'
+Pass	Property color value 'color(display-p3 none none none / none)'
+Pass	Property color value 'color(display-p3 none none none)'
+Pass	Property color value 'color(display-p3 10% none none / none)'
+Pass	Property color value 'color(display-p3 none none none / 0.5)'
+Pass	Property color value 'color(display-p3 0 0 0 / none)'
+Pass	Property color value 'color(display-p3 calc(NaN) 0 0)'
+Pass	Property color value 'color(display-p3 calc(0 / 0) 0 0)'
+Fail	Property color value 'color(display-p3 calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)'
+Fail	Property color value 'color(display-p3 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'color(display-p3-linear 0% 0% 0%)'
+Pass	Property color value 'color(display-p3-linear 10% 10% 10%)'
+Pass	Property color value 'color(display-p3-linear .2 .2 25%)'
+Pass	Property color value 'color(display-p3-linear 0 0 0 / 1)'
+Pass	Property color value 'color(display-p3-linear 0% 0 0 / 0.5)'
+Pass	Property color value 'color(display-p3-linear 20% 0 10/0.5)'
+Pass	Property color value 'color(display-p3-linear 20% 0 10/50%)'
+Pass	Property color value 'color(display-p3-linear 400% 0 10/50%)'
+Pass	Property color value 'color(display-p3-linear 50% -160 160)'
+Pass	Property color value 'color(display-p3-linear 50% -200 200)'
+Pass	Property color value 'color(display-p3-linear 0 0 0 / -10%)'
+Pass	Property color value 'color(display-p3-linear 0 0 0 / 110%)'
+Pass	Property color value 'color(display-p3-linear 0 0 0 / 300%)'
+Pass	Property color value 'color(display-p3-linear 200 200 200)'
+Pass	Property color value 'color(display-p3-linear 200 200 200 / 200)'
+Pass	Property color value 'color(display-p3-linear -200 -200 -200)'
+Pass	Property color value 'color(display-p3-linear -200 -200 -200 / -200)'
+Pass	Property color value 'color(display-p3-linear 200% 200% 200%)'
+Pass	Property color value 'color(display-p3-linear 200% 200% 200% / 200%)'
+Pass	Property color value 'color(display-p3-linear -200% -200% -200% / -200%)'
+Pass	Property color value 'color(display-p3-linear calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(display-p3-linear calc(50% * 3) calc(-150% / 3) calc(50%) / calc(-50% * 3))'
+Pass	Property color value 'color(display-p3-linear none none none / none)'
+Pass	Property color value 'color(display-p3-linear none none none)'
+Pass	Property color value 'color(display-p3-linear 10% none none / none)'
+Pass	Property color value 'color(display-p3-linear none none none / 0.5)'
+Pass	Property color value 'color(display-p3-linear 0 0 0 / none)'
+Pass	Property color value 'color(display-p3-linear calc(NaN) 0 0)'
+Pass	Property color value 'color(display-p3-linear calc(0 / 0) 0 0)'
+Fail	Property color value 'color(display-p3-linear calc(50% + (sign(1em - 10px) * 10%)) 0 0 / 0.5)'
+Fail	Property color value 'color(display-p3-linear 0.5 0 0 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'color(xyz 0 0 0)'
+Pass	Property color value 'color(xyz 0 0 0 / 1)'
+Pass	Property color value 'color(xyz 1 1 1)'
+Pass	Property color value 'color(xyz 1 1 1 / 1)'
+Pass	Property color value 'color(xyz -1 -1 -1)'
+Pass	Property color value 'color(xyz 0.1 0.1 0.1)'
+Pass	Property color value 'color(xyz 10 10 10)'
+Pass	Property color value 'color(xyz .2 .2 .25)'
+Pass	Property color value 'color(xyz 0 0 0 / 0.5)'
+Pass	Property color value 'color(xyz .20 0 10/0.5)'
+Pass	Property color value 'color(xyz .20 0 10/50%)'
+Pass	Property color value 'color(xyz 0 0 0 / -10%)'
+Pass	Property color value 'color(xyz 0 0 0 / 110%)'
+Pass	Property color value 'color(xyz 0 0 0 / 300%)'
+Pass	Property color value 'color(xyz calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(xyz none none none / none)'
+Pass	Property color value 'color(xyz none none none)'
+Pass	Property color value 'color(xyz 0.2 none none / none)'
+Pass	Property color value 'color(xyz none none none / 0.5)'
+Pass	Property color value 'color(xyz 0 0 0 / none)'
+Pass	Property color value 'color(xyz calc(NaN) 0 0)'
+Pass	Property color value 'color(xyz calc(0 / 0) 0 0)'
+Fail	Property color value 'color(xyz calc(0.5 + (sign(1em - 10px) * 0.1)) 0 0 / 0.5)'
+Fail	Property color value 'color(xyz 0.5 0 0 / calc(0.5 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'color(xyz-d50 0 0 0)'
+Pass	Property color value 'color(xyz-d50 0 0 0 / 1)'
+Pass	Property color value 'color(xyz-d50 1 1 1)'
+Pass	Property color value 'color(xyz-d50 1 1 1 / 1)'
+Pass	Property color value 'color(xyz-d50 -1 -1 -1)'
+Pass	Property color value 'color(xyz-d50 0.1 0.1 0.1)'
+Pass	Property color value 'color(xyz-d50 10 10 10)'
+Pass	Property color value 'color(xyz-d50 .2 .2 .25)'
+Pass	Property color value 'color(xyz-d50 0 0 0 / 0.5)'
+Pass	Property color value 'color(xyz-d50 .20 0 10/0.5)'
+Pass	Property color value 'color(xyz-d50 .20 0 10/50%)'
+Pass	Property color value 'color(xyz-d50 0 0 0 / -10%)'
+Pass	Property color value 'color(xyz-d50 0 0 0 / 110%)'
+Pass	Property color value 'color(xyz-d50 0 0 0 / 300%)'
+Pass	Property color value 'color(xyz-d50 calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(xyz-d50 none none none / none)'
+Pass	Property color value 'color(xyz-d50 none none none)'
+Pass	Property color value 'color(xyz-d50 0.2 none none / none)'
+Pass	Property color value 'color(xyz-d50 none none none / 0.5)'
+Pass	Property color value 'color(xyz-d50 0 0 0 / none)'
+Pass	Property color value 'color(xyz-d50 calc(NaN) 0 0)'
+Pass	Property color value 'color(xyz-d50 calc(0 / 0) 0 0)'
+Fail	Property color value 'color(xyz-d50 calc(0.5 + (sign(1em - 10px) * 0.1)) 0 0 / 0.5)'
+Fail	Property color value 'color(xyz-d50 0.5 0 0 / calc(0.5 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'color(xyz-d65 0 0 0)'
+Pass	Property color value 'color(xyz-d65 0 0 0 / 1)'
+Pass	Property color value 'color(xyz-d65 1 1 1)'
+Pass	Property color value 'color(xyz-d65 1 1 1 / 1)'
+Pass	Property color value 'color(xyz-d65 -1 -1 -1)'
+Pass	Property color value 'color(xyz-d65 0.1 0.1 0.1)'
+Pass	Property color value 'color(xyz-d65 10 10 10)'
+Pass	Property color value 'color(xyz-d65 .2 .2 .25)'
+Pass	Property color value 'color(xyz-d65 0 0 0 / 0.5)'
+Pass	Property color value 'color(xyz-d65 .20 0 10/0.5)'
+Pass	Property color value 'color(xyz-d65 .20 0 10/50%)'
+Pass	Property color value 'color(xyz-d65 0 0 0 / -10%)'
+Pass	Property color value 'color(xyz-d65 0 0 0 / 110%)'
+Pass	Property color value 'color(xyz-d65 0 0 0 / 300%)'
+Pass	Property color value 'color(xyz-d65 calc(0.5 + 1) calc(0.5 - 1) calc(0.5) / calc(-0.5 + 1))'
+Pass	Property color value 'color(xyz-d65 none none none / none)'
+Pass	Property color value 'color(xyz-d65 none none none)'
+Pass	Property color value 'color(xyz-d65 0.2 none none / none)'
+Pass	Property color value 'color(xyz-d65 none none none / 0.5)'
+Pass	Property color value 'color(xyz-d65 0 0 0 / none)'
+Pass	Property color value 'color(xyz-d65 calc(NaN) 0 0)'
+Pass	Property color value 'color(xyz-d65 calc(0 / 0) 0 0)'
+Fail	Property color value 'color(xyz-d65 calc(0.5 + (sign(1em - 10px) * 0.1)) 0 0 / 0.5)'
+Fail	Property color value 'color(xyz-d65 0.5 0 0 / calc(0.5 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'color(srgb 1.00 0.50 0.200)' [sRGB all numbers]
+Pass	Property color value 'color(srgb 100% 50% 20%)' [sRGB all percent]
+Pass	Property color value 'color(srgb 100% 0.5 20%)' [sRGB mixed number and percent]
+Pass	Property color value 'color(srgb 1.00 50% 0.2)' [sRGB mixed number and percent 2]
+Pass	Property color value 'color(srgb none none none)' [sRGB all none]
+Pass	Property color value 'color(srgb 1.00 none 0.2)' [sRGB number and none]
+Pass	Property color value 'color(srgb 100% none 20%)' [sRGB percent and none]
+Pass	Property color value 'color(srgb 100% none 0.2)' [sRGB number, percent and none]
+Pass	Property color value 'color(srgb 1.00 0.50 0.200 / 0.6)' [sRGB with alpha, all numbers]
+Pass	Property color value 'color(srgb 100% 50% 20% / 60%)' [sRGB with alpha, all percent]
+Pass	Property color value 'color(srgb 100% 0.5 20% / 0.6)' [sRGB with alpha, mixed number and percent]
+Pass	Property color value 'color(srgb 1.00 50% 0.2 / 60%)' [sRGB with alpha, mixed number and percent 2]
+Pass	Property color value 'color(srgb none none none / none)' [sRGB with alpha, all none]
+Pass	Property color value 'color(srgb 1.00 none 0.2 / none)' [sRGB with alpha, number and none]
+Pass	Property color value 'color(srgb 100% none 20% / 30%)' [sRGB with alpha, percent and none]
+Pass	Property color value 'color(srgb 100% none 0.2 / 23.7%)' [sRGB with alpha, number, percent and none]
+Pass	Property color value 'color(srgb-linear 1.00 0.50 0.200)' [Linear-light sRGB all numbers]
+Pass	Property color value 'color(srgb-linear 100% 50% 20%)' [Linear-light sRGB all percent]
+Pass	Property color value 'color(srgb-linear 100% 0.5 20%)' [Linear-light sRGB mixed number and percent]
+Pass	Property color value 'color(srgb-linear 1.00 50% 0.2)' [Linear-light sRGB mixed number and percent 2]
+Pass	Property color value 'color(srgb-linear none none none)' [Linear-light sRGB all none]
+Pass	Property color value 'color(srgb-linear 1.00 none 0.2)' [Linear-light sRGB number and none]
+Pass	Property color value 'color(srgb-linear 100% none 20%)' [Linear-light sRGB percent and none]
+Pass	Property color value 'color(srgb-linear 100% none 0.2)' [Linear-light sRGB number, percent and none]
+Pass	Property color value 'color(srgb-linear 1.00 0.50 0.200 / 0.6)' [Linear-light sRGB with alpha, all numbers]
+Pass	Property color value 'color(srgb-linear 100% 50% 20% / 60%)' [Linear-light sRGB with alpha, all percent]
+Pass	Property color value 'color(srgb-linear 100% 0.5 20% / 0.6)' [Linear-light sRGB with alpha, mixed number and percent]
+Pass	Property color value 'color(srgb-linear 1.00 50% 0.2 / 60%)' [Linear-light sRGB with alpha, mixed number and percent 2]
+Pass	Property color value 'color(srgb-linear none none none / none)' [Linear-light sRGB with alpha, all none]
+Pass	Property color value 'color(srgb-linear 1.00 none 0.2 / none)' [Linear-light sRGB with alpha, number and none]
+Pass	Property color value 'color(srgb-linear 100% none 20% / 30%)' [Linear-light sRGB with alpha, percent and none]
+Pass	Property color value 'color(srgb-linear 100% none 0.2 / 23.7%)' [Linear-light sRGB with alpha, number, percent and none]
+Pass	Property color value 'color(display-p3 1.00 0.50 0.200)' [Display P3 all numbers]
+Pass	Property color value 'color(display-p3 100% 50% 20%)' [Display P3 all percent]
+Pass	Property color value 'color(display-p3 100% 0.5 20%)' [Display P3 mixed number and percent]
+Pass	Property color value 'color(display-p3 1.00 50% 0.2)' [Display P3 mixed number and percent 2]
+Pass	Property color value 'color(display-p3 none none none)' [Display P3 all none]
+Pass	Property color value 'color(display-p3 1.00 none 0.2)' [Display P3 number and none]
+Pass	Property color value 'color(display-p3 100% none 20%)' [Display P3 percent and none]
+Pass	Property color value 'color(display-p3 100% none 0.2)' [Display P3 number, percent and none]
+Pass	Property color value 'color(display-p3 1.00 0.50 0.200 / 0.6)' [Display P3 with alpha, all numbers]
+Pass	Property color value 'color(display-p3 100% 50% 20% / 60%)' [Display P3 with alpha, all percent]
+Pass	Property color value 'color(display-p3 100% 0.5 20% / 0.6)' [Display P3 with alpha, mixed number and percent]
+Pass	Property color value 'color(display-p3 1.00 50% 0.2 / 60%)' [Display P3 with alpha, mixed number and percent 2]
+Pass	Property color value 'color(display-p3 none none none / none)' [Display P3 with alpha, all none]
+Pass	Property color value 'color(display-p3 1.00 none 0.2 / none)' [Display P3 with alpha, number and none]
+Pass	Property color value 'color(display-p3 100% none 20% / 30%)' [Display P3 with alpha, percent and none]
+Pass	Property color value 'color(display-p3 100% none 0.2 / 23.7%)' [Display P3 with alpha, number, percent and none]
+Pass	Property color value 'color(display-p3-linear 1.00 0.50 0.200)' [Display P3 Linear all numbers]
+Pass	Property color value 'color(display-p3-linear 100% 50% 20%)' [Display P3 Linear all percent]
+Pass	Property color value 'color(display-p3-linear 100% 0.5 20%)' [Display P3 Linear mixed number and percent]
+Pass	Property color value 'color(display-p3-linear 1.00 50% 0.2)' [Display P3 Linear mixed number and percent 2]
+Pass	Property color value 'color(display-p3-linear none none none)' [Display P3 Linear all none]
+Pass	Property color value 'color(display-p3-linear 1.00 none 0.2)' [Display P3 Linear number and none]
+Pass	Property color value 'color(display-p3-linear 100% none 20%)' [Display P3 Linear percent and none]
+Pass	Property color value 'color(display-p3-linear 100% none 0.2)' [Display P3 Linear number, percent and none]
+Pass	Property color value 'color(display-p3-linear 1.00 0.50 0.200 / 0.6)' [Display P3 Linear with alpha, all numbers]
+Pass	Property color value 'color(display-p3-linear 100% 50% 20% / 60%)' [Display P3 Linear with alpha, all percent]
+Pass	Property color value 'color(display-p3-linear 100% 0.5 20% / 0.6)' [Display P3 Linear with alpha, mixed number and percent]
+Pass	Property color value 'color(display-p3-linear 1.00 50% 0.2 / 60%)' [Display P3 Linear with alpha, mixed number and percent 2]
+Pass	Property color value 'color(display-p3-linear none none none / none)' [Display P3 Linear with alpha, all none]
+Pass	Property color value 'color(display-p3-linear 1.00 none 0.2 / none)' [Display P3 Linear with alpha, number and none]
+Pass	Property color value 'color(display-p3-linear 100% none 20% / 30%)' [Display P3 Linear with alpha, percent and none]
+Pass	Property color value 'color(display-p3-linear 100% none 0.2 / 23.7%)' [Display P3 Linear with alpha, number, percent and none]
+Pass	Property color value 'color(a98-rgb 1.00 0.50 0.200)' [A98 RGB all numbers]
+Pass	Property color value 'color(a98-rgb 100% 50% 20%)' [A98 RGB all percent]
+Pass	Property color value 'color(a98-rgb 100% 0.5 20%)' [A98 RGB mixed number and percent]
+Pass	Property color value 'color(a98-rgb 1.00 50% 0.2)' [A98 RGB mixed number and percent 2]
+Pass	Property color value 'color(a98-rgb none none none)' [A98 RGB all none]
+Pass	Property color value 'color(a98-rgb 1.00 none 0.2)' [A98 RGB number and none]
+Pass	Property color value 'color(a98-rgb 100% none 20%)' [A98 RGB percent and none]
+Pass	Property color value 'color(a98-rgb 100% none 0.2)' [A98 RGB number, percent and none]
+Pass	Property color value 'color(a98-rgb 1.00 0.50 0.200 / 0.6)' [A98 RGB with alpha, all numbers]
+Pass	Property color value 'color(a98-rgb 100% 50% 20% / 60%)' [A98 RGB with alpha, all percent]
+Pass	Property color value 'color(a98-rgb 100% 0.5 20% / 0.6)' [A98 RGB with alpha, mixed number and percent]
+Pass	Property color value 'color(a98-rgb 1.00 50% 0.2 / 60%)' [A98 RGB with alpha, mixed number and percent 2]
+Pass	Property color value 'color(a98-rgb none none none / none)' [A98 RGB with alpha, all none]
+Pass	Property color value 'color(a98-rgb 1.00 none 0.2 / none)' [A98 RGB with alpha, number and none]
+Pass	Property color value 'color(a98-rgb 100% none 20% / 30%)' [A98 RGB with alpha, percent and none]
+Pass	Property color value 'color(a98-rgb 100% none 0.2 / 23.7%)' [A98 RGB with alpha, number, percent and none]
+Pass	Property color value 'color(prophoto-rgb 1.00 0.50 0.200)' [ProPhoto RGB all numbers]
+Pass	Property color value 'color(prophoto-rgb 100% 50% 20%)' [ProPhoto RGB all percent]
+Pass	Property color value 'color(prophoto-rgb 100% 0.5 20%)' [ProPhoto RGB mixed number and percent]
+Pass	Property color value 'color(prophoto-rgb 1.00 50% 0.2)' [ProPhoto RGB mixed number and percent 2]
+Pass	Property color value 'color(prophoto-rgb none none none)' [ProPhoto RGB all none]
+Pass	Property color value 'color(prophoto-rgb 1.00 none 0.2)' [ProPhoto RGB number and none]
+Pass	Property color value 'color(prophoto-rgb 100% none 20%)' [ProPhoto RGB percent and none]
+Pass	Property color value 'color(prophoto-rgb 100% none 0.2)' [ProPhoto RGB number, percent and none]
+Pass	Property color value 'color(prophoto-rgb 1.00 0.50 0.200 / 0.6)' [ProPhoto RGB with alpha, all numbers]
+Pass	Property color value 'color(prophoto-rgb 100% 50% 20% / 60%)' [ProPhoto RGB with alpha, all percent]
+Pass	Property color value 'color(prophoto-rgb 100% 0.5 20% / 0.6)' [ProPhoto RGB with alpha, mixed number and percent]
+Pass	Property color value 'color(prophoto-rgb 1.00 50% 0.2 / 60%)' [ProPhoto RGB with alpha, mixed number and percent 2]
+Pass	Property color value 'color(prophoto-rgb none none none / none)' [ProPhoto RGB with alpha, all none]
+Pass	Property color value 'color(prophoto-rgb 1.00 none 0.2 / none)' [ProPhoto RGB with alpha, number and none]
+Pass	Property color value 'color(prophoto-rgb 100% none 20% / 30%)' [ProPhoto RGB with alpha, percent and none]
+Pass	Property color value 'color(prophoto-rgb 100% none 0.2 / 23.7%)' [ProPhoto RGB with alpha, number, percent and none]
+Pass	Property color value 'color(rec2020 1.00 0.50 0.200)' [Rec BT.2020 all numbers]
+Pass	Property color value 'color(rec2020 100% 50% 20%)' [Rec BT.2020 all percent]
+Pass	Property color value 'color(rec2020 100% 0.5 20%)' [Rec BT.2020 mixed number and percent]
+Pass	Property color value 'color(rec2020 1.00 50% 0.2)' [Rec BT.2020 mixed number and percent 2]
+Pass	Property color value 'color(rec2020 none none none)' [Rec BT.2020 all none]
+Pass	Property color value 'color(rec2020 1.00 none 0.2)' [Rec BT.2020 number and none]
+Pass	Property color value 'color(rec2020 100% none 20%)' [Rec BT.2020 percent and none]
+Pass	Property color value 'color(rec2020 100% none 0.2)' [Rec BT.2020 number, percent and none]
+Pass	Property color value 'color(rec2020 1.00 0.50 0.200 / 0.6)' [Rec BT.2020 with alpha, all numbers]
+Pass	Property color value 'color(rec2020 100% 50% 20% / 60%)' [Rec BT.2020 with alpha, all percent]
+Pass	Property color value 'color(rec2020 100% 0.5 20% / 0.6)' [Rec BT.2020 with alpha, mixed number and percent]
+Pass	Property color value 'color(rec2020 1.00 50% 0.2 / 60%)' [Rec BT.2020 with alpha, mixed number and percent 2]
+Pass	Property color value 'color(rec2020 none none none / none)' [Rec BT.2020 with alpha, all none]
+Pass	Property color value 'color(rec2020 1.00 none 0.2 / none)' [Rec BT.2020 with alpha, number and none]
+Pass	Property color value 'color(rec2020 100% none 20% / 30%)' [Rec BT.2020 with alpha, percent and none]
+Pass	Property color value 'color(rec2020 100% none 0.2 / 23.7%)' [Rec BT.2020 with alpha, number, percent and none]
+Pass	Property color value 'color(xyz-d50 1.00 0.50 0.200)' [CIE XYZ D50 all numbers]
+Pass	Property color value 'color(xyz-d50 100% 50% 20%)' [CIE XYZ D50 all percent]
+Pass	Property color value 'color(xyz-d50 100% 0.5 20%)' [CIE XYZ D50 mixed number and percent]
+Pass	Property color value 'color(xyz-d50 1.00 50% 0.2)' [CIE XYZ D50 mixed number and percent 2]
+Pass	Property color value 'color(xyz-d50 none none none)' [CIE XYZ D50 all none]
+Pass	Property color value 'color(xyz-d50 1.00 none 0.2)' [CIE XYZ D50 number and none]
+Pass	Property color value 'color(xyz-d50 100% none 20%)' [CIE XYZ D50 percent and none]
+Pass	Property color value 'color(xyz-d50 100% none 0.2)' [CIE XYZ D50 number, percent and none]
+Pass	Property color value 'color(xyz-d50 1.00 0.50 0.200 / 0.6)' [CIE XYZ D50 with alpha, all numbers]
+Pass	Property color value 'color(xyz-d50 100% 50% 20% / 60%)' [CIE XYZ D50 with alpha, all percent]
+Pass	Property color value 'color(xyz-d50 100% 0.5 20% / 0.6)' [CIE XYZ D50 with alpha, mixed number and percent]
+Pass	Property color value 'color(xyz-d50 1.00 50% 0.2 / 60%)' [CIE XYZ D50 with alpha, mixed number and percent 2]
+Pass	Property color value 'color(xyz-d50 none none none / none)' [CIE XYZ D50 with alpha, all none]
+Pass	Property color value 'color(xyz-d50 1.00 none 0.2 / none)' [CIE XYZ D50 with alpha, number and none]
+Pass	Property color value 'color(xyz-d50 100% none 20% / 30%)' [CIE XYZ D50 with alpha, percent and none]
+Pass	Property color value 'color(xyz-d50 100% none 0.2 / 23.7%)' [CIE XYZ D50 with alpha, number, percent and none]
+Pass	Property color value 'color(xyz-d65 1.00 0.50 0.200)' [CIE XYZ D65 all numbers]
+Pass	Property color value 'color(xyz-d65 100% 50% 20%)' [CIE XYZ D65 all percent]
+Pass	Property color value 'color(xyz-d65 100% 0.5 20%)' [CIE XYZ D65 mixed number and percent]
+Pass	Property color value 'color(xyz-d65 1.00 50% 0.2)' [CIE XYZ D65 mixed number and percent 2]
+Pass	Property color value 'color(xyz-d65 none none none)' [CIE XYZ D65 all none]
+Pass	Property color value 'color(xyz-d65 1.00 none 0.2)' [CIE XYZ D65 number and none]
+Pass	Property color value 'color(xyz-d65 100% none 20%)' [CIE XYZ D65 percent and none]
+Pass	Property color value 'color(xyz-d65 100% none 0.2)' [CIE XYZ D65 number, percent and none]
+Pass	Property color value 'color(xyz-d65 1.00 0.50 0.200 / 0.6)' [CIE XYZ D65 with alpha, all numbers]
+Pass	Property color value 'color(xyz-d65 100% 50% 20% / 60%)' [CIE XYZ D65 with alpha, all percent]
+Pass	Property color value 'color(xyz-d65 100% 0.5 20% / 0.6)' [CIE XYZ D65 with alpha, mixed number and percent]
+Pass	Property color value 'color(xyz-d65 1.00 50% 0.2 / 60%)' [CIE XYZ D65 with alpha, mixed number and percent 2]
+Pass	Property color value 'color(xyz-d65 none none none / none)' [CIE XYZ D65 with alpha, all none]
+Pass	Property color value 'color(xyz-d65 1.00 none 0.2 / none)' [CIE XYZ D65 with alpha, number and none]
+Pass	Property color value 'color(xyz-d65 100% none 20% / 30%)' [CIE XYZ D65 with alpha, percent and none]
+Pass	Property color value 'color(xyz-d65 100% none 0.2 / 23.7%)' [CIE XYZ D65 with alpha, number, percent and none]
+Pass	Property color value 'color(xyz 1.00 0.50 0.200)' [CIE XYZ (implicit D65) all numbers]
+Pass	Property color value 'color(xyz 100% 50% 20%)' [CIE XYZ (implicit D65) all percent]
+Pass	Property color value 'color(xyz 100% 0.5 20%)' [CIE XYZ (implicit D65) mixed number and percent]
+Pass	Property color value 'color(xyz 1.00 50% 0.2)' [CIE XYZ (implicit D65) mixed number and percent 2]
+Pass	Property color value 'color(xyz none none none)' [CIE XYZ (implicit D65) all none]
+Pass	Property color value 'color(xyz 1.00 none 0.2)' [CIE XYZ (implicit D65) number and none]
+Pass	Property color value 'color(xyz 100% none 20%)' [CIE XYZ (implicit D65) percent and none]
+Pass	Property color value 'color(xyz 100% none 0.2)' [CIE XYZ (implicit D65) number, percent and none]
+Pass	Property color value 'color(xyz 1.00 0.50 0.200 / 0.6)' [CIE XYZ (implicit D65) with alpha, all numbers]
+Pass	Property color value 'color(xyz 100% 50% 20% / 60%)' [CIE XYZ (implicit D65) with alpha, all percent]
+Pass	Property color value 'color(xyz 100% 0.5 20% / 0.6)' [CIE XYZ (implicit D65) with alpha, mixed number and percent]
+Pass	Property color value 'color(xyz 1.00 50% 0.2 / 60%)' [CIE XYZ (implicit D65) with alpha, mixed number and percent 2]
+Pass	Property color value 'color(xyz none none none / none)' [CIE XYZ (implicit D65) with alpha, all none]
+Pass	Property color value 'color(xyz 1.00 none 0.2 / none)' [CIE XYZ (implicit D65) with alpha, number and none]
+Pass	Property color value 'color(xyz 100% none 20% / 30%)' [CIE XYZ (implicit D65) with alpha, percent and none]
+Pass	Property color value 'color(xyz 100% none 0.2 / 23.7%)' [CIE XYZ (implicit D65) with alpha, number, percent and none]
+Pass	Property color value 'color(srgb 1 1 1)' [Basic sRGB white]
+Pass	Property color value 'color(    srgb         1      1 1       )' [White with lots of space]
+Pass	Property color value 'color(srgb 0.25 0.5 0.75)' [sRGB color]
+Pass	Property color value 'color(SrGb 0.25 0.5 0.75)' [Different case for sRGB]
+Pass	Property color value 'color(srgb 1.00000 0.500000 0.20)' [sRGB color with unnecessary decimals]
+Pass	Property color value 'color(srgb 1 1 1 / 0.5)' [sRGB white with 0.5 alpha]
+Pass	Property color value 'color(srgb 1 1 1 / 0)' [sRGB white with 0 alpha]
+Pass	Property color value 'color(srgb 1 1 1 / 50%)' [sRGB white with 50% alpha]
+Pass	Property color value 'color(srgb 1 1 1 / 0%)' [sRGB white with 0% alpha]
+Pass	Property color value 'color(display-p3 0.6 0.7 0.8)' [Display P3 color]
+Pass	Property color value 'color(dIspLaY-P3 0.6 0.7 0.8)' [Different case for Display P3]
+Pass	Property color value 'color(srgb -0.25 0.5 0.75)' [sRGB color with negative component should not clamp to 0]
+Pass	Property color value 'color(srgb 0.25 1.5 0.75)' [sRGB color with component > 1 should not clamp]
+Pass	Property color value 'color(display-p3 0.5 -199 0.75)' [Display P3 color with negative component should not clamp to 0]
+Pass	Property color value 'color(display-p3 184 1.00001 1103)' [Display P3 color with component > 1 should not clamp]
+Pass	Property color value 'color(srgb 0.1 0.2 0.3 / 1.9)' [Alpha > 1 should clamp]
+Pass	Property color value 'color(srgb 1 1 1 / -0.2)' [Negative alpha should clamp]
+Fail	Property color value 'color(srgb calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0 0 / 0.51)'
+Fail	Property color value 'color(srgb calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0 0 / 0.52)'

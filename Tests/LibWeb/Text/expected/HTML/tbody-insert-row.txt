@@ -1,0 +1,4 @@
+2
+[object HTMLTableRowElement]
+[object HTMLTableRowElement]
+PASS (didn't crash)

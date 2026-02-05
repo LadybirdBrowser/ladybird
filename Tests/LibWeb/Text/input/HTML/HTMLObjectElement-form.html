@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const objectElement = document.createElement("object");
+        println(`objectElement.form initial value is null: ${objectElement.form === null}`);
+
+        const formElement = document.createElement("form");
+        formElement.id = "form1";
+        formElement.appendChild(objectElement);
+        println(`objectElement.form.id after appending to #form1: ${objectElement.form.id}`);
+        formElement.removeChild(objectElement);
+        println(`objectElement.form value after removing from #form1 is null: ${objectElement.form === null}`);
+    });
+</script>

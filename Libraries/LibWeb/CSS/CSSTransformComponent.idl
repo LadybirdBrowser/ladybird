@@ -1,0 +1,9 @@
+#import <Geometry/DOMMatrix.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#csstransformcomponent
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSTransformComponent {
+    stringifier;
+    [ImplementedAs=is_2d] attribute boolean is2D;
+    DOMMatrix toMatrix();
+};

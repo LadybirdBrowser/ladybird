@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.validity.typeMismatch</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-validitystate-typemismatch">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<script>
+  var testElements = [
+    {
+      tag: "input",
+      types: ["email"],
+      testData: [
+        // multiple is false
+        {conditions: {multiple: false, value: ""}, expected: false, name: "[target] The value is empty"},
+        {conditions: {multiple: false, value: "test@example.com"}, expected: false, name: "[target] The value is a valid email address"},
+        {conditions: {multiple: false, value: "\u000A\u000D\u0020\u0009 test@example.com \u000A\u000D\u0020\u0009"}, expected: false, name: "[target] The value is a valid email address with some white spaces."},
+        {conditions: {multiple: false, value: "abc"}, expected: true, name: "[target] The value is not an email address"},
+        {conditions: {multiple: false, value: "test1@example.com,test2@example.com"}, expected: true, name: "[target] The value contains multiple email addresses"},
+        //multiple is true
+        {conditions: {multiple: true, value: "test1@example.com,test2@example.com"}, expected: false, name: "[target] The value is valid email addresses"},
+        {conditions: {multiple: true, value: "test1@example.com;test2@example.com"}, expected: true, name: "[target] The value contains invalid separator"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["url"],
+      testData: [
+        {conditions: {multiple: false, value: ""}, expected: false, name: "[target] The value is empty"},
+        {conditions: {multiple: false, value: "http://www.example.com"}, expected: false, name: "[target] The value is a valid url"},
+        {conditions: {multiple: false, value: "\u000A\u000D\u0020\u0009 http://www.example.com \u000A\u000D\u0020\u0009 "}, expected: false, name: "[target] The value is a valid url with some white spaces."},
+        {conditions: {multiple: false, value: "abc"}, expected: true, name: "[target] The value is not an url"}
+      ]
+    }
+  ];
+
+  validator.run_test(testElements, "typeMismatch");
+</script>

@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	type's state on DataTransfer creation
+Pass	Relationship between types and items
+Pass	type's identity
+Pass	Verify type is a read-only attribute
+Pass	DataTransfer containing files

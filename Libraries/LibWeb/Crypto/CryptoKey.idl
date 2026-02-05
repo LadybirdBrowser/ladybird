@@ -1,0 +1,13 @@
+enum KeyType { "public", "private", "secret" };
+
+// https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyusage
+enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits", "wrapKey", "unwrapKey", "encapsulateKey", "encapsulateBits", "decapsulateKey", "decapsulateBits" };
+
+// https://w3c.github.io/webcrypto/#cryptokey-interface
+[SecureContext,Exposed=(Window,Worker),Serializable]
+interface CryptoKey {
+    readonly attribute KeyType type;
+    readonly attribute boolean extractable;
+    readonly attribute object algorithm;
+    readonly attribute object usages;
+};

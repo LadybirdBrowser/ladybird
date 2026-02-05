@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<title>CSS Shadow Parts - :host::part() cascading</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts-1/#part">
+<link rel="help" href="https://drafts.csswg.org/css-scoping-1/#host-selector">
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#cascade-sort">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#specificity">
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="host"></div>
+
+<script>
+
+test(function() {
+  let host = document.getElementById("host");
+  let shadow = host.attachShadow({mode: "open"});
+  // Make three rules with equal specificity, so that they cascade by
+  // order.  Pseudo-elements and elements have the same specificity.
+  // Pseudo-classes and attribute selectors have the same specificity.
+  shadow.innerHTML = `
+    <style>
+      div[part="part-name"] {
+        color: red;
+      }
+      :host::part(part-name) {
+        color: lime;
+        background-color: red;
+      }
+      div[part="part-name"] {
+        background-color: green;
+      }
+    </style>
+    <div part="part-name"></div>
+  `;
+
+  let part_cs = getComputedStyle(shadow.querySelector('div[part="part-name"]'));
+
+  assert_equals(part_cs.color, "rgb(0, 255, 0)",
+                ":host::part() selectors override earlier selectors with " +
+                "same encapsulation context and specificity");
+  assert_equals(part_cs.backgroundColor, "rgb(0, 128, 0)",
+                ":host::part() selectors are overridden by later selectors " +
+                "with same encapsulation context and specificity");
+}, ":host::part has correct cascading behavior");
+
+</script>

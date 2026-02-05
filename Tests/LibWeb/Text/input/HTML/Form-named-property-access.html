@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<form id="formy">
+    <input type="text" name="foo">
+    <button type="button" name="bar"></button>
+    <object name="baz"></object>
+    <select name="qux"></select>
+    <textarea name="quux"></textarea>
+    <fieldset name="corge">
+        <!-- input elements in the ImageData type state are excluded -->
+        <input type="image" name="grault">
+    </fieldset>
+    <img id="inside" src="" alt="">
+</form>
+
+<input type="text" name="foo2" form="formy">
+<button type="button" name="bar2" form="formy"></button>
+<object name="baz2" form="formy"></object>
+<select name="qux2" form="formy"></select>
+<textarea name="quux2" form="formy"></textarea>
+<fieldset name="corge2" form="formy">
+    <!-- input elements in the ImageData type state are excluded -->
+    <input type="image" name="grault2" form="formy">
+</fieldset>
+
+<form id="form2"></form>
+<form id="form3">
+    <fieldset form="form2" id="formset">
+        <input type="button" id="button1" form="form2">
+        <input type="button" id="button2" form="form3">
+        <input type="button" id="button3"><!-- implicitly form3 -->
+    </fieldset>
+</form>
+
+<form id="samename">
+    <input type="text" name="a">
+    <button type="button" name="a"></button>
+    <object name="a"></object>
+    <select name="a"></select>
+    <textarea name="a"></textarea>
+    <fieldset name="a">
+        <!-- input elements in the ImageData type state are excluded -->
+        <input type="image" name="a">
+    </fieldset>
+    <img id="a" src="" alt="">
+</form>
+
+<form id="sameid">
+    <input type="text" id="a">
+    <button type="button" id="a"></button>
+    <object id="a"></object>
+    <select id="a"></select>
+    <textarea id="a"></textarea>
+    <fieldset id="a">
+        <!-- input elements in the ImageData type state are excluded -->
+        <input type="image" id="a">
+    </fieldset>
+    <img id="a" src="" alt="">
+</form>
+
+<form id="changy">
+    <input type="text" name="hello">
+</form>
+
+<form id="changeForFormAttribute"></form>
+<input id="changeForFormAttributeInput" type="text" name="changeForFormAttribute" />
+
+<input id="inputBeforeForm" type="text" form="formAfterInput" />
+<form id="formAfterInput"></form>
+
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println("== Elements and Names ==");
+        let formy = document.forms.formy;
+        let elements = formy.elements;
+        println(`formy.length: ${formy.length}`);
+        println(`elements.length: ${elements.length}`);
+        for (let i = 0; i < elements.length; i++) {
+            if (elements[i] !== eval(`formy.${elements[i].name}`)) {
+                println(`FAIL: elements[${i}] !== form.${elements[i].name}`);
+            }
+            else {
+                println(`elements[${i}] === form.${elements[i].name}`);
+            }
+        }
+
+        println("== If no listed elements, picks img ==");
+        let image = document.getElementById("inside");
+        println("form.inside == image: " + (formy.inside === image));
+
+        println("== Form association ==");
+        let form2 = document.getElementById("form2");
+        let form3 = document.getElementById("form3");
+        println(`elements in form2: ${form2.elements.length}`);
+        println(`elements in form3: ${form3.elements.length}`);
+
+        println("== Same name and id for many elements ==");
+        let samename = document.getElementById("samename");
+        println(`elements in samename: ${samename.elements.length}`);
+        let samenameElements = samename.a;
+        println(`samename.a.length: ${samenameElements.length}`);
+        println(`typeof samename.a: ${typeof samenameElements}`);
+
+        let sameid = document.getElementById("sameid");
+        println(`elements in sameid: ${sameid.elements.length}`);
+        let sameidElements = sameid.a;
+        println(`sameid.a.length: ${sameidElements.length}`);
+        println(`typeof sameid.a: ${typeof sameidElements}`);
+
+        println("== Changing name/id ==");
+        let changy = document.getElementById("changy");
+        println(`elements in changy: ${changy.elements.length}`);
+        let hello = changy.hello;
+        changy.elements[0].name = "goodbye";
+        let goodbye = changy.goodbye;
+        println(`hello is goodbye? ${hello === goodbye}`);
+        println(`Can we still use the same name?: ${changy.hello === changy.goodbye}`);
+
+        let newInput = document.createElement("input");
+        newInput.type = "text";
+        newInput.id = "hello";
+        changy.appendChild(newInput);
+
+        println(`new hello is goodbye? ${changy.hello === goodbye}`);
+        println(`new hello is old hello? ${changy.hello === hello}`);
+        println(`new hello is newInput? ${changy.hello === newInput}`);
+
+        println("== Changing form attribute ==");
+        let changeForFormAttribute = document.getElementById("changeForFormAttribute");
+        let changeForFormAttributeInput = document.getElementById("changeForFormAttributeInput");
+
+        println(`elements in changeForFormAttribute: ${changeForFormAttribute.elements.length}`);
+
+        changeForFormAttributeInput.setAttribute("form", "changeForFormAttribute");
+        println(`elements in changeForFormAttribute: ${changeForFormAttribute.elements.length}`);
+
+        changeForFormAttributeInput.setAttribute("form", "hakuna matata");
+        println(`elements in changeForFormAttribute: ${changeForFormAttribute.elements.length}`);
+
+        changeForFormAttributeInput.setAttribute("form", "changeForFormAttribute");
+        println(`elements in changeForFormAttribute: ${changeForFormAttribute.elements.length}`);
+
+        changeForFormAttributeInput.removeAttribute("form");
+        println(`elements in changeForFormAttribute: ${changeForFormAttribute.elements.length}`);
+
+        println("== Form element appears after a form-associated element ==");
+        let formAfterInput = document.getElementById("formAfterInput");
+        println(`elements in formAfterInput: ${formAfterInput.elements.length}`);
+        println(`typeof formAfterInput.inputBeforeForm: ${typeof formAfterInput.inputBeforeForm}`);
+    });
+</script>

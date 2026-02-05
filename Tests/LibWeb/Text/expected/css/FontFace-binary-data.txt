@@ -1,0 +1,6 @@
+badFace.status: error
+badFace.family: My Cool Font
+zeroBytesFace.status: error
+zeroBytesFace.family: Empty Font
+face.status: loaded
+face.family: Hash Sans

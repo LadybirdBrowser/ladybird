@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        background-size: calc(1em - 1px) calc(1em - 1px);
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(foo).backgroundSize);
+    });
+</script>

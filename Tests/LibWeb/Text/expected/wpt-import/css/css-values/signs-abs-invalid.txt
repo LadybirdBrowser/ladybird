@@ -1,0 +1,58 @@
+Harness status: OK
+
+Found 52 tests
+
+51 Pass
+1 Fail
+Pass	e.style['font-weight'] = "abs()" should not set the property value
+Pass	e.style['font-weight'] = "abs( )" should not set the property value
+Pass	e.style['font-weight'] = "abs(,)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, )" should not set the property value
+Pass	e.style['font-weight'] = "abs(, 1)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1 + )" should not set the property value
+Pass	e.style['font-weight'] = "abs(1 - )" should not set the property value
+Pass	e.style['font-weight'] = "abs(1 * )" should not set the property value
+Pass	e.style['font-weight'] = "abs(1 / )" should not set the property value
+Pass	e.style['font-weight'] = "abs(1 2)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, , 2)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 2)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 1%)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 0px)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 0s)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 0deg)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 0Hz)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 0dpi)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1, 0fr)" should not set the property value
+Pass	e.style['font-weight'] = "sign()" should not set the property value
+Pass	e.style['font-weight'] = "sign( )" should not set the property value
+Pass	e.style['font-weight'] = "sign(,)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, )" should not set the property value
+Pass	e.style['font-weight'] = "sign(, 1)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1 + )" should not set the property value
+Pass	e.style['font-weight'] = "sign(1 - )" should not set the property value
+Pass	e.style['font-weight'] = "sign(1 * )" should not set the property value
+Pass	e.style['font-weight'] = "sign(1 / )" should not set the property value
+Pass	e.style['font-weight'] = "sign(1 2)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, , 2)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 2)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 1%)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 0px)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 0s)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 0deg)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 0Hz)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 0dpi)" should not set the property value
+Pass	e.style['font-weight'] = "sign(1, 0fr)" should not set the property value
+Pass	e.style['font-weight'] = "abs(0px)" should not set the property value
+Pass	e.style['font-weight'] = "abs(0s)" should not set the property value
+Pass	e.style['font-weight'] = "abs(0deg)" should not set the property value
+Pass	e.style['font-weight'] = "abs(0Hz)" should not set the property value
+Pass	e.style['font-weight'] = "abs(0dpi)" should not set the property value
+Pass	e.style['font-weight'] = "abs(0fr)" should not set the property value
+Pass	e.style['font-weight'] = "abs(1%)" should not set the property value
+Pass	e.style['font-weight'] = "sign(10px + 5rad)" should not set the property value
+Fail	e.style['font-weight'] = "sign(10%)" should not set the property value
+Pass	e.style['tab-size'] = "abs(10%)" should not set the property value
+Pass	e.style['tab-size'] = "1px * sign(10%)" should not set the property value
+Pass	e.style['tab-size'] = "1px * sign(1em + 10%)" should not set the property value
+Pass	e.style['margin-left'] = "1px * sign(10px + 5rad)" should not set the property value
+Pass	e.style['tab-size'] = "1px * sign(10px + 5rad)" should not set the property value

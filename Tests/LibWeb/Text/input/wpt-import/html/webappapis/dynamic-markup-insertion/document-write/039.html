@@ -1,0 +1,21 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  var s = "<body><!";
+  for (var i=0; i<s.length; i++) {
+    document.write(s[i]);
+  }
+});
+</script>DOCTYPE html><script>
+t.step(function() {
+  //Nothing should be inserted into the DOM for the doctype node so
+  //just checking nothing odd happens
+  assert_equals(document.body.childNodes[0].localName, "script");
+}
+);
+t.done();
+</script>
+<div id="log"></div>

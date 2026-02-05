@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	Returning a string must not cancel the event: CustomEvent, non-cancelable
+Pass	Returning a string must not cancel the event: CustomEvent, cancelable
+Pass	Returning false must not cancel the event, because it's coerced to the DOMString "false" which does not cancel CustomEvents: CustomEvent, cancelable
+Pass	Returning a string must not cancel the event: BeforeUnloadEvent with type "click", cancelable
+Pass	Returning null with a real iframe unloading
+Pass	Returning undefined with a real iframe unloading
+Pass	Returning  with a real iframe unloading
+Pass	Returning false with a real iframe unloading
+Pass	Returning true with a real iframe unloading
+Pass	Returning 0 with a real iframe unloading
+Pass	Returning null with a real iframe unloading; setting returnValue to foo
+Pass	Returning undefined with a real iframe unloading; setting returnValue to foo
+Pass	Returning  with a real iframe unloading; setting returnValue to foo
+Pass	Returning false with a real iframe unloading; setting returnValue to foo
+Pass	Returning true with a real iframe unloading; setting returnValue to foo
+Pass	Returning 0 with a real iframe unloading; setting returnValue to foo
+Pass	Returning undefined with a real iframe unloading; setting returnValue to 
+Pass	Returning undefined with a real iframe unloading; calling preventDefault()
+Pass	Returning undefined with a real iframe unloading; setting returnValue to foo; calling preventDefault()
+Pass	Returning foo with a real iframe unloading; calling preventDefault()
+Pass	Returning foo with a real iframe unloading; setting returnValue to foo; calling preventDefault()
+Pass	Returning true with a real iframe unloading; setting returnValue to ; calling preventDefault()

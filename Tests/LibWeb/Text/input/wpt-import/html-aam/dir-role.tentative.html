@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTML-AAM dir Element Role Verification Test</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tentative test for the expected role mappings of the obsolete <code>dir</code> element.
+  The computedrole mappings are defined in <a href="https://w3c.github.io/html-aam/">HTML-AAM</a>.<p>
+
+<p>Merge the outcome of this test into roles.html in the appropriate alphabetical order, when it is no longer considered tentative:</p>
+
+<dir data-testname="el-dir" data-expectedrole="list" class="ex"><li>x</li><li>x</li></dir>
+
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

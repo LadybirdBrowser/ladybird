@@ -1,0 +1,95 @@
+{
+  "version": 6,
+  "include": [
+    "CMakeBasePresets.json"
+  ],
+  "configurePresets": [
+    {
+      "hidden": true,
+      "name": "unix_base",
+      "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "Release",
+      "inherits": [
+        "unix_base",
+        "Release_base"
+      ]
+    },
+    {
+      "name": "Debug",
+      "inherits": [
+        "unix_base",
+        "Debug_base"
+      ]
+    },
+    {
+      "name": "Sanitizer",
+      "inherits": [
+        "unix_base",
+        "Sanitizer_base"
+      ]
+    },
+    {
+      "name": "Distribution",
+      "inherits": [
+        "unix_base",
+        "Distribution_base"
+      ]
+    },
+    {
+      "name": "Fuzzers",
+      "inherits": [
+        "unix_base",
+        "Fuzzers_base"
+      ]
+    },
+    {
+      "name": "All_Debug",
+      "inherits": [
+        "unix_base",
+        "All_Debug_base"
+      ]
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": [
+        "unix_base",
+        "Swift_Release_base"
+      ]
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Distribution",
+      "inherits": "base",
+      "configurePreset": "Distribution",
+      "displayName": "Distribution Build",
+      "description": "Build the project for distribution"
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": "base",
+      "configurePreset": "Swift_Release",
+      "displayName": "Swift Release Build",
+      "description": "Build the project for Swift release on Unix"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "Distribution",
+      "inherits": "base",
+      "configurePreset": "Distribution"
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": "base",
+      "configurePreset": "Swift_Release"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>outerHTML and string conversion</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com">
+<link rel="help" href="https://w3c.github.io/DOM-Parsing/#extensions-to-the-element-interface">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+test(function() {
+  var div = document.createElement("div");
+  var p = div.appendChild(document.createElement("p"));
+  p.outerHTML = null;
+  assert_equals(div.innerHTML, "");
+  assert_equals(div.textContent, "");
+}, "outerHTML and string conversion: null.")
+
+test(function() {
+  var div = document.createElement("div");
+  var p = div.appendChild(document.createElement("p"));
+  p.outerHTML = undefined;
+  assert_equals(div.innerHTML, "undefined");
+  assert_equals(div.textContent, "undefined");
+}, "outerHTML and string conversion: undefined.")
+
+test(function() {
+  var div = document.createElement("div");
+  var p = div.appendChild(document.createElement("p"));
+  p.outerHTML = 42;
+  assert_equals(div.innerHTML, "42");
+  assert_equals(div.textContent, "42");
+}, "outerHTML and string conversion: number.")
+
+test(function() {
+  var div = document.createElement("div");
+  var p = div.appendChild(document.createElement("p"));
+  p.outerHTML = {
+    toString: function() { return "pass"; },
+    valueOf: function() { return "fail"; }
+  };
+  assert_equals(div.innerHTML, "pass");
+  assert_equals(div.textContent, "pass");
+}, "outerHTML and string conversion: toString.")
+
+test(function() {
+  var div = document.createElement("div");
+  var p = div.appendChild(document.createElement("p"));
+  p.outerHTML = {
+    toString: undefined,
+    valueOf: function() { return "pass"; }
+  };
+  assert_equals(div.innerHTML, "pass");
+  assert_equals(div.textContent, "pass");
+}, "outerHTML and string conversion: valueOf.")
+</script>

@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['text-wrap-style'] = "auto" should set the property value
+Pass	e.style['text-wrap-style'] = "balance" should set the property value
+Pass	e.style['text-wrap-style'] = "stable" should set the property value
+Pass	e.style['text-wrap-style'] = "initial" should set the property value
+Pass	e.style['text-wrap-style'] = "inherit" should set the property value
+Pass	e.style['text-wrap-style'] = "unset" should set the property value
+Pass	e.style['text-wrap-style'] = "revert" should set the property value
+Pass	e.style['text-wrap-style'] = "revert-layer" should set the property value

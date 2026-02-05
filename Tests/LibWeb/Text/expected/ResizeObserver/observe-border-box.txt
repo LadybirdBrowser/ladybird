@@ -1,0 +1,2 @@
+contentSize: 100px x 200px; borderBoxSize [inline=140px, block=240px]; contentBoxSize [inline=100px, block=200px]; deviceBoxSize [inline=140px, block=240px]
+contentSize: 100px x 200px; borderBoxSize [inline=140px, block=280px]; contentBoxSize [inline=100px, block=200px]; deviceBoxSize [inline=140px, block=280px]

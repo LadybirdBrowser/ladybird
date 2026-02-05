@@ -1,0 +1,31 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:x="test">
+<head>
+<title>Node.lookupPrefix</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body xmlns:s="test">
+<div id="log"/>
+<x xmlns:t="test"><!--comment--><?test test?>TEST<x/></x>
+<script>
+function lookupPrefix(node, ns, prefix) {
+  test(function() {
+    assert_equals(node.lookupPrefix(ns), prefix)
+  })
+}
+var x = document.getElementsByTagName("x")[0];
+lookupPrefix(document, "test", "x") // XXX add test for when there is no documentElement
+lookupPrefix(document, null, null)
+lookupPrefix(x, "http://www.w3.org/1999/xhtml", null)
+lookupPrefix(x, "something", null)
+lookupPrefix(x, null, null)
+lookupPrefix(x, "test", "t")
+lookupPrefix(x.parentNode, "test", "s")
+lookupPrefix(x.firstChild, "test", "t")
+lookupPrefix(x.childNodes[1], "test", "t")
+lookupPrefix(x.childNodes[2], "test", "t")
+lookupPrefix(x.lastChild, "test", "t")
+x.parentNode.removeChild(x)
+</script>
+</body>
+</html>

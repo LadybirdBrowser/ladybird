@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors: The relational pseudo-class</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#has-pseudo">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  test_valid_selector(':has(a)');
+  test_valid_selector(':has(#a)');
+  test_valid_selector(':has(.a)');
+  test_valid_selector(':has([a])');
+  test_valid_selector(':has([a="b"])');
+  test_valid_selector(':has([a|="b"])');
+  test_valid_selector(':has(:hover)');
+  test_valid_selector('*:has(.a)', ['*:has(.a)', ':has(.a)']);
+  test_valid_selector('.a:has(.b)');
+  test_valid_selector('.a:has(> .b)');
+  test_valid_selector('.a:has(~ .b)');
+  test_valid_selector('.a:has(+ .b)');
+  test_valid_selector('.a:has(.b) .c');
+  test_valid_selector('.a .b:has(.c)');
+  test_valid_selector('.a .b:has(.c .d)');
+  test_valid_selector('.a .b:has(.c .d) .e');
+  test_valid_selector('.a:has(.b:is(.c .d))');
+  test_valid_selector('.a:is(.b:has(.c) .d)');
+  test_valid_selector('.a:not(:has(.b))');
+  test_valid_selector('.a:has(:not(.b))');
+  test_valid_selector('.a:has(.b):has(.c)');
+  test_valid_selector('*|*:has(*)', ':has(*)');
+  test_valid_selector(':has(*|*)', ':has(*)');
+  test_invalid_selector(':has');
+  test_invalid_selector('.a:has');
+  test_invalid_selector('.a:has b');
+  /* :has() is unforgiving, but :is() can still forgive */
+  test_invalid_selector(':has()');
+  test_invalid_selector(':has(123)');
+  test_invalid_selector(':has(.a, 123)');
+</script>

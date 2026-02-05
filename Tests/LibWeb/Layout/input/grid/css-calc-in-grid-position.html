@@ -1,0 +1,34 @@
+<!DOCTYPE html><style>
+* {
+    outline: 1px solid black;
+}
+body {
+    display: grid;
+    width: 600px;
+}
+.column {
+    display: contents;
+}
+.title {
+    grid-column: var(--column-index);
+    grid-row: calc(3);
+}
+.text {
+    grid-column: var(--column-index);
+    grid-row: calc(4);
+}
+</style>
+<body>
+<div class="column" style="--column-index: 1">
+    <div class="title">title 1</div>
+    <div class="text">text 1</div>
+</div>
+<div class="column" style="--column-index: 2">
+    <div class="title">title 2</div>
+    <div class="text">text 2</div>
+</div>
+<div class="column" style="--column-index: 3">
+    <div class="title">title 3</div>
+    <div class="text">text 3</div>
+</div>
+</body>

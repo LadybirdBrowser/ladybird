@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#floats">
+<link rel="help" href="https://www.w3.org/TR/CSS22/zindex.html">
+<div id="target" style="width:100px; height:100px;">
+  <div id="error" style="float:left; position:relative; z-index:-1; width:100px; height:100px;"></div>
+</div>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+      var elm = document.elementFromPoint(50, 50);
+      assert_equals(elm.id, "target");
+  }, "Miss float below something else");
+</script>

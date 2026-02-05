@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Property animation-delay has initial value 0s
+Pass	Property animation-delay does not inherit
+Pass	Property animation-direction has initial value normal
+Pass	Property animation-direction does not inherit
+Pass	Property animation-duration has initial value 0s
+Pass	Property animation-duration does not inherit
+Pass	Property animation-fill-mode has initial value none
+Pass	Property animation-fill-mode does not inherit
+Pass	Property animation-iteration-count has initial value 1
+Pass	Property animation-iteration-count does not inherit
+Pass	Property animation-name has initial value none
+Pass	Property animation-name does not inherit
+Pass	Property animation-play-state has initial value running
+Pass	Property animation-play-state does not inherit
+Pass	Property animation-timing-function has initial value ease
+Pass	Property animation-timing-function does not inherit

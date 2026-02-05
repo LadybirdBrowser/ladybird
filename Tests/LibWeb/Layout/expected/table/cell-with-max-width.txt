@@ -1,0 +1,42 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 130 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 114 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 276 0+0+508] [0+0+0 114 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,8] table-box [0+0+0 276 0+0+0] [0+0+0 114 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,10] table-row-group [0+0+0 272 0+0+0] [0+0+0 110 0+0+0] children: not-inline
+            Box <tr> at [10,10] table-row [0+0+0 272 0+0+0] [0+0+0 110 0+0+0] children: not-inline
+              BlockContainer <td> at [11,11] table-cell [0+0+1 270 1+0+0] [0+0+1 108 1+0+0] [BFC] children: not-inline
+                BlockContainer <div> at [11,11] [0+0+0 270 0+0+0] [0+0+0 108 0+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [11,11] [0+0+0 270 0+0+0] [0+0+0 108 0+0+0] children: inline
+                    frag 0 from TextNode start: 1, length: 35, rect: [11,11 261.0625x18] baseline: 13.796875
+                        "hello hello hello hello hello hello"
+                    frag 1 from TextNode start: 37, length: 35, rect: [11,29 261.0625x18] baseline: 13.796875
+                        "hello hello hello hello hello hello"
+                    frag 2 from TextNode start: 73, length: 24, rect: [11,47 179.375x18] baseline: 13.796875
+                        "hello hello hello hello "
+                    frag 3 from TextNode start: 109, length: 11, rect: [190.375,47 81.6875x18] baseline: 13.796875
+                        "hello hello"
+                    frag 4 from TextNode start: 121, length: 35, rect: [11,65 261.0625x18] baseline: 13.796875
+                        "hello hello hello hello hello hello"
+                    frag 5 from TextNode start: 157, length: 35, rect: [11,83 261.0625x18] baseline: 13.796875
+                        "hello hello hello hello hello hello"
+                    frag 6 from TextNode start: 193, length: 11, rect: [11,101 81.6875x18] baseline: 13.796875
+                        "hello hello"
+                    TextNode <#text> (not painted)
+                  BlockContainer <div> at [11,119] [0+0+0 270 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x130]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x114]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 276x114]
+        PaintableBox (Box<TABLE>) [8,8 276x114]
+          PaintableBox (Box<TBODY>) [10,10 272x110]
+            PaintableBox (Box<TR>) [10,10 272x110]
+              PaintableWithLines (BlockContainer<TD>) [10,10 272x110]
+                PaintableWithLines (BlockContainer<DIV>) [11,11 270x108]
+                  PaintableWithLines (BlockContainer(anonymous)) [11,11 270x108]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer<DIV>) [11,119 270x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x130] [children: 0] (z-index: auto)

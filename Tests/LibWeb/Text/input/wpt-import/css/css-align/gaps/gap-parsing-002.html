@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Align Gap Values: longhand and shorthand gap parsing for style attribute</title>
+<link rel="help" href="https://drafts.csswg.org/css-align/#gaps">
+<link rel="author" title="Karl Dubost" href="mailto:karlcow@apple.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("gap", "normal");
+test_valid_value("gap", "10px");
+test_valid_value("gap", "normal normal", "normal");
+test_valid_value("gap", "10px 10px", "10px");
+test_valid_value("column-gap", "normal");
+test_valid_value("column-gap", "10px");
+test_valid_value("row-gap", "normal");
+test_valid_value("row-gap", "10px");
+
+const div = document.createElement("div");
+const style = div.style;
+
+test(function() {
+  style.cssText = "row-gap: normal; column-gap: normal;";
+  assert_equals(style.cssText, "gap: normal;");
+}, "'row-gap: normal; column-gap: normal;' is serialized to 'gap: normal;'");
+
+test(function() {
+  style.cssText = "row-gap: normal; column-gap: normal;";
+  assert_equals(style.getPropertyValue('gap'), "normal");
+}, "getPropertyValue for 'row-gap: normal; column-gap: normal;' returns 'normal'");
+
+test(function() {
+  style.cssText = "row-gap: 10px; column-gap: 10px;";
+  assert_equals(style.cssText, "gap: 10px;");
+}, "'row-gap: 10px; column-gap: 10px;' is serialized to 'gap: 10px;'");
+
+test(function() {
+  style.cssText = "row-gap: 10px; column-gap: 10px;";
+  assert_equals(style.getPropertyValue('gap'), "10px");
+}, "getPropertyValue for 'row-gap: 10px; column-gap: 10px;' returns '10px'");
+
+test(function() {
+  style.cssText = "row-gap: 10px; column-gap: normal;";
+  assert_equals(style.cssText, "gap: 10px normal;");
+}, "'row-gap: 10px; column-gap: normal;' is serialized to 'gap: 10px normal;'");
+
+test(function() {
+  style.cssText = "row-gap: 10px; column-gap: normal;";
+  assert_equals(style.getPropertyValue('gap'), "10px normal");
+}, "getPropertyValue for 'row-gap: 10px; column-gap: normal;' returns '10px normal'");
+
+test(function() {
+  style.cssText = "column-gap: normal; row-gap: 10px;";
+  assert_equals(style.cssText, "gap: 10px normal;");
+}, "'column-gap: normal; row-gap: 10px;' is serialized to 'gap: 10px normal;'");
+
+test(function() {
+  style.cssText = "column-gap: normal; row-gap: 10px;";
+  assert_equals(style.getPropertyValue('gap'), "10px normal");
+}, "getPropertyValue for 'column-gap: normal; row-gap: 10px;' returns '10px normal'");
+
+</script>
+</body>
+</html>

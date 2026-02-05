@@ -1,0 +1,9 @@
+source_set("NavigationTiming") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "EntryNames.cpp",
+    "PerformanceNavigation.cpp",
+    "PerformanceTiming.cpp",
+  ]
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. In this Window environment, check if DOMMatrix setMatrixValue is available.
+        testPart(() => new DOMMatrix().setMatrixValue("matrix(1, 2, 3, 4, 5, 6)"));
+
+        // 2. In this Window environment, check if DOMMatrix toString has custom behavior.
+        testPart(() => new DOMMatrix().toString());
+
+        // 3. In this Window environment, check if navigator vendor toString is available.
+        testPart(() => navigator.vendor);
+
+        const worker = new Worker(URL.createObjectURL(new Blob([`
+            // 4. In this new Worker environment, check if DOMMatrix setMatrixValue doesn't exists.
+            try {
+                postMessage(new DOMMatrix().setMatrixValue("matrix(1, 2, 3, 4, 5, 6)"));
+            } catch (error) {
+                postMessage(error);
+            }
+
+            // 5. In this Worker environment, check if DOMMatrix toString doesn't have custom behavior.
+            try {
+                postMessage(new DOMMatrix().toString());
+            } catch (error) {
+                postMessage(error);
+            }
+
+            // 6. In this Worker environment, check if navigator vendor doesn't exists.
+            try {
+                postMessage(navigator.vendor);
+            } catch (error) {
+                postMessage(error);
+            }
+        `], { type: 'application/javascript' })));
+        worker.onmessage = (result) => {
+            println(`${testCounter++}. ${result.data}`);
+            if (testCounter === 7) {
+                done();
+            }
+        };
+    });
+</script>

@@ -1,0 +1,145 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSSTransition.currentTime</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#csstransition">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/helper.js"></script>
+<div id="log"></div>
+<script>
+
+'use strict';
+
+const marginLeft = div => parseFloat(getComputedStyle(div).marginLeft);
+
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+
+  const animation = div.getAnimations()[0];
+  assert_equals(
+    animation.currentTime,
+    0,
+    'currentTime should initially be zero'
+  );
+
+  await animation.ready;
+
+  const seekTime = 150 * MS_PER_SEC;
+  animation.currentTime = seekTime;
+
+  assert_time_equals_literal(
+    animation.currentTime,
+    seekTime,
+    'currentTime is updated'
+  );
+  assert_equals(getComputedStyle(div).marginLeft, '150px');
+}, 'currentTime can be used to seek a CSS transition');
+
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  const eventWatcher = new EventWatcher(t, div, 'transitionend');
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+
+  const animation = div.getAnimations()[0];
+  await animation.ready;
+
+  const marginLeft = () => parseFloat(getComputedStyle(div).marginLeft);
+  assert_equals(marginLeft(div), 100);
+
+  animation.currentTime = 100 * MS_PER_SEC;
+  assert_equals(marginLeft(div), 100);
+
+  animation.currentTime = 150 * MS_PER_SEC;
+  assert_equals(marginLeft(div), 150);
+
+  animation.currentTime = 200 * MS_PER_SEC;
+  await eventWatcher.wait_for('transitionend');
+  assert_equals(marginLeft(div), 200);
+}, 'Skipping forwards through transition');
+
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  const eventWatcher = new EventWatcher(t, div, 'transitionend');
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+
+  const animation = div.getAnimations()[0];
+  await animation.ready;
+
+  // Unlike in the case of CSS animations, we cannot skip to the end and skip
+  // backwards since when we reach the end the transition effect is removed and
+  // changes to the Animation object no longer affect the element. For
+  // this reason we only skip forwards as far as the 50% through point.
+
+  animation.currentTime = 150 * MS_PER_SEC;
+  assert_equals(marginLeft(div), 150);
+
+  animation.currentTime = 100 * MS_PER_SEC;
+  assert_equals(marginLeft(div), 100);
+}, 'Skipping backwards through transition');
+
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  assert_throws_js(
+    TypeError,
+    () => {
+      animation.currentTime = null;
+    },
+    'Expect TypeError exception on trying to set Animation.currentTime to null'
+  );
+}, 'Setting currentTime to null on a CSS transition throws');
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s ease-in';
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+
+  // Seek to the middle. Note, this is not equivalent to 50% progress since the
+  // timing-function is non-linear.
+  transition.currentTime = 50 * MS_PER_SEC;
+  const portion = transition.effect.getComputedTiming().progress;
+
+  // Reverse the transition.
+  div.style.left = '0px';
+  const reversedTransition = div.getAnimations()[0];
+
+  // If the transition reversing behavior does not advance the previous
+  // transition to the time set by currentTime, start and end values will both
+  // be 0px and no transition will be produced.
+  assert_not_equals(reversedTransition, undefined,
+                    "A reversed transition is produced");
+
+  const expectedDuration = 100 * MS_PER_SEC * portion;
+  assert_approx_equals(
+    reversedTransition.effect.getComputedTiming().activeDuration,
+    expectedDuration,
+    1,
+    "The reversed transition has correctly reduced duration"
+  );
+}, "Transition reversing behavior respects currentTime and uses the " +
+   "transition's current position.");
+
+</script>

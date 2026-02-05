@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	CSSUnparsedValue can be constructed from no arguments
+Pass	CSSUnparsedValue can be constructed from a single empty string
+Pass	CSSUnparsedValue can be constructed from a single CSSVariableReferenceValue
+Pass	CSSUnparsedValue can be constructed from a mix of strings and CSSVariableReferenceValues

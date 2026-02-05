@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['line-height'] = "auto" should not set the property value
+Pass	e.style['line-height'] = "-2" should not set the property value
+Pass	e.style['line-height'] = "-10px" should not set the property value
+Pass	e.style['line-height'] = "-200%" should not set the property value
+Pass	e.style['line-height'] = "2 10px" should not set the property value
+Pass	e.style['line-height'] = "200% 3" should not set the property value
+Pass	e.style['line-height'] = "auto 10px" should not set the property value
+Pass	e.style['line-height'] = "3 auto" should not set the property value

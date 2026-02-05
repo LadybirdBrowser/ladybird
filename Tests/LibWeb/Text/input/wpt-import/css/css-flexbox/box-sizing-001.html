@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: box-sizing</title>
+<link href="support/flexbox.css" rel="stylesheet">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-flow-property">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#box-sizing">
+<meta name="assert" content="This test checks the interactions between the flex layout mode and the two possible values for the box-sizing property: border-box and content-box" />
+
+<style>
+.flexbox {
+    border: 2px solid orange;
+}
+.h3 {
+    height: 300px;
+}
+.w3 {
+    width: 300px;
+}
+.h4 {
+    height: 400px;
+}
+.w4 {
+    width: 400px;
+}
+.border-box, .flexbox > div {
+    box-sizing: border-box;
+    height: 100px;
+    width: 100px;
+    border: 2px solid lightblue;
+    border-top-width: 4px;
+    padding: 3px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body>
+<div id=log></div>
+
+All blue boxes are 100x100px with box-sizing: border-box and 2px border (4px border-top), we expect offsetWidth/Height to be <b>100x100</b>
+
+<h3>flex-flow: default, orange box has width: 300px</h3>
+<div class="flexbox" style="width: 300px">
+    <div></div><div></div><div></div>
+</div>
+
+<h3>flex-flow: default, orange box has width: 400px</h3>
+<div class="flexbox" style="width: 400px">
+    <div></div><div></div><div></div>
+</div>
+
+<h3>flex-flow: default, orange box has width: auto</h3>
+<div class="flexbox">
+    <div></div><div></div><div></div>
+</div>
+
+<h3>flex-flow: default, orange box has width: auto, flex-box has box-sizing: border-box</h3>
+<div class="flexbox border-box">
+    <div data-expected-width=30></div>
+    <div data-expected-width=30></div>
+    <div data-expected-width=30></div>
+</div>
+
+<h3>flex-flow: column, red box has height: 300px</h3>
+<div class="flexbox column" style="height: 300px">
+    <div></div><div></div><div></div>
+</div>
+
+<h3>flex-flow: column, red box has height: 400px</h3>
+<div class="flexbox column" style="height: 400px">
+    <div></div><div></div><div></div>
+</div>
+
+<h3>flex-flow: column, red box has height: auto</h3>
+<div class="flexbox column">
+    <div></div><div></div><div></div>
+</div>
+
+<h3>flex-box has box-sizing: border-box and flex-wrap: wrap;</h3>
+<div class="flexbox column wrap" style="box-sizing: border-box; border: 2px solid lightblue; padding: 3px; height: 200px; width: 100px; position: relative" data-expected-width=100 data-expected-height=200>
+    <div data-offset-x=3></div><div data-offset-x=103></div><div data-offset-x=203></div>
+</div>
+
+<h3>flex-box has box-sizing: default and flex-wrap: wrap;</h3>
+<div class="flexbox column wrap" style="border: 2px solid lightblue; padding: 3px; height: 200px; width: 100px; position: relative" data-expected-width=110 data-expected-height=210>
+    <div data-offset-x=3></div><div data-offset-x=3></div><div data-offset-x=103></div>
+</div>
+
+<h3>flex-flow: column, flex-box has box-sizing: border-box, flex items have flex: 1</h3>
+<div class="flexbox column" style="box-sizing: border-box; border: 2px solid lightblue; padding: 3px; height: 343px; width: 100px;" data-expected-width=100 data-expected-height=343>
+    <div style="flex: 1;" data-expected-height=111></div>
+    <div style="flex: 1;" data-expected-height=111></div>
+    <div style="flex: 1;" data-expected-height=111></div>
+</div>
+
+<script>
+    function addExpectedSizes(flexItem) {
+        if (!flexItem.hasAttribute('data-expected-height'))
+            flexItem.setAttribute('data-expected-height', 100);
+        if (!flexItem.hasAttribute('data-expected-width'))
+            flexItem.setAttribute('data-expected-width', 100);
+    }
+    [].forEach.call(document.querySelectorAll(".flexbox > div"), addExpectedSizes);
+    [].forEach.call(document.querySelectorAll(".border-box"), addExpectedSizes);
+    checkLayout('.flexbox');
+</script>
+</body>
+</html>

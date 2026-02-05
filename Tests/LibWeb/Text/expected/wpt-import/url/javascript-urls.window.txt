@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+3 Pass
+3 Fail
+Pass	javascript: URL that fails to parse due to invalid host
+Pass	javascript: URL that fails to parse due to invalid host and has a U+0009 in scheme
+Pass	javascript: URL with extra slashes at the start
+Fail	javascript: URL without an opaque path
+Fail	javascript: URL containing a JavaScript string split over path and query
+Fail	javascript: URL containing a JavaScript string split over path and query and has a U+000A in scheme

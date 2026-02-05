@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	Property view-timeline-name value 'initial'
+Pass	Property view-timeline-name value 'inherit'
+Pass	Property view-timeline-name value 'unset'
+Pass	Property view-timeline-name value 'revert'
+Pass	Property view-timeline-name value 'none'
+Pass	Property view-timeline-name value '--foo'
+Pass	Property view-timeline-name value '--foo, --bar'
+Pass	Property view-timeline-name value '--bar, --foo'
+Pass	Property view-timeline-name value '--a, --b, --c, --D, --e'
+Pass	Property view-timeline-name value 'none, none'
+Pass	Property view-timeline-name value '--a, --b, --c, none, --d, --e'
+Pass	The view-timeline-name property shows up in CSSStyleDeclaration enumeration
+Pass	The view-timeline-name property shows up in CSSStyleDeclaration.cssText

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<div>
+    <input id="input" type="text">
+    <div id="div" style="position: absolute; transform: translate(0px, 42px);">
+        This text should not be hit when clicking the input.
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        document.getElementById("input").addEventListener("click", () => {
+            println("clicked the <input>");
+        });
+        document.getElementById("div").addEventListener("click", () => {
+            println("clicked the <div>");
+        });
+        window.addEventListener("load", () => {
+            internals.click(12, 12);
+            done();
+        })
+    });
+</script>

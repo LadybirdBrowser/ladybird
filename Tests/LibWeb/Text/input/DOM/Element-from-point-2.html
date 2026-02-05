@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    .box {
+        width: 100px;
+        height: 100px;
+        position: absolute;
+    }
+
+    #a {
+        background-color: magenta;
+        z-index: 1;
+        transform: translate(110px, 10px);
+    }
+
+    #b {
+        background-color: mediumaquamarine;
+        z-index: 2;
+        transform: translate(120px, 20px);
+    }
+
+    #c {
+        background-color: greenyellow;
+        z-index: 3;
+        transform: translate(130px, 30px);
+    }
+</style>
+<div id="a" class="box"></div>
+<div id="b" class="box"></div>
+<div id="c" class="box">hello</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.elementFromPoint(150, 50);
+        printElement(element);
+    });
+</script>

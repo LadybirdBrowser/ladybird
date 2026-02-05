@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Fallback Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+  </head>
+  <body>
+
+  <p>Tests <a href="https://w3c.github.io/aria/#host_general_role">8.1 Role Attribute</a> role token list selection and <a href="https://w3c.github.io/aria/#document-handling_author-errors_roles">9.1 Roles - handling author errors</a>.</p>
+
+  <!-- known el and two known ARIA 1.0 roles -->
+  <nav role="region group" data-testname="fallback role w/ region with no label" data-expectedrole="group" class="ex">x</nav>
+  <nav role="region group" data-testname="fallback role w/ region with label" aria-label="x" data-expectedrole="region" class="ex">x</nav>
+
+  <!-- known el and known ARIA 1.1 with 1.0 role backup -->
+  <div role="switch checkbox" aria-checked="true" data-testname="aria 1.1 switch role w/ fallback to aria 1.0 checkbox role" aria-label="x" data-expectedrole="switch" class="ex">x</div>
+
+  <!-- known el and invalid role token with valid backup -->
+  <div role="foo button" data-testname="div[role=button] ignoring invalid foo role token" aria-label="x" data-expectedrole="button" class="ex">x</div>
+
+  <!-- unknown el and invalid role token with valid backup -->
+  <unknown role="foo button" data-testname="unknown[role=button] ignoring invalid foo role token" aria-label="x" data-expectedrole="button" class="ex">x</unknown>
+
+  <!-- known el and invalid role(s) -->
+  <button role="foo" data-testname="button ignoring single invalid role token" aria-label="x" data-expectedrole="button" class="ex">x</unknown>
+  <button role="foo bar" data-testname="button ignoring multiple invalid role tokens" aria-label="x" data-expectedrole="button" class="ex">x</unknown>
+
+  <!-- known el with invalid punctuation -->
+  <div role="invalid, punctuation, tests, link, button" data-testname="div[role=button] ignoring invalid foo role token including punctuation-contaminated known link role" aria-label="x" data-expectedrole="button" class="ex">x</div>
+
+
+
+  <!-- extra line breaks here to account for rendering of unicode diacritic etc char glitch tests -->
+
+
+
+  <div role="l̷̨̢̡̖̻̗̤̺̟̱͚͔͇͍͇̫̫̜͔̗̟̘̫̟̰̼̘͗̌̃͐̔̈́̚͝į̵̡̲̯̠̮͈͖̥̮̲͓̦̗̗̱̞͍̗̪͙͇͚͂̍͐̔̍͌̐̇̏̎͘͝ǹ̶̨̧̢̜̲̫͇̮͉̬͎͎͕̝̱͔̙̱̦̰̦̠̰̣̝͂̓̋̊͜ķ̷̧̧̨̨̨̘̳͕̰͎̮̠̘̪͇͕̥̭̼̼̜̤̫̥̼̤̰̦͖̪̀͒̆͑̒̅͑̓̒͂̽̈́̽̉̀̕͘͜͝ ̷̡̮̦̘͓̫̜͕͖̰̙̘͓̼͎̳̹͇̮͐͂́͛̃́̊̈͌̄̓̌̂̈̇̀̌̈́́̀̈́̍̈́̇̄̊̔͒̾̾̇́͒̽͂̾̕̚͜͜͝͠ͅͅg̸̨̧̧̧̧̛̺̦̣͇͈͙͇͎͕̠̞̳̹̣͋͑̑̓͛̓̉̔̉͑̇́̈́̉̃́̑̍̂̒͐͛͗̑̏̓̾͌̈̅́̇̕̕̚̚͝͝ͅr̶̛̤̲̘̮̟̭̲̋̾̀́́̒̀̀͑̎̀̌̈̀̍̂̏̊̎͐͒͗͗̀͘͘͘͠͠ȍ̴̧̡̢̡̢̞̝̠̙̬̗͍͍͉̺͔͙̫̝̰̮̜̩̙̳͉̻̻̼͍̊͋͐̐͆̈̿̒̊̄͑̈́̔͋̔̃͐̓̓͛́͊̉͑̊̔͆͘͘͜͠ͅu̴̱̯̞̞̞̺̼̳̳͚̞̇̈͒͠p̶̛͉̮̙̯̮̱͉̖͚͉̩̱̺̩̦̺͈̫͍͔̲̣̗̟̜̂̐̌̏͌̈́͗̾͌̿̓͒̋̆͆̾͛̐̈́̓͋̀͘̚͝͝͝ ̶͔͚̩̬͈̍̈́͗͐̀̊̏͛̃̈́͋̅͝  button" data-testname="div[role=button] ignoring invalid unicode diacritics etc on link and group role tokens" aria-label="x" data-expectedrole="button" class="ex">x</div>
+
+
+  <!-- known el and known role with whitespace edge cases -->
+  <div role=" button" data-testname="div[role=button] ignoring tab char" aria-label="x" data-expectedrole="button" class="ex">x</div>
+  <div role="
+button" data-testname="div[role=button] ignoring line break" aria-label="x" data-expectedrole="button" class="ex">x</div>
+  <div role="⠀ button" data-testname="div[role=button] ignoring braille whitespace char" aria-label="x" data-expectedrole="button" class="ex">x</div>
+
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

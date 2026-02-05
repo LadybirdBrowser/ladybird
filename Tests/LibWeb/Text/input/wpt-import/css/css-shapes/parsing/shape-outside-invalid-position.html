@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing shape-outside with invalid position values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#typedef-position">
+<meta name="assert" content="shape-outside positions support only the '<position>' grammar.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// The following were supported in an earlier version of the spec.
+// https://github.com/w3c/csswg-drafts/issues/2140
+test_invalid_value("shape-outside", "circle(at center left 1px)");
+test_invalid_value("shape-outside", "circle(at center top 2px)");
+test_invalid_value("shape-outside", "circle(at right 3% center)");
+test_invalid_value("shape-outside", "circle(at left 4px top)");
+test_invalid_value("shape-outside", "circle(at right 5px top)");
+test_invalid_value("shape-outside", "ellipse(at right top 5px)");
+test_invalid_value("shape-outside", "ellipse(at bottom 6% center)");
+test_invalid_value("shape-outside", "ellipse(at bottom 7% left)");
+test_invalid_value("shape-outside", "ellipse(at bottom right 8%)");
+test_invalid_value("shape-outside", "ellipse(at right 10px top)");
+</script>
+</body>
+</html>

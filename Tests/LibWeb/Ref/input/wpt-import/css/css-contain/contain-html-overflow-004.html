@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: style containment on html prevents overflow propagation</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+  <meta name=flags content="">
+  <meta name=assert content="style containment on html prevents overflow propagation">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/contain-body-overflow-001-ref.html">
+  <link rel=help href="https://drafts.csswg.org/css-contain-2/#contain-property">
+
+<style>
+html, body, p, div {
+    margin: 0;
+    width: 200px;
+    height: 200px;
+}
+div { background: red; }
+body {
+    overflow: hidden;
+}
+html {
+    contain: style;
+}
+</style>
+
+<p>Test passes if there is no red.
+
+<div></div>

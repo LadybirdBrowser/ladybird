@@ -1,0 +1,3 @@
+Before unload event fired
+Default prevented: true
+iframe load: about:blank

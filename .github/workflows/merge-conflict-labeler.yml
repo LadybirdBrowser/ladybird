@@ -1,0 +1,31 @@
+name: 'Label PRs with merge conflicts'
+on:
+  # PRs typically get conflicted after a push to master.
+  push:
+    branches: [master]
+
+  # If a PR targeting master is (re)opened or updated, recheck for conflicts and update the label.
+  # NOTE: This runs against the target branch, not the PR branch.
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+
+jobs:
+  auto-labeler:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    if: github.repository == 'LadybirdBrowser/ladybird'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: eps1lon/actions-label-merge-conflict@v3
+        with:
+          commentOnDirty: >
+            Your pull request has conflicts that need to be resolved before it can be reviewed and merged. Make sure to
+            [rebase](https://www.youtube.com/watch?v=ElRzTuYln0M) your branch on top of the latest `master`.
+          dirtyLabel: 'conflicts'
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          retryAfter: 15
+          retryMax: 3

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const link = document.createElement("link");
+        link.as = "style"
+
+        println("Link.as: " + link.as)
+
+        link.as = "uwu"
+
+        if(link.as === "") {
+            println("Link.as: empty")
+        }
+    
+    });
+</script>

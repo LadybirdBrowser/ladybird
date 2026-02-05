@@ -1,0 +1,32 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 124 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 108 0+0+8] children: not-inline
+      BlockContainer <div.wrapper> at [8,8] [0+0+0 270 0+0+514] [0+0+0 108 0+0+0] children: not-inline
+        BlockContainer <div.constrained> at [8,8] [0+0+0 270 0+0+0] [0+0+0 108 0+0+0] children: not-inline
+          BlockContainer <(anonymous)> at [8,8] [0+0+0 270 0+0+0] [0+0+0 108 0+0+0] children: inline
+            frag 0 from TextNode start: 1, length: 35, rect: [8,8 261.0625x18] baseline: 13.796875
+                "hello hello hello hello hello hello"
+            frag 1 from TextNode start: 37, length: 35, rect: [8,26 261.0625x18] baseline: 13.796875
+                "hello hello hello hello hello hello"
+            frag 2 from TextNode start: 73, length: 35, rect: [8,44 261.0625x18] baseline: 13.796875
+                "hello hello hello hello hello hello"
+            frag 3 from TextNode start: 109, length: 35, rect: [8,62 261.0625x18] baseline: 13.796875
+                "hello hello hello hello hello hello"
+            frag 4 from TextNode start: 145, length: 35, rect: [8,80 261.0625x18] baseline: 13.796875
+                "hello hello hello hello hello hello"
+            frag 5 from TextNode start: 181, length: 11, rect: [8,98 81.6875x18] baseline: 13.796875
+                "hello hello"
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [8,124] [0+0+0 270 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x124]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x108]
+      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 270x108]
+        PaintableWithLines (BlockContainer<DIV>.constrained) [8,8 270x108]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 270x108]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>) [8,124 270x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x124] [children: 0] (z-index: auto)

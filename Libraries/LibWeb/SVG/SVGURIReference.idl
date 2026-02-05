@@ -1,0 +1,6 @@
+#import <SVG/SVGAnimatedString.idl>
+
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGURIReference
+interface mixin SVGURIReference {
+    [SameObject] readonly attribute SVGAnimatedString href;
+};

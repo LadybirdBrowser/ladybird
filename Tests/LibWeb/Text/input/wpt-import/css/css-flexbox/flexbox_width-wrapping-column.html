@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: the width calculation of flexbox with flex-direction: column and flex-wrap: wrap</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-wrap-property">
+<link rel="bookmark" href="https://crbug.com/607262">
+<link rel="bookmark" href="https://crbug.com/607856">
+<meta name="assert" content="This test ensures that the width of a flexbox with 'flex-direction: column' and 'flex-wrap: wrap' is updated when the wrapping column dynamically changes.">
+<link href="support/flexbox.css" rel="stylesheet">
+<style>
+.flexbox {
+  width: 600px;
+  height: 160px;
+  outline: 2px solid black;
+}
+.item {
+  height: 20px;
+  background-color: green;
+  margin: 5px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+function change() {
+  var flex = document.getElementById("test");
+  flex.offsetWidth;
+  flex.style.height = "60px";
+  checkLayout('.flexbox');
+}
+</script>
+<body onload="change()">
+<div id=log></div>
+
+<p>The green boxes should all be within the black box</p>
+
+<div class="flexbox column wrap" id="test">
+  <div class="item" data-expected-width="290"></div>
+  <div class="item" data-expected-width="290"></div>
+  <div class="item" data-expected-width="290"></div>
+  <div class="item" data-expected-width="290"></div>
+</div>

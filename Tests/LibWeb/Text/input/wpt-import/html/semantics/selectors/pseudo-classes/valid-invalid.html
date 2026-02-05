@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset=utf-8>
+<title>Selector: pseudo-classes (:valid, :invalid)</title>
+<link rel="author" title="Denis Ah-Kang" href="mailto:denis@w3.org" id=link1>
+<link rel=help href="https://html.spec.whatwg.org/multipage/#pseudo-classes" id=link2>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="utils.js"></script>
+<style>
+  #styleTests form, #styleTests fieldset, #failExample { background-color:red; }
+  #styleTests > :valid, #validExample { background-color:green; }
+  #styleTests > :invalid, #invalidExample { background-color:lime; }
+</style>
+</head>
+<body>
+<div id="log"></div>
+<div id='simpleConstraints'>
+  <input type=text id=text1 value="foobar" required>
+  <input type=text id=text2 required>
+</div>
+<div id='FormSelection'>
+  <form id=form1>
+    <input type=text id=text3 value="foobar" required>
+  </form>
+  <form id=form2>
+    <input type=text id=text4 required>
+  </form>
+</div>
+<div id='FieldSetSelection'>
+  <fieldset id=fieldset1>
+    <input type=text id=text5 value="foobar" required>
+  </fieldset>
+  <fieldset id=fieldset2>
+    <input type=text id=text6 required>
+  </fieldset>
+</div>
+<div id='patternConstraints'>
+  <input type=text id=text7 value="AAA" pattern="[0-9][A-Z]{3}">
+  <input type=text id=text8 value="0AAA" pattern="[0-9][A-Z]{3}">
+</div>
+<div id='numberConstraints'>
+  <input type=number id=number1 value=0 min=1>
+  <input type=number id=number2 value=1 min=1>
+</div>
+<div id='styleTests'>
+  <form>
+  </form>
+  <form>
+    <input type=text min=8 value=4>
+  </form>
+  <form>
+    <input type=number min=8 value=4>
+  </form>
+  <fieldset>
+  </fieldset>
+  <fieldset>
+    <input type=text min=8 value=4>
+  </fieldset>
+  <fieldset>
+    <input type=number min=8 value=4>
+  </fieldset>
+  <div id='validExample'></div>
+  <div id='invalidExample'></div>
+  <div id='failExample'></div>
+</div>
+<script>
+  testSelectorIdsMatch("#simpleConstraints :valid", ["text1"], "':valid' matches elements that satisfy their constraints");
+
+  testSelectorIdsMatch("#FormSelection :valid", ["form1", "text3"], "':valid' matches form elements that are not the form owner of any elements that themselves are candidates for constraint validation but do not satisfy their constraints");
+
+  testSelectorIdsMatch("#FieldSetSelection :valid", ["fieldset1", "text5"], "':valid' matches fieldset elements that have no descendant elements that themselves are candidates for constraint validation but do not satisfy their constraints");
+
+  testSelectorIdsMatch("#patternConstraints :valid", [ "text8" ], "':valid' matches elements that satisfy their pattern constraints");
+
+  testSelectorIdsMatch("#numberConstraints :valid", [ "number2" ], "':valid' matches elements that satisfy their number constraints");
+
+
+  testSelectorIdsMatch("#simpleConstraints :invalid", ["text2"], "':invalid' matches elements that do not satisfy their simple text  constraints");
+
+  testSelectorIdsMatch("#FormSelection :invalid", ["form2", "text4"], "':invalid' matches form elements that are the form owner of one or more elements that themselves are candidates for constraint validation but do not satisfy their constraints");
+
+  testSelectorIdsMatch("#FieldSetSelection :invalid", ["fieldset2", "text6"], "':invalid' matches fieldset elements that have of one or more descendant elements that themselves are candidates for constraint validation but do not satisfy their constraints");
+
+  testSelectorIdsMatch("#patternConstraints :invalid", ["text7"], "':invalid' matches elements that do not satisfy their pattern constraints");
+
+  testSelectorIdsMatch("#numberConstraints :invalid", ["number1"], "':invalid' matches elements that do not satisfy their number constraints");
+
+  document.getElementById("text7").value="0BBB";
+  testSelectorIdsMatch("#patternConstraints :valid", [ "text7", "text8" ], "':valid' matches new elements that satisfy their constraints");
+  testSelectorIdsMatch("#patternConstraints :invalid", [], "':invalid' doesn't match new elements that satisfy their constraints");
+
+  document.getElementById("text8").value="BBB";
+  testSelectorIdsMatch("#patternConstraints :valid", ["text7"], "':valid' doesn't match new elements that do not satisfy their constraints");
+  testSelectorIdsMatch("#patternConstraints :invalid", ["text8"], "':invalid' matches new elements that do not satisfy their constraints");
+
+  function getBGColor(elem) {
+    return getComputedStyle(elem).backgroundColor;
+  }
+
+  function testStyles(type) {
+    var elems = document.querySelectorAll("#styleTests " + type),
+        empty = elems[0],
+        valid = elems[1],
+        invalid = elems[2],
+        validInput = valid.querySelector("input"),
+        invalidInput = invalid.querySelector("input"),
+        expectedValidBGColor = getBGColor(document.getElementById("validExample")),
+        expectedInvalidBGColor = getBGColor(document.getElementById("invalidExample")),
+        expectedFailBGColor = getBGColor(document.getElementById("failExample"));
+
+    test(function() {
+      assert_equals(getBGColor(empty), expectedValidBGColor, "wrong background-color");
+    }, 'empty ' + type + ' correctly styled on page-load');
+
+    test(function() {
+      assert_equals(getBGColor(valid), expectedValidBGColor, "wrong background-color");
+    }, 'valid ' + type + ' correctly styled on page-load');
+    test(function() {
+      assert_equals(getBGColor(invalid), expectedInvalidBGColor, "wrong background-color");
+    }, 'invalid ' + type + ' correctly styled on page-load');
+
+    test(function() {
+      empty.appendChild(validInput.cloneNode());
+      assert_equals(getBGColor(empty), expectedValidBGColor, "wrong background-color");
+    }, 'programmatically adding valid to empty ' + type + ' results in correct style');
+    test(function() {
+      empty.appendChild(invalidInput.cloneNode());
+      assert_equals(getBGColor(empty), expectedInvalidBGColor, "wrong background-color");
+    }, 'programmatically adding invalid to empty ' + type + ' results in correct style');
+
+    validInput.type = "number";
+    invalidInput.type = "text";
+    test(function() {
+      assert_equals(getBGColor(valid), expectedInvalidBGColor, "wrong background-color");
+    }, 'programmatically-invalidated ' + type + ' correctly styled');
+    test(function() {
+      assert_equals(getBGColor(invalid), expectedValidBGColor, "wrong background-color");
+    }, 'programmatically-validated ' + type + ' correctly styled');
+  }
+  test(testStyles.bind(undefined, "form"), ":valid/:invalid styling for <form>");
+  test(testStyles.bind(undefined, "fieldset"), ":valid/:invalid styling for <fieldset>");
+</script>
+</body>
+</html>

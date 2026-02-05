@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Node.normalize()
+Pass	Empty text nodes separated by a non-empty text node
+Pass	Empty text nodes
+Pass	Non-text nodes with empty textContent values.

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+body {
+    width: 400px;
+}
+.a {
+    background: blue;
+    float: left;
+    height: 100px;
+    width: 100px;
+}
+.b {
+    background: green;
+    float: right;
+    height: 200px;
+    width: 50px;
+}
+.c {
+    background: red;
+    display: flex;
+    height: 100px;
+    width: 400px;
+}
+.d {
+    background: red;
+    display: flex;
+    height: 100px;
+    margin-left: 12.5%;
+    width: 300px;
+}
+.e {
+    background: red;
+    display: flex;
+    height: 100px;
+    margin-left: 50px;
+    padding-left: 10%;
+    width: 150px;
+}
+.f {
+    background: red;
+    display: flex;
+    margin: 0 auto;
+    height: 100px;
+    width: 200px;
+}
+</style><br><div class="a"></div><div class="c">This should clear the blue box.</div>
+<hr><div class="a"></div><div class="b"></div><div class="c">This should clear the green box.</div>
+<hr><div class="a"></div><div class="b"></div><div class="d">This should clear the blue box and sit flush against the green box.</div>
+<hr><div class="a"></div><div class="e">This should sit flush against the blue box, with 40px of padding to the left.</div>
+<hr><div class="a"></div><div class="b"></div><div class="f">This should be centered between the blue and green boxes.</div>

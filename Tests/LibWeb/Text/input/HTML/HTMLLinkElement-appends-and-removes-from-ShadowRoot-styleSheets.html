@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<div id="shadowhost"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const shadowHost = document.getElementById("shadowhost");
+        const shadowRoot = shadowHost.attachShadow({ mode: "closed" });
+
+        const linkEl = document.createElement("link");
+        linkEl.href = "../valid.css";
+        linkEl.rel = "stylesheet";
+
+        const printSheets = () => {
+            println(`is linkEl.sheet null? ${linkEl.sheet === null}`)
+            println(`- document stylesheets (length = ${document.styleSheets.length})`);
+            for (const sheet of document.styleSheets) {
+                println(`-- document stylesheet linkEl.sheet === sheet: ${linkEl.sheet === sheet}`);
+            }
+            println(`- shadow root stylesheets (length = ${shadowRoot.styleSheets.length})`);
+            for (const sheet of shadowRoot.styleSheets) {
+                println(`-- shadow root linkEl.sheet === sheet: ${linkEl.sheet === sheet}`);
+            }
+        };
+
+        println("== before appending");
+        printSheets();
+
+        linkEl.addEventListener("load", () => {
+            println("== link loaded");
+            printSheets();
+
+            linkEl.remove();
+            println("== link removed");
+            printSheets();
+            done();
+        }, { once: true });
+
+        shadowRoot.appendChild(linkEl);
+    });
+</script>

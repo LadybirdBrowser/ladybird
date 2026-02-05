@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let e = document.createElement("div");
+        e.setAttribute("foo", "bar");
+        let a = e.getAttributeNode("foo");
+        let removed = e.removeAttributeNode(a);
+        println(a === removed);
+        try {
+            e.removeAttributeNode(a);
+            println("FAIL");
+        } catch (e) {
+            println("OK: " + e);
+        }
+    });
+</script>

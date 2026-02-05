@@ -1,0 +1,77 @@
+#import <DOM/EventTarget.idl>
+#import <HTML/HTMLElement.idl>
+#import <Internals/InternalAnimationTimeline.idl>
+#import <Internals/InternalGamepad.idl>
+
+[Exposed=Nobody]
+interface Internals {
+
+    undefined signalTestIsDone(DOMString text);
+    undefined setTestTimeout(double milliseconds);
+    undefined loadReferenceTestMetadata();
+    undefined loadTestVariants();
+
+    DOMString setTimeZone(DOMString timeZone);
+
+    undefined gc();
+    object hitTest(double x, double y);
+
+    const unsigned short MOD_NONE = 0;
+    const unsigned short MOD_ALT = 1;
+    const unsigned short MOD_CTRL = 2;
+    const unsigned short MOD_SHIFT = 4;
+    const unsigned short MOD_SUPER = 8;
+    const unsigned short MOD_KEYPAD = 16;
+
+    undefined sendText(HTMLElement target, DOMString text, optional unsigned short modifiers = 0);
+    undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0);
+    undefined paste(HTMLElement target, Utf16DOMString text);
+    undefined commitText();
+
+    undefined click(double x, double y);
+    undefined doubleclick(double x, double y);
+    undefined middleClick(double x, double y);
+    undefined mouseDown(double x, double y);
+    undefined movePointerTo(double x, double y);
+    undefined wheel(double x, double y, double deltaX, double deltaY);
+    undefined pinch(double x, double y, double scaleDelta);
+
+    DOMString currentCursor();
+
+    boolean dispatchUserActivatedEvent(EventTarget target, Event event);
+    undefined spoofCurrentURL(USVString url);
+
+    InternalAnimationTimeline createInternalAnimationTimeline();
+
+    undefined simulateDragStart(double x, double y, DOMString mimeType, DOMString contents);
+    undefined simulateDragMove(double x, double y);
+    undefined simulateDrop(double x, double y);
+
+    undefined enableCookiesOnFileDomains();
+    undefined expireCookiesWithTimeOffset(long long seconds);
+
+    boolean setHttpMemoryCacheEnabled(boolean enabled);
+
+    DOMString getComputedRole(Element element);
+    DOMString getComputedLabel(Element element);
+    DOMString getComputedAriaLevel(Element element);
+    unsigned short getEchoServerPort();
+
+    undefined setBrowserZoom(double factor);
+
+    readonly attribute boolean headless;
+
+    DOMString dumpDisplayList();
+    DOMString dumpStackingContextTree();
+    DOMString dumpGCGraph();
+
+    // Returns the shadow root of the element, if it has one, even if it's not normally accessible to JS.
+    ShadowRoot? getShadowRoot(Element element);
+
+    undefined handleSDLInputEvents();
+
+    InternalGamepad connectVirtualGamepad();
+
+    undefined setHighlightedNode(Node? node);
+
+};

@@ -1,0 +1,42 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 70 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 52 0+1+8] children: not-inline
+      Box <div.flexbox> at [11,11] flex-container(row) [0+1+0 778 0+1+0] [0+1+0 50 0+1+0] [FFC] children: not-inline
+        BlockContainer <div> at [12,12] flex-item [0+1+0 136.3125 0+1+0] [0+1+0 48 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 15, rect: [12,12 136.3125x18] baseline: 13.796875
+              "LongPieceOfText"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [150.3125,12] flex-item [0+1+0 136.3125 0+1+0] [0+1+0 48 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 15, rect: [150.3125,12 136.3125x18] baseline: 13.796875
+              "LongPieceOfText"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [288.625,12] flex-item [0+1+0 136.3125 0+1+0] [0+1+0 48 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 15, rect: [288.625,12 136.3125x18] baseline: 13.796875
+              "LongPieceOfText"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [426.9375,12] flex-item [0+1+0 136.3125 0+1+0] [0+1+0 48 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 15, rect: [426.9375,12 136.3125x18] baseline: 13.796875
+              "LongPieceOfText"
+          TextNode <#text> (not painted)
+        BlockContainer <div.last.item> at [565.25,12] flex-item [0+1+0 222.75 0+1+0] [0+1+0 48 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 15, rect: [565.25,12 136.3125x18] baseline: 13.796875
+              "LongPieceOfText"
+          TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x72]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x54]
+      PaintableBox (Box<DIV>.flexbox) [10,10 780x52]
+        PaintableWithLines (BlockContainer<DIV>) [11,11 138.3125x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [149.3125,11 138.3125x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [287.625,11 138.3125x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [425.9375,11 138.3125x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.last.item) [564.25,11 224.75x50]
+          TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x70] [children: 0] (z-index: auto)

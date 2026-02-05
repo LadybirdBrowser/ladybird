@@ -1,0 +1,13 @@
+#a { background-image: radial-gradient(red, blue); }
+#b { background-image: radial-gradient(red, blue); }
+#c { background-image: radial-gradient(red, blue); }
+#d { background-image: radial-gradient(red, blue); }
+#e { background-image: radial-gradient(at calc(50%) calc(50%), red, blue); }
+#f { background-image: radial-gradient(at calc(50% * sign(1em - 1px)) calc(50% * sign(1em - 1px)), red, blue); }
+Computed:
+#a: radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))
+#b: radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))
+#c: radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))
+#d: radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))
+#e: radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))
+#f: radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))

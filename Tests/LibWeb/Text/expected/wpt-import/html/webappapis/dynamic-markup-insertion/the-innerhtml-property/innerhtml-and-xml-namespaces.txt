@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	prerequisites
+Pass	default namespace applies to children of namespaced element
+Pass	default namespace applies to children of default-namespaced element
+Pass	default namespace applies to children of non-namespaced element
+Pass	default namespace applies to children of namespaced element with new default namespace
+Pass	namespace prefix applies to children of namespaced element
+Pass	default namespace prefix applies to descendants of namespaced element
+Pass	unsetting default namespace works inside parse of fragment (on element)
+Pass	unsetting default namespace works inside parse of fragment (on child of element)
+Pass	default namespace applied to sibling of namespace-resetting element in parse of fragment.
+Pass	declaring namespace with prefix inside of fragment parsed by innerHTML
+Pass	declaring default namespace inside of fragment parsed by innerHTML

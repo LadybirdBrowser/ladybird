@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/cssom-view-1/#extensions-to-the-document-interface">
+<div id="container" style="width:200px; height:200px; writing-mode:horizontal-tb; direction:ltr;">
+  <span id="target">target</span>
+</div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+      var elements = document.elementsFromPoint(15, 15);
+      assert_equals(elements.length, 4);
+      assert_equals(elements[0].id, "target");
+      assert_equals(elements[1].id, "container");
+      assert_equals(elements[2].nodeName, "BODY");
+      assert_equals(elements[3].nodeName, "HTML");
+  }, "elementsFromPoint should return all elements under a point");
+</script>

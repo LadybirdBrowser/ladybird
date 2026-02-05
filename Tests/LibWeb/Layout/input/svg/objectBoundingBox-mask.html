@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<svg width="400" height="400">
+    <mask id="myMask" maskContentUnits="objectBoundingBox">
+        <rect x="0" y="0" width="1" height="1" fill="white"/>
+        <circle cx="0.5" cy="0.5" r="0.4" fill="black"/>
+    </mask>
+    <rect x="0" y="0" width="200" height="200" fill="green" mask="url(#myMask)"/>
+    <rect x="200" y="200" width="200" height="100" fill="red" mask="url(#myMask)"/>
+</svg>

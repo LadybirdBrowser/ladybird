@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['widows'] = "1" should set the property value
+Pass	e.style['widows'] = "234" should set the property value

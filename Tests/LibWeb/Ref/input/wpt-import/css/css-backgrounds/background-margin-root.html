@@ -1,0 +1,13 @@
+<!doctype HTML>
+<title>Backgrounds on the root element should extend to cover the entire canvas in the presence of margin</title>
+<link rel="author" title="Philip Rogers" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-backgrounds-3/#root-background">
+<link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/background-margin-root-ref.html">
+<meta name=fuzzy content="0-1;0-19000">
+<style>
+  html {
+    background: linear-gradient(lightblue, yellow);
+    height: 300px;
+    margin: 50px;
+  }
+</style>

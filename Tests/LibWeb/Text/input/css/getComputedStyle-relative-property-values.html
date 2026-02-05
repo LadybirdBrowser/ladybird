@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #outer {
+        width: 10px;
+        height: 20px;
+    }
+    #inner {
+        width: 50%;
+        height: 20%;
+    }
+</style>
+<div id="outer"><div id="inner"></div></div>
+<script>
+    test(() => {
+        const inner = document.getElementById("inner");
+        const style = getComputedStyle(inner);
+        const propertyValues = [
+            "height",
+            "width",
+        ];
+        for (const property of propertyValues) {
+            println(`${property}: ${style.getPropertyValue(property)}`);
+        }
+    });
+</script>

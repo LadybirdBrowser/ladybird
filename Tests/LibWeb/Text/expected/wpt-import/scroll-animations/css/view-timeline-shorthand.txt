@@ -1,0 +1,89 @@
+Harness status: OK
+
+Found 83 tests
+
+80 Pass
+3 Fail
+Pass	e.style['view-timeline'] = "--abcd" should set the property value
+Pass	e.style['view-timeline'] = "none block" should set the property value
+Pass	e.style['view-timeline'] = "none inline" should set the property value
+Pass	e.style['view-timeline'] = "--inline block" should set the property value
+Pass	e.style['view-timeline'] = "--block block" should set the property value
+Pass	e.style['view-timeline'] = "--y block" should set the property value
+Pass	e.style['view-timeline'] = "--x block" should set the property value
+Pass	e.style['view-timeline'] = "--a, --b, --c" should set the property value
+Pass	e.style['view-timeline'] = "--a inline, --b block, --c y" should set the property value
+Pass	e.style['view-timeline'] = "--auto" should set the property value
+Pass	e.style['view-timeline'] = "--abcd block auto" should set the property value
+Pass	e.style['view-timeline'] = "--abcd block auto auto" should set the property value
+Pass	e.style['view-timeline'] = "--abcd block 1px 2px" should set the property value
+Pass	e.style['view-timeline'] = "--abcd inline 1px 2px" should set the property value
+Pass	e.style['view-timeline'] = "--abcd 1px 2px inline" should set the property value
+Pass	e.style['view-timeline'] = "--abcd 1px 2px block" should set the property value
+Pass	e.style['view-timeline'] = "--abcd auto auto block" should set the property value
+Pass	e.style['view-timeline'] = "--abcd auto block" should set the property value
+Pass	e.style['view-timeline'] = "--abcd block 1px 1px" should set the property value
+Pass	e.style['view-timeline'] = "--abc --abc" should not set the property value
+Pass	e.style['view-timeline'] = "block none" should not set the property value
+Pass	e.style['view-timeline'] = "none none" should not set the property value
+Pass	e.style['view-timeline'] = "default" should not set the property value
+Pass	e.style['view-timeline'] = "," should not set the property value
+Pass	e.style['view-timeline'] = ",,--block,," should not set the property value
+Pass	e.style['view-timeline'] = "auto" should not set the property value
+Pass	e.style['view-timeline'] = "auto auto" should not set the property value
+Pass	e.style['view-timeline'] = "--abc 500kg" should not set the property value
+Pass	e.style['view-timeline'] = "--abc #ff0000" should not set the property value
+Pass	e.style['view-timeline'] = "--abc red red" should not set the property value
+Pass	Property view-timeline value '--abcd'
+Pass	Property view-timeline value 'none block'
+Pass	Property view-timeline value 'none inline'
+Pass	Property view-timeline value '--inline block'
+Pass	Property view-timeline value '--block block'
+Pass	Property view-timeline value '--y block'
+Pass	Property view-timeline value '--x block'
+Pass	Property view-timeline value '--a, --b, --c'
+Pass	Property view-timeline value '--a inline, --b block, --c y'
+Pass	Property view-timeline value '--abcd block auto'
+Pass	Property view-timeline value '--abcd block auto auto'
+Pass	Property view-timeline value '--abcd block 1px 2px'
+Pass	Property view-timeline value '--abcd inline 1px 2px'
+Pass	Property view-timeline value '--abcd 1px 2px inline'
+Pass	Property view-timeline value '--abcd 1px 2px block'
+Pass	Property view-timeline value '--abcd auto auto block'
+Pass	Property view-timeline value '--abcd auto block'
+Pass	Property view-timeline value '--abcd block 1px 1px'
+Pass	e.style['view-timeline'] = "--abc y" should set view-timeline-axis
+Pass	e.style['view-timeline'] = "--abc y" should set view-timeline-inset
+Pass	e.style['view-timeline'] = "--abc y" should set view-timeline-name
+Pass	e.style['view-timeline'] = "--abc y" should not set unrelated longhands
+Pass	e.style['view-timeline'] = "--abc y, --def" should set view-timeline-axis
+Pass	e.style['view-timeline'] = "--abc y, --def" should set view-timeline-inset
+Pass	e.style['view-timeline'] = "--abc y, --def" should set view-timeline-name
+Pass	e.style['view-timeline'] = "--abc y, --def" should not set unrelated longhands
+Pass	e.style['view-timeline'] = "--abc, --def" should set view-timeline-axis
+Pass	e.style['view-timeline'] = "--abc, --def" should set view-timeline-inset
+Pass	e.style['view-timeline'] = "--abc, --def" should set view-timeline-name
+Pass	e.style['view-timeline'] = "--abc, --def" should not set unrelated longhands
+Pass	e.style['view-timeline'] = "--inline x" should set view-timeline-axis
+Pass	e.style['view-timeline'] = "--inline x" should set view-timeline-inset
+Pass	e.style['view-timeline'] = "--inline x" should set view-timeline-name
+Pass	e.style['view-timeline'] = "--inline x" should not set unrelated longhands
+Pass	e.style['view-timeline'] = "--abc 1px 2px" should set view-timeline-axis
+Pass	e.style['view-timeline'] = "--abc 1px 2px" should set view-timeline-inset
+Pass	e.style['view-timeline'] = "--abc 1px 2px" should set view-timeline-name
+Pass	e.style['view-timeline'] = "--abc 1px 2px" should not set unrelated longhands
+Pass	e.style['view-timeline'] = "--abc 1px" should set view-timeline-axis
+Pass	e.style['view-timeline'] = "--abc 1px" should set view-timeline-inset
+Pass	e.style['view-timeline'] = "--abc 1px" should set view-timeline-name
+Pass	e.style['view-timeline'] = "--abc 1px" should not set unrelated longhands
+Pass	e.style['view-timeline'] = "--abc 1px inline" should set view-timeline-axis
+Pass	e.style['view-timeline'] = "--abc 1px inline" should set view-timeline-inset
+Pass	e.style['view-timeline'] = "--abc 1px inline" should set view-timeline-name
+Pass	e.style['view-timeline'] = "--abc 1px inline" should not set unrelated longhands
+Pass	Shorthand contraction of view-timeline-name:--abc:undefined;view-timeline-axis:inline:undefined;view-timeline-inset:auto:undefined
+Pass	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timeline-axis:inline, block:undefined;view-timeline-inset:auto, auto:undefined
+Pass	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timeline-axis:inline, block:undefined;view-timeline-inset:1px 2px, 3px 3px:undefined
+Pass	Shorthand contraction of view-timeline-name:none, none:undefined;view-timeline-axis:block, block:undefined;view-timeline-inset:auto auto, auto:undefined
+Fail	Shorthand contraction of view-timeline-name:--a, --b, --c:undefined;view-timeline-axis:inline, inline:undefined;view-timeline-inset:auto, auto:undefined
+Fail	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timeline-axis:inline, inline, inline:undefined;view-timeline-inset:auto, auto, auto:undefined
+Fail	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timeline-axis:inline, inline:undefined;view-timeline-inset:auto, auto, auto:undefined

@@ -1,0 +1,5 @@
+#include <LibWeb/WebDriver/Response.h>
+
+endpoint WebDriverServer {
+    driver_execution_complete(Web::WebDriver::Response response) =|
+}

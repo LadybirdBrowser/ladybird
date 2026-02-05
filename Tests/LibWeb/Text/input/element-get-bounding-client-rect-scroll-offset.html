@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    body {
+        height: 2000px;
+    }
+
+    #box {
+        margin-top: 500px;
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+
+    #scrollable {
+        width: 400px;
+        height: 400px;
+        overflow: scroll;
+        border: 10px solid black;
+    }
+</style>
+<div id="scrollable">
+    <div id="box"></div>
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let rectBeforeScroll = document.getElementById("box").getBoundingClientRect();
+        println(JSON.stringify(rectBeforeScroll));
+        document.getElementById("scrollable").scrollTop = 100;
+        let rectAfterScroll = document.getElementById("box").getBoundingClientRect();
+        println(JSON.stringify(rectAfterScroll));
+        document.getElementById("scrollable").scrollTop = 200;
+        let rectAfterScroll2 = document.getElementById("box").getBoundingClientRect();
+        println(JSON.stringify(rectAfterScroll2));
+    });
+</script>

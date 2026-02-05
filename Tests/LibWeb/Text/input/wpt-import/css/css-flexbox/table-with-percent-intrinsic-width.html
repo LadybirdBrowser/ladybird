@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: table descendants</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1123100">
+<meta name="assert" content="Percentage sized flex table does not use percent for intrinsic, or layout size.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<style>
+  .container {
+    display:flex;
+    width: 200px;
+  }
+  .left {
+    width:200px;
+    background:yellow;
+  }
+  main table {
+    border-spacing: 0;
+    background: red;
+  }
+  .spacer {
+    display:inline-block;
+    width: 10px;
+    height: 10px;
+    background: green;
+  }
+  main td {
+    padding: 0;
+  }
+</style>
+</head>
+<body>
+<main>
+<div class="container">
+  <div class="left">
+  </div>
+  <table style="width:100%" data-expected-width=100>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+  </table>
+</div>
+
+<div class="container">
+  <div class="left">
+  </div>
+  <table style="width:70%; flex-basis: 200px" data-expected-width=100>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+    <td data-expected-width=20><div class="spacer"></div><div class="spacer"></div></td>
+  </table>
+</div>
+</main>
+<div id=log></div>
+
+<script>
+  checkLayout("table");
+</script>
+</body>
+</html>

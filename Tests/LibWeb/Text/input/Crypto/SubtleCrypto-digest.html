@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function bufferToHex(buffer) {
+        return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    async function printDigest(algorithm, encoded_message) {
+        const digest = await window.crypto.subtle.digest(algorithm, encoded_message);
+        println(`${algorithm} ${bufferToHex(digest)}`);
+    }
+    asyncTest(async done => {
+        const encoder = new TextEncoder();
+        const message = "Hello friends";
+        const encoded_message = encoder.encode(message);
+
+        await printDigest("SHA-1", encoded_message);
+        await printDigest("SHA-256", encoded_message);
+        await printDigest("SHA-384", encoded_message);
+        await printDigest("SHA-512", encoded_message);
+
+        done();
+    });
+</script>

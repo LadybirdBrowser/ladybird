@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Language" >
+        <style type='text/css'>
+            .test div { width: 50px; background-color: limegreen; }
+            #box:lang(ko) { width: 100px; background-color: red; }
+        </style>
+    </head>
+    <body>
+        <div class="test"><div id="box">TEST</div></div>
+    </body>
+</html>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest((done) => {
+            if (document.getElementById('box').offsetWidth == 50) {
+                println("OK");
+            } else {
+                println("FAIL. If the meta element has no content attribute, then return.");
+            }
+            done();
+        });
+    </script>
+</html>

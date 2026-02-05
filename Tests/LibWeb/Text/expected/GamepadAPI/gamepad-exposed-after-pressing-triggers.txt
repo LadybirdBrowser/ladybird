@@ -1,0 +1,16 @@
+Before moving trigger axis 4 to -1 (-32628): []
+After moving trigger axis 4 to -1 (-32628): []
+Before moving trigger axis 4 to -0.98 (-31976): []
+After moving trigger axis 4 to -0.98 (-31976): []
+Before moving trigger axis 4 to -0.96 (-31323): []
+After moving trigger axis 4 to -0.96 (-31323): []
+Before moving trigger axis 4 to -0.94 (-30671): []
+After moving trigger axis 4 to -0.94 (-30671): []
+Before moving trigger axis 4 to -0.92 (-30018): []
+After moving trigger axis 4 to -0.92 (-30018): []
+Before moving trigger axis 4 to -0.9 (-29366): []
+After moving trigger axis 4 to -0.9 (-29366): []
+Before moving trigger axis 4 to -0.8033 (-26211): []
+Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+After moving trigger axis 4 to -0.8033 (-26211): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.1000396740623188},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0

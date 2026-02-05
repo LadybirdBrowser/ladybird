@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTMLOptGroupElement Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<select>
+  <optgroup label="x" data-testname="el-optgroup" data-expectedrole="group" class="ex">
+    <option>x1</option>
+    <option>x2</option>
+  </optgroup>
+  <optgroup data-testname="el-optgroup-no-label" data-expectedrole="not defined in spec?" class="ex-todo">
+    <option>y1</option>
+    <option>y2</option>
+  </optgroup>
+</select>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

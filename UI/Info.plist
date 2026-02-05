@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>NSPrincipalClass</key>
+        <string>NSApplication</string>
+        <key>CFBundleIconFile</key>
+        <string>app_icon.icns</string>
+        <key>CFBundlePackageType</key>
+        <string>APPL</string>
+        <key>CFBundleGetInfoString</key>
+        <string>Ladybird</string>
+        <key>CFBundleSignature</key>
+        <string></string>
+        <key>CFBundleExecutable</key>
+        <string>Ladybird</string>
+        <key>CFBundleIdentifier</key>
+        <string>org.ladybird.Ladybird</string>
+        <key>NSPrincipalClass</key>
+        <string>NSApplication</string>
+        <key>NSHighResolutionCapable</key>
+        <string>True</string>
+        <key>CFBundleDocumentTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleTypeName</key>
+                <string>Web documents</string>
+                <key>CFBundleTypeRole</key>
+                <string>Viewer</string>
+                <key>CFBundleTypeIconFile</key>
+                <string>document.icns</string>
+                <key>LSItemContentTypes</key>
+                <array>
+                    <string>public.html</string>
+                    <string>public.xhtml</string>
+                    <string>public.svg-image</string>
+                </array>
+            </dict>
+            <dict>
+                <key>CFBundleTypeName</key>
+                <string>Other documents</string>
+                <key>CFBundleTypeRole</key>
+                <string>Viewer</string>
+                <key>CFBundleTypeIconFile</key>
+                <string>document.icns</string>
+                <key>CFBundleTypeExtensions</key>
+                <array>
+                    <string>md</string>
+                </array>
+            </dict>
+        </array>
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>Web site URL</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>http</string>
+                    <string>https</string>
+                </array>
+            </dict>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>Local file URL</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>file</string>
+                </array>
+            </dict>
+        </array>
+    </dict>
+</plist>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function testLookupNamespaceURI(node, prefix, name) {
+        let prefixName = prefix;
+        if (prefixName !== null)
+            prefixName = `"${prefix}"`;
+
+        println(`${name}.lookupNamespaceURI(${prefixName}): ${node.lookupNamespaceURI(prefix)}`);
+    }
+
+    test(() => {
+        const documentFragment = document.createDocumentFragment();
+        testLookupNamespaceURI(documentFragment, null, "documentFragment");
+        testLookupNamespaceURI(documentFragment, "", "documentFragment");
+        testLookupNamespaceURI(documentFragment, "foo", "documentFragment");
+        testLookupNamespaceURI(documentFragment, "xml", "documentFragment");
+        testLookupNamespaceURI(documentFragment, "xmlns", "documentFragment");
+
+        const docType = document.doctype;
+        testLookupNamespaceURI(docType, null, "docType");
+        testLookupNamespaceURI(docType, "", "docType");
+        testLookupNamespaceURI(docType, "foo", "docType");
+        testLookupNamespaceURI(docType, "xml", "docType");
+        testLookupNamespaceURI(docType, "xmlns", "docType");
+
+        const element = document.createElementNS("namespace", "prefix:element");
+        element.setAttribute("bar", "value");
+        testLookupNamespaceURI(element, null, "element");
+        testLookupNamespaceURI(element, "", "element");
+        testLookupNamespaceURI(element, "foo", "element");
+        testLookupNamespaceURI(element, "xml", "element");
+        testLookupNamespaceURI(element, "xmlns", "element");
+
+        const XMLNS_NS = "http://www.w3.org/2000/xmlns/";
+        element.setAttributeNS(XMLNS_NS, 'xmlns:bar', 'exampleNamespaceURI');
+        println("After setting element attribute xmlns:bar='exampleNamespaceURI'");
+        testLookupNamespaceURI(element, null, "element");
+        testLookupNamespaceURI(element, "", "element");
+        testLookupNamespaceURI(element, "foo", "element");
+        testLookupNamespaceURI(element, "bar", "element");
+    });
+</script>

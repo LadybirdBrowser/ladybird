@@ -1,0 +1,6 @@
+#import <CSS/CSSStyleSheet.idl>
+
+// https://www.w3.org/TR/cssom-1/#ref-for-linkstyle
+interface mixin LinkStyle {
+    readonly attribute CSSStyleSheet? sheet;
+};

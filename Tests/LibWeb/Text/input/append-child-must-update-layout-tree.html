@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        println("Hello");
+        document.body.offsetWidth // Force a layout
+        println("friends"); // This will append a text child to the output element, and should update the layout tree.
+    });
+</script>

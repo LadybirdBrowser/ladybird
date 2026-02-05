@@ -1,0 +1,223 @@
+/*
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021, kleines Filmröllchen <filmroellchen@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/BitCast.h>
+#include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
+#include <AK/Checked.h>
+#include <AK/JsonObject.h>
+#include <AK/JsonValue.h>
+#include <AK/NumericLimits.h>
+#include <AK/String.h>
+#include <AK/Time.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibCore/Proxy.h>
+#include <LibCore/System.h>
+#include <LibIPC/Encoder.h>
+#include <LibIPC/File.h>
+#include <LibURL/Origin.h>
+#include <LibURL/URL.h>
+
+namespace IPC {
+
+ErrorOr<void> Encoder::encode_size(size_t size)
+{
+    VERIFY(size <= NumericLimits<u32>::max());
+    return encode(static_cast<u32>(size));
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, float const& value)
+{
+    return encoder.encode(bit_cast<u32>(value));
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, double const& value)
+{
+    return encoder.encode(bit_cast<u64>(value));
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, String const& value)
+{
+    return encoder.encode(value.bytes_as_string_view());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, StringView const& value)
+{
+    TRY(encoder.encode_size(value.length()));
+    TRY(encoder.append(reinterpret_cast<u8 const*>(value.characters_without_null_termination()), value.length()));
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Utf16String const& value)
+{
+    return encoder.encode(value.utf16_view());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Utf16View const& value)
+{
+    TRY(encoder.encode(value.has_ascii_storage()));
+    TRY(encoder.encode_size(value.length_in_code_units()));
+
+    if (value.has_ascii_storage()) {
+        TRY(encoder.append(value.bytes().data(), value.length_in_code_units()));
+    } else {
+        VERIFY(!Checked<size_t>::multiplication_would_overflow(value.length_in_code_units(), sizeof(char16_t)));
+        TRY(encoder.append(reinterpret_cast<u8 const*>(value.utf16_span().data()), value.length_in_code_units() * sizeof(char16_t)));
+    }
+
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, ByteString const& value)
+{
+    return encoder.encode(value.view());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, ByteBuffer const& value)
+{
+    TRY(encoder.encode_size(value.size()));
+    TRY(encoder.append(value.data(), value.size()));
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, JsonValue const& value)
+{
+    return encoder.encode(value.serialized());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, AK::Duration const& value)
+{
+    return encoder.encode(value.to_nanoseconds());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, UnixDateTime const& value)
+{
+    return encoder.encode(value.nanoseconds_since_epoch());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, IPv4Address const& ipv4)
+{
+    return encoder.encode(ipv4.to_u32());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, IPv6Address const& ipv6)
+{
+    auto const& data = ipv6.to_in6_addr_t();
+    return encoder.encode(ReadonlySpan<u8>(data));
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
+{
+    TRY(encoder.encode(value.serialize()));
+
+    if (!value.blob_url_entry().has_value())
+        return encoder.encode(false);
+
+    TRY(encoder.encode(true));
+
+    auto const& entry = value.blob_url_entry().value();
+
+    TRY(encoder.encode(entry.object));
+    TRY(encoder.encode(entry.environment.origin));
+
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
+{
+    if (origin.is_opaque()) {
+        TRY(encoder.encode(true));
+        TRY(encoder.encode(origin.nonce()));
+    } else {
+        TRY(encoder.encode(false));
+        TRY(encoder.encode(origin.scheme()));
+        TRY(encoder.encode(origin.host()));
+        TRY(encoder.encode(origin.port()));
+        TRY(encoder.encode(origin.domain()));
+    }
+
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, URL::Host const& host)
+{
+    TRY(encoder.encode(host.value()));
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, File const& file)
+{
+    int fd = file.take_fd();
+    VERIFY(fd >= 0);
+
+    TRY(encoder.append_file_descriptor(fd));
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder&, Empty const&)
+{
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Core::AnonymousBuffer const& buffer)
+{
+    TRY(encoder.encode(buffer.is_valid()));
+
+    if (buffer.is_valid()) {
+        TRY(encoder.encode_size(buffer.size()));
+        TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
+    }
+
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Core::ProxyData const& proxy)
+{
+    TRY(encoder.encode(proxy.type));
+    TRY(encoder.encode(proxy.host_ipv4));
+    TRY(encoder.encode(proxy.port));
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, URL::BlobURLEntry::Blob const& blob)
+{
+    TRY(encoder.encode(blob.type));
+    TRY(encoder.encode(blob.data));
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::MediaSource const&)
+{
+    return {};
+}
+
+}

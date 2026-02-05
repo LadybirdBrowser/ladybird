@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: 'contain' property strict value</title>
+<link rel="help" href="https://drafts.csswg.org/css-contain/#contain-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#align-items-property">
+<meta name="assert" content="This test ensures that the strict value of the 'contain'
+property in combination with mixing of 'display' inline-flex value, 'align-items' flex-start
+value, column direction works properly.">
+<style>
+.inline-flex {
+  display: inline-flex;
+  outline: solid;
+  background: red;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.inline-flex')">
+<p>Stretched:</p>
+<div class="inline-flex" style="display: inline-flex; flex-direction: column;" data-expected-width="0" data-expected-height="0">
+  <div style="contain: strict;" data-expected-width="0" data-expected-height="0">Column</div>
+</div>
+
+<div class="inline-flex" data-expected-width="0" data-expected-height="0">
+  <div style="contain: strict;" data-expected-width="0" data-expected-height="0">Row</div>
+</div>
+
+<div class="inline-flex" style="display: inline-flex; flex-direction: column;" data-expected-width="30" data-expected-height="30">
+  <div style="contain: strict; width: 30px; height: 30px;" data-expected-width="30" data-expected-height="30">Column</div>
+</div>
+
+<div class="inline-flex" style="display: inline-flex;" data-expected-width="30" data-expected-height="30">
+  <div style="contain: strict; width: 30px; height: 30px;" data-expected-width="30" data-expected-height="30">Row</div>
+</div>
+
+
+<p>Flex-start:</p>
+<div class="inline-flex" style="flex-direction: column; align-items: flex-start;" data-expected-width="0" data-expected-height="0">
+  <div style="contain: strict;" data-expected-width="0" data-expected-height="0">Column</div>
+</div>
+
+<div class="inline-flex" style="align-items: flex-start;" data-expected-width="0" data-expected-height="0">
+  <div style="contain: strict;" data-expected-width="0" data-expected-height="0">Row</div>
+</div>
+
+<div class="inline-flex" style="flex-direction: column; align-items: flex-start;" data-expected-width="30" data-expected-height="30">
+  <div style="contain: strict; width: 30px; height: 30px;" data-expected-width="30" data-expected-height="30">Column</div>
+</div>
+
+<div class="inline-flex" style="align-items: flex-start;" data-expected-width="30" data-expected-height="30">
+  <div style="contain: strict; width: 30px; height: 30px;" data-expected-width="30" data-expected-height="30">Row</div>
+</div>

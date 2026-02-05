@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing the shape() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#shape-function">
+<meta name="assert" content="Tests parsing of the circle() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("clip-path", "shape(from 20px 40px line to 20px 30px)");
+test_invalid_value("clip-path", "shape(from 20px 40px line to 20px 30px,)");
+test_invalid_value("clip-path", "shape(from 20px, 40px, line to 20px, 30px)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to top)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to bottom)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to y-start)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to y-end)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to left)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to right)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to x-start)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to x-end)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to top 20px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to right, vline to bottom left, close)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline by left)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline by right)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline by top)");
+test_invalid_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline by bottom)");
+
+// Control points start after "with"
+test_invalid_value("clip-path", "shape(from 20px 40px, curve to 20px 20px, using 10px 30px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve to 20px 20px using 10px 30px, 12px 32px)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 20px, using 10px 30px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 20px using 10px 30px, 12px 32px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 20px via 10px 30px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 20px via 10px 30px 12px 32px)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, smooth by 20px 20px via 10px 30px / 12px 32px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, smooth by 20px 20px using 10px 30px 12px 32px)");
+
+// Multiple control points should be separated by /
+test_invalid_value("clip-path", "shape(from 20px 40px, curve to 20px 20px with 10px 30px 12px 32px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 20px with 10px 30px 12px 32px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 20px with 10px 30px /)");
+
+// <position> in places that only accept <coordinate-pair>
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by top left using 10px 30px)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 30px using top right)");
+test_invalid_value("clip-path", "shape(from 20px 40px, curve to 20px 30px using top right / 20px from end)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, arc by top right of 10% 20%)");
+test_invalid_value("clip-path", "shape(from 20px 40px, arc by 10px 20px of top right small cw)");
+
+// "from start" only applies to control points
+test_invalid_value("clip-path", "shape(from 20px 40px, curve by 20px 30px from start, using 23px 32px)");
+
+// 'from origin' not allowed for <position> control points
+test_invalid_value("clip-path", "shape(from 20px 40px, curve to 20px 20px using top left from origin / 12px 32px from end)");
+
+test_invalid_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% 12deg)");
+test_invalid_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% rotate 12deg rotate 13deg)");
+test_invalid_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw large 12deg)");
+test_invalid_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% small large)");
+test_invalid_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw ccw)");
+</script>
+</body>
+</html>

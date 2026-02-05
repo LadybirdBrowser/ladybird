@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>transition timing function</title>
+  <link rel="help" href="https://drafts.csswg.org/css-transitions-1/#transition-timing-function-property">
+  <style>
+    .box {
+      position: relative;
+      left: 0;
+      height: 100px;
+      width: 100px;
+      margin: 10px;
+      background-color: blue;
+      transition: left 1s linear;
+    }
+    .animating > .box {
+      left: 400px;
+    }
+  </style>
+</head>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/css-transitions/support/helper.js"></script>
+<script src="../../../css/css-easing/testcommon.js"></script>
+<script>
+  window.onload = () => {
+    function verifyPosition(element_id, expected) {
+      const element = document.getElementById(element_id);
+      const actual = Math.round(parseFloat(getComputedStyle(element).left));
+      assert_equals(actual, expected, `verify ${element_id} left`);
+    }
+
+    function easing(x1, y1, x2, y2) {
+      return Math.round(400 * cubicBezier(x1, y1, x2, y2)(0.5));
+    }
+
+    function ease() {
+      return easing(0.25, 0.1, 0.25, 1); // 321
+    }
+
+    function easeIn() {
+      return easing(0.42, 0, 1, 1); // 126
+    }
+
+    function easeOut() {
+      return easing(0.0, 0.0, 0.58, 1.0); // 274
+    }
+
+    function easeInOut() {
+      return easing(0.42, 0.0, 0.58, 1.0); // 200
+    }
+
+    promise_test(async t => {
+      // Make sure we have rendered the page before making the style change
+      // to ensure we get transitions.
+      await waitForAnimationFrames(2);
+      promises = [];
+      document.getElementById('container').className = 'animating';
+      document.getAnimations().forEach(anim => {
+        anim.pause();
+        anim.currentTime = 500;
+        promises.push(anim.ready);
+      });
+      await Promise.all(promises).then(() => {
+        assert_equals(promises.length, 6, 'Unexpected animation count');
+        verifyPosition('box1', 200);  // linear easing
+        verifyPosition('box2', ease());
+        verifyPosition('box3', easeIn());
+        verifyPosition('box4', easeOut());
+        verifyPosition('box5', easeInOut());
+        verifyPosition('box6', 400);
+      });
+    }, 'Ensure that transition easing functions are properly applied.');
+  };
+</script>
+<body>
+<div id="container">
+  <div id="box1" class="box" style="transition-timing-function: linear;"></div>
+  <div id="box2" class="box" style="transition-timing-function: ease;"></div>
+  <div id="box3" class="box" style="transition-timing-function: ease-in;"></div>
+  <div id="box4" class="box" style="transition-timing-function: ease-out;"></div>
+  <div id="box5" class="box" style="transition-timing-function: ease-in-out;"></div>
+  <div id="box6" class="box" style="transition-timing-function: linear(0, 1, 0);"></div>
+</div>
+</body>
+</html>

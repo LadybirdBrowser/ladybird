@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<input type="file" />
+<input type="file" multiple />
+<input id="multiple" type="file" />
+<script type="text/javascript">
+    document.addEventListener("DOMContentLoaded", () => {
+        let input = document.querySelector("#multiple");
+        input.multiple = true;
+    });
+</script>

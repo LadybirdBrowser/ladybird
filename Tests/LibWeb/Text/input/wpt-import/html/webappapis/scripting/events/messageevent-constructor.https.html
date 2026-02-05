@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<title>MessageEvent constructor</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+test(function() {
+    assert_throws_js(
+        TypeError,
+        () => MessageEvent(""),
+        "Calling MessageEvent constructor without 'new' must throw"
+    );
+}, "MessageEvent constructor called as normal function");
+
+test(function() {
+  var ev = new MessageEvent("test")
+  assert_equals(ev.type, "test", "type attribute")
+  assert_equals(ev.target, null, "target attribute")
+  assert_equals(ev.currentTarget, null, "currentTarget attribute")
+  assert_equals(ev.eventPhase, Event.NONE, "eventPhase attribute")
+  assert_equals(ev.bubbles, false, "bubbles attribute")
+  assert_equals(ev.cancelable, false, "cancelable attribute")
+  assert_equals(ev.defaultPrevented, false, "defaultPrevented attribute")
+  assert_equals(ev.isTrusted, false, "isTrusted attribute")
+  assert_true(ev.timeStamp > 0, "timeStamp attribute")
+  assert_true("initMessageEvent" in ev, "initMessageEvent operation")
+  assert_equals(ev.data, null, "data attribute")
+  assert_equals(ev.origin, "", "origin attribute")
+  assert_equals(ev.lastEventId, "", "lastEventId attribute")
+  assert_equals(ev.source, null, "source attribute")
+  assert_array_equals(ev.ports, [], "ports attribute")
+}, "Default event values")
+
+test(function() {
+  var channel = new MessageChannel()
+  var ev = new MessageEvent("test", { data: "testData", origin: "testOrigin", lastEventId: "testId", source: window, ports: [channel.port1] })
+  assert_equals(ev.type, "test", "type attribute")
+  assert_equals(ev.data, "testData", "data attribute")
+  assert_equals(ev.origin, "testOrigin", "origin attribute")
+  assert_equals(ev.lastEventId, "testId", "lastEventId attribute")
+  assert_equals(ev.source, window, "source attribute")
+  assert_array_equals(ev.ports, [channel.port1], "ports attribute")
+}, "MessageEventInit dictionary")
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new MessageEvent("test", { ports: null })
+  })
+}, "Passing null for ports member")
+
+test(function() {
+  var ev = new MessageEvent("test", { ports: [] })
+  assert_true(Array.isArray(ev.ports), "Array.isArray() should return true")
+  assert_true(Object.isFrozen(ev.ports), "Object.isFrozen() should return true")
+  assert_equals(ev.ports, ev.ports, "ev.ports should return the same object")
+
+  const oldPorts = ev.ports;
+  ev.initMessageEvent("test", false, false, null, "", "", null, ev.ports);
+  assert_not_equals(oldPorts, ev.ports, "initMessageEvent() changes ev.ports");
+}, "ports attribute should be a FrozenArray")
+
+test(function() {
+  var ev = document.createEvent("messageevent");
+  var channel = new MessageChannel()
+  ev.initMessageEvent("test", true, false, "testData", "testOrigin", "testId", window, [channel.port1])
+  assert_equals(ev.type, "test", "type attribute")
+  assert_equals(ev.bubbles, true, "bubbles attribute")
+  assert_equals(ev.cancelable, false, "bubbles attribute")
+  assert_equals(ev.data, "testData", "data attribute")
+  assert_equals(ev.origin, "testOrigin", "origin attribute")
+  assert_equals(ev.lastEventId, "testId", "lastEventId attribute")
+  assert_equals(ev.source, window, "source attribute")
+  assert_array_equals(ev.ports, [channel.port1], "ports attribute")
+}, "initMessageEvent operation")
+
+test(function() {
+  var ev = document.createEvent("messageevent")
+  assert_throws_js(TypeError, function() {
+    ev.initMessageEvent("test", true, false, "testData", "testOrigin", "testId", window, null)
+  })
+}, "Passing null for ports parameter to initMessageEvent")
+
+test(function() {
+  var ev = document.createEvent("messageevent")
+  assert_equals(MessageEvent.prototype.initMessageEvent.length, 1, "MessageEvent.prototype.initMessageEvent.length should be 1")
+  ev.initMessageEvent("test")
+  assert_equals(ev.type, "test", "type attribute")
+  assert_equals(ev.bubbles, false, "bubbles attribute")
+  assert_equals(ev.cancelable, false, "bubbles attribute")
+  assert_equals(ev.data, null, "data attribute")
+  assert_equals(ev.origin, "", "origin attribute")
+  assert_equals(ev.lastEventId, "", "lastEventId attribute")
+  assert_equals(ev.source, null, "source attribute")
+  assert_array_equals(ev.ports, [], "ports attribute")
+}, "initMessageEvent operation default parameter values")
+
+promise_test(function(t) {
+    var worker_url = "/service-workers/service-worker/resources/empty-worker.js";
+    var scope = "/service-workers/service-worker/resources/";
+    var registration;
+
+    return service_worker_unregister_and_register(t, worker_url, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, r.installing, "activated");
+        })
+      .then(function() {
+          var ev = new MessageEvent("test", { source: registration.active });
+          assert_equals(ev.source, registration.active, "source attribute should return the ServiceWorker");
+          service_worker_unregister(t, scope);
+        });
+  }, "Passing ServiceWorker for source member");
+
+</script>

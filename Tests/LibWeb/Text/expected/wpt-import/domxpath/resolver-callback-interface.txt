@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Fail
+Fail	callable resolver
+Fail	callable resolver: result is not cached
+Fail	callable resolver: abrupt completion from Call
+Fail	callable resolver: no 'lookupNamespaceURI' lookups
+Fail	object resolver
+Fail	object resolver: this value and `prefix` argument
+Fail	object resolver: 'lookupNamespaceURI' is not cached
+Fail	object resolver: abrupt completion from Get
+Fail	object resolver: 'lookupNamespaceURI' is thruthy and not callable
+Fail	object resolver: 'lookupNamespaceURI' is falsy and not callable

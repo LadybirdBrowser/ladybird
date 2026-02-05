@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 32 tests
+
+32 Pass
+Pass	min(1deg) should be used-value-equivalent to 1deg
+Pass	min(1grad) should be used-value-equivalent to 1grad
+Pass	min(1rad) should be used-value-equivalent to 1rad
+Pass	min(1turn) should be used-value-equivalent to 1turn
+Pass	max(1deg) should be used-value-equivalent to 1deg
+Pass	max(1grad) should be used-value-equivalent to 1grad
+Pass	max(1rad) should be used-value-equivalent to 1rad
+Pass	max(1turn) should be used-value-equivalent to 1turn
+Pass	min(1deg, 2deg) should be used-value-equivalent to 1deg
+Pass	min(1grad, 2grad) should be used-value-equivalent to 1grad
+Pass	min(1rad, 2rad) should be used-value-equivalent to 1rad
+Pass	min(1turn, 2turn) should be used-value-equivalent to 1turn
+Pass	max(1deg, 2deg) should be used-value-equivalent to 2deg
+Pass	max(1grad, 2grad) should be used-value-equivalent to 2grad
+Pass	max(1rad, 2rad) should be used-value-equivalent to 2rad
+Pass	max(1turn, 2turn) should be used-value-equivalent to 2turn
+Pass	min(90deg, 0.26turn) should be used-value-equivalent to 90deg
+Pass	min(1.57rad, 95deg) should be used-value-equivalent to 1.57rad
+Pass	max(91deg, 0.25turn) should be used-value-equivalent to 91deg
+Pass	max(1.58rad, 90deg) should be used-value-equivalent to 1.58rad
+Pass	min(270deg, max(0.25turn, 3.14rad)) should be used-value-equivalent to 3.14rad
+Pass	max(0.25turn, min(270deg, 3.14rad)) should be used-value-equivalent to 3.14rad
+Pass	calc(min(90deg, 1.58rad) + 0.125turn) should be used-value-equivalent to 135deg
+Pass	calc(min(90deg, 1.58rad) - 0.125turn) should be used-value-equivalent to 45deg
+Pass	calc(min(90deg, 1.58rad) * 1.5 should be used-value-equivalent to 135deg
+Pass	calc(min(90deg, 1.58rad) / 2 should be used-value-equivalent to 45deg
+Pass	calc(max(90deg, 1.56rad) + 0.125turn should be used-value-equivalent to 135deg
+Pass	calc(max(90deg, 1.56rad) - 0.125turn) should be used-value-equivalent to 45deg
+Pass	calc(max(90deg, 1.56rad) * 1.5 should be used-value-equivalent to 135deg
+Pass	calc(max(90deg, 1.56rad) / 2 should be used-value-equivalent to 45deg
+Pass	calc(min(90deg, 1.58rad) + max(0.125turn, 49grad)) should be used-value-equivalent to 135deg
+Pass	calc(min(90deg, 1.58rad) - max(0.25turn, 99grad)) should be used-value-equivalent to 0deg

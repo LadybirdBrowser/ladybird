@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Pass
+Pass	range type support on input element
+Pass	range overflow styles
+Pass	min attribute support on input element
+Pass	max attribute support on input element
+Pass	Illegal value of min attribute
+Pass	Illegal value of max attribute
+Pass	Converting an illegal string to the default value
+Pass	Illegal value of step attribute
+Pass	the value is set to min when a smaller value than min attribute is given
+Pass	the value is set to max when a larger value than max attribute is given
+Pass	default value of min attribute in input type=range
+Pass	default value of max attribute in input type=range
+Pass	default value when min and max attributes are given (= min plus half the difference between min and max)
+Pass	default value with step control when both min and max attributes are given
+Pass	default value when both min and max attributes are given, while min > max
+Pass	The default step scale factor is 1, unless min attribute has non-integer value
+Pass	Step scale factor behavior when min attribute has integer value but max attribute is non-integer 
+Pass	Solving the step mismatch
+Pass	Performing stepUp()
+Pass	Performing stepDown()
+Pass	Performing stepUp() beyond the value of the max attribute
+Pass	Performing stepDown() beyond the value of the min attribute
+Pass	Input should be reset to the default value when value attribute has whitespace
+Pass	Multiply value by ten raised to the exponentth power with `e`
+Pass	Multiply value by ten raised to the exponentth power with `E`

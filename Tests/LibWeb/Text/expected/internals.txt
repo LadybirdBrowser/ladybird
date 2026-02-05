@@ -1,0 +1,3 @@
+[object Internals]
+function gc() { [native code] }
+OK

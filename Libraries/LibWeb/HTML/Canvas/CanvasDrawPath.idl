@@ -1,0 +1,27 @@
+#import <HTML/Path2D.idl>
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasfillrule
+enum CanvasFillRule { "nonzero", "evenodd" };
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawpath
+interface mixin CanvasDrawPath {
+    undefined beginPath();
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    undefined fill(optional DOMString fillRule = "nonzero");
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    undefined fill(Path2D path, optional DOMString fillRule = "nonzero");
+    undefined stroke();
+    undefined stroke(Path2D path);
+
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    undefined clip(optional DOMString fillRule = "nonzero");
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    undefined clip(Path2D path, optional DOMString fillRule = "nonzero");
+
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    boolean isPointInPath(unrestricted double x, unrestricted double y, optional DOMString fillRule = "nonzero");
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    boolean isPointInPath(Path2D path, unrestricted double x, unrestricted double y, optional DOMString fillRule = "nonzero");
+    [FIXME] boolean isPointInStroke(unrestricted double x, unrestricted double y);
+    [FIXME] boolean isPointInStroke(Path2D path, unrestricted double x, unrestricted double y);
+};

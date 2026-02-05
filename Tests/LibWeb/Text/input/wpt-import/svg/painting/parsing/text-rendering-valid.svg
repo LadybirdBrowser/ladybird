@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>SVG Painting: parsing text-rendering with valid values</title>
+  <metadata>
+    <h:link rel="help" href="https://svgwg.org/svg2-draft/painting.html#TextRenderingProperty"/>
+    <h:meta name="assert" content="text-rendering supports the full grammar 'auto | optimizeSpeed | optimizeLegibility | geometricPrecision'."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_valid_value("text-rendering", "auto");
+test_valid_value("text-rendering", "optimizespeed");
+test_valid_value("text-rendering", "optimizelegibility");
+test_valid_value("text-rendering", "geometricprecision");
+
+  ]]></script>
+</svg>

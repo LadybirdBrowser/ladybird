@@ -1,0 +1,96 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: font shorthand serialization prevention for font subproperty values the shorthand cannot express</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#propdef-font">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#serializing-css-values">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="test"></div>
+<script>
+
+function is_property_supported(property) {
+  const element = document.getElementById('test')
+  element.style = ''
+  element.style = property + ': initial'
+  return element.style[property] == 'initial'
+}
+
+function overwrite_font_shorthand(property, value) {
+  const element = document.getElementById('test')
+  element.style = ''
+  element.style.font = '16px serif'
+  element.style[property] = value
+}
+
+function test_font_shorthand_specified_serializable_after_setting_subproperty(property, value) {
+  test(() => {
+    overwrite_font_shorthand(property, value)
+    assert_not_equals(document.getElementById('test').style.font, '')
+  }, 'Setting ' + property + ' to ' + value + ' should not prevent the font shorthand from serializing in specified style')
+}
+
+function test_font_shorthand_computed_serializable_after_setting_subproperty(property, value) {
+  test(() => {
+    overwrite_font_shorthand(property, value)
+    assert_not_equals(getComputedStyle(document.getElementById('test')).font, '')
+  }, 'Setting ' + property + ' to ' + value + ' should not prevent the font shorthand from serializing in computed style')
+}
+
+function test_font_shorthand_specified_unserializable_after_setting_subproperty(property, value) {
+  test(() => {
+    overwrite_font_shorthand(property, value)
+    assert_equals(document.getElementById('test').style.font, '')
+  }, 'Setting ' + property + ' to ' + value + ' should prevent the font shorthand from serializing in specified style')
+}
+
+function test_font_shorthand_computed_unserializable_after_setting_subproperty(property, value) {
+  test(() => {
+    overwrite_font_shorthand(property, value)
+    assert_equals(getComputedStyle(document.getElementById('test')).font, '')
+  }, 'Setting ' + property + ' to ' + value + ' should prevent the font shorthand from serializing in computed style')
+}
+
+function test_font_shorthand_serializable_after_setting_subproperty(property, value) {
+  test_font_shorthand_specified_serializable_after_setting_subproperty(property, value)
+  test_font_shorthand_computed_serializable_after_setting_subproperty(property, value)
+}
+
+function test_font_shorthand_unserializable_after_setting_subproperty(property, value) {
+  test_font_shorthand_specified_unserializable_after_setting_subproperty(property, value)
+  test_font_shorthand_computed_unserializable_after_setting_subproperty(property, value)
+}
+
+function test_font_shorthand_serialization_after_setting_subproperty(property, defaultValue, otherValue) {
+  if (!is_property_supported(property))
+    return
+  const keywords = [ 'initial', 'inherit', 'unset', 'revert', 'revert-layer' ]
+  keywords.forEach(keyword => {
+      test_font_shorthand_specified_unserializable_after_setting_subproperty(property, keyword)
+      test_font_shorthand_computed_serializable_after_setting_subproperty(property, keyword)
+    });
+  test_font_shorthand_serializable_after_setting_subproperty(property, defaultValue)
+  test_font_shorthand_unserializable_after_setting_subproperty(property, otherValue)
+}
+
+test_font_shorthand_serializable_after_setting_subproperty('font-family', 'sans-serif')
+
+test_font_shorthand_serialization_after_setting_subproperty('font-variant', 'normal', 'none')
+test_font_shorthand_serializable_after_setting_subproperty('font-variant', 'small-caps')
+test_font_shorthand_unserializable_after_setting_subproperty('font-variant', 'all-small-caps')
+
+test_font_shorthand_serialization_after_setting_subproperty('font-variant-caps', 'small-caps', 'all-small-caps')
+test_font_shorthand_serialization_after_setting_subproperty('font-stretch', 'normal', '95%')
+test_font_shorthand_serialization_after_setting_subproperty('font-size-adjust', 'none', '0')
+test_font_shorthand_serialization_after_setting_subproperty('font-kerning', 'auto', 'normal')
+test_font_shorthand_serialization_after_setting_subproperty('font-variant-ligatures', 'normal', 'none')
+test_font_shorthand_serialization_after_setting_subproperty('font-variant-position', 'normal', 'sub')
+test_font_shorthand_serialization_after_setting_subproperty('font-variant-numeric', 'normal', 'ordinal')
+test_font_shorthand_serialization_after_setting_subproperty('font-variant-alternates', 'normal', 'historical-forms')
+test_font_shorthand_serialization_after_setting_subproperty('font-variant-east-asian', 'normal', 'full-width')
+test_font_shorthand_serialization_after_setting_subproperty('font-variant-emoji', 'normal', 'text')
+test_font_shorthand_serialization_after_setting_subproperty('font-feature-settings', 'normal', '"sinf"')
+test_font_shorthand_serialization_after_setting_subproperty('font-language-override', 'normal', '"SRB"')
+test_font_shorthand_serialization_after_setting_subproperty('font-optical-sizing', 'auto', 'none')
+test_font_shorthand_serialization_after_setting_subproperty('font-variation-settings', 'normal', '"aaaa" 1')
+
+</script>

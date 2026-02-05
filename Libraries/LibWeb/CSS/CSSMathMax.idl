@@ -1,0 +1,9 @@
+#import <CSS/CSSMathValue.idl>
+#import <CSS/CSSNumericArray.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssmathmax
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathMax : CSSMathValue {
+    constructor(CSSNumberish... args);
+    readonly attribute CSSNumericArray values;
+};

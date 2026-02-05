@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let canvas = new OffscreenCanvas(10, 10);
+        println(JSON.stringify({ w: canvas.width, h: canvas.height }));
+        let context = canvas.getContext("2d");
+        context.font = "20px SerenitySans";
+        println(context.font);
+        context.font = "!!!"; // Invalid value, should be ignored.
+        println(context.font);
+    });
+</script>

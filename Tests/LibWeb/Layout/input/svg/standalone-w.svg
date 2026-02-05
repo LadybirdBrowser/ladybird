@@ -1,0 +1,13 @@
+<!--
+    This will display identical on Ladybird and Chromium (131.0.6778.85) (centered), but left-aligned on Firefox (129.0.2)
+    Guessing Firefox has it right; no reason why missing height should align center (see standalone.svg where all left align)
+    Suggestion: not a priority, since it works the same as chromium
+    Likely a result of settings in Default.css
+-->
+<svg viewBox="0 0 32 64" height="256" xmlns="http://www.w3.org/2000/svg">
+    <title>white diamond on blue; no width</title>
+    <rect x="0" y="0" width="32" height="64" fill="blue"/>
+    <g fill="white">
+        <path d="M16 0 L32 32 L16 64 L0 32 Z" />
+    </g>
+</svg>

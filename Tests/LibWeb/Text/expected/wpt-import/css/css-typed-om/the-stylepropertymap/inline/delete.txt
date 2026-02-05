@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Deleting a property not in the inline style is a no-op
+Pass	Deleting a property in the inline style removes it from the inline style
+Pass	Deleting a custom property in the inline style removes it from the inline style
+Pass	Deleting a list-valued property in the inline style removes it from the inline style
+Pass	Inline StylePropertyMap.delete is not case-sensitive

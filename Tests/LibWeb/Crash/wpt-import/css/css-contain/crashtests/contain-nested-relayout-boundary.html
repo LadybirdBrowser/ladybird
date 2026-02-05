@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<div style="position: relative; width: 100px; height: 100px; overflow: hidden;">
+  <div id="target" style="contain: size layout;">
+    <canvas id="inner" width="0"></canvas>
+  </div>
+</div>
+<script>
+document.body.offsetTop;
+document.getElementById('inner').width = '100';
+document.getElementById('target').style.contain = 'initial';
+</script>

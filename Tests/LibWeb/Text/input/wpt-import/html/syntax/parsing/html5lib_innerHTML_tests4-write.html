@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_innerHTML_tests4.html</title>
+    <meta name="timeout" content="long">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['8c692a23f8c9b5860cf06fb334041d2e97e96f5c','95cb768746a1ca7ac02d39c0bb2b10d9e965e37c','06bd3583493359d112d19765f68fac3901267408','48d8375ef2d9d73bd133f2947858a3450a988d53','36fb2178fbdfa1b32701a9d9214c3fd115fd7184','d373bc3abdda01b17a6055af21b16c151dd1d697','4f91b1d4c6e2bbc0595c9effc490b7357e9cefc2','38b248763fb49ca6c1abc2f2f9d9e502c5ed5041','054c57cdb4b945b7273a4627a68f470705640e3e',];
+      var tests = {
+          "8c692a23f8c9b5860cf06fb334041d2e97e96f5c":[async_test('html5lib_innerHTML_tests4.html 8c692a23f8c9b5860cf06fb334041d2e97e96f5c'), "direct%20div%20content", "%23document%0A%7C%20%22direct%20div%20content%22", 'div'],"95cb768746a1ca7ac02d39c0bb2b10d9e965e37c":[async_test('html5lib_innerHTML_tests4.html 95cb768746a1ca7ac02d39c0bb2b10d9e965e37c'), "direct%20textarea%20content", "%23document%0A%7C%20%22direct%20textarea%20content%22", 'textarea'],"06bd3583493359d112d19765f68fac3901267408":[async_test('html5lib_innerHTML_tests4.html 06bd3583493359d112d19765f68fac3901267408'), "textarea%20content%20with%20%3Cem%3Epseudo%3C/em%3E%20%3Cfoo%3Emarkup", "%23document%0A%7C%20%22textarea%20content%20with%20%3Cem%3Epseudo%3C/em%3E%20%3Cfoo%3Emarkup%22", 'textarea'],"48d8375ef2d9d73bd133f2947858a3450a988d53":[async_test('html5lib_innerHTML_tests4.html 48d8375ef2d9d73bd133f2947858a3450a988d53'), "this%20is%20%26%23x0043%3BDATA%20inside%20a%20%3Cstyle%3E%20element", "%23document%0A%7C%20%22this%20is%20%26%23x0043%3BDATA%20inside%20a%20%3Cstyle%3E%20element%22", 'style'],"36fb2178fbdfa1b32701a9d9214c3fd115fd7184":[async_test('html5lib_innerHTML_tests4.html 36fb2178fbdfa1b32701a9d9214c3fd115fd7184'), "%3C/plaintext%3E", "%23document%0A%7C%20%22%3C/plaintext%3E%22", 'plaintext'],"d373bc3abdda01b17a6055af21b16c151dd1d697":[async_test('html5lib_innerHTML_tests4.html d373bc3abdda01b17a6055af21b16c151dd1d697'), "setting%20html%27s%20innerHTML", "%23document%0A%7C%20%3Chead%3E%0A%7C%20%3Cbody%3E%0A%7C%20%20%20%22setting%20html%27s%20innerHTML%22", 'html'],"4f91b1d4c6e2bbc0595c9effc490b7357e9cefc2":[async_test('html5lib_innerHTML_tests4.html 4f91b1d4c6e2bbc0595c9effc490b7357e9cefc2'), "%3Ctitle%3Esetting%20head%27s%20innerHTML%3C/title%3E", "%23document%0A%7C%20%3Ctitle%3E%0A%7C%20%20%20%22setting%20head%27s%20innerHTML%22", 'head'],"38b248763fb49ca6c1abc2f2f9d9e502c5ed5041":[async_test('html5lib_innerHTML_tests4.html 38b248763fb49ca6c1abc2f2f9d9e502c5ed5041'), "direct%20%3Ctitle%3E%20content", "%23document%0A%7C%20%22direct%20%3Ctitle%3E%20content%22", 'title'],"054c57cdb4b945b7273a4627a68f470705640e3e":[async_test('html5lib_innerHTML_tests4.html 054c57cdb4b945b7273a4627a68f470705640e3e'), "%3C%21--%20inside%20%3C/script%3E%20--%3E", "%23document%0A%7C%20%22%3C%21--%20inside%20%3C/script%3E%20--%3E%22", 'script'],
+      }
+      init_tests("innerHTML");
+    </script>
+  </body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="../../include.js"></script>
+        <style>
+            .container {
+                display: flex;
+                gap: 2rem;
+                padding: 2rem;
+                font-size: 4rem;
+                flex-wrap: wrap;
+            }
+            .emojiItem_fc7141 {
+                position: relative;
+            }
+            .emojiItem_fc7141:after {
+                border: 3px solid #fde047;
+                content: "";
+                height: 100%;
+                width: 100%;
+                left: 0;
+                opacity: 0;
+                position: absolute;
+                top: 0;
+                z-index: 5;
+                transition: all 1s ease-in-out;
+            }
+        </style>
+    </head>
+    <body class="full-motion">
+        <div id="emojiContainer" class="container">
+            <span class="emojiItem_fc7141">😀</span>
+            <span class="emojiItem_fc7141">😎</span>
+            <span class="emojiItem_fc7141">🚀</span>
+        </div>
+        <script>
+            const container = document.getElementById("emojiContainer");
+            asyncTest(done => {
+                const span = document.createElement("span");
+                span.className = "emojiItem_fc7141";
+                span.textContent = "🌟";
+                container.appendChild(span);
+                requestAnimationFrame(() => {
+                    println(
+                        `running animations count (${
+                            document.getAnimations().length
+                        }) should be zero`
+                    );
+                    done();
+                });
+            });
+        </script>
+    </body>
+</html>

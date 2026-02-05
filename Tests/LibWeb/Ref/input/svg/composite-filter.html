@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/composite-filter-ref.html" />
+<svg width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="compositeFilter">
+            <feFlood flood-color="green" result="greenFill" />
+            <feComposite in="greenFill" in2="SourceGraphic" operator="in" />
+        </filter>
+    </defs>
+
+    <rect x="10" y="10" width="100" height="100" fill="red" filter="url(#compositeFilter)" />
+</svg>

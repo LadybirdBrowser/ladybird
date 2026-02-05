@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Self-Alignment along row axis of absolute positioned items with 'definite' grid positions</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#row-align">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos-items">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-self">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#valdef-self-position-self-start">
+<meta name="assert" content="Absolute positioned grid items with opposite direction and 'self-end' value for justify-self are flushed with the edge of the alignment container corresponding to the alignment subject's 'end' edge.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 100px 150px;
+  grid-template-rows: 150px 100px;
+  font: 10px/1 Ahem;
+  background: grey;
+  align-items: start;
+}
+.grid.RTL { width: 400px; }
+.grid > div { position: absolute; }
+.grid > :nth-child(1) { background: green; }
+.grid > :nth-child(2) { background: blue; }
+.grid > :nth-child(3) { background: yellow; }
+.grid > :nth-child(4) { background: red; }
+
+.LTR { direction: ltr; }
+.RTL { direction: rtl; }
+.verticalLR { writing-mode: vertical-lr; }
+.verticalRL { writing-mode: vertical-rl; }
+
+.firstRowFirstColumn {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  justify-self: self-end;
+}
+.firstRowSecondColumn {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  justify-self: self-end;
+}
+.secondRowFirstColumn {
+  grid-row: 2 / 3;
+  grid-column: 1 / 2;
+  justify-self: self-end;
+}
+.secondRowSecondColumn {
+  grid-row: 2 / 3;
+  grid-column: 2 / 3;
+  justify-self: self-end;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+<div class="grid">
+  <div data-offset-x="0"   data-offset-y="0"   data-expected-width="60" data-expected-height="10" class="RTL firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="100" data-offset-y="0"   data-expected-width="70" data-expected-height="30" class="RTL firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="0"   data-offset-y="150" data-expected-width="60" data-expected-height="10" class="RTL secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="100" data-offset-y="150" data-expected-width="60" data-expected-height="40" class="RTL secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+
+<div class="grid RTL">
+  <div data-offset-x="340" data-offset-y="0"   data-expected-width="60" data-expected-height="10" class="LTR firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="230" data-offset-y="0"   data-expected-width="70" data-expected-height="30" class="LTR firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="340" data-offset-y="150" data-expected-width="60" data-expected-height="10" class="LTR secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="240" data-offset-y="150" data-expected-width="60" data-expected-height="40" class="LTR secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+
+<br><br>
+
+<div class="grid verticalLR">
+  <div data-offset-x="0"   data-offset-y="0"   data-expected-width="10" data-expected-height="60" class="RTL firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="0"   data-offset-y="100" data-expected-width="30" data-expected-height="70" class="RTL firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="150" data-offset-y="0"   data-expected-width="10" data-expected-height="60" class="RTL secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="150" data-offset-y="100" data-expected-width="40" data-expected-height="60" class="RTL secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+
+<div class="grid verticalRL">
+  <div data-offset-x="240" data-offset-y="0"   data-expected-width="10" data-expected-height="60" class="RTL firstRowFirstColumn">X XX X</div>
+  <div data-offset-x="220" data-offset-y="100" data-expected-width="30" data-expected-height="70" class="RTL firstRowSecondColumn">XX X<br>X XXX X<br>XX XXX</div>
+  <div data-offset-x="90"  data-offset-y="0"   data-expected-width="10" data-expected-height="60" class="RTL secondRowFirstColumn">X XX X</div>
+  <div data-offset-x="60"  data-offset-y="100" data-expected-width="40" data-expected-height="60" class="RTL secondRowSecondColumn">XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+</body>

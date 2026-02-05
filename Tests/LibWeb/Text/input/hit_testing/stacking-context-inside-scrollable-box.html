@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+  #scrollable-box {
+    width: 300px;
+    height: 300px;
+    border: 1px solid #000;
+    overflow: auto;
+    padding: 10px;
+  }
+  #inner-box {
+    width: 100px;
+    height: 100px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    position: relative;
+    z-index: 1;
+  }
+</style>
+<div id="scrollable-box">
+  <section id="inner-box">
+    <p>Establishes a stacking context.</p>
+  </section>
+  <div id="scroll-space-filler" style="height: 500px"></div>
+</div>
+<script>
+    const scrollbox = document.getElementById("scrollable-box");
+    scrollbox.scrollTop = 200;
+    test(() => {
+        printElement(internals.hitTest(50, 50).node);
+    });
+</script>

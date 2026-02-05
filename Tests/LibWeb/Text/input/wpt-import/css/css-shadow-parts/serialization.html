@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Shadow Parts - Serialization</title>
+    <link href="https://drafts.csswg.org/css-shadow-parts/" rel="help">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <style id="styleElement">
+      ::part(\(foo) {}
+      ::part(   bar\    ) {}
+      ::part( -foo  bar    ) {}
+    </style>
+    <script>
+      "use strict";
+      const rules = styleElement.sheet.cssRules;
+      test(function() {
+        assert_equals(rules[0].selectorText, "::part(\\(foo)");
+      }, "Escape start parenthesis in ::part name.");
+      test(function() {
+        assert_equals(rules[1].selectorText, "::part(bar\\ )");
+      }, "Escape start space in ::part name.");
+      test(function() {
+        assert_equals(rules[2].selectorText, "::part(-foo bar)");
+      }, "Collapse spaces in ::part names list.");
+    </script>
+  </body>
+</html>

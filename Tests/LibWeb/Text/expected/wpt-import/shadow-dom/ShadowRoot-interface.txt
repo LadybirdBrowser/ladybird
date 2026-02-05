@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+10 Pass
+2 Fail
+Pass	Check the existence of ShadowRoot interface
+Pass	ShadowRoot must inherit from DocumentFragment
+Pass	ShadowRoot must not be a constructor
+Fail	ShadowRoot.activeElement must return the focused element of the context object when shadow root is open.
+Fail	ShadowRoot.activeElement must return the focused element of the context object when shadow root is closed.
+Pass	ShadowRoot.host must return the shadow host of the context object.
+Pass	ShadowRoot.innerHTML must return the result of the HTML fragment serialization algorithm when shadow root is open.
+Pass	ShadowRoot.innerHTML must return the result of the HTML fragment serialization algorithm when shadow root is closed.
+Pass	ShadowRoot.innerHTML must replace all with the result of invoking the fragment parsing algorithm when shadow root is open.
+Pass	ShadowRoot.innerHTML must replace all with the result of invoking the fragment parsing algorithm when shadow root is closed.
+Pass	ShadowRoot.styleSheets must return a StyleSheetList sequence containing the shadow root style sheets when shadow root is open.
+Pass	ShadowRoot.styleSheets must return a StyleSheetList sequence containing the shadow root style sheets when shadow root is closed.

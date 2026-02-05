@@ -1,0 +1,2 @@
+selectionchange event dispatched on textarea should bubble: true
+Selected range: 6 - 10

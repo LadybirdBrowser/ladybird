@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['shape-rendering'] = "auto" should set the property value
+Pass	e.style['shape-rendering'] = "optimizespeed" should set the property value
+Pass	e.style['shape-rendering'] = "crispedges" should set the property value
+Pass	e.style['shape-rendering'] = "geometricprecision" should set the property value

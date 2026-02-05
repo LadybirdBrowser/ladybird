@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="match" href="../expected/unicode-range-ref.html" />
+    <style>
+        @font-face {
+            font-family: 'HashFont';
+            src: url('../../Assets/HashSans.woff');
+            unicode-range: U+0041; /* Only letter 'A' */
+        }
+
+        .text {
+            font-family: 'HashFont', 'SerenitySans';
+            font-size: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="text">AB</div>
+</body>
+</html>

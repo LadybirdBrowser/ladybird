@@ -1,0 +1,18 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 61 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 20 0+1+8] children: not-inline
+      BlockContainer <div.thumbnail> at [11,11] floating [0+1+0 50 0+1+0] [0+1+0 50 0+1+0] [BFC] children: not-inline
+      BlockContainer <div.title> at [91,11] [80+1+0 698 0+1+0] [0+1+0 18 0+1+0] children: inline
+        frag 0 from TextNode start: 0, length: 14, rect: [91,11 125.125x18] baseline: 13.796875
+            "Chrono Trigger"
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x63]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x22]
+      PaintableWithLines (BlockContainer<DIV>.thumbnail) [10,10 52x52]
+      PaintableWithLines (BlockContainer<DIV>.title) [90,10 700x20]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x61] [children: 0] (z-index: auto)

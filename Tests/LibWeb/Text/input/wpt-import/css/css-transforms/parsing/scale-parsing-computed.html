@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: scale computed values.</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-scale">
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<meta name="assert" content="scale supports the full grammar 'none | <number>{1,3}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("scale", "none");
+
+test_computed_value("scale", "1");
+test_computed_value("scale", "1%", "0.01");
+
+test_computed_value("scale", "100");
+test_computed_value("scale", "100%", "1");
+test_computed_value("scale", "100 100", "100");
+test_computed_value("scale", "100% 100%", "1");
+test_computed_value("scale", "100 100 1", "100");
+test_computed_value("scale", "100% 100% 1", "1");
+
+test_computed_value("scale", "-100");
+test_computed_value("scale", "-100%", "-1");
+test_computed_value("scale", "-100 -100", "-100");
+test_computed_value("scale", "-100% -100%", "-1");
+test_computed_value("scale", "-100 -100 1", "-100");
+test_computed_value("scale", "-100% -100% 1", "-1");
+
+test_computed_value("scale", "100 200");
+test_computed_value("scale", "100% 200%", "1 2");
+test_computed_value("scale", "100 200 1", "100 200");
+test_computed_value("scale", "100% 200% 1", "1 2");
+test_computed_value("scale", "100 200 300");
+test_computed_value("scale", "100 100 2", "100 100 2");
+test_computed_value("scale", "100% 200% 300%", "1 2 3");
+</script>
+</body>
+</html>

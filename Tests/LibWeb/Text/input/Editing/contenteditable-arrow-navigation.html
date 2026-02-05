@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="text" contenteditable style="width: 120px">hello 👩🏼‍❤️‍👨🏻 there
+my 👩🏼‍❤️‍👨🏻 friends!</p>
+<script>
+    test(() => {
+        // We need to ensure layout has occurred for arrow navigation to have a layout node to interact with.
+        document.body.offsetWidth;
+
+        const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+        const content = text.innerText.trim();
+
+        const cursorLocation = () => {
+            return window.getSelection().getRangeAt(0).startOffset;
+        };
+
+        const graphemeAtLocation = (cursor) => {
+            const segments = segmenter.segment(content.substring(cursor));
+            return Array.from(segments)[0].segment;
+        };
+
+        const moveCursor = direction => {
+            internals.sendKey(text, direction);
+
+            const cursor = cursorLocation();
+            const character = graphemeAtLocation(cursor);
+
+            println(`${direction}: position=${cursor} character="${character}"`);
+        };
+
+        moveCursor("Home");
+
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+
+        moveCursor("Down");
+        moveCursor("Left");
+        moveCursor("Up");
+
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+
+        moveCursor("Down");
+        moveCursor("Up");
+        moveCursor("Down");
+
+        moveCursor("Left");
+        moveCursor("Left");
+
+        moveCursor("Up");
+    });
+</script>

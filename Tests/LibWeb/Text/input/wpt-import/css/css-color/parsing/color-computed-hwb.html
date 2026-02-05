@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Computation of colors using HWB notation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#the-hwb-notation">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-sRGB-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-sRGB-values">
+<link rel="author" title="Sam Weinig" href="mailto:weinig@apple.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  #container {
+    container-type: inline-size;
+    color: rgb(255, 0, 0);
+  }
+</style>
+<script>
+tests = [
+    ["hwb(120 30% 50%)", "rgb(77, 128, 77)"],
+    ["hwb(120 30% 50% / 0.5)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(120 30% 50% / 50%)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(none none none)", "rgb(255, 0, 0)"],
+    ["hwb(0 0% 0%)", "rgb(255, 0, 0)"],
+    ["hwb(none none none / none)", "rgba(255, 0, 0, 0)"],
+    ["hwb(0 0% 0% / 0)", "rgba(255, 0, 0, 0)"],
+    ["hwb(120 none none)", "rgb(0, 255, 0)"],
+    ["hwb(120 0% 0%)", "rgb(0, 255, 0)"],
+    ["hwb(120 80% none)", "rgb(204, 255, 204)"],
+    ["hwb(120 80% 0%)", "rgb(204, 255, 204)"],
+    ["hwb(120 none 50%)", "rgb(0, 128, 0)"],
+    ["hwb(120 0% 50%)", "rgb(0, 128, 0)"],
+    ["hwb(120 30% 50% / none)", "rgba(77, 128, 77, 0)"],
+    ["hwb(120 30% 50% / 0)", "rgba(77, 128, 77, 0)"],
+    ["hwb(120 30% 50% / 0%)", "rgba(77, 128, 77, 0)"],
+    ["hwb(none 100% 50% / none)", "rgba(170, 170, 170, 0)"],
+    ["hwb(0 100% 50% / 0)", "rgba(170, 170, 170, 0)"],
+
+    ["hwb(0 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(30 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(60 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(120 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(180 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(210 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(240 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(270 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(300 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(330 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(360 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(90deg 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+    ["hwb(90 0% 50%)", "rgb(64, 128, 0)", "HWB value should parse and round correctly"],
+    ["hwb(90 12.5% 50%)", "rgb(80, 128, 32)", "HWB value should parse and round correctly"],
+    ["hwb(90 25% 50%)", "rgb(96, 128, 64)", "HWB value should parse and round correctly"],
+    ["hwb(90 37.5% 50%)", "rgb(112, 128, 96)", "HWB value should parse and round correctly"],
+    ["hwb(90 62.5% 50%)", "rgb(142, 142, 142)", "HWB value should parse and round correctly"],
+    ["hwb(90 75% 50%)", "rgb(153, 153, 153)", "HWB value should parse and round correctly"],
+    ["hwb(90 87.5% 50%)", "rgb(162, 162, 162)", "HWB value should parse and round correctly"],
+    ["hwb(90 100% 50%)", "rgb(170, 170, 170)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 0%)", "rgb(191, 255, 128)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 12.5%)", "rgb(175, 223, 128)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 25%)", "rgb(159, 191, 128)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 37.5%)", "rgb(143, 159, 128)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 62.5%)", "rgb(113, 113, 113)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 75%)", "rgb(102, 102, 102)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 87.5%)", "rgb(93, 93, 93)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 100%)", "rgb(85, 85, 85)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 50% / 0)", "rgba(128, 128, 128, 0)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 50% / 0.2)", "rgba(128, 128, 128, 0.2)", "HWB value should parse and round correctly"],
+    ["hwb(90 50% 50% / 1)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
+
+    // calc(50% + (sign(1em - 10px) * 10%)), with its font relative units, must be evaluatated for computed value.
+    ["hwb(calc(110deg + (sign(1em - 10px) * 10deg)) 30% 50% / 50%)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(calc(110 + (sign(1em - 10px) * 10)) 30 50 / 0.5)", "rgba(77, 128, 77, 0.5)"],
+    ["hwb(120deg 30% 50% / calc(50% + (sign(1em - 10px) * 10%)))", "rgba(77, 128, 77, 0.6)"],
+    ["hwb(120 30 50 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "rgba(77, 128, 77, 0.85)"],
+];
+
+for (const test of tests) {
+    test_computed_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+}
+
+// Ensure that `calc` values work with dynamically changing relative units (slighly different alpha values to make test harness not complain about duplicate tests).
+document.getElementById("container").style.width = "1000px";
+test_computed_value("color", "hwb(calc(110deg + (sign(2cqw - 10px) * 10deg)) 30 50 / 51%)", "rgba(77, 128, 77, 0.51)");
+document.getElementById("container").style.width = "100px";
+test_computed_value("color", "hwb(calc(110deg + (sign(2cqw - 10px) * 10deg)) 30 50 / 52%)", "rgba(94, 128, 77, 0.52)");
+
+</script>
+</body>
+</html>

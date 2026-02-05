@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function tabIndexTest(tagName, element) {
+        println(`${tagName}.tabIndex initial value: ${element.tabIndex}`);
+    }
+
+    test(() => {
+        const controlTagNamesToTest = [
+            "p",
+            "h1",
+        ];
+        const tagNamesToTest = [
+            "a",
+            "area",
+            "button",
+            "frame",
+            "iframe",
+            "input",
+            "object",
+            "select",
+            "textarea",
+        ];
+        const svgTagNamesToTest = [
+            "a",
+        ];
+
+        for (const tagName of controlTagNamesToTest) {
+            const element = document.createElement(tagName);
+            tabIndexTest(tagName, element);
+        }
+        for (const tagName of tagNamesToTest) {
+            const element = document.createElement(tagName);
+            tabIndexTest(tagName, element);
+        }
+        for (const tagName of svgTagNamesToTest) {
+            const element = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+            tabIndexTest(`svg.${tagName}`, element);
+        }
+    });
+</script>

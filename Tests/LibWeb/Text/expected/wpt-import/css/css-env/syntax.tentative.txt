@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+15 Pass
+3 Fail
+Pass	 rgb(0, 128, 0)
+Pass	background-color: env(test) rgba(0, 0, 0, 0)
+Pass	background-color: ENV(test) rgba(0, 0, 0, 0)
+Pass	background-color: env(test) !important rgba(0, 0, 0, 0)
+Pass	background-color: env(test, 10px) rgba(0, 0, 0, 0)
+Pass	background-color: env(test, blue) rgb(0, 0, 255)
+Pass	background-color: env(test, env(another)) rgba(0, 0, 0, 0)
+Pass	background-color: env(test, env(another, blue)) rgb(0, 0, 255)
+Pass	background-color: env(-test) rgba(0, 0, 0, 0)
+Pass	background-color: env(--test) rgba(0, 0, 0, 0)
+Fail	background-color: env(10px) rgb(0, 128, 0)
+Fail	background-color: env(env(test)) rgb(0, 128, 0)
+Pass	background-color: env( test) rgba(0, 0, 0, 0)
+Pass	background-color: env(test ) rgba(0, 0, 0, 0)
+Pass	background-color: env( test ) rgba(0, 0, 0, 0)
+Pass	background-color: env(test /**/, blue) rgb(0, 0, 255)
+Pass	background-color: env(test, {}) rgba(0, 0, 0, 0)
+Fail	background-color: env(test, {) rgb(0, 128, 0)

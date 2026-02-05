@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; padding: 0; }
+
+    #outer {
+        position: absolute;
+        left: 100px;
+        top: 100px;
+        width: 200px;
+        height: 200px;
+        transform: rotate(90deg);
+        transform-origin: 0 0;
+        background: rgba(128, 128, 128, 0.2);
+    }
+
+    #inner {
+        position: absolute;
+        left: 50px;
+        top: 0;
+        width: 50px;
+        height: 50px;
+        background: red;
+    }
+</style>
+<div id="outer">
+    <div id="inner"></div>
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // The outer div is at (100, 100) with transform-origin: 0 0 (its top-left corner).
+        // So the rotation origin in absolute coords is (100, 100).
+        // The inner div starts at (50, 0) relative to outer, so absolute (150, 100).
+        // After rotating 90deg CCW around (100, 100):
+        // - Point (150, 100): offset from origin = (50, 0), rotated = (0, 50), + origin = (100, 150)
+        // - Point (200, 100): offset = (100, 0), rotated = (0, 100), + origin = (100, 200)
+        // - Point (200, 150): offset = (100, 50), rotated = (-50, 100), + origin = (50, 200)
+        // - Point (150, 150): offset = (50, 50), rotated = (-50, 50), + origin = (50, 150)
+        // Bounding box: x in [50, 100], y in [150, 200] => (50, 150, 50, 50)
+        const rect = document.getElementById("inner").getBoundingClientRect();
+
+        // Check that x is close to 50 (not 150)
+        println(`x close to 50: ${Math.abs(rect.x - 50) < 1}`);
+        // Check that y is close to 150 (not 100)
+        println(`y close to 150: ${Math.abs(rect.y - 150) < 1}`);
+        // Width and height should still be 50
+        println(`width: ${Math.round(rect.width)}`);
+        println(`height: ${Math.round(rect.height)}`);
+    });
+</script>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: parsing mask with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-mask">
+<meta name="assert" content="mask supports the full '<mask-layer>#' grammar.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <mask-layer> = <mask-reference> || <position> [ / <bg-size> ]? || <repeat-style> ||
+// <geometry-box> || [ <geometry-box> | no-clip ] || <compositing-operator> || <masking-mode>
+
+// <mask-reference> = none | <image> | <mask-source>
+test_valid_value('mask', 'none');
+test_valid_value('mask', 'linear-gradient(to left bottom, red, blue)');
+test_valid_value('mask', 'linear-gradient(to left bottom, red, blue) luminance');
+test_valid_value('mask', 'url("https://wpt.live/")');
+
+// <position> [ / <bg-size> ]?
+test_valid_value('mask', 'linear-gradient(to left bottom, red, blue) 1px 2px');
+test_valid_value('mask', 'url("https://wpt.live/") 1px 2px / contain');
+
+// <repeat-style> = repeat-x | repeat-y | [repeat | space | round | no-repeat]{1,2}
+test_valid_value('mask', 'repeat-y');
+
+// <geometry-box> = <shape-box> | fill-box | stroke-box | view-box
+// <shape-box> = <box>
+// <box> = border-box | padding-box | content-box
+test_valid_value('mask', 'border-box', 'none');
+test_valid_value('mask', 'linear-gradient(to left bottom, red, blue) padding-box');
+test_valid_value('mask', 'content-box');
+test_valid_value('mask', 'url("https://wpt.live/") fill-box');
+test_valid_value('mask', 'linear-gradient(to left bottom, red, blue) stroke-box');
+test_valid_value('mask', 'view-box');
+
+// [ <geometry-box> | no-clip ]
+test_valid_value('mask', 'no-clip');
+
+// <compositing-operator> = add | subtract | intersect | exclude
+test_valid_value('mask', 'url("https://wpt.live/") add', 'url("https://wpt.live/")');
+test_valid_value('mask', 'subtract');
+test_valid_value('mask', 'url("https://wpt.live/") intersect');
+test_valid_value('mask', 'linear-gradient(to left bottom, red, blue) exclude');
+
+// <masking-mode> = alpha | luminance | auto
+test_valid_value('mask', 'alpha');
+test_valid_value('mask', 'url("https://wpt.live/") alpha');
+
+// Test the combination of mask-origin and mask-clip.
+test_valid_value('mask', 'border-box border-box', 'none');
+test_valid_value('mask', 'content-box content-box', 'content-box');
+test_valid_value('mask', 'border-box content-box', 'border-box content-box');
+test_valid_value('mask', 'border-box no-clip', 'no-clip');
+
+// <mask-layer> = <mask-reference> || <position> [ / <bg-size> ]? || <repeat-style> ||
+// <geometry-box> || [ <geometry-box> | no-clip ] || <compositing-operator> || <masking-mode>
+test_valid_value('mask',
+    'intersect no-clip space round 1px 2px / contain stroke-box linear-gradient(to left bottom, red, blue) luminance',
+    'linear-gradient(to left bottom, red, blue) 1px 2px / contain space round stroke-box no-clip intersect luminance');
+test_valid_value('mask',
+    'intersect no-clip space round 1px 2px / contain view-box, stroke-box linear-gradient(to left bottom, red, blue) luminance',
+    '1px 2px / contain space round view-box no-clip intersect, linear-gradient(to left bottom, red, blue) stroke-box luminance');
+
+// Earlier versions of the mask shorthand always required a <mask-reference>.
+// To avoid unnecessarily losing test coverage, keep one of the test cases from back then.
+test_valid_value('mask', 'none alpha', 'alpha');
+
+test_shorthand_value('mask', 'none', {
+    'mask-image': 'none',
+    'mask-position': '0% 0%',
+    'mask-size': 'auto',
+    'mask-repeat': 'repeat',
+    'mask-origin': 'border-box',
+    'mask-clip': 'border-box',
+    'mask-composite': 'add',
+    'mask-mode': 'match-source',
+    'mask-border-source': 'none',
+    'mask-border-outset': '0',
+    'mask-border-repeat': 'stretch',
+    'mask-border-slice': '0',
+    'mask-border-width': 'auto'
+})
+test_shorthand_value('mask', 'none, linear-gradient(to left bottom, red, blue) padding-box', {
+    'mask-image': 'none, linear-gradient(to left bottom, red, blue)',
+    'mask-position': '0% 0%, 0% 0%',
+    'mask-size': 'auto, auto',
+    'mask-repeat': 'repeat, repeat',
+    'mask-origin': 'border-box, padding-box',
+    'mask-clip': 'border-box, padding-box',
+    'mask-composite': 'add, add',
+    'mask-mode': 'match-source, match-source',
+    'mask-border-source': 'none',
+    'mask-border-outset': '0',
+    'mask-border-repeat': 'stretch',
+    'mask-border-slice': '0',
+    'mask-border-width': 'auto'
+})
+
+</script>
+</body>
+</html>

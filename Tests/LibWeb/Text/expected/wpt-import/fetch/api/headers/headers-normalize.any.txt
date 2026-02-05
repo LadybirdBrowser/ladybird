@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Create headers with not normalized values
+Pass	Check append method with not normalized values
+Pass	Check set method with not normalized values

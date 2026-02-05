@@ -1,0 +1,6 @@
+Cannot pause a reversing idle animation with infinite effect end
+Calling pause() does not synchronously update pending playback rate
+Calling pause() does not synchronously resolve animation's ready promise
+Calling pause() does not send any events
+Calling pause() does asynchronously update pending playback rate
+Calling pause() asynchronously resolves animation's ready promise

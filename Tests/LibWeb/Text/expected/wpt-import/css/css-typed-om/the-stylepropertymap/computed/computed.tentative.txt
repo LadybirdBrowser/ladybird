@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Fail	Computed StylePropertyMap contains every CSS property
+Pass	Computed StylePropertyMap contains CSS property declarations in style rules
+Pass	Computed StylePropertyMap contains custom property declarations in style rules
+Pass	Computed StylePropertyMap contains CSS property declarations in inline styles
+Pass	Computed StylePropertyMap contains custom property declarations in inline rules
+Pass	Computed StylePropertyMap contains computed values and not resolved values
+Pass	Computed StylePropertyMap is live

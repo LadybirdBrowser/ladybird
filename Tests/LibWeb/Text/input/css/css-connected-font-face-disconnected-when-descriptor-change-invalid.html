@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        @font-face {
+            font-family: Foo;
+            src: url("./Foo.woff");
+        }
+    </style>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            println(document.fonts.size);
+            document.styleSheets[0].cssRules[0].style.fontFamily = "";
+            println(document.fonts.size);
+        });
+    </script>
+</html>

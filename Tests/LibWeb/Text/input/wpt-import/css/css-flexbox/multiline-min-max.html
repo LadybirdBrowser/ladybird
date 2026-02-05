@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: multiline flexbox and line breaks.</title>
+<link rel="stylesheet" href="support/flexbox.css" >
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item">
+<meta name="assert" content="This test ensures that multiline flexbox uses min/max constraints when finding line breaks."/>
+<style>
+.flexbox {
+  width: 600px;
+  background-color: grey;
+  border: 5px solid black;
+  height: 20px;
+  position: relative;
+}
+.flexbox > div {
+  height: 10px;
+}
+.children-border-box > div {
+  box-sizing: border-box;
+}
+
+.flexbox :nth-child(1) {
+    background-color: blue;
+}
+.flexbox :nth-child(2) {
+    background-color: yellow;
+}
+.flexbox :nth-child(3) {
+    background-color: salmon;
+}
+.flexbox :nth-child(4) {
+    background-color: lime;
+}
+.flexbox :nth-child(5) {
+    background-color: red;
+}
+.flexbox :nth-child(6) {
+    background-color: orange;
+}
+.flexbox :nth-child(7) {
+    background-color: purple;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+</head>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox wrap">
+  <div class="flex-one" style="min-width: 400px" data-expected-width="400" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="400" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="0" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap">
+  <div class="flex-one" style="min-width: 400px; padding-left: 10px;" data-expected-width="500" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="0" data-offset-y="10"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="100" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap">
+  <div class="flex-one" style="min-width: 400px; border-left: 10px solid red;" data-expected-width="500" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="0" data-offset-y="10"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="100" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap">
+  <div class="flex-one" style="min-width: 400px; margin-left: 10px;" data-expected-width="490" data-offset-x="10" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="0" data-offset-y="10"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="100" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap">
+  <div style="flex: 1 1 600px; flex: 1 1 600px; max-width: 300px;" data-expected-width="300" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="300" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="400" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox wrap">
+  <div style="flex: 1 1 600px; flex: 1 1 600px; max-width: 300px; padding-left: 10px;" data-expected-width="310" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="310" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="455" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="600" data-offset-x="0" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap">
+  <div style="flex: 1 1 600px; flex: 1 1 600px; max-width: 300px; border-left: 10px solid red;" data-expected-width="310" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="310" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="455" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="600" data-offset-x="0" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap">
+  <div style="flex: 1 1 600px; flex: 1 1 600px; max-width: 300px; margin-left: 10px;" data-expected-width="300" data-offset-x="10" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="310" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="455" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="600" data-offset-x="0" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap children-border-box">
+  <div class="flex-one" style="min-width: 400px; padding-left: 10px;" data-expected-width="400" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="400" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="0" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap children-border-box">
+  <div class="flex-one" style="min-width: 400px; border-left: 10px solid red;" data-expected-width="400" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="400" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="0" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap children-border-box">
+  <div class="flex-one" style="min-width: 400px; margin-left: 10px;" data-expected-width="490" data-offset-x="10" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="0" data-offset-y="10"></div>
+  <div class="flex-none" style="width: 100px" data-expected-width="100" data-offset-x="100" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox wrap children-border-box">
+  <div style="flex: 1 1 600px; flex: 1 1 600px; max-width: 300px; padding-left: 10px;" data-expected-width="300" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="300" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="400" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox wrap children-border-box">
+  <div style="flex: 1 1 600px; flex: 1 1 600px; max-width: 300px; border-left: 10px solid red;" data-expected-width="300" data-offset-x="0" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="300" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="400" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="100" data-offset-x="500" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox wrap children-border-box">
+  <div style="flex: 1 1 600px; flex: 1 1 600px; max-width: 300px; margin-left: 10px;" data-expected-width="300" data-offset-x="10" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="310" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="145" data-offset-x="455" data-offset-y="0"></div>
+  <div class="flex-one-one-auto" style="width: 100px" data-expected-width="600" data-offset-x="0" data-offset-y="10"></div>
+</div>
+
+</body>
+</html>

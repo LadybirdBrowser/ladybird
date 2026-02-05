@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap.has tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#check-if-stylepropertymap-has-a-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createComputedStyleMap(t);
+  assert_throws_js(TypeError, () => styleMap.has('lemon'));
+}, 'Calling StylePropertyMap.has with an unsupported property throws a TypeError');
+
+const gTestCases = [
+  { property: '--Foo', expected: false, desc: 'a custom property not in the property model' },
+  { property: 'width', expected: true, desc: 'a valid property' },
+  { property: 'wIdTh', expected: true, desc: 'a valid property in mixed case' },
+  { property: 'margin', expected: true, desc: 'a valid shorthand property' },
+  { property: '--foo', expected: true, desc: 'a valid custom property' },
+  { property: 'transition-duration', expected: true, desc: 'a valid list-valued property' },
+];
+
+for (const {property, expected, desc} of gTestCases) {
+  test(t => {
+    const styleMap = createComputedStyleMap(t, 'width: 10px; --foo: auto; transition-duration: 1s, 2s');
+    assert_equals(styleMap.has(property), expected);
+  }, 'Calling StylePropertyMap.has with ' + desc + ' returns ' + expected);
+}
+
+</script>

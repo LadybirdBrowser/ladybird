@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body></body>
+<script>
+    function execCommandCaseInsensitivityTest(command) {
+        return new Promise((resolve) => {
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = `<div>PASS</div>`;
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                const iframeDocument = iframe.contentDocument;
+                iframeDocument.execCommand(command);
+
+                const selection = iframeDocument.getSelection();
+                println(`queryCommandSupported("${command}"): ${iframeDocument.queryCommandSupported(command)}`);
+                println(`queryCommandEnabled("${command}"): ${iframeDocument.queryCommandEnabled(command)}`);
+                println(`execCommand("${command}"): ${selection.toString()}`);
+                iframe.remove();
+                resolve();
+            };
+        });
+    }
+    asyncTest(async done => {
+        for (command of ["selectall", "SELECTALL", "SeLeCtAlL"]) {
+            await execCommandCaseInsensitivityTest(command);
+        }
+        done();
+    });
+</script>

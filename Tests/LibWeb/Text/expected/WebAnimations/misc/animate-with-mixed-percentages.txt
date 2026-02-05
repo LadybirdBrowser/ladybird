@@ -1,0 +1,1 @@
+box is moving in the correct direction: true

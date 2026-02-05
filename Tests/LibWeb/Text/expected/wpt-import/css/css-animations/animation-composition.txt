@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	animation-composition: replace of property filter
+Pass	animation-composition: add of property filter
+Pass	animation-composition: accumulate of property filter
+Pass	animation-composition: replace of property width
+Pass	animation-composition: add of property width
+Pass	animation-composition: accumulate of property width

@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+dialog {
+  display: table-header-group;
+  translate: -1px 0px 0px;
+  position: sticky;
+}
+</style>
+<script>
+addEventListener("DOMContentLoaded", () => {
+  window.find("1");
+  getSelection().modify("move", "left", "word");
+}, {once: true});
+</script>
+</head>
+<body>
+<dialog>
+<span style="position: fixed">1</span>
+<table dir="rtl"></table>
+<video>
+</video>
+</dialog>
+</body>
+</html>

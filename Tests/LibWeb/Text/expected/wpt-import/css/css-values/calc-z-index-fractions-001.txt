@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	testing z-index: calc(2.5 / 2)
+Pass	testing z-index: calc(3 / 2)
+Pass	testing z-index: calc(3.5 / 2)
+Pass	testing z-index: calc(-2.5 / 2)
+Pass	testing z-index: calc(-3 / 2)
+Pass	testing z-index: calc(-3.5 / 2)

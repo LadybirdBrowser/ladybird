@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: predefined colorspaces, rec2020, percent values</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#predefined">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/greensquare-090-ref.html">
+<meta name="assert" content="Color function with explicit rec2020 value as percent matches sRGB #009900">
+<style>
+    .test { background-color: red; width: 12em; height: 6em; margin-top:0}
+    .ref { background-color: #009900; width: 12em; height: 6em; margin-bottom: 0}
+    .test {background-color: color(rec2020 29.9218% 53.3327% 12.0785%)}
+</style>
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <p class="ref"> </p>
+    <p class="test"> </p>
+</body>

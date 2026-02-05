@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	[INPUT in DATE status] The step attribute is not set
+Pass	[INPUT in DATE status] The value attibute is empty string
+Pass	[INPUT in DATE status] The value must match the step
+Pass	[INPUT in DATE status] The value must mismatch the step
+Pass	[INPUT in MONTH status] The step attribute is not set
+Pass	[INPUT in MONTH status] The value attibute is empty string
+Pass	[INPUT in MONTH status] The value must match the step
+Pass	[INPUT in MONTH status] The value must mismatch the step
+Pass	[INPUT in WEEK status] The step attribute is not set
+Pass	[INPUT in WEEK status] The value attibute is empty string
+Pass	[INPUT in WEEK status] The value must match the step
+Pass	[INPUT in WEEK status] The value must mismatch the step
+Pass	[INPUT in TIME status] The step attribute is not set
+Pass	[INPUT in TIME status] The value attibute is empty string
+Pass	[INPUT in TIME status] The value must match the step
+Pass	[INPUT in TIME status] The value must mismatch the step
+Pass	[INPUT in DATETIME-LOCAL status] The step attribute is not set
+Pass	[INPUT in DATETIME-LOCAL status] The value attibute is empty string
+Pass	[INPUT in DATETIME-LOCAL status] The value must match the step
+Pass	[INPUT in DATETIME-LOCAL status] The value must mismatch the step
+Pass	[INPUT in NUMBER status] The step attribute is not set
+Pass	[INPUT in NUMBER status] The step attribute is not set and the value attribute is a floating number
+Pass	[INPUT in NUMBER status] The value attribute is empty string
+Pass	[INPUT in NUMBER status] The value must match the step
+Pass	[INPUT in NUMBER status] The value must mismatch the step
+Pass	[INPUT in NUMBER status] No step mismatch when step is a floating number and value is its integral multiple
+Pass	[INPUT in NUMBER status] No step mismatch when step is a floating number in exponent format and value is its integral multiple
+Pass	[INPUT in NUMBER status] Step mismatch when step is a very small floating number and value is not its integral multiple

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  A percentage stroke-width is updated when the viewport (viewBox) is updated.
+</title>
+<link rel="help" href="http://crbug.com/384605094">
+<link rel="help" href="https://www.w3.org/TR/SVG/painting.html#StrokeWidth">
+<link rel="help" href="https://www.w3.org/TR/SVG/coords.html#Units">
+<link rel="match" href="../../../../expected/wpt-import/svg/painting/svg-percent-stroke-width-viewbox-update-ref.html">
+<script src="../../common/rendering-utils.js"></script>
+
+<svg id="svgPolyRoot" height="100" width="100" viewBox="30 30 40 40">
+  <polyline stroke-width="10%" stroke="gold" points="20,20 80,80"></polyline>
+</svg>
+<svg id="svgPolyWithCalcStrokeWidthRoot" height="100" width="100" viewBox="30 30 40 40">
+  <polyline stroke-width="calc(5% + 5px)" stroke="gold" points="20,20 80,80"></polyline>
+</svg>
+<svg id="svgCircleRoot" height="100" width="100" viewBox="30 30 40 40">
+  <circle stroke-width="10%" stroke="gold" cx="50" cy="50" r="10" fill="none"></circle>
+</svg>
+<svg id="svgRectRoot" height="100" width="100" viewBox="30 30 40 40">
+  <rect stroke-width="10%" stroke="gold" x="40" y="40" width="20" height="10" fill="none"></rect>
+</svg>
+
+<script>
+  waitForAtLeastOneFrame().then(() => {
+    document.getElementById("svgPolyRoot").setAttribute("viewBox", "40 40 20 20");
+    document.getElementById("svgPolyWithCalcStrokeWidthRoot").setAttribute("viewBox", "40 40 20 20");
+    document.getElementById("svgCircleRoot").setAttribute("viewBox", "40 40 20 20");
+    document.getElementById("svgRectRoot").setAttribute("viewBox", "40 40 20 20");
+  });
+</script>

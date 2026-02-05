@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Transforms Test: perspective-origin - left 50%('left' computes to '0%' in horizontal position)</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="author" title="Jieqiong Cui" href="mailto:jieqiongx.cui@intel.com">
+<link rel="help" title="11. The 'perspective-origin' Property" href="http://www.w3.org/TR/css-transforms-2/#propdef-perspective-origin">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The 'perspective-origin' property set 'left' computes to 0% for the horizontal position.">
+<style>
+  div {
+    height: 100px;
+    position: absolute;
+    width: 100px;
+  }
+  #test {
+    perspective: 2px;
+    perspective-origin: left 50%;
+  }
+  #redSquare {
+    background-color: red;
+    transform: translateZ(0px);
+  }
+  #ref {
+    perspective: 2px;
+    perspective-origin: 0% 50%;
+  }
+  #greenSquare {
+    background-color: green;
+    height: 50px;
+    top: 25px;
+    transform: translateZ(1px);
+    width: 50px;
+  }
+</style>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div id="test"><div id="redSquare"></div></div>
+  <div id="ref"><div id="greenSquare"></div></div>
+</body>

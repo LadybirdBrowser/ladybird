@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .relpos {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        overflow: hidden;
+    }
+    .opacity {
+        opacity: 0.5;
+    }
+    .abspos {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100px;
+        height: 100px;
+        background: black;
+    }
+</style>
+<div class="relpos">
+    <div class="opacity">
+        <div class="abspos"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

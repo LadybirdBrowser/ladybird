@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`PerformanceObserver.supportedEntryTypes: ${PerformanceObserver.supportedEntryTypes}`);
+        println(`PerformanceObserver.supportedEntryTypes instanceof Array: ${PerformanceObserver.supportedEntryTypes instanceof Array}`);
+        println(`Object.isFrozen(PerformanceObserver.supportedEntryTypes): ${Object.isFrozen(PerformanceObserver.supportedEntryTypes)}`);
+        println(`PerformanceObserver.supportedEntryTypes === PerformanceObserver.supportedEntryTypes: ${PerformanceObserver.supportedEntryTypes === PerformanceObserver.supportedEntryTypes}`);
+
+        const sorted = PerformanceObserver.supportedEntryTypes.toSorted((left, right) => {
+            if (left < right)
+                return -1;
+
+            if (left > right)
+                return 1;
+
+            return 0;
+        });
+
+        println(`sorted alphabetically: ${sorted.toString() === PerformanceObserver.supportedEntryTypes.toString()}`);
+    });
+</script>

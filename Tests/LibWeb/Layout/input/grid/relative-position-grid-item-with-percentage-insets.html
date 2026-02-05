@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 300px;
+    height: 300px;
+    border: 1px solid #ccc;
+}
+
+.grid-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #eee;
+    border: 1px solid #aaa;
+    padding: 10px;
+}
+
+.relative-item {
+    position: relative;
+    left: 50%;
+    top: 50%;
+    background-color: #cce;
+}
+</style>
+<div class="grid-container">
+    <div class="grid-item">Item 1</div>
+    <div class="grid-item relative-item">Item 2</div>
+    <div class="grid-item">Item 3</div>
+    <div class="grid-item">Item 4</div>
+</div>

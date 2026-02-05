@@ -1,0 +1,25 @@
+<!DOCTYPE HTML>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+}
+#big {
+    width: 125px;
+    height: 500px;
+    background: blue;
+}
+#small {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100px;
+    height: 100px;
+    background: green;
+}
+</style>
+<div id='big'></div>
+<div id='small'></div>
+<script>
+window.onload = window.parent.onFrameLoaded();
+</script>

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="global-variable"></div>
+<script>
+    test(() => {
+        for (const property in window) {
+        }
+        println("PASS (didn't crash)");
+    });
+</script>

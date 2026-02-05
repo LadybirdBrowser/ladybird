@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Whitespace nodes should be ignored.
+Pass	There is a prior child element.
+Pass	A comment node should be ignored.
+Pass	Non-whitespace text node should be ignored.
+Pass	The first child should not be matched.

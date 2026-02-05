@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+  function b64ToBn(b64) {
+    const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+    const hex = bin.split('').map((ch) => ch.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+    return [BigInt('0x' + hex), bin.length];
+  }
+
+  function bnToB64(bn, len) {
+    const hex = bn.toString(16);
+    const bin = hex.match(/.{1,2}/g).map((byte) => String.fromCharCode(parseInt(byte, 16))).join('');
+    return btoa(bin.padStart(len, '\x00')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function corruptJwk(key) {
+    if (key.d) {
+      const [bn, len] = b64ToBn(key.d);
+
+      // Corrupt the private key
+      return {
+        ...key,
+        d: bnToB64(bn ^ 1n, len),
+      };
+    } else {
+      const [bn, len] = b64ToBn(key.x);
+
+      // Corrupt the public key
+      return {
+        ...key,
+        x: bnToB64(bn ^ 1n, len),
+      };
+    }
+  }
+
+  function corruptSpki(publicKey) {
+    // Corrupt the public key, which is encoded always at the end of the SPKI
+    const corrupted = new Uint8Array(publicKey);
+    corrupted[corrupted.length - 1] ^= 0x01;
+    return corrupted.buffer;
+  }
+
+  function corruptPkcs8Pub(privateKey) {
+    // Corrupt the public key, which is encoded always at the end of the PKCS8
+    const corrupted = new Uint8Array(privateKey);
+    corrupted[corrupted.length - 1] ^= 0x01;
+    return corrupted.buffer;
+  }
+
+  function corruptPkcs8Priv(privateKey) {
+    // Corrupt the private key, which is encoded between 34 and 68 for all curves for the PKCS8
+    const corrupted = new Uint8Array(privateKey);
+    corrupted[48] ^= 0x01;
+    return corrupted.buffer;
+  }
+
+  asyncTest(async done => {
+    for (const [name, genUsages, pubUsages, privUsages] of [
+      ["ECDSA", ["verify", "sign"], ["verify"], ["sign"]],
+      ["ECDH", ["deriveBits", "deriveKey"], [], ["deriveBits", "deriveKey"]],
+    ]) {
+      for (const curve of ["P-256", "P-384", "P-521"]) {
+        const keyPair = await window.crypto.subtle.generateKey({
+          name: name,
+          namedCurve: curve
+        }, true, genUsages);
+
+        for (const [format, corruptFn] of [["jwk", corruptJwk], ["spki", corruptSpki]]) {
+          const publicKey = await window.crypto.subtle.exportKey(format, keyPair.publicKey);
+
+          // Prove that the original key can be imported successfully
+          await window.crypto.subtle.importKey(format, publicKey, {name: name, namedCurve: curve}, false, pubUsages);
+
+          // Corrupt the private key and try to import it
+          const corruptedPublicKey = corruptFn(publicKey);
+
+          try {
+            await window.crypto.subtle.importKey(format, corruptedPublicKey, {
+              name: name,
+              namedCurve: curve
+            }, false, pubUsages);
+            println(`${name.padEnd(5, ' ')} ${curve} PUB  - ${format.padEnd(5, ' ')} FAILED`);
+          } catch (e) {
+            println(`${name.padEnd(5, ' ')} ${curve} PUB  - ${format.padEnd(5, ' ')} OK: ${e}`);
+          }
+        }
+
+        for (const [format, corruptFn] of [["jwk", corruptJwk], ["pkcs8", corruptPkcs8Priv], ["pkcs8", corruptPkcs8Pub]]) {
+          const privateKey = await window.crypto.subtle.exportKey(format, keyPair.privateKey);
+
+          // Prove that the original key can be imported successfully
+          await window.crypto.subtle.importKey(format, privateKey, {name: name, namedCurve: curve}, false, privUsages);
+
+          // Corrupt the private key and try to import it
+          const corruptedPrivateKey = corruptFn(privateKey);
+
+          try {
+            await window.crypto.subtle.importKey(format, corruptedPrivateKey, {
+              name: name,
+              namedCurve: curve
+            }, false, privUsages);
+            println(`${name.padEnd(5, ' ')} ${curve} PRIV - ${format.padEnd(5, ' ')} FAILED`);
+          } catch (e) {
+            println(`${name.padEnd(5, ' ')} ${curve} PRIV - ${format.padEnd(5, ' ')} OK: ${e}`);
+          }
+        }
+      }
+    }
+
+    done();
+  });
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>PNG Third Edition: Coding Independent Code Points</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://www.w3.org/TR/png-3/#11iCCP">
+<link rel="help" href="https://www.w3.org/TR/png-3/#cICP-chunk">
+
+<link rel="match" href="../../../expected/wpt-import/png/cICP-wins-ref.html">
+<meta name="assert" content="When the cICP chunk is present, decoders that recognize it SHALL ignore iCCP">
+<style>
+    .test {
+        width: 128px;
+        height: 64px;
+        background-color: red;
+    }
+</style>
+<body>
+    <p>Test passes if you see a green rectangle, and no red.</p>
+    <div class="test"><img src="support/cICP-and-iCCP.png" alt=""></div>
+</body>
+</html>

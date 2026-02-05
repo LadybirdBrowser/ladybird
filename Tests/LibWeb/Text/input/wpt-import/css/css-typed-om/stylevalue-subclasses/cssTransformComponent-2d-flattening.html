@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSTransformComponent 2d flattening</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix">
+<meta name="assert" content="Test CSSTransformComponent.toMatrix handles 2d flattening" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gEpsilon = 1e-6;
+
+test(() => {
+  const translate = new CSSTranslate(CSS.px(1), CSS.px(1), CSS.px(1));
+  translate.is2D = true;
+  const expectedTranslate = new DOMMatrix();
+  expectedTranslate.translateSelf(1, 1);
+  assert_matrix_approx_equals(translate.toMatrix(), expectedTranslate, gEpsilon);
+}, 'CSSTranslate.toMatrix() flattens when told it is 2d');
+
+test(() => {
+  const rotate = new CSSRotate(1, 2, 3, CSS.deg(90));
+  rotate.is2D = true;
+  const expectedRotate = new DOMMatrix();
+  expectedRotate.rotateSelf(90);
+  assert_matrix_approx_equals(rotate.toMatrix(), expectedRotate, gEpsilon);
+}, 'CSSRotate.toMatrix() flattens when told it is 2d');
+
+test(() => {
+  const scale = new CSSScale(2, 3, 2);
+  scale.is2D = true;
+  const expectedScale = new DOMMatrix();
+  expectedScale.scaleSelf(2, 3);
+  assert_matrix_approx_equals(scale.toMatrix(), expectedScale, gEpsilon);
+}, 'CSSScale.toMatrix() flattens when told it is 2d');
+
+test(() => {
+  const transformMatrix = new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  const matrixComponent = new CSSMatrixComponent(transformMatrix);
+  matrixComponent.is2D = true;
+  const expectedMatrix = new DOMMatrix();
+  expectedMatrix.multiplySelf(new DOMMatrixReadOnly([1, 2, 5, 6, 13, 14]));
+  assert_matrix_approx_equals(matrixComponent.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSMatrixComponent.toMatrix() flattens when told it is 2d');
+
+</script>

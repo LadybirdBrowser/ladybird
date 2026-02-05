@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing the new font-weight values introduced in CSS Fonts level 4</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-weight-prop" />
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+
+    <div id="computedStyleTest">A</div>
+
+    <script>
+
+        var testContinuousWeights = [
+            { weight: "401",      isValid: true,  message: "Values that are not multiple of 100 should be parsed successfully" },
+            { weight: "400.5",    isValid: true,  message: "Non-integer Values should be parsed successfully" },
+            { weight: "1",        isValid: true,  message: "Minimum allowed value should be parsed successfully" },
+            { weight: "0.999",    isValid: false, message: "Values below minimum should be rejected" },
+            { weight: "-100",     isValid: false, message: "Values below zero should be rejected" },
+            { weight: "1000",     isValid: true,  message: "Maximum allowed value should be parsed successfully" },
+            { weight: "1000.001", isValid: false, message: "Values above maximum should be rejected" },
+            { weight: "calc(100.5)", isValid: true, expectedWeight: "100.5", message: "Simple calc value" },
+            { weight: "calc(-100)", isValid: true, expectedWeight: "1", message: "Negative simple calc value (to be clamped)" },
+            { weight: "calc(1001)", isValid: true, expectedWeight: "1000", message: "Out-of-range simple calc value (to be clamped)" },
+            { weight: "calc(100.5*3 + 50.5)", isValid: true, expectedWeight: "352", message: "Valid calc expression" },
+            { weight: "calc(100.5*3 + 800)", isValid: true, expectedWeight: "1000", message: "Valid calc expression with out-of-range value (to be clamped)" },
+            { weight: "calc(100.5px + 50.5px)", isValid: false, message: "Valid calc expression with units" },
+            { weight: "400 700", isValid: false, message: "Extra number after numeric value" },
+            { weight: "400 10px", isValid: false, message: "Extra content after numeric value" },
+            { weight: "bold 400", isValid: false, message: "Extra content after keyword value" },
+            { weight: "calc(100.5) 400", isValid: false, message: "Extra content after calc value" }
+        ];
+
+        testContinuousWeights.forEach(function (element) {
+            test(() => { assert_equals(window.CSS.supports("font-weight", element.weight), element.isValid, element.message); }, "@supports: " + element.message);
+        });
+
+        testContinuousWeights.forEach(function (element) {
+            var testElement  = document.getElementById("computedStyleTest");
+
+            if (element.isValid) {
+                testElement.style.fontWeight = "300";
+                testElement.style.fontWeight = element.weight;
+                var expectedWeight = (element.expectedWeight) ? element.expectedWeight : element.weight;
+
+                test(() => { assert_equals(window.getComputedStyle(testElement).fontWeight, expectedWeight, element.message); }, "Computed style: " + element.message);
+            }
+        });
+
+    </script>
+</body>
+</html>

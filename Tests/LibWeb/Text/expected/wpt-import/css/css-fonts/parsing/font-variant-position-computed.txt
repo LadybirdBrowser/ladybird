@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property font-variant-position value 'normal'
+Pass	Property font-variant-position value 'sub'
+Pass	Property font-variant-position value 'super'

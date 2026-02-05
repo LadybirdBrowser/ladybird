@@ -1,0 +1,62 @@
+{
+  "version": 6,
+  "include": [
+    "CMakeBasePresets.json"
+  ],
+  "configurePresets": [
+    {
+      "hidden": true,
+      "name": "windows_base",
+      "inherits": "base",
+      "description": "Visual Studio via Clang/LLVM Toolchain",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "intelliSenseMode": "windows-clang-x64"
+        }
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "Release",
+      "inherits": [
+        "windows_base",
+        "Release_base"
+      ],
+      "displayName": "Windows Experimental Release Config",
+      "description": "Experimental Windows Release build. Not all targets in this preset are built and there is minimal runtime support"
+    },
+    {
+      "name": "Debug",
+      "inherits": [
+        "windows_base",
+        "Debug_base"
+      ],
+      "displayName": "Windows Experimental Debug Config",
+      "description": "Experimental Windows Debug build. Not all targets in this preset are built and there is minimal runtime support"
+    },
+    {
+      "name": "Sanitizer",
+      "inherits": [
+        "windows_base",
+        "Sanitizer_base"
+      ],
+      "displayName": "Windows Experimental Sanitizer Config",
+      "description": "Experimental Windows Sanitizer build. Not all targets in this preset are built and there is minimal runtime support",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    }
+  ]
+}

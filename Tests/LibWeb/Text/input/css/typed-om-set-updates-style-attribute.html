@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            foo.attributeStyleMap.set("width", CSS.px(10));
+
+            println(foo.getAttribute("style"));
+        });
+    </script>
+</html>

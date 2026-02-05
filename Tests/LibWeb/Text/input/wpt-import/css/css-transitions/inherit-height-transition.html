@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#starting">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  div { height: inherit; }
+  #outer { height: 50px; }
+  #outer.collapsed {
+    height: 0px;
+    transition: height 0.01s;
+  }
+</style>
+<div id="outer">
+  <div>
+    <div id="inner">You should only see a flash of red.</div>
+  </div>
+</div>
+<script>
+  promise_test(t => {
+    outer.offsetTop;
+    outer.className = "collapsed";
+    return (new Promise((resolve) => outer.addEventListener("transitionend", resolve))).then(() => {
+      assert_equals(getComputedStyle(inner).height, "0px");
+    });
+  }, "Transitioned height, explicitly inherited down two DOM levels, should inherit correctly");
+</script>

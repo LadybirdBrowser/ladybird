@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	switch IDL attribute, setter
+Pass	switch IDL attribute, getter
+Pass	Cloning a switch control

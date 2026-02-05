@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<label id="label-no-for"></label>
+<span id="non-labelable"></span>
+<form id="form1">
+    <input id="input1">
+</form>
+<form id="form2">
+    <label id="parent-of-input2"><input id="input2" ></label>    
+    <label id="label-for-input2" for="input2"></label>
+    <label id="label-for-input1" for="input1"></label>
+    <label id="label-for-non-labelable-element" for="non-labelable"></label>
+    <label id="label-for-nonexistent-element" for="invalid"></label>
+</form>
+</form>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const labelElement of document.querySelectorAll("label")) {
+            if (labelElement.form) {
+                println(`Form for #${labelElement.id}: #${labelElement.form.id}`);
+                println(`label.form is the same as label.control.form for #${labelElement.id}: ${labelElement.form === labelElement.control.form}`);
+            } else {
+                println(`Form for #${labelElement.id} is null`);
+                println(`Control for #${labelElement.id} is null: ${labelElement.control === null}`);
+            }
+        }
+    });
+</script>

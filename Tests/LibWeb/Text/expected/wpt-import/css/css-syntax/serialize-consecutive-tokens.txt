@@ -1,0 +1,78 @@
+Harness status: OK
+
+Found 72 tests
+
+59 Pass
+13 Fail
+Pass	Serialization of consecutive foo and bar tokens.
+Pass	Serialization of consecutive foo and bar() tokens.
+Fail	Serialization of consecutive foo and url(bar) tokens.
+Pass	Serialization of consecutive foo and - tokens.
+Pass	Serialization of consecutive foo and 123 tokens.
+Pass	Serialization of consecutive foo and 123% tokens.
+Pass	Serialization of consecutive foo and 123em tokens.
+Pass	Serialization of consecutive foo and --> tokens.
+Pass	Serialization of consecutive foo and () tokens.
+Pass	Serialization of consecutive @foo and bar tokens.
+Pass	Serialization of consecutive @foo and bar() tokens.
+Fail	Serialization of consecutive @foo and url(bar) tokens.
+Pass	Serialization of consecutive @foo and - tokens.
+Pass	Serialization of consecutive @foo and 123 tokens.
+Pass	Serialization of consecutive @foo and 123% tokens.
+Pass	Serialization of consecutive @foo and 123em tokens.
+Pass	Serialization of consecutive @foo and --> tokens.
+Pass	Serialization of consecutive #foo and bar tokens.
+Pass	Serialization of consecutive #foo and bar() tokens.
+Fail	Serialization of consecutive #foo and url(bar) tokens.
+Pass	Serialization of consecutive #foo and - tokens.
+Pass	Serialization of consecutive #foo and 123 tokens.
+Pass	Serialization of consecutive #foo and 123% tokens.
+Pass	Serialization of consecutive #foo and 123em tokens.
+Pass	Serialization of consecutive #foo and --> tokens.
+Pass	Serialization of consecutive 123foo and bar tokens.
+Pass	Serialization of consecutive 123foo and bar() tokens.
+Fail	Serialization of consecutive 123foo and url(bar) tokens.
+Pass	Serialization of consecutive 123foo and - tokens.
+Pass	Serialization of consecutive 123foo and 123 tokens.
+Pass	Serialization of consecutive 123foo and 123% tokens.
+Pass	Serialization of consecutive 123foo and 123em tokens.
+Pass	Serialization of consecutive 123foo and --> tokens.
+Pass	Serialization of consecutive # and bar tokens.
+Pass	Serialization of consecutive # and bar() tokens.
+Fail	Serialization of consecutive # and url(bar) tokens.
+Pass	Serialization of consecutive # and - tokens.
+Pass	Serialization of consecutive # and 123 tokens.
+Pass	Serialization of consecutive # and 123% tokens.
+Pass	Serialization of consecutive # and 123em tokens.
+Pass	Serialization of consecutive - and bar tokens.
+Pass	Serialization of consecutive - and bar() tokens.
+Fail	Serialization of consecutive - and url(bar) tokens.
+Pass	Serialization of consecutive - and - tokens.
+Pass	Serialization of consecutive - and 123 tokens.
+Pass	Serialization of consecutive - and 123% tokens.
+Pass	Serialization of consecutive - and 123em tokens.
+Pass	Serialization of consecutive 123 and bar tokens.
+Pass	Serialization of consecutive 123 and bar() tokens.
+Fail	Serialization of consecutive 123 and url(bar) tokens.
+Pass	Serialization of consecutive 123 and 123 tokens.
+Pass	Serialization of consecutive 123 and 123% tokens.
+Pass	Serialization of consecutive 123 and 123em tokens.
+Pass	Serialization of consecutive 123 and % tokens.
+Pass	Serialization of consecutive @ and bar tokens.
+Pass	Serialization of consecutive @ and bar() tokens.
+Fail	Serialization of consecutive @ and url(bar) tokens.
+Pass	Serialization of consecutive @ and - tokens.
+Pass	Serialization of consecutive . and 123 tokens.
+Pass	Serialization of consecutive . and 123% tokens.
+Pass	Serialization of consecutive . and 123em tokens.
+Pass	Serialization of consecutive + and 123 tokens.
+Pass	Serialization of consecutive + and 123% tokens.
+Pass	Serialization of consecutive + and 123em tokens.
+Pass	Serialization of consecutive / and * tokens.
+Fail	Comments are handled correctly when computing a/* comment */b using t1:.
+Fail	Comments are handled correctly when computing a/* comment */var(--t1) using t1:b.
+Fail	Comments are handled correctly when computing var(--t1)b using t1:a/* comment */.
+Fail	Comments are handled correctly when computing var(--t1)b using t1:'a/* unfinished '.
+Pass	Comments are handled correctly when computing var(--t1)b using t1:"a/* unfinished ".
+Fail	Comments are handled correctly when computing var(--t1)b using t1:'a " '/* comment */.
+Pass	Empty fallback between tokens must not disturb comment insertion

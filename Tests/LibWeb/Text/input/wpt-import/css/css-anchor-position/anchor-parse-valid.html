@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>Tests parsing of the anchor() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-pos">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+
+<script>
+const anchorNames = [
+  '',
+  '--foo',
+];
+
+const insetProperties = [
+  'left',
+  'right',
+  'top',
+  'bottom',
+  'inset-block-start',
+  'inset-block-end',
+  'inset-inline-start',
+  'inset-inline-end',
+];
+
+const anchorSides = [
+  'inside',
+  'outside',
+  'left',
+  'right',
+  'top',
+  'bottom',
+  'start',
+  'end',
+  'self-start',
+  'self-end',
+  'center',
+  '50%',
+  'calc(50%)',
+  'min(50%, 100%)',
+];
+
+const fallbacks = [
+  null,
+  '1px',
+  '50%',
+  'calc(50% + 1px)',
+  'anchor(left)',
+  'anchor(--bar left)',
+  'anchor(--bar left, anchor(--baz right))',
+];
+
+// Tests basic combinations
+for (let property of insetProperties) {
+  // Using a wrong anchor-side (e.g., `top: anchor(--foo left)`) doesn't cause a
+  // parse error, but triggers the fallback when resolved.
+  for (let name of anchorNames) {
+    for (let side of anchorSides) {
+      for (let fallback of fallbacks) {
+        let value = `anchor(${name ? name + ' ' : ''}${side}${fallback ? ', ' + fallback : ''})`;
+        test_valid_value(property, value);
+        if (name) {
+          // The <anchor-element> is allowed to appear after the <anchor-side>
+          let value_flip_order = `anchor(${side} ${name}${fallback ? ', ' + fallback : ''})`;
+          test_valid_value(property, value_flip_order, value);
+        }
+      }
+    }
+  }
+}
+
+// Tests that anchor() can be used in a calc tree
+// Still follow the simplification process as outlined in https://drafts.csswg.org/css-values-4/#calc-simplification
+test_valid_value('top', 'calc((anchor(--foo top) + anchor(--bar bottom)) / 2)', 'calc(0.5 * (anchor(--foo top) + anchor(--bar bottom)))');
+test_valid_value('top', 'calc(0.5 * (anchor(--foo top) + anchor(--bar bottom)))');
+test_valid_value('top', 'anchor(--foo top, calc(0.5 * anchor(--bar bottom)))');
+test_valid_value('top', 'min(100px, 10%, anchor(--foo top), anchor(--bar bottom))');
+</script>

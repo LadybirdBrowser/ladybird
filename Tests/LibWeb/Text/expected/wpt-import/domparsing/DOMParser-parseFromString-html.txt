@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Parsing of id attribute
+Pass	contentType
+Pass	compatMode
+Pass	compatMode for a proper DOCTYPE
+Pass	Location value
+Pass	DOMParser parses HTML tag soup with no problems
+Pass	DOMParser should handle the content of <noembed> as raw text
+Pass	DOMParser throws on an invalid enum value
+Pass	script is found synchronously even when there is a css import
+Pass	must be parsed with scripting disabled, so noscript works

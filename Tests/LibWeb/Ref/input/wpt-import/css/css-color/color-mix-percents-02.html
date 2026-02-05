@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 5: color-mix</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#color-mix">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#interpolation-space">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#hue-interpolation">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/color-mix-percents-01-ref.html">
+<meta name="assert" content="percent normalization for opaque mixes">
+<style>
+    .test { background-color: red; width: 14em; height: 2em; margin-top: 0; margin-bottom: 0;}
+    .negative-test { background-color: rgb(68.4898% 36.015% 68.3102%); width: 14em; height: 2em; margin-top: 0; margin-bottom: 0;}
+    .t1 { background-color: rgb(68.4898% 36.015% 68.3102%); }
+    .t2 { background-color: color-mix(in lch, purple 50%, plum 50%);}
+    .t3 { background-color: color-mix(in lch, purple 55%, plum 55%);}
+    .t4 { background-color: color-mix(in lch, purple 70%, plum 70%); }
+    .t5 { background-color: color-mix(in lch, purple 95%, plum 95%);}
+    .t6 { background-color: color-mix(in lch, purple 125%, plum 125%);}
+    .t7 { background-color: color-mix(in lch, purple 9999%, plum 9999%);}
+</style>
+<body>
+    <p>Test passes if you see a purple square, and no red.</p>
+    <div class="test t1"></div>
+    <div class="test t2"></div>
+    <div class="test t3"></div>
+    <div class="test t4"></div>
+    <div class="test t5"></div>
+    <div class="negative-test t6"></div>
+    <div class="negative-test t7"></div>
+</body>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>filter operation interpolation with css sign function</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<style>
+    :root {
+        font-size: 10px;
+    }
+</style>
+<body>
+<script>
+    test_interpolation({
+        property: 'filter',
+        from: 'contrast(100)',
+        to: 'contrast(calc(sign(20rem - 20px) * 180))',
+    }, [
+        { at: -1, expect: 'contrast(20)' },
+        { at: 0, expect: 'contrast(100)' },
+        { at: 0.125, expect: 'contrast(110)' },
+        { at: 0.875, expect: 'contrast(170)' },
+        { at: 1, expect: 'contrast(180)' },
+        { at: 2, expect: 'contrast(260)' }
+    ]);
+
+    test_interpolation({
+        property: 'filter',
+        from: 'hue-rotate(calc(sign(20rem - 20px) * 100deg))',
+        to: 'hue-rotate(calc(sign(10rem - 10px) * 180deg))',
+    }, [
+        { at: -1, expect: 'hue-rotate(20deg)' },
+        { at: 0, expect: 'hue-rotate(100deg)' },
+        { at: 0.125, expect: 'hue-rotate(110deg)' },
+        { at: 0.875, expect: 'hue-rotate(170deg)' },
+        { at: 1, expect: 'hue-rotate(180deg)' },
+        { at: 2, expect: 'hue-rotate(260deg)' }
+    ]);
+
+    test_interpolation({
+        property: 'filter',
+        from: 'contrast(0.1)',
+        to: 'contrast(calc(sign(20rem - 20px) * 18%))',
+    }, [
+        { at: -1, expect: 'contrast(0.02)' },
+        { at: 0, expect: 'contrast(0.1)' },
+        { at: 0.125, expect: 'contrast(0.11)' },
+        { at: 0.875, expect: 'contrast(0.17)' },
+        { at: 1, expect: 'contrast(0.18)' },
+        { at: 2, expect: 'contrast(0.26)' }
+    ]);
+</script>
+</body>

@@ -1,0 +1,6 @@
+Prototype of CSS is Object.prototype: true
+CSS.toString(): [object CSS]
+Object.prototype.toString.call(CSS): [object CSS]
+Prototype of WebAssembly is Object.prototype: true
+WebAssembly.toString(): [object WebAssembly]
+Object.prototype.toString.call(WebAssembly): [object WebAssembly]

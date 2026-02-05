@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: correct width for non-overflowing content with flex-direction: column</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#overflow-properties">
+<link rel="help" href="https://crbug.com/580586">
+<meta name="assert" content="This test checks that no unnecessary extra horizontal space is considered for vertical scrollbars for non-overflowing content using flex-direction: column." />
+
+<style>
+body {
+  height: 200vh;
+}
+
+section {
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.side-menu {
+    border: 1px solid black;
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.box-body {
+    height: 1000px;
+    flex: 1 1 0%;
+    display: flex;
+    min-height: 0px;
+}
+
+.list {
+    list-style: none;
+    padding: 0;
+    overflow: auto;
+    flex: 1 1 0;
+}
+
+li {
+    height: 20px;
+    background-color: red;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('section')">
+
+<div id=log></div>
+
+<section>
+  <div class="box-body">
+    <div class="side-menu">
+      <ul class="list">
+        <li data-expected-width="200">
+        </li>
+      </ul>
+    </div>
+    <div style="height: 1000px;"></div>
+  </div>
+</section>
+</body>
+</html>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Document.title and DOMImplementation.createHTMLDocument</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../dom/nodes/DOMImplementation-createHTMLDocument.js"></script>
+<div id="log"></div>
+<script>
+createHTMLDocuments(function(doc, expectedtitle, normalizedtitle) {
+  assert_equals(doc.title, normalizedtitle)
+})
+</script>

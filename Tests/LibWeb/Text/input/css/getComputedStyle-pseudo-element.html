@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #foo {
+        color: grey;
+        background-color: yellow;
+    }
+    #foo::before {
+        content: "hi";
+        background-color: cyan;
+    }
+</style>
+<div id="foo"></div>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+        const style = getComputedStyle(foo);
+        const beforeStyle = getComputedStyle(foo, "::before");
+        const propertyValues = [
+            "color",
+            "background-color",
+        ];
+        println("#foo:");
+        for (const property of propertyValues) {
+            println(`  ${property}: ${style.getPropertyValue(property)}`);
+        }
+        println("#foo::before:");
+        for (const property of propertyValues) {
+            println(`  ${property}: ${beforeStyle.getPropertyValue(property)}`);
+        }
+    });
+</script>

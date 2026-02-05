@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        var doc = new DOMParser().parseFromString('<!DOCTYPE foo SYSTEM "this is the system type"><bar></bar>', "text/xml");
+        var doctype = doc.doctype;
+        if (doctype.name == "foo") {
+            println("PASSED doctype.name");
+        } else {
+            println("FAILED doctype.name");
+        }
+
+        if (doctype.systemId == "this is the system type") {
+            println("PASSED doctype.systemId");
+        } else {
+            println("FAILED doctype.systemId");
+        }
+
+        if (doctype.publicId == "") {
+            println("PASSED doctype.publicId");
+        } else {
+            println("FAILED doctype.publicId");
+        }
+    });
+</script>

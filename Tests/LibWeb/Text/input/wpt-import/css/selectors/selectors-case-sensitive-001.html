@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>Test element names are case-insensitive only in ASCII range</title>
+<link rel="help" href="https://www.w3.org/TR/selectors-4/#case-sensitive">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<style>
+\212A {
+  display: block;
+  background: lime;
+  width: 200px;
+  height: 100px;
+}
+</style>
+<body>
+  <p>You should see a green square below.</p>
+  <div id="container"></div>
+<script>
+// Insert from JavaScript to avoid parser doing something special.
+let test_element = document.createElement('\u212A');
+container.appendChild(test_element);
+let test_element_with_ns = document.createElementNS('https://dummy.ns', '\u212A');
+container.appendChild(test_element_with_ns);
+
+test(() => {
+  assert_equals(test_element.offsetHeight, 100);
+}, 'CSS selector should match for Unicode uppercase element');
+
+test(() => {
+  // Elements in different namespace cannot compute style or height.
+  // Test the height of the container instead.
+  assert_equals(container.offsetHeight, 200);
+}, 'Elements with namespace should work the same way');
+
+test(() => {
+  let e = document.querySelector('k');
+  assert_equals(e, null);
+}, '`querySelector` should not use Unicode case-folding');
+</script>
+</body>

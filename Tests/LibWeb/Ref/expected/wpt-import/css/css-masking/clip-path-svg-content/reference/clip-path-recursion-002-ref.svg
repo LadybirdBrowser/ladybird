@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:html="http://www.w3.org/1999/xhtml"
+	 xmlns:xlink="http://www.w3.org/1999/xlink">
+<rect x="50" width="50" height="50" fill="red" />
+<rect x="50" y="150" width="50" height="50" fill="red"/>
+</svg>

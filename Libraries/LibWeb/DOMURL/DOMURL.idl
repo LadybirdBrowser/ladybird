@@ -1,0 +1,30 @@
+#import <FileAPI/Blob.idl>
+#import <DOMURL/URLSearchParams.idl>
+#import <MediaSourceExtensions/MediaSource.idl>
+
+// https://url.spec.whatwg.org/#url
+[Exposed=*, LegacyWindowAlias=webkitURL, ImplementedAs=DOMURL]
+interface URL {
+    constructor(USVString url, optional USVString base);
+
+    [ImplementedAs=parse_for_bindings] static DOMURL? parse(USVString url, optional USVString base);
+    static boolean canParse(USVString url, optional USVString base);
+
+    stringifier attribute USVString href;
+    readonly attribute USVString origin;
+    attribute USVString protocol;
+    attribute USVString username;
+    attribute USVString password;
+    attribute USVString host;
+    attribute USVString hostname;
+    attribute USVString port;
+    attribute USVString pathname;
+    attribute USVString search;
+    [SameObject] readonly attribute URLSearchParams searchParams;
+    attribute USVString hash;
+
+    USVString toJSON();
+
+    static Utf16DOMString createObjectURL((Blob or MediaSource) obj);
+    static undefined revokeObjectURL(DOMString url);
+};

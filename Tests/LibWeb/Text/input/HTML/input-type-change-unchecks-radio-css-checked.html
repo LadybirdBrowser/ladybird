@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #test-input { position: absolute; z-index: 0; }
+    #test-input:checked { z-index: 1; }
+</style>
+<body>
+    <script>
+        test(() => {
+            // 1. Create a radio button
+            const input = document.createElement('input');
+            input.id = 'test-input';
+            input.type = 'radio';
+            document.body.appendChild(input);
+
+            // 2. Set it to checked (z-index should be 1)
+            input.checked = true;
+            let zIndex = getComputedStyle(input).zIndex;
+            println(`zIndex = ${zIndex}`);
+
+            // 3. Change type to 'text' Text inputs cannot be :checked. The z-index must revert to 0.
+            input.type = 'text';
+            zIndex = getComputedStyle(input).zIndex;
+            println(`zIndex = ${zIndex}`);
+        })
+    </script>
+</body>

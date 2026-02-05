@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Property font-language-override value 'normal'
+Pass	Property font-language-override value '"KSW"'
+Pass	Property font-language-override value '"ENG "'
+Pass	Property font-language-override value '"en  "'
+Pass	Property font-language-override value '" en "'

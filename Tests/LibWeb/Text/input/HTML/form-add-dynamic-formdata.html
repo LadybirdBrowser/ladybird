@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<form id="test-form">
+    <input type="text" name="field1" value="value1">
+</form>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const form = document.getElementById('test-form');
+
+        form.addEventListener('formdata', (event) => {
+            event.formData.append('field2', 'value2');
+        });
+
+        const formData = new FormData(form);
+
+        println(`formData.get('field1') === 'value1': ${formData.get('field1') === 'value1'}`);
+        println(`formData.get('field2') === 'value2': ${formData.get('field2') === 'value2'}`);
+    });
+</script>

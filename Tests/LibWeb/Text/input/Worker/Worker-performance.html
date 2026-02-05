@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let work = new Worker("worker-performance.js");
+        work.onmessage = (evt) => {
+            println(`performance global object is available: ${JSON.stringify(evt.data)}`);
+            done();
+        };
+    });
+</script>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>contain:inline-size on table</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-contain/#contain-property">
+<link rel="help" href="https://drafts.csswg.org/css-contain-3/#containment-inline-size">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<!-- Note that size containment doesn't apply to tables:
+     https://www.w3.org/TR/css-contain-1/#containment-size -->
+<div style="width:100px; height:100px; background:red;">
+  <div style="display:table; contain:inline-size; width:fit-content; background:green;">
+    <div style="width:100px; height:100px;"></div>
+  </div>
+</div>

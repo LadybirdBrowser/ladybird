@@ -1,0 +1,47 @@
+===================
+non-checked-with-value
+===================
+2
+value1
+value2
+value = ''
+value = ''
+===================
+checked-with-value
+===================
+2
+value3
+value4
+value = 'value3'
+value = 'value3'
+===================
+checked-no-value
+===================
+2
+on
+on
+value = 'on'
+value = 'on'
+===================
+no-radio-button
+===================
+2
+value1
+value2
+value = ''
+value = ''
+===================
+non-checked-with-value
+===================
+value = 
+value = value1
+===================
+non-checked-no-value
+===================
+value = 
+value = on
+===================
+non-checked-value-on
+===================
+value = 
+value = on

@@ -1,0 +1,19 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 620 0+0+172] [8+0+0 100 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 206.65625x100] baseline: 100
+      frag 1 from BlockContainer start: 0, length: 0, rect: [214.65625,8 206.65625x100] baseline: 100
+      frag 2 from BlockContainer start: 0, length: 0, rect: [421.3125,8 206.65625x100] baseline: 100
+      BlockContainer <div> at [8,8] inline-block [0+0+0 206.65625 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+      BlockContainer <div> at [214.65625,8] inline-block [0+0+0 206.65625 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+      BlockContainer <div> at [421.3125,8] inline-block [0+0+0 206.65625 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 620x100]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 206.65625x100]
+      PaintableWithLines (BlockContainer<DIV>) [214.65625,8 206.65625x100]
+      PaintableWithLines (BlockContainer<DIV>) [421.3125,8 206.65625x100]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x116] [children: 0] (z-index: auto)

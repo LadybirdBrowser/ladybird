@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Containment Module Level 3: parsing contain with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-contain-3/#contain-property">
+<meta name="assert" content="contain supports the full grammar 'none | strict | content | [ [ size | inline-size ] || layout || style || paint ]'.">
+<meta name="assert" content="contain serializes in canonical order.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("contain", "none");
+test_valid_value("contain", "strict");
+test_valid_value("contain", "content");
+
+// [ [ size | inline-size ] || layout || style || paint ]
+test_valid_value("contain", "size");
+test_valid_value("contain", "layout");
+test_valid_value("contain", "style");
+test_valid_value("contain", "paint");
+test_valid_value("contain", "layout size", "size layout");
+test_valid_value("contain", "paint style", "style paint");
+test_valid_value("contain", "layout style paint");
+test_valid_value("contain", "layout paint style size", "size layout style paint");
+test_valid_value("contain", "inline-size");
+test_valid_value("contain", "layout inline-size", "inline-size layout");
+</script>
+</body>
+</html>

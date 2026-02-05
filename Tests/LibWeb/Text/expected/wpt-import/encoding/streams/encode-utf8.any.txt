@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	encoding one string of UTF-8 should give one complete chunk
+Pass	a character split between chunks should be correctly encoded
+Pass	a character following one split between chunks should be correctly encoded
+Pass	two consecutive astral characters each split down the middle should be correctly reassembled
+Pass	two consecutive astral characters each split down the middle with an invalid surrogate in the middle should be correctly encoded
+Pass	a stream ending in a leading surrogate should emit a replacement character as a final chunk
+Pass	an unmatched surrogate at the end of a chunk followed by an astral character in the next chunk should be replaced with the replacement character at the start of the next output chunk
+Pass	an unmatched surrogate at the end of a chunk followed by an ascii character in the next chunk should be replaced with the replacement character at the start of the next output chunk
+Pass	an unmatched surrogate at the end of a chunk followed by a plane 1 character split into two chunks should result in the encoded plane 1 character appearing in the last output chunk
+Pass	two leading chunks should result in two replacement characters
+Pass	a non-terminal unpaired leading surrogate should immediately be replaced
+Pass	a terminal unpaired trailing surrogate should immediately be replaced
+Pass	a leading surrogate chunk should be carried past empty chunks
+Pass	a leading surrogate chunk should error when it is clear it didn't form a pair
+Pass	an empty string should result in no output chunk
+Pass	a leading empty chunk should be ignored
+Pass	a trailing empty chunk should be ignored
+Pass	a plain ASCII chunk should be converted
+Pass	characters in the ISO-8859-1 range should be encoded correctly

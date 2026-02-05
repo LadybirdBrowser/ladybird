@@ -1,0 +1,2166 @@
+Harness status: OK
+
+Found 2070 tests
+
+2064 Pass
+6 Fail
+Pass	<li> - display
+Pass	<li> - margin-top
+Pass	<li> - margin-right
+Pass	<li> - margin-bottom
+Pass	<li> - margin-left
+Pass	<li> - padding-top
+Pass	<li> - padding-right
+Pass	<li> - padding-bottom
+Pass	<li> - padding-left
+Pass	<li> - list-style-type
+Pass	<li> - counter-set
+Pass	<li> - counter-reset
+Pass	<li> - counter-increment
+Pass	<li> - text-align
+Pass	<li> - list-style-position
+Pass	<dir>
+   <li> - display
+Pass	<dir>
+   <li> - margin-top
+Pass	<dir>
+   <li> - margin-right
+Pass	<dir>
+   <li> - margin-bottom
+Pass	<dir>
+   <li> - margin-left
+Pass	<dir>
+   <li> - padding-top
+Pass	<dir>
+   <li> - padding-right
+Pass	<dir>
+   <li> - padding-bottom
+Pass	<dir>
+   <li> - padding-left
+Pass	<dir>
+   <li> - list-style-type
+Pass	<dir>
+   <li> - counter-set
+Pass	<dir>
+   <li> - counter-reset
+Pass	<dir>
+   <li> - counter-increment
+Pass	<dir>
+   <li> - text-align
+Pass	<dir>
+   <li> - list-style-position
+Pass	<li> (in <dir>) - display
+Pass	<li> (in <dir>) - margin-top
+Pass	<li> (in <dir>) - margin-right
+Pass	<li> (in <dir>) - margin-bottom
+Pass	<li> (in <dir>) - margin-left
+Pass	<li> (in <dir>) - padding-top
+Pass	<li> (in <dir>) - padding-right
+Pass	<li> (in <dir>) - padding-bottom
+Pass	<li> (in <dir>) - padding-left
+Pass	<li> (in <dir>) - list-style-type
+Pass	<li> (in <dir>) - counter-set
+Pass	<li> (in <dir>) - counter-reset
+Pass	<li> (in <dir>) - counter-increment
+Pass	<li> (in <dir>) - text-align
+Pass	<li> (in <dir>) - list-style-position
+Pass	<dt> - display
+Pass	<dt> - margin-top
+Pass	<dt> - margin-right
+Pass	<dt> - margin-bottom
+Pass	<dt> - margin-left
+Pass	<dt> - padding-top
+Pass	<dt> - padding-right
+Pass	<dt> - padding-bottom
+Pass	<dt> - padding-left
+Pass	<dt> - list-style-type
+Pass	<dt> - counter-set
+Pass	<dt> - counter-reset
+Pass	<dt> - counter-increment
+Pass	<dt> - text-align
+Pass	<dt> - list-style-position
+Pass	<dd> - display
+Pass	<dd> - margin-top
+Pass	<dd> - margin-right
+Pass	<dd> - margin-bottom
+Pass	<dd> - margin-left
+Pass	<dd> - padding-top
+Pass	<dd> - padding-right
+Pass	<dd> - padding-bottom
+Pass	<dd> - padding-left
+Pass	<dd> - list-style-type
+Pass	<dd> - counter-set
+Pass	<dd> - counter-reset
+Pass	<dd> - counter-increment
+Pass	<dd> - text-align
+Pass	<dd> - list-style-position
+Pass	<dl>
+   <dt> - display
+Pass	<dl>
+   <dt> - margin-top
+Pass	<dl>
+   <dt> - margin-right
+Pass	<dl>
+   <dt> - margin-bottom
+Pass	<dl>
+   <dt> - margin-left
+Pass	<dl>
+   <dt> - padding-top
+Pass	<dl>
+   <dt> - padding-right
+Pass	<dl>
+   <dt> - padding-bottom
+Pass	<dl>
+   <dt> - padding-left
+Pass	<dl>
+   <dt> - list-style-type
+Pass	<dl>
+   <dt> - counter-set
+Pass	<dl>
+   <dt> - counter-reset
+Pass	<dl>
+   <dt> - counter-increment
+Pass	<dl>
+   <dt> - text-align
+Pass	<dl>
+   <dt> - list-style-position
+Pass	<dt> (in <dl>) - display
+Pass	<dt> (in <dl>) - margin-top
+Pass	<dt> (in <dl>) - margin-right
+Pass	<dt> (in <dl>) - margin-bottom
+Pass	<dt> (in <dl>) - margin-left
+Pass	<dt> (in <dl>) - padding-top
+Pass	<dt> (in <dl>) - padding-right
+Pass	<dt> (in <dl>) - padding-bottom
+Pass	<dt> (in <dl>) - padding-left
+Pass	<dt> (in <dl>) - list-style-type
+Pass	<dt> (in <dl>) - counter-set
+Pass	<dt> (in <dl>) - counter-reset
+Pass	<dt> (in <dl>) - counter-increment
+Pass	<dt> (in <dl>) - text-align
+Pass	<dt> (in <dl>) - list-style-position
+Pass	<dd> (in <dl>) - display
+Pass	<dd> (in <dl>) - margin-top
+Pass	<dd> (in <dl>) - margin-right
+Pass	<dd> (in <dl>) - margin-bottom
+Pass	<dd> (in <dl>) - margin-left
+Pass	<dd> (in <dl>) - padding-top
+Pass	<dd> (in <dl>) - padding-right
+Pass	<dd> (in <dl>) - padding-bottom
+Pass	<dd> (in <dl>) - padding-left
+Pass	<dd> (in <dl>) - list-style-type
+Pass	<dd> (in <dl>) - counter-set
+Pass	<dd> (in <dl>) - counter-reset
+Pass	<dd> (in <dl>) - counter-increment
+Pass	<dd> (in <dl>) - text-align
+Pass	<dd> (in <dl>) - list-style-position
+Pass	<menu>
+   <li> - display
+Pass	<menu>
+   <li> - margin-top
+Pass	<menu>
+   <li> - margin-right
+Pass	<menu>
+   <li> - margin-bottom
+Pass	<menu>
+   <li> - margin-left
+Pass	<menu>
+   <li> - padding-top
+Pass	<menu>
+   <li> - padding-right
+Pass	<menu>
+   <li> - padding-bottom
+Pass	<menu>
+   <li> - padding-left
+Pass	<menu>
+   <li> - list-style-type
+Pass	<menu>
+   <li> - counter-set
+Pass	<menu>
+   <li> - counter-reset
+Pass	<menu>
+   <li> - counter-increment
+Pass	<menu>
+   <li> - text-align
+Pass	<menu>
+   <li> - list-style-position
+Pass	<li> (in <menu>) - display
+Pass	<li> (in <menu>) - margin-top
+Pass	<li> (in <menu>) - margin-right
+Pass	<li> (in <menu>) - margin-bottom
+Pass	<li> (in <menu>) - margin-left
+Pass	<li> (in <menu>) - padding-top
+Pass	<li> (in <menu>) - padding-right
+Pass	<li> (in <menu>) - padding-bottom
+Pass	<li> (in <menu>) - padding-left
+Pass	<li> (in <menu>) - list-style-type
+Pass	<li> (in <menu>) - counter-set
+Pass	<li> (in <menu>) - counter-reset
+Pass	<li> (in <menu>) - counter-increment
+Pass	<li> (in <menu>) - text-align
+Pass	<li> (in <menu>) - list-style-position
+Pass	<ol>
+   <li> - display
+Pass	<ol>
+   <li> - margin-top
+Pass	<ol>
+   <li> - margin-right
+Pass	<ol>
+   <li> - margin-bottom
+Pass	<ol>
+   <li> - margin-left
+Pass	<ol>
+   <li> - padding-top
+Pass	<ol>
+   <li> - padding-right
+Pass	<ol>
+   <li> - padding-bottom
+Pass	<ol>
+   <li> - padding-left
+Pass	<ol>
+   <li> - list-style-type
+Pass	<ol>
+   <li> - counter-set
+Pass	<ol>
+   <li> - counter-reset
+Pass	<ol>
+   <li> - counter-increment
+Pass	<ol>
+   <li> - text-align
+Pass	<ol>
+   <li> - list-style-position
+Pass	<li> (in <ol>) - display
+Pass	<li> (in <ol>) - margin-top
+Pass	<li> (in <ol>) - margin-right
+Pass	<li> (in <ol>) - margin-bottom
+Pass	<li> (in <ol>) - margin-left
+Pass	<li> (in <ol>) - padding-top
+Pass	<li> (in <ol>) - padding-right
+Pass	<li> (in <ol>) - padding-bottom
+Pass	<li> (in <ol>) - padding-left
+Pass	<li> (in <ol>) - list-style-type
+Pass	<li> (in <ol>) - counter-set
+Pass	<li> (in <ol>) - counter-reset
+Pass	<li> (in <ol>) - counter-increment
+Pass	<li> (in <ol>) - text-align
+Pass	<li> (in <ol>) - list-style-position
+Pass	<ul>
+   <li> - display
+Pass	<ul>
+   <li> - margin-top
+Pass	<ul>
+   <li> - margin-right
+Pass	<ul>
+   <li> - margin-bottom
+Pass	<ul>
+   <li> - margin-left
+Pass	<ul>
+   <li> - padding-top
+Pass	<ul>
+   <li> - padding-right
+Pass	<ul>
+   <li> - padding-bottom
+Pass	<ul>
+   <li> - padding-left
+Pass	<ul>
+   <li> - list-style-type
+Pass	<ul>
+   <li> - counter-set
+Pass	<ul>
+   <li> - counter-reset
+Pass	<ul>
+   <li> - counter-increment
+Pass	<ul>
+   <li> - text-align
+Pass	<ul>
+   <li> - list-style-position
+Pass	<li> (in <ul>) - display
+Pass	<li> (in <ul>) - margin-top
+Pass	<li> (in <ul>) - margin-right
+Pass	<li> (in <ul>) - margin-bottom
+Pass	<li> (in <ul>) - margin-left
+Pass	<li> (in <ul>) - padding-top
+Pass	<li> (in <ul>) - padding-right
+Pass	<li> (in <ul>) - padding-bottom
+Pass	<li> (in <ul>) - padding-left
+Pass	<li> (in <ul>) - list-style-type
+Pass	<li> (in <ul>) - counter-set
+Pass	<li> (in <ul>) - counter-reset
+Pass	<li> (in <ul>) - counter-increment
+Pass	<li> (in <ul>) - text-align
+Pass	<li> (in <ul>) - list-style-position
+Pass	<dir> (in <dir>) - display
+Pass	<dir> (in <dir>) - margin-top
+Pass	<dir> (in <dir>) - margin-right
+Pass	<dir> (in <dir>) - margin-bottom
+Pass	<dir> (in <dir>) - margin-left
+Pass	<dir> (in <dir>) - padding-top
+Pass	<dir> (in <dir>) - padding-right
+Pass	<dir> (in <dir>) - padding-bottom
+Pass	<dir> (in <dir>) - padding-left
+Pass	<dir> (in <dir>) - list-style-type
+Pass	<dir> (in <dir>) - counter-set
+Pass	<dir> (in <dir>) - counter-reset
+Pass	<dir> (in <dir>) - counter-increment
+Pass	<dir> (in <dir>) - text-align
+Pass	<dir> (in <dir>) - list-style-position
+Pass	<menu> (in <dir>) - display
+Pass	<menu> (in <dir>) - margin-top
+Pass	<menu> (in <dir>) - margin-right
+Pass	<menu> (in <dir>) - margin-bottom
+Pass	<menu> (in <dir>) - margin-left
+Pass	<menu> (in <dir>) - padding-top
+Pass	<menu> (in <dir>) - padding-right
+Pass	<menu> (in <dir>) - padding-bottom
+Pass	<menu> (in <dir>) - padding-left
+Pass	<menu> (in <dir>) - list-style-type
+Pass	<menu> (in <dir>) - counter-set
+Pass	<menu> (in <dir>) - counter-reset
+Pass	<menu> (in <dir>) - counter-increment
+Pass	<menu> (in <dir>) - text-align
+Pass	<menu> (in <dir>) - list-style-position
+Pass	<ul> (in <dir>) - display
+Pass	<ul> (in <dir>) - margin-top
+Pass	<ul> (in <dir>) - margin-right
+Pass	<ul> (in <dir>) - margin-bottom
+Pass	<ul> (in <dir>) - margin-left
+Pass	<ul> (in <dir>) - padding-top
+Pass	<ul> (in <dir>) - padding-right
+Pass	<ul> (in <dir>) - padding-bottom
+Pass	<ul> (in <dir>) - padding-left
+Pass	<ul> (in <dir>) - list-style-type
+Pass	<ul> (in <dir>) - counter-set
+Pass	<ul> (in <dir>) - counter-reset
+Pass	<ul> (in <dir>) - counter-increment
+Pass	<ul> (in <dir>) - text-align
+Pass	<ul> (in <dir>) - list-style-position
+Pass	<dir> (in <menu>) - display
+Pass	<dir> (in <menu>) - margin-top
+Pass	<dir> (in <menu>) - margin-right
+Pass	<dir> (in <menu>) - margin-bottom
+Pass	<dir> (in <menu>) - margin-left
+Pass	<dir> (in <menu>) - padding-top
+Pass	<dir> (in <menu>) - padding-right
+Pass	<dir> (in <menu>) - padding-bottom
+Pass	<dir> (in <menu>) - padding-left
+Pass	<dir> (in <menu>) - list-style-type
+Pass	<dir> (in <menu>) - counter-set
+Pass	<dir> (in <menu>) - counter-reset
+Pass	<dir> (in <menu>) - counter-increment
+Pass	<dir> (in <menu>) - text-align
+Pass	<dir> (in <menu>) - list-style-position
+Pass	<menu> (in <menu>) - display
+Pass	<menu> (in <menu>) - margin-top
+Pass	<menu> (in <menu>) - margin-right
+Pass	<menu> (in <menu>) - margin-bottom
+Pass	<menu> (in <menu>) - margin-left
+Pass	<menu> (in <menu>) - padding-top
+Pass	<menu> (in <menu>) - padding-right
+Pass	<menu> (in <menu>) - padding-bottom
+Pass	<menu> (in <menu>) - padding-left
+Pass	<menu> (in <menu>) - list-style-type
+Pass	<menu> (in <menu>) - counter-set
+Pass	<menu> (in <menu>) - counter-reset
+Pass	<menu> (in <menu>) - counter-increment
+Pass	<menu> (in <menu>) - text-align
+Pass	<menu> (in <menu>) - list-style-position
+Pass	<ul> (in <menu>) - display
+Pass	<ul> (in <menu>) - margin-top
+Pass	<ul> (in <menu>) - margin-right
+Pass	<ul> (in <menu>) - margin-bottom
+Pass	<ul> (in <menu>) - margin-left
+Pass	<ul> (in <menu>) - padding-top
+Pass	<ul> (in <menu>) - padding-right
+Pass	<ul> (in <menu>) - padding-bottom
+Pass	<ul> (in <menu>) - padding-left
+Pass	<ul> (in <menu>) - list-style-type
+Pass	<ul> (in <menu>) - counter-set
+Pass	<ul> (in <menu>) - counter-reset
+Pass	<ul> (in <menu>) - counter-increment
+Pass	<ul> (in <menu>) - text-align
+Pass	<ul> (in <menu>) - list-style-position
+Pass	<dir> (in <ol>) - display
+Pass	<dir> (in <ol>) - margin-top
+Pass	<dir> (in <ol>) - margin-right
+Pass	<dir> (in <ol>) - margin-bottom
+Pass	<dir> (in <ol>) - margin-left
+Pass	<dir> (in <ol>) - padding-top
+Pass	<dir> (in <ol>) - padding-right
+Pass	<dir> (in <ol>) - padding-bottom
+Pass	<dir> (in <ol>) - padding-left
+Pass	<dir> (in <ol>) - list-style-type
+Pass	<dir> (in <ol>) - counter-set
+Pass	<dir> (in <ol>) - counter-reset
+Pass	<dir> (in <ol>) - counter-increment
+Pass	<dir> (in <ol>) - text-align
+Pass	<dir> (in <ol>) - list-style-position
+Pass	<menu> (in <ol>) - display
+Pass	<menu> (in <ol>) - margin-top
+Pass	<menu> (in <ol>) - margin-right
+Pass	<menu> (in <ol>) - margin-bottom
+Pass	<menu> (in <ol>) - margin-left
+Pass	<menu> (in <ol>) - padding-top
+Pass	<menu> (in <ol>) - padding-right
+Pass	<menu> (in <ol>) - padding-bottom
+Pass	<menu> (in <ol>) - padding-left
+Pass	<menu> (in <ol>) - list-style-type
+Pass	<menu> (in <ol>) - counter-set
+Pass	<menu> (in <ol>) - counter-reset
+Pass	<menu> (in <ol>) - counter-increment
+Pass	<menu> (in <ol>) - text-align
+Pass	<menu> (in <ol>) - list-style-position
+Pass	<ul> (in <ol>) - display
+Pass	<ul> (in <ol>) - margin-top
+Pass	<ul> (in <ol>) - margin-right
+Pass	<ul> (in <ol>) - margin-bottom
+Pass	<ul> (in <ol>) - margin-left
+Pass	<ul> (in <ol>) - padding-top
+Pass	<ul> (in <ol>) - padding-right
+Pass	<ul> (in <ol>) - padding-bottom
+Pass	<ul> (in <ol>) - padding-left
+Pass	<ul> (in <ol>) - list-style-type
+Pass	<ul> (in <ol>) - counter-set
+Pass	<ul> (in <ol>) - counter-reset
+Pass	<ul> (in <ol>) - counter-increment
+Pass	<ul> (in <ol>) - text-align
+Pass	<ul> (in <ol>) - list-style-position
+Pass	<dir> (in <ul>) - display
+Pass	<dir> (in <ul>) - margin-top
+Pass	<dir> (in <ul>) - margin-right
+Pass	<dir> (in <ul>) - margin-bottom
+Pass	<dir> (in <ul>) - margin-left
+Pass	<dir> (in <ul>) - padding-top
+Pass	<dir> (in <ul>) - padding-right
+Pass	<dir> (in <ul>) - padding-bottom
+Pass	<dir> (in <ul>) - padding-left
+Pass	<dir> (in <ul>) - list-style-type
+Pass	<dir> (in <ul>) - counter-set
+Pass	<dir> (in <ul>) - counter-reset
+Pass	<dir> (in <ul>) - counter-increment
+Pass	<dir> (in <ul>) - text-align
+Pass	<dir> (in <ul>) - list-style-position
+Pass	<menu> (in <ul>) - display
+Pass	<menu> (in <ul>) - margin-top
+Pass	<menu> (in <ul>) - margin-right
+Pass	<menu> (in <ul>) - margin-bottom
+Pass	<menu> (in <ul>) - margin-left
+Pass	<menu> (in <ul>) - padding-top
+Pass	<menu> (in <ul>) - padding-right
+Pass	<menu> (in <ul>) - padding-bottom
+Pass	<menu> (in <ul>) - padding-left
+Pass	<menu> (in <ul>) - list-style-type
+Pass	<menu> (in <ul>) - counter-set
+Pass	<menu> (in <ul>) - counter-reset
+Pass	<menu> (in <ul>) - counter-increment
+Pass	<menu> (in <ul>) - text-align
+Pass	<menu> (in <ul>) - list-style-position
+Pass	<ul> (in <ul>) - display
+Pass	<ul> (in <ul>) - margin-top
+Pass	<ul> (in <ul>) - margin-right
+Pass	<ul> (in <ul>) - margin-bottom
+Pass	<ul> (in <ul>) - margin-left
+Pass	<ul> (in <ul>) - padding-top
+Pass	<ul> (in <ul>) - padding-right
+Pass	<ul> (in <ul>) - padding-bottom
+Pass	<ul> (in <ul>) - padding-left
+Pass	<ul> (in <ul>) - list-style-type
+Pass	<ul> (in <ul>) - counter-set
+Pass	<ul> (in <ul>) - counter-reset
+Pass	<ul> (in <ul>) - counter-increment
+Pass	<ul> (in <ul>) - text-align
+Pass	<ul> (in <ul>) - list-style-position
+Pass	<dir> (in <dir><dir>) - display
+Pass	<dir> (in <dir><dir>) - margin-top
+Pass	<dir> (in <dir><dir>) - margin-right
+Pass	<dir> (in <dir><dir>) - margin-bottom
+Pass	<dir> (in <dir><dir>) - margin-left
+Pass	<dir> (in <dir><dir>) - padding-top
+Pass	<dir> (in <dir><dir>) - padding-right
+Pass	<dir> (in <dir><dir>) - padding-bottom
+Pass	<dir> (in <dir><dir>) - padding-left
+Pass	<dir> (in <dir><dir>) - list-style-type
+Pass	<dir> (in <dir><dir>) - counter-set
+Pass	<dir> (in <dir><dir>) - counter-reset
+Pass	<dir> (in <dir><dir>) - counter-increment
+Pass	<dir> (in <dir><dir>) - text-align
+Pass	<dir> (in <dir><dir>) - list-style-position
+Pass	<menu> (in <dir><dir>) - display
+Pass	<menu> (in <dir><dir>) - margin-top
+Pass	<menu> (in <dir><dir>) - margin-right
+Pass	<menu> (in <dir><dir>) - margin-bottom
+Pass	<menu> (in <dir><dir>) - margin-left
+Pass	<menu> (in <dir><dir>) - padding-top
+Pass	<menu> (in <dir><dir>) - padding-right
+Pass	<menu> (in <dir><dir>) - padding-bottom
+Pass	<menu> (in <dir><dir>) - padding-left
+Pass	<menu> (in <dir><dir>) - list-style-type
+Pass	<menu> (in <dir><dir>) - counter-set
+Pass	<menu> (in <dir><dir>) - counter-reset
+Pass	<menu> (in <dir><dir>) - counter-increment
+Pass	<menu> (in <dir><dir>) - text-align
+Pass	<menu> (in <dir><dir>) - list-style-position
+Pass	<ul> (in <dir><dir>) - display
+Pass	<ul> (in <dir><dir>) - margin-top
+Pass	<ul> (in <dir><dir>) - margin-right
+Pass	<ul> (in <dir><dir>) - margin-bottom
+Pass	<ul> (in <dir><dir>) - margin-left
+Pass	<ul> (in <dir><dir>) - padding-top
+Pass	<ul> (in <dir><dir>) - padding-right
+Pass	<ul> (in <dir><dir>) - padding-bottom
+Pass	<ul> (in <dir><dir>) - padding-left
+Pass	<ul> (in <dir><dir>) - list-style-type
+Pass	<ul> (in <dir><dir>) - counter-set
+Pass	<ul> (in <dir><dir>) - counter-reset
+Pass	<ul> (in <dir><dir>) - counter-increment
+Pass	<ul> (in <dir><dir>) - text-align
+Pass	<ul> (in <dir><dir>) - list-style-position
+Pass	<dir> (in <dir><menu>) - display
+Pass	<dir> (in <dir><menu>) - margin-top
+Pass	<dir> (in <dir><menu>) - margin-right
+Pass	<dir> (in <dir><menu>) - margin-bottom
+Pass	<dir> (in <dir><menu>) - margin-left
+Pass	<dir> (in <dir><menu>) - padding-top
+Pass	<dir> (in <dir><menu>) - padding-right
+Pass	<dir> (in <dir><menu>) - padding-bottom
+Pass	<dir> (in <dir><menu>) - padding-left
+Pass	<dir> (in <dir><menu>) - list-style-type
+Pass	<dir> (in <dir><menu>) - counter-set
+Pass	<dir> (in <dir><menu>) - counter-reset
+Pass	<dir> (in <dir><menu>) - counter-increment
+Pass	<dir> (in <dir><menu>) - text-align
+Pass	<dir> (in <dir><menu>) - list-style-position
+Pass	<menu> (in <dir><menu>) - display
+Pass	<menu> (in <dir><menu>) - margin-top
+Pass	<menu> (in <dir><menu>) - margin-right
+Pass	<menu> (in <dir><menu>) - margin-bottom
+Pass	<menu> (in <dir><menu>) - margin-left
+Pass	<menu> (in <dir><menu>) - padding-top
+Pass	<menu> (in <dir><menu>) - padding-right
+Pass	<menu> (in <dir><menu>) - padding-bottom
+Pass	<menu> (in <dir><menu>) - padding-left
+Pass	<menu> (in <dir><menu>) - list-style-type
+Pass	<menu> (in <dir><menu>) - counter-set
+Pass	<menu> (in <dir><menu>) - counter-reset
+Pass	<menu> (in <dir><menu>) - counter-increment
+Pass	<menu> (in <dir><menu>) - text-align
+Pass	<menu> (in <dir><menu>) - list-style-position
+Pass	<ul> (in <dir><menu>) - display
+Pass	<ul> (in <dir><menu>) - margin-top
+Pass	<ul> (in <dir><menu>) - margin-right
+Pass	<ul> (in <dir><menu>) - margin-bottom
+Pass	<ul> (in <dir><menu>) - margin-left
+Pass	<ul> (in <dir><menu>) - padding-top
+Pass	<ul> (in <dir><menu>) - padding-right
+Pass	<ul> (in <dir><menu>) - padding-bottom
+Pass	<ul> (in <dir><menu>) - padding-left
+Pass	<ul> (in <dir><menu>) - list-style-type
+Pass	<ul> (in <dir><menu>) - counter-set
+Pass	<ul> (in <dir><menu>) - counter-reset
+Pass	<ul> (in <dir><menu>) - counter-increment
+Pass	<ul> (in <dir><menu>) - text-align
+Pass	<ul> (in <dir><menu>) - list-style-position
+Pass	<dir> (in <dir><ol>) - display
+Pass	<dir> (in <dir><ol>) - margin-top
+Pass	<dir> (in <dir><ol>) - margin-right
+Pass	<dir> (in <dir><ol>) - margin-bottom
+Pass	<dir> (in <dir><ol>) - margin-left
+Pass	<dir> (in <dir><ol>) - padding-top
+Pass	<dir> (in <dir><ol>) - padding-right
+Pass	<dir> (in <dir><ol>) - padding-bottom
+Pass	<dir> (in <dir><ol>) - padding-left
+Pass	<dir> (in <dir><ol>) - list-style-type
+Pass	<dir> (in <dir><ol>) - counter-set
+Pass	<dir> (in <dir><ol>) - counter-reset
+Pass	<dir> (in <dir><ol>) - counter-increment
+Pass	<dir> (in <dir><ol>) - text-align
+Pass	<dir> (in <dir><ol>) - list-style-position
+Pass	<menu> (in <dir><ol>) - display
+Pass	<menu> (in <dir><ol>) - margin-top
+Pass	<menu> (in <dir><ol>) - margin-right
+Pass	<menu> (in <dir><ol>) - margin-bottom
+Pass	<menu> (in <dir><ol>) - margin-left
+Pass	<menu> (in <dir><ol>) - padding-top
+Pass	<menu> (in <dir><ol>) - padding-right
+Pass	<menu> (in <dir><ol>) - padding-bottom
+Pass	<menu> (in <dir><ol>) - padding-left
+Pass	<menu> (in <dir><ol>) - list-style-type
+Pass	<menu> (in <dir><ol>) - counter-set
+Pass	<menu> (in <dir><ol>) - counter-reset
+Pass	<menu> (in <dir><ol>) - counter-increment
+Pass	<menu> (in <dir><ol>) - text-align
+Pass	<menu> (in <dir><ol>) - list-style-position
+Pass	<ul> (in <dir><ol>) - display
+Pass	<ul> (in <dir><ol>) - margin-top
+Pass	<ul> (in <dir><ol>) - margin-right
+Pass	<ul> (in <dir><ol>) - margin-bottom
+Pass	<ul> (in <dir><ol>) - margin-left
+Pass	<ul> (in <dir><ol>) - padding-top
+Pass	<ul> (in <dir><ol>) - padding-right
+Pass	<ul> (in <dir><ol>) - padding-bottom
+Pass	<ul> (in <dir><ol>) - padding-left
+Pass	<ul> (in <dir><ol>) - list-style-type
+Pass	<ul> (in <dir><ol>) - counter-set
+Pass	<ul> (in <dir><ol>) - counter-reset
+Pass	<ul> (in <dir><ol>) - counter-increment
+Pass	<ul> (in <dir><ol>) - text-align
+Pass	<ul> (in <dir><ol>) - list-style-position
+Pass	<dir> (in <dir><ul>) - display
+Pass	<dir> (in <dir><ul>) - margin-top
+Pass	<dir> (in <dir><ul>) - margin-right
+Pass	<dir> (in <dir><ul>) - margin-bottom
+Pass	<dir> (in <dir><ul>) - margin-left
+Pass	<dir> (in <dir><ul>) - padding-top
+Pass	<dir> (in <dir><ul>) - padding-right
+Pass	<dir> (in <dir><ul>) - padding-bottom
+Pass	<dir> (in <dir><ul>) - padding-left
+Pass	<dir> (in <dir><ul>) - list-style-type
+Pass	<dir> (in <dir><ul>) - counter-set
+Pass	<dir> (in <dir><ul>) - counter-reset
+Pass	<dir> (in <dir><ul>) - counter-increment
+Pass	<dir> (in <dir><ul>) - text-align
+Pass	<dir> (in <dir><ul>) - list-style-position
+Pass	<menu> (in <dir><ul>) - display
+Pass	<menu> (in <dir><ul>) - margin-top
+Pass	<menu> (in <dir><ul>) - margin-right
+Pass	<menu> (in <dir><ul>) - margin-bottom
+Pass	<menu> (in <dir><ul>) - margin-left
+Pass	<menu> (in <dir><ul>) - padding-top
+Pass	<menu> (in <dir><ul>) - padding-right
+Pass	<menu> (in <dir><ul>) - padding-bottom
+Pass	<menu> (in <dir><ul>) - padding-left
+Pass	<menu> (in <dir><ul>) - list-style-type
+Pass	<menu> (in <dir><ul>) - counter-set
+Pass	<menu> (in <dir><ul>) - counter-reset
+Pass	<menu> (in <dir><ul>) - counter-increment
+Pass	<menu> (in <dir><ul>) - text-align
+Pass	<menu> (in <dir><ul>) - list-style-position
+Pass	<ul> (in <dir><ul>) - display
+Pass	<ul> (in <dir><ul>) - margin-top
+Pass	<ul> (in <dir><ul>) - margin-right
+Pass	<ul> (in <dir><ul>) - margin-bottom
+Pass	<ul> (in <dir><ul>) - margin-left
+Pass	<ul> (in <dir><ul>) - padding-top
+Pass	<ul> (in <dir><ul>) - padding-right
+Pass	<ul> (in <dir><ul>) - padding-bottom
+Pass	<ul> (in <dir><ul>) - padding-left
+Pass	<ul> (in <dir><ul>) - list-style-type
+Pass	<ul> (in <dir><ul>) - counter-set
+Pass	<ul> (in <dir><ul>) - counter-reset
+Pass	<ul> (in <dir><ul>) - counter-increment
+Pass	<ul> (in <dir><ul>) - text-align
+Pass	<ul> (in <dir><ul>) - list-style-position
+Pass	<dir> (in <menu><dir>) - display
+Pass	<dir> (in <menu><dir>) - margin-top
+Pass	<dir> (in <menu><dir>) - margin-right
+Pass	<dir> (in <menu><dir>) - margin-bottom
+Pass	<dir> (in <menu><dir>) - margin-left
+Pass	<dir> (in <menu><dir>) - padding-top
+Pass	<dir> (in <menu><dir>) - padding-right
+Pass	<dir> (in <menu><dir>) - padding-bottom
+Pass	<dir> (in <menu><dir>) - padding-left
+Pass	<dir> (in <menu><dir>) - list-style-type
+Pass	<dir> (in <menu><dir>) - counter-set
+Pass	<dir> (in <menu><dir>) - counter-reset
+Pass	<dir> (in <menu><dir>) - counter-increment
+Pass	<dir> (in <menu><dir>) - text-align
+Pass	<dir> (in <menu><dir>) - list-style-position
+Pass	<menu> (in <menu><dir>) - display
+Pass	<menu> (in <menu><dir>) - margin-top
+Pass	<menu> (in <menu><dir>) - margin-right
+Pass	<menu> (in <menu><dir>) - margin-bottom
+Pass	<menu> (in <menu><dir>) - margin-left
+Pass	<menu> (in <menu><dir>) - padding-top
+Pass	<menu> (in <menu><dir>) - padding-right
+Pass	<menu> (in <menu><dir>) - padding-bottom
+Pass	<menu> (in <menu><dir>) - padding-left
+Pass	<menu> (in <menu><dir>) - list-style-type
+Pass	<menu> (in <menu><dir>) - counter-set
+Pass	<menu> (in <menu><dir>) - counter-reset
+Pass	<menu> (in <menu><dir>) - counter-increment
+Pass	<menu> (in <menu><dir>) - text-align
+Pass	<menu> (in <menu><dir>) - list-style-position
+Pass	<ul> (in <menu><dir>) - display
+Pass	<ul> (in <menu><dir>) - margin-top
+Pass	<ul> (in <menu><dir>) - margin-right
+Pass	<ul> (in <menu><dir>) - margin-bottom
+Pass	<ul> (in <menu><dir>) - margin-left
+Pass	<ul> (in <menu><dir>) - padding-top
+Pass	<ul> (in <menu><dir>) - padding-right
+Pass	<ul> (in <menu><dir>) - padding-bottom
+Pass	<ul> (in <menu><dir>) - padding-left
+Pass	<ul> (in <menu><dir>) - list-style-type
+Pass	<ul> (in <menu><dir>) - counter-set
+Pass	<ul> (in <menu><dir>) - counter-reset
+Pass	<ul> (in <menu><dir>) - counter-increment
+Pass	<ul> (in <menu><dir>) - text-align
+Pass	<ul> (in <menu><dir>) - list-style-position
+Pass	<dir> (in <menu><menu>) - display
+Pass	<dir> (in <menu><menu>) - margin-top
+Pass	<dir> (in <menu><menu>) - margin-right
+Pass	<dir> (in <menu><menu>) - margin-bottom
+Pass	<dir> (in <menu><menu>) - margin-left
+Pass	<dir> (in <menu><menu>) - padding-top
+Pass	<dir> (in <menu><menu>) - padding-right
+Pass	<dir> (in <menu><menu>) - padding-bottom
+Pass	<dir> (in <menu><menu>) - padding-left
+Pass	<dir> (in <menu><menu>) - list-style-type
+Pass	<dir> (in <menu><menu>) - counter-set
+Pass	<dir> (in <menu><menu>) - counter-reset
+Pass	<dir> (in <menu><menu>) - counter-increment
+Pass	<dir> (in <menu><menu>) - text-align
+Pass	<dir> (in <menu><menu>) - list-style-position
+Pass	<menu> (in <menu><menu>) - display
+Pass	<menu> (in <menu><menu>) - margin-top
+Pass	<menu> (in <menu><menu>) - margin-right
+Pass	<menu> (in <menu><menu>) - margin-bottom
+Pass	<menu> (in <menu><menu>) - margin-left
+Pass	<menu> (in <menu><menu>) - padding-top
+Pass	<menu> (in <menu><menu>) - padding-right
+Pass	<menu> (in <menu><menu>) - padding-bottom
+Pass	<menu> (in <menu><menu>) - padding-left
+Pass	<menu> (in <menu><menu>) - list-style-type
+Pass	<menu> (in <menu><menu>) - counter-set
+Pass	<menu> (in <menu><menu>) - counter-reset
+Pass	<menu> (in <menu><menu>) - counter-increment
+Pass	<menu> (in <menu><menu>) - text-align
+Pass	<menu> (in <menu><menu>) - list-style-position
+Pass	<ul> (in <menu><menu>) - display
+Pass	<ul> (in <menu><menu>) - margin-top
+Pass	<ul> (in <menu><menu>) - margin-right
+Pass	<ul> (in <menu><menu>) - margin-bottom
+Pass	<ul> (in <menu><menu>) - margin-left
+Pass	<ul> (in <menu><menu>) - padding-top
+Pass	<ul> (in <menu><menu>) - padding-right
+Pass	<ul> (in <menu><menu>) - padding-bottom
+Pass	<ul> (in <menu><menu>) - padding-left
+Pass	<ul> (in <menu><menu>) - list-style-type
+Pass	<ul> (in <menu><menu>) - counter-set
+Pass	<ul> (in <menu><menu>) - counter-reset
+Pass	<ul> (in <menu><menu>) - counter-increment
+Pass	<ul> (in <menu><menu>) - text-align
+Pass	<ul> (in <menu><menu>) - list-style-position
+Pass	<dir> (in <menu><ol>) - display
+Pass	<dir> (in <menu><ol>) - margin-top
+Pass	<dir> (in <menu><ol>) - margin-right
+Pass	<dir> (in <menu><ol>) - margin-bottom
+Pass	<dir> (in <menu><ol>) - margin-left
+Pass	<dir> (in <menu><ol>) - padding-top
+Pass	<dir> (in <menu><ol>) - padding-right
+Pass	<dir> (in <menu><ol>) - padding-bottom
+Pass	<dir> (in <menu><ol>) - padding-left
+Pass	<dir> (in <menu><ol>) - list-style-type
+Pass	<dir> (in <menu><ol>) - counter-set
+Pass	<dir> (in <menu><ol>) - counter-reset
+Pass	<dir> (in <menu><ol>) - counter-increment
+Pass	<dir> (in <menu><ol>) - text-align
+Pass	<dir> (in <menu><ol>) - list-style-position
+Pass	<menu> (in <menu><ol>) - display
+Pass	<menu> (in <menu><ol>) - margin-top
+Pass	<menu> (in <menu><ol>) - margin-right
+Pass	<menu> (in <menu><ol>) - margin-bottom
+Pass	<menu> (in <menu><ol>) - margin-left
+Pass	<menu> (in <menu><ol>) - padding-top
+Pass	<menu> (in <menu><ol>) - padding-right
+Pass	<menu> (in <menu><ol>) - padding-bottom
+Pass	<menu> (in <menu><ol>) - padding-left
+Pass	<menu> (in <menu><ol>) - list-style-type
+Pass	<menu> (in <menu><ol>) - counter-set
+Pass	<menu> (in <menu><ol>) - counter-reset
+Pass	<menu> (in <menu><ol>) - counter-increment
+Pass	<menu> (in <menu><ol>) - text-align
+Pass	<menu> (in <menu><ol>) - list-style-position
+Pass	<ul> (in <menu><ol>) - display
+Pass	<ul> (in <menu><ol>) - margin-top
+Pass	<ul> (in <menu><ol>) - margin-right
+Pass	<ul> (in <menu><ol>) - margin-bottom
+Pass	<ul> (in <menu><ol>) - margin-left
+Pass	<ul> (in <menu><ol>) - padding-top
+Pass	<ul> (in <menu><ol>) - padding-right
+Pass	<ul> (in <menu><ol>) - padding-bottom
+Pass	<ul> (in <menu><ol>) - padding-left
+Pass	<ul> (in <menu><ol>) - list-style-type
+Pass	<ul> (in <menu><ol>) - counter-set
+Pass	<ul> (in <menu><ol>) - counter-reset
+Pass	<ul> (in <menu><ol>) - counter-increment
+Pass	<ul> (in <menu><ol>) - text-align
+Pass	<ul> (in <menu><ol>) - list-style-position
+Pass	<dir> (in <menu><ul>) - display
+Pass	<dir> (in <menu><ul>) - margin-top
+Pass	<dir> (in <menu><ul>) - margin-right
+Pass	<dir> (in <menu><ul>) - margin-bottom
+Pass	<dir> (in <menu><ul>) - margin-left
+Pass	<dir> (in <menu><ul>) - padding-top
+Pass	<dir> (in <menu><ul>) - padding-right
+Pass	<dir> (in <menu><ul>) - padding-bottom
+Pass	<dir> (in <menu><ul>) - padding-left
+Pass	<dir> (in <menu><ul>) - list-style-type
+Pass	<dir> (in <menu><ul>) - counter-set
+Pass	<dir> (in <menu><ul>) - counter-reset
+Pass	<dir> (in <menu><ul>) - counter-increment
+Pass	<dir> (in <menu><ul>) - text-align
+Pass	<dir> (in <menu><ul>) - list-style-position
+Pass	<menu> (in <menu><ul>) - display
+Pass	<menu> (in <menu><ul>) - margin-top
+Pass	<menu> (in <menu><ul>) - margin-right
+Pass	<menu> (in <menu><ul>) - margin-bottom
+Pass	<menu> (in <menu><ul>) - margin-left
+Pass	<menu> (in <menu><ul>) - padding-top
+Pass	<menu> (in <menu><ul>) - padding-right
+Pass	<menu> (in <menu><ul>) - padding-bottom
+Pass	<menu> (in <menu><ul>) - padding-left
+Pass	<menu> (in <menu><ul>) - list-style-type
+Pass	<menu> (in <menu><ul>) - counter-set
+Pass	<menu> (in <menu><ul>) - counter-reset
+Pass	<menu> (in <menu><ul>) - counter-increment
+Pass	<menu> (in <menu><ul>) - text-align
+Pass	<menu> (in <menu><ul>) - list-style-position
+Pass	<ul> (in <menu><ul>) - display
+Pass	<ul> (in <menu><ul>) - margin-top
+Pass	<ul> (in <menu><ul>) - margin-right
+Pass	<ul> (in <menu><ul>) - margin-bottom
+Pass	<ul> (in <menu><ul>) - margin-left
+Pass	<ul> (in <menu><ul>) - padding-top
+Pass	<ul> (in <menu><ul>) - padding-right
+Pass	<ul> (in <menu><ul>) - padding-bottom
+Pass	<ul> (in <menu><ul>) - padding-left
+Pass	<ul> (in <menu><ul>) - list-style-type
+Pass	<ul> (in <menu><ul>) - counter-set
+Pass	<ul> (in <menu><ul>) - counter-reset
+Pass	<ul> (in <menu><ul>) - counter-increment
+Pass	<ul> (in <menu><ul>) - text-align
+Pass	<ul> (in <menu><ul>) - list-style-position
+Pass	<dir> (in <ol><dir>) - display
+Pass	<dir> (in <ol><dir>) - margin-top
+Pass	<dir> (in <ol><dir>) - margin-right
+Pass	<dir> (in <ol><dir>) - margin-bottom
+Pass	<dir> (in <ol><dir>) - margin-left
+Pass	<dir> (in <ol><dir>) - padding-top
+Pass	<dir> (in <ol><dir>) - padding-right
+Pass	<dir> (in <ol><dir>) - padding-bottom
+Pass	<dir> (in <ol><dir>) - padding-left
+Pass	<dir> (in <ol><dir>) - list-style-type
+Pass	<dir> (in <ol><dir>) - counter-set
+Pass	<dir> (in <ol><dir>) - counter-reset
+Pass	<dir> (in <ol><dir>) - counter-increment
+Pass	<dir> (in <ol><dir>) - text-align
+Pass	<dir> (in <ol><dir>) - list-style-position
+Pass	<menu> (in <ol><dir>) - display
+Pass	<menu> (in <ol><dir>) - margin-top
+Pass	<menu> (in <ol><dir>) - margin-right
+Pass	<menu> (in <ol><dir>) - margin-bottom
+Pass	<menu> (in <ol><dir>) - margin-left
+Pass	<menu> (in <ol><dir>) - padding-top
+Pass	<menu> (in <ol><dir>) - padding-right
+Pass	<menu> (in <ol><dir>) - padding-bottom
+Pass	<menu> (in <ol><dir>) - padding-left
+Pass	<menu> (in <ol><dir>) - list-style-type
+Pass	<menu> (in <ol><dir>) - counter-set
+Pass	<menu> (in <ol><dir>) - counter-reset
+Pass	<menu> (in <ol><dir>) - counter-increment
+Pass	<menu> (in <ol><dir>) - text-align
+Pass	<menu> (in <ol><dir>) - list-style-position
+Pass	<ul> (in <ol><dir>) - display
+Pass	<ul> (in <ol><dir>) - margin-top
+Pass	<ul> (in <ol><dir>) - margin-right
+Pass	<ul> (in <ol><dir>) - margin-bottom
+Pass	<ul> (in <ol><dir>) - margin-left
+Pass	<ul> (in <ol><dir>) - padding-top
+Pass	<ul> (in <ol><dir>) - padding-right
+Pass	<ul> (in <ol><dir>) - padding-bottom
+Pass	<ul> (in <ol><dir>) - padding-left
+Pass	<ul> (in <ol><dir>) - list-style-type
+Pass	<ul> (in <ol><dir>) - counter-set
+Pass	<ul> (in <ol><dir>) - counter-reset
+Pass	<ul> (in <ol><dir>) - counter-increment
+Pass	<ul> (in <ol><dir>) - text-align
+Pass	<ul> (in <ol><dir>) - list-style-position
+Pass	<dir> (in <ol><menu>) - display
+Pass	<dir> (in <ol><menu>) - margin-top
+Pass	<dir> (in <ol><menu>) - margin-right
+Pass	<dir> (in <ol><menu>) - margin-bottom
+Pass	<dir> (in <ol><menu>) - margin-left
+Pass	<dir> (in <ol><menu>) - padding-top
+Pass	<dir> (in <ol><menu>) - padding-right
+Pass	<dir> (in <ol><menu>) - padding-bottom
+Pass	<dir> (in <ol><menu>) - padding-left
+Pass	<dir> (in <ol><menu>) - list-style-type
+Pass	<dir> (in <ol><menu>) - counter-set
+Pass	<dir> (in <ol><menu>) - counter-reset
+Pass	<dir> (in <ol><menu>) - counter-increment
+Pass	<dir> (in <ol><menu>) - text-align
+Pass	<dir> (in <ol><menu>) - list-style-position
+Pass	<menu> (in <ol><menu>) - display
+Pass	<menu> (in <ol><menu>) - margin-top
+Pass	<menu> (in <ol><menu>) - margin-right
+Pass	<menu> (in <ol><menu>) - margin-bottom
+Pass	<menu> (in <ol><menu>) - margin-left
+Pass	<menu> (in <ol><menu>) - padding-top
+Pass	<menu> (in <ol><menu>) - padding-right
+Pass	<menu> (in <ol><menu>) - padding-bottom
+Pass	<menu> (in <ol><menu>) - padding-left
+Pass	<menu> (in <ol><menu>) - list-style-type
+Pass	<menu> (in <ol><menu>) - counter-set
+Pass	<menu> (in <ol><menu>) - counter-reset
+Pass	<menu> (in <ol><menu>) - counter-increment
+Pass	<menu> (in <ol><menu>) - text-align
+Pass	<menu> (in <ol><menu>) - list-style-position
+Pass	<ul> (in <ol><menu>) - display
+Pass	<ul> (in <ol><menu>) - margin-top
+Pass	<ul> (in <ol><menu>) - margin-right
+Pass	<ul> (in <ol><menu>) - margin-bottom
+Pass	<ul> (in <ol><menu>) - margin-left
+Pass	<ul> (in <ol><menu>) - padding-top
+Pass	<ul> (in <ol><menu>) - padding-right
+Pass	<ul> (in <ol><menu>) - padding-bottom
+Pass	<ul> (in <ol><menu>) - padding-left
+Pass	<ul> (in <ol><menu>) - list-style-type
+Pass	<ul> (in <ol><menu>) - counter-set
+Pass	<ul> (in <ol><menu>) - counter-reset
+Pass	<ul> (in <ol><menu>) - counter-increment
+Pass	<ul> (in <ol><menu>) - text-align
+Pass	<ul> (in <ol><menu>) - list-style-position
+Pass	<dir> (in <ol><ol>) - display
+Pass	<dir> (in <ol><ol>) - margin-top
+Pass	<dir> (in <ol><ol>) - margin-right
+Pass	<dir> (in <ol><ol>) - margin-bottom
+Pass	<dir> (in <ol><ol>) - margin-left
+Pass	<dir> (in <ol><ol>) - padding-top
+Pass	<dir> (in <ol><ol>) - padding-right
+Pass	<dir> (in <ol><ol>) - padding-bottom
+Pass	<dir> (in <ol><ol>) - padding-left
+Pass	<dir> (in <ol><ol>) - list-style-type
+Pass	<dir> (in <ol><ol>) - counter-set
+Pass	<dir> (in <ol><ol>) - counter-reset
+Pass	<dir> (in <ol><ol>) - counter-increment
+Pass	<dir> (in <ol><ol>) - text-align
+Pass	<dir> (in <ol><ol>) - list-style-position
+Pass	<menu> (in <ol><ol>) - display
+Pass	<menu> (in <ol><ol>) - margin-top
+Pass	<menu> (in <ol><ol>) - margin-right
+Pass	<menu> (in <ol><ol>) - margin-bottom
+Pass	<menu> (in <ol><ol>) - margin-left
+Pass	<menu> (in <ol><ol>) - padding-top
+Pass	<menu> (in <ol><ol>) - padding-right
+Pass	<menu> (in <ol><ol>) - padding-bottom
+Pass	<menu> (in <ol><ol>) - padding-left
+Pass	<menu> (in <ol><ol>) - list-style-type
+Pass	<menu> (in <ol><ol>) - counter-set
+Pass	<menu> (in <ol><ol>) - counter-reset
+Pass	<menu> (in <ol><ol>) - counter-increment
+Pass	<menu> (in <ol><ol>) - text-align
+Pass	<menu> (in <ol><ol>) - list-style-position
+Pass	<ul> (in <ol><ol>) - display
+Pass	<ul> (in <ol><ol>) - margin-top
+Pass	<ul> (in <ol><ol>) - margin-right
+Pass	<ul> (in <ol><ol>) - margin-bottom
+Pass	<ul> (in <ol><ol>) - margin-left
+Pass	<ul> (in <ol><ol>) - padding-top
+Pass	<ul> (in <ol><ol>) - padding-right
+Pass	<ul> (in <ol><ol>) - padding-bottom
+Pass	<ul> (in <ol><ol>) - padding-left
+Pass	<ul> (in <ol><ol>) - list-style-type
+Pass	<ul> (in <ol><ol>) - counter-set
+Pass	<ul> (in <ol><ol>) - counter-reset
+Pass	<ul> (in <ol><ol>) - counter-increment
+Pass	<ul> (in <ol><ol>) - text-align
+Pass	<ul> (in <ol><ol>) - list-style-position
+Pass	<dir> (in <ol><ul>) - display
+Pass	<dir> (in <ol><ul>) - margin-top
+Pass	<dir> (in <ol><ul>) - margin-right
+Pass	<dir> (in <ol><ul>) - margin-bottom
+Pass	<dir> (in <ol><ul>) - margin-left
+Pass	<dir> (in <ol><ul>) - padding-top
+Pass	<dir> (in <ol><ul>) - padding-right
+Pass	<dir> (in <ol><ul>) - padding-bottom
+Pass	<dir> (in <ol><ul>) - padding-left
+Pass	<dir> (in <ol><ul>) - list-style-type
+Pass	<dir> (in <ol><ul>) - counter-set
+Pass	<dir> (in <ol><ul>) - counter-reset
+Pass	<dir> (in <ol><ul>) - counter-increment
+Pass	<dir> (in <ol><ul>) - text-align
+Pass	<dir> (in <ol><ul>) - list-style-position
+Pass	<menu> (in <ol><ul>) - display
+Pass	<menu> (in <ol><ul>) - margin-top
+Pass	<menu> (in <ol><ul>) - margin-right
+Pass	<menu> (in <ol><ul>) - margin-bottom
+Pass	<menu> (in <ol><ul>) - margin-left
+Pass	<menu> (in <ol><ul>) - padding-top
+Pass	<menu> (in <ol><ul>) - padding-right
+Pass	<menu> (in <ol><ul>) - padding-bottom
+Pass	<menu> (in <ol><ul>) - padding-left
+Pass	<menu> (in <ol><ul>) - list-style-type
+Pass	<menu> (in <ol><ul>) - counter-set
+Pass	<menu> (in <ol><ul>) - counter-reset
+Pass	<menu> (in <ol><ul>) - counter-increment
+Pass	<menu> (in <ol><ul>) - text-align
+Pass	<menu> (in <ol><ul>) - list-style-position
+Pass	<ul> (in <ol><ul>) - display
+Pass	<ul> (in <ol><ul>) - margin-top
+Pass	<ul> (in <ol><ul>) - margin-right
+Pass	<ul> (in <ol><ul>) - margin-bottom
+Pass	<ul> (in <ol><ul>) - margin-left
+Pass	<ul> (in <ol><ul>) - padding-top
+Pass	<ul> (in <ol><ul>) - padding-right
+Pass	<ul> (in <ol><ul>) - padding-bottom
+Pass	<ul> (in <ol><ul>) - padding-left
+Pass	<ul> (in <ol><ul>) - list-style-type
+Pass	<ul> (in <ol><ul>) - counter-set
+Pass	<ul> (in <ol><ul>) - counter-reset
+Pass	<ul> (in <ol><ul>) - counter-increment
+Pass	<ul> (in <ol><ul>) - text-align
+Pass	<ul> (in <ol><ul>) - list-style-position
+Pass	<dir> (in <ul><dir>) - display
+Pass	<dir> (in <ul><dir>) - margin-top
+Pass	<dir> (in <ul><dir>) - margin-right
+Pass	<dir> (in <ul><dir>) - margin-bottom
+Pass	<dir> (in <ul><dir>) - margin-left
+Pass	<dir> (in <ul><dir>) - padding-top
+Pass	<dir> (in <ul><dir>) - padding-right
+Pass	<dir> (in <ul><dir>) - padding-bottom
+Pass	<dir> (in <ul><dir>) - padding-left
+Pass	<dir> (in <ul><dir>) - list-style-type
+Pass	<dir> (in <ul><dir>) - counter-set
+Pass	<dir> (in <ul><dir>) - counter-reset
+Pass	<dir> (in <ul><dir>) - counter-increment
+Pass	<dir> (in <ul><dir>) - text-align
+Pass	<dir> (in <ul><dir>) - list-style-position
+Pass	<menu> (in <ul><dir>) - display
+Pass	<menu> (in <ul><dir>) - margin-top
+Pass	<menu> (in <ul><dir>) - margin-right
+Pass	<menu> (in <ul><dir>) - margin-bottom
+Pass	<menu> (in <ul><dir>) - margin-left
+Pass	<menu> (in <ul><dir>) - padding-top
+Pass	<menu> (in <ul><dir>) - padding-right
+Pass	<menu> (in <ul><dir>) - padding-bottom
+Pass	<menu> (in <ul><dir>) - padding-left
+Pass	<menu> (in <ul><dir>) - list-style-type
+Pass	<menu> (in <ul><dir>) - counter-set
+Pass	<menu> (in <ul><dir>) - counter-reset
+Pass	<menu> (in <ul><dir>) - counter-increment
+Pass	<menu> (in <ul><dir>) - text-align
+Pass	<menu> (in <ul><dir>) - list-style-position
+Pass	<ul> (in <ul><dir>) - display
+Pass	<ul> (in <ul><dir>) - margin-top
+Pass	<ul> (in <ul><dir>) - margin-right
+Pass	<ul> (in <ul><dir>) - margin-bottom
+Pass	<ul> (in <ul><dir>) - margin-left
+Pass	<ul> (in <ul><dir>) - padding-top
+Pass	<ul> (in <ul><dir>) - padding-right
+Pass	<ul> (in <ul><dir>) - padding-bottom
+Pass	<ul> (in <ul><dir>) - padding-left
+Pass	<ul> (in <ul><dir>) - list-style-type
+Pass	<ul> (in <ul><dir>) - counter-set
+Pass	<ul> (in <ul><dir>) - counter-reset
+Pass	<ul> (in <ul><dir>) - counter-increment
+Pass	<ul> (in <ul><dir>) - text-align
+Pass	<ul> (in <ul><dir>) - list-style-position
+Pass	<dir> (in <ul><menu>) - display
+Pass	<dir> (in <ul><menu>) - margin-top
+Pass	<dir> (in <ul><menu>) - margin-right
+Pass	<dir> (in <ul><menu>) - margin-bottom
+Pass	<dir> (in <ul><menu>) - margin-left
+Pass	<dir> (in <ul><menu>) - padding-top
+Pass	<dir> (in <ul><menu>) - padding-right
+Pass	<dir> (in <ul><menu>) - padding-bottom
+Pass	<dir> (in <ul><menu>) - padding-left
+Pass	<dir> (in <ul><menu>) - list-style-type
+Pass	<dir> (in <ul><menu>) - counter-set
+Pass	<dir> (in <ul><menu>) - counter-reset
+Pass	<dir> (in <ul><menu>) - counter-increment
+Pass	<dir> (in <ul><menu>) - text-align
+Pass	<dir> (in <ul><menu>) - list-style-position
+Pass	<menu> (in <ul><menu>) - display
+Pass	<menu> (in <ul><menu>) - margin-top
+Pass	<menu> (in <ul><menu>) - margin-right
+Pass	<menu> (in <ul><menu>) - margin-bottom
+Pass	<menu> (in <ul><menu>) - margin-left
+Pass	<menu> (in <ul><menu>) - padding-top
+Pass	<menu> (in <ul><menu>) - padding-right
+Pass	<menu> (in <ul><menu>) - padding-bottom
+Pass	<menu> (in <ul><menu>) - padding-left
+Pass	<menu> (in <ul><menu>) - list-style-type
+Pass	<menu> (in <ul><menu>) - counter-set
+Pass	<menu> (in <ul><menu>) - counter-reset
+Pass	<menu> (in <ul><menu>) - counter-increment
+Pass	<menu> (in <ul><menu>) - text-align
+Pass	<menu> (in <ul><menu>) - list-style-position
+Pass	<ul> (in <ul><menu>) - display
+Pass	<ul> (in <ul><menu>) - margin-top
+Pass	<ul> (in <ul><menu>) - margin-right
+Pass	<ul> (in <ul><menu>) - margin-bottom
+Pass	<ul> (in <ul><menu>) - margin-left
+Pass	<ul> (in <ul><menu>) - padding-top
+Pass	<ul> (in <ul><menu>) - padding-right
+Pass	<ul> (in <ul><menu>) - padding-bottom
+Pass	<ul> (in <ul><menu>) - padding-left
+Pass	<ul> (in <ul><menu>) - list-style-type
+Pass	<ul> (in <ul><menu>) - counter-set
+Pass	<ul> (in <ul><menu>) - counter-reset
+Pass	<ul> (in <ul><menu>) - counter-increment
+Pass	<ul> (in <ul><menu>) - text-align
+Pass	<ul> (in <ul><menu>) - list-style-position
+Pass	<dir> (in <ul><ol>) - display
+Pass	<dir> (in <ul><ol>) - margin-top
+Pass	<dir> (in <ul><ol>) - margin-right
+Pass	<dir> (in <ul><ol>) - margin-bottom
+Pass	<dir> (in <ul><ol>) - margin-left
+Pass	<dir> (in <ul><ol>) - padding-top
+Pass	<dir> (in <ul><ol>) - padding-right
+Pass	<dir> (in <ul><ol>) - padding-bottom
+Pass	<dir> (in <ul><ol>) - padding-left
+Pass	<dir> (in <ul><ol>) - list-style-type
+Pass	<dir> (in <ul><ol>) - counter-set
+Pass	<dir> (in <ul><ol>) - counter-reset
+Pass	<dir> (in <ul><ol>) - counter-increment
+Pass	<dir> (in <ul><ol>) - text-align
+Pass	<dir> (in <ul><ol>) - list-style-position
+Pass	<menu> (in <ul><ol>) - display
+Pass	<menu> (in <ul><ol>) - margin-top
+Pass	<menu> (in <ul><ol>) - margin-right
+Pass	<menu> (in <ul><ol>) - margin-bottom
+Pass	<menu> (in <ul><ol>) - margin-left
+Pass	<menu> (in <ul><ol>) - padding-top
+Pass	<menu> (in <ul><ol>) - padding-right
+Pass	<menu> (in <ul><ol>) - padding-bottom
+Pass	<menu> (in <ul><ol>) - padding-left
+Pass	<menu> (in <ul><ol>) - list-style-type
+Pass	<menu> (in <ul><ol>) - counter-set
+Pass	<menu> (in <ul><ol>) - counter-reset
+Pass	<menu> (in <ul><ol>) - counter-increment
+Pass	<menu> (in <ul><ol>) - text-align
+Pass	<menu> (in <ul><ol>) - list-style-position
+Pass	<ul> (in <ul><ol>) - display
+Pass	<ul> (in <ul><ol>) - margin-top
+Pass	<ul> (in <ul><ol>) - margin-right
+Pass	<ul> (in <ul><ol>) - margin-bottom
+Pass	<ul> (in <ul><ol>) - margin-left
+Pass	<ul> (in <ul><ol>) - padding-top
+Pass	<ul> (in <ul><ol>) - padding-right
+Pass	<ul> (in <ul><ol>) - padding-bottom
+Pass	<ul> (in <ul><ol>) - padding-left
+Pass	<ul> (in <ul><ol>) - list-style-type
+Pass	<ul> (in <ul><ol>) - counter-set
+Pass	<ul> (in <ul><ol>) - counter-reset
+Pass	<ul> (in <ul><ol>) - counter-increment
+Pass	<ul> (in <ul><ol>) - text-align
+Pass	<ul> (in <ul><ol>) - list-style-position
+Pass	<dir> (in <ul><ul>) - display
+Pass	<dir> (in <ul><ul>) - margin-top
+Pass	<dir> (in <ul><ul>) - margin-right
+Pass	<dir> (in <ul><ul>) - margin-bottom
+Pass	<dir> (in <ul><ul>) - margin-left
+Pass	<dir> (in <ul><ul>) - padding-top
+Pass	<dir> (in <ul><ul>) - padding-right
+Pass	<dir> (in <ul><ul>) - padding-bottom
+Pass	<dir> (in <ul><ul>) - padding-left
+Pass	<dir> (in <ul><ul>) - list-style-type
+Pass	<dir> (in <ul><ul>) - counter-set
+Pass	<dir> (in <ul><ul>) - counter-reset
+Pass	<dir> (in <ul><ul>) - counter-increment
+Pass	<dir> (in <ul><ul>) - text-align
+Pass	<dir> (in <ul><ul>) - list-style-position
+Pass	<menu> (in <ul><ul>) - display
+Pass	<menu> (in <ul><ul>) - margin-top
+Pass	<menu> (in <ul><ul>) - margin-right
+Pass	<menu> (in <ul><ul>) - margin-bottom
+Pass	<menu> (in <ul><ul>) - margin-left
+Pass	<menu> (in <ul><ul>) - padding-top
+Pass	<menu> (in <ul><ul>) - padding-right
+Pass	<menu> (in <ul><ul>) - padding-bottom
+Pass	<menu> (in <ul><ul>) - padding-left
+Pass	<menu> (in <ul><ul>) - list-style-type
+Pass	<menu> (in <ul><ul>) - counter-set
+Pass	<menu> (in <ul><ul>) - counter-reset
+Pass	<menu> (in <ul><ul>) - counter-increment
+Pass	<menu> (in <ul><ul>) - text-align
+Pass	<menu> (in <ul><ul>) - list-style-position
+Pass	<ul> (in <ul><ul>) - display
+Pass	<ul> (in <ul><ul>) - margin-top
+Pass	<ul> (in <ul><ul>) - margin-right
+Pass	<ul> (in <ul><ul>) - margin-bottom
+Pass	<ul> (in <ul><ul>) - margin-left
+Pass	<ul> (in <ul><ul>) - padding-top
+Pass	<ul> (in <ul><ul>) - padding-right
+Pass	<ul> (in <ul><ul>) - padding-bottom
+Pass	<ul> (in <ul><ul>) - padding-left
+Pass	<ul> (in <ul><ul>) - list-style-type
+Pass	<ul> (in <ul><ul>) - counter-set
+Pass	<ul> (in <ul><ul>) - counter-reset
+Pass	<ul> (in <ul><ul>) - counter-increment
+Pass	<ul> (in <ul><ul>) - text-align
+Pass	<ul> (in <ul><ul>) - list-style-position
+Pass	<ol type="1"> - display
+Pass	<ol type="1"> - margin-top
+Pass	<ol type="1"> - margin-right
+Pass	<ol type="1"> - margin-bottom
+Pass	<ol type="1"> - margin-left
+Pass	<ol type="1"> - padding-top
+Pass	<ol type="1"> - padding-right
+Pass	<ol type="1"> - padding-bottom
+Pass	<ol type="1"> - padding-left
+Pass	<ol type="1"> - list-style-type
+Pass	<ol type="1"> - counter-set
+Pass	<ol type="1"> - counter-reset
+Pass	<ol type="1"> - counter-increment
+Pass	<ol type="1"> - text-align
+Pass	<ol type="1"> - list-style-position
+Pass	<ul type="1"> - display
+Pass	<ul type="1"> - margin-top
+Pass	<ul type="1"> - margin-right
+Pass	<ul type="1"> - margin-bottom
+Pass	<ul type="1"> - margin-left
+Pass	<ul type="1"> - padding-top
+Pass	<ul type="1"> - padding-right
+Pass	<ul type="1"> - padding-bottom
+Pass	<ul type="1"> - padding-left
+Pass	<ul type="1"> - list-style-type
+Pass	<ul type="1"> - counter-set
+Pass	<ul type="1"> - counter-reset
+Pass	<ul type="1"> - counter-increment
+Pass	<ul type="1"> - text-align
+Pass	<ul type="1"> - list-style-position
+Pass	<li type="1"> - display
+Pass	<li type="1"> - margin-top
+Pass	<li type="1"> - margin-right
+Pass	<li type="1"> - margin-bottom
+Pass	<li type="1"> - margin-left
+Pass	<li type="1"> - padding-top
+Pass	<li type="1"> - padding-right
+Pass	<li type="1"> - padding-bottom
+Pass	<li type="1"> - padding-left
+Pass	<li type="1"> - list-style-type
+Pass	<li type="1"> - counter-set
+Pass	<li type="1"> - counter-reset
+Pass	<li type="1"> - counter-increment
+Pass	<li type="1"> - text-align
+Pass	<li type="1"> - list-style-position
+Pass	<ol type="a" class="type-a"> - display
+Pass	<ol type="a" class="type-a"> - margin-top
+Pass	<ol type="a" class="type-a"> - margin-right
+Pass	<ol type="a" class="type-a"> - margin-bottom
+Pass	<ol type="a" class="type-a"> - margin-left
+Pass	<ol type="a" class="type-a"> - padding-top
+Pass	<ol type="a" class="type-a"> - padding-right
+Pass	<ol type="a" class="type-a"> - padding-bottom
+Pass	<ol type="a" class="type-a"> - padding-left
+Pass	<ol type="a" class="type-a"> - list-style-type
+Pass	<ol type="a" class="type-a"> - counter-set
+Pass	<ol type="a" class="type-a"> - counter-reset
+Pass	<ol type="a" class="type-a"> - counter-increment
+Pass	<ol type="a" class="type-a"> - text-align
+Pass	<ol type="a" class="type-a"> - list-style-position
+Pass	<ul type="a" class="type-a"> - display
+Pass	<ul type="a" class="type-a"> - margin-top
+Pass	<ul type="a" class="type-a"> - margin-right
+Pass	<ul type="a" class="type-a"> - margin-bottom
+Pass	<ul type="a" class="type-a"> - margin-left
+Pass	<ul type="a" class="type-a"> - padding-top
+Pass	<ul type="a" class="type-a"> - padding-right
+Pass	<ul type="a" class="type-a"> - padding-bottom
+Pass	<ul type="a" class="type-a"> - padding-left
+Pass	<ul type="a" class="type-a"> - list-style-type
+Pass	<ul type="a" class="type-a"> - counter-set
+Pass	<ul type="a" class="type-a"> - counter-reset
+Pass	<ul type="a" class="type-a"> - counter-increment
+Pass	<ul type="a" class="type-a"> - text-align
+Pass	<ul type="a" class="type-a"> - list-style-position
+Pass	<li type="a" class="type-a"> - display
+Pass	<li type="a" class="type-a"> - margin-top
+Pass	<li type="a" class="type-a"> - margin-right
+Pass	<li type="a" class="type-a"> - margin-bottom
+Pass	<li type="a" class="type-a"> - margin-left
+Pass	<li type="a" class="type-a"> - padding-top
+Pass	<li type="a" class="type-a"> - padding-right
+Pass	<li type="a" class="type-a"> - padding-bottom
+Pass	<li type="a" class="type-a"> - padding-left
+Pass	<li type="a" class="type-a"> - list-style-type
+Pass	<li type="a" class="type-a"> - counter-set
+Pass	<li type="a" class="type-a"> - counter-reset
+Pass	<li type="a" class="type-a"> - counter-increment
+Pass	<li type="a" class="type-a"> - text-align
+Pass	<li type="a" class="type-a"> - list-style-position
+Pass	<ol type="A" class="type-A"> - display
+Pass	<ol type="A" class="type-A"> - margin-top
+Pass	<ol type="A" class="type-A"> - margin-right
+Pass	<ol type="A" class="type-A"> - margin-bottom
+Pass	<ol type="A" class="type-A"> - margin-left
+Pass	<ol type="A" class="type-A"> - padding-top
+Pass	<ol type="A" class="type-A"> - padding-right
+Pass	<ol type="A" class="type-A"> - padding-bottom
+Pass	<ol type="A" class="type-A"> - padding-left
+Pass	<ol type="A" class="type-A"> - list-style-type
+Pass	<ol type="A" class="type-A"> - counter-set
+Pass	<ol type="A" class="type-A"> - counter-reset
+Pass	<ol type="A" class="type-A"> - counter-increment
+Pass	<ol type="A" class="type-A"> - text-align
+Pass	<ol type="A" class="type-A"> - list-style-position
+Pass	<ul type="A" class="type-A"> - display
+Pass	<ul type="A" class="type-A"> - margin-top
+Pass	<ul type="A" class="type-A"> - margin-right
+Pass	<ul type="A" class="type-A"> - margin-bottom
+Pass	<ul type="A" class="type-A"> - margin-left
+Pass	<ul type="A" class="type-A"> - padding-top
+Pass	<ul type="A" class="type-A"> - padding-right
+Pass	<ul type="A" class="type-A"> - padding-bottom
+Pass	<ul type="A" class="type-A"> - padding-left
+Pass	<ul type="A" class="type-A"> - list-style-type
+Pass	<ul type="A" class="type-A"> - counter-set
+Pass	<ul type="A" class="type-A"> - counter-reset
+Pass	<ul type="A" class="type-A"> - counter-increment
+Pass	<ul type="A" class="type-A"> - text-align
+Pass	<ul type="A" class="type-A"> - list-style-position
+Pass	<li type="A" class="type-A"> - display
+Pass	<li type="A" class="type-A"> - margin-top
+Pass	<li type="A" class="type-A"> - margin-right
+Pass	<li type="A" class="type-A"> - margin-bottom
+Pass	<li type="A" class="type-A"> - margin-left
+Pass	<li type="A" class="type-A"> - padding-top
+Pass	<li type="A" class="type-A"> - padding-right
+Pass	<li type="A" class="type-A"> - padding-bottom
+Pass	<li type="A" class="type-A"> - padding-left
+Pass	<li type="A" class="type-A"> - list-style-type
+Pass	<li type="A" class="type-A"> - counter-set
+Pass	<li type="A" class="type-A"> - counter-reset
+Pass	<li type="A" class="type-A"> - counter-increment
+Pass	<li type="A" class="type-A"> - text-align
+Pass	<li type="A" class="type-A"> - list-style-position
+Pass	<ol type="i" class="type-i"> - display
+Pass	<ol type="i" class="type-i"> - margin-top
+Pass	<ol type="i" class="type-i"> - margin-right
+Pass	<ol type="i" class="type-i"> - margin-bottom
+Pass	<ol type="i" class="type-i"> - margin-left
+Pass	<ol type="i" class="type-i"> - padding-top
+Pass	<ol type="i" class="type-i"> - padding-right
+Pass	<ol type="i" class="type-i"> - padding-bottom
+Pass	<ol type="i" class="type-i"> - padding-left
+Pass	<ol type="i" class="type-i"> - list-style-type
+Pass	<ol type="i" class="type-i"> - counter-set
+Pass	<ol type="i" class="type-i"> - counter-reset
+Pass	<ol type="i" class="type-i"> - counter-increment
+Pass	<ol type="i" class="type-i"> - text-align
+Pass	<ol type="i" class="type-i"> - list-style-position
+Pass	<ul type="i" class="type-i"> - display
+Pass	<ul type="i" class="type-i"> - margin-top
+Pass	<ul type="i" class="type-i"> - margin-right
+Pass	<ul type="i" class="type-i"> - margin-bottom
+Pass	<ul type="i" class="type-i"> - margin-left
+Pass	<ul type="i" class="type-i"> - padding-top
+Pass	<ul type="i" class="type-i"> - padding-right
+Pass	<ul type="i" class="type-i"> - padding-bottom
+Pass	<ul type="i" class="type-i"> - padding-left
+Pass	<ul type="i" class="type-i"> - list-style-type
+Pass	<ul type="i" class="type-i"> - counter-set
+Pass	<ul type="i" class="type-i"> - counter-reset
+Pass	<ul type="i" class="type-i"> - counter-increment
+Pass	<ul type="i" class="type-i"> - text-align
+Pass	<ul type="i" class="type-i"> - list-style-position
+Pass	<li type="i" class="type-i"> - display
+Pass	<li type="i" class="type-i"> - margin-top
+Pass	<li type="i" class="type-i"> - margin-right
+Pass	<li type="i" class="type-i"> - margin-bottom
+Pass	<li type="i" class="type-i"> - margin-left
+Pass	<li type="i" class="type-i"> - padding-top
+Pass	<li type="i" class="type-i"> - padding-right
+Pass	<li type="i" class="type-i"> - padding-bottom
+Pass	<li type="i" class="type-i"> - padding-left
+Pass	<li type="i" class="type-i"> - list-style-type
+Pass	<li type="i" class="type-i"> - counter-set
+Pass	<li type="i" class="type-i"> - counter-reset
+Pass	<li type="i" class="type-i"> - counter-increment
+Pass	<li type="i" class="type-i"> - text-align
+Pass	<li type="i" class="type-i"> - list-style-position
+Pass	<ol type="I" class="type-I"> - display
+Pass	<ol type="I" class="type-I"> - margin-top
+Pass	<ol type="I" class="type-I"> - margin-right
+Pass	<ol type="I" class="type-I"> - margin-bottom
+Pass	<ol type="I" class="type-I"> - margin-left
+Pass	<ol type="I" class="type-I"> - padding-top
+Pass	<ol type="I" class="type-I"> - padding-right
+Pass	<ol type="I" class="type-I"> - padding-bottom
+Pass	<ol type="I" class="type-I"> - padding-left
+Pass	<ol type="I" class="type-I"> - list-style-type
+Pass	<ol type="I" class="type-I"> - counter-set
+Pass	<ol type="I" class="type-I"> - counter-reset
+Pass	<ol type="I" class="type-I"> - counter-increment
+Pass	<ol type="I" class="type-I"> - text-align
+Pass	<ol type="I" class="type-I"> - list-style-position
+Pass	<ul type="I" class="type-I"> - display
+Pass	<ul type="I" class="type-I"> - margin-top
+Pass	<ul type="I" class="type-I"> - margin-right
+Pass	<ul type="I" class="type-I"> - margin-bottom
+Pass	<ul type="I" class="type-I"> - margin-left
+Pass	<ul type="I" class="type-I"> - padding-top
+Pass	<ul type="I" class="type-I"> - padding-right
+Pass	<ul type="I" class="type-I"> - padding-bottom
+Pass	<ul type="I" class="type-I"> - padding-left
+Pass	<ul type="I" class="type-I"> - list-style-type
+Pass	<ul type="I" class="type-I"> - counter-set
+Pass	<ul type="I" class="type-I"> - counter-reset
+Pass	<ul type="I" class="type-I"> - counter-increment
+Pass	<ul type="I" class="type-I"> - text-align
+Pass	<ul type="I" class="type-I"> - list-style-position
+Pass	<li type="I" class="type-I"> - display
+Pass	<li type="I" class="type-I"> - margin-top
+Pass	<li type="I" class="type-I"> - margin-right
+Pass	<li type="I" class="type-I"> - margin-bottom
+Pass	<li type="I" class="type-I"> - margin-left
+Pass	<li type="I" class="type-I"> - padding-top
+Pass	<li type="I" class="type-I"> - padding-right
+Pass	<li type="I" class="type-I"> - padding-bottom
+Pass	<li type="I" class="type-I"> - padding-left
+Pass	<li type="I" class="type-I"> - list-style-type
+Pass	<li type="I" class="type-I"> - counter-set
+Pass	<li type="I" class="type-I"> - counter-reset
+Pass	<li type="I" class="type-I"> - counter-increment
+Pass	<li type="I" class="type-I"> - text-align
+Pass	<li type="I" class="type-I"> - list-style-position
+Pass	<ol type="none"> - display
+Pass	<ol type="none"> - margin-top
+Pass	<ol type="none"> - margin-right
+Pass	<ol type="none"> - margin-bottom
+Pass	<ol type="none"> - margin-left
+Pass	<ol type="none"> - padding-top
+Pass	<ol type="none"> - padding-right
+Pass	<ol type="none"> - padding-bottom
+Pass	<ol type="none"> - padding-left
+Pass	<ol type="none"> - list-style-type
+Pass	<ol type="none"> - counter-set
+Pass	<ol type="none"> - counter-reset
+Pass	<ol type="none"> - counter-increment
+Pass	<ol type="none"> - text-align
+Pass	<ol type="none"> - list-style-position
+Pass	<ul type="none"> - display
+Pass	<ul type="none"> - margin-top
+Pass	<ul type="none"> - margin-right
+Pass	<ul type="none"> - margin-bottom
+Pass	<ul type="none"> - margin-left
+Pass	<ul type="none"> - padding-top
+Pass	<ul type="none"> - padding-right
+Pass	<ul type="none"> - padding-bottom
+Pass	<ul type="none"> - padding-left
+Pass	<ul type="none"> - list-style-type
+Pass	<ul type="none"> - counter-set
+Pass	<ul type="none"> - counter-reset
+Pass	<ul type="none"> - counter-increment
+Pass	<ul type="none"> - text-align
+Pass	<ul type="none"> - list-style-position
+Pass	<li type="none"> - display
+Pass	<li type="none"> - margin-top
+Pass	<li type="none"> - margin-right
+Pass	<li type="none"> - margin-bottom
+Pass	<li type="none"> - margin-left
+Pass	<li type="none"> - padding-top
+Pass	<li type="none"> - padding-right
+Pass	<li type="none"> - padding-bottom
+Pass	<li type="none"> - padding-left
+Pass	<li type="none"> - list-style-type
+Pass	<li type="none"> - counter-set
+Pass	<li type="none"> - counter-reset
+Pass	<li type="none"> - counter-increment
+Pass	<li type="none"> - text-align
+Pass	<li type="none"> - list-style-position
+Pass	<ol type="NONE"> - display
+Pass	<ol type="NONE"> - margin-top
+Pass	<ol type="NONE"> - margin-right
+Pass	<ol type="NONE"> - margin-bottom
+Pass	<ol type="NONE"> - margin-left
+Pass	<ol type="NONE"> - padding-top
+Pass	<ol type="NONE"> - padding-right
+Pass	<ol type="NONE"> - padding-bottom
+Pass	<ol type="NONE"> - padding-left
+Pass	<ol type="NONE"> - list-style-type
+Pass	<ol type="NONE"> - counter-set
+Pass	<ol type="NONE"> - counter-reset
+Pass	<ol type="NONE"> - counter-increment
+Pass	<ol type="NONE"> - text-align
+Pass	<ol type="NONE"> - list-style-position
+Pass	<ul type="NONE"> - display
+Pass	<ul type="NONE"> - margin-top
+Pass	<ul type="NONE"> - margin-right
+Pass	<ul type="NONE"> - margin-bottom
+Pass	<ul type="NONE"> - margin-left
+Pass	<ul type="NONE"> - padding-top
+Pass	<ul type="NONE"> - padding-right
+Pass	<ul type="NONE"> - padding-bottom
+Pass	<ul type="NONE"> - padding-left
+Pass	<ul type="NONE"> - list-style-type
+Pass	<ul type="NONE"> - counter-set
+Pass	<ul type="NONE"> - counter-reset
+Pass	<ul type="NONE"> - counter-increment
+Pass	<ul type="NONE"> - text-align
+Pass	<ul type="NONE"> - list-style-position
+Pass	<li type="NONE"> - display
+Pass	<li type="NONE"> - margin-top
+Pass	<li type="NONE"> - margin-right
+Pass	<li type="NONE"> - margin-bottom
+Pass	<li type="NONE"> - margin-left
+Pass	<li type="NONE"> - padding-top
+Pass	<li type="NONE"> - padding-right
+Pass	<li type="NONE"> - padding-bottom
+Pass	<li type="NONE"> - padding-left
+Pass	<li type="NONE"> - list-style-type
+Pass	<li type="NONE"> - counter-set
+Pass	<li type="NONE"> - counter-reset
+Pass	<li type="NONE"> - counter-increment
+Pass	<li type="NONE"> - text-align
+Pass	<li type="NONE"> - list-style-position
+Pass	<ol type="disc"> - display
+Pass	<ol type="disc"> - margin-top
+Pass	<ol type="disc"> - margin-right
+Pass	<ol type="disc"> - margin-bottom
+Pass	<ol type="disc"> - margin-left
+Pass	<ol type="disc"> - padding-top
+Pass	<ol type="disc"> - padding-right
+Pass	<ol type="disc"> - padding-bottom
+Pass	<ol type="disc"> - padding-left
+Pass	<ol type="disc"> - list-style-type
+Pass	<ol type="disc"> - counter-set
+Pass	<ol type="disc"> - counter-reset
+Pass	<ol type="disc"> - counter-increment
+Pass	<ol type="disc"> - text-align
+Pass	<ol type="disc"> - list-style-position
+Pass	<ul type="disc"> - display
+Pass	<ul type="disc"> - margin-top
+Pass	<ul type="disc"> - margin-right
+Pass	<ul type="disc"> - margin-bottom
+Pass	<ul type="disc"> - margin-left
+Pass	<ul type="disc"> - padding-top
+Pass	<ul type="disc"> - padding-right
+Pass	<ul type="disc"> - padding-bottom
+Pass	<ul type="disc"> - padding-left
+Pass	<ul type="disc"> - list-style-type
+Pass	<ul type="disc"> - counter-set
+Pass	<ul type="disc"> - counter-reset
+Pass	<ul type="disc"> - counter-increment
+Pass	<ul type="disc"> - text-align
+Pass	<ul type="disc"> - list-style-position
+Pass	<li type="disc"> - display
+Pass	<li type="disc"> - margin-top
+Pass	<li type="disc"> - margin-right
+Pass	<li type="disc"> - margin-bottom
+Pass	<li type="disc"> - margin-left
+Pass	<li type="disc"> - padding-top
+Pass	<li type="disc"> - padding-right
+Pass	<li type="disc"> - padding-bottom
+Pass	<li type="disc"> - padding-left
+Pass	<li type="disc"> - list-style-type
+Pass	<li type="disc"> - counter-set
+Pass	<li type="disc"> - counter-reset
+Pass	<li type="disc"> - counter-increment
+Pass	<li type="disc"> - text-align
+Pass	<li type="disc"> - list-style-position
+Pass	<ol type="DISC"> - display
+Pass	<ol type="DISC"> - margin-top
+Pass	<ol type="DISC"> - margin-right
+Pass	<ol type="DISC"> - margin-bottom
+Pass	<ol type="DISC"> - margin-left
+Pass	<ol type="DISC"> - padding-top
+Pass	<ol type="DISC"> - padding-right
+Pass	<ol type="DISC"> - padding-bottom
+Pass	<ol type="DISC"> - padding-left
+Pass	<ol type="DISC"> - list-style-type
+Pass	<ol type="DISC"> - counter-set
+Pass	<ol type="DISC"> - counter-reset
+Pass	<ol type="DISC"> - counter-increment
+Pass	<ol type="DISC"> - text-align
+Pass	<ol type="DISC"> - list-style-position
+Pass	<ul type="DISC"> - display
+Pass	<ul type="DISC"> - margin-top
+Pass	<ul type="DISC"> - margin-right
+Pass	<ul type="DISC"> - margin-bottom
+Pass	<ul type="DISC"> - margin-left
+Pass	<ul type="DISC"> - padding-top
+Pass	<ul type="DISC"> - padding-right
+Pass	<ul type="DISC"> - padding-bottom
+Pass	<ul type="DISC"> - padding-left
+Pass	<ul type="DISC"> - list-style-type
+Pass	<ul type="DISC"> - counter-set
+Pass	<ul type="DISC"> - counter-reset
+Pass	<ul type="DISC"> - counter-increment
+Pass	<ul type="DISC"> - text-align
+Pass	<ul type="DISC"> - list-style-position
+Pass	<li type="DISC"> - display
+Pass	<li type="DISC"> - margin-top
+Pass	<li type="DISC"> - margin-right
+Pass	<li type="DISC"> - margin-bottom
+Pass	<li type="DISC"> - margin-left
+Pass	<li type="DISC"> - padding-top
+Pass	<li type="DISC"> - padding-right
+Pass	<li type="DISC"> - padding-bottom
+Pass	<li type="DISC"> - padding-left
+Pass	<li type="DISC"> - list-style-type
+Pass	<li type="DISC"> - counter-set
+Pass	<li type="DISC"> - counter-reset
+Pass	<li type="DISC"> - counter-increment
+Pass	<li type="DISC"> - text-align
+Pass	<li type="DISC"> - list-style-position
+Pass	<ol type="circle"> - display
+Pass	<ol type="circle"> - margin-top
+Pass	<ol type="circle"> - margin-right
+Pass	<ol type="circle"> - margin-bottom
+Pass	<ol type="circle"> - margin-left
+Pass	<ol type="circle"> - padding-top
+Pass	<ol type="circle"> - padding-right
+Pass	<ol type="circle"> - padding-bottom
+Pass	<ol type="circle"> - padding-left
+Pass	<ol type="circle"> - list-style-type
+Pass	<ol type="circle"> - counter-set
+Pass	<ol type="circle"> - counter-reset
+Pass	<ol type="circle"> - counter-increment
+Pass	<ol type="circle"> - text-align
+Pass	<ol type="circle"> - list-style-position
+Pass	<ul type="circle"> - display
+Pass	<ul type="circle"> - margin-top
+Pass	<ul type="circle"> - margin-right
+Pass	<ul type="circle"> - margin-bottom
+Pass	<ul type="circle"> - margin-left
+Pass	<ul type="circle"> - padding-top
+Pass	<ul type="circle"> - padding-right
+Pass	<ul type="circle"> - padding-bottom
+Pass	<ul type="circle"> - padding-left
+Pass	<ul type="circle"> - list-style-type
+Pass	<ul type="circle"> - counter-set
+Pass	<ul type="circle"> - counter-reset
+Pass	<ul type="circle"> - counter-increment
+Pass	<ul type="circle"> - text-align
+Pass	<ul type="circle"> - list-style-position
+Pass	<li type="circle"> - display
+Pass	<li type="circle"> - margin-top
+Pass	<li type="circle"> - margin-right
+Pass	<li type="circle"> - margin-bottom
+Pass	<li type="circle"> - margin-left
+Pass	<li type="circle"> - padding-top
+Pass	<li type="circle"> - padding-right
+Pass	<li type="circle"> - padding-bottom
+Pass	<li type="circle"> - padding-left
+Pass	<li type="circle"> - list-style-type
+Pass	<li type="circle"> - counter-set
+Pass	<li type="circle"> - counter-reset
+Pass	<li type="circle"> - counter-increment
+Pass	<li type="circle"> - text-align
+Pass	<li type="circle"> - list-style-position
+Pass	<ol type="CIRCLE"> - display
+Pass	<ol type="CIRCLE"> - margin-top
+Pass	<ol type="CIRCLE"> - margin-right
+Pass	<ol type="CIRCLE"> - margin-bottom
+Pass	<ol type="CIRCLE"> - margin-left
+Pass	<ol type="CIRCLE"> - padding-top
+Pass	<ol type="CIRCLE"> - padding-right
+Pass	<ol type="CIRCLE"> - padding-bottom
+Pass	<ol type="CIRCLE"> - padding-left
+Pass	<ol type="CIRCLE"> - list-style-type
+Pass	<ol type="CIRCLE"> - counter-set
+Pass	<ol type="CIRCLE"> - counter-reset
+Pass	<ol type="CIRCLE"> - counter-increment
+Pass	<ol type="CIRCLE"> - text-align
+Pass	<ol type="CIRCLE"> - list-style-position
+Pass	<ul type="CIRCLE"> - display
+Pass	<ul type="CIRCLE"> - margin-top
+Pass	<ul type="CIRCLE"> - margin-right
+Pass	<ul type="CIRCLE"> - margin-bottom
+Pass	<ul type="CIRCLE"> - margin-left
+Pass	<ul type="CIRCLE"> - padding-top
+Pass	<ul type="CIRCLE"> - padding-right
+Pass	<ul type="CIRCLE"> - padding-bottom
+Pass	<ul type="CIRCLE"> - padding-left
+Pass	<ul type="CIRCLE"> - list-style-type
+Pass	<ul type="CIRCLE"> - counter-set
+Pass	<ul type="CIRCLE"> - counter-reset
+Pass	<ul type="CIRCLE"> - counter-increment
+Pass	<ul type="CIRCLE"> - text-align
+Pass	<ul type="CIRCLE"> - list-style-position
+Pass	<li type="CIRCLE"> - display
+Pass	<li type="CIRCLE"> - margin-top
+Pass	<li type="CIRCLE"> - margin-right
+Pass	<li type="CIRCLE"> - margin-bottom
+Pass	<li type="CIRCLE"> - margin-left
+Pass	<li type="CIRCLE"> - padding-top
+Pass	<li type="CIRCLE"> - padding-right
+Pass	<li type="CIRCLE"> - padding-bottom
+Pass	<li type="CIRCLE"> - padding-left
+Pass	<li type="CIRCLE"> - list-style-type
+Pass	<li type="CIRCLE"> - counter-set
+Pass	<li type="CIRCLE"> - counter-reset
+Pass	<li type="CIRCLE"> - counter-increment
+Pass	<li type="CIRCLE"> - text-align
+Pass	<li type="CIRCLE"> - list-style-position
+Pass	<ol type="square"> - display
+Pass	<ol type="square"> - margin-top
+Pass	<ol type="square"> - margin-right
+Pass	<ol type="square"> - margin-bottom
+Pass	<ol type="square"> - margin-left
+Pass	<ol type="square"> - padding-top
+Pass	<ol type="square"> - padding-right
+Pass	<ol type="square"> - padding-bottom
+Pass	<ol type="square"> - padding-left
+Pass	<ol type="square"> - list-style-type
+Pass	<ol type="square"> - counter-set
+Pass	<ol type="square"> - counter-reset
+Pass	<ol type="square"> - counter-increment
+Pass	<ol type="square"> - text-align
+Pass	<ol type="square"> - list-style-position
+Pass	<ul type="square"> - display
+Pass	<ul type="square"> - margin-top
+Pass	<ul type="square"> - margin-right
+Pass	<ul type="square"> - margin-bottom
+Pass	<ul type="square"> - margin-left
+Pass	<ul type="square"> - padding-top
+Pass	<ul type="square"> - padding-right
+Pass	<ul type="square"> - padding-bottom
+Pass	<ul type="square"> - padding-left
+Pass	<ul type="square"> - list-style-type
+Pass	<ul type="square"> - counter-set
+Pass	<ul type="square"> - counter-reset
+Pass	<ul type="square"> - counter-increment
+Pass	<ul type="square"> - text-align
+Pass	<ul type="square"> - list-style-position
+Pass	<li type="square"> - display
+Pass	<li type="square"> - margin-top
+Pass	<li type="square"> - margin-right
+Pass	<li type="square"> - margin-bottom
+Pass	<li type="square"> - margin-left
+Pass	<li type="square"> - padding-top
+Pass	<li type="square"> - padding-right
+Pass	<li type="square"> - padding-bottom
+Pass	<li type="square"> - padding-left
+Pass	<li type="square"> - list-style-type
+Pass	<li type="square"> - counter-set
+Pass	<li type="square"> - counter-reset
+Pass	<li type="square"> - counter-increment
+Pass	<li type="square"> - text-align
+Pass	<li type="square"> - list-style-position
+Pass	<ol type="SQUARE"> - display
+Pass	<ol type="SQUARE"> - margin-top
+Pass	<ol type="SQUARE"> - margin-right
+Pass	<ol type="SQUARE"> - margin-bottom
+Pass	<ol type="SQUARE"> - margin-left
+Pass	<ol type="SQUARE"> - padding-top
+Pass	<ol type="SQUARE"> - padding-right
+Pass	<ol type="SQUARE"> - padding-bottom
+Pass	<ol type="SQUARE"> - padding-left
+Pass	<ol type="SQUARE"> - list-style-type
+Pass	<ol type="SQUARE"> - counter-set
+Pass	<ol type="SQUARE"> - counter-reset
+Pass	<ol type="SQUARE"> - counter-increment
+Pass	<ol type="SQUARE"> - text-align
+Pass	<ol type="SQUARE"> - list-style-position
+Pass	<ul type="SQUARE"> - display
+Pass	<ul type="SQUARE"> - margin-top
+Pass	<ul type="SQUARE"> - margin-right
+Pass	<ul type="SQUARE"> - margin-bottom
+Pass	<ul type="SQUARE"> - margin-left
+Pass	<ul type="SQUARE"> - padding-top
+Pass	<ul type="SQUARE"> - padding-right
+Pass	<ul type="SQUARE"> - padding-bottom
+Pass	<ul type="SQUARE"> - padding-left
+Pass	<ul type="SQUARE"> - list-style-type
+Pass	<ul type="SQUARE"> - counter-set
+Pass	<ul type="SQUARE"> - counter-reset
+Pass	<ul type="SQUARE"> - counter-increment
+Pass	<ul type="SQUARE"> - text-align
+Pass	<ul type="SQUARE"> - list-style-position
+Pass	<li type="SQUARE"> - display
+Pass	<li type="SQUARE"> - margin-top
+Pass	<li type="SQUARE"> - margin-right
+Pass	<li type="SQUARE"> - margin-bottom
+Pass	<li type="SQUARE"> - margin-left
+Pass	<li type="SQUARE"> - padding-top
+Pass	<li type="SQUARE"> - padding-right
+Pass	<li type="SQUARE"> - padding-bottom
+Pass	<li type="SQUARE"> - padding-left
+Pass	<li type="SQUARE"> - list-style-type
+Pass	<li type="SQUARE"> - counter-set
+Pass	<li type="SQUARE"> - counter-reset
+Pass	<li type="SQUARE"> - counter-increment
+Pass	<li type="SQUARE"> - text-align
+Pass	<li type="SQUARE"> - list-style-position
+Pass	<ol>
+    <li value="10"> - display
+Pass	<ol>
+    <li value="10"> - margin-top
+Pass	<ol>
+    <li value="10"> - margin-right
+Pass	<ol>
+    <li value="10"> - margin-bottom
+Pass	<ol>
+    <li value="10"> - margin-left
+Pass	<ol>
+    <li value="10"> - padding-top
+Pass	<ol>
+    <li value="10"> - padding-right
+Pass	<ol>
+    <li value="10"> - padding-bottom
+Pass	<ol>
+    <li value="10"> - padding-left
+Pass	<ol>
+    <li value="10"> - list-style-type
+Pass	<ol>
+    <li value="10"> - counter-set
+Pass	<ol>
+    <li value="10"> - counter-reset
+Pass	<ol>
+    <li value="10"> - counter-increment
+Pass	<ol>
+    <li value="10"> - text-align
+Pass	<ol>
+    <li value="10"> - list-style-position
+Pass	<li value="10"> (in <ol>) - display
+Pass	<li value="10"> (in <ol>) - margin-top
+Pass	<li value="10"> (in <ol>) - margin-right
+Pass	<li value="10"> (in <ol>) - margin-bottom
+Pass	<li value="10"> (in <ol>) - margin-left
+Pass	<li value="10"> (in <ol>) - padding-top
+Pass	<li value="10"> (in <ol>) - padding-right
+Pass	<li value="10"> (in <ol>) - padding-bottom
+Pass	<li value="10"> (in <ol>) - padding-left
+Pass	<li value="10"> (in <ol>) - list-style-type
+Fail	<li value="10"> (in <ol>) - counter-set
+Pass	<li value="10"> (in <ol>) - counter-reset
+Pass	<li value="10"> (in <ol>) - counter-increment
+Pass	<li value="10"> (in <ol>) - text-align
+Pass	<li value="10"> (in <ol>) - list-style-position
+Pass	<li value="10xyz"> (in <ol>) - display
+Pass	<li value="10xyz"> (in <ol>) - margin-top
+Pass	<li value="10xyz"> (in <ol>) - margin-right
+Pass	<li value="10xyz"> (in <ol>) - margin-bottom
+Pass	<li value="10xyz"> (in <ol>) - margin-left
+Pass	<li value="10xyz"> (in <ol>) - padding-top
+Pass	<li value="10xyz"> (in <ol>) - padding-right
+Pass	<li value="10xyz"> (in <ol>) - padding-bottom
+Pass	<li value="10xyz"> (in <ol>) - padding-left
+Pass	<li value="10xyz"> (in <ol>) - list-style-type
+Fail	<li value="10xyz"> (in <ol>) - counter-set
+Pass	<li value="10xyz"> (in <ol>) - counter-reset
+Pass	<li value="10xyz"> (in <ol>) - counter-increment
+Pass	<li value="10xyz"> (in <ol>) - text-align
+Pass	<li value="10xyz"> (in <ol>) - list-style-position
+Pass	<li value="10e10"> (in <ol>) - display
+Pass	<li value="10e10"> (in <ol>) - margin-top
+Pass	<li value="10e10"> (in <ol>) - margin-right
+Pass	<li value="10e10"> (in <ol>) - margin-bottom
+Pass	<li value="10e10"> (in <ol>) - margin-left
+Pass	<li value="10e10"> (in <ol>) - padding-top
+Pass	<li value="10e10"> (in <ol>) - padding-right
+Pass	<li value="10e10"> (in <ol>) - padding-bottom
+Pass	<li value="10e10"> (in <ol>) - padding-left
+Pass	<li value="10e10"> (in <ol>) - list-style-type
+Fail	<li value="10e10"> (in <ol>) - counter-set
+Pass	<li value="10e10"> (in <ol>) - counter-reset
+Pass	<li value="10e10"> (in <ol>) - counter-increment
+Pass	<li value="10e10"> (in <ol>) - text-align
+Pass	<li value="10e10"> (in <ol>) - list-style-position
+Pass	<li value="xyz"> (in <ol>) - display
+Pass	<li value="xyz"> (in <ol>) - margin-top
+Pass	<li value="xyz"> (in <ol>) - margin-right
+Pass	<li value="xyz"> (in <ol>) - margin-bottom
+Pass	<li value="xyz"> (in <ol>) - margin-left
+Pass	<li value="xyz"> (in <ol>) - padding-top
+Pass	<li value="xyz"> (in <ol>) - padding-right
+Pass	<li value="xyz"> (in <ol>) - padding-bottom
+Pass	<li value="xyz"> (in <ol>) - padding-left
+Pass	<li value="xyz"> (in <ol>) - list-style-type
+Pass	<li value="xyz"> (in <ol>) - counter-set
+Pass	<li value="xyz"> (in <ol>) - counter-reset
+Pass	<li value="xyz"> (in <ol>) - counter-increment
+Pass	<li value="xyz"> (in <ol>) - text-align
+Pass	<li value="xyz"> (in <ol>) - list-style-position
+Pass	<ol start="10"><li> - display
+Pass	<ol start="10"><li> - margin-top
+Pass	<ol start="10"><li> - margin-right
+Pass	<ol start="10"><li> - margin-bottom
+Pass	<ol start="10"><li> - margin-left
+Pass	<ol start="10"><li> - padding-top
+Pass	<ol start="10"><li> - padding-right
+Pass	<ol start="10"><li> - padding-bottom
+Pass	<ol start="10"><li> - padding-left
+Pass	<ol start="10"><li> - list-style-type
+Pass	<ol start="10"><li> - counter-set
+Fail	<ol start="10"><li> - counter-reset
+Pass	<ol start="10"><li> - counter-increment
+Pass	<ol start="10"><li> - text-align
+Pass	<ol start="10"><li> - list-style-position
+Pass	<li> (in <ol start="10">) - display
+Pass	<li> (in <ol start="10">) - margin-top
+Pass	<li> (in <ol start="10">) - margin-right
+Pass	<li> (in <ol start="10">) - margin-bottom
+Pass	<li> (in <ol start="10">) - margin-left
+Pass	<li> (in <ol start="10">) - padding-top
+Pass	<li> (in <ol start="10">) - padding-right
+Pass	<li> (in <ol start="10">) - padding-bottom
+Pass	<li> (in <ol start="10">) - padding-left
+Pass	<li> (in <ol start="10">) - list-style-type
+Pass	<li> (in <ol start="10">) - counter-set
+Pass	<li> (in <ol start="10">) - counter-reset
+Pass	<li> (in <ol start="10">) - counter-increment
+Pass	<li> (in <ol start="10">) - text-align
+Pass	<li> (in <ol start="10">) - list-style-position
+Pass	<ol start="10xyz"><li> - display
+Pass	<ol start="10xyz"><li> - margin-top
+Pass	<ol start="10xyz"><li> - margin-right
+Pass	<ol start="10xyz"><li> - margin-bottom
+Pass	<ol start="10xyz"><li> - margin-left
+Pass	<ol start="10xyz"><li> - padding-top
+Pass	<ol start="10xyz"><li> - padding-right
+Pass	<ol start="10xyz"><li> - padding-bottom
+Pass	<ol start="10xyz"><li> - padding-left
+Pass	<ol start="10xyz"><li> - list-style-type
+Pass	<ol start="10xyz"><li> - counter-set
+Fail	<ol start="10xyz"><li> - counter-reset
+Pass	<ol start="10xyz"><li> - counter-increment
+Pass	<ol start="10xyz"><li> - text-align
+Pass	<ol start="10xyz"><li> - list-style-position
+Pass	<li> (in <ol start="10xyz">) - display
+Pass	<li> (in <ol start="10xyz">) - margin-top
+Pass	<li> (in <ol start="10xyz">) - margin-right
+Pass	<li> (in <ol start="10xyz">) - margin-bottom
+Pass	<li> (in <ol start="10xyz">) - margin-left
+Pass	<li> (in <ol start="10xyz">) - padding-top
+Pass	<li> (in <ol start="10xyz">) - padding-right
+Pass	<li> (in <ol start="10xyz">) - padding-bottom
+Pass	<li> (in <ol start="10xyz">) - padding-left
+Pass	<li> (in <ol start="10xyz">) - list-style-type
+Pass	<li> (in <ol start="10xyz">) - counter-set
+Pass	<li> (in <ol start="10xyz">) - counter-reset
+Pass	<li> (in <ol start="10xyz">) - counter-increment
+Pass	<li> (in <ol start="10xyz">) - text-align
+Pass	<li> (in <ol start="10xyz">) - list-style-position
+Pass	<ol start="10e10"><li> - display
+Pass	<ol start="10e10"><li> - margin-top
+Pass	<ol start="10e10"><li> - margin-right
+Pass	<ol start="10e10"><li> - margin-bottom
+Pass	<ol start="10e10"><li> - margin-left
+Pass	<ol start="10e10"><li> - padding-top
+Pass	<ol start="10e10"><li> - padding-right
+Pass	<ol start="10e10"><li> - padding-bottom
+Pass	<ol start="10e10"><li> - padding-left
+Pass	<ol start="10e10"><li> - list-style-type
+Pass	<ol start="10e10"><li> - counter-set
+Fail	<ol start="10e10"><li> - counter-reset
+Pass	<ol start="10e10"><li> - counter-increment
+Pass	<ol start="10e10"><li> - text-align
+Pass	<ol start="10e10"><li> - list-style-position
+Pass	<li> (in <ol start="10e10">) - display
+Pass	<li> (in <ol start="10e10">) - margin-top
+Pass	<li> (in <ol start="10e10">) - margin-right
+Pass	<li> (in <ol start="10e10">) - margin-bottom
+Pass	<li> (in <ol start="10e10">) - margin-left
+Pass	<li> (in <ol start="10e10">) - padding-top
+Pass	<li> (in <ol start="10e10">) - padding-right
+Pass	<li> (in <ol start="10e10">) - padding-bottom
+Pass	<li> (in <ol start="10e10">) - padding-left
+Pass	<li> (in <ol start="10e10">) - list-style-type
+Pass	<li> (in <ol start="10e10">) - counter-set
+Pass	<li> (in <ol start="10e10">) - counter-reset
+Pass	<li> (in <ol start="10e10">) - counter-increment
+Pass	<li> (in <ol start="10e10">) - text-align
+Pass	<li> (in <ol start="10e10">) - list-style-position
+Pass	<ol start="xyz"><li> - display
+Pass	<ol start="xyz"><li> - margin-top
+Pass	<ol start="xyz"><li> - margin-right
+Pass	<ol start="xyz"><li> - margin-bottom
+Pass	<ol start="xyz"><li> - margin-left
+Pass	<ol start="xyz"><li> - padding-top
+Pass	<ol start="xyz"><li> - padding-right
+Pass	<ol start="xyz"><li> - padding-bottom
+Pass	<ol start="xyz"><li> - padding-left
+Pass	<ol start="xyz"><li> - list-style-type
+Pass	<ol start="xyz"><li> - counter-set
+Pass	<ol start="xyz"><li> - counter-reset
+Pass	<ol start="xyz"><li> - counter-increment
+Pass	<ol start="xyz"><li> - text-align
+Pass	<ol start="xyz"><li> - list-style-position
+Pass	<li> (in <ol start="xyz">) - display
+Pass	<li> (in <ol start="xyz">) - margin-top
+Pass	<li> (in <ol start="xyz">) - margin-right
+Pass	<li> (in <ol start="xyz">) - margin-bottom
+Pass	<li> (in <ol start="xyz">) - margin-left
+Pass	<li> (in <ol start="xyz">) - padding-top
+Pass	<li> (in <ol start="xyz">) - padding-right
+Pass	<li> (in <ol start="xyz">) - padding-bottom
+Pass	<li> (in <ol start="xyz">) - padding-left
+Pass	<li> (in <ol start="xyz">) - list-style-type
+Pass	<li> (in <ol start="xyz">) - counter-set
+Pass	<li> (in <ol start="xyz">) - counter-reset
+Pass	<li> (in <ol start="xyz">) - counter-increment
+Pass	<li> (in <ol start="xyz">) - text-align
+Pass	<li> (in <ol start="xyz">) - list-style-position
+Pass	<ol reversed=""><li> - display
+Pass	<ol reversed=""><li> - margin-top
+Pass	<ol reversed=""><li> - margin-right
+Pass	<ol reversed=""><li> - margin-bottom
+Pass	<ol reversed=""><li> - margin-left
+Pass	<ol reversed=""><li> - padding-top
+Pass	<ol reversed=""><li> - padding-right
+Pass	<ol reversed=""><li> - padding-bottom
+Pass	<ol reversed=""><li> - padding-left
+Pass	<ol reversed=""><li> - list-style-type
+Pass	<ol reversed=""><li> - counter-set
+Pass	<ol reversed=""><li> - counter-reset
+Pass	<ol reversed=""><li> - counter-increment
+Pass	<ol reversed=""><li> - text-align
+Pass	<ol reversed=""><li> - list-style-position
+Pass	<li> (in <ol reversed="">) - display
+Pass	<li> (in <ol reversed="">) - margin-top
+Pass	<li> (in <ol reversed="">) - margin-right
+Pass	<li> (in <ol reversed="">) - margin-bottom
+Pass	<li> (in <ol reversed="">) - margin-left
+Pass	<li> (in <ol reversed="">) - padding-top
+Pass	<li> (in <ol reversed="">) - padding-right
+Pass	<li> (in <ol reversed="">) - padding-bottom
+Pass	<li> (in <ol reversed="">) - padding-left
+Pass	<li> (in <ol reversed="">) - list-style-type
+Pass	<li> (in <ol reversed="">) - counter-set
+Pass	<li> (in <ol reversed="">) - counter-reset
+Pass	<li> (in <ol reversed="">) - counter-increment
+Pass	<li> (in <ol reversed="">) - text-align
+Pass	<li> (in <ol reversed="">) - list-style-position
+Pass	<ol reversed="" start="20"><li> - display
+Pass	<ol reversed="" start="20"><li> - margin-top
+Pass	<ol reversed="" start="20"><li> - margin-right
+Pass	<ol reversed="" start="20"><li> - margin-bottom
+Pass	<ol reversed="" start="20"><li> - margin-left
+Pass	<ol reversed="" start="20"><li> - padding-top
+Pass	<ol reversed="" start="20"><li> - padding-right
+Pass	<ol reversed="" start="20"><li> - padding-bottom
+Pass	<ol reversed="" start="20"><li> - padding-left
+Pass	<ol reversed="" start="20"><li> - list-style-type
+Pass	<ol reversed="" start="20"><li> - counter-set
+Pass	<ol reversed="" start="20"><li> - counter-reset
+Pass	<ol reversed="" start="20"><li> - counter-increment
+Pass	<ol reversed="" start="20"><li> - text-align
+Pass	<ol reversed="" start="20"><li> - list-style-position
+Pass	<li> (in <ol reversed="" start="20">) - display
+Pass	<li> (in <ol reversed="" start="20">) - margin-top
+Pass	<li> (in <ol reversed="" start="20">) - margin-right
+Pass	<li> (in <ol reversed="" start="20">) - margin-bottom
+Pass	<li> (in <ol reversed="" start="20">) - margin-left
+Pass	<li> (in <ol reversed="" start="20">) - padding-top
+Pass	<li> (in <ol reversed="" start="20">) - padding-right
+Pass	<li> (in <ol reversed="" start="20">) - padding-bottom
+Pass	<li> (in <ol reversed="" start="20">) - padding-left
+Pass	<li> (in <ol reversed="" start="20">) - list-style-type
+Pass	<li> (in <ol reversed="" start="20">) - counter-set
+Pass	<li> (in <ol reversed="" start="20">) - counter-reset
+Pass	<li> (in <ol reversed="" start="20">) - counter-increment
+Pass	<li> (in <ol reversed="" start="20">) - text-align
+Pass	<li> (in <ol reversed="" start="20">) - list-style-position
+Pass	<ol reversed="" start="20xyz"><li> - display
+Pass	<ol reversed="" start="20xyz"><li> - margin-top
+Pass	<ol reversed="" start="20xyz"><li> - margin-right
+Pass	<ol reversed="" start="20xyz"><li> - margin-bottom
+Pass	<ol reversed="" start="20xyz"><li> - margin-left
+Pass	<ol reversed="" start="20xyz"><li> - padding-top
+Pass	<ol reversed="" start="20xyz"><li> - padding-right
+Pass	<ol reversed="" start="20xyz"><li> - padding-bottom
+Pass	<ol reversed="" start="20xyz"><li> - padding-left
+Pass	<ol reversed="" start="20xyz"><li> - list-style-type
+Pass	<ol reversed="" start="20xyz"><li> - counter-set
+Pass	<ol reversed="" start="20xyz"><li> - counter-reset
+Pass	<ol reversed="" start="20xyz"><li> - counter-increment
+Pass	<ol reversed="" start="20xyz"><li> - text-align
+Pass	<ol reversed="" start="20xyz"><li> - list-style-position
+Pass	<li> (in <ol reversed="" start="20xyz">) - display
+Pass	<li> (in <ol reversed="" start="20xyz">) - margin-top
+Pass	<li> (in <ol reversed="" start="20xyz">) - margin-right
+Pass	<li> (in <ol reversed="" start="20xyz">) - margin-bottom
+Pass	<li> (in <ol reversed="" start="20xyz">) - margin-left
+Pass	<li> (in <ol reversed="" start="20xyz">) - padding-top
+Pass	<li> (in <ol reversed="" start="20xyz">) - padding-right
+Pass	<li> (in <ol reversed="" start="20xyz">) - padding-bottom
+Pass	<li> (in <ol reversed="" start="20xyz">) - padding-left
+Pass	<li> (in <ol reversed="" start="20xyz">) - list-style-type
+Pass	<li> (in <ol reversed="" start="20xyz">) - counter-set
+Pass	<li> (in <ol reversed="" start="20xyz">) - counter-reset
+Pass	<li> (in <ol reversed="" start="20xyz">) - counter-increment
+Pass	<li> (in <ol reversed="" start="20xyz">) - text-align
+Pass	<li> (in <ol reversed="" start="20xyz">) - list-style-position
+Pass	<ol reversed="" start="20e10"><li> - display
+Pass	<ol reversed="" start="20e10"><li> - margin-top
+Pass	<ol reversed="" start="20e10"><li> - margin-right
+Pass	<ol reversed="" start="20e10"><li> - margin-bottom
+Pass	<ol reversed="" start="20e10"><li> - margin-left
+Pass	<ol reversed="" start="20e10"><li> - padding-top
+Pass	<ol reversed="" start="20e10"><li> - padding-right
+Pass	<ol reversed="" start="20e10"><li> - padding-bottom
+Pass	<ol reversed="" start="20e10"><li> - padding-left
+Pass	<ol reversed="" start="20e10"><li> - list-style-type
+Pass	<ol reversed="" start="20e10"><li> - counter-set
+Pass	<ol reversed="" start="20e10"><li> - counter-reset
+Pass	<ol reversed="" start="20e10"><li> - counter-increment
+Pass	<ol reversed="" start="20e10"><li> - text-align
+Pass	<ol reversed="" start="20e10"><li> - list-style-position
+Pass	<li> (in <ol reversed="" start="20e10">) - display
+Pass	<li> (in <ol reversed="" start="20e10">) - margin-top
+Pass	<li> (in <ol reversed="" start="20e10">) - margin-right
+Pass	<li> (in <ol reversed="" start="20e10">) - margin-bottom
+Pass	<li> (in <ol reversed="" start="20e10">) - margin-left
+Pass	<li> (in <ol reversed="" start="20e10">) - padding-top
+Pass	<li> (in <ol reversed="" start="20e10">) - padding-right
+Pass	<li> (in <ol reversed="" start="20e10">) - padding-bottom
+Pass	<li> (in <ol reversed="" start="20e10">) - padding-left
+Pass	<li> (in <ol reversed="" start="20e10">) - list-style-type
+Pass	<li> (in <ol reversed="" start="20e10">) - counter-set
+Pass	<li> (in <ol reversed="" start="20e10">) - counter-reset
+Pass	<li> (in <ol reversed="" start="20e10">) - counter-increment
+Pass	<li> (in <ol reversed="" start="20e10">) - text-align
+Pass	<li> (in <ol reversed="" start="20e10">) - list-style-position
+Pass	<ol reversed="" start="xyz"><li> - display
+Pass	<ol reversed="" start="xyz"><li> - margin-top
+Pass	<ol reversed="" start="xyz"><li> - margin-right
+Pass	<ol reversed="" start="xyz"><li> - margin-bottom
+Pass	<ol reversed="" start="xyz"><li> - margin-left
+Pass	<ol reversed="" start="xyz"><li> - padding-top
+Pass	<ol reversed="" start="xyz"><li> - padding-right
+Pass	<ol reversed="" start="xyz"><li> - padding-bottom
+Pass	<ol reversed="" start="xyz"><li> - padding-left
+Pass	<ol reversed="" start="xyz"><li> - list-style-type
+Pass	<ol reversed="" start="xyz"><li> - counter-set
+Pass	<ol reversed="" start="xyz"><li> - counter-reset
+Pass	<ol reversed="" start="xyz"><li> - counter-increment
+Pass	<ol reversed="" start="xyz"><li> - text-align
+Pass	<ol reversed="" start="xyz"><li> - list-style-position
+Pass	<li> (in <ol reversed="" start="xyz">) - display
+Pass	<li> (in <ol reversed="" start="xyz">) - margin-top
+Pass	<li> (in <ol reversed="" start="xyz">) - margin-right
+Pass	<li> (in <ol reversed="" start="xyz">) - margin-bottom
+Pass	<li> (in <ol reversed="" start="xyz">) - margin-left
+Pass	<li> (in <ol reversed="" start="xyz">) - padding-top
+Pass	<li> (in <ol reversed="" start="xyz">) - padding-right
+Pass	<li> (in <ol reversed="" start="xyz">) - padding-bottom
+Pass	<li> (in <ol reversed="" start="xyz">) - padding-left
+Pass	<li> (in <ol reversed="" start="xyz">) - list-style-type
+Pass	<li> (in <ol reversed="" start="xyz">) - counter-set
+Pass	<li> (in <ol reversed="" start="xyz">) - counter-reset
+Pass	<li> (in <ol reversed="" start="xyz">) - counter-increment
+Pass	<li> (in <ol reversed="" start="xyz">) - text-align
+Pass	<li> (in <ol reversed="" start="xyz">) - list-style-position
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - display
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - margin-top
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - margin-right
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - margin-bottom
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - margin-left
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - padding-top
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - padding-right
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - padding-bottom
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - padding-left
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - list-style-type
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - counter-set
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - counter-reset
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - counter-increment
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - text-align
+Pass	<li dir="ltr"> (in <ul dir="rtl">) - list-style-position
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - display
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - margin-top
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - margin-right
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - margin-bottom
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - margin-left
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - padding-top
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - padding-right
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - padding-bottom
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - padding-left
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - list-style-type
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - counter-set
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - counter-reset
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - counter-increment
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - text-align
+Pass	<li dir="rtl"> (in <ul dir="ltr">) - list-style-position

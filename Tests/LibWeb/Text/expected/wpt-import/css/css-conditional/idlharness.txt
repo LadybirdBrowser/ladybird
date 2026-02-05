@@ -1,0 +1,50 @@
+Harness status: OK
+
+Found 45 tests
+
+45 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface CSSRule: original interface defined
+Pass	Partial interface CSSRule: member names are unique
+Pass	Partial namespace CSS: original namespace defined
+Pass	Partial namespace CSS: member names are unique
+Pass	CSSConditionRule interface: existence and properties of interface object
+Pass	CSSConditionRule interface object length
+Pass	CSSConditionRule interface object name
+Pass	CSSConditionRule interface: existence and properties of interface prototype object
+Pass	CSSConditionRule interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSConditionRule interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSConditionRule interface: attribute conditionText
+Pass	CSSMediaRule interface: existence and properties of interface object
+Pass	CSSMediaRule interface object length
+Pass	CSSMediaRule interface object name
+Pass	CSSMediaRule interface: existence and properties of interface prototype object
+Pass	CSSMediaRule interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSMediaRule interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSMediaRule interface: attribute media
+Pass	CSSMediaRule interface: attribute matches
+Pass	CSSMediaRule must be primary interface of cssMediaRule
+Pass	Stringification of cssMediaRule
+Pass	CSSMediaRule interface: cssMediaRule must inherit property "media" with the proper type
+Pass	CSSMediaRule interface: cssMediaRule must inherit property "matches" with the proper type
+Pass	CSSConditionRule interface: cssMediaRule must inherit property "conditionText" with the proper type
+Pass	CSSRule interface: cssMediaRule must inherit property "SUPPORTS_RULE" with the proper type
+Pass	CSSSupportsRule interface: existence and properties of interface object
+Pass	CSSSupportsRule interface object length
+Pass	CSSSupportsRule interface object name
+Pass	CSSSupportsRule interface: existence and properties of interface prototype object
+Pass	CSSSupportsRule interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSSupportsRule interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSSupportsRule interface: attribute matches
+Pass	CSSSupportsRule must be primary interface of cssSupportsRule
+Pass	Stringification of cssSupportsRule
+Pass	CSSSupportsRule interface: cssSupportsRule must inherit property "matches" with the proper type
+Pass	CSSConditionRule interface: cssSupportsRule must inherit property "conditionText" with the proper type
+Pass	CSSRule interface: cssSupportsRule must inherit property "SUPPORTS_RULE" with the proper type
+Pass	CSSRule interface: constant SUPPORTS_RULE on interface object
+Pass	CSSRule interface: constant SUPPORTS_RULE on interface prototype object
+Pass	CSSRule interface: cssRule must inherit property "SUPPORTS_RULE" with the proper type
+Pass	CSS namespace: operation escape(CSSOMString)
+Pass	CSS namespace: operation supports(CSSOMString, CSSOMString)
+Pass	CSS namespace: operation supports(CSSOMString)

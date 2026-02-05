@@ -1,0 +1,7 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasstate
+interface mixin CanvasState {
+    undefined save();
+    undefined restore();
+    undefined reset();
+    boolean isContextLost();
+};

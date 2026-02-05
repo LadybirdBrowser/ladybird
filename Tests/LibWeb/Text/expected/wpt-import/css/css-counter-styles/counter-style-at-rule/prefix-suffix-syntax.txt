@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 26 tests
+
+20 Pass
+6 Fail
+Pass	@counter-style 'prefix: "string"' is valid
+Pass	@counter-style 'suffix: "string"' is valid
+Pass	@counter-style 'prefix: "initial"' is valid
+Pass	@counter-style 'suffix: "initial"' is valid
+Pass	@counter-style 'prefix: "inherit"' is valid
+Pass	@counter-style 'suffix: "inherit"' is valid
+Pass	@counter-style 'prefix: "unset"' is valid
+Pass	@counter-style 'suffix: "unset"' is valid
+Pass	@counter-style 'prefix: custom-ident' is valid
+Pass	@counter-style 'suffix: custom-ident' is valid
+Pass	@counter-style 'prefix: initial' is invalid
+Pass	@counter-style 'suffix: initial' is invalid
+Pass	@counter-style 'prefix: inherit' is invalid
+Pass	@counter-style 'suffix: inherit' is invalid
+Pass	@counter-style 'prefix: unset' is invalid
+Pass	@counter-style 'suffix: unset' is invalid
+Fail	@counter-style 'prefix: url("https://example.com/foo.png")' is valid
+Fail	@counter-style 'suffix: url("https://example.com/foo.png")' is valid
+Fail	@counter-style 'prefix: url(https://example.com/foo.png)' is valid
+Fail	@counter-style 'suffix: url(https://example.com/foo.png)' is valid
+Fail	@counter-style 'prefix: linear-gradient(yellow, blue)' is valid
+Fail	@counter-style 'suffix: linear-gradient(yellow, blue)' is valid
+Pass	@counter-style 'prefix: ' is invalid
+Pass	@counter-style 'suffix: ' is invalid
+Pass	@counter-style 'prefix: foo bar' is invalid
+Pass	@counter-style 'suffix: foo bar' is invalid

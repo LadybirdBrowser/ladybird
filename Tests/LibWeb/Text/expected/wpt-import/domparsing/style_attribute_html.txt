@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Parsing of initial style attribute
+Pass	Parsing of invalid style attribute
+Pass	Parsing of style attribute
+Pass	Update style.backgroundColor

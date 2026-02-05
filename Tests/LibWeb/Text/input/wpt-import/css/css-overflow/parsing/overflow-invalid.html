@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Overflow: parsing overflow with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-overflow/#propdef-overflow">
+<meta name="assert" content="overflow supports only the grammar '[ visible | hidden | clip | scroll | auto ]{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("overflow", 'none');
+test_invalid_value("overflow", 'visible clip auto');
+
+
+test_invalid_value("overflow-x", 'visible clip');
+test_invalid_value("overflow-y", 'clip hidden');
+test_invalid_value("overflow-block", 'hidden scroll');
+test_invalid_value("overflow-inline", 'scroll auto');
+</script>
+</body>
+</html>

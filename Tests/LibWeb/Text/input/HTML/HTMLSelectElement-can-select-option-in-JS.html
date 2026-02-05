@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<select id="select-test">
+    <option>A</option>
+    <option>B</option>
+</select>
+<script>
+    test(() => {
+        const s = document.getElementById("select-test");
+
+        s.options[1].selected = true;
+        if(s.value === "B") {
+            println("PASS");
+        }
+    });
+</script>

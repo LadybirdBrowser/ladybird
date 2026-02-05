@@ -1,0 +1,4 @@
+// https://html.spec.whatwg.org/multipage/workers.html#abstractworker
+interface mixin AbstractWorker {
+    attribute EventHandler onerror;
+};

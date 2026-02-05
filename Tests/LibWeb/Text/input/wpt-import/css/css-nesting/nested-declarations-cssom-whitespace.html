@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>CSS Nesting: CSSNestedDeclarations CSSOM (whitespace)</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/#nested-declarations-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  // https://drafts.csswg.org/cssom/#serialize-a-css-rule
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      .a {
+        & { }
+        left: 1px;
+        & { }
+        right: 1px;
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let a_rule = s.cssRules[0];
+    assert_equals(a_rule.cssRules.length, 4);
+    for (let child_rule of a_rule.cssRules) {
+      child_rule.style = '';
+    }
+    assert_equals(a_rule.cssText, '.a {\n  & { }\n  & { }\n}');
+  }, 'Empty CSSNestedDeclarations do not affect outer serialization');
+
+  // https://drafts.csswg.org/cssom/#serialize-a-css-rule
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      .a {
+        @media (width > 1px) {
+          & { }
+          left: 1px;
+          & { }
+          right: 1px;
+        }
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let outer = s.cssRules[0];
+    assert_equals(outer.cssRules.length, 1);
+
+    // @media
+    let media = outer.cssRules[0];
+    assert_equals(media.cssRules.length, 4);
+    for (let child_rule of media.cssRules) {
+      child_rule.style = '';
+    }
+    assert_equals(media.cssText, '@media (width > 1px) {\n  & { }\n  & { }\n}');
+  }, 'Empty CSSNestedDeclarations do not affect outer serialization (nested grouping rule)');
+</script>

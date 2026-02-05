@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['grid-gap'] = "auto" should not set the property value
+Pass	e.style['grid-gap'] = "-10px" should not set the property value
+Pass	e.style['grid-gap'] = "10px 20% 30px" should not set the property value
+Pass	e.style['grid-gap'] = "normal 10px normal" should not set the property value

@@ -1,0 +1,12 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmlparagraphelement
+[Exposed=Window]
+interface HTMLParagraphElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+
+};

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Selection reflects textarea selection</title>
+    <script src="./include.js"></script>
+    <script>
+        test(() => {
+            function verify(expected, label) {
+                let s = window.getSelection().toString();
+                println(`${label}, window.getSelection().toString() is "${s}"`);
+                if (s !== expected)
+                    throw new Error(`${label}: expected "${expected}", got "${s}"`);
+            }
+
+            verify("", "initial");
+
+            let foo = document.getElementById("foo");
+            let r = document.createRange();
+            r.selectNodeContents(foo);
+            let sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+            verify("foo", "after selecting foo");
+
+            let textarea = document.getElementById("bar");
+            textarea.focus();
+            textarea.select();
+            verify("bar", "after selecting bar");
+
+            textarea.setSelectionRange(0, 0);
+            verify("", "after unselecting bar");
+
+            let input = document.getElementById("baz");
+            input.focus();
+            input.setSelectionRange(2, 3);
+            verify("z", "after selecting 'z' from normal text input");
+            let password = document.getElementById("boo");
+            password.focus();
+            password.setSelectionRange(0, 3);
+            verify("•••", "after selecting 'boo' from password input");
+        });
+    </script>
+</head>
+<body>
+    <p id="foo">foo</p>
+    <textarea id="bar">bar</textarea>
+    <input id="baz" type="text" value="baz">
+    <input id="boo" type="password" value="boo!">
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="reference/scroll-using-mousewheel-event-ref.html" />
+<style>
+    body {
+        border: 1px solid black;
+        margin: 0;
+    }
+
+    #scrollable {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+        border: 1px solid black;
+        margin-bottom: 2000px;
+    }
+
+    #content {
+        width: 200px;
+        height: 200px;
+        background-color: magenta;
+    }
+</style>
+<script src="include.js"></script>
+<div id="scrollable"><div id="content"></div></div>
+<script>
+    test(() => {
+        internals.wheel(10, 10, 0, 1000);
+        const scrollable = document.getElementById("scrollable");
+        println("scrollable.scrollTop: " + scrollable.scrollTop);
+        println("window.scrollY: " + window.scrollY);
+    });
+</script>

@@ -1,0 +1,138 @@
+#include <LibGfx/Rect.h>
+#include <LibIPC/File.h>
+#include <LibURL/URL.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
+#include <LibWeb/CSS/PreferredMotion.h>
+#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/HTML/ColorPickerUpdateState.h>
+#include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/HTML/VisibilityState.h>
+#include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWebView/Attribute.h>
+#include <LibWebView/DOMNodeProperties.h>
+#include <LibWebView/PageInfo.h>
+
+endpoint WebContentServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+    close_server() =|
+
+    get_window_handle(u64 page_id) => (String handle)
+    set_window_handle(u64 page_id, String handle) =|
+
+    connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) =|
+    connect_to_web_ui(u64 page_id, IPC::File socket_fd) =|
+    connect_to_request_server(IPC::File request_server_socket) =|
+    connect_to_image_decoder(IPC::File socket_fd) =|
+
+    update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer) =|
+    update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|
+
+    load_url(u64 page_id, URL::URL url) =|
+    load_html(u64 page_id, ByteString html) =|
+    reload(u64 page_id) =|
+    traverse_the_history_by_delta(u64 page_id, i32 delta) =|
+
+    ready_to_paint(u64 page_id) =|
+
+    set_viewport_size(u64 page_id, Web::DevicePixelSize size) =|
+
+    key_event(u64 page_id, Web::KeyEvent event) =|
+    mouse_event(u64 page_id, Web::MouseEvent event) =|
+    drag_event(u64 page_id, Web::DragEvent event) =|
+    pinch_event(u64 page_id, Web::PinchEvent event) =|
+
+    debug_request(u64 page_id, ByteString request, ByteString argument) =|
+    get_source(u64 page_id) =|
+    inspect_dom_tree(u64 page_id) =|
+    inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) =|
+    clear_inspected_dom_node(u64 page_id) =|
+    highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) =|
+    inspect_accessibility_tree(u64 page_id) =|
+    get_hovered_node_id(u64 page_id) =|
+
+    js_console_input(u64 page_id, String js_source) =|
+    run_javascript(u64 page_id, String js_source) =|
+
+    list_style_sheets(u64 page_id) =|
+    request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
+
+    set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations) =|
+    did_connect_devtools_client(u64 page_id) =|
+    did_disconnect_devtools_client(u64 page_id) =|
+    get_dom_node_inner_html(u64 page_id, Web::UniqueNodeID node_id) =|
+    get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id) =|
+    set_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id, String html) =|
+    set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) =|
+    set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name) =|
+    add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes) =|
+    replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes) =|
+    create_child_element(u64 page_id, Web::UniqueNodeID node_id) =|
+    create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) =|
+    insert_dom_node_before(u64 page_id, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id) =|
+    clone_dom_node(u64 page_id, Web::UniqueNodeID node_id) =|
+    remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) =|
+
+    take_document_screenshot(u64 page_id) =|
+    take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) =|
+
+    request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
+
+    get_selected_text(u64 page_id) => (ByteString selection)
+    select_all(u64 page_id) =|
+    paste(u64 page_id, Utf16String text) =|
+
+    find_in_page(u64 page_id, String query, AK::CaseSensitivity case_sensitivity) =|
+    find_in_page_next_match(u64 page_id) =|
+    find_in_page_previous_match(u64 page_id) =|
+
+    set_content_filters(u64 page_id, Vector<String> filters) =|
+    set_autoplay_allowed_on_all_websites(u64 page_id) =|
+    set_autoplay_allowlist(u64 page_id, Vector<String> allowlist) =|
+    set_proxy_mappings(u64 page_id, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings) =|
+    set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme) =|
+    set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast contrast) =|
+    set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion motion) =|
+    set_preferred_languages(u64 page_id, Vector<String> preferred_languages) =|
+    set_enable_global_privacy_control(u64 page_id, bool enable) =|
+    set_has_focus(u64 page_id, bool has_focus) =|
+    set_is_scripting_enabled(u64 page_id, bool is_scripting_enabled) =|
+    set_device_pixel_ratio(u64 page_id, double device_pixel_ratio) =|
+    set_zoom_level(u64 page_id, double zoom_level) =|
+    set_maximum_frames_per_second(u64 page_id, double maximum_frames_per_second) =|
+
+    set_window_position(u64 page_id, Web::DevicePixelPoint position) =|
+    set_window_size(u64 page_id, Web::DevicePixelSize size) =|
+    did_update_window_rect(u64 page_id) =|
+    reset_zoom(u64 page_id) =|
+
+    handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) =|
+
+    set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state) =|
+
+    alert_closed(u64 page_id) =|
+    confirm_closed(u64 page_id, bool accepted) =|
+    prompt_closed(u64 page_id, Optional<String> response) =|
+    color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) =|
+    file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) =|
+    select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) =|
+
+    retrieved_clipboard_entries(u64 page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items) =|
+
+    toggle_media_play_state(u64 page_id) =|
+    toggle_media_mute_state(u64 page_id) =|
+    toggle_media_loop_state(u64 page_id) =|
+    toggle_media_controls_state(u64 page_id) =|
+
+    toggle_page_mute_state(u64 page_id) =|
+
+    set_user_style(u64 page_id, String source) =|
+
+    system_time_zone_changed() =|
+
+    cookies_changed(u64 page_id, Vector<Web::Cookie::Cookie> cookies) =|
+}

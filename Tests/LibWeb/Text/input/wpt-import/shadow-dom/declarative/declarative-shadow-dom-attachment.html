@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<title>Declarative Shadow DOM Element Attachment</title>
+<link rel='author' href='mailto:masonf@chromium.org'>
+<link rel='help' href='https://github.com/whatwg/dom/issues/831'>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<script src='../../html/resources/common.js'></script>
+<script src="support/helpers.js"></script>
+
+<script>
+const shadowContent = '<span>Shadow tree</span><slot></slot>';
+function getDeclarativeContent(mode, delegatesFocus) {
+  const delegatesFocusText = delegatesFocus ? ' shadowrootdelegatesfocus' : '';
+  return `<template shadowrootmode=${mode}${delegatesFocusText}>${shadowContent}</template>`;
+}
+
+const lightDomTextContent = 'Light DOM';
+function addDeclarativeShadowRoot(elementType, mode, delegatesFocus) {
+  const declarativeString = `<${elementType} id=theelement>${getDeclarativeContent(mode, delegatesFocus)}
+     <span class='lightdom'>${lightDomTextContent}</span></${elementType}>`;
+  const wrapper = document.createElement('div');
+  wrapper.setHTMLUnsafe(declarativeString); // Should never throw
+  const element = wrapper.querySelector('#theelement');
+  return {wrapper, element};
+}
+
+function testElementType(allowed, nochildren, elementType, mode, delegatesFocus) {
+  test((t) => {
+    const nodes = addDeclarativeShadowRoot(elementType, mode, delegatesFocus);
+    if (allowed) {
+      const element = nodes.element;
+      assert_true(!!element, 'Unable to locate the element');
+      // Just one light DOM child, and no leftover template.
+      assert_true(!nodes.wrapper.querySelector('template'));
+      assert_equals(element.children.length, 1);
+      assert_equals(element.children[0].textContent, lightDomTextContent);
+      let originalShadowRoot = null;
+      if (mode === 'open') {
+        assert_true(!!element.shadowRoot, 'Shadow root should be present');
+        assert_equals(element.shadowRoot.innerHTML, shadowContent, 'Correct shadow content');
+        assert_equals(element.shadowRoot.delegatesFocus,delegatesFocus,'Correct delegatesFocus')
+        originalShadowRoot = element.shadowRoot;
+      }
+
+      const oppositeMode = (mode === 'open') ? 'closed' : 'open';
+      assert_throws_dom('NotSupportedError', () => {
+        element.attachShadow({mode: oppositeMode});
+      }, 'Calling attachShadow with a declarative shadow fails if the mode doesn\'t match');
+
+      // Now, call attachShadow() and make sure we get back the same (original) shadowRoot, but empty.
+      const newShadow = element.attachShadow({mode: mode, delegatesFocus: delegatesFocus});
+      if (mode === 'open') {
+        assert_equals(element.shadowRoot, originalShadowRoot, 'The same shadow root should be returned');
+        assert_equals(element.shadowRoot.innerHTML, '', 'Empty shadow content');
+        assert_equals(element.shadowRoot.mode, mode, 'Original shadow mode');
+      }
+
+      assert_throws_dom('NotSupportedError', () => {
+        element.attachShadow({mode: mode});
+      }, 'Calling attachShadow a second time on an element with a declarative shadow fails (same mode)');
+
+      assert_throws_dom('NotSupportedError', () => {
+        element.attachShadow({mode: oppositeMode});
+      }, 'Calling attachShadow a second time on an element with a declarative shadow fails (opposite mode)');
+    } else {
+      if (!nochildren) {
+        // Invalid elements should retain a <template> element child with a shadowrootmode attribute.
+        const template = nodes.wrapper.querySelector('template[shadowrootmode]');
+        assert_true(!!template);
+        assert_equals(template.getAttribute('shadowrootmode'), mode, `Template with shadowrootmode=${mode} should be left over`);
+        const span = nodes.wrapper.querySelector('span.lightdom');
+        assert_true(!!span);
+        assert_equals(span.textContent, lightDomTextContent);
+        if (nodes.element) {
+          // For some tags (e.g. <html>) there won't be an element inside wrapper.
+          assert_true(!nodes.element.shadowRoot, 'Shadow root should not be present');
+        }
+      }
+    }
+  }, `Declarative Shadow DOM as a child of <${elementType}>, with mode=${mode}, delegatesFocus=${delegatesFocus}. Should be ${allowed ? 'safelisted' : 'disallowed'}.`);
+}
+
+function runAllTests() {
+  const noCheck = ['body', 'template'];
+  const safelisted = HTML5_SHADOW_ALLOWED_ELEMENTS.filter(el => !noCheck.includes(el));
+  const disallowed = HTML5_SHADOW_DISALLOWED_ELEMENTS.filter(el => !noCheck.includes(el));
+  const noChildElements = ['iframe','noscript','script','select','style','textarea','title'];
+  for (let delegatesFocus of [false, true]) {
+    for (let mode of ['open', 'closed', 'invalid']) {
+      for (let elementName of safelisted) {
+        testElementType(mode !== 'invalid', false, elementName, mode, delegatesFocus);
+      }
+      for (let elementName of disallowed) {
+        testElementType(false, noChildElements.includes(elementName), elementName, mode, delegatesFocus);
+      }
+    }
+  }
+}
+
+runAllTests();
+
+</script>

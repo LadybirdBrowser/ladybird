@@ -1,0 +1,104 @@
+Harness status: OK
+
+Found 99 tests
+
+99 Pass
+Pass	Tests for parser inserted controls
+Pass	[BUTTON] Basic form association - control with no form attribute is associated with ancestor
+Pass	[BUTTON] Form owner is reset to null when control's form attribute is set to an ID that does not exist in the document
+Pass	[BUTTON] Control whose form attribute is an empty string has no form owner
+Pass	[BUTTON] Control whose form attribute is an empty string has no form owner even when form with empty attribute is present
+Pass	[BUTTON] Control's form attribute must be a case sensitive match for the form's id
+Pass	[BUTTON] Setting the form attribute of a control to the id of a non-ancestor form works
+Pass	[BUTTON] Removing form id from a control resets the form owner to ancestor
+Pass	[BUTTON] Removing the form owner of a control with form attribute resets the form owner to null
+Pass	[BUTTON] Changing form attibute of control resets form owner to correct form
+Pass	[BUTTON] Moving a control with form attribute within the document does not change the form owner
+Pass	[BUTTON] When the id of a non-ancestor form changes from not being a match for the form attribute to being a match, the control's form owner is reset
+Pass	[BUTTON] When form element with same ID as the control's form attribute is inserted earlier in tree order, the form owner is changed to the inserted form
+Pass	[BUTTON] When non-form element with same ID as the control's form attribute is inserted earlier in tree order, the control does not have a form owner
+Pass	[BUTTON] A control that is not in the document but has the form attribute set is associated with the nearest ancestor form if one exists
+Pass	[FIELDSET] Basic form association - control with no form attribute is associated with ancestor
+Pass	[FIELDSET] Form owner is reset to null when control's form attribute is set to an ID that does not exist in the document
+Pass	[FIELDSET] Control whose form attribute is an empty string has no form owner
+Pass	[FIELDSET] Control whose form attribute is an empty string has no form owner even when form with empty attribute is present
+Pass	[FIELDSET] Control's form attribute must be a case sensitive match for the form's id
+Pass	[FIELDSET] Setting the form attribute of a control to the id of a non-ancestor form works
+Pass	[FIELDSET] Removing form id from a control resets the form owner to ancestor
+Pass	[FIELDSET] Removing the form owner of a control with form attribute resets the form owner to null
+Pass	[FIELDSET] Changing form attibute of control resets form owner to correct form
+Pass	[FIELDSET] Moving a control with form attribute within the document does not change the form owner
+Pass	[FIELDSET] When the id of a non-ancestor form changes from not being a match for the form attribute to being a match, the control's form owner is reset
+Pass	[FIELDSET] When form element with same ID as the control's form attribute is inserted earlier in tree order, the form owner is changed to the inserted form
+Pass	[FIELDSET] When non-form element with same ID as the control's form attribute is inserted earlier in tree order, the control does not have a form owner
+Pass	[FIELDSET] A control that is not in the document but has the form attribute set is associated with the nearest ancestor form if one exists
+Pass	[INPUT] Basic form association - control with no form attribute is associated with ancestor
+Pass	[INPUT] Form owner is reset to null when control's form attribute is set to an ID that does not exist in the document
+Pass	[INPUT] Control whose form attribute is an empty string has no form owner
+Pass	[INPUT] Control whose form attribute is an empty string has no form owner even when form with empty attribute is present
+Pass	[INPUT] Control's form attribute must be a case sensitive match for the form's id
+Pass	[INPUT] Setting the form attribute of a control to the id of a non-ancestor form works
+Pass	[INPUT] Removing form id from a control resets the form owner to ancestor
+Pass	[INPUT] Removing the form owner of a control with form attribute resets the form owner to null
+Pass	[INPUT] Changing form attibute of control resets form owner to correct form
+Pass	[INPUT] Moving a control with form attribute within the document does not change the form owner
+Pass	[INPUT] When the id of a non-ancestor form changes from not being a match for the form attribute to being a match, the control's form owner is reset
+Pass	[INPUT] When form element with same ID as the control's form attribute is inserted earlier in tree order, the form owner is changed to the inserted form
+Pass	[INPUT] When non-form element with same ID as the control's form attribute is inserted earlier in tree order, the control does not have a form owner
+Pass	[INPUT] A control that is not in the document but has the form attribute set is associated with the nearest ancestor form if one exists
+Pass	[OBJECT] Basic form association - control with no form attribute is associated with ancestor
+Pass	[OBJECT] Form owner is reset to null when control's form attribute is set to an ID that does not exist in the document
+Pass	[OBJECT] Control whose form attribute is an empty string has no form owner
+Pass	[OBJECT] Control whose form attribute is an empty string has no form owner even when form with empty attribute is present
+Pass	[OBJECT] Control's form attribute must be a case sensitive match for the form's id
+Pass	[OBJECT] Setting the form attribute of a control to the id of a non-ancestor form works
+Pass	[OBJECT] Removing form id from a control resets the form owner to ancestor
+Pass	[OBJECT] Removing the form owner of a control with form attribute resets the form owner to null
+Pass	[OBJECT] Changing form attibute of control resets form owner to correct form
+Pass	[OBJECT] Moving a control with form attribute within the document does not change the form owner
+Pass	[OBJECT] When the id of a non-ancestor form changes from not being a match for the form attribute to being a match, the control's form owner is reset
+Pass	[OBJECT] When form element with same ID as the control's form attribute is inserted earlier in tree order, the form owner is changed to the inserted form
+Pass	[OBJECT] When non-form element with same ID as the control's form attribute is inserted earlier in tree order, the control does not have a form owner
+Pass	[OBJECT] A control that is not in the document but has the form attribute set is associated with the nearest ancestor form if one exists
+Pass	[OUTPUT] Basic form association - control with no form attribute is associated with ancestor
+Pass	[OUTPUT] Form owner is reset to null when control's form attribute is set to an ID that does not exist in the document
+Pass	[OUTPUT] Control whose form attribute is an empty string has no form owner
+Pass	[OUTPUT] Control whose form attribute is an empty string has no form owner even when form with empty attribute is present
+Pass	[OUTPUT] Control's form attribute must be a case sensitive match for the form's id
+Pass	[OUTPUT] Setting the form attribute of a control to the id of a non-ancestor form works
+Pass	[OUTPUT] Removing form id from a control resets the form owner to ancestor
+Pass	[OUTPUT] Removing the form owner of a control with form attribute resets the form owner to null
+Pass	[OUTPUT] Changing form attibute of control resets form owner to correct form
+Pass	[OUTPUT] Moving a control with form attribute within the document does not change the form owner
+Pass	[OUTPUT] When the id of a non-ancestor form changes from not being a match for the form attribute to being a match, the control's form owner is reset
+Pass	[OUTPUT] When form element with same ID as the control's form attribute is inserted earlier in tree order, the form owner is changed to the inserted form
+Pass	[OUTPUT] When non-form element with same ID as the control's form attribute is inserted earlier in tree order, the control does not have a form owner
+Pass	[OUTPUT] A control that is not in the document but has the form attribute set is associated with the nearest ancestor form if one exists
+Pass	[SELECT] Basic form association - control with no form attribute is associated with ancestor
+Pass	[SELECT] Form owner is reset to null when control's form attribute is set to an ID that does not exist in the document
+Pass	[SELECT] Control whose form attribute is an empty string has no form owner
+Pass	[SELECT] Control whose form attribute is an empty string has no form owner even when form with empty attribute is present
+Pass	[SELECT] Control's form attribute must be a case sensitive match for the form's id
+Pass	[SELECT] Setting the form attribute of a control to the id of a non-ancestor form works
+Pass	[SELECT] Removing form id from a control resets the form owner to ancestor
+Pass	[SELECT] Removing the form owner of a control with form attribute resets the form owner to null
+Pass	[SELECT] Changing form attibute of control resets form owner to correct form
+Pass	[SELECT] Moving a control with form attribute within the document does not change the form owner
+Pass	[SELECT] When the id of a non-ancestor form changes from not being a match for the form attribute to being a match, the control's form owner is reset
+Pass	[SELECT] When form element with same ID as the control's form attribute is inserted earlier in tree order, the form owner is changed to the inserted form
+Pass	[SELECT] When non-form element with same ID as the control's form attribute is inserted earlier in tree order, the control does not have a form owner
+Pass	[SELECT] A control that is not in the document but has the form attribute set is associated with the nearest ancestor form if one exists
+Pass	[TEXTAREA] Basic form association - control with no form attribute is associated with ancestor
+Pass	[TEXTAREA] Form owner is reset to null when control's form attribute is set to an ID that does not exist in the document
+Pass	[TEXTAREA] Control whose form attribute is an empty string has no form owner
+Pass	[TEXTAREA] Control whose form attribute is an empty string has no form owner even when form with empty attribute is present
+Pass	[TEXTAREA] Control's form attribute must be a case sensitive match for the form's id
+Pass	[TEXTAREA] Setting the form attribute of a control to the id of a non-ancestor form works
+Pass	[TEXTAREA] Removing form id from a control resets the form owner to ancestor
+Pass	[TEXTAREA] Removing the form owner of a control with form attribute resets the form owner to null
+Pass	[TEXTAREA] Changing form attibute of control resets form owner to correct form
+Pass	[TEXTAREA] Moving a control with form attribute within the document does not change the form owner
+Pass	[TEXTAREA] When the id of a non-ancestor form changes from not being a match for the form attribute to being a match, the control's form owner is reset
+Pass	[TEXTAREA] When form element with same ID as the control's form attribute is inserted earlier in tree order, the form owner is changed to the inserted form
+Pass	[TEXTAREA] When non-form element with same ID as the control's form attribute is inserted earlier in tree order, the control does not have a form owner
+Pass	[TEXTAREA] A control that is not in the document but has the form attribute set is associated with the nearest ancestor form if one exists

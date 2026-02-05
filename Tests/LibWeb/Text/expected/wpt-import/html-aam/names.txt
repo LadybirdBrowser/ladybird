@@ -1,0 +1,133 @@
+Harness status: OK
+
+Found 128 tests
+
+128 Pass
+Pass	address no name
+Pass	address aria-label
+Pass	address aria-labelledby
+Pass	address title
+Pass	address aria-labelledby vs aria-label vs title
+Pass	address aria-labelledby vs aria-label
+Pass	address aria-labelledby vs title
+Pass	address aria-label vs title
+Pass	aside no name
+Pass	aside aria-label
+Pass	aside aria-labelledby
+Pass	aside title
+Pass	aside aria-labelledby vs aria-label vs title
+Pass	aside aria-labelledby vs aria-label
+Pass	aside aria-labelledby vs title
+Pass	aside aria-label vs title
+Pass	blockquote no name
+Pass	blockquote aria-label
+Pass	blockquote aria-labelledby
+Pass	blockquote title
+Pass	blockquote aria-labelledby vs aria-label vs title
+Pass	blockquote aria-labelledby vs aria-label
+Pass	blockquote aria-labelledby vs title
+Pass	blockquote aria-label vs title
+Pass	details no name
+Pass	details aria-label
+Pass	details aria-labelledby
+Pass	details title
+Pass	details aria-labelledby vs aria-label vs title
+Pass	details aria-labelledby vs aria-label
+Pass	details aria-labelledby vs title
+Pass	details aria-label vs title
+Pass	figure no name
+Pass	figure aria-label
+Pass	figure aria-labelledby
+Pass	figure title
+Pass	figure aria-labelledby vs aria-label vs title
+Pass	figure aria-labelledby vs aria-label
+Pass	figure aria-labelledby vs title
+Pass	figure aria-label vs title
+Pass	footer no name
+Pass	footer aria-label
+Pass	footer aria-labelledby
+Pass	footer title
+Pass	footer aria-labelledby vs aria-label vs title
+Pass	footer aria-labelledby vs aria-label
+Pass	footer aria-labelledby vs title
+Pass	footer aria-label vs title
+Pass	form no name
+Pass	form aria-label
+Pass	form aria-labelledby
+Pass	form title
+Pass	form aria-labelledby vs aria-label vs title
+Pass	form aria-labelledby vs aria-label
+Pass	form aria-labelledby vs title
+Pass	form aria-label vs title
+Pass	hgroup no name
+Pass	hgroup aria-label
+Pass	hgroup aria-labelledby
+Pass	hgroup title
+Pass	hgroup aria-labelledby vs aria-label vs title
+Pass	hgroup aria-labelledby vs aria-label
+Pass	hgroup aria-labelledby vs title
+Pass	hgroup aria-label vs title
+Pass	hr no name
+Pass	hr aria-label
+Pass	hr aria-labelledby
+Pass	hr title
+Pass	hr aria-labelledby vs aria-label vs title
+Pass	hr aria-labelledby vs aria-label
+Pass	hr aria-labelledby vs title
+Pass	hr aria-label vs title
+Pass	ol no name
+Pass	ol aria-label
+Pass	ol aria-labelledby
+Pass	ol title
+Pass	ol aria-labelledby vs aria-label vs title
+Pass	ol aria-labelledby vs aria-label
+Pass	ol aria-labelledby vs title
+Pass	ol aria-label vs title
+Pass	main no name
+Pass	main aria-label
+Pass	main aria-labelledby
+Pass	main title
+Pass	main aria-labelledby vs aria-label vs title
+Pass	main aria-labelledby vs aria-label
+Pass	main aria-labelledby vs title
+Pass	main aria-label vs title
+Pass	menu no name
+Pass	menu aria-label
+Pass	menu aria-labelledby
+Pass	menu title
+Pass	menu aria-labelledby vs aria-label vs title
+Pass	menu aria-labelledby vs aria-label
+Pass	menu aria-labelledby vs title
+Pass	menu aria-label vs title
+Pass	nav no name
+Pass	nav aria-label
+Pass	nav aria-labelledby
+Pass	nav title
+Pass	nav aria-labelledby vs aria-label vs title
+Pass	nav aria-labelledby vs aria-label
+Pass	nav aria-labelledby vs title
+Pass	nav aria-label vs title
+Pass	search no name
+Pass	search aria-label
+Pass	search aria-labelledby
+Pass	search title
+Pass	search aria-labelledby vs aria-label vs title
+Pass	search aria-labelledby vs aria-label
+Pass	search aria-labelledby vs title
+Pass	search aria-label vs title
+Pass	section no name
+Pass	section aria-label
+Pass	section aria-labelledby
+Pass	section title
+Pass	section aria-labelledby vs aria-label vs title
+Pass	section aria-labelledby vs aria-label
+Pass	section aria-labelledby vs title
+Pass	section aria-label vs title
+Pass	ul no name
+Pass	ul aria-label
+Pass	ul aria-labelledby
+Pass	ul title
+Pass	ul aria-labelledby vs aria-label vs title
+Pass	ul aria-labelledby vs aria-label
+Pass	ul aria-labelledby vs title
+Pass	ul aria-label vs title

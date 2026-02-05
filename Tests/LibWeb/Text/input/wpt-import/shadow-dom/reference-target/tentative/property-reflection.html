@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <script src="../../../html/resources/common.js"></script>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script src="../../../resources/testdriver.js"></script>
+  <script src="../../../resources/testdriver-vendor.js"></script>
+  <script src="../../../resources/testdriver-actions.js"></script>
+  <script src="../../../wai-aria/scripts/aria-utils.js"></script>
+  <script src="resources/property-reflection-helper.js"></script>
+</head>
+<body>
+  <div id="host-container"></div>
+  <script>
+    function append_test_declaratively(host_container, referenced_element_type) {
+      host_container.setHTMLUnsafe(`
+      <div id="host-id">
+        <template shadowrootmode="open" shadowrootreferencetarget="target">
+          <${referenced_element_type} id="target"></${referenced_element_type}>
+        </template>
+      </div>`);
+      const host = host_container.firstElementChild;
+      return host;
+    }
+
+    run_test_for_all_reflecting_properties(append_test_declaratively, test_property_reflection, "");
+
+    // Test that the corresponding properties return null when the reference target has invalid ID.
+    function append_test_declaratively_with_invalid_id(host_container, referenced_element_type) {
+      host_container.setHTMLUnsafe(`
+      <div id="host-id">
+        <template shadowrootmode="open" shadowrootreferencetarget="invalid-id">
+          <${referenced_element_type} id="target"></${referenced_element_type}>
+        </template>
+      </div>`);
+      const host = host_container.firstElementChild;
+      return host;
+    }
+    for(let referencing_element_type of element_types) {
+      for(let referenced_element_type of element_types) {
+        test_property_reflection(append_test_declaratively_with_invalid_id, referencing_element_type, referenced_element_type, "form", "form", Behavior.IsNull);
+        test_property_reflection(append_test_declaratively_with_invalid_id, referencing_element_type, referenced_element_type, "list", "list", Behavior.IsNull);
+        test_property_reflection(append_test_declaratively_with_invalid_id, referencing_element_type, referenced_element_type, "for", "control", Behavior.IsNull);
+      }
+    }
+
+    test(function () {
+      const referencing_element = document.createElement('label');
+      document.body.appendChild(referencing_element);
+      referencing_element.setAttribute('for', "host-id");
+      const host_container = document.querySelector("#host-container");
+      const host = append_test_declaratively(host_container, 'input');
+      const referenced_element = host.shadowRoot.getElementById('target');
+      assert_array_equals(Array.from(referenced_element['labels']), [referencing_element]);
+      referencing_element.remove();
+      host_container.setHTMLUnsafe("");
+    }, `The .labels property of the referenced input element should point to the referencing label element`);
+  </script>
+</body>
+</html>

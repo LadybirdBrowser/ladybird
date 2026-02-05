@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 32 tests
+
+32 Pass
+Pass	Errors must be propagated forward: starts errored; preventAbort = false; fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = false; rejected abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = undefined (falsy); fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = null (falsy); fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = false (falsy); fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = 0 (falsy); fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = -0 (falsy); fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = NaN (falsy); fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort =  (falsy); fulfilled abort promise
+Pass	Errors must be propagated forward: starts errored; preventAbort = true (truthy)
+Pass	Errors must be propagated forward: starts errored; preventAbort = a (truthy)
+Pass	Errors must be propagated forward: starts errored; preventAbort = 1 (truthy)
+Pass	Errors must be propagated forward: starts errored; preventAbort = Symbol() (truthy)
+Pass	Errors must be propagated forward: starts errored; preventAbort = [object Object] (truthy)
+Pass	Errors must be propagated forward: starts errored; preventAbort = true, preventCancel = true
+Pass	Errors must be propagated forward: starts errored; preventAbort = true, preventCancel = true, preventClose = true
+Pass	Errors must be propagated forward: becomes errored while empty; preventAbort = false; fulfilled abort promise
+Pass	Errors must be propagated forward: becomes errored while empty; preventAbort = false; rejected abort promise
+Pass	Errors must be propagated forward: becomes errored while empty; preventAbort = true
+Pass	Errors must be propagated forward: becomes errored while empty; dest never desires chunks; preventAbort = false; fulfilled abort promise
+Pass	Errors must be propagated forward: becomes errored while empty; dest never desires chunks; preventAbort = false; rejected abort promise
+Pass	Errors must be propagated forward: becomes errored while empty; dest never desires chunks; preventAbort = true
+Pass	Errors must be propagated forward: becomes errored after one chunk; preventAbort = false; fulfilled abort promise
+Pass	Errors must be propagated forward: becomes errored after one chunk; preventAbort = false; rejected abort promise
+Pass	Errors must be propagated forward: becomes errored after one chunk; preventAbort = true
+Pass	Errors must be propagated forward: becomes errored after one chunk; dest never desires chunks; preventAbort = false; fulfilled abort promise
+Pass	Errors must be propagated forward: becomes errored after one chunk; dest never desires chunks; preventAbort = false; rejected abort promise
+Pass	Errors must be propagated forward: becomes errored after one chunk; dest never desires chunks; preventAbort = true
+Pass	Errors must be propagated forward: shutdown must not occur until the final write completes
+Pass	Errors must be propagated forward: shutdown must not occur until the final write completes; preventAbort = true
+Pass	Errors must be propagated forward: shutdown must not occur until the final write completes; becomes errored after first write
+Pass	Errors must be propagated forward: shutdown must not occur until the final write completes; becomes errored after first write; preventAbort = true

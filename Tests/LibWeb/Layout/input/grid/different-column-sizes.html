@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+  .grid-container {
+    display: grid;
+    background-color: lightsalmon;
+  }
+
+  .grid-item {
+    background-color: lightblue;
+  }
+</style>
+
+<!-- Should render a 2x2 grid with columns 50px and 50% -->
+<div class="grid-container" style="
+    grid-template-columns: 50px 50%; 
+    grid-template-rows: auto auto;">
+  <div class="grid-item" style="grid-column: 1 / 1; grid-row: 1 / 1">1</div>
+  <div class="grid-item" style="grid-column: 2 / 2; grid-row: 1 / 1">2</div>
+  <div class="grid-item" style="grid-column: 1 / 1; grid-row: 2 / 2">3</div>
+  <div class="grid-item" style="grid-column: 2 / 2; grid-row: 2 / 2">4</div>
+</div>

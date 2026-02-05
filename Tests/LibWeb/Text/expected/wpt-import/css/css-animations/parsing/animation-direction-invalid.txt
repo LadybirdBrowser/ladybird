@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['animation-direction'] = "auto" should not set the property value
+Pass	e.style['animation-direction'] = "normal reverse" should not set the property value
+Pass	e.style['animation-direction'] = "reverse, initial" should not set the property value
+Pass	e.style['animation-direction'] = "initial, reverse" should not set the property value

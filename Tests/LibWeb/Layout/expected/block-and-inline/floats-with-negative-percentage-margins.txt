@@ -1,0 +1,28 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 208 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 600 0+0+192] [8+0+0 0 0+0+8] children: not-inline
+      BlockContainer <div#top> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 26.640625x18] baseline: 13.796875
+            "top"
+        TextNode <#text> (not painted)
+      BlockContainer <div#left> at [8,108] floating [0+0+0 100 0+0+-600] [0+0+0 100 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [8,108 26.25x18] baseline: 13.796875
+            "left"
+        TextNode <#text> (not painted)
+      BlockContainer <div#right> at [208,108] floating [200+0+0 100 0+0+-600] [0+0+0 100 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [208,108 37.109375x18] baseline: 13.796875
+            "right"
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x208]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 600x0]
+      PaintableWithLines (BlockContainer<DIV>#top) [8,8 100x100]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>#left) [8,108 100x100]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>#right) [208,108 100x100]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x208] [children: 0] (z-index: auto)

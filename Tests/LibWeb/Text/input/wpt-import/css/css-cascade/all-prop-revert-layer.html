@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Cascade: "all: revert-layer"</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-cascade-5/#revert-layer">
+<meta name="assert" content="Checks that adding 'all: revert-layer' on the last layer has no effect.">
+<style>
+/* Set properties to a value different than the initial one. */
+#nothing {
+  accent-color: #123;
+  align-content: baseline;
+  align-items: baseline;
+  align-self: baseline;
+  alignment-baseline: central;
+  alt: "a";
+  animation-composition: add;
+  animation-delay: 123s;
+  animation-direction: reverse;
+  animation-duration: 123s;
+  animation-fill-mode: both;
+  animation-iteration-count: 123;
+  animation-name: \.;
+  animation-play-state: paused;
+  animation-range: 10% 20%;
+  animation-timeline: none;
+  animation-timing-function: linear;
+  app-region: drag;
+  appearance: auto;
+  aspect-ratio: 3 / 4;
+  backdrop-filter: invert(1);
+  backface-visibility: hidden;
+  background-attachment: fixed;
+  background-blend-mode: overlay;
+  background-clip: content-box;
+  background-color: #123;
+  background-image: url("#ref");
+  background-origin: border-box;
+  background-position: 123px;
+  background-repeat: round;
+  background-size: 123px;
+  baseline-shift: 123px;
+  baseline-source: first;
+  block-size: 123px;
+  border-block-end: 123px dashed #123;
+  border-block-start: 123px dashed #123;
+  border-bottom: 123px dashed #123;
+  border-collapse: collapse;
+  border-end-end-radius: 123px;
+  border-end-start-radius: 123px;
+  border-image-outset: 123;
+  border-image-repeat: round;
+  border-image-slice: 123;
+  border-image-source: url("#ref");
+  border-image-width: 123px;
+  border-inline-end: 123px dashed #123;
+  border-inline-start: 123px dashed #123;
+  border-left: 123px dashed #123;
+  border-radius: 123px;
+  border-right: 123px dashed #123;
+  border-start-end-radius: 123px;
+  border-start-start-radius: 123px;
+  border-spacing: 123px;
+  border-top: 123px dashed #123;
+  bottom: 123px;
+  box-decoration-break: clone;
+  box-shadow: #123 123px 123px 123px 123px;
+  box-sizing: border-box;
+  break-after: avoid;
+  break-before: avoid;
+  break-inside: avoid;
+  buffered-rendering: static;
+  caption-side: bottom;
+  caret-color: #123;
+  clear: both;
+  clip: rect(123px, 123px, 123px, 123px);
+  clip-path: url("#ref");
+  clip-rule: evenodd;
+  color: #123;
+  color-interpolation: auto;
+  color-interpolation-filters: auto;
+  color-rendering: optimizespeed;
+  color-scheme: dark;
+  column-count: 123;
+  column-fill: auto;
+  column-gap: 123px;
+  column-rule-color: #123;
+  column-rule-style: dashed;
+  column-rule-width: 123px;
+  column-span: all;
+  column-width: 123px;
+  contain: size;
+  contain-intrinsic-block-size: 123px;
+  contain-intrinsic-inline-size: 123px;
+  contain-intrinsic-size: 123px 123px;
+  container-name: foo;
+  container-type: size;
+  content: "b";
+  content-visibility: auto;
+  counter-increment: add 123;
+  counter-reset: add 123;
+  counter-set: add 123;
+  cursor: none;
+  cx: 123px;
+  cy: 123px;
+  d: path("M 1 1");
+  direction: rtl;
+  display: flow-root;
+  dominant-baseline: middle;
+  empty-cells: hide;
+  fill: #123;
+  fill-opacity: 0.123;
+  fill-rule: evenodd;
+  filter: url("#ref");
+  flex-basis: 123px;
+  flex-direction: column;
+  flex-grow: 123;
+  flex-shrink: 123;
+  flex-wrap: wrap;
+  float: right;
+  flood-color: #123;
+  flood-opacity: 0.123;
+  font-family: "c";
+  font-feature-settings: "smcp";
+  font-kerning: none;
+  font-language-override: "d";
+  font-optical-sizing: none;
+  font-palette: dark;
+  font-size: 123px;
+  font-size-adjust: 123;
+  font-stretch: 123%;
+  font-style: italic;
+  font-synthesis: none;
+  font-variant-alternates: historical-forms;
+  font-variant-caps: small-caps;
+  font-variant-east-asian: full-width;
+  font-variant-emoji: emoji;
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
+  font-variant-position: super;
+  font-variation-settings: "smcp" 1;
+  font-weight: 123;
+  forced-color-adjust: none;
+  glyph-orientation-horizontal: 123deg;
+  glyph-orientation-vertical: 123deg;
+  grid-auto-columns: 123px;
+  grid-auto-flow: column;
+  grid-auto-rows: 123px;
+  grid-column-end: 123;
+  grid-column-start: 123;
+  grid-row-end: 123;
+  grid-row-start: 123;
+  grid-template-areas: ".";
+  grid-template-columns: 123fr;
+  grid-template-rows: 123fr;
+  hanging-punctuation: first;
+  height: 123px;
+  hyphenate-character: "e";
+  hyphenate-limit-chars: 5;
+  hyphens: auto;
+  image-orientation: none;
+  image-rendering: pixelated;
+  ime-mode: normal;
+  initial-letter: 123;
+  inline-size: 123px;
+  input-security: none;
+  inset-block-end: 123px;
+  inset-block-start: 123px;
+  inset-inline-end: 123px;
+  inset-inline-start: 123px;
+  isolation: isolate;
+  justify-content: center;
+  justify-items: baseline;
+  justify-self: baseline;
+  kerning: 123px;
+  left: 123px;
+  letter-spacing: 123px;
+  lighting-color: #123;
+  line-break: anywhere;
+  line-height: 123px;
+  line-height-step: 123px;
+  list-style-image: url("#ref");
+  list-style-position: inside;
+  list-style-type: square;
+  margin-block-end: 123px;
+  margin-block-start: 123px;
+  margin-bottom: 123px;
+  margin-inline-end: 123px;
+  margin-inline-start: 123px;
+  margin-left: 123px;
+  margin-right: 123px;
+  margin-top: 123px;
+  margin-trim: block;
+  marker-end: url("#ref");
+  marker-mid: url("#ref");
+  marker-start: url("#ref");
+  mask-clip: content-box;
+  mask-composite: exclude;
+  mask-image: url("#ref");
+  mask-mode: alpha;
+  mask-origin: content-box;
+  mask-position-x: 123px;
+  mask-position-y: 123px;
+  mask-repeat: round;
+  mask-size: 123px;
+  mask-type: alpha;
+  masonry-auto-flow: ordered;
+  math-depth: 123;
+  math-shift: compact;
+  math-style: compact;
+  max-block-size: 123px;
+  max-height: 123px;
+  max-inline-size: 123px;
+  max-width: 123px;
+  min-block-size: 123px;
+  min-height: 123px;
+  min-inline-size: 123px;
+  min-width: 123px;
+  mix-blend-mode: overlay;
+  object-fit: contain;
+  object-overflow: visible;
+  object-position: 123px 123%;
+  object-view-box: inset(123px);
+  offset-anchor: 123px 123%;
+  offset-distance: 123px;
+  offset-path: path("M 1 1");
+  offset-position: 123px;
+  offset-rotate: 123deg;
+  opacity: 0.123;
+  order: 123;
+  orphans: 123;
+  outline-color: #123;
+  outline-offset: 123px;
+  outline-style: auto;
+  outline-width: 123px;
+  overflow-anchor: none;
+  overflow-block: auto;
+  overflow-clip-margin: 123px;
+  overflow-inline: hidden;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-block: contain;
+  overscroll-behavior-inline: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: contain;
+  padding-block-end: 123px;
+  padding-block-start: 123px;
+  padding-bottom: 123px;
+  padding-inline-end: 123px;
+  padding-inline-start: 123px;
+  padding-left: 123px;
+  padding-right: 123px;
+  padding-top: 123px;
+  page: page;
+  paint-order: fill;
+  perspective: 123px;
+  perspective-origin: 123px 123%;
+  pointer-events: all;
+  position: relative;
+  print-color-adjust: exact;
+  quotes: none;
+  r: 123px;
+  resize: both;
+  right: 123px;
+  rotate: 123deg;
+  row-gap: 123px;
+  ruby-align: center;
+  ruby-position: under;
+  rx: 123px;
+  ry: 123px;
+  scale: 123;
+  scroll-behavior: smooth;
+  scroll-margin-block-end: 123px;
+  scroll-margin-block-start: 123px;
+  scroll-margin-bottom: 123px;
+  scroll-margin-inline-end: 123px;
+  scroll-margin-inline-start: 123px;
+  scroll-margin-left: 123px;
+  scroll-margin-right: 123px;
+  scroll-margin-top: 123px;
+  scroll-padding-block-end: 123px;
+  scroll-padding-block-start: 123px;
+  scroll-padding-bottom: 123px;
+  scroll-padding-inline-end: 123px;
+  scroll-padding-inline-start: 123px;
+  scroll-padding-left: 123px;
+  scroll-padding-right: 123px;
+  scroll-padding-top: 123px;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  scroll-snap-type: both;
+  scroll-timeline: --foo inline;
+  scrollbar-color: #123 #123;
+  scrollbar-gutter: stable;
+  scrollbar-width: none;
+  shape-image-threshold: 123;
+  shape-margin: 123px;
+  shape-outside: border-box;
+  shape-rendering: optimizespeed;
+  speak: spell-out;
+  speak-as: spell-out;
+  stop-color: #123;
+  stop-opacity: 0.123;
+  stroke: #123;
+  stroke-color: #123;
+  stroke-dasharray: 123px;
+  stroke-dashoffset: 123px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-miterlimit: 123;
+  stroke-opacity: 0.123;
+  stroke-width: 123px;
+  tab-size: 123;
+  table-layout: fixed;
+  text-align: center;
+  text-align-last: center;
+  text-anchor: middle;
+  text-combine-upright: all;
+  text-decoration-color: #123;
+  text-decoration-line: underline;
+  text-decoration-skip-ink: none;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 123px;
+  text-emphasis-color: #123;
+  text-emphasis-position: under right;
+  text-emphasis-style: dot;
+  text-indent: 123px;
+  text-justify: none;
+  text-orientation: sideways;
+  text-overflow: ellipsis;
+  text-rendering: optimizespeed;
+  text-shadow: #123 123px 123px 123px;
+  text-size-adjust: none;
+  text-transform: lowercase;
+  text-underline-offset: 123px;
+  text-underline-position: under;
+  text-wrap-style: balance;
+  timeline-scope: --foo;
+  top: 123px;
+  touch-action: none;
+  transform: scale(-1);
+  transform-box: fill-box;
+  transform-origin: 123px 123px 123px;
+  transform-style: preserve-3d;
+  transition-behavior: allow-discrete;
+  transition-delay: 123s;
+  transition-duration: 123s;
+  transition-property: add;
+  transition-timing-function: linear;
+  translate: 123px;
+  unicode-bidi: plaintext;
+  user-select: all;
+  vector-effect: non-scaling-stroke;
+  vertical-align: 123px;
+  view-timeline: --foo inline 10px;
+  view-transition-name: --foo;
+  visibility: collapse;
+  white-space: pre;
+  white-space-trim: discard-inner;
+  widows: 123;
+  width: 123px;
+  will-change: height;
+  word-break: break-word;
+  word-spacing: 123px;
+  word-wrap: break-word;
+  writing-mode: vertical-lr;
+  x: 123px;
+  y: 123px;
+  z-index: 123;
+  zoom: 123;
+}
+
+@layer layer1 {
+  /* Reset properties to their initial value */
+  #target {
+    all: initial;
+  }
+}
+
+@layer layer2 {
+  /* This will be populated with properties set to a non-initial value */
+  #target {}
+}
+
+@layer layer3 {
+  /* This should roll back to the values from the previous layer */
+  #target.rollback {
+    all: revert-layer;
+  }
+}
+</style>
+
+<div id="log"></div>
+
+<!-- This custom element is unlikely to get important UA styles -->
+<foo-bar id="target"></foo-bar>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+const { sheet } = document.querySelector("style");
+const nonInitialStyle = sheet.cssRules[0].style;
+const layer2Style = sheet.cssRules[2].cssRules[0].style;
+
+const target = document.getElementById("target");
+const cs = getComputedStyle(target);
+
+// Some properties can be forced to compute to their initial value
+// unless another property is set to a certain value.
+function prerequisites(property) {
+  switch (property) {
+    case "border-block-end-width":
+    case "border-block-start-width":
+    case "border-bottom-width":
+    case "border-inline-end-width":
+    case "border-inline-start-width":
+    case "border-left-width":
+    case "border-right-width":
+    case "border-top-width":
+      return "border-style: solid";
+    case "column-rule-width":
+      return "column-rule-style: solid";
+    case "outline-width":
+      return "outline-style: solid";
+    case "rotate":
+    case "scale":
+    case "transform":
+    case "transform-style":
+    case "translate":
+      return "display: block";
+    default:
+      return "";
+  }
+}
+
+const initialValues = Object.create(null);
+for (let property of cs) {
+  if (!property.startsWith("-")) {
+    initialValues[property] = cs.getPropertyValue(property);
+  }
+}
+
+for (let property in initialValues) {
+  // Skip property if the stylesheet above doesn't provide a non-initial value.
+  // This is to avoid having to update the test every time a new CSS property is added.
+  const nonInitialValue = nonInitialStyle.getPropertyValue(property);
+  if (nonInitialValue === "") {
+    continue;
+  }
+
+  test(function() {
+    const initialValue = initialValues[property];
+    assert_not_equals(initialValue, "", "Should have the initial value.");
+
+    this.add_cleanup(() => {
+      layer2Style.cssText = "";
+      target.classList.remove("rollback");
+    });
+
+    layer2Style.cssText = prerequisites(property);
+    layer2Style.setProperty(property, nonInitialValue);
+    const changedValue = cs.getPropertyValue(property);
+    assert_not_equals(changedValue, initialValue, "Should get a different computed value.");
+
+    target.classList.add("rollback");
+    const revertedValue = cs.getPropertyValue(property);
+    assert_equals(revertedValue, changedValue, "Layer 3 should rollback to layer 2.");
+  }, property);
+}
+</script>

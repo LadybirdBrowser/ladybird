@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Selector: pseudo-classes (:autofill)</title>
+<link rel=help href="https://html.spec.whatwg.org/multipage/#pseudo-classes">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_valid_selector(":autofill");
+test_valid_selector(":-webkit-autofill", [":autofill", ":-webkit-autofill"]);
+</script>

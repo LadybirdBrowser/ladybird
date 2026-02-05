@@ -1,0 +1,6 @@
+// https://html.spec.whatwg.org/multipage/interaction.html#useractivation
+[Exposed=Window]
+interface UserActivation {
+    readonly attribute boolean hasBeenActive;
+    readonly attribute boolean isActive;
+};

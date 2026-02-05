@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	html5lib_adoption02.html cefc9890d621707fedf5eb634f3a86d753659d9b
+Pass	html5lib_adoption02.html 2a8f569e9d55b3cb7e54b026f758dea8593f4cb4

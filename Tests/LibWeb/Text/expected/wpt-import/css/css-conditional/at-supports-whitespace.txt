@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	@supports ((a)) {}
+Pass	@supports ((a) ) {}
+Pass	@supports ( (a)) {}
+Pass	@supports ( (a) ) {}
+Pass	@supports (not (a)) {}
+Pass	@supports (not (a) ) {}
+Pass	@supports ( not (a)) {}
+Pass	@supports ( not (a) ) {}
+Pass	@supports ((a) and (b)) {}
+Pass	@supports ((a) and (b) ) {}
+Pass	@supports ( (a) and (b)) {}
+Pass	@supports ( (a) and (b) ) {}
+Pass	@supports ((a) or (b)) {}
+Pass	@supports ((a) or (b) ) {}
+Pass	@supports ( (a) or (b)) {}
+Pass	@supports ( (a) or (b) ) {}

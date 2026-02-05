@@ -1,0 +1,320 @@
+{
+  "any-hover": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "hover"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "any-pointer": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "coarse",
+      "fine"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "aspect-ratio": {
+    "type": "range",
+    "values": [
+      "<ratio>"
+    ]
+  },
+  "color": {
+    "type": "range",
+    "values": [
+      "<integer>"
+    ]
+  },
+  "color-gamut": {
+    "type": "discrete",
+    "values": [
+      "srgb",
+      "p3",
+      "rec2020"
+    ]
+  },
+  "color-index": {
+    "type": "range",
+    "values": [
+      "<integer>"
+    ]
+  },
+  "device-aspect-ratio": {
+    "type": "range",
+    "values": [
+      "<ratio>"
+    ]
+  },
+  "device-height": {
+    "type": "range",
+    "values": [
+      "<length>"
+    ]
+  },
+  "device-width": {
+    "type": "range",
+    "values": [
+      "<length>"
+    ]
+  },
+  "display-mode": {
+    "type": "discrete",
+    "values": [
+      "fullscreen",
+      "standalone",
+      "minimal-ui",
+      "browser",
+      "picture-in-picture"
+    ]
+  },
+  "dynamic-range": {
+    "type": "discrete",
+    "values": [
+      "standard",
+      "high"
+    ],
+    "FIXME": "This always evaluating to false in a boolean context seems like a spec bug. https://github.com/w3c/csswg-drafts/issues/8050",
+    "false-keywords": [
+      "standard",
+      "high"
+    ]
+  },
+  "environment-blending": {
+    "type": "discrete",
+    "values": [
+      "opaque",
+      "additive",
+      "subtractive"
+    ]
+  },
+  "forced-colors": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "active"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "grid": {
+    "type": "discrete",
+    "values": [
+      "<mq-boolean>"
+    ]
+  },
+  "height": {
+    "type": "range",
+    "values": [
+      "<length>"
+    ]
+  },
+  "horizontal-viewport-segments": {
+    "type": "range",
+    "values": [
+      "<integer>"
+    ]
+  },
+  "hover": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "hover"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "inverted-colors": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "inverted"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "monochrome": {
+    "type": "range",
+    "values": [
+      "<integer>"
+    ]
+  },
+  "nav-controls": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "back"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "orientation": {
+    "type": "discrete",
+    "values": [
+      "portrait",
+      "landscape"
+    ]
+  },
+  "overflow-block": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "scroll",
+      "paged"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "overflow-inline": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "scroll"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "pointer": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "coarse",
+      "fine"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "prefers-color-scheme": {
+    "type": "discrete",
+    "values": [
+      "light",
+      "dark"
+    ]
+  },
+  "prefers-contrast": {
+    "type": "discrete",
+    "values": [
+      "no-preference",
+      "less",
+      "more",
+      "custom"
+    ],
+    "false-keywords": [
+      "no-preference"
+    ]
+  },
+  "prefers-reduced-data": {
+    "type": "discrete",
+    "values": [
+      "no-preference",
+      "reduce"
+    ],
+    "false-keywords": [
+      "no-preference"
+    ]
+  },
+  "prefers-reduced-motion": {
+    "type": "discrete",
+    "values": [
+      "no-preference",
+      "reduce"
+    ],
+    "false-keywords": [
+      "no-preference"
+    ]
+  },
+  "prefers-reduced-transparency": {
+    "type": "discrete",
+    "values": [
+      "no-preference",
+      "reduce"
+    ],
+    "false-keywords": [
+      "no-preference"
+    ]
+  },
+  "resolution": {
+    "type": "range",
+    "values": [
+      "<resolution>",
+      "infinite"
+    ]
+  },
+  "scan": {
+    "type": "discrete",
+    "values": [
+      "interlace",
+      "progressive"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "scripting": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "initial-only",
+      "enabled"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "update": {
+    "type": "discrete",
+    "values": [
+      "none",
+      "slow",
+      "fast"
+    ],
+    "false-keywords": [
+      "none"
+    ]
+  },
+  "vertical-viewport-segments": {
+    "type": "range",
+    "values": [
+      "<integer>"
+    ]
+  },
+  "video-color-gamut": {
+    "type": "discrete",
+    "values": [
+      "srgb",
+      "p3",
+      "rec2020"
+    ]
+  },
+  "video-dynamic-range": {
+    "type": "discrete",
+    "values": [
+      "standard",
+      "high"
+    ],
+    "FIXME": "See dynamic-range",
+    "false-keywords": [
+      "standard",
+      "high"
+    ]
+  },
+  "width": {
+    "type": "range",
+    "values": [
+      "<length>"
+    ]
+  }
+}

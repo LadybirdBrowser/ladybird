@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const writableStream = new WritableStream({
+                close() {
+                    println("Writer has been closed.");
+                }
+            }
+        );
+        const stream = new ReadableStream({
+            pull(controller) {
+                controller.close();
+            }
+        });
+
+        stream.pipeTo(writableStream).then(() => {
+            done();
+        });
+    });
+</script>

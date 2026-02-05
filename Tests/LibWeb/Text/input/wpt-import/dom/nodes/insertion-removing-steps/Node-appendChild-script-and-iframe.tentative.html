@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Node.appendChild: inserting script and iframe</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<body>
+<script>
+
+const kScriptContent = `
+  state = iframe.contentWindow ? "iframe with content window" : "contentWindow is null";
+`;
+
+// This test ensures that a later-inserted script can observe an
+// earlier-inserted iframe's contentWindow.
+test(t => {
+  window.state = "script not run yet";
+  window.iframe = document.createElement("iframe");
+  t.add_cleanup(() => window.iframe.remove());
+
+  const script = document.createElement("script");
+  script.textContent = kScriptContent;
+
+  const div = document.createElement("div");
+  div.appendChild(iframe);
+  div.appendChild(script);
+
+  assert_equals(state, "script not run yet");
+  document.body.appendChild(div);
+  assert_equals(state, "iframe with content window");
+}, "Script inserted after an iframe in the same appendChild() call can " +
+   "observe the iframe's non-null contentWindow");
+
+// The below tests assert that an earlier-inserted script does not observe a
+// later-inserted iframe's contentWindow.
+test(t => {
+  window.state = "script not run yet";
+  window.iframe = document.createElement("iframe");
+  t.add_cleanup(() => window.iframe.remove());
+
+  const script = document.createElement("script");
+  script.textContent = kScriptContent;
+
+  const div = document.createElement("div");
+  div.appendChild(script);
+  div.appendChild(iframe);
+
+  assert_equals(state, "script not run yet");
+  document.body.appendChild(div);
+  assert_equals(state, "contentWindow is null");
+}, "A script inserted atomically before an iframe (using a div) does not " +
+   "observe the iframe's contentWindow, since the 'script running' and " +
+   "'iframe setup' both happen in order, after DOM insertion completes");
+
+test(t => {
+  window.state = "script not run yet";
+  window.iframe = document.createElement("iframe");
+  t.add_cleanup(() => window.iframe.remove());
+
+  const script = document.createElement("script");
+  script.textContent = kScriptContent;
+
+  const df = document.createDocumentFragment();
+  df.appendChild(script);
+  df.appendChild(iframe);
+
+  assert_equals(state, "script not run yet");
+  document.body.appendChild(df);
+  assert_equals(state, "contentWindow is null");
+}, "A script inserted atomically before an iframe (using a DocumentFragment) " +
+   "does not observe the iframe's contentWindow, since the 'script running' " +
+   "and 'iframe setup' both happen in order, after DOM insertion completes");
+
+test(t => {
+  window.state = "script not run yet";
+  window.iframe = document.createElement("iframe");
+  t.add_cleanup(() => window.iframe.remove());
+
+  const script = document.createElement("script");
+  script.textContent = kScriptContent;
+
+  assert_equals(state, "script not run yet");
+  document.body.append(script, iframe);
+
+  assert_equals(state, "contentWindow is null");
+}, "A script inserted atomically before an iframe (using a append() with " +
+   "multiple arguments) does not observe the iframe's contentWindow, since " +
+   "the 'script running' and 'iframe setup' both happen in order, after DOM " +
+   "insertion completes");
+</script>

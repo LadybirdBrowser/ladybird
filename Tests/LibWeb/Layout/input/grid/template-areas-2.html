@@ -1,0 +1,22 @@
+<!DOCTYPE html><head><style type="text/css">
+* {
+    border: 1px solid black;
+}
+
+.grid {
+    display: grid;
+    grid-template-rows: 100px 100px 100px;
+    grid-template-columns: 100px 100px 100px;
+    grid-template-areas: "a a b" "a a b" "a a b";
+}
+
+.a {
+    grid-area: a / a / a / a;
+    background-color: red;
+}
+
+.b {
+    grid-area: b / b / b / b;
+    background-color: blueviolet;
+}
+</style></head><body><div class="grid"><div class="a">a</div><div class="b">b</div>

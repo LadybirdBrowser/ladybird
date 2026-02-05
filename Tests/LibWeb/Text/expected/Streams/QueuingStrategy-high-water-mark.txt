@@ -1,0 +1,20 @@
+======================================
+CountQueuingStrategy
+======================================
+'{"highWaterMark":2}' => 2
+'{"highWaterMark":-1}' => -1
+'{"badKey":-1}' => Exception raised of TypeError
+'{}' => Exception raised of TypeError
+'"string instead"' => Exception raised of TypeError
+'{"highWaterMark":"wrongType"}' => NaN
+'{"highWaterMark":{}}' => NaN
+======================================
+ByteLengthQueuingStrategy
+======================================
+'{"highWaterMark":2}' => 2
+'{"highWaterMark":-1}' => -1
+'{"badKey":-1}' => Exception raised of TypeError
+'{}' => Exception raised of TypeError
+'"string instead"' => Exception raised of TypeError
+'{"highWaterMark":"wrongType"}' => NaN
+'{"highWaterMark":{}}' => NaN

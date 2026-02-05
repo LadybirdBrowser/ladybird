@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	circle(foo) - invalid
+Pass	circle(10) - invalid
+Pass	circle(20px 30px) - invalid
+Pass	circle(20% 30%) - invalid
+Pass	circle(20px, 30px) - invalid
+Pass	circle(20%, 30%) - invalid
+Pass	circle(20px closest-side) - invalid
+Pass	circle(20px farthest-side) - invalid
+Pass	circle(closest-side 20px) - invalid
+Pass	circle(farthest-side 20px) - invalid
+Pass	circle(20% closest-side) - invalid
+Pass	circle(20% farthest-side) - invalid
+Pass	circle(closest-side 20%) - invalid
+Pass	circle(farthest-side 20%) - invalid
+Pass	circle(closest-side farthest-side) - invalid
+Pass	circle(farthest-side closest-side) - invalid

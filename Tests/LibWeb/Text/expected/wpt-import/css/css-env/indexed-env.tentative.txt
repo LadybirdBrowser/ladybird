@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+4 Pass
+4 Fail
+Fail	CSS Environment variable value "env(test1 test2, green)" must not successfully parse
+Fail	CSS Environment variable value "env(test1 10 20 test2, green)" must not successfully parse
+Fail	CSS Environment variable value "env(test 0.1, green)" must not successfully parse
+Fail	CSS Environment variable value "env(test -1, green)" must not successfully parse
+Pass	CSS Environment variable value "env(test 0, green)" must successfully parse and roundtrip
+Pass	CSS Environment variable value "env(test 0,)" must successfully parse and roundtrip
+Pass	CSS Environment variable value "env(test 0)" must successfully parse and roundtrip
+Pass	CSS Environment variable value "env(test 0 1 2 3 4, green)" must successfully parse and roundtrip

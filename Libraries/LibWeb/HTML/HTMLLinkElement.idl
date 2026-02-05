@@ -1,0 +1,63 @@
+#import <CSS/LinkStyle.idl>
+#import <Fetch/Request.idl>
+#import <HTML/HTMLElement.idl>
+#import <HTML/Scripting/Fetching.idl>
+
+// https://fetch.spec.whatwg.org/#concept-potential-destination
+enum PotentialDestination {
+    "",
+    "audio",
+    "audioworklet",
+    "document",
+    "embed",
+    "font",
+    "frame",
+    "iframe",
+    "image",
+    "json",
+    "manifest",
+    "object",
+    "paintworklet",
+    "report",
+    "script",
+    "serviceworker",
+    "sharedworker",
+    "style",
+    "track",
+    "video",
+    "webidentity",
+    "worker",
+    "xslt",
+    "fetch"
+};
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmllinkelement
+[Exposed=Window]
+interface HTMLLinkElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect, URL] attribute USVString href;
+    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
+    [CEReactions, Reflect] attribute DOMString rel;
+    [CEReactions, Reflect, Enumerated=PotentialDestination] attribute DOMString as;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+    [CEReactions] attribute DOMString media;
+    [CEReactions, Reflect] attribute DOMString integrity;
+    [CEReactions, Reflect] attribute DOMString hreflang;
+    [CEReactions, Reflect] attribute DOMString type;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
+    [CEReactions, Reflect=imagesrcset] attribute USVString imageSrcset;
+    [CEReactions, Reflect=imagesizes] attribute DOMString imageSizes;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+    [CEReactions, Reflect] attribute boolean disabled;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString charset;
+    [CEReactions, Reflect] attribute DOMString rev;
+    [CEReactions, Reflect] attribute DOMString target;
+
+};
+HTMLLinkElement includes LinkStyle;

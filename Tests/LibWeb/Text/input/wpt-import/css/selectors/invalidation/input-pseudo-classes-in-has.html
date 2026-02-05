@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: input pseudo classes in :has() argument</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .ancestor:has(#checkme:checked) { color: green }
+  .ancestor:has(#checkme:indeterminate) { color: yellowgreen }
+  .ancestor:has(#checkme:disabled) { color: blue }
+  .ancestor:has(#textinput:read-only) { color: skyblue }
+  .ancestor:has(#textinput:placeholder-shown) { color: navy }
+  .ancestor:has(#radioinput:default) { color: lightblue }
+  .ancestor:has(#textinput:valid) { color: lightgreen }
+  .ancestor:has(#numberinput:out-of-range) { color: darkgreen }
+  .ancestor:has(#numberinput:required) { color: pink }
+  .ancestor:has(#progress:indeterminate) { color: orange }
+  .ancestor:has(#checkboxinput:default) { color: purple; }
+</style>
+<div id=subject class=ancestor>
+  <input type="checkbox" name="my-checkbox" id="checkme">
+  <label for="checkme">Check me!</label>
+  <input type="text" id="textinput" required>
+  <input id="radioinput" checked>
+  <input id="numberinput" type="number" min="1" max="10" value="5">
+  <progress id="progress" value="50" max="100"></progress>
+  <input id="checkboxinput" type="checkbox">
+</div>
+<script>
+  test(function() {
+    let input = null;
+    this.add_cleanup(() => {
+      if (input) {
+        // Need to put the input back for the rest of the tests.
+        subject.prepend(input);
+      }
+      checkme.checked = false;
+    });
+    checkme.checked = false;
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    checkme.checked = true;
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 128, 0)",
+                  "ancestor should be green");
+    checkme.indeterminate = true;
+    assert_equals(getComputedStyle(subject).color, "rgb(154, 205, 50)",
+                  "ancestor should be yellowgreen");
+    input = checkme;
+    checkme.remove();
+    input.indeterminate = false;
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+
+    subject.prepend(input);
+    input = null;
+    checkme.checked = true;
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 128, 0)",
+                  "ancestor should be green");
+  }, ":checked & :indeterminate invalidation on <input>");
+
+  test(function() {
+    this.add_cleanup(() => {
+      progress.setAttribute("value", "50");
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    progress.removeAttribute("value");
+    assert_equals(getComputedStyle(subject).color, "rgb(255, 165, 0)",
+                  "ancestor should be orange");
+  }, ":indeterminate invalidation on <progress>");
+
+  test(function() {
+    this.add_cleanup(() => {
+      checkme.disabled = false;
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    checkme.disabled = true;
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 255)",
+                  "ancestor should be blue");
+  }, ":disabled invalidation");
+
+  test(function() {
+    this.add_cleanup(() => {
+      textinput.readOnly = false;
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    textinput.readOnly = true;
+    assert_equals(getComputedStyle(subject).color, "rgb(135, 206, 235)",
+                  "ancestor should be skyblue");
+  }, ":read-only invalidation");
+
+  test(function() {
+    this.add_cleanup(() => {
+      textinput.value = "";
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    textinput.value = "text input";
+    assert_equals(getComputedStyle(subject).color, "rgb(144, 238, 144)",
+                  "ancestor should be lightgreen");
+  }, ":valid invalidation");
+
+  test(function() {
+    this.add_cleanup(() => {
+      radioinput.removeAttribute("type");
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    radioinput.type = 'radio';
+    assert_equals(getComputedStyle(subject).color, "rgb(173, 216, 230)",
+                  "ancestor should be lightblue");
+  }, ":default invalidation with input[type=radio]");
+
+  test(function() {
+    this.add_cleanup(() => {
+      numberinput.required = false;
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    numberinput.required = true;
+    assert_equals(getComputedStyle(subject).color, "rgb(255, 192, 203)",
+                  "ancestor should be pink");
+  }, ":required invalidation");
+
+  test(function() {
+    this.add_cleanup(() => {
+      numberinput.value = 5;
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    numberinput.value = 12;
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 100, 0)",
+                  "ancestor should be darkgreen");
+  }, ":out-of-range invalidation");
+
+  test(function() {
+    this.add_cleanup(() => {
+      textinput.removeAttribute("placeholder");
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    textinput.placeholder = 'placeholder text';
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 128)",
+                  "ancestor should be navy");
+  }, ":placeholder-shown invalidation");
+
+  test(function() {
+    this.add_cleanup(() => {
+      checkboxinput.checked = false;
+      checkboxinput.removeAttribute("checked");
+    });
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    checkboxinput.checked = true;
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should still be black");
+    checkboxinput.setAttribute("checked", "");
+    assert_equals(getComputedStyle(subject).color, "rgb(128, 0, 128)",
+                  "ancestor should be purple");
+    checkboxinput.checked = false;
+    assert_equals(getComputedStyle(subject).color, "rgb(128, 0, 128)",
+                  "ancestor should still be purple");
+    checkboxinput.removeAttribute("checked");
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+  }, ":default invalidation with input[type=checkbox] and assignment to .checked");
+</script>

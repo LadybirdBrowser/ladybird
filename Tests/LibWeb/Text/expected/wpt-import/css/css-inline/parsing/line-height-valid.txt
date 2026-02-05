@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['line-height'] = "normal" should set the property value
+Pass	e.style['line-height'] = "0" should set the property value
+Pass	e.style['line-height'] = "2" should set the property value
+Pass	e.style['line-height'] = "0px" should set the property value
+Pass	e.style['line-height'] = "10px" should set the property value
+Pass	e.style['line-height'] = "0%" should set the property value
+Pass	e.style['line-height'] = "200%" should set the property value
+Pass	e.style['line-height'] = "calc(200% + 10px)" should set the property value

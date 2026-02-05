@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<!-- Adapted from https://wpt.live/html/semantics/interactive-elements/the-dialog-element/backdrop-receives-element-events.html -->
+<style>
+    /* ::backdrop takes up whole screen, actual <dialog> is hidden */
+    dialog {
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    dialog::backdrop {
+        visibility: visible;
+        pointer-events: initial;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+</style>
+<dialog></dialog>
+<script>
+    asyncTest((done) => {
+        const dialog = document.querySelector("dialog");
+        dialog.showModal();
+        dialog.addEventListener("click", () => {
+            println("PASS");
+            done();
+        });
+        internals.click(0, 0);
+    });
+</script>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<title>grid items and abspos flex children</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org" />
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#algo-overview" title="Note at bottom of this section: 'the size of a grid item which is stretched is also considered definite.'">
+<link rel="bookmark" href="https://crbug.com/1091588" />
+<link rel="bookmark" href="https://crbug.com/1018439" />
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.grid {
+  display: grid;
+}
+
+.flexbox {
+  display: flex;
+}
+
+.relpos {
+  position: relative;
+}
+
+.abspos {
+  position: absolute;
+  border: 1px solid;
+}
+
+/* These are just for making the test look better. */
+p {
+  margin: 0px;
+}
+p + div {
+  margin-bottom: 40px;
+}
+</style>
+
+<p>This crashed Chrome 84.</p>
+<div class=grid>
+  <div class="relpos flexbox" data-expected-height=20>
+    <div class=abspos>Test</div>
+    <div style="height: 20px;"></div>
+  </div>
+</div>
+
+<p>Outer is a regular div.</p>
+<div>
+  <div class="relpos flexbox" data-expected-height=20>
+    <div class=abspos>Test</div>
+    <div style="height: 20px;"></div>
+  </div>
+</div>
+
+<p>relpos element is a regular div, not flexbox.</p>
+<div class=grid>
+  <div class="relpos" data-expected-height=20>
+    <div class=abspos>Test</div>
+    <div style="height: 20px;"></div>
+  </div>
+</div>
+
+<p>Relpos flexbox has a % height descendant. The height of the flexbox grid item is supposed to be definite, allowing the %height flex item to resolve.
+
+This fails in chrome because of https://crbug.com/1018439</p>
+<div class=grid>
+  <div class="relpos flexbox" data-expected-height=20>
+    <div class=abspos>Test</div>
+    <div style="height: 20px;"></div>
+    <div style="height: 50%" data-expected-height=10></div>
+  </div>
+</div>
+
+<script>
+  checkLayout('.relpos');
+  // Changing the abspos border shouldn't change the size of any inflow element.
+  for (abspos of document.querySelectorAll(".abspos")) {
+    abspos.style.borderWidth = "10px";
+  }
+  checkLayout('.relpos');
+</script>

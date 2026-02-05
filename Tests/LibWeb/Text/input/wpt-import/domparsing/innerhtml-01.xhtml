@@ -1,0 +1,28 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>innerHTML in XHTML: getting while the document is in an invalid state</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com"/>
+<link rel="help" href="https://w3c.github.io/DOM-Parsing/#widl-Element-innerHTML"/>
+<link rel="help" href="http://www.whatwg.org/html5/#xml-fragment-serialization-algorithm"/>
+<link rel="help" href="http://www.whatwg.org/html5/#document.title"/>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+test(function() {
+  document.documentElement.appendChild(document.createElement("test:test"));
+  assert_throws_dom("INVALID_STATE_ERR", function() {
+    document.documentElement.innerHTML;
+  }, "getting element with \":\" in its local name");
+});
+test(function() {
+  document.title = "\f";
+  assert_throws_dom("INVALID_STATE_ERR", function() {
+    document.getElementsByTagName("title")[0].innerHTML;
+  }, "Getting a Text node whose data contains characters that are not matched by the XML Char production");
+});
+</script>
+</body>
+</html>

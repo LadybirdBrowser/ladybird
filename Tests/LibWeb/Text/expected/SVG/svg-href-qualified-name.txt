@@ -1,0 +1,18 @@
+---------------
+explicit-xlink-href
+---------------
+localName -> href
+name -> xlink:href
+namespaceURI -> http://www.w3.org/1999/xlink
+ownerElement -> explicit-xlink-href
+prefix -> xlink
+value -> test
+---------------
+implicit-xlink-href
+---------------
+localName -> href
+name -> href
+namespaceURI -> null
+ownerElement -> implicit-xlink-href
+prefix -> null
+value -> test

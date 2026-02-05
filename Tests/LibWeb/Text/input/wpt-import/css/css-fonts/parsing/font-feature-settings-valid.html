@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-feature-settings with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-feature-settings-prop">
+<meta name="assert" content="font-feature-settings supports the full grammar 'normal | <feature-tag-value> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-feature-settings', 'normal');
+
+// <feature-tag-value> = <string> [ <integer> | on | off ]?
+test_valid_value('font-feature-settings', '"dlig" 1', '"dlig"');
+test_valid_value('font-feature-settings', '"smcp" on', '"smcp"');
+test_valid_value('font-feature-settings', "'c2sc'", '"c2sc"');
+test_valid_value('font-feature-settings', '"liga" off', '"liga" 0');
+test_valid_value('font-feature-settings', '"tnum", \'hist\'', '"tnum", "hist"');
+
+test_valid_value('font-feature-settings', '"PKRN"');
+
+test_valid_value('font-feature-settings', '"dlig" 1, "smcp" on, "dlig" 0', '"dlig", "smcp", "dlig" 0');
+</script>
+</body>
+</html>

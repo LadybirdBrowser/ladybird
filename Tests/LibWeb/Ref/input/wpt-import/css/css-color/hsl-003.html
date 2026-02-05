@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: HSL functions hsl() and hsla()</title>
+<link rel="author" title="Chris Nardi" href="mailto:csnardi1@gmail.com">
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#the-hsl-notation">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/greensquare-ref.html">
+<meta name="assert" content="hsl() with number and numeric alpha, also no comma">
+<style>
+    .test { background-color: red; width: 12em; height: 6em; margin-top:0}
+    .ref { background-color: #008000; width: 12em; height: 6em; margin-bottom: 0}
+    .test {background-color: hsl(120 100% 25% / 1.0)}
+</style>
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <p class="ref"> </p>
+    <p class="test"> </p>
+</body>

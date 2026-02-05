@@ -1,0 +1,4 @@
+selectionStart: 0
+selectionEnd: 0
+selectionStart: 18
+selectionEnd: 18

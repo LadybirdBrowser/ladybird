@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Crash Test: Cycle in CSSUnparsedValue</title>
+<link rel="help" href="https://issues.chromium.org/issues/371292572">
+<div id=div></div>
+<script>
+  var unparsed_value = new CSSUnparsedValue([]);
+  var var_ref = new CSSVariableReferenceValue('--A', unparsed_value);
+  unparsed_value[0] = var_ref;
+  div.attributeStyleMap.set('width', unparsed_value);
+</script>
+<p>PASS if no crash</p>

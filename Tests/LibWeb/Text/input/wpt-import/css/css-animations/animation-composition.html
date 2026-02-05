@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>animation-composition test</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#animation-composition">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script src="support/testcommon.js"></script>
+<style>
+    @keyframes anim {
+        from {
+            filter: blur(10px);
+            width: 100px;
+        }
+        50% {
+            filter: blur(15px);
+            width: 228px;
+        }
+        to {
+            filter: blur(20px);
+            width: 1337px;
+        }
+    }
+
+    .anim-target {
+        animation: anim 1s;
+        animation-fill-mode: forwards;
+        animation-timing-function: linear;
+        filter: blur(5px);
+        width: 50px;
+    }
+
+    .replace {
+        animation-composition: replace;
+    }
+
+    .add {
+        animation-composition: add;
+    }
+
+    .accumulate {
+        animation-composition: accumulate;
+    }
+</style>
+<div id="log"></div>
+<script>
+    function run_test_case(element, property, composite_type, timing_value_map) {
+        element.classList.add(composite_type);
+        const anim = element.getAnimations()[0];
+        for (const [time, value] of Object.entries(timing_value_map)) {
+            anim.currentTime = time;
+            const property_value = getComputedStyle(element).getPropertyValue(property);
+            assert_equals(property_value, value, "at time " + time);
+        }
+        element.classList.remove(composite_type);
+    }
+
+    const test_cases = [
+        ["filter", {
+            "replace": {
+                0: "blur(10px)",
+                250: "blur(12.5px)",
+                500: "blur(15px)",
+                1000: "blur(20px)"
+            },
+            "add": {
+                0: "blur(5px) blur(10px)",
+                250: "blur(5px) blur(12.5px)",
+                500: "blur(5px) blur(15px)",
+                1000: "blur(5px) blur(20px)"
+            },
+            "accumulate": {
+                0: "blur(15px)",
+                250: "blur(17.5px)",
+                500: "blur(20px)",
+                1000: "blur(25px)"
+            }
+        }],
+        ["width", {
+            "replace": {
+                0: "100px",
+                250: "164px",
+                500: "228px",
+                1000: "1337px"
+            },
+            "add": {
+                0: "150px",
+                250: "214px",
+                500: "278px",
+                1000: "1387px"
+            },
+            "accumulate": {
+                0: "150px",
+                250: "214px",
+                500: "278px",
+                1000: "1387px"
+            }
+        }]
+    ]
+
+    for (const test_case of test_cases) {
+        const property = test_case[0];
+        const test_data = test_case[1];
+        for (const [composite_type, expected_values] of Object.entries(test_data)) {
+            test(t => {
+                let elem = addDiv(t, {"class": "anim-target"});
+                run_test_case(elem, property, composite_type, expected_values);
+            }, "animation-composition: " + composite_type + " of property " + property);
+        }
+    }
+</script>

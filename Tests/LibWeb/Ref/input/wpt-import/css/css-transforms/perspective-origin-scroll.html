@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The 'perspective-origin's position must not move with the children of a scroll container if it is on one.</title>
+<link rel="author" title="Psychpsyo" href="mailto:psychpsyo@gmail.com">
+<link rel="help" href="https://www.w3.org/TR/css-transforms-2/#perspective-origin-property">
+<link rel="help" href="https://www.w3.org/TR/css-transforms-2/#perspective-matrix-computation">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The 'perspective-origin's position must not move with the children of a scroll container if it is on one.">
+<style>
+  div {
+    position: absolute;
+  }
+  #holder {
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+    perspective: 2px;
+    perspective-origin: 0px 0px;
+  }
+  #red {
+    background-color: red;
+    height: 200px;
+    width: 100px;
+  }
+  #greenSquare {
+    transform: translateZ(1px);
+    background-color: green;
+    width: 50px;
+    height: 50px;
+    top: 100px;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="holder">
+  <div id="red"></div>
+  <div id="greenSquare"></div>
+</div>
+<script>
+  holder.scroll({top: 100, behavior: "instant"});
+</script>

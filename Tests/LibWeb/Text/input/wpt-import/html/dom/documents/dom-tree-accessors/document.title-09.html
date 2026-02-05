@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#document.title">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+var HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
+
+function newSVGDocument() {
+  return document.implementation.createDocument(SVG_NAMESPACE, "svg", null);
+}
+
+function assertIsSVGTitle(element, expectedText) {
+  assert_equals(element.namespaceURI, SVG_NAMESPACE);
+  assert_equals(element.localName, "title");
+  assert_equals(element.textContent, expectedText);
+}
+
+test(function() {
+  var doc = newSVGDocument();
+  assert_equals(doc.title, "");
+  var child = doc.createElementNS(SVG_NAMESPACE, "x-child");
+  doc.documentElement.appendChild(child);
+  doc.title = "foo";
+  assertIsSVGTitle(doc.documentElement.firstChild, "foo");
+  assert_equals(doc.title, "foo");
+}, "No title element in SVG document");
+
+test(function() {
+  var doc = newSVGDocument();
+  var title = doc.createElementNS(SVG_NAMESPACE, "title");
+  title.textContent = "foo";
+  doc.documentElement.appendChild(title)
+  assert_equals(doc.title, "foo");
+  doc.title += "bar";
+  assert_equals(title.textContent, "foobar");
+  assert_equals(title.childNodes.length, 1);
+  assert_true(title.childNodes[0] instanceof Text);
+  assert_equals(doc.title, "foobar");
+  doc.title = "";
+  assert_equals(title.textContent, "");
+  assert_equals(doc.title, "");
+  assert_equals(title.childNodes.length, 0);
+}, "Title element in SVG document");
+
+test(function() {
+  var doc = newSVGDocument();
+  var title = doc.createElementNS(SVG_NAMESPACE, "title");
+  title.textContent = "foo";
+  var child = doc.createElementNS(SVG_NAMESPACE, "x-child");
+  child.appendChild(title);
+  doc.documentElement.appendChild(child);
+  assert_equals(doc.title, "");
+
+  // Now test that on setting, we create a new element and don't change the
+  // existing one
+  doc.title = "bar";
+  assert_equals(title.textContent, "foo");
+  assertIsSVGTitle(doc.documentElement.firstChild, "bar");
+  assert_equals(doc.title, "bar");
+}, "Title element not child of SVG root");
+
+test(function() {
+  var doc = newSVGDocument();
+  var title = doc.createElementNS(HTML_NAMESPACE, "title");
+  title.textContent = "foo";
+  doc.documentElement.appendChild(title);
+  assert_equals(doc.title, "");
+}, "Title element not in SVG namespace");
+
+test(function() {
+  // "SVG" != "svg"
+  var doc = document.implementation.createDocument(SVG_NAMESPACE, "SVG", null);
+
+  // Per spec, this does nothing
+  doc.title = "foo";
+  assert_equals(doc.documentElement.childNodes.length, 0);
+  assert_equals(doc.title, "");
+
+  // An SVG title is ignored by .title
+  doc.documentElement.appendChild(doc.createElementNS(SVG_NAMESPACE, "title"));
+  doc.documentElement.lastChild.textContent = "foo";
+  assert_equals(doc.title, "");
+
+  // But an HTML title is respected
+  doc.documentElement.appendChild(doc.createElementNS(HTML_NAMESPACE, "title"));
+  doc.documentElement.lastChild.textContent = "bar";
+  assert_equals(doc.title, "bar");
+
+  // Even if it's not a child of the root
+  var div = doc.createElementNS(HTML_NAMESPACE, "div");
+  div.appendChild(doc.documentElement.lastChild);
+  doc.documentElement.appendChild(div);
+  assert_equals(doc.title, "bar");
+}, 'Root element not named "svg"');
+</script>

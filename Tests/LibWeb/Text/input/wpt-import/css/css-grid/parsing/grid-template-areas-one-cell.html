@@ -1,0 +1,34 @@
+<!doctype html>
+<title>grid-template-areas must define at least one cell</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel=author title="Tab Atkins-Bittner" href="https://www.xanthir.com/contact/">
+<link rel=help href="https://www.w3.org/TR/css-grid-1/#grid-template-areas-property">
+<meta name=assert content="grid-template-areas must define at least one cell to be valid.">
+
+<script>
+function testValidGta(val) {
+  test(()=>{
+    const root = document.children[0];
+    root.style.gridTemplateAreas = "";
+    root.style.gridTemplateAreas = val;
+    assert_not_equals(root.style.gridTemplateAreas, "");
+  }, `"grid-template-areas: ${val};" should be valid.`);
+}
+function testInvalidGta(val) {
+  test(()=>{
+    const root = document.children[0];
+    root.style.gridTemplateAreas = "";
+    root.style.gridTemplateAreas = val;
+    assert_equals(root.style.gridTemplateAreas, "");
+  }, `"grid-template-areas: ${val};" should be invalid.`);
+}
+
+testValidGta("'a'");
+testValidGta("'.'");
+
+testInvalidGta("''");
+testInvalidGta("'' ''");
+testInvalidGta("'$'");
+testInvalidGta("'  '");
+</script>

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	'font' does not support '1.2em "Fira Sans", sans-serif'
+Pass	'font' does not support 'italic 1.2em "Fira Sans", serif'
+Pass	'font' does not support 'italic small-caps bold 16px/2 cursive'
+Pass	'font' does not support 'small-caps bold 24px/1 sans-serif'
+Fail	'font' does not support 'caption'

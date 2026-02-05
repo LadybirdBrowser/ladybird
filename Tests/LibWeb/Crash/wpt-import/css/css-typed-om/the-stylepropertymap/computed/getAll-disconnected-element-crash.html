@@ -1,0 +1,7 @@
+<!doctype html>
+<title>Computed StylePropertyMap.getAll with shorthand on disconnected element crash</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-getall">
+<p>Pass if no crash.</p>
+<script>
+  document.createElement("div").computedStyleMap().getAll("margin");
+</script>

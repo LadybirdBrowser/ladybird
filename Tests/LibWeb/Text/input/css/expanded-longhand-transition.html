@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            transition: border 1s linear;
+            border-top: 1px solid red;
+        }
+    </style>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            // FIXME: We call getComputedStyle to ensure that style is computed before we update the style attribute
+            //        below to ensure that transitions are triggered.
+            getComputedStyle(foo).border;
+
+            foo.style = "border-top-width: 5px";
+
+            println(document.getAnimations().length);
+        });
+    </script>
+</html>

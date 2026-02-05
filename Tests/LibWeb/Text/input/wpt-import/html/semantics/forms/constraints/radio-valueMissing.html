@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>valueMissing property on the input[type=radio] element</title>
+  <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+  <meta content="valueMissing property on the input[type=radio] element" name="description">
+  <link href="https://html.spec.whatwg.org/multipage/#dom-validitystate-valuemissing" rel="help">
+  <link href="https://html.spec.whatwg.org/multipage/#radio-button-state-(type%3Dradio)%3Asuffering-from-being-missing" rel="help">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <div id="log"></div>
+
+  <form style="display: none">
+    <input type="radio" name="group1" id="radio1">
+    <input type="radio" name="group1" id="radio2">
+
+    <input type="radio" name="group2" required id="radio3">
+    <input type="radio" name="group2" id="radio4">
+
+    <input type="radio" name="group3" required checked id="radio5">
+    <input type="radio" name="group3" id="radio6">
+
+    <input type="radio" name="group4" required id="radio7">
+    <input type="radio" name="group4" checked id="radio8">
+    <input type="radio" name="group4" id="radio9">
+
+    <input type="radio" name="group5" required disabled id="radio10">
+    <input type="radio" name="group5" id="radio11">
+
+    <input type="radio" name="group6" required checked disabled id="radio12">
+    <input type="radio" name="group6" id="radio13">
+  </form>
+
+  <script type="text/javascript">
+    var cases = [
+      {
+        name: "The required attribute is not set",
+        group: ["radio1", "radio2"],
+        expected: false
+      },
+      {
+        name: "One of the radios is required, but none checked",
+        group: ["radio3", "radio4"],
+        expected: true
+      },
+      {
+        name: "One of the radios is required and checked",
+        group: ["radio5", "radio6"],
+        expected: false
+      },
+      {
+        name: "One of the radios is required and another one is checked",
+        group: ["radio7", "radio8", "radio9"],
+        expected: false
+      },
+      {
+        name: "One of the radios is required and disabled, but none checked",
+        group: ["radio10", "radio11"],
+        expected: true
+      },
+      {
+        name: "One of the radios is required, checked and disabled",
+        group: ["radio12", "radio13"],
+        expected: false
+      }
+    ];
+
+    for (var info of cases) {
+      test(function () {
+        for (var id of info.group) {
+          var radio = document.getElementById(id);
+
+          assert_class_string(radio.validity, "ValidityState",
+            "HTMLInputElement.validity must be a ValidityState instance");
+
+          if (info.expected) {
+            assert_true(radio.validity.valueMissing,
+              "The " + id + ".validity.valueMissing should be true");
+          } else {
+            assert_false(radio.validity.valueMissing,
+              "The " + id + ".validity.valueMissing should be false");
+          }
+        }
+      }, info.name);
+    }
+  </script>
+</body>
+</html>

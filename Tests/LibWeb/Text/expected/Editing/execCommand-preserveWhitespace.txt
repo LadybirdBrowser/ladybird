@@ -1,0 +1,2 @@
+Before: foo<div style="white-space: pre">bar</div>
+After: foo<span style="white-space: pre;">bar</span>

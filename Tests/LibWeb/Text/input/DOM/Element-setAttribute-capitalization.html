@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+  test(() => {
+    var xmlDocument = document.implementation.createDocument(null, "root", null);
+    var divElement = xmlDocument.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    divElement.setAttribute("FoO", "bar");
+
+    xmlDocument.documentElement.appendChild(divElement);
+
+    println(new XMLSerializer().serializeToString(xmlDocument));
+  });
+</script>

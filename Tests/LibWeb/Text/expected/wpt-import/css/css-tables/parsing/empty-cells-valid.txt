@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['empty-cells'] = "show" should set the property value
+Pass	e.style['empty-cells'] = "hide" should set the property value

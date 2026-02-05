@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Shared memory without maximum
+Pass	Order of evaluation for descriptor (with shared)
+Pass	Shared memory

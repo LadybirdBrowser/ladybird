@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe src="../../data/iframe-popstate-event.html"></iframe>
+<script>
+    asyncTest(done => {
+        window.addEventListener("message", event => {
+            println(event.data);
+            done();
+        });
+    });
+</script>

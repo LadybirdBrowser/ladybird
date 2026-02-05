@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const parent = document.createElement("div");
+        parent.style.width = 0;
+        parent.style.overflow = 'scroll'
+        const child = document.createElement("div");
+        child.style.width = 0;
+        document.body.appendChild(parent);
+        println("PASS (didn't crash)");
+    });
+</script>

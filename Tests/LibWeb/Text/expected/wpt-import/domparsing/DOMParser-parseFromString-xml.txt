@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	Should parse correctly in type text/xml
+Pass	XMLDocument interface for correctly parsed document with type text/xml
+Pass	Should return an error document for XML wellformedness errors in type text/xml
+Pass	XMLDocument interface for incorrectly parsed document with type text/xml
+Pass	scripting must be disabled with type text/xml
+Pass	Should parse correctly in type application/xml
+Pass	XMLDocument interface for correctly parsed document with type application/xml
+Pass	Should return an error document for XML wellformedness errors in type application/xml
+Pass	XMLDocument interface for incorrectly parsed document with type application/xml
+Pass	scripting must be disabled with type application/xml
+Pass	Should parse correctly in type application/xhtml+xml
+Pass	XMLDocument interface for correctly parsed document with type application/xhtml+xml
+Pass	Should return an error document for XML wellformedness errors in type application/xhtml+xml
+Pass	XMLDocument interface for incorrectly parsed document with type application/xhtml+xml
+Pass	scripting must be disabled with type application/xhtml+xml
+Pass	Should parse correctly in type image/svg+xml
+Pass	XMLDocument interface for correctly parsed document with type image/svg+xml
+Pass	Should return an error document for XML wellformedness errors in type image/svg+xml
+Pass	XMLDocument interface for incorrectly parsed document with type image/svg+xml
+Pass	scripting must be disabled with type image/svg+xml

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Newly-created Event
+Pass	After stopPropagation()
+Pass	Reinitialized after stopPropagation()
+Pass	After stopImmediatePropagation()
+Pass	Reinitialized after stopImmediatePropagation()
+Pass	After cancelBubble=true
+Pass	Reinitialized after cancelBubble=true

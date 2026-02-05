@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Inline StylePropertyMap.delete() with shorthands</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#delete-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, '');
+  assert_equals(elem.style.getPropertyValue('margin'), '');
+  assert_equals(elem.style.getPropertyValue('margin-top'), '');
+  assert_equals(elem.style.getPropertyValue('margin-left'), '');
+  assert_equals(elem.style.getPropertyValue('margin-bottom'), '');
+  assert_equals(elem.style.getPropertyValue('margin-right'), '');
+
+  styleMap.delete('margin');
+  assert_equals(elem.style.getPropertyValue('margin'), '');
+  assert_equals(elem.style.getPropertyValue('margin-top'), '');
+  assert_equals(elem.style.getPropertyValue('margin-left'), '');
+  assert_equals(elem.style.getPropertyValue('margin-bottom'), '');
+  assert_equals(elem.style.getPropertyValue('margin-right'), '');
+}, 'Deleting a shorthand property not in the inline style is a no-op');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, 'margin: 10px');
+  assert_not_equals(elem.style.getPropertyValue('margin'), '');
+
+  styleMap.delete('margin');
+  assert_equals(elem.style.getPropertyValue('margin'), '');
+  assert_equals(elem.style.getPropertyValue('margin-top'), '');
+  assert_equals(elem.style.getPropertyValue('margin-left'), '');
+  assert_equals(elem.style.getPropertyValue('margin-bottom'), '');
+  assert_equals(elem.style.getPropertyValue('margin-right'), '');
+}, 'Deleting a shorthand property in the inline style removes both it and ' +
+   'its longhands');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, 'margin: 10px');
+  assert_not_equals(elem.style.getPropertyValue('margin-top'), '');
+
+  styleMap.delete('margin-top');
+  assert_equals(elem.style.getPropertyValue('margin'), '');
+  assert_equals(elem.style.getPropertyValue('margin-top'), '');
+  assert_equals(elem.style.getPropertyValue('margin-left'), '10px');
+  assert_equals(elem.style.getPropertyValue('margin-bottom'), '10px');
+  assert_equals(elem.style.getPropertyValue('margin-right'), '10px');
+}, 'Deleting a longhand property in the inline style removes both it and ' +
+   'its shorthand');
+
+</script>

@@ -1,0 +1,18 @@
+num properties: 13
+delay: 10
+endDelay: 20
+fill: forwards
+iterationStart: 30
+iterations: 40
+duration: 50
+direction: normal
+easing: linear
+endTime: 2030
+activeDuration: 2000
+localTime: 0
+progress: null
+currentIteration: null
+
+localTime: 1200
+progress: 0.20
+currentIteration: 1

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Circle Radii - positive/negative, decimal/non-decimal</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-circle">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="A circle's radius may be in signed positive or decimal/non-decimal format. Negative
+                                     radii are invalid.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+             var valid_circle_radii_tests = [
+                {
+                  "actual": "circle(+10px at 50% 50%)",
+                  "expected_inline": "circle(10px at 50% 50%)",
+                  "expected_computed": "circle(10px at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+10.00px at 50% 50%)",
+                  "expected_inline": "circle(10px at 50% 50%)",
+                  "expected_computed": "circle(10px at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+20.340px at 50% 50%)",
+                  "expected_inline": "circle(20.34px at 50% 50%)",
+                  "expected_computed": "circle(20.34px at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+30.5px at 50% 50%)",
+                  "expected_inline": "circle(30.5px at 50% 50%)",
+                  "expected_computed": "circle(30.5px at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+10% at 50% 50%)",
+                  "expected_inline": "circle(10% at 50% 50%)",
+                  "expected_computed": "circle(10% at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+10.00% at 50% 50%)",
+                  "expected_inline": "circle(10% at 50% 50%)",
+                  "expected_computed": "circle(10% at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+20.350% at 50% 50%)",
+                  "expected_inline": "circle(20.35% at 50% 50%)",
+                  "expected_computed": "circle(20.35% at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+30.5% at 50% 50%)",
+                  "expected_inline": "circle(30.5% at 50% 50%)",
+                  "expected_computed": "circle(30.5% at 50% 50%)"
+                },
+                {
+                  "actual": "circle(+10px)",
+                  "expected_inline": "circle(10px)",
+                  "expected_computed": "circle(10px)"
+                },
+                {
+                  "actual": "circle(+10.00px)",
+                  "expected_inline": "circle(10px)",
+                  "expected_computed": "circle(10px)"
+                },
+                {
+                  "actual": "circle(+20.340px)",
+                  "expected_inline": "circle(20.34px)",
+                  "expected_computed": "circle(20.34px)"
+                },
+                {
+                  "actual": "circle(+30.5px)",
+                  "expected_inline": "circle(30.5px)",
+                  "expected_computed": "circle(30.5px)"
+                },
+                {
+                  "actual": "circle(+10%)",
+                  "expected_inline": "circle(10%)",
+                  "expected_computed": "circle(10%)"
+                },
+                {
+                  "actual": "circle(+10.00%)",
+                  "expected_inline": "circle(10%)",
+                  "expected_computed": "circle(10%)"
+                },
+                {
+                  "actual": "circle(+20.350%)",
+                  "expected_inline": "circle(20.35%)",
+                  "expected_computed": "circle(20.35%)"
+                },
+                {
+                  "actual": "circle(+30.5%)",
+                  "expected_inline": "circle(30.5%)",
+                  "expected_computed": "circle(30.5%)"
+                }
+            ];
+            invalid_circle_radii_tests = [
+                {"name": "circle(-20px)"},
+                {"name": "circle(-20.340px)"}
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(valid_circle_radii_tests, 'inline') );
+            generate_tests( ParsingUtils.testComputedStyle,
+                            ParsingUtils.buildTestCases(valid_circle_radii_tests, 'computed') );
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(invalid_circle_radii_tests) );
+        </script>
+    </body>
+</html>

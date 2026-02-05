@@ -1,0 +1,22 @@
+test("basic functionality", () => {
+    expect(Infinity + "").toBe("Infinity");
+    expect(-Infinity + "").toBe("-Infinity");
+    expect(Infinity).toBe(Infinity);
+    expect(Infinity - 1).toBe(Infinity);
+    expect(Infinity + 1).toBe(Infinity);
+    expect(-Infinity).toBe(-Infinity);
+    expect(-Infinity - 1).toBe(-Infinity);
+    expect(-Infinity + 1).toBe(-Infinity);
+    expect(1 / Infinity).toBe(0);
+    expect(1 / -Infinity).toBe(-0);
+    expect(1 / 0).toBe(Infinity);
+    expect(-1 / 0).toBe(-Infinity);
+    expect(-100).toBeLessThan(Infinity);
+    expect(0).toBeLessThan(Infinity);
+    expect(100).toBeLessThan(Infinity);
+    expect(-Infinity).toBeLessThan(Infinity);
+    expect(-100).toBeGreaterThan(-Infinity);
+    expect(0).toBeGreaterThan(-Infinity);
+    expect(100).toBeGreaterThan(-Infinity);
+    expect(Infinity).toBeGreaterThan(-Infinity);
+});

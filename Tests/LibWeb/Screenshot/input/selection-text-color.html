@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-text-color-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-345">
+<style>
+span {
+    color: red;
+}
+</style>
+<div contenteditable>lorem ipsum <span>sit dolor amet</span></div>
+<script>
+const divElm = document.querySelector('div[contenteditable]');
+getSelection().setBaseAndExtent(divElm.childNodes[0], 6, divElm.childNodes[1].childNodes[0], 9);
+</script>

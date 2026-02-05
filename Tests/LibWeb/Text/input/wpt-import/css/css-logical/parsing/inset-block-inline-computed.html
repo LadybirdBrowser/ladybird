@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: getComputedStyle().insetBlock / insetInline</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-inset-block">
+<meta name="assert" content="Computed value is as specified, with lengths made absolute.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("inset-block-start", "auto");
+test_computed_value("inset-block-end", "-10px");
+test_computed_value("inset-inline-start", "-20%");
+test_computed_value("inset-inline-end", "calc(10px - 0.5em)", "-10px");
+
+test_computed_value("inset-block", "auto");
+test_computed_value("inset-block", "-10px");
+test_computed_value("inset-block", "calc(10px - 0.5em) -20%", "-10px -20%");
+test_computed_value("inset-block", "auto auto", "auto");
+test_computed_value("inset-inline", "-20%");
+test_computed_value("inset-inline", "calc(10px - 0.5em)", "-10px");
+test_computed_value("inset-inline", "-10px auto");
+test_computed_value("inset-inline", "auto calc(10px + 0.5em)", "auto 30px");
+</script>
+</body>
+</html>

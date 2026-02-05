@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>clip-path interpolation</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<meta name="assert" content="clip-path supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  clip-path: circle(80% at 30% 10%);
+}
+
+.target {
+  clip-path: circle(60% at 10% 30%);
+}
+</style>
+<body>
+<script>
+test_interpolation({
+  property: 'clip-path',
+  from: neutralKeyframe,
+  to: 'circle(40% at 20% 20%)',
+}, [
+  {at: -0.3, expect: 'circle(66% at 7% 33%)'},
+  {at: 0, expect: 'circle(60% at 10% 30%)'},
+  {at: 0.3, expect: 'circle(54% at 13% 27%)'},
+  {at: 0.6, expect: 'circle(48% at 16% 24%)'},
+  {at: 1, expect: 'circle(40% at 20% 20%)'},
+  {at: 1.5, expect: 'circle(30% at 25% 15%)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'initial',
+  to: 'circle(40% at 20% 20%)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'inherit',
+  to: 'circle(40% at 20% 20%)',
+}, [
+  {at: -0.3, expect: 'circle(92% at 33% 7%)'},
+  {at: 0, expect: 'circle(80% at 30% 10%)'},
+  {at: 0.3, expect: 'circle(68% at 27% 13%)'},
+  {at: 0.6, expect: 'circle(56% at 24% 16%)'},
+  {at: 1, expect: 'circle(40% at 20% 20%)'},
+  {at: 1.5, expect: 'circle(20% at 15% 25%)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'unset',
+  to: 'circle(40% at 20% 20%)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'circle(100% at 0% 0%)',
+  to: 'circle(50% at 25% 25%)',
+}, [
+  {at: -0.3, expect: 'circle(115% at -7.5% -7.5%)'},
+  {at: 0, expect: 'circle(100% at 0% 0%)'},
+  {at: 0.3, expect: 'circle(85% at 7.5% 7.5%)'},
+  {at: 0.6, expect: 'circle(70% at 15% 15%)'},
+  {at: 1, expect: 'circle(50% at 25% 25%)'},
+  {at: 1.5, expect: 'circle(25% at 37.5% 37.5%)'}
+]);
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'ellipse(100% 100% at 0% 0%)',
+  to: 'ellipse(50% 50% at 25% 25%)',
+}, [
+  {at: -0.3, expect: 'ellipse(115% 115% at -7.5% -7.5%)'},
+  {at: 0, expect: 'ellipse(100% 100% at 0% 0%)'},
+  {at: 0.3, expect: 'ellipse(85% 85% at 7.5% 7.5%)'},
+  {at: 0.6, expect: 'ellipse(70% 70% at 15% 15%)'},
+  {at: 1, expect: 'ellipse(50% 50% at 25% 25%)'},
+  {at: 1.5, expect: 'ellipse(25% 25% at 37.5% 37.5%)'}
+]);
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'polygon(nonzero, 0px 0px, 25px 25px, 50px 50px)',
+  to: 'polygon(nonzero, 25px 25px, 50px 50px, 75px 75px)',
+}, [
+  {at: -0.3, expect: 'polygon(nonzero, -7.5px -7.5px, 17.5px 17.5px, 42.5px 42.5px)'},
+  {at: 0, expect: 'polygon(nonzero, 0px 0px, 25px 25px, 50px 50px)'},
+  {at: 0.3, expect: 'polygon(nonzero, 7.5px 7.5px, 32.5px 32.5px, 57.5px 57.5px)'},
+  {at: 0.6, expect: 'polygon(nonzero, 15px 15px, 40px 40px, 65px 65px)'},
+  {at: 1, expect: 'polygon(nonzero, 25px 25px, 50px 50px, 75px 75px)'},
+  {at: 1.5, expect: 'polygon(nonzero, 37.5px 37.5px, 62.5px 62.5px, 87.5px 87.5px)'}
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'polygon(evenodd, 0px 0px, 25px 25px, 50px 50px)',
+  to: 'polygon(nonzero, 25px 25px, 50px 50px, 75px 75px)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'inset(100%)',
+  to: 'inset(120%)',
+}, [
+  {at: -0.3, expect: 'inset(94%)'},
+  {at: 0, expect: 'inset(100%)'},
+  {at: 0.3, expect: 'inset(106%)'},
+  {at: 0.6, expect: 'inset(112%)'},
+  {at: 1, expect: 'inset(120%)'},
+  {at: 1.5, expect: 'inset(130%)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'none',
+  to: 'ellipse(100% 100% at 0% 0%)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'circle(25% at right 5% bottom 15px)',
+  to: 'circle(45% at right 25% bottom 35px)',
+}, [
+  {at: 0.25, expect: 'circle(30% at 90% calc(-20px + 100%))'},
+  {at: 0.5, expect: 'circle(35% at 85% calc(-25px + 100%))'},
+  {at: 0.75, expect: 'circle(40% at 80% calc(-30px + 100%))'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'url("/clip-source")',
+  to: 'ellipse(100% 100% at 0% 0%)',
+});
+
+</script>
+</body>

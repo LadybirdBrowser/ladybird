@@ -1,0 +1,50 @@
+#import <DOM/AbortSignal.idl>
+#import <Streams/QueuingStrategy.idl>
+#import <Streams/ReadableStreamBYOBReader.idl>
+#import <Streams/ReadableStreamDefaultReader.idl>
+#import <Streams/WritableStream.idl>
+
+dictionary ReadableWritablePair {
+    required ReadableStream readable;
+    required WritableStream writable;
+};
+
+dictionary StreamPipeOptions {
+    boolean preventClose = false;
+    boolean preventAbort = false;
+    boolean preventCancel = false;
+    AbortSignal signal;
+};
+
+// https://streams.spec.whatwg.org/#enumdef-readablestreamreadermode
+enum ReadableStreamReaderMode { "byob" };
+
+// https://streams.spec.whatwg.org/#dictdef-readablestreamgetreaderoptions
+dictionary ReadableStreamGetReaderOptions {
+    ReadableStreamReaderMode mode;
+};
+
+// https://streams.spec.whatwg.org/#dictdef-readablestreamiteratoroptions
+dictionary ReadableStreamIteratorOptions {
+    boolean preventCancel = false;
+};
+
+// https://streams.spec.whatwg.org/#readablestream
+[Exposed=*, Transferable, DefinesAsyncIteratorReturn]
+interface ReadableStream {
+    constructor(optional object underlyingSource, optional QueuingStrategy strategy = {});
+
+    static ReadableStream from(any asyncIterable);
+
+    readonly attribute boolean locked;
+
+    Promise<undefined> cancel(optional any reason);
+    ReadableStreamReader getReader(optional ReadableStreamGetReaderOptions options = {});
+    ReadableStream pipeThrough(ReadableWritablePair transform, optional StreamPipeOptions options = {});
+    Promise<undefined> pipeTo(WritableStream destination, optional StreamPipeOptions options = {});
+    sequence<ReadableStream> tee();
+
+    async iterable<any>(optional ReadableStreamIteratorOptions options = {});
+};
+
+typedef (ReadableStreamDefaultReader or ReadableStreamBYOBReader) ReadableStreamReader;

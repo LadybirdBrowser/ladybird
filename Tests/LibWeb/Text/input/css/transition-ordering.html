@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            transition-property: top, right, left, width, height, bottom;
+            transition-duration: 1s;
+        }
+    </style>
+    <div id="foo" style="top: 0; left: 0; right: 0; width: 0; height: 0; bottom: 0"></div>
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            await animationFrame();
+            await animationFrame();
+
+            foo.style.top = "10px";
+            foo.style.right = "10px";
+            foo.style.left = "10px";
+            foo.style.width = "10px";
+            foo.style.height = "10px";
+            foo.style.bottom = "10px";
+
+            println("Order: " + document.getAnimations().map(animation => animation.transitionProperty).join(", "));
+        });
+    </script>
+</html>

@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 14 tests
+
+6 Pass
+8 Fail
+Fail	willValidate
+Fail	willValidate after upgrade
+Pass	willValidate after upgrade (document.createElement)
+Pass	willValidate should throw NotSupportedError if the target element is not a form-associated custom element
+Fail	validity and setValidity()
+Fail	validity.customError should be false if not explicitly set via setValidity()
+Pass	"anchor" argument of setValidity()
+Pass	"anchor" argument of setValidity(): passing self
+Pass	checkValidity() should throw NotSupportedError if the target element is not a form-associated custom element
+Fail	checkValidity()
+Pass	reportValidity() should throw NotSupportedError if the target element is not a form-associated custom element
+Fail	reportValidity()
+Fail	Custom control affects validation at the owner form
+Fail	Custom control affects :valid :invalid for FORM and FIELDSET

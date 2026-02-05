@@ -1,0 +1,30 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/Worker.idl>
+#import <ServiceWorker/ServiceWorkerRegistration.idl>
+#import <TrustedTypes/TrustedScriptURL.idl>
+
+// https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
+[SecureContext, Exposed=(Window,Worker)]
+interface ServiceWorkerContainer : EventTarget {
+    [FIXME] readonly attribute ServiceWorker? controller;
+    readonly attribute Promise<ServiceWorkerRegistration> ready;
+
+    [NewObject, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or Utf16USVString) scriptURL, optional RegistrationOptions options = {});
+
+    [NewObject] Promise<(ServiceWorkerRegistration or undefined)> getRegistration(optional USVString clientURL = "");
+    [FIXME, NewObject] Promise<FrozenArray<ServiceWorkerRegistration>> getRegistrations();
+
+    [FIXME] undefined startMessages();
+
+    // events
+    attribute EventHandler oncontrollerchange;
+    attribute EventHandler onmessage; // event.source of message events is ServiceWorker object
+    attribute EventHandler onmessageerror;
+};
+
+dictionary RegistrationOptions {
+    USVString scope;
+    WorkerType type = "classic";
+    ServiceWorkerUpdateViaCache updateViaCache = "imports";
+};

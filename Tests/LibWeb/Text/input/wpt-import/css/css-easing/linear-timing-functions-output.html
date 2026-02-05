@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<meta name="assert" content="This test checks the output of linear timing functions" />
+<title>Tests for the output of linear timing functions</title>
+<link rel="help" href="https://drafts.csswg.org/css-easing-2/#the-linear-easing-function">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="testcommon.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_style_left_at(animation, time, expected_y) {
+  animation.currentTime = time;
+  assert_approx_equals(pxToNum(getComputedStyle(animation.effect.target).left),
+                       expected_y * 100,
+                       0.01,
+                       'The left of the animation should be approximately ' +
+                       expected_y * 100 + ' at ' + time + 'ms');
+}
+
+function assert_animations_equal_at(actual_animation, expected_animation, time) {
+  actual_animation.currentTime = time;
+  var actual_left = pxToNum(getComputedStyle(actual_animation.effect.target).left);
+  expected_animation.currentTime = time;
+  var expected_left = pxToNum(getComputedStyle(expected_animation.effect.target).left);
+  assert_approx_equals(actual_left,
+                       expected_left,
+                       0.01,
+                       'The left of the animation should be approximately ' +
+                       expected_left + ' at ' + time + 'ms');
+}
+
+function create_animated_div(t, easing_function) {
+  var target = createDiv(t);
+  target.style.position = 'absolute';
+  return target.animate(
+    [ { left: '0px' },
+      { left: '100px' } ],
+      { duration: 1000,
+        fill: 'forwards',
+        easing: easing_function });
+}
+
+test(function(t) {
+  var anim = create_animated_div(t, 'linear(0, 1.5, 1)');
+
+  assert_style_left_at(anim, 0, 0.0);
+  assert_style_left_at(anim, 250, 0.75);
+  assert_style_left_at(anim, 500, 1.5);
+  assert_style_left_at(anim, 750, 1.25);
+  assert_style_left_at(anim, 1000, 1.00);
+}, 'linear function easing with output greater than 1');
+
+test(function(t) {
+  var anim = create_animated_div(t, 'linear(1, -0.5, 0)');
+
+  assert_style_left_at(anim, 0, 1.0);
+  assert_style_left_at(anim, 250, 0.25);
+  assert_style_left_at(anim, 500, -0.5);
+  assert_style_left_at(anim, 750, -0.25);
+  assert_style_left_at(anim, 1000, 0.00);
+}, 'linear function easing with output less than 1');
+
+test(function(t) {
+  var anim = create_animated_div(t, 'linear(0.2 0% 20%, 0.4 20% 40%, 0.6 40% 60%, 0.8 60% 80%, 1.0 80% 100%)');
+  var equiv = create_animated_div(t, 'steps(5, jump-start)');
+
+  assert_animations_equal_at(anim, equiv, 0);
+  assert_animations_equal_at(anim, equiv, 200);
+  assert_animations_equal_at(anim, equiv, 400);
+  assert_animations_equal_at(anim, equiv, 600);
+  assert_animations_equal_at(anim, equiv, 800);
+  assert_animations_equal_at(anim, equiv, 1000);
+}, 'linear function easing, steps equivalent');
+
+test(function(t) {
+  var anim = create_animated_div(t, 'linear(0, 0.1 -10%, 1)');
+  var equiv = create_animated_div(t, 'linear(0, 0.1 0%, 1)');
+
+  assert_animations_equal_at(anim, equiv, 0);
+  assert_animations_equal_at(anim, equiv, 100);
+  assert_animations_equal_at(anim, equiv, 550);
+  assert_animations_equal_at(anim, equiv, 1000);
+}, 'linear function easing, input value being unspecified in the first entry implies zero');
+
+test(function(t) {
+  var anim = create_animated_div(t, 'linear(0, 0.9 110%, 1)');
+  var equiv = create_animated_div(t, 'linear(0, 0.9 110%, 1 110%)');
+
+  assert_animations_equal_at(anim, equiv, 0);
+  assert_animations_equal_at(anim, equiv, 450);
+  assert_animations_equal_at(anim, equiv, 900);
+  assert_animations_equal_at(anim, equiv, 950);
+  assert_animations_equal_at(anim, equiv, 1000);
+}, 'linear function easing, input value being unspecified in the last entry implies max input value');
+</script>
+</body>

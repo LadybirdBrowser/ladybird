@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>Update callback should only be called once</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/#call-dom-update-callback-algorithm">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+<meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-500">
+<style>
+    #target {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+
+    ::view-transition-group(*),
+    ::view-transition-image-pair(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation-play-state: paused;
+    }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="target"></div>
+<script>
+    addEventListener("load", () => {
+        let updateCallbackCalled = false;
+        document.startViewTransition(function() {
+            target.style.backgroundColor = updateCallbackCalled ? "red" : "green";
+            updateCallbackCalled = true;
+            document.startViewTransition(() => {});
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>

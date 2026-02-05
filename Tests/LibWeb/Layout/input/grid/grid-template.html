@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<style>
+  .mw-page-container-inner {
+    display: grid;
+    grid-template: min-content min-content 1fr min-content / 12.25em minmax(0, 1fr);
+    grid-template-areas:
+      'siteNotice siteNotice'
+      'mainMenu pageContent'
+      'toc pageContent'
+      'footer footer'
+  }
+
+  .vector-sitenotice-container {
+    grid-area: siteNotice
+  }
+
+  .vector-main-menu-container {
+    grid-area: mainMenu;
+    overflow-anchor: none
+  }
+
+  .mw-content-container {
+    grid-area: pageContent
+  }
+
+  .mw-footer-container {
+    grid-area: footer
+  }
+</style>
+
+<!-- Shouldn't crash :) -->
+<div class="mw-page-container-inner">
+  <div class="vector-main-menu-container"></div>
+  <div class="vector-sitenotice-container"></div>
+  <div class="mw-content-container"></div>
+  <div class="mw-footer-container"></div>
+</div>
+
+<style>
+  #page {
+    display: grid;
+    width: 100%;
+    height: 200px;
+    grid-template:
+      [header-left] "head head" 30px
+      [header-right] [main-left] "nav  main" 1fr
+      [main-right] [footer-left] "nav  foot" 30px [footer-right] / 120px 1fr;
+  }
+
+  header {
+    background-color: lime;
+    grid-area: head;
+  }
+
+  nav {
+    background-color: lightblue;
+    grid-area: nav;
+  }
+
+  main {
+    background-color: yellow;
+    grid-area: main;
+  }
+
+  footer {
+    background-color: red;
+    grid-area: foot;
+  }
+</style>
+
+<section id="page">
+  <header>Header</header>
+  <nav>Navigation</nav>
+  <main>Main area</main>
+  <footer>Footer</footer>
+</section>

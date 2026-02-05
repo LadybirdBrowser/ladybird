@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Display: parsing display with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#display-prop">
+<link rel="help" href="https://drafts.csswg.org/css-display/#the-display-properties">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-containers">
+<meta name="assert" content="display supports only the spec grammar.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("display", "grid inline-grid");
+test_invalid_value("display", "none grid");
+test_invalid_value("display", "none flow");
+test_invalid_value("display", "none ruby");
+test_invalid_value("display", "none flow-root");
+test_invalid_value("display", "none list-item");
+test_invalid_value("display", "contents list-item");
+test_invalid_value("display", "list-item contents");
+test_invalid_value("display", "flow flow");
+test_invalid_value("display", "block block");
+test_invalid_value("display", "flow flow-root");
+test_invalid_value("display", "flow-root flow-root");
+test_invalid_value("display", "block inline");
+test_invalid_value("display", "flex ruby");
+test_invalid_value("display", "ruby flex");
+test_invalid_value("display", "inline inline");
+test_invalid_value("display", "flex flex");
+test_invalid_value("display", "grid flex");
+test_invalid_value("display", "ruby grid");
+test_invalid_value("display", "flex grid");
+test_invalid_value("display", "grid table");
+test_invalid_value("display", "table flex");
+test_invalid_value("display", "flex table");
+test_invalid_value("display", "ruby table");
+test_invalid_value("display", "table table");
+test_invalid_value("display", "table flow-root");
+test_invalid_value("display", "flow-root ruby");
+test_invalid_value("display", "list-item list-item");
+test_invalid_value("display", "list-item table");
+test_invalid_value("display", "flex list-item");
+test_invalid_value("display", "list-item grid");
+test_invalid_value("display", "flow flow list-item");
+test_invalid_value("display", "grid flow list-item");
+test_invalid_value("display", "flow list-item flow");
+test_invalid_value("display", "block list-item block");
+test_invalid_value("display", "list-item flow-root flow");
+test_invalid_value("display", "list-item block block");
+test_invalid_value("display", "list-item block list-item");
+test_invalid_value("display", "list-item flow-root list-item");
+test_invalid_value("display", "list-item flow-root block list-item");
+test_invalid_value("display", "list-item block flow-root list-item");
+test_invalid_value("display", "block list-item flow-root list-item");
+test_invalid_value("display", "flow-root list-item block list-item");
+test_invalid_value("display", "list-item ruby");
+test_invalid_value("display", "ruby list-item");
+test_invalid_value("display", "ruby ruby");
+test_invalid_value("display", "ruby flow");
+test_invalid_value("display", "flow ruby");
+test_invalid_value("display", "ruby flow-root");
+test_invalid_value("display", "grid ruby");
+test_invalid_value("display", "table ruby");
+test_invalid_value("display", "table-row flow");
+test_invalid_value("display", "flow table-row");
+test_invalid_value("display", "table-row-group flow-root");
+test_invalid_value("display", "flex table-row-group");
+
+</script>
+</body>
+</html>

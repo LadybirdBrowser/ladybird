@@ -1,0 +1,30 @@
+// https://w3c.github.io/geolocation/#geolocation_interface
+[Exposed=Window]
+interface Geolocation {
+    undefined getCurrentPosition (
+        PositionCallback successCallback,
+        optional PositionErrorCallback? errorCallback = null,
+        optional PositionOptions options = {},
+    );
+
+    long watchPosition (
+        PositionCallback successCallback,
+        optional PositionErrorCallback? errorCallback = null,
+        optional PositionOptions options = {},
+    );
+
+    undefined clearWatch (long watchId);
+};
+
+// https://w3c.github.io/geolocation/#dom-positionoptions
+dictionary PositionOptions {
+    boolean enableHighAccuracy = false;
+    [Clamp] unsigned long timeout = 0xFFFFFFFF;
+    [Clamp] unsigned long maximumAge = 0;
+};
+
+callback PositionCallback = undefined (
+    GeolocationPosition position);
+
+callback PositionErrorCallback = undefined (
+    GeolocationPositionError positionError);

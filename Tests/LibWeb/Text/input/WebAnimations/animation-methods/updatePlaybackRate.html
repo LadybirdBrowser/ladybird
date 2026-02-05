@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+		const foo = document.getElementById("foo");
+
+		let anim = foo.animate({}, { duration: Infinity });
+		anim.pause();
+		anim.updatePlaybackRate(2.0);
+		await animationFrame();
+		if (anim.playbackRate !== 2.0)
+			println("updatePlaybackRate() does nothing if the animation is pending");
+
+		anim = foo.animate({}, {});
+		anim.cancel();
+		anim.updatePlaybackRate(2.0);
+		if (anim.playbackRate === 2.0)
+			println("updatePlaybackRate() updates an idle animation's playback rate immediately");
+
+		anim = foo.animate({}, {});
+		await animationFrame();
+		anim.updatePlaybackRate(2.0);
+		if (anim.playbackRate === 2.0)
+			println("updatePlaybackRate() updates a running animation's playback rate after an animation frame");
+
+		anim = foo.animate({}, {});
+		anim.pause();
+		await animationFrame();
+		anim.updatePlaybackRate(2.0);
+		if (anim.playbackRate === 2.0)
+			println("updatePlaybackRate() updates a paused animation's playback rate after an animation frame");
+
+		anim = foo.animate({}, {});
+		anim.finish();
+		await animationFrame();
+		anim.updatePlaybackRate(2.0);
+		if (anim.playbackRate === 2.0)
+			println("updatePlaybackRate() updates a finished animation's playback rate after an animation frame");
+    });
+</script>

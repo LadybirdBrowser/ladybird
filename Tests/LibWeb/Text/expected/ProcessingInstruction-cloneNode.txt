@@ -1,0 +1,11 @@
+pi: [object ProcessingInstruction]
+pi.target: someTarget
+pi.data: someData
+
+clone: [object ProcessingInstruction]
+clone.target: someTarget
+clone.data: someData
+
+pi === clone -> false
+pi.isEqualNode(clone) -> true
+pi.isEqualNode(other) -> false

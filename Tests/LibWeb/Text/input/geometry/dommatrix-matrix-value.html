@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            try {
+                println(`${testCounter}. ${JSON.stringify(part())}`);
+            } catch (e) {
+                println(`${testCounter}. Exception: ${e.name}`);
+            }
+            testCounter++;
+        }
+
+        // 1. DOMMatrix set matrix value empty
+        testPart(() => new DOMMatrix().setMatrixValue(''));
+
+        // 2. DOMMatrix set matrix value
+        testPart(() => new DOMMatrix().setMatrixValue('translate(10px, 10px)'));
+
+        // 3. DOMMatrix set matrix value
+        testPart(() => new DOMMatrix().setMatrixValue('rotate(10deg) translate(10px, 10px)'));
+
+        // 4. DOMMatrix set matrix value
+        testPart(() => new DOMMatrix().setMatrixValue('scale(0.2) rotate(10deg)'));
+
+        // 5. DOMMatrix set matrix value wrong
+        testPart(() => new DOMMatrix().setMatrixValue('scale(2deg)'));
+
+        // 6. DOMMatrix set matrix value wrong
+        testPart(() => new DOMMatrix().setMatrixValue('translate(40%)'));
+    });
+</script>

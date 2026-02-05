@@ -1,0 +1,37 @@
+import("//Meta/gn/build/compiled_action.gni")
+
+compiled_action("generate_encoding_indexes") {
+  tool =
+      "//Meta/Lagom/Tools/CodeGenerators/LibTextCodec:GenerateEncodingIndexes"
+
+  outputs = [
+    "$target_gen_dir/LookupTables.h",
+    "$target_gen_dir/LookupTables.cpp",
+  ]
+
+  args = [
+    "-h",
+    rebase_path(outputs[0], root_build_dir),
+    "-c",
+    rebase_path(outputs[1], root_build_dir),
+    "-j",
+    rebase_path("//Userland/Libraries/LibTextCodec/indexes.json"),
+  ]
+}
+
+shared_library("LibTextCodec") {
+  output_name = "textcodec"
+  include_dirs = [
+    "//Userland/Libraries",
+    "$target_gen_dir/..",
+  ]
+  deps = [
+    ":generate_encoding_indexes",
+    "//AK",
+  ]
+  sources = [
+    "Decoder.cpp",
+    "Encoder.cpp",
+  ]
+  sources += get_target_outputs(":generate_encoding_indexes")
+}

@@ -1,0 +1,227 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Web Speech API (https://webaudio.github.io/web-speech-api/)
+
+[SecureContext, Exposed=Window]
+interface SpeechRecognition : EventTarget {
+    constructor();
+
+    // recognition parameters
+    attribute SpeechGrammarList grammars;
+    attribute DOMString lang;
+    attribute boolean continuous;
+    attribute boolean interimResults;
+    attribute unsigned long maxAlternatives;
+    attribute boolean processLocally;
+    attribute ObservableArray<SpeechRecognitionPhrase> phrases;
+
+    // methods to drive the speech interaction
+    undefined start();
+    undefined start(MediaStreamTrack audioTrack);
+    undefined stop();
+    undefined abort();
+    static Promise<AvailabilityStatus> available(SpeechRecognitionOptions options);
+    static Promise<boolean> install(SpeechRecognitionOptions options);
+
+    // event methods
+    attribute EventHandler onaudiostart;
+    attribute EventHandler onsoundstart;
+    attribute EventHandler onspeechstart;
+    attribute EventHandler onspeechend;
+    attribute EventHandler onsoundend;
+    attribute EventHandler onaudioend;
+    attribute EventHandler onresult;
+    attribute EventHandler onnomatch;
+    attribute EventHandler onerror;
+    attribute EventHandler onstart;
+    attribute EventHandler onend;
+};
+
+dictionary SpeechRecognitionOptions {
+  required sequence<DOMString> langs;
+  boolean processLocally = false;
+};
+
+enum SpeechRecognitionErrorCode {
+    "no-speech",
+    "aborted",
+    "audio-capture",
+    "network",
+    "not-allowed",
+    "service-not-allowed",
+    "language-not-supported",
+    "phrases-not-supported"
+};
+
+enum AvailabilityStatus {
+    "unavailable",
+    "downloadable",
+    "downloading",
+    "available"
+};
+
+[SecureContext, Exposed=Window]
+interface SpeechRecognitionErrorEvent : Event {
+    constructor(DOMString type, SpeechRecognitionErrorEventInit eventInitDict);
+    readonly attribute SpeechRecognitionErrorCode error;
+    readonly attribute DOMString message;
+};
+
+dictionary SpeechRecognitionErrorEventInit : EventInit {
+    required SpeechRecognitionErrorCode error;
+    DOMString message = "";
+};
+
+// Item in N-best list
+[SecureContext, Exposed=Window]
+interface SpeechRecognitionAlternative {
+    readonly attribute DOMString transcript;
+    readonly attribute float confidence;
+};
+
+// A complete one-shot simple response
+[SecureContext, Exposed=Window]
+interface SpeechRecognitionResult {
+    readonly attribute unsigned long length;
+    getter SpeechRecognitionAlternative item(unsigned long index);
+    readonly attribute boolean isFinal;
+};
+
+// A collection of responses (used in continuous mode)
+[SecureContext, Exposed=Window]
+interface SpeechRecognitionResultList {
+    readonly attribute unsigned long length;
+    getter SpeechRecognitionResult item(unsigned long index);
+};
+
+// A full response, which could be interim or final, part of a continuous response or not
+[SecureContext, Exposed=Window]
+interface SpeechRecognitionEvent : Event {
+    constructor(DOMString type, SpeechRecognitionEventInit eventInitDict);
+    readonly attribute unsigned long resultIndex;
+    readonly attribute SpeechRecognitionResultList results;
+};
+
+dictionary SpeechRecognitionEventInit : EventInit {
+    unsigned long resultIndex = 0;
+    required SpeechRecognitionResultList results;
+};
+
+// The object representing a speech grammar. This interface has been deprecated and exists in this spec for the sole purpose of maintaining backwards compatibility.
+[Exposed=Window]
+interface SpeechGrammar {
+    attribute DOMString src;
+    attribute float weight;
+};
+
+// The object representing a speech grammar collection. This interface has been deprecated and exists in this spec for the sole purpose of maintaining backwards compatibility.
+[Exposed=Window]
+interface SpeechGrammarList {
+    constructor();
+    readonly attribute unsigned long length;
+    getter SpeechGrammar item(unsigned long index);
+    undefined addFromURI(DOMString src,
+                    optional float weight = 1.0);
+    undefined addFromString(DOMString string,
+                    optional float weight = 1.0);
+};
+
+// The object representing a phrase for contextual biasing.
+[SecureContext, Exposed=Window]
+interface SpeechRecognitionPhrase {
+    constructor(DOMString phrase, optional float boost = 1.0);
+    readonly attribute DOMString phrase;
+    readonly attribute float boost;
+};
+
+[Exposed=Window]
+interface SpeechSynthesis : EventTarget {
+    readonly attribute boolean pending;
+    readonly attribute boolean speaking;
+    readonly attribute boolean paused;
+
+    attribute EventHandler onvoiceschanged;
+
+    undefined speak(SpeechSynthesisUtterance utterance);
+    undefined cancel();
+    undefined pause();
+    undefined resume();
+    sequence<SpeechSynthesisVoice> getVoices();
+};
+
+partial interface Window {
+    [SameObject] readonly attribute SpeechSynthesis speechSynthesis;
+};
+
+[Exposed=Window]
+interface SpeechSynthesisUtterance : EventTarget {
+    constructor(optional DOMString text);
+
+    attribute DOMString text;
+    attribute DOMString lang;
+    attribute SpeechSynthesisVoice? voice;
+    attribute float volume;
+    attribute float rate;
+    attribute float pitch;
+
+    attribute EventHandler onstart;
+    attribute EventHandler onend;
+    attribute EventHandler onerror;
+    attribute EventHandler onpause;
+    attribute EventHandler onresume;
+    attribute EventHandler onmark;
+    attribute EventHandler onboundary;
+};
+
+[Exposed=Window]
+interface SpeechSynthesisEvent : Event {
+    constructor(DOMString type, SpeechSynthesisEventInit eventInitDict);
+    readonly attribute SpeechSynthesisUtterance utterance;
+    readonly attribute unsigned long charIndex;
+    readonly attribute unsigned long charLength;
+    readonly attribute float elapsedTime;
+    readonly attribute DOMString name;
+};
+
+dictionary SpeechSynthesisEventInit : EventInit {
+    required SpeechSynthesisUtterance utterance;
+    unsigned long charIndex = 0;
+    unsigned long charLength = 0;
+    float elapsedTime = 0;
+    DOMString name = "";
+};
+
+enum SpeechSynthesisErrorCode {
+    "canceled",
+    "interrupted",
+    "audio-busy",
+    "audio-hardware",
+    "network",
+    "synthesis-unavailable",
+    "synthesis-failed",
+    "language-unavailable",
+    "voice-unavailable",
+    "text-too-long",
+    "invalid-argument",
+    "not-allowed",
+};
+
+[Exposed=Window]
+interface SpeechSynthesisErrorEvent : SpeechSynthesisEvent {
+    constructor(DOMString type, SpeechSynthesisErrorEventInit eventInitDict);
+    readonly attribute SpeechSynthesisErrorCode error;
+};
+
+dictionary SpeechSynthesisErrorEventInit : SpeechSynthesisEventInit {
+    required SpeechSynthesisErrorCode error;
+};
+
+[Exposed=Window]
+interface SpeechSynthesisVoice {
+    readonly attribute DOMString voiceURI;
+    readonly attribute DOMString name;
+    readonly attribute DOMString lang;
+    readonly attribute boolean localService;
+    readonly attribute boolean default;
+};

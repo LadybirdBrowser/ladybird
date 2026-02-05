@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        width: 200px;
+        height: 100px;
+        border: 2px solid black;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .inner-box {
+        width: 300px;
+        height: 150px;
+        background: lightcoral;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+</style>
+<body>
+    <div class="container">
+        <div class="inner-box">Text</div>
+    </div>
+</body>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

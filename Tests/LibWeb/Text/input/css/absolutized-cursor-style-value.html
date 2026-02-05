@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        cursor: url(foo.png) calc(1 * sign(1em - 1px)) calc(2 * sign(1em - 1px)), pointer;
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(foo).cursor);
+    });
+</script>

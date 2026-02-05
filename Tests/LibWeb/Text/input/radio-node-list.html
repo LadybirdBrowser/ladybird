@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<form>
+  <input value="value1" id="non-checked-with-value" type="radio"/>
+  <input value="value2" id="non-checked-with-value" type="radio"/>
+  <input value="value3" id="checked-with-value" type="radio" checked/>
+  <input value="value4" id="checked-with-value" type="radio" checked/>
+  <input value="on" id="non-checked-value-on" type="radio"/>
+  <input value="on" id="non-checked-value-on" type="radio"/>
+  <input value="value1" id="no-radio-button" type="input" checked/>
+  <input value="value2" id="no-radio-button" type="input" checked/>
+  <input id="checked-no-value" type="radio" checked/>
+  <input id="checked-no-value" type="radio" checked/>
+  <input id="non-checked-no-value" type="radio"/>
+  <input id="non-checked-no-value" type="radio"/>
+</form>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const formElements = document.forms[0].elements;
+
+        function dumpAttributes(name) {
+            println("===================");
+            println(name);
+            println("===================");
+            const list = formElements.namedItem(name);
+            println(list.length);
+            println(list[0].value);
+            println(list[1].value);
+            println(`value = '${list.value}'`);
+            list.value = "on";
+            println(`value = '${list.value}'`);
+        }
+
+        function setValue(name, value) {
+            println("===================");
+            println(name);
+            println("===================");
+            const list = formElements.namedItem(name);
+            println(`value = ${list.value}`);
+            list.value = value;
+            println(`value = ${list.value}`);
+        }
+
+        dumpAttributes("non-checked-with-value");
+        dumpAttributes("checked-with-value");
+        dumpAttributes("checked-no-value");
+        dumpAttributes("no-radio-button");
+
+        setValue("non-checked-with-value", "value1")
+        setValue("non-checked-no-value", "on")
+        setValue("non-checked-value-on", "on")
+    })
+</script>

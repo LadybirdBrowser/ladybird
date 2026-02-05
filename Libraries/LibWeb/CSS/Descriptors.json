@@ -1,0 +1,261 @@
+{
+  "font-face": {
+    "spec": "https://drafts.csswg.org/css-fonts-4/#at-font-face-rule",
+    "descriptors": {
+      "ascent-override": {
+        "initial": "normal",
+        "syntax": [
+          "normal",
+          "<percentage [0,∞]>"
+        ]
+      },
+      "descent-override": {
+        "initial": "normal",
+        "syntax": [
+          "normal",
+          "<percentage [0,∞]>"
+        ]
+      },
+      "font-display": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "block",
+          "swap",
+          "fallback",
+          "optional"
+        ]
+      },
+      "font-family": {
+        "syntax": [
+          "<family-name>"
+        ]
+      },
+      "font-feature-settings": {
+        "initial": "normal",
+        "syntax": [
+          "<'font-feature-settings'>"
+        ]
+      },
+      "font-language-override": {
+        "initial": "normal",
+        "syntax": [
+          "normal",
+          "<string>"
+        ]
+      },
+      "font-named-instance": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "<string>"
+        ]
+      },
+      "font-stretch": {
+        "legacy-alias-for": "font-width"
+      },
+      "font-style": {
+        "initial": "auto",
+        "FIXME": "Support angles for oblique",
+        "syntax": [
+          "auto",
+          "<'font-style'>"
+        ]
+      },
+      "font-variation-settings": {
+        "initial": "normal",
+        "syntax": [
+          "<'font-variation-settings'>"
+        ]
+      },
+      "font-weight": {
+        "initial": "auto",
+        "FIXME": "Support multiple font-weight values; disallow relative font-weights",
+        "syntax": [
+          "auto",
+          "<'font-weight'>"
+        ]
+      },
+      "font-width": {
+        "initial": "auto",
+        "FIXME": "Support multiple font-width values",
+        "syntax": [
+          "auto",
+          "<'font-width'>"
+        ]
+      },
+      "line-gap-override": {
+        "initial": "normal",
+        "syntax": [
+          "normal",
+          "<percentage [0,∞]>"
+        ]
+      },
+      "src": {
+        "syntax": [
+          "<font-src-list>"
+        ]
+      },
+      "unicode-range": {
+        "initial": "U+0-10FFFF",
+        "syntax": [
+          "<unicode-range-token>#"
+        ]
+      }
+    }
+  },
+  "page": {
+    "spec": "https://drafts.csswg.org/css-page-3/#at-page-rule",
+    "FIXME": "There are a lot more properties that are valid, see https://drafts.csswg.org/css-page-3/#properties-list",
+    "descriptors": {
+      "bleed": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "<length>"
+        ]
+      },
+      "margin": {
+        "initial": "0",
+        "syntax": [
+          "<'margin'>"
+        ]
+      },
+      "margin-bottom": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-bottom'>"
+        ]
+      },
+      "margin-left": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-left'>"
+        ]
+      },
+      "margin-right": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-right'>"
+        ]
+      },
+      "margin-top": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-top'>"
+        ]
+      },
+      "marks": {
+        "initial": "none",
+        "syntax": [
+          "none",
+          "crop || cross"
+        ]
+      },
+      "page-orientation": {
+        "initial": "upright",
+        "syntax": [
+          "upright",
+          "rotate-left",
+          "rotate-right"
+        ]
+      },
+      "size": {
+        "initial": "auto",
+        "FIXME": "Replace with actual syntax once we parse grammar properly",
+        "syntax": [
+          "<page-size>"
+        ]
+      }
+    }
+  },
+  "property": {
+    "spec": "https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule",
+    "descriptors": {
+      "inherits": {
+        "syntax": [
+          "true",
+          "false"
+        ]
+      },
+      "initial-value": {
+        "syntax": [
+          "<declaration-value>?"
+        ]
+      },
+      "syntax": {
+        "syntax": [
+          "<string>"
+        ]
+      }
+    }
+  },
+  "counter-style": {
+    "spec": "https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule",
+    "descriptors": {
+      "system": {
+        "initial": "symbolic",
+        "syntax": [
+          "<counter-style-system>"
+        ]
+      },
+      "negative": {
+        "initial": "-",
+        "syntax": [
+          "<counter-style-negative>"
+        ]
+      },
+      "prefix": {
+        "initial": "",
+        "syntax": [
+          "<symbol>"
+        ]
+      },
+      "suffix": {
+        "initial": ". ",
+        "syntax": [
+          "<symbol>"
+        ]
+      },
+      "range": {
+        "initial": "auto",
+        "syntax": [
+          "<counter-style-range>"
+        ]
+      },
+      "pad": {
+        "initial": "0 \"\"",
+        "syntax": [
+          "<counter-style-pad>"
+        ]
+      },
+      "fallback": {
+        "initial": "decimal",
+        "syntax": [
+          "<counter-style-name>"
+        ]
+      },
+      "symbols": {
+        "syntax": [
+          "<symbol>+"
+        ]
+      },
+      "additive-symbols": {
+        "syntax": [
+          "<counter-style-additive-symbols>"
+        ]
+      },
+      "speak-as": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "bullets",
+          "numbers",
+          "words",
+          "spell-out",
+          "<counter-style-name>"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+Element.animate creates Animation with effect: true
+Setting effect to null clears the effect: true
+Accessing effect property on animation with no effect produces null: true
+Setting effect on animation with no effect works: true

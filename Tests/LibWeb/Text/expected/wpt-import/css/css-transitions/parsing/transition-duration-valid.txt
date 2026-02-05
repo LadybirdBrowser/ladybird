@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['transition-duration'] = "0s" should set the property value
+Pass	e.style['transition-duration'] = "500ms" should set the property value
+Pass	e.style['transition-duration'] = "1s, 2s" should set the property value

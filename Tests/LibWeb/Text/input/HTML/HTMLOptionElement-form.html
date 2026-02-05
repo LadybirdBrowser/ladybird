@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<option id="option-no-select"></option>
+<select>
+    <option id="option-no-form"></option>
+</select>
+<form id="form1">
+    <option id="option-within-form-no-select"></option>
+</form>
+<form id="form2">
+    <optgroup>
+        <option id="option-within-optgroup-no-select"></option>
+    </optgroup>    
+</form>
+<form id="form3">
+    <select>
+        <option id="option-within-select"></option>
+    </select>
+</form>
+<form id="form4">
+    <select>
+        <optgroup>
+            <option id="option-within-optgroup"></option>
+        </optgroup>
+    </select>
+</form>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`Option element with no parent select returns null: ${document.getElementById("option-no-select").form === null}`);
+        println(`Option element with no parent form returns null: ${document.getElementById("option-no-form").form === null}`);
+        println(`Option element with no parent select returns null: ${document.getElementById("option-within-form-no-select").form === null}`);
+        println(`Option element within optgroup with no parent select returns null: ${document.getElementById("option-within-optgroup-no-select").form === null}`);
+        printElement(document.getElementById("option-within-select").form);
+        printElement(document.getElementById("option-within-optgroup").form);
+    });
+</script>

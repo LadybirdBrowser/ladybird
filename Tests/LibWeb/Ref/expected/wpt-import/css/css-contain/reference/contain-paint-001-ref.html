@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: paint containment use the padding edge</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+
+<style>
+div {
+  width: 100px;
+  height: 100px;
+  background: blue;
+  padding: 50px;
+  border-radius: 100px;
+  overflow: hidden
+}
+div::before {
+  content:"";
+  display: block;
+  background: green;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<p>Test passes if there is a green square in a rounded blue box, and no red.
+<div></div>

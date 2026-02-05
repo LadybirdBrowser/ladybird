@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>A new formatting context that doesn't fit beside a float make the float non-adjoining</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#bfc-next-to-float" title="9.5 Floats">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<meta name="assert" content="Although the 'clear' property isn't specified in this test, a new formatting context that doesn't fit below a float that would otherwise be adjoining will need to separate its margin from the float, so that it doesn't affect the float. This is very similar to clearance.">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-200px-square.html">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="overflow:hidden; width:200px; height:200px; background:red;">
+  <div style="margin-top:-50px;">
+    <div>
+      <div style="float:left; width:200px; height:150px; background:green;"></div>
+    </div>
+    <div style="margin-top:12345px; overflow:hidden; width:200px; height:100px; background:green;"></div>
+  </div>
+</div>

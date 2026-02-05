@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 5: Parsing and serialization of colors using valid color-mix() function syntax</title>
+<link rel="author" title="Sam Weinig" href="mailto:weinig@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#color-mix">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#resolving-mix">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#serial-color-mix">
+<meta name="assert" content="color-mix() parses and serializes for all color interpolation methods">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/color-testcommon.js"></script>
+</head>
+<body>
+<style>
+  #target {
+    font-size: 10px;
+  }
+</style>
+<div id="target"></div>
+<script>
+    // https://github.com/w3c/csswg-drafts/issues/7302: Specified values shouldn't resolve keyword colors or calc values
+    fuzzy_test_valid_color(`color-mix(in srgb, red, blue)`, `color-mix(in srgb, red, blue)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, 70% red, 50% blue)`, `color-mix(in srgb, red 70%, blue 50%)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red, blue)`, `color-mix(in hsl, red, blue)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red calc(20%), blue)`, `color-mix(in hsl, red calc(20%), blue)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red calc(var(--v)*1%), blue)`, `color-mix(in hsl, red calc(var(--v)*1%), blue)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, currentcolor, blue)`, `color-mix(in hsl, currentcolor, blue)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red 60%, blue 40%)`, `color-mix(in hsl, red 60%, blue)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red 50%, blue)`, `color-mix(in hsl, red, blue)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red, blue 50%)`, `color-mix(in hsl, red, blue)`);
+    fuzzy_test_valid_color(`color-mix(in lch decreasing hue, red, hsl(120, 100%, 50%))`, `color-mix(in lch decreasing hue, red, rgb(0, 255, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red calc(50% * sign(100em - 1px)), blue)`, `color-mix(in hsl, red calc(50% * sign(100em - 1px)), blue)`);
+
+    // NOTE: For the epsilon to meaningful for fuzzy_test_valid_color when used with integer rounded results like rgb(), it must be at least 1.
+
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%), hsl(30deg 30% 40%))`, `color-mix(in hsl, rgb(46, 56, 46), rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, 50% hsl(120deg 10% 20%), hsl(30deg 30% 40%))`, `color-mix(in hsl, rgb(46, 56, 46), rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%), 50% hsl(30deg 30% 40%))`, `color-mix(in hsl, rgb(46, 56, 46), rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%))`, `color-mix(in hsl, rgb(46, 56, 46) 25%, rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, 25% hsl(120deg 10% 20%), hsl(30deg 30% 40%))`, `color-mix(in hsl, rgb(46, 56, 46) 25%, rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%), 25% hsl(30deg 30% 40%))`, `color-mix(in hsl, rgb(46, 56, 46) 75%, rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%), hsl(30deg 30% 40%) 25%)`, `color-mix(in hsl, rgb(46, 56, 46) 75%, rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%) 75%)`, `color-mix(in hsl, rgb(46, 56, 46) 25%, rgb(133, 102, 71))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%) 30%, hsl(30deg 30% 40%) 90%)`, `color-mix(in hsl, rgb(46, 56, 46) 30%, rgb(133, 102, 71) 90%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%) 12.5%, hsl(30deg 30% 40%) 37.5%)`, `color-mix(in hsl, rgb(46, 56, 46) 12.5%, rgb(133, 102, 71) 37.5%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%) 0%, hsl(30deg 30% 40%))`, `color-mix(in hsl, rgb(46, 56, 46) 0%, rgb(133, 102, 71))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20% / .4), hsl(30deg 30% 40% / .8))`, `color-mix(in hsl, rgba(46, 56, 46, 0.4), rgba(133, 102, 71, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40% / .8))`, `color-mix(in hsl, rgb(46, 56, 46) 25%, rgba(133, 102, 71, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, 25% hsl(120deg 10% 20% / .4), hsl(30deg 30% 40% / .8))`, `color-mix(in hsl, rgba(46, 56, 46, 0.4) 25%, rgba(133, 102, 71, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20% / .4), 25% hsl(30deg 30% 40% / .8))`, `color-mix(in hsl, rgba(46, 56, 46, 0.4) 75%, rgba(133, 102, 71, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20% / .4), hsl(30deg 30% 40% / .8) 25%)`, `color-mix(in hsl, rgba(46, 56, 46, 0.4) 75%, rgba(133, 102, 71, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20% / .4) 25%, hsl(30deg 30% 40% / .8) 75%)`, `color-mix(in hsl, rgba(46, 56, 46, 0.4) 25%, rgba(133, 102, 71, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20% / .4) 30%, hsl(30deg 30% 40% / .8) 90%)`, `color-mix(in hsl, rgba(46, 56, 46, 0.4) 30%, rgba(133, 102, 71, 0.8) 90%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20% / .4) 12.5%, hsl(30deg 30% 40% / .8) 37.5%)`, `color-mix(in hsl, rgba(46, 56, 46, 0.4) 12.5%, rgba(133, 102, 71, 0.8) 37.5%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 10% 20% / .4) 0%, hsl(30deg 30% 40% / .8))`, `color-mix(in hsl, rgba(46, 56, 46, 0.4) 0%, rgba(133, 102, 71, 0.8))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(40deg 50% 50%), hsl(60deg 50% 50%))`, `color-mix(in hsl, rgb(191, 149, 64), rgb(191, 191, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(60deg 50% 50%), hsl(40deg 50% 50%))`, `color-mix(in hsl, rgb(191, 191, 64), rgb(191, 149, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(50deg 50% 50%), hsl(330deg 50% 50%))`, `color-mix(in hsl, rgb(191, 170, 64), rgb(191, 64, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(330deg 50% 50%), hsl(50deg 50% 50%))`, `color-mix(in hsl, rgb(191, 64, 128), rgb(191, 170, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(20deg 50% 50%), hsl(320deg 50% 50%))`, `color-mix(in hsl, rgb(191, 106, 64), rgb(191, 64, 149))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(320deg 50% 50%), hsl(20deg 50% 50%))`, `color-mix(in hsl, rgb(191, 64, 149), rgb(191, 106, 64))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl shorter hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%))`, `color-mix(in hsl, rgb(191, 149, 64), rgb(191, 191, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl shorter hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%))`, `color-mix(in hsl, rgb(191, 191, 64), rgb(191, 149, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl shorter hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%))`, `color-mix(in hsl, rgb(191, 170, 64), rgb(191, 64, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl shorter hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%))`, `color-mix(in hsl, rgb(191, 64, 128), rgb(191, 170, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl shorter hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%))`, `color-mix(in hsl, rgb(191, 106, 64), rgb(191, 64, 149))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl shorter hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%))`, `color-mix(in hsl, rgb(191, 64, 149), rgb(191, 106, 64))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl longer hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%))`, `color-mix(in hsl longer hue, rgb(191, 149, 64), rgb(191, 191, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl longer hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%))`, `color-mix(in hsl longer hue, rgb(191, 191, 64), rgb(191, 149, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl longer hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%))`, `color-mix(in hsl longer hue, rgb(191, 170, 64), rgb(191, 64, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl longer hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%))`, `color-mix(in hsl longer hue, rgb(191, 64, 128), rgb(191, 170, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl longer hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%))`, `color-mix(in hsl longer hue, rgb(191, 106, 64), rgb(191, 64, 149))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl longer hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%))`, `color-mix(in hsl longer hue, rgb(191, 64, 149), rgb(191, 106, 64))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl increasing hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%))`, `color-mix(in hsl increasing hue, rgb(191, 149, 64), rgb(191, 191, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl increasing hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%))`, `color-mix(in hsl increasing hue, rgb(191, 191, 64), rgb(191, 149, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl increasing hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%))`, `color-mix(in hsl increasing hue, rgb(191, 170, 64), rgb(191, 64, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl increasing hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%))`, `color-mix(in hsl increasing hue, rgb(191, 64, 128), rgb(191, 170, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl increasing hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%))`, `color-mix(in hsl increasing hue, rgb(191, 106, 64), rgb(191, 64, 149))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl increasing hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%))`, `color-mix(in hsl increasing hue, rgb(191, 64, 149), rgb(191, 106, 64))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl decreasing hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%))`, `color-mix(in hsl decreasing hue, rgb(191, 149, 64), rgb(191, 191, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl decreasing hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%))`, `color-mix(in hsl decreasing hue, rgb(191, 191, 64), rgb(191, 149, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl decreasing hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%))`, `color-mix(in hsl decreasing hue, rgb(191, 170, 64), rgb(191, 64, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl decreasing hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%))`, `color-mix(in hsl decreasing hue, rgb(191, 64, 128), rgb(191, 170, 64))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl decreasing hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%))`, `color-mix(in hsl decreasing hue, rgb(191, 106, 64), rgb(191, 64, 149))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl decreasing hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%))`, `color-mix(in hsl decreasing hue, rgb(191, 64, 149), rgb(191, 106, 64))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(none none none), hsl(none none none))`, `color-mix(in hsl, rgb(0, 0, 0), rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(none none none), hsl(30deg 40% 80%))`, `color-mix(in hsl, rgb(0, 0, 0), rgb(224, 204, 184))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 20% 40%), hsl(none none none))`, `color-mix(in hsl, rgb(82, 122, 82), rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 20% none), hsl(30deg 40% 60%))`, `color-mix(in hsl, rgb(0, 0, 0), rgb(194, 153, 112))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 20% 40%), hsl(30deg 20% none))`, `color-mix(in hsl, rgb(82, 122, 82), rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(none 20% 40%), hsl(30deg none 80%))`, `color-mix(in hsl, rgb(122, 82, 82), rgb(204, 204, 204))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40%))`, `color-mix(in hsl, rgba(61, 143, 61, 0), rgb(143, 61, 61))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40% / 0.5))`, `color-mix(in hsl, rgba(61, 143, 61, 0), rgba(143, 61, 61, 0.5))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40% / none))`, `color-mix(in hsl, rgba(61, 143, 61, 0), rgba(143, 61, 61, 0))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(hsl(120deg 10% 20%), hsl(30deg 30% 40%))`, `color-mix(rgb(46, 56, 46), rgb(133, 102, 71))`); // Missing interpolation method.
+
+    fuzzy_test_valid_color(`color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, lch(100 116 334) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, lch(100 116 334) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, lch(0 116 334) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, lch(0 116 334) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, oklab(100 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, oklab(0 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, oklab(0 0.365 -0.16) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, oklch(100 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hsl, oklch(0 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hsl, oklch(0 0.399 336.3) 100%, rgb(0, 0, 0))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 204, 26), rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, 50% hwb(120deg 10% 20%), hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 204, 26), rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%), 50% hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 204, 26), rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%) 25%, hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 204, 26) 25%, rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, 25% hwb(120deg 10% 20%), hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 204, 26) 25%, rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%), 25% hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 204, 26) 75%, rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% 40%) 25%)`, `color-mix(in hwb, rgb(26, 204, 26) 75%, rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%) 25%, hwb(30deg 30% 40%) 75%)`, `color-mix(in hwb, rgb(26, 204, 26) 25%, rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%) 30%, hwb(30deg 30% 40%) 90%)`, `color-mix(in hwb, rgb(26, 204, 26) 30%, rgb(153, 115, 77) 90%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%) 12.5%, hwb(30deg 30% 40%) 37.5%)`, `color-mix(in hwb, rgb(26, 204, 26) 12.5%, rgb(153, 115, 77) 37.5%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%) 0%, hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 204, 26) 0%, rgb(153, 115, 77))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8))`, `color-mix(in hwb, rgba(26, 204, 26, 0.4), rgba(153, 115, 77, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / .4) 25%, hwb(30deg 30% 40% / .8))`, `color-mix(in hwb, rgba(26, 204, 26, 0.4) 25%, rgba(153, 115, 77, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, 25% hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8))`, `color-mix(in hwb, rgba(26, 204, 26, 0.4) 25%, rgba(153, 115, 77, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%), 25% hwb(30deg 30% 40% / .8))`, `color-mix(in hwb, rgb(26, 204, 26) 75%, rgba(153, 115, 77, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8) 25%)`, `color-mix(in hwb, rgba(26, 204, 26, 0.4) 75%, rgba(153, 115, 77, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / .4) 25%, hwb(30deg 30% 40% / .8) 75%)`, `color-mix(in hwb, rgba(26, 204, 26, 0.4) 25%, rgba(153, 115, 77, 0.8))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / .4) 30%, hwb(30deg 30% 40% / .8) 90%)`, `color-mix(in hwb, rgba(26, 204, 26, 0.4) 30%, rgba(153, 115, 77, 0.8) 90%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / .4) 12.5%, hwb(30deg 30% 40% / .8) 37.5%)`, `color-mix(in hwb, rgba(26, 204, 26, 0.4) 12.5%, rgba(153, 115, 77, 0.8) 37.5%)`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / .4) 0%, hwb(30deg 30% 40% / .8))`, `color-mix(in hwb, rgba(26, 204, 26, 0.4) 0%, rgba(153, 115, 77, 0.8))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(40deg 30% 40%), hwb(60deg 30% 40%))`, `color-mix(in hwb, rgb(153, 128, 77), rgb(153, 153, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(60deg 30% 40%), hwb(40deg 30% 40%))`, `color-mix(in hwb, rgb(153, 153, 77), rgb(153, 128, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(50deg 30% 40%), hwb(330deg 30% 40%))`, `color-mix(in hwb, rgb(153, 140, 77), rgb(153, 77, 115))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(330deg 30% 40%), hwb(50deg 30% 40%))`, `color-mix(in hwb, rgb(153, 77, 115), rgb(153, 140, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(20deg 30% 40%), hwb(320deg 30% 40%))`, `color-mix(in hwb, rgb(153, 102, 77), rgb(153, 77, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(320deg 30% 40%), hwb(20deg 30% 40%))`, `color-mix(in hwb, rgb(153, 77, 128), rgb(153, 102, 77))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb shorter hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%))`, `color-mix(in hwb, rgb(153, 128, 77), rgb(153, 153, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb shorter hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%))`, `color-mix(in hwb, rgb(153, 153, 77), rgb(153, 128, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb shorter hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%))`, `color-mix(in hwb, rgb(153, 140, 77), rgb(153, 77, 115))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb shorter hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%))`, `color-mix(in hwb, rgb(153, 77, 115), rgb(153, 140, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb shorter hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%))`, `color-mix(in hwb, rgb(153, 102, 77), rgb(153, 77, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb shorter hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%))`, `color-mix(in hwb, rgb(153, 77, 128), rgb(153, 102, 77))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb longer hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%))`, `color-mix(in hwb longer hue, rgb(153, 128, 77), rgb(153, 153, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb longer hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%))`, `color-mix(in hwb longer hue, rgb(153, 153, 77), rgb(153, 128, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb longer hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%))`, `color-mix(in hwb longer hue, rgb(153, 140, 77), rgb(153, 77, 115))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb longer hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%))`, `color-mix(in hwb longer hue, rgb(153, 77, 115), rgb(153, 140, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb longer hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%))`, `color-mix(in hwb longer hue, rgb(153, 102, 77), rgb(153, 77, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb longer hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%))`, `color-mix(in hwb longer hue, rgb(153, 77, 128), rgb(153, 102, 77))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb increasing hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%))`, `color-mix(in hwb increasing hue, rgb(153, 128, 77), rgb(153, 153, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb increasing hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%))`, `color-mix(in hwb increasing hue, rgb(153, 153, 77), rgb(153, 128, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb increasing hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%))`, `color-mix(in hwb increasing hue, rgb(153, 140, 77), rgb(153, 77, 115))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb increasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%))`, `color-mix(in hwb increasing hue, rgb(153, 77, 115), rgb(153, 140, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb increasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%))`, `color-mix(in hwb increasing hue, rgb(153, 102, 77), rgb(153, 77, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb increasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%))`, `color-mix(in hwb increasing hue, rgb(153, 77, 128), rgb(153, 102, 77))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb decreasing hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%))`, `color-mix(in hwb decreasing hue, rgb(153, 128, 77), rgb(153, 153, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb decreasing hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%))`, `color-mix(in hwb decreasing hue, rgb(153, 153, 77), rgb(153, 128, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb decreasing hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%))`, `color-mix(in hwb decreasing hue, rgb(153, 140, 77), rgb(153, 77, 115))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb decreasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%))`, `color-mix(in hwb decreasing hue, rgb(153, 77, 115), rgb(153, 140, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb decreasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%))`, `color-mix(in hwb decreasing hue, rgb(153, 102, 77), rgb(153, 77, 128))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb decreasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%))`, `color-mix(in hwb decreasing hue, rgb(153, 77, 128), rgb(153, 102, 77))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(none none none), hwb(none none none))`, `color-mix(in hwb, rgb(255, 0, 0), rgb(255, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(none none none), hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(255, 0, 0), rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%), hwb(none none none))`, `color-mix(in hwb, rgb(26, 204, 26), rgb(255, 0, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% none), hwb(30deg 30% 40%))`, `color-mix(in hwb, rgb(26, 255, 26), rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% none))`, `color-mix(in hwb, rgb(26, 204, 26), rgb(255, 166, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(none 10% 20%), hwb(30deg none 40%))`, `color-mix(in hwb, rgb(204, 26, 26), rgb(153, 77, 0))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40%))`, `color-mix(in hwb, rgba(26, 204, 26, 0), rgb(153, 115, 77))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40% / 0.5))`, `color-mix(in hwb, rgba(26, 204, 26, 0), rgba(153, 115, 77, 0.5))`, 1);
+    fuzzy_test_valid_color(`color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40% / none))`, `color-mix(in hwb, rgba(26, 204, 26, 0), rgba(153, 115, 77, 0))`, 1);
+
+    fuzzy_test_valid_color(`color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, lch(100 116 334) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, lch(100 116 334) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, lch(0 116 334) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, lch(0 116 334) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, oklab(100 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, oklab(0 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, oklab(0 0.365 -0.16) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, oklch(100 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, oklch(0 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, oklch(0 0.399 336.3) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0))`);
+    fuzzy_test_valid_color(`color-mix(in hwb, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `color-mix(in hwb, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0))`);
+
+    fuzzy_test_valid_color(`color-mix(hwb(120deg 10% 20%), hwb(30deg 30% 40%))`, `color-mix(rgb(26, 204, 26), rgb(153, 115, 77))`); // Missing interpolation method.
+
+    // lch()
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg), lch(50 60 70deg))`, `color-mix(in lch, lch(10 20 30), lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg) 25%, lch(50 60 70deg))`, `color-mix(in lch, lch(10 20 30) 25%, lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, 25% lch(10 20 30deg), lch(50 60 70deg))`, `color-mix(in lch, lch(10 20 30) 25%, lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg), 25% lch(50 60 70deg))`, `color-mix(in lch, lch(10 20 30) 75%, lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg), lch(50 60 70deg) 25%)`, `color-mix(in lch, lch(10 20 30) 75%, lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg) 25%, lch(50 60 70deg) 75%)`, `color-mix(in lch, lch(10 20 30) 25%, lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg) 30%, lch(50 60 70deg) 90%)`, `color-mix(in lch, lch(10 20 30) 30%, lch(50 60 70) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg) 12.5%, lch(50 60 70deg) 37.5%)`, `color-mix(in lch, lch(10 20 30) 12.5%, lch(50 60 70) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg) 0%, lch(50 60 70deg))`, `color-mix(in lch, lch(10 20 30) 0%, lch(50 60 70))`);
+
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4), lch(50 60 70deg / .8))`, `color-mix(in lch, lch(10 20 30 / 0.4), lch(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4) 25%, lch(50 60 70deg / .8))`, `color-mix(in lch, lch(10 20 30 / 0.4) 25%, lch(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lch, 25% lch(10 20 30deg / .4), lch(50 60 70deg / .8))`, `color-mix(in lch, lch(10 20 30 / 0.4) 25%, lch(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4), 25% lch(50 60 70deg / .8))`, `color-mix(in lch, lch(10 20 30 / 0.4) 75%, lch(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4), lch(50 60 70deg / .8) 25%)`, `color-mix(in lch, lch(10 20 30 / 0.4) 75%, lch(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4) 25%, lch(50 60 70deg / .8) 75%)`, `color-mix(in lch, lch(10 20 30 / 0.4) 25%, lch(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4) 30%, lch(50 60 70deg / .8) 90%)`, `color-mix(in lch, lch(10 20 30 / 0.4) 30%, lch(50 60 70 / 0.8) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4) 12.5%, lch(50 60 70deg / .8) 37.5%)`, `color-mix(in lch, lch(10 20 30 / 0.4) 12.5%, lch(50 60 70 / 0.8) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / .4) 0%, lch(50 60 70deg / .8))`, `color-mix(in lch, lch(10 20 30 / 0.4) 0%, lch(50 60 70 / 0.8))`);
+
+    fuzzy_test_valid_color(`color-mix(in lch, lch(100 0 40deg), lch(100 0 60deg))`, `color-mix(in lch, lch(100 0 40), lch(100 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(100 0 60deg), lch(100 0 40deg))`, `color-mix(in lch, lch(100 0 60), lch(100 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(100 0 50deg), lch(100 0 330deg))`, `color-mix(in lch, lch(100 0 50), lch(100 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(100 0 330deg), lch(100 0 50deg))`, `color-mix(in lch, lch(100 0 330), lch(100 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(100 0 20deg), lch(100 0 320deg))`, `color-mix(in lch, lch(100 0 20), lch(100 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(100 0 320deg), lch(100 0 20deg))`, `color-mix(in lch, lch(100 0 320), lch(100 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in lch shorter hue, lch(100 0 40deg), lch(100 0 60deg))`, `color-mix(in lch, lch(100 0 40), lch(100 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in lch shorter hue, lch(100 0 60deg), lch(100 0 40deg))`, `color-mix(in lch, lch(100 0 60), lch(100 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in lch shorter hue, lch(100 0 50deg), lch(100 0 330deg))`, `color-mix(in lch, lch(100 0 50), lch(100 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in lch shorter hue, lch(100 0 330deg), lch(100 0 50deg))`, `color-mix(in lch, lch(100 0 330), lch(100 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in lch shorter hue, lch(100 0 20deg), lch(100 0 320deg))`, `color-mix(in lch, lch(100 0 20), lch(100 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in lch shorter hue, lch(100 0 320deg), lch(100 0 20deg))`, `color-mix(in lch, lch(100 0 320), lch(100 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in lch longer hue, lch(100 0 40deg), lch(100 0 60deg))`, `color-mix(in lch longer hue, lch(100 0 40), lch(100 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in lch longer hue, lch(100 0 60deg), lch(100 0 40deg))`, `color-mix(in lch longer hue, lch(100 0 60), lch(100 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in lch longer hue, lch(100 0 50deg), lch(100 0 330deg))`, `color-mix(in lch longer hue, lch(100 0 50), lch(100 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in lch longer hue, lch(100 0 330deg), lch(100 0 50deg))`, `color-mix(in lch longer hue, lch(100 0 330), lch(100 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in lch longer hue, lch(100 0 20deg), lch(100 0 320deg))`, `color-mix(in lch longer hue, lch(100 0 20), lch(100 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in lch longer hue, lch(100 0 320deg), lch(100 0 20deg))`, `color-mix(in lch longer hue, lch(100 0 320), lch(100 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in lch increasing hue, lch(100 0 40deg), lch(100 0 60deg))`, `color-mix(in lch increasing hue, lch(100 0 40), lch(100 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in lch increasing hue, lch(100 0 60deg), lch(100 0 40deg))`, `color-mix(in lch increasing hue, lch(100 0 60), lch(100 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in lch increasing hue, lch(100 0 50deg), lch(100 0 330deg))`, `color-mix(in lch increasing hue, lch(100 0 50), lch(100 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in lch increasing hue, lch(100 0 330deg), lch(100 0 50deg))`, `color-mix(in lch increasing hue, lch(100 0 330), lch(100 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in lch increasing hue, lch(100 0 20deg), lch(100 0 320deg))`, `color-mix(in lch increasing hue, lch(100 0 20), lch(100 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in lch increasing hue, lch(100 0 320deg), lch(100 0 20deg))`, `color-mix(in lch increasing hue, lch(100 0 320), lch(100 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in lch decreasing hue, lch(100 0 40deg), lch(100 0 60deg))`, `color-mix(in lch decreasing hue, lch(100 0 40), lch(100 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in lch decreasing hue, lch(100 0 60deg), lch(100 0 40deg))`, `color-mix(in lch decreasing hue, lch(100 0 60), lch(100 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in lch decreasing hue, lch(100 0 50deg), lch(100 0 330deg))`, `color-mix(in lch decreasing hue, lch(100 0 50), lch(100 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in lch decreasing hue, lch(100 0 330deg), lch(100 0 50deg))`, `color-mix(in lch decreasing hue, lch(100 0 330), lch(100 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in lch decreasing hue, lch(100 0 20deg), lch(100 0 320deg))`, `color-mix(in lch decreasing hue, lch(100 0 20), lch(100 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in lch decreasing hue, lch(100 0 320deg), lch(100 0 20deg))`, `color-mix(in lch decreasing hue, lch(100 0 320), lch(100 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in lch, lch(none none none), lch(none none none))`, `color-mix(in lch, lch(none none none), lch(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(none none none), lch(50 60 70deg))`, `color-mix(in lch, lch(none none none), lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg), lch(none none none))`, `color-mix(in lch, lch(10 20 30), lch(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 none), lch(50 60 70deg))`, `color-mix(in lch, lch(10 20 none), lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg), lch(50 60 none))`, `color-mix(in lch, lch(10 20 30), lch(50 60 none))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(none 20 30deg), lch(50 none 70deg))`, `color-mix(in lch, lch(none 20 30), lch(50 none 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / none), lch(50 60 70deg))`, `color-mix(in lch, lch(10 20 30 / none), lch(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / none), lch(50 60 70deg / 0.5))`, `color-mix(in lch, lch(10 20 30 / none), lch(50 60 70 / 0.5))`);
+    fuzzy_test_valid_color(`color-mix(in lch, lch(10 20 30deg / none), lch(50 60 70deg / none))`, `color-mix(in lch, lch(10 20 30 / none), lch(50 60 70 / none))`);
+    fuzzy_test_valid_color(`color-mix(lch(10 20 30), lch(50 60 70))`); // Missing interpolation method.
+
+    // oklch()
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg), oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(0.1 0.2 30), oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg) 25%, oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(0.1 0.2 30) 25%, oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, 25% oklch(0.1 0.2 30deg), oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(0.1 0.2 30) 25%, oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg), 25% oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(0.1 0.2 30) 75%, oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg), oklch(0.5 0.6 70deg) 25%)`, `color-mix(in oklch, oklch(0.1 0.2 30) 75%, oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg) 25%, oklch(0.5 0.6 70deg) 75%)`, `color-mix(in oklch, oklch(0.1 0.2 30) 25%, oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg) 30%, oklch(0.5 0.6 70deg) 90%)`, `color-mix(in oklch, oklch(0.1 0.2 30) 30%, oklch(0.5 0.6 70) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg) 12.5%, oklch(0.5 0.6 70deg) 37.5%)`, `color-mix(in oklch, oklch(0.1 0.2 30) 12.5%, oklch(0.5 0.6 70) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg) 0%, oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(0.1 0.2 30) 0%, oklch(0.5 0.6 70))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4), oklch(0.5 0.6 70deg / .8))`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4), oklch(0.5 0.6 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 25%, oklch(0.5 0.6 70deg / .8))`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 25%, oklch(0.5 0.6 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, 25% oklch(0.1 0.2 30deg / .4), oklch(0.5 0.6 70deg / .8))`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 25%, oklch(0.5 0.6 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4), 25% oklch(0.5 0.6 70deg / .8))`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 75%, oklch(0.5 0.6 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4), oklch(0.5 0.6 70deg / .8) 25%)`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 75%, oklch(0.5 0.6 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 25%, oklch(0.5 0.6 70deg / .8) 75%)`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 25%, oklch(0.5 0.6 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 30%, oklch(0.5 0.6 70deg / .8) 90%)`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 30%, oklch(0.5 0.6 70 / 0.8) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 12.5%, oklch(0.5 0.6 70deg / .8) 37.5%)`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 12.5%, oklch(0.5 0.6 70 / 0.8) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 0%, oklch(0.5 0.6 70deg / .8))`, `color-mix(in oklch, oklch(0.1 0.2 30 / 0.4) 0%, oklch(0.5 0.6 70 / 0.8))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(1 0 40deg), oklch(1 0 60deg))`, `color-mix(in oklch, oklch(1 0 40), oklch(1 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(1 0 60deg), oklch(1 0 40deg))`, `color-mix(in oklch, oklch(1 0 60), oklch(1 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(1 0 50deg), oklch(1 0 330deg))`, `color-mix(in oklch, oklch(1 0 50), oklch(1 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(1 0 330deg), oklch(1 0 50deg))`, `color-mix(in oklch, oklch(1 0 330), oklch(1 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(1 0 20deg), oklch(1 0 320deg))`, `color-mix(in oklch, oklch(1 0 20), oklch(1 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(1 0 320deg), oklch(1 0 20deg))`, `color-mix(in oklch, oklch(1 0 320), oklch(1 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklch shorter hue, oklch(1 0 40deg), oklch(1 0 60deg))`, `color-mix(in oklch, oklch(1 0 40), oklch(1 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in oklch shorter hue, oklch(1 0 60deg), oklch(1 0 40deg))`, `color-mix(in oklch, oklch(1 0 60), oklch(1 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in oklch shorter hue, oklch(1 0 50deg), oklch(1 0 330deg))`, `color-mix(in oklch, oklch(1 0 50), oklch(1 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in oklch shorter hue, oklch(1 0 330deg), oklch(1 0 50deg))`, `color-mix(in oklch, oklch(1 0 330), oklch(1 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in oklch shorter hue, oklch(1 0 20deg), oklch(1 0 320deg))`, `color-mix(in oklch, oklch(1 0 20), oklch(1 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in oklch shorter hue, oklch(1 0 320deg), oklch(1 0 20deg))`, `color-mix(in oklch, oklch(1 0 320), oklch(1 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklch longer hue, oklch(1 0 40deg), oklch(1 0 60deg))`, `color-mix(in oklch longer hue, oklch(1 0 40), oklch(1 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in oklch longer hue, oklch(1 0 60deg), oklch(1 0 40deg))`, `color-mix(in oklch longer hue, oklch(1 0 60), oklch(1 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in oklch longer hue, oklch(1 0 50deg), oklch(1 0 330deg))`, `color-mix(in oklch longer hue, oklch(1 0 50), oklch(1 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in oklch longer hue, oklch(1 0 330deg), oklch(1 0 50deg))`, `color-mix(in oklch longer hue, oklch(1 0 330), oklch(1 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in oklch longer hue, oklch(1 0 20deg), oklch(1 0 320deg))`, `color-mix(in oklch longer hue, oklch(1 0 20), oklch(1 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in oklch longer hue, oklch(1 0 320deg), oklch(1 0 20deg))`, `color-mix(in oklch longer hue, oklch(1 0 320), oklch(1 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklch increasing hue, oklch(1 0 40deg), oklch(1 0 60deg))`, `color-mix(in oklch increasing hue, oklch(1 0 40), oklch(1 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in oklch increasing hue, oklch(1 0 60deg), oklch(1 0 40deg))`, `color-mix(in oklch increasing hue, oklch(1 0 60), oklch(1 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in oklch increasing hue, oklch(1 0 50deg), oklch(1 0 330deg))`, `color-mix(in oklch increasing hue, oklch(1 0 50), oklch(1 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in oklch increasing hue, oklch(1 0 330deg), oklch(1 0 50deg))`, `color-mix(in oklch increasing hue, oklch(1 0 330), oklch(1 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in oklch increasing hue, oklch(1 0 20deg), oklch(1 0 320deg))`, `color-mix(in oklch increasing hue, oklch(1 0 20), oklch(1 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in oklch increasing hue, oklch(1 0 320deg), oklch(1 0 20deg))`, `color-mix(in oklch increasing hue, oklch(1 0 320), oklch(1 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklch decreasing hue, oklch(1 0 40deg), oklch(1 0 60deg))`, `color-mix(in oklch decreasing hue, oklch(1 0 40), oklch(1 0 60))`);
+    fuzzy_test_valid_color(`color-mix(in oklch decreasing hue, oklch(1 0 60deg), oklch(1 0 40deg))`, `color-mix(in oklch decreasing hue, oklch(1 0 60), oklch(1 0 40))`);
+    fuzzy_test_valid_color(`color-mix(in oklch decreasing hue, oklch(1 0 50deg), oklch(1 0 330deg))`, `color-mix(in oklch decreasing hue, oklch(1 0 50), oklch(1 0 330))`);
+    fuzzy_test_valid_color(`color-mix(in oklch decreasing hue, oklch(1 0 330deg), oklch(1 0 50deg))`, `color-mix(in oklch decreasing hue, oklch(1 0 330), oklch(1 0 50))`);
+    fuzzy_test_valid_color(`color-mix(in oklch decreasing hue, oklch(1 0 20deg), oklch(1 0 320deg))`, `color-mix(in oklch decreasing hue, oklch(1 0 20), oklch(1 0 320))`);
+    fuzzy_test_valid_color(`color-mix(in oklch decreasing hue, oklch(1 0 320deg), oklch(1 0 20deg))`, `color-mix(in oklch decreasing hue, oklch(1 0 320), oklch(1 0 20))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(none none none), oklch(none none none))`, `color-mix(in oklch, oklch(none none none), oklch(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(none none none), oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(none none none), oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg), oklch(none none none))`, `color-mix(in oklch, oklch(0.1 0.2 30), oklch(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 none), oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(0.1 0.2 none), oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg), oklch(0.5 0.6 none))`, `color-mix(in oklch, oklch(0.1 0.2 30), oklch(0.5 0.6 none))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(none 0.2 30deg), oklch(0.5 none 70deg))`, `color-mix(in oklch, oklch(none 0.2 30), oklch(0.5 none 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / none), oklch(0.5 0.6 70deg))`, `color-mix(in oklch, oklch(0.1 0.2 30 / none), oklch(0.5 0.6 70))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / none), oklch(0.5 0.6 70deg / 0.5))`, `color-mix(in oklch, oklch(0.1 0.2 30 / none), oklch(0.5 0.6 70 / 0.5))`);
+    fuzzy_test_valid_color(`color-mix(in oklch, oklch(0.1 0.2 30deg / none), oklch(0.5 0.6 70deg / none))`, `color-mix(in oklch, oklch(0.1 0.2 30 / none), oklch(0.5 0.6 70 / none))`);
+
+    fuzzy_test_valid_color(`color-mix(oklch(0.1 20 30), oklch(0.5 60 70))`); // Missing interpolation method.
+
+    // lab()
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30), lab(50 60 70))`, `color-mix(in lab, lab(10 20 30), lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30) 25%, lab(50 60 70))`, `color-mix(in lab, lab(10 20 30) 25%, lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, 25% lab(10 20 30), lab(50 60 70))`, `color-mix(in lab, lab(10 20 30) 25%, lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30), 25% lab(50 60 70))`, `color-mix(in lab, lab(10 20 30) 75%, lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30), lab(50 60 70) 25%)`, `color-mix(in lab, lab(10 20 30) 75%, lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30) 25%, lab(50 60 70) 75%)`, `color-mix(in lab, lab(10 20 30) 25%, lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30) 30%, lab(50 60 70) 90%)`, `color-mix(in lab, lab(10 20 30) 30%, lab(50 60 70) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30) 12.5%, lab(50 60 70) 37.5%)`, `color-mix(in lab, lab(10 20 30) 12.5%, lab(50 60 70) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30) 0%, lab(50 60 70))`, `color-mix(in lab, lab(10 20 30) 0%, lab(50 60 70))`);
+
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4), lab(50 60 70 / .8))`, `color-mix(in lab, lab(10 20 30 / 0.4), lab(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4) 25%, lab(50 60 70 / .8))`, `color-mix(in lab, lab(10 20 30 / 0.4) 25%, lab(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lab, 25% lab(10 20 30 / .4), lab(50 60 70 / .8))`, `color-mix(in lab, lab(10 20 30 / 0.4) 25%, lab(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4), 25% lab(50 60 70 / .8))`, `color-mix(in lab, lab(10 20 30 / 0.4) 75%, lab(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4), lab(50 60 70 / .8) 25%)`, `color-mix(in lab, lab(10 20 30 / 0.4) 75%, lab(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4) 25%, lab(50 60 70 / .8) 75%)`, `color-mix(in lab, lab(10 20 30 / 0.4) 25%, lab(50 60 70 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4) 30%, lab(50 60 70 / .8) 90%)`, `color-mix(in lab, lab(10 20 30 / 0.4) 30%, lab(50 60 70 / 0.8) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4) 12.5%, lab(50 60 70 / .8) 37.5%)`, `color-mix(in lab, lab(10 20 30 / 0.4) 12.5%, lab(50 60 70 / 0.8) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / .4) 0%, lab(50 60 70 / .8))`, `color-mix(in lab, lab(10 20 30 / 0.4) 0%, lab(50 60 70 / 0.8))`);
+
+    fuzzy_test_valid_color(`color-mix(in lab, lab(none none none), lab(none none none))`, `color-mix(in lab, lab(none none none), lab(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(none none none), lab(50 60 70))`, `color-mix(in lab, lab(none none none), lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30), lab(none none none))`, `color-mix(in lab, lab(10 20 30), lab(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 none), lab(50 60 70))`, `color-mix(in lab, lab(10 20 none), lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30), lab(50 60 none))`, `color-mix(in lab, lab(10 20 30), lab(50 60 none))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(none 20 30), lab(50 none 70))`, `color-mix(in lab, lab(none 20 30), lab(50 none 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / none), lab(50 60 70))`, `color-mix(in lab, lab(10 20 30 / none), lab(50 60 70))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / none), lab(50 60 70 / 0.5))`, `color-mix(in lab, lab(10 20 30 / none), lab(50 60 70 / 0.5))`);
+    fuzzy_test_valid_color(`color-mix(in lab, lab(10 20 30 / none), lab(50 60 70 / none))`, `color-mix(in lab, lab(10 20 30 / none), lab(50 60 70 / none))`);
+
+    fuzzy_test_valid_color(`color-mix(lab(10 20 30), lab(50 60 70))`); // Missing interpolation method.
+
+    // oklab()
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))`, `color-mix(oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7))`, `color-mix(oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, 25% oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))`, `color-mix(oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3), 25% oklab(0.5 0.6 0.7))`, `color-mix(oklab(0.1 0.2 0.3) 75%, oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7) 25%)`, `color-mix(oklab(0.1 0.2 0.3) 75%, oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7) 75%)`, `color-mix(oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3) 30%, oklab(0.5 0.6 0.7) 90%)`, `color-mix(oklab(0.1 0.2 0.3) 30%, oklab(0.5 0.6 0.7) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3) 12.5%, oklab(0.5 0.6 0.7) 37.5%)`, `color-mix(oklab(0.1 0.2 0.3) 12.5%, oklab(0.5 0.6 0.7) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3) 0%, oklab(0.5 0.6 0.7))`, `color-mix(oklab(0.1 0.2 0.3) 0%, oklab(0.5 0.6 0.7))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8))`, `color-mix(oklab(0.1 0.2 0.3 / 0.4), oklab(0.5 0.6 0.7 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 25%, oklab(0.5 0.6 0.7 / .8))`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 25%, oklab(0.5 0.6 0.7 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, 25% oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8))`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 25%, oklab(0.5 0.6 0.7 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), 25% oklab(0.5 0.6 0.7 / .8))`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 75%, oklab(0.5 0.6 0.7 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8) 25%)`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 75%, oklab(0.5 0.6 0.7 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 25%, oklab(0.5 0.6 0.7 / .8) 75%)`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 25%, oklab(0.5 0.6 0.7 / 0.8))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 30%, oklab(0.5 0.6 0.7 / .8) 90%)`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 30%, oklab(0.5 0.6 0.7 / 0.8) 90%)`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 12.5%, oklab(0.5 0.6 0.7 / .8) 37.5%)`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 12.5%, oklab(0.5 0.6 0.7 / 0.8) 37.5%)`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 0%, oklab(0.5 0.6 0.7 / .8))`, `color-mix(oklab(0.1 0.2 0.3 / 0.4) 0%, oklab(0.5 0.6 0.7 / 0.8))`);
+
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(none none none), oklab(none none none))`, `color-mix(oklab(none none none), oklab(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(none none none), oklab(0.5 0.6 0.7))`, `color-mix(oklab(none none none), oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(none none none))`, `color-mix(oklab(0.1 0.2 0.3), oklab(none none none))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 none), oklab(0.5 0.6 0.7))`, `color-mix(oklab(0.1 0.2 none), oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 none))`, `color-mix(oklab(0.1 0.2 0.3), oklab(0.5 0.6 none))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(none 0.2 0.3), oklab(0.5 none 0.7))`, `color-mix(oklab(none 0.2 0.3), oklab(0.5 none 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7))`, `color-mix(oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / 0.5))`, `color-mix(oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / 0.5))`);
+    fuzzy_test_valid_color(`color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / none))`, `color-mix(oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / none))`);
+
+    fuzzy_test_valid_color(`color-mix(oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))`); // Missing interpolation method.
+
+    for (const colorSpace of [ "srgb", "srgb-linear", "display-p3", "display-p3-linear", "a98-rgb", "prophoto-rgb", "rec2020", "xyz", "xyz-d50", "xyz-d65" ]) {
+      const resultColorSpace = colorSpace == "xyz" ? "xyz-d65" : colorSpace;
+
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3), color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, 50% color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3), color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3), 50% color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3), color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 25%, color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3) 25%, color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7) 25%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3) 75%, color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 25%, color(${colorSpace} .5 .6 .7) 75%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3) 25%, color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 30%, color(${colorSpace} .5 .6 .7) 90%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3) 30%, color(${resultColorSpace} 0.5 0.6 0.7) 90%)`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 12.5%, color(${colorSpace} .5 .6 .7) 37.5%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3) 12.5%, color(${resultColorSpace} 0.5 0.6 0.7) 37.5%)`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 0%, color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3) 0%, color(${resultColorSpace} 0.5 0.6 0.7))`);
+
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .5), color(${colorSpace} .5 .6 .7 / .8))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / 0.5), color(${resultColorSpace} 0.5 0.6 0.7 / 0.8))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) 25%, color(${colorSpace} .5 .6 .7 / .8))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / 0.4) 25%, color(${resultColorSpace} 0.5 0.6 0.7 / 0.8))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4), color(${colorSpace} .5 .6 .7 / .8) 25%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / 0.4) 75%, color(${resultColorSpace} 0.5 0.6 0.7 / 0.8))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) 25%, color(${colorSpace} .5 .6 .7 / .8) 75%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / 0.4) 25%, color(${resultColorSpace} 0.5 0.6 0.7 / 0.8))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) 30%, color(${colorSpace} .5 .6 .7 / .8) 90%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / 0.4) 30%, color(${resultColorSpace} 0.5 0.6 0.7 / 0.8) 90%)`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) 12.5%, color(${colorSpace} .5 .6 .7 / .8) 37.5%)`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / 0.4) 12.5%, color(${resultColorSpace} 0.5 0.6 0.7 / 0.8) 37.5%)`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) 0%, color(${colorSpace} .5 .6 .7 / .8))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / 0.4) 0%, color(${resultColorSpace} 0.5 0.6 0.7 / 0.8))`);
+
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} 2 3 4 / 5), color(${colorSpace} 4 6 8 / 10))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 2 3 4), color(${resultColorSpace} 4 6 8))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} -2 -3 -4), color(${colorSpace} -4 -6 -8))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} -2 -3 -4), color(${resultColorSpace} -4 -6 -8))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} -2 -3 -4 / -5), color(${colorSpace} -4 -6 -8 / -10))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} -2 -3 -4 / 0), color(${resultColorSpace} -4 -6 -8 / 0))`);
+
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} none none none), color(${colorSpace} none none none))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} none none none), color(${resultColorSpace} none none none))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} none none none), color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} none none none), color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3), color(${colorSpace} none none none))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3), color(${resultColorSpace} none none none))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 none), color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 none), color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 none))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3), color(${resultColorSpace} 0.5 0.6 none))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} none .2 .3), color(${colorSpace} .5 none .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} none 0.2 0.3), color(${resultColorSpace} 0.5 none 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / none), color(${colorSpace} .5 .6 .7))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / none), color(${resultColorSpace} 0.5 0.6 0.7))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / none), color(${colorSpace} .5 .6 .7 / 0.5))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / none), color(${resultColorSpace} 0.5 0.6 0.7 / 0.5))`);
+      fuzzy_test_valid_color(`color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / none), color(${colorSpace} .5 .6 .7 / none))`, `color-mix(in ${resultColorSpace}, color(${resultColorSpace} 0.1 0.2 0.3 / none), color(${resultColorSpace} 0.5 0.6 0.7 / none))`);
+
+      fuzzy_test_valid_color(`color-mix(color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7))`, `color-mix(color(${resultColorSpace} .1 .2 .3), color(${resultColorSpace} .5 .6 .7))`); // Missing interpolation method.
+    }
+
+    // Test percent normalization
+    fuzzy_test_valid_color(`color-mix(in srgb, red 50%,       blue 50%)`,          `color-mix(in srgb, red, blue)`)                     // both 50%
+    fuzzy_test_valid_color(`color-mix(in srgb, red 10%,       blue 90%)`,          `color-mix(in srgb, red 10%, blue)`)                 // sum to 100%
+    fuzzy_test_valid_color(`color-mix(in srgb, red 50%,       blue 40%)`,          `color-mix(in srgb, red 50%, blue 40%)`)             // only one is 50% (p1)
+    fuzzy_test_valid_color(`color-mix(in srgb, red 40%,       blue 50%)`,          `color-mix(in srgb, red 40%, blue 50%)`)             // only one is 50% (p2)
+    fuzzy_test_valid_color(`color-mix(in srgb, red 30%,       blue 40%)`,          `color-mix(in srgb, red 30%, blue 40%)`)             // sum to less than 100
+    fuzzy_test_valid_color(`color-mix(in srgb, red 75%,       blue 75%)`,          `color-mix(in srgb, red 75%, blue 75%)`)             // sum to more than 100
+    fuzzy_test_valid_color(`color-mix(in srgb, red calc(10%), blue 50%)`,          `color-mix(in srgb, red calc(10%), blue 50%)`)       // one is `calc()` (p1)
+    fuzzy_test_valid_color(`color-mix(in srgb, red 50%,       blue calc(10%))`,    `color-mix(in srgb, red 50%, blue calc(10%))`)       // one is `calc()` (p2)
+    fuzzy_test_valid_color(`color-mix(in srgb, red calc(10%), blue calc(90%))`,    `color-mix(in srgb, red calc(10%), blue calc(90%))`) // both are `calc()`
+    fuzzy_test_valid_color(`color-mix(in srgb, red 50%,       blue)`,              `color-mix(in srgb, red, blue)`)                     // only p1 specified, is 50%
+    fuzzy_test_valid_color(`color-mix(in srgb, red 10%,       blue)`,              `color-mix(in srgb, red 10%, blue)`)                 // only p1 specified
+    fuzzy_test_valid_color(`color-mix(in srgb, red calc(50%), blue)`,              `color-mix(in srgb, red calc(50%), blue)`)           // only p1 specified, is `calc()`
+    fuzzy_test_valid_color(`color-mix(in srgb, red,           blue 50%)`,          `color-mix(in srgb, red, blue)`)                     // only p2 specified, is 50%
+    fuzzy_test_valid_color(`color-mix(in srgb, red,           blue 90%)`,          `color-mix(in srgb, red 10%, blue)`)                 // only p2 specified
+    fuzzy_test_valid_color(`color-mix(in srgb, red,           blue calc(50%))`,    `color-mix(in srgb, red, blue calc(50%))`)           // only p2 specified, is `calc()`
+    fuzzy_test_valid_color(`color-mix(in srgb, red,           blue)`,              `color-mix(in srgb, red, blue)`)                     // neither is specified
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+elem.childNodes.length: 5
+child node 0: [object CDATASection], 4
+child node 1 [object ProcessingInstruction], 7
+child node 2: [object Comment], 8

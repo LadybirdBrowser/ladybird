@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLOptionElement.text</title>
+<link rel=author title=Ms2ger href="mailto:Ms2ger@gmail.com">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#dom-option-text">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var option = document.createElement("option");
+  option.appendChild(document.createElement("font"))
+        .appendChild(document.createTextNode(" font "));
+  assert_equals(option.text, "font");
+}, "option.text should recurse");
+
+test(function() {
+  var option = document.createElement("option");
+  option.appendChild(document.createTextNode(" before "));
+  option.appendChild(document.createElement("script"))
+        .appendChild(document.createTextNode(" script "));
+  option.appendChild(document.createTextNode(" after "));
+  assert_equals(option.text, "before after");
+}, "option.text should not recurse into HTML script elements");
+test(function() {
+  var option = document.createElement("option");
+  option.appendChild(document.createTextNode(" before "));
+  option.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "script"))
+        .appendChild(document.createTextNode(" script "));
+  option.appendChild(document.createTextNode(" after "));
+  assert_equals(option.text, "before after");
+}, "option.text should not recurse into SVG script elements");
+test(function() {
+  var option = document.createElement("option");
+  option.appendChild(document.createTextNode(" before "));
+  option.appendChild(document.createElementNS("http://www.w3.org/1998/Math/MathML", "script"))
+        .appendChild(document.createTextNode(" script "));
+  option.appendChild(document.createTextNode(" after "));
+  assert_equals(option.text, "before script after");
+}, "option.text should recurse into MathML script elements");
+test(function() {
+  var option = document.createElement("option");
+  option.appendChild(document.createTextNode(" before "));
+  option.appendChild(document.createElementNS(null, "script"))
+        .appendChild(document.createTextNode(" script "));
+  option.appendChild(document.createTextNode(" after "));
+  assert_equals(option.text, "before script after");
+}, "option.text should recurse into null script elements");
+test(function() {
+  var option = document.createElement("option");
+  var span = option.appendChild(document.createElement("span"));
+  span.appendChild(document.createTextNode(" Some "));
+  span.appendChild(document.createElement("script"))
+      .appendChild(document.createTextNode(" script "));
+  option.appendChild(document.createTextNode(" Text "));
+  assert_equals(option.text, "Some Text");
+}, "option.text should work if a child of the option ends with a script");
+
+test(function() {
+  var script = document.createElement("script");
+  var option = script.appendChild(document.createElement("option"));
+  option.appendChild(document.createTextNode("text"));
+  assert_equals(option.text, "text");
+}, "option.text should work if the option is in an HTML script element");
+test(function() {
+  var script = document.createElementNS("http://www.w3.org/2000/svg", "script");
+  var option = script.appendChild(document.createElement("option"));
+  option.appendChild(document.createTextNode("text"));
+  assert_equals(option.text, "text");
+}, "option.text should work if the option is in an SVG script element");
+test(function() {
+  var script = document.createElementNS("http://www.w3.org/1998/Math/MathML", "script");
+  var option = script.appendChild(document.createElement("option"));
+  option.appendChild(document.createTextNode("text"));
+  assert_equals(option.text, "text");
+}, "option.text should work if the option is in a MathML script element");
+
+test(function() {
+  var option = document.createElement("option");
+  option.appendChild(document.createTextNode("te"));
+  option.appendChild(document.createComment("comment"));
+  option.appendChild(document.createTextNode("xt"));
+  assert_equals(option.text, "text");
+}, "option.text should ignore comment children");
+test(function() {
+  var option = document.createElement("option");
+  option.appendChild(document.createTextNode("te"));
+  option.appendChild(document.createProcessingInstruction("target", "data"));
+  option.appendChild(document.createTextNode("xt"));
+  assert_equals(option.text, "text");
+}, "option.text should ignore PI children");
+</script>

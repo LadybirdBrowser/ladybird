@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let e = document.createElement("div");
+        e.innerHTML = "<img src='data:text/png,'>";
+        println("PASS! (Didn't crash)");
+        println(e.firstChild.src);
+    });
+</script>

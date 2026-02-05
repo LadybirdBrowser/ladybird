@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("a")).mathDepth);
+        println(getComputedStyle(document.getElementById("b")).mathDepth);
+        println(getComputedStyle(document.getElementById("c")).mathDepth);
+        println(getComputedStyle(document.getElementById("d")).mathDepth);
+        println(getComputedStyle(document.getElementById("e")).mathDepth);
+        println(getComputedStyle(document.getElementById("f")).mathDepth);
+    });
+</script>
+<style>
+    body { math-depth: 0; }
+    ul > li { math-depth: add(1); }
+</style>
+<body>
+<ul id="a">
+    <li id="b"></li>
+    <li id="c">
+        <ul id="d">
+            <li id="e"></li>
+            <li id="f"></li>
+        </ul>
+    </li>
+</ul>
+</body>

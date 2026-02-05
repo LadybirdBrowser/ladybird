@@ -1,0 +1,18 @@
+#import <DOM/Document.idl>
+#import <TrustedTypes/TrustedHTML.idl>
+
+enum DOMParserSupportedType {
+    "text/html",
+    "text/xml",
+    "application/xml",
+    "application/xhtml+xml",
+    "image/svg+xml"
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#domparser
+[Exposed=Window]
+interface DOMParser {
+    constructor();
+
+    Document parseFromString((TrustedHTML or Utf16DOMString) string, DOMParserSupportedType type);
+};

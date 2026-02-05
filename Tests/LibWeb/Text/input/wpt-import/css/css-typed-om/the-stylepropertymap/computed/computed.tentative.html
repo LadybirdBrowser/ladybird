@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Computed StylePropertyMap tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#computed-stylepropertymapreadonly-objects">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<style>#target { height: 10px; --foo: auto; }</style>
+<div style="width: 50px">
+  <div id="target" style="top: 5px; --bar: 5; width: 50%;"></div>
+</div>
+<script>
+'use strict';
+
+const target = document.getElementById('target');
+const styleMap = target.computedStyleMap();
+
+test(() => {
+  const computedStyle = [...getComputedStyle(target)].sort();
+  const properties = [...styleMap.keys()];
+
+  assert_equals(properties.length, computedStyle.length);
+  for (let i = 0; i < computedStyle.length; i++) {
+    assert_true(properties.includes(computedStyle[i]));
+    assert_not_equals(styleMap.get(computedStyle[i]), null);
+    assert_not_equals(styleMap.getAll(computedStyle[i]).length, 0);
+    assert_true(styleMap.has(computedStyle[i]));
+  }
+}, 'Computed StylePropertyMap contains every CSS property');
+
+test(() => {
+  const result = styleMap.get('height');
+  assert_style_value_equals(result, CSS.px(10));
+}, 'Computed StylePropertyMap contains CSS property declarations in style rules');
+
+test(() => {
+  const result = styleMap.get('--foo');
+  assert_style_value_equals(result, new CSSUnparsedValue(['auto']));
+}, 'Computed StylePropertyMap contains custom property declarations in style rules');
+
+test(() => {
+  const result = styleMap.get('top');
+  assert_style_value_equals(result, CSS.px(5));
+}, 'Computed StylePropertyMap contains CSS property declarations in inline styles');
+
+test(() => {
+  const result = styleMap.get('--bar');
+  assert_style_value_equals(result, new CSSUnparsedValue(['5']));
+}, 'Computed StylePropertyMap contains custom property declarations in inline rules');
+
+test(() => {
+  const computedStyle = getComputedStyle(target);
+  assert_equals(computedStyle.width, '25px');
+
+  const result = styleMap.get('width');
+  assert_style_value_equals(result, CSS.percent(50));
+}, 'Computed StylePropertyMap contains computed values and not resolved values');
+
+test(t => {
+  let target = createDivWithStyle(t, 'width: 10px');
+  const styleMap = target.attributeStyleMap;
+  assert_style_value_equals(styleMap.get('width'), CSS.px(10));
+
+  target.style.width = '20px';
+  assert_style_value_equals(styleMap.get('width'), CSS.px(20));
+}, 'Computed StylePropertyMap is live');
+
+</script>

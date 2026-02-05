@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#prefers-reduced-transparency" />
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+<script>
+query_should_be_known("(prefers-reduced-transparency)");
+query_should_be_known("(prefers-reduced-transparency: no-preference)");
+query_should_be_known("(prefers-reduced-transparency: reduce)");
+
+query_should_be_unknown("(prefers-reduced-transparency: 0)");
+query_should_be_unknown("(prefers-reduced-transparency: none)");
+query_should_be_unknown("(prefers-reduced-transparency: 10px)");
+query_should_be_unknown("(prefers-reduced-transparency: no-preference reduce)");
+query_should_be_unknown("(prefers-reduced-transparency: reduced)");
+query_should_be_unknown("(prefers-reduced-transparency: no-preference/reduce)");
+
+test(() => {
+  // https://drafts.csswg.org/mediaqueries-5/#boolean-context
+  let booleanContext = window.matchMedia("(prefers-reduced-transparency)");
+  let noPreference = window.matchMedia("(prefers-reduced-transparency: no-preference)");
+  assert_equals(booleanContext.matches, !noPreference.matches);
+}, "Check that no-preference evaluates to false in the boolean context");
+
+test(() => {
+  let invalid = window.matchMedia("(prefers-reduced-transparency: 10px)");
+  assert_equals(invalid.matches, false);
+}, "Check that invalid evaluates to false");
+</script>

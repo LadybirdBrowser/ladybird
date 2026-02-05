@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    body {
+      counter-reset: section;
+    }
+    div::before {
+      counter-increment: section;
+      content: counter(section) ". ";
+    }
+</style><div id=a>a</div><div id=b>b</div><div id=c>c</div>

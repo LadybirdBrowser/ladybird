@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Computed StylePropertyMap.get with shorthands</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#get-a-value-from-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, 'margin: 1px 2px 3px 4px');
+  const result = styleMap.get('margin');
+  assert_not_equals(result, null, 'Shorthand value must not be null');
+  assert_class_string(result, 'CSSStyleValue',
+    'Shorthand value must be a base CSSStyleValue');
+}, 'Getting an shorthand property set explicitly in computed style returns ' +
+   'a base CSSStyleValue');
+
+test(t => {
+  const styleMap = createComputedStyleMap(t);
+  const result = styleMap.get('margin');
+  assert_not_equals(result, null, 'Shorthand value must not be null');
+  assert_class_string(result, 'CSSStyleValue',
+    'Shorthand value must be a base CSSStyleValue');
+}, 'Getting a shorthand property from initial computed style returns ' +
+   'a base CSSStyleValue');
+
+</script>

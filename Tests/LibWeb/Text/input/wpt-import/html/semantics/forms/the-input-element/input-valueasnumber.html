@@ -1,0 +1,157 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<html>
+ <head>
+  <title>HTMLInputElement valueAsNumber</title>
+  <link rel="author" title="pmdartus" href="mailto:dartus.pierremarie@gmail.com">
+  <link rel=help href="https://html.spec.whatwg.org/#dom-input-valueasnumber">
+
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+ </head>
+ <body>
+  <h3>input_valueAsNumber</h3>
+  <hr>
+  <div id="log"></div>
+
+  <input id="input_date" type="date" />
+  <input id="input_month" type="month" />
+  <input id="input_week" type="week" />
+  <input id="input_time" type="time" />
+  <input id="input_datetime-local" type="datetime-local" />
+  <input id="input_number" type="number" />
+  <input id="input_range" type="range" min="0" max="100" />
+
+  <script>
+   "use strict";
+
+   function testValueAsNumberGetter(type, element, cases) {
+     for (const [value, expectedValueAsNumber] of cases) {
+       test(
+         () => {
+           element.value = value;
+           assert_equals(element.valueAsNumber, expectedValueAsNumber);
+         },
+         `valueAsNumber getter on type ${type} (actual value: ${value}, ` +
+         `expected valueAsNumber: ${expectedValueAsNumber})`
+       );
+     }
+   }
+
+   function testValueAsNumberSetter(type, element, cases) {
+     for (const [valueAsNumber, expectedValue] of cases) {
+       test(
+         () => {
+           element.valueAsNumber = valueAsNumber;
+           assert_equals(element.value, expectedValue);
+         },
+         `valueAsNumber setter on type ${type} (actual valueAsNumber: ${valueAsNumber}, ` +
+         `expected value: ${expectedValue})`
+       );
+     }
+   }
+
+   const dateInput = document.getElementById("input_date");
+   testValueAsNumberGetter("date", dateInput, [
+     ["", NaN],
+     ["0000-12-10", NaN],
+     ["2019-00-12", NaN],
+     ["2019-12-00", NaN],
+     ["2019-13-10", NaN],
+     ["2019-02-29", NaN],
+     ["2019-12-10", 1575936000000],
+     ["2016-02-29", 1456704000000] // Leap year
+   ]);
+   testValueAsNumberSetter("date", dateInput, [
+     [0, "1970-01-01"],
+     [1575936000000, "2019-12-10"],
+     [1456704000000, "2016-02-29"] // Leap year
+   ]);
+
+   const monthInput = document.getElementById("input_month");
+   testValueAsNumberGetter("month", monthInput, [
+     ["", NaN],
+     ["0000-12", NaN],
+     ["2019-00", NaN],
+     ["2019-12", 599],
+     ["1969-12", -1],
+   ]);
+   testValueAsNumberSetter("month", monthInput, [
+     [599, "2019-12"],
+     [-1, "1969-12"],
+   ]);
+
+   const weekInput = document.getElementById("input_week");
+   testValueAsNumberGetter("week", weekInput, [
+     ["", NaN],
+     ["0000-W50", NaN],
+     ["2019-W00", NaN],
+     ["2019-W60", NaN],
+     ["2019-W50", 1575849600000],
+     ["1969-W20", -20217600000],
+   ]);
+   testValueAsNumberSetter("week", weekInput, [
+     [0, "1970-W01"],
+     [1575849600000, "2019-W50"],
+     [-20217600000, "1969-W20"],
+   ]);
+
+   const timeInput = document.getElementById("input_time");
+   testValueAsNumberGetter("time", timeInput, [
+     ["", NaN],
+     ["24:00", NaN],
+     ["00:60", NaN],
+     ["00:00", 0],
+     ["12:00", 12 * 3600 * 1000],
+     ["23:59", ((23 * 3600) + (59 * 60)) * 1000]
+   ]);
+   testValueAsNumberSetter("time", timeInput, [
+     [0, "00:00"],
+     [12 * 3600 * 1000, "12:00"],
+     [((23 * 3600) + (59 * 60)) * 1000, "23:59"]
+   ]);
+
+   const dateTimeLocalInput = document.getElementById("input_datetime-local");
+   testValueAsNumberGetter("datetime-local", dateTimeLocalInput, [
+     ["", NaN],
+     ["2019-12-10T00:00", 1575936000000],
+     ["2019-12-10T12:00", 1575979200000]
+   ]);
+   testValueAsNumberSetter("datetime-local", dateTimeLocalInput, [
+     [1575936000000, "2019-12-10T00:00"],
+     [1575979200000, "2019-12-10T12:00"]
+   ]);
+
+   const numberInput = document.getElementById("input_number");
+   testValueAsNumberGetter("number", numberInput, [
+     ["", NaN],
+     ["123", 123],
+     ["123.456", 123.456],
+     ["1e3", 1000],
+     ["1e", NaN],
+     ["-123", -123]
+   ]);
+   testValueAsNumberSetter("number", numberInput, [
+     [123, "123"],
+     [123.456, "123.456"],
+     [1e3, "1000"],
+     [-123, "-123"]
+   ]);
+
+   const rangeInput = document.getElementById("input_range");
+   testValueAsNumberGetter("range", rangeInput, [
+     ["", 50],
+     ["0", 0],
+     ["50", 50],
+     ["100", 100],
+     ["-10", 0], // Realign to the min
+     ["110", 100] // Realign to the max
+   ]);
+   testValueAsNumberSetter("range", rangeInput, [
+     [0, "0"],
+     [50, "50"],
+     [100, "100"]
+   ]);
+  </script>
+ </body>
+</html>

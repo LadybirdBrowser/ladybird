@@ -1,0 +1,28 @@
+source_set("LibUnicode") {
+  output_name = "unicode"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "CharacterTypes.cpp",
+    "Collator.cpp",
+    "CurrencyCode.cpp",
+    "DateTimeFormat.cpp",
+    "DisplayNames.cpp",
+    "DurationFormat.cpp",
+    "ICU.cpp",
+    "IDNA.cpp",
+    "ListFormat.cpp",
+    "Locale.cpp",
+    "Normalize.cpp",
+    "NumberFormat.cpp",
+    "PluralRules.cpp",
+    "RelativeTimeFormat.cpp",
+    "Segmenter.cpp",
+    "String.cpp",
+    "TimeZone.cpp",
+    "UnicodeKeywords.cpp",
+  ]
+  deps = [
+    "//AK",
+    "//Meta/gn/build/libs/icu",
+  ]
+}

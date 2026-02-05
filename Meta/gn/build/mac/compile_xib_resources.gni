@@ -1,0 +1,37 @@
+#
+# This file introduces a template for compiling Apple platform interface
+# builder files.
+#
+# The output files will be placed in $target_gen_dir with the source name
+# suffix-replaced from "Foo.xib" to "Foo.nib"
+#
+# Example use:
+#
+#    compile_xib_resources("my_nibs") {
+#      sources = [
+#        "A.xib",
+#        "B.xib",
+#      ]
+#    }
+#
+
+template("compile_xib_resources") {
+  action_foreach(target_name) {
+    forward_variables_from(invoker, [ "sources" ])
+
+    script = "//Meta/gn/build/invoke_process_with_args.py"
+
+    outputs = [ "$target_gen_dir/{{source_name_part}}.nib" ]
+    args = [
+      "ibtool",
+      "--errors",
+      "--warnings",
+      "--notices",
+      "--output-format",
+      "human-readable-text",
+      "--compile",
+      rebase_path(target_gen_dir, root_build_dir) + "/{{source_name_part}}.nib",
+      "{{source}}",
+    ]
+  }
+}

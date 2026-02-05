@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<input id="input1" type="file" />
+<input id="input2" type="file" multiple />
+<script src="./include.js"></script>
+<script type="text/javascript">
+    const runTest = async id => {
+        let input = document.getElementById(id);
+
+        return new Promise(resolve => {
+            input.addEventListener("input", async () => {
+                println(`${id}:`);
+
+                for (let i = 0; i < input.files.length; ++i) {
+                    const file = input.files.item(i);
+                    const text = await file.text();
+
+                    println(`${file.name} (index iteration): ${file.type}: ${text}`);
+                }
+
+                for (let file of input.files) {
+                    const text = await file.text();
+
+                    println(`${file.name} (for..of iteration): ${file.type}: ${text}`);
+                }
+
+                resolve();
+            });
+
+            internals.dispatchUserActivatedEvent(input, new Event("mousedown"));
+            input.showPicker();
+        });
+    };
+
+    asyncTest(async done => {
+        await runTest("input1");
+        await runTest("input2");
+        done();
+    });
+</script>

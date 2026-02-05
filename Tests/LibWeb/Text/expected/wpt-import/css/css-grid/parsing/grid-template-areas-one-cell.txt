@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	"grid-template-areas: 'a';" should be valid.
+Pass	"grid-template-areas: '.';" should be valid.
+Pass	"grid-template-areas: '';" should be invalid.
+Pass	"grid-template-areas: '' '';" should be invalid.
+Pass	"grid-template-areas: '$';" should be invalid.
+Pass	"grid-template-areas: '  ';" should be invalid.

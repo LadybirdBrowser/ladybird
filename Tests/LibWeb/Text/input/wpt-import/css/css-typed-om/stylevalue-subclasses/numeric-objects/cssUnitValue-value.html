@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSUnitValue.value</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  const result = new CSSUnitValue(-3.14, 'px');
+  result.value = 3.14;
+  assert_equals(result.value, 3.14, 'value reflects new value');
+  assert_equals(result.unit, 'px', 'unit does not change');
+}, 'CSSUnitValue.value can be updated to a different value');
+
+</script>

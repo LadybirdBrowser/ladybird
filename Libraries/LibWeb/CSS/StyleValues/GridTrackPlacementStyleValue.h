@@ -1,0 +1,39 @@
+/*
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibWeb/CSS/GridTrackPlacement.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
+
+namespace Web::CSS {
+
+class GridTrackPlacementStyleValue final : public StyleValueWithDefaultOperators<GridTrackPlacementStyleValue> {
+public:
+    static ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue const> create(GridTrackPlacement grid_track_placement);
+    virtual ~GridTrackPlacementStyleValue() override = default;
+
+    GridTrackPlacement const& grid_track_placement() const { return m_grid_track_placement; }
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
+
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+
+    bool properties_equal(GridTrackPlacementStyleValue const& other) const { return m_grid_track_placement == other.m_grid_track_placement; }
+
+private:
+    explicit GridTrackPlacementStyleValue(GridTrackPlacement grid_track_placement)
+        : StyleValueWithDefaultOperators(Type::GridTrackPlacement)
+        , m_grid_track_placement(grid_track_placement)
+    {
+    }
+
+    GridTrackPlacement m_grid_track_placement;
+};
+
+}

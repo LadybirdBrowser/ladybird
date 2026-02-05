@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	CustomStateSet behavior of ElementInternals.states: Initial state
+Pass	CustomStateSet behavior of ElementInternals.states: Exceptions
+Pass	CustomStateSet behavior of ElementInternals.states: Modifications
+Pass	Updating a CustomStateSet while iterating it should work

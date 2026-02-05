@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Set the pre element width attributes
+        testPart(() => {
+            const pre = document.createElement('pre');
+            pre.width = 20;
+            return pre.width;
+        });
+
+        // 2. Set the pre element width attributes with invalid data
+        testPart(() => {
+            const pre = document.createElement('pre');
+            pre.width = 'dsafds';
+            return pre.width;
+        });
+
+        // 3. Get the pre element width attribute default value
+        testPart(() => {
+            const pre = document.createElement('pre');
+            return pre.width;
+        });
+    });
+</script>

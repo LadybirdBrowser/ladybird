@@ -1,0 +1,16 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 38 0+1+0] [BFC] children: not-inline
+    Box <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 20 0+1+8] [GFC] children: not-inline
+      BlockContainer <div.inner> at [11,11] [0+1+0 132.828125 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 15, rect: [11,11 132.828125x18] baseline: 13.796875
+            "Press and Media"
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
+    PaintableBox (Box<BODY>) [9,9 782x22]
+      PaintableWithLines (BlockContainer<DIV>.inner) [10,10 134.828125x20]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x38] [children: 0] (z-index: auto)

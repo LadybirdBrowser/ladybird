@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Property float value 'none'
+Pass	Property float value 'left'
+Pass	Property float value 'right'
+Pass	Property float value 'inline-start'
+Pass	Property float value 'inline-end'

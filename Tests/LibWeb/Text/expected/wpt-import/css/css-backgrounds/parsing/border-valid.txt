@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['border'] = "1px dotted red" should set the property value
+Pass	e.style['border'] = "green double thin" should set the property value
+Pass	e.style['border-top'] = "thin" should set the property value
+Pass	e.style['border-right'] = "double" should set the property value
+Pass	e.style['border-bottom'] = "green" should set the property value
+Pass	e.style['border-left'] = "1px dotted red" should set the property value

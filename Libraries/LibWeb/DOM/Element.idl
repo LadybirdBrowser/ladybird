@@ -1,0 +1,158 @@
+#import <Animations/Animatable.idl>
+#import <ARIA/ARIAMixin.idl>
+#import <CSS/StylePropertyMapReadOnly.idl>
+#import <DOM/Attr.idl>
+#import <DOM/ChildNode.idl>
+#import <DOM/DOMTokenList.idl>
+#import <DOM/NamedNodeMap.idl>
+#import <DOM/Node.idl>
+#import <DOM/NodeList.idl>
+#import <DOM/ParentNode.idl>
+#import <DOM/ShadowRoot.idl>
+#import <DOM/Slottable.idl>
+#import <Geometry/DOMRect.idl>
+#import <Geometry/DOMRectList.idl>
+#import <HTML/HTMLSlotElement.idl>
+#import <HTML/Window.idl>
+#import <TrustedTypes/TrustedHTML.idl>
+#import <TrustedTypes/TrustedTypePolicy.idl>
+
+enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
+// https://drafts.csswg.org/cssom-view-1/#dictdef-scrollintoviewoptions
+dictionary ScrollIntoViewOptions : ScrollOptions {
+    ScrollLogicalPosition block = "start";
+    ScrollLogicalPosition inline = "nearest";
+    ScrollIntoViewContainer container = "all";
+};
+
+enum ScrollIntoViewContainer { "all", "nearest" };
+
+// https://drafts.csswg.org/cssom-view-1/#dictdef-checkvisibilityoptions
+dictionary CheckVisibilityOptions {
+    boolean checkOpacity = false;
+    boolean checkVisibilityCSS = false;
+    boolean contentVisibilityAuto = false;
+    boolean opacityProperty = false;
+    boolean visibilityProperty = false;
+};
+
+// https://w3c.github.io/pointerlock/#pointerlockoptions-dictionary
+dictionary PointerLockOptions {
+    boolean unadjustedMovement = false;
+};
+
+// https://dom.spec.whatwg.org/#element
+[Exposed=Window]
+interface Element : Node {
+    readonly attribute DOMString? namespaceURI;
+    readonly attribute DOMString? prefix;
+    readonly attribute DOMString localName;
+    readonly attribute DOMString tagName;
+
+    [Reflect, CEReactions] attribute DOMString id;
+    [Reflect=class, CEReactions] attribute DOMString className;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList classList;
+    [Reflect, CEReactions, Unscopable] attribute DOMString slot;
+
+    boolean hasAttributes();
+    [SameObject] readonly attribute NamedNodeMap attributes;
+    sequence<DOMString> getAttributeNames();
+    DOMString? getAttribute(DOMString qualifiedName);
+    DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    [CEReactions, ImplementedAs=set_attribute_for_bindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute_ns_for_bindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
+    [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
+    boolean hasAttribute(DOMString qualifiedName);
+    boolean hasAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+
+    Attr? getAttributeNode([FlyString] DOMString qualifiedName);
+    Attr? getAttributeNodeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    [CEReactions, ImplementedAs=set_attribute_node_for_bindings] Attr? setAttributeNode(Attr attr);
+    [CEReactions, ImplementedAs=set_attribute_node_ns_for_bindings] Attr? setAttributeNodeNS(Attr attr);
+    [CEReactions] Attr removeAttributeNode(Attr attr);
+
+    ShadowRoot attachShadow(ShadowRootInit init);
+    [ImplementedAs=shadow_root_for_bindings] readonly attribute ShadowRoot? shadowRoot;
+
+    boolean matches(DOMString selectors);
+    Element? closest(DOMString selectors);
+    [ImplementedAs=matches] boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
+
+    HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
+    HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    HTMLCollection getElementsByClassName(DOMString className);
+
+    [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
+    undefined insertAdjacentText(DOMString where, Utf16DOMString data); // legacy
+
+    // https://dom.spec.whatwg.org/#interface-nondocumenttypechildnode
+    readonly attribute Element? nextElementSibling;
+    readonly attribute Element? previousElementSibling;
+
+    // https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface
+    [ImplementedAs=get_client_rects_for_bindings] DOMRectList getClientRects();
+    [ImplementedAs=get_bounding_client_rect_for_bindings] DOMRect getBoundingClientRect();
+
+    boolean checkVisibility(optional CheckVisibilityOptions options = {});
+
+    Promise<undefined> scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
+    Promise<undefined> scroll(optional ScrollToOptions options = {});
+    Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+    [ImplementedAs=scroll] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+    [ImplementedAs=scroll] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+    Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+    Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
+    attribute unrestricted double scrollTop;
+    attribute unrestricted double scrollLeft;
+    readonly attribute long scrollWidth;
+    readonly attribute long scrollHeight;
+    readonly attribute long clientTop;
+    readonly attribute long clientLeft;
+    readonly attribute long clientWidth;
+    readonly attribute long clientHeight;
+    readonly attribute double currentCSSZoom;
+
+    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+    [CEReactions] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
+    DOMString getHTML(optional GetHTMLOptions options = {});
+
+    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
+
+    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) outerHTML;
+
+    [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or Utf16DOMString) text);
+
+    // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
+    undefined setPointerCapture(long pointerId);
+    undefined releasePointerCapture(long pointerId);
+    boolean hasPointerCapture(long pointerId);
+    
+    // https://drafts.csswg.org/css-shadow-1/#idl
+    [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
+    
+    // https://w3c.github.io/pointerlock/#requestPointerLock
+    Promise<undefined> requestPointerLock(optional PointerLockOptions options = {});
+};
+
+dictionary GetHTMLOptions {
+    boolean serializableShadowRoots = false;
+    sequence<ShadowRoot> shadowRoots = [];
+};
+
+dictionary ShadowRootInit {
+    required ShadowRootMode mode;
+    boolean delegatesFocus = false;
+    SlotAssignmentMode slotAssignment = "named";
+    boolean clonable = false;
+    boolean serializable = false;
+};
+
+Element includes ParentNode;
+Element includes ChildNode;
+// https://www.w3.org/TR/wai-aria-1.2/#idl_element
+Element includes ARIAMixin;
+Element includes Slottable;
+// https://www.w3.org/TR/web-animations-1/#extensions-to-the-element-interface
+Element includes Animatable;

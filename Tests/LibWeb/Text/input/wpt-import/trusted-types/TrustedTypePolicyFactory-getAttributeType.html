@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./support/namespaces.js"></script>
+<script src="./support/attributes.js"></script>
+<script>
+  // Verify getAttributeType() for each testcase of trustedTypeDataForAttribute.
+  trustedTypeDataForAttribute.forEach(testData => {
+    test(() => {
+      let type = trustedTypes.getAttributeType(
+          testData.element().tagName,
+          testData.attrName,
+          testData.element().namespaceURI,
+          testData.attrNS);
+      assert_equals(type, testData.type);
+    }, `getAttributeType(
+          "${testData.element().tagName}",
+          "${testData.attrName}",
+          "${testData.element().namespaceURI}",
+          "${testData.attrNS}") == "${testData.type}"`);
+  });
+</script>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id></div>
+<div id=haxx></div>
+<script>
+    test(() => {
+        var c = document.getElementsByTagName("*");
+        println("Empty string in collection: " + ("" in c));
+        println("'haxx' in collection: " + ("haxx" in c));
+    });
+</script>

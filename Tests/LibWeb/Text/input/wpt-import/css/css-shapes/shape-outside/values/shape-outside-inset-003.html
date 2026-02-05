@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Inset Valid Round Length Units</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-inset">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <link rel="help" href="http://www.w3.org/TR/css3-values/#lengths">
+        <meta name="assert" content="An inset's radial component's values can be in any length unit">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+        <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+           setup({explicit_done: true});
+           ParsingUtils.validUnits.forEach(function(unit) {
+                generate_tests(ParsingUtils.testInlineStyle, ParsingUtils.generateInsetRoundCases(unit, 'inline'));
+           });
+           ParsingUtils.setupFonts();
+           document.fonts.load("10px Ahem").then(()=> {
+                ParsingUtils.validUnits.forEach(function(unit) {
+                    generate_tests(ParsingUtils.testComputedStyle, ParsingUtils.generateInsetRoundCases(unit, 'computed'));
+                });
+                ParsingUtils.restoreFonts();
+                done();
+           });
+        </script>
+    </body>
+</html>

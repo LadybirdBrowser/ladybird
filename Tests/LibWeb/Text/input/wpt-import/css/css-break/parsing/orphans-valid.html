@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fragmentation Module Level 3: parsing orphans with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-break/#propdef-orphans">
+<meta name="assert" content="orphans supports the full grammar '<integer>'.">
+<meta name="assert" content="Negative values and zero are invalid.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("orphans", "1");
+test_valid_value("orphans", "234");
+</script>
+</body>
+</html>

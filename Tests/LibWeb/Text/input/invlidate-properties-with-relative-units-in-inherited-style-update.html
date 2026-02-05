@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<head>
+  <script src="include.js"></script>
+  <style>
+    .parent {
+      font-size: 32px;
+    }
+    
+    .child {
+      font-size: 3em;
+      width: 2em;
+      height: 2em;
+      color: blue;
+      background-color: magenta;
+    }
+  </style>
+</head>
+<body>
+  <div class="parent" id="parentElement">
+    <p class="child">
+      Hello!
+    </p>
+  </div>
+
+  <script>
+    function increaseParentSize() {
+      document.getElementById('parentElement').style.fontSize = '100px';
+    }
+
+    test(() => {
+        const childStyleBefore = window.getComputedStyle(document.querySelector('.child'));
+        println("(before) child.style.width: " + childStyleBefore.width);
+        println("(before) child.style.height: " + childStyleBefore.height);
+        println("(before) child.style.fontSize: " + childStyleBefore.fontSize);
+        increaseParentSize();
+        const childStyleAfter = window.getComputedStyle(document.querySelector('.child'));
+        println("(after) child.style.width: " + childStyleAfter.width);
+        println("(after) child.style.height: " + childStyleAfter.height);
+        println("(after) child.style.fontSize: " + childStyleAfter.fontSize);
+    });
+  </script>
+</body>
+</html>

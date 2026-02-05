@@ -1,0 +1,27 @@
+--- a ---
+Before: foobar
+After: fooar
+--- b ---
+Before: a&nbsp;&nbsp;&nbsp;
+After: a&nbsp;&nbsp;
+--- c ---
+Before: a&nbsp;&nbsp;b
+After: a b
+--- d ---
+Before: a&nbsp;&nbsp;&nbsp;b
+After: a&nbsp; b
+--- e ---
+Before: a&nbsp;&nbsp;&nbsp;&nbsp;b
+After: a&nbsp; &nbsp;b
+--- f ---
+Before: a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b
+After: a&nbsp; &nbsp; b
+--- g ---
+Before: &nbsp;&nbsp;b
+After: &nbsp;b
+--- h ---
+Before: foo👩🏼‍❤️‍👨🏻bar
+After: foobar
+--- i ---
+Before: foo<div>bar<br>baz</div>
+After: foobar<div>baz</div>

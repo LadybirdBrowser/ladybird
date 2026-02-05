@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const labelableElements = ["input", "meter", "output", "progress", "select", "textarea"];
+        for (const tagName of labelableElements) {
+            const element = document.createElement(tagName);
+            element.id = `${tagName}Id`;
+            const label = document.createElement("label")
+            label.htmlFor = `${tagName}Id`;
+            document.body.appendChild(label);
+            document.body.appendChild(element);
+            const labels = element.labels;
+            println(`${tagName}.labels.length: ${labels.length}`);
+            println(`${tagName}.labels[0] === label: ${labels[0] === label}`);
+            println(`${tagName}.labels always returns the same object: ${labels === element.labels}`);
+            document.body.removeChild(label);
+            document.body.removeChild(element);
+        }
+
+        const inputElement = document.createElement("input");
+        inputElement.type = "hidden";
+        inputElement.id = "inputId"
+        const label = document.createElement("label")
+        label.htmlFor = 'inputId';
+        document.body.appendChild(label);
+        document.body.appendChild(inputElement);
+        println(`input.labels returns null if input type is hidden: ${inputElement.labels === null}`);
+        inputElement.type = "text";
+        const labels = inputElement.labels;
+        println(`input.labels.length after input type is changed from hidden: ${labels.length}`);
+        println(`input.labels[0] === label after input type is changed from hidden: ${labels[0] === label}`);
+        document.body.removeChild(label);
+        document.body.removeChild(inputElement);
+    });
+</script>

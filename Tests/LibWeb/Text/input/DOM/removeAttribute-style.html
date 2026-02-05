@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const el = document.createElement("div");
+        const style = el.style;
+        el.setAttribute("style", "color: red;");
+        println(`Before: "${style.cssText}"`);
+        el.removeAttribute("style");
+        println(`After: "${style.cssText}"`);
+    });
+</script>

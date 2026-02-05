@@ -1,0 +1,8 @@
+gb1 stdDeviationX: 125 stdDeviationY: 125
+gb2 stdDeviationX: 50 stdDeviationY: 100.0999984741211
+gb3 stdDeviationX: 0 stdDeviationY: 0
+gb4 stdDeviationX: 0 stdDeviationY: 0
+gb5 stdDeviationX: 1 stdDeviationY: 2
+gm stdDeviationX: 50 stdDeviationY: 0
+gm stdDeviationX: 50 stdDeviationY: 3
+gm stdDeviationX: 2 stdDeviationY: 0

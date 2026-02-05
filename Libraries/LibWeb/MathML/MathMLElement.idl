@@ -1,0 +1,13 @@
+#import <CSS/ElementCSSInlineStyle.idl>
+#import <DOM/Element.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/HTMLElement.idl>
+
+// https://w3c.github.io/mathml-core/#dom-and-javascript
+[Exposed=Window]
+interface MathMLElement : Element { };
+MathMLElement includes GlobalEventHandlers;
+MathMLElement includes HTMLOrSVGElement; // FIXME: The spec calls for HTMLOrForeignElement which is a rename of HTMLOrSVGElement, when that change is upstreamed we should update here
+
+// https://drafts.csswg.org/cssom/#dom-elementcssinlinestyle-style
+MathMLElement includes ElementCSSInlineStyle;

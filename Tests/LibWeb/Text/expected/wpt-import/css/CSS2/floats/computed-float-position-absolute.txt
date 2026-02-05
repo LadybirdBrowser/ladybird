@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	The computed value of float with absolute positioning when there is no box should be "none"

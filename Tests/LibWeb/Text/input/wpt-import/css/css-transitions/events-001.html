@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<title>CSS Transitions Test: transitionend event for shorthand property</title>
+<meta name="assert" content="This test checks that all transitionend events are triggered for shorthand property">
+<link rel="help" href="http://www.w3.org/TR/css3-transitions/#transition-property-property">
+<link rel="help" href="http://www.w3.org/TR/css3-transitions/#transition-events">
+<link rel="author" title="Rodney Rehm" href="http://rodneyrehm.de/en/">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./support/helper.js"></script>
+
+</head>
+<body>
+
+<script>
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: all .01s linear; ' +
+                                 'padding-left: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.paddingLeft = '10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for('transitionend').then(evt => {
+    assert_end_events_equal(evt, 'padding-left', 0.01);
+  });
+}, 'transition:all changing padding-left');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: all .01s linear; ' +
+                                 'padding: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.padding = '10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for(Array(4).fill('transitionend'),
+                          { record: 'all' }).then(evts => {
+    assert_end_event_batch_equal(evts,
+                                 [ 'padding-bottom',
+                                   'padding-left',
+                                   'padding-right',
+                                   'padding-top' ],
+                                 0.01);
+  });
+}, 'transition:all changing padding');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: all .01s linear; ' +
+                                 'padding: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.padding = '10px 10px 1px 10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for(Array(3).fill('transitionend'),
+                          { record: 'all' }).then(evts => {
+    assert_end_event_batch_equal(evts,
+                                 [ 'padding-left',
+                                   'padding-right',
+                                   'padding-top' ],
+                                 0.01);
+  });
+}, 'transition:all changing padding but not padding-bottom');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: padding .01s linear; ' +
+                                 'padding-left: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.paddingLeft = '10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for('transitionend').then(evt => {
+    assert_end_events_equal(evt, 'padding-left', 0.01);
+  });
+}, 'transition:padding changing padding-left');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: padding .01s linear; ' +
+                                 'padding: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.padding = '10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for(Array(4).fill('transitionend'),
+                          { record: 'all' }).then(evts => {
+    assert_end_event_batch_equal(evts,
+                                 [ 'padding-bottom',
+                                   'padding-left',
+                                   'padding-right',
+                                   'padding-top' ],
+                                 0.01);
+  });
+}, 'transition:padding changing padding');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: padding .01s linear; ' +
+                                 'padding: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.padding = '10px 10px 1px 10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for(Array(3).fill('transitionend'),
+                          { record: 'all' }).then(evts => {
+    assert_end_event_batch_equal(evts,
+                                 [ 'padding-left',
+                                   'padding-right',
+                                   'padding-top' ],
+                                 0.01);
+  });
+}, 'transition:padding changing padding but not padding-bottom');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: padding-left .01s linear; ' +
+                                 'padding-left: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.paddingLeft = '10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for('transitionend').then(evt => {
+    assert_end_events_equal(evt, 'padding-left', 0.01);
+  });
+}, 'transition:padding-left changing padding-left');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: padding-left .01s linear; ' +
+                                 'padding: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.padding = '10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for('transitionend').then(evt => {
+    assert_end_events_equal(evt, 'padding-left', 0.01);
+  });
+}, 'transition:padding-left changing padding');
+
+promise_test(t => {
+  const div = addDiv(t, { style: 'transition: padding-left .01s linear; ' +
+                                 'padding: 1px' });
+  getComputedStyle(div).paddingLeft;
+  div.style.padding = '10px 10px 1px 10px';
+
+  const watcher = new EventWatcher(t, div, [ 'transitionend' ]);
+  return watcher.wait_for('transitionend').then(evt => {
+    assert_end_events_equal(evt, 'padding-left', 0.01);
+  });
+}, 'transition:padding-left changing padding but not padding-bottom');
+</script>
+</body>
+</html>

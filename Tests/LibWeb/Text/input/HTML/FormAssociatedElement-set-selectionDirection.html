@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const elementNames = [
+            "input",
+            "textarea",
+        ];
+        let selectEventFiredCount = 0;
+        for (const elementName of elementNames) {
+            const element = document.createElement(elementName);
+            element.setRangeText("foobar", 0, element.value.length, "start");
+            document.body.appendChild(element);
+            element.onselect = () => {
+                element.remove();
+                println(`select event fired for ${elementName}`);
+                selectEventFiredCount++;
+                if (selectEventFiredCount === elementNames.length) {
+                    done();
+                }
+            };
+            element.selectionDirection = "backward";
+        }
+    });
+</script>

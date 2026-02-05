@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/namespaces.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+  <link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-data-for-attribute">
+  <link rel="help" href="https://github.com/whatwg/dom/pull/1268">
+</head>
+<script>
+  const input_string = "unsafe string";
+  const output_string = "safe string";
+  let iframeElement;
+  let scriptElement;
+  let svgScriptElement;
+  let seenSinkName;
+  let seenTrustedTypeName;
+  function resetGlobalVariables() {
+    iframeElement = document.createElement('iframe');
+    scriptElement = document.createElement('script');
+    svgScriptElement = document.createElementNS(NSURI_SVG, 'script');
+    seenSinkName = undefined;
+    seenTrustedTypeName = undefined;
+  }
+  resetGlobalVariables();
+
+  function createTrustedType(input, trustedTypeName, sinkName) {
+    assert_equals(input, input_string);
+    assert_equals(seenSinkName, undefined);
+    seenSinkName = sinkName;
+    assert_equals(seenTrustedTypeName, undefined);
+    seenTrustedTypeName = trustedTypeName;
+    return output_string;
+  }
+  trustedTypes.createPolicy("default", {
+    createHTML: createTrustedType,
+    createScript: createTrustedType,
+    createScriptURL: createTrustedType,
+  });
+
+  test(t => {
+    t.add_cleanup(resetGlobalVariables);
+    iframeElement.setAttribute("srcdoc", input_string);
+    assert_equals(seenTrustedTypeName, "TrustedHTML");
+    assert_equals(seenSinkName, "HTMLIFrameElement srcdoc");
+    assert_equals(iframeElement.getAttribute("srcdoc"), output_string);
+  }, "HTMLIFrameElement.setAttribute('srcdoc', plain_string)");
+
+  test(t => {
+    t.add_cleanup(resetGlobalVariables);
+    iframeElement.setAttributeNS(null, "srcdoc", input_string);
+    assert_equals(seenTrustedTypeName, "TrustedHTML");
+    assert_equals(seenSinkName, "HTMLIFrameElement srcdoc");
+    assert_equals(iframeElement.getAttribute("srcdoc"), output_string);
+  }, "HTMLIFrameElement.setAttributeNS(null, 'srcdoc', plain_string)");
+
+  test(t => {
+    t.add_cleanup(resetGlobalVariables);
+    scriptElement.setAttribute("src", input_string);
+    assert_equals(seenTrustedTypeName, "TrustedScriptURL");
+    assert_equals(seenSinkName, "HTMLScriptElement src");
+    assert_equals(scriptElement.getAttribute("src"), output_string);
+  }, "HTMLScriptElement.setAttribute('src', plain_string)");
+
+  test(t => {
+    t.add_cleanup(resetGlobalVariables);
+    scriptElement.setAttributeNS(null, "src", input_string);
+    assert_equals(seenTrustedTypeName, "TrustedScriptURL");
+    assert_equals(seenSinkName, "HTMLScriptElement src");
+    assert_equals(scriptElement.getAttribute("src"), output_string);
+  }, "HTMLScriptElement.setAttributeNS(null, 'src', plain_string)");
+
+  test(t => {
+    t.add_cleanup(resetGlobalVariables);
+    svgScriptElement.setAttribute("href", input_string);
+     assert_equals(seenTrustedTypeName, "TrustedScriptURL");
+    assert_equals(seenSinkName, "SVGScriptElement href");
+    assert_equals(svgScriptElement.getAttribute("href"), output_string);
+  }, "SVGScriptElement.setAttribute('href', plain_string)");
+
+  test(t => {
+    t.add_cleanup(resetGlobalVariables);
+    svgScriptElement.setAttributeNS(null, "href", input_string);
+    assert_equals(seenTrustedTypeName, "TrustedScriptURL");
+    assert_equals(seenSinkName, "SVGScriptElement href");
+    assert_equals(svgScriptElement.getAttribute("href"), output_string);
+   }, "SVGScriptElement.setAttributeNS(null, 'href', plain_string)");
+
+   test(t => {
+    t.add_cleanup(resetGlobalVariables);
+    svgScriptElement.setAttributeNS(NSURI_XLINK, "href", input_string);
+    assert_equals(seenTrustedTypeName, "TrustedScriptURL");
+    assert_equals(seenSinkName, "SVGScriptElement href");
+    assert_equals(svgScriptElement.getAttributeNS(NSURI_XLINK, "href"),
+                  output_string);
+    assert_equals(svgScriptElement.getAttribute("href"), output_string);
+  }, "SVGScriptElement.setAttributeNS(NSURI_XLINK, 'href', plain_string)");
+</script>

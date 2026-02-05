@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>CSSOM test: declaration block after setting via CSSOM</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#set-a-css-declaration-value">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<div id="test"></div>
+<script>
+  test(function() {
+    const PHYSICAL_PROPS = ["padding-top", "padding-right",
+                            "padding-bottom", "padding-left"];
+    const LOGICAL_PROPS = ["padding-block-start", "padding-block-end",
+                           "padding-inline-start", "padding-inline-end"];
+    let elem = document.getElementById("test");
+    let decls = new Map;
+
+    {
+      let css = []
+      let i = 0;
+      for (let name of [...PHYSICAL_PROPS, ...LOGICAL_PROPS]) {
+        let value = `${i++}px`;
+        css.push(`${name}: ${value};`);
+        decls.set(name, value);
+      }
+      elem.setAttribute("style", css.join(" "));
+    }
+
+    let style = elem.style;
+    function indexOfProperty(prop) {
+      return Array.prototype.indexOf.apply(style, [prop]);
+    }
+    function assertPropAfterProps(prop, props, msg) {
+      let index = indexOfProperty(prop);
+      for (let p of props) {
+        assert_less_than(indexOfProperty(p), index, `${prop} should be after ${p} ${msg}`);
+      }
+    }
+    // We are not changing any value in this test, just order.
+    function assertValueUnchanged() {
+      for (let [name, value] of decls.entries()) {
+        assert_equals(style.getPropertyValue(name), value,
+                      `value of ${name} shouldn't be changed`);
+      }
+    }
+
+    assertValueUnchanged();
+    // Check that logical properties are all after physical properties
+    // at the beginning.
+    for (let p of LOGICAL_PROPS) {
+      assertPropAfterProps(p, PHYSICAL_PROPS, "initially");
+    }
+
+    // Try setting a longhand.
+    style.setProperty("padding-top", "0px");
+    assertValueUnchanged();
+    // Check that padding-top is after logical properties, but other
+    // physical properties are still before logical properties.
+    assertPropAfterProps("padding-top", LOGICAL_PROPS, "after setting padding-top");
+    for (let p of LOGICAL_PROPS) {
+      assertPropAfterProps(p, PHYSICAL_PROPS.filter(prop => prop != "padding-top"),
+                           "after setting padding-top");
+    }
+
+    // Try setting a shorthand.
+    style.setProperty("padding", "0px 1px 2px 3px");
+    assertValueUnchanged();
+    // Check that all physical properties are now after logical properties.
+    for (let p of PHYSICAL_PROPS) {
+      assertPropAfterProps(p, LOGICAL_PROPS, "after setting padding shorthand");
+    }
+  }, "newly set declaration should be after all declarations " +
+  "in the same logical property group but have different logical kind");
+</script>

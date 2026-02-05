@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>CSS Test: blending between multiple backgrounds (gradient and image) using background-blend-mode</title>
+		<link rel="author" title="Mirela Budăeș" href="mailto:mbudaes@adobe.com">
+		<link rel="reviewer" title="Mihai Balan" href="mailto:mibalan@adobe.com">
+		<link rel="reviewer" title="Rik Cabanier" href="mailto:cabanier@adobe.com">
+		<link rel="help" href="https://drafts.fxtf.org/compositing-1/#background-blend-mode">
+		<meta name="assert" content="Test checks that setting background-blend-mode property for an element with two background layers (a gradient and a png image) results in blending between the two layers.">
+		<link rel="match" href="../../../../../expected/wpt-import/css/compositing/background-blending/reference/background-blend-mode-gradient-image-ref.html">
+		<style>
+			div {
+				margin: 5px;
+				width: 130px;
+				height: 130px;
+				background:  url('support/red.png') no-repeat 0 0 /100% 100%, linear-gradient(to right, lime 50%, blue 51%);
+				/*lime: rgb(0,255,0);
+				blue: rgb(0,0,255);*/ 
+				display: block;
+				float: left;
+				background-blend-mode: multiply, normal;
+			}
+		</style>
+	</head>
+	<body>
+		<p>Test passes if there is no red square on the screen. <br>
+		You should see a black square.</p>
+		<div></div>
+	    <!-- FIXME: Workaround to ensure CSS background-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
+	    <img style="display: none;" src="support/red.png" />
+	</body>
+</html>

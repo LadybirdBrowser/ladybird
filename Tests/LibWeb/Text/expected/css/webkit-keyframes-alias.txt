@@ -1,0 +1,4 @@
+Rule type: 7
+Rule is CSSKeyframesRule: true
+Animation name: test-animation
+Number of keyframes: 2

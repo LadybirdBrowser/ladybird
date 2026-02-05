@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['border-inline'] = "1px dotted red" should set the property value
+Pass	e.style['border-inline'] = "double" should set the property value
+Pass	e.style['border-inline-start'] = "green double thin" should set the property value
+Pass	e.style['border-inline-start'] = "green" should set the property value
+Pass	e.style['border-inline-end'] = "thin" should set the property value
+Pass	e.style['border-inline-end'] = "calc(10px - 0.5em) dotted red" should set the property value

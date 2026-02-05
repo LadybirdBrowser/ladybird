@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>grid-template-rows interpolation</title>
+    <link rel="help" href="https://drafts.csswg.org/css-grid/#track-sizing">
+    <meta name="assert" content="grid-template-rows supports animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+      .parent {
+        grid-template-rows: 10px 20px 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      // Distinct length of track list.
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr 1fr 1fr",
+        to: "2fr 2fr"
+      });
+
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "10px 20px 30px",
+        to: "20px 30px"
+      });
+
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr 1fr 1fr",
+        to: "none"
+      });
+
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "none",
+        to: "20px 30px"
+      });
+
+      // Exercise <explicit-track-list>
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "10px 20px 30px",
+        to: "20px 30px 40px"
+      }, [
+        {at: -1, expect: "0px 10px 20px"},
+        {at: 0, expect: "10px 20px 30px"},
+        {at: 0.4, expect: "14px 24px 34px"},
+        {at: 0.6, expect: "16px 26px 36px"},
+        {at: 1, expect: "20px 30px 40px"},
+        {at: 2, expect: "30px 40px 50px"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "10px 20px 30px",
+        to: "20% 30% 40px"
+      }, [
+        {at: -1, expect: "calc(20px + -20%) calc(40px + -30%) 20px"},
+        {at: 0, expect: "calc(10px + 0%) calc(20px + 0%) 30px"},
+        {at: 0.4, expect: "calc(6px + 8%) calc(12px + 12%) 34px"},
+        {at: 0.6, expect: "calc(4px + 12%) calc(8px + 18%) 36px"},
+        {at: 1, expect: "20% 30% 40px"},
+        {at: 2, expect: "calc(-10px + 40%) calc(-20px + 60%) 50px"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr 1fr 1fr",
+        to: "2fr auto 2fr"
+      }, [
+        {at: -1, expect: "0fr 1fr 0fr"},
+        {at: 0, expect: "1fr 1fr 1fr"},
+        {at: 0.4, expect: "1.4fr 1fr 1.4fr"},
+        {at: 0.6, expect: "1.6fr auto 1.6fr"},
+        {at: 1, expect: "2fr auto 2fr"},
+        {at: 2, expect: "3fr auto 3fr"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr [a b] 1fr [d] 1fr",
+        to: "2fr [c] auto 2fr"
+      }, [
+        {at: -1, expect: "0fr [a b] 1fr [d] 0fr"},
+        {at: 0, expect: "1fr [a b] 1fr [d] 1fr"},
+        {at: 0.4, expect: "1.4fr [a b] 1fr [d] 1.4fr"},
+        {at: 0.6, expect: "1.6fr [c] auto 1.6fr"},
+        {at: 1, expect: "2fr [c] auto 2fr"},
+        {at: 2, expect: "3fr [c] auto 3fr"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "fit-content(10px) fit-content(20px)",
+        to: "fit-content(20px) max-content"
+      }, [
+        {at: -1, expect: "fit-content(0px) fit-content(20px)"},
+        {at: 0, expect: "fit-content(10px) fit-content(20px)"},
+        {at: 0.4, expect: "fit-content(14px) fit-content(20px)"},
+        {at: 0.6, expect: "fit-content(16px) max-content"},
+        {at: 1, expect: "fit-content(20px) max-content"},
+        {at: 2, expect: "fit-content(30px) max-content"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "minmax(10px, 1fr) minmax(20px, 2fr)",
+        to: "minmax(20px, 2fr) minmax(30px, auto)"
+      }, [
+        {at: -1, expect: "minmax(0px, 0fr) minmax(10px, 2fr)"},
+        {at: 0, expect: "minmax(10px, 1fr) minmax(20px, 2fr)"},
+        {at: 0.4, expect: "minmax(14px, 1.4fr) minmax(24px, 2fr)"},
+        {at: 0.6, expect: "minmax(16px, 1.6fr) minmax(26px, auto)"},
+        {at: 1, expect: "minmax(20px, 2fr) minmax(30px, auto)"},
+        {at: 2, expect: "minmax(30px, 3fr) minmax(40px, auto)"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "10px 10px 10px",
+        to: "1fr fit-content(20px) minmax(20px, 2fr)"
+      }, [
+        {at: -1, expect: "10px 10px 10px"},
+        {at: 0, expect: "10px 10px 10px"},
+        {at: 0.4, expect: "10px 10px 10px"},
+        {at: 0.6, expect: "1fr fit-content(20px) minmax(20px, 2fr)"},
+        {at: 1, expect: "1fr fit-content(20px) minmax(20px, 2fr)"},
+        {at: 2, expect: "1fr fit-content(20px) minmax(20px, 2fr)"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr 1fr 1fr",
+        to: "20px fit-content(20px) minmax(20px, 2fr)"
+      }, [
+        {at: -1, expect: "1fr 1fr 1fr"},
+        {at: 0, expect: "1fr 1fr 1fr"},
+        {at: 0.4, expect: "1fr 1fr 1fr"},
+        {at: 0.6, expect: "20px fit-content(20px) minmax(20px, 2fr)"},
+        {at: 1, expect: "20px fit-content(20px) minmax(20px, 2fr)"},
+        {at: 2, expect: "20px fit-content(20px) minmax(20px, 2fr)"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "fit-content(10px)",
+        to: "minmax(20px, 2fr)"
+      }, [
+        {at: -1, expect: "fit-content(10px)"},
+        {at: 0, expect: "fit-content(10px)"},
+        {at: 0.4, expect: "fit-content(10px)"},
+        {at: 0.6, expect: "minmax(20px, 2fr)"},
+        {at: 1, expect: "minmax(20px, 2fr)"},
+        {at: 2, expect: "minmax(20px, 2fr)"}
+      ]);
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "inherit",
+        to: "20px 30px 40px"
+      }, [
+        {at: -1, expect: "0px 10px 20px"},
+        {at: 0, expect: "10px 20px 30px"},
+        {at: 0.4, expect: "14px 24px 34px"},
+        {at: 0.6, expect: "16px 26px 36px"},
+        {at: 1, expect: "20px 30px 40px"},
+        {at: 2, expect: "30px 40px 50px"}
+      ]);
+
+      // Exercise <track-list> (with <track-repeat>)
+      // https://drafts.csswg.org/css-grid/#repeat-interpolation
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr repeat(2, 2fr 30px) 1fr",
+        to: "2fr repeat(2, 3fr 40px 50px) 2fr"
+      });
+
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr repeat(2, 2fr 30px) 1fr",
+        to: "2fr repeat(3, 3fr 40px) 2fr"
+      });
+
+      // See https://github.com/w3c/csswg-drafts/issues/3503
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "repeat(2, 2fr 30px)",
+        to: "repeat(4, 40px)"
+      });
+
+      test_interpolation({
+        property: 'grid-template-rows',
+        from: "1fr repeat(2, 2fr auto 30px) 1fr",
+        to: "2fr repeat(2, 3fr 30px 40px) 2fr"
+      }, [
+        {at: -1, expect: "0fr repeat(2, 1fr auto 20px) 0fr"},
+        {at: 0, expect: "1fr repeat(2, 2fr auto 30px) 1fr"},
+        {at: 0.4, expect: "1.4fr repeat(2, 2.4fr auto 34px) 1.4fr"},
+        {at: 0.6, expect: "1.6fr repeat(2, 2.6fr 30px 36px) 1.6fr"},
+        {at: 1, expect: "2fr repeat(2, 3fr 30px 40px) 2fr"},
+        {at: 2, expect: "3fr repeat(2, 4fr 30px 50px) 3fr"}
+      ]);
+
+      // Exercise <auto-track-list>
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "10px repeat(auto-fill, minmax(25px, 1fr)) 10px",
+        to: "20px 20px repeat(auto-fill, minmax(30px, 1fr))"
+      });
+
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "10px repeat(auto-fill, minmax(25px, 1fr)) 10px",
+        to: "20px repeat(auto-fit, minmax(30px, 1fr)) 20px"
+      });
+
+      test_no_interpolation({
+        property: 'grid-template-rows',
+        from: "10px repeat(auto-fill, minmax(25px, 1fr)) 10px",
+        to: "20px repeat(auto-fill, minmax(35px, auto)) 20px"
+      });
+    </script>
+  </body>
+</html>

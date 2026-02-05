@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>input type radio</title>
+<link rel="author" title="Denis Ah-Kang" href="mailto:denis@w3.org">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#radio-button-state-(type=radio)">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<input type=radio name=group1 id=radio1>
+<input type=radio name=group1 id=radio2>
+
+<input type=radio name=groüp2 id=radio3>
+<input type=radio name=groüp2 id=radio4>
+
+<input type=radio id=radio5>
+<input type=radio id=radio6 disabled>
+
+<input type=radio name="group5" id=radio71 checked>
+<input type=radio name="group5" id=radio72>
+
+<input type=radio name=group3 id=radio8 checked>
+<input type=radio name=group3 id=radio9>
+<input type=radio name=group4 id=radio10>
+<input type=radio name=group4 id=radio11 checked>
+
+<form id="testform"></form>
+<input type=radio form=testform name=group6 id=radio12 checked>
+<input type=radio form=testform name=group6 id=radio13>
+<input type=radio form=testform name=group6 id=radio14>
+
+<script>
+  var radio1 = document.getElementById('radio1'),
+      radio2 = document.getElementById('radio2'),
+      radio3 = document.getElementById('radio3'),
+      radio4 = document.getElementById('radio4'),
+      radio5 = document.getElementById('radio5'),
+      radio6 = document.getElementById('radio6'),
+      radio71 = document.getElementById('radio71'),
+      radio72 = document.getElementById('radio72'),
+      radio8 = document.getElementById('radio8'),
+      radio9 = document.getElementById('radio9'),
+      radio10 = document.getElementById('radio10'),
+      radio11 = document.getElementById('radio11'),
+      radio12 = document.getElementById('radio12'),
+      radio13 = document.getElementById('radio13'),
+      radio14 = document.getElementById('radio14'),
+      testform = document.getElementById('testform'),
+      t1 = async_test("click on mutable radio fires click event, then input event, then change event"),
+      t3 = async_test("click on non-mutable radio doesn't fire the input event"),
+      t4 = async_test("click on non-mutable radio doesn't fire the change event"),
+      t5 = async_test("canceled activation steps on unchecked radio"),
+      input_fired = false,
+      change_fired = false;
+
+  test(function(){
+    assert_false(radio1.checked);
+    assert_false(radio2.checked);
+    radio1.checked = true;
+    assert_true(radio1.checked);
+    assert_false(radio2.checked);
+    radio2.checked = true;
+    assert_false(radio1.checked);
+    assert_true(radio2.checked);
+  }, "only one control of a radio button group can have its checkedness set to true");
+
+  test(function(){
+    assert_false(radio3.checked);
+    assert_false(radio4.checked);
+    radio3.checked = true;
+    assert_true(radio3.checked);
+    assert_false(radio4.checked);
+    radio4.checked = true;
+    assert_false(radio3.checked);
+    assert_true(radio4.checked);
+  }, "radio inputs with non-ASCII name attributes belong to the same radio button group");
+
+  test(function(){
+    assert_true(radio8.checked);
+    assert_false(radio9.checked);
+    assert_false(radio10.checked);
+    assert_true(radio11.checked);
+    radio9.name="group4";
+    radio9.checked = true;
+    assert_true(radio8.checked);
+    assert_true(radio9.checked);
+    assert_false(radio10.checked);
+    assert_false(radio11.checked);
+  }, "changing the name of a radio input element and setting its checkedness to true makes all the other elements' checkedness in the same radio button group be set to false");
+
+  test(function(){
+    radio12.remove();
+    assert_true(radio12.checked);
+    assert_false(radio13.checked);
+    assert_false(radio14.checked);
+    radio13.checked = true;
+    assert_true(radio13.checked);
+    assert_false(radio14.checked);
+    radio13.removeAttribute("form");
+    radio14.removeAttribute("form");
+    assert_true(radio13.checked);
+    assert_false(radio14.checked);
+    radio14.checked = true;
+    assert_false(radio13.checked);
+    assert_true(radio14.checked);
+    radio13.setAttribute("form", "testform");
+    radio14.setAttribute("form", "testform");
+    radio13.checked = true;
+    assert_true(radio13.checked);
+    assert_false(radio14.checked);
+    testform.remove();
+    assert_true(radio13.checked);
+    assert_false(radio14.checked);
+  }, "moving radio input element out of or into a form should still work as expected");
+
+  radio5.onclick = t1.step_func(function(e) {
+    click_fired = true;
+    assert_false(input_fired, "click event should fire before input event");
+    assert_false(change_fired, "click event should fire before change event");
+    assert_false(e.isTrusted, "click()-initiated click event shouldn't be trusted");
+  });
+
+  radio5.oninput = t1.step_func(function(e) {
+    input_fired = true;
+    assert_true(click_fired, "input event should fire after click event");
+    assert_false(change_fired, "input event should fire before change event");
+    assert_true(e.bubbles, "input event should bubble")
+    assert_true(e.isTrusted, "input event should be trusted");
+    assert_false(e.cancelable, "input event should not be cancelable");
+  });
+
+  radio5.onchange = t1.step_func(function(e) {
+    change_fired = true;
+    assert_true(click_fired, "change event should fire after click event");
+    assert_true(input_fired, "change event should fire after input event");
+    assert_true(e.bubbles, "change event should bubble")
+    assert_true(e.isTrusted, "change event should be trusted");
+    assert_false(e.cancelable, "change event should not be cancelable");
+  });
+
+  radio6.oninput= t3.step_func_done(function(e) {
+    assert_unreached("event input fired");
+  });
+
+  radio6.onchange = t4.step_func_done(function(e) {
+    assert_unreached("event change fired");
+  });
+
+  t1.step(function() {
+    radio5.click();
+    assert_true(input_fired);
+    t1.done();
+  });
+
+  t3.step(function(){
+    radio6.click();
+    t3.done();
+    t4.done();
+  });
+
+  radio72.onclick = t5.step_func_done(function(e){
+    assert_false(radio71.checked, "click on radio should uncheck other radio in same group");
+    assert_true(radio72.checked, "click on radio should check that radio");
+    e.preventDefault();
+    // The cancelation of the click doesn't have an effect until after all the click event handlers have been run.
+    assert_false(radio71.checked, "radio remains unchecked immediately after click event on other radio in same group is canceled");
+    assert_true(radio72.checked, "clicked radio remains checked immediately after click event is canceled");
+  });
+
+  t5.step(function(){
+    assert_true(radio71.checked, "initially checked radio should be checked");
+    assert_false(radio72.checked, "other radios in same group as initially-checked radio should be unchecked");
+    radio72.click();
+    // Now that the click event has been fully dispatched, its cancelation has taken effect.
+    assert_true(radio71.checked, "canceled click event on radio should leave the previously-checked radio checked");
+    assert_false(radio72.checked, "canceled click event on previously-unchecked radio should leave that radio unchecked");
+  });
+
+  test(() => {
+    const container = document.createElement('div');
+    container.innerHTML =
+        '<input type=radio name=n1><span><input type=radio name=n1 checked></span>' +
+        '<form><input type=radio name=n1 checked></form>';
+    const radios = container.querySelectorAll('input');
+    assert_false(radios[0].checked, 'Sanity check: The first radio should be unchecked');
+    assert_true(radios[1].checked, 'Sanity check: The second radio should be checked');
+    assert_true(radios[2].checked, 'Sanity check: The third radio should be checked');
+
+    radios[0].checked = true;
+    assert_true(radios[0].checked, 'The first radio should be checked after setting checked');
+    assert_false(radios[1].checked, 'The second radio should be unchecked after setting checked');
+    assert_true(radios[2].checked, 'The third radio should be checked after setting checked');
+
+    radios[1].required = true;
+    assert_false(radios[0].validity.valueMissing, 'The first radio should be valid');
+    assert_false(radios[1].validity.valueMissing, 'The second radio should be valid');
+    assert_false(radios[2].validity.valueMissing, 'The third radio should be valid');
+
+    radios[0].remove();
+    assert_false(radios[0].validity.valueMissing, 'The first radio should be valid because of no required');
+    assert_true(radios[1].validity.valueMissing, 'The second radio should be invalid***');
+    assert_false(radios[2].validity.valueMissing, 'The third radio should be valid');
+
+    radios[0].required = true;
+    radios[0].checked = false;
+    assert_true(radios[0].validity.valueMissing, 'The first radio should be invalid because of required');
+  }, 'Radio buttons in an orphan tree should make a group');
+
+  test(() => {
+    const container = document.createElement('div');
+    container.innerHTML =
+        '<form>' +
+          '<input type=radio name=group1 id=radio1 checked>' +
+          '<input type=radio name=group1 id=radio2>' +
+        '</form>' +
+        '<form>' +
+          '<input type=radio name=group1 id=radio3 checked>' +
+          '<input type=radio name=group1 id=radio4>' +
+        '</form>' +
+        '<input type=radio name=group1 id=radio5 checked>' +
+        '<input type=radio name=group1 id=radio6>';
+    const radio1 = container.querySelector('#radio1');
+    const radio2 = container.querySelector('#radio2');
+    const radio3 = container.querySelector('#radio3');
+    const radio4 = container.querySelector('#radio4');
+    const radio5 = container.querySelector('#radio5');
+    const radio6 = container.querySelector('#radio6');
+
+    // initial conditions
+    assert_true(radio1.checked, 'radio1 should be checked');
+    assert_false(radio2.checked, 'radio2 should be unchecked');
+    assert_true(radio3.checked, 'radio3 should be checked');
+    assert_false(radio4.checked, 'radio4 should be unchecked');
+    assert_true(radio5.checked, 'radio5 should be checked');
+    assert_false(radio6.checked, 'radio6 should be unchecked');
+
+    radio2.checked = true;
+    assert_false(radio1.checked, 'radio1 should be unchecked');
+    assert_true(radio2.checked, 'radio2 should be checked');
+    assert_true(radio3.checked, 'radio3 should remain checked');
+    assert_true(radio5.checked, 'radio5 should remain checked');
+
+    radio4.checked = true;
+    assert_false(radio1.checked, 'radio1 should remain unchecked');
+    assert_true(radio2.checked, 'radio2 should remain checked');
+    assert_false(radio3.checked, 'radio3 should be unchecked');
+    assert_true(radio4.checked, 'radio4 should be checked');
+    assert_true(radio5.checked, 'radio5 should remain checked');
+
+    radio6.checked = true;
+    assert_false(radio1.checked, 'radio1 should remain unchecked');
+    assert_true(radio2.checked, 'radio2 should remain checked');
+    assert_false(radio3.checked, 'radio3 should remain unchecked');
+    assert_true(radio4.checked, 'radio4 should remain checked');
+    assert_false(radio5.checked, 'radio5 should be unchecked');
+    assert_true(radio6.checked, 'radio6 should be checked');
+  }, "Radio buttons in different groups (because they have different form owners or no form owner) do not affect each other's checkedness");
+
+  test(() => {
+    const container = document.createElement('div');
+    container.innerHTML =
+        '<form>' +
+          '<input type=radio name=group1 id=radio1 checked>' +
+          '<input type=radio name=group1 id=radio2>' +
+          '<input type=radio name=group1 id=radio3>' +
+          '<input type=radio name=group1 id=radio4>' +
+        '</form>';
+    const radio1 = container.querySelector('#radio1');
+    const radio2 = container.querySelector('#radio2');
+    const radio3 = container.querySelector('#radio3');
+    const radio4 = container.querySelector('#radio4');
+
+    // initial conditions
+    assert_true(radio1.checked, 'radio1 should be checked');
+    assert_false(radio2.checked, 'radio2 should be unchecked');
+    assert_false(radio3.checked, 'radio3 should be unchecked');
+    assert_false(radio4.checked, 'radio4 should be unchecked');
+
+    radio3.remove();
+    radio4.remove();
+    radio3.checked = true;
+    radio4.checked = true;
+    assert_true(radio1.checked, 'radio1 should remain checked');
+    assert_false(radio2.checked, 'radio2 should remain unchecked');
+    assert_true(radio3.checked, 'radio3 should be checked');
+    assert_true(radio4.checked, 'radio4 should be checked');
+  }, "Radio buttons in different groups (because they are not in the same tree) do not affect each other's checkedness");
+
+  test(() => {
+    const container = document.createElement('div');
+    container.innerHTML =
+        '<form>' +
+          '<input type=radio name=group1 id=radio1 checked>' +
+          '<input type=radio name=group1 id=radio2>' +
+          '<input type=radio name=group2 id=radio3 checked>' +
+          '<input type=radio name=group2 id=radio4>' +
+          '<input type=radio name="" id=radio5 checked>' +
+          '<input type=radio name="" id=radio6>' +
+          '<input type=radio id=radio7 checked>' +
+          '<input type=radio id=radio8>' +
+        '</form>';
+    const radio1 = container.querySelector('#radio1');
+    const radio2 = container.querySelector('#radio2');
+    const radio3 = container.querySelector('#radio3');
+    const radio4 = container.querySelector('#radio4');
+    const radio5 = container.querySelector('#radio5');
+    const radio6 = container.querySelector('#radio6');
+    const radio7 = container.querySelector('#radio7');
+    const radio8 = container.querySelector('#radio8');
+
+    // initial conditions
+    assert_true(radio1.checked, 'radio1 should be checked');
+    assert_false(radio2.checked, 'radio2 should be unchecked');
+    assert_true(radio3.checked, 'radio3 should be checked');
+    assert_false(radio4.checked, 'radio4 should be unchecked');
+    assert_true(radio5.checked, 'radio5 should be checked');
+    assert_false(radio6.checked, 'radio6 should be unchecked');
+    assert_true(radio7.checked, 'radio7 should be checked');
+    assert_false(radio8.checked, 'radio8 should be unchecked');
+
+    radio2.checked = true;
+    assert_false(radio1.checked, 'radio1 should be unchecked');
+    assert_true(radio2.checked, 'radio2 should be checked');
+    assert_true(radio3.checked, 'radio3 should remain checked');
+    assert_false(radio4.checked, 'radio4 should remain unchecked');
+    assert_true(radio5.checked, 'radio5 should remain checked');
+    assert_false(radio6.checked, 'radio6 should remain unchecked');
+    assert_true(radio7.checked, 'radio7 should remain checked');
+    assert_false(radio8.checked, 'radio8 should remain unchecked');
+
+    radio6.checked = true;
+    assert_false(radio1.checked, 'radio1 should remain unchecked');
+    assert_true(radio2.checked, 'radio2 should remain checked');
+    assert_true(radio3.checked, 'radio3 should remain checked');
+    assert_false(radio4.checked, 'radio4 should remain unchecked');
+    assert_true(radio5.checked, 'radio5 should remain checked');
+    assert_true(radio6.checked, 'radio6 should be checked');
+    assert_true(radio7.checked, 'radio7 should remain checked');
+
+    radio8.checked = true;
+    assert_false(radio1.checked, 'radio1 should remain unchecked');
+    assert_true(radio2.checked, 'radio2 should remain checked');
+    assert_true(radio3.checked, 'radio3 should remain checked');
+    assert_false(radio4.checked, 'radio4 should remain unchecked');
+    assert_true(radio5.checked, 'radio5 should remain checked');
+    assert_true(radio6.checked, 'radio6 should remain checked');
+    assert_true(radio7.checked, 'radio7 should remain checked');
+    assert_true(radio8.checked, 'radio8 should be checked');
+
+  }, "Radio buttons in different groups (because they have different name attribute values, or no name attribute) do not affect each other's checkedness");
+
+</script>

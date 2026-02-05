@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      Basic Test of AudioBufferSourceNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/start-stop-exceptions.js"></script>
+  </head>
+    <script id="layout-test-code">
+      let sampleRate = 44100;
+      let renderLengthSeconds = 0.25;
+
+      let oscTypes = ['sine', 'square', 'sawtooth', 'triangle', 'custom'];
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('start/stop exceptions', (task, should) => {
+        // We're not going to render anything, so make it simple
+        let context = new OfflineAudioContext(1, 1, sampleRate);
+        let node = new AudioBufferSourceNode(context);
+
+        testStartStop(should, node, [
+          {args: [0, -1], errorType: RangeError},
+          {args: [0, 0, -1], errorType: RangeError}
+        ]);
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  <body>
+  </body>
+</html>

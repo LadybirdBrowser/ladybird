@@ -1,0 +1,4 @@
+%EF%BF%BC=&%EF%BF%BD=x&%EF%BF%BD=a
+'\ufffc' => ''
+'\ufffd' => '\u0078'
+'\ufffd' => '\u0061'

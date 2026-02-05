@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	date type support on input element
+Pass	The value attribute, if specified and not empty, must have a value that is a valid date string.
+Pass	The min attribute must be reflected verbatim by the min property.
+Pass	The max attribute must be reflected verbatim by the max property.
+Pass	User agents must not allow the user to set the value to a non-empty string that is not a valid date string.
+Pass	Number of days

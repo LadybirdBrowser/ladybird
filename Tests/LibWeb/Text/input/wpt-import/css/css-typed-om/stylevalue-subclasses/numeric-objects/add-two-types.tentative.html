@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Adding Two Numeric Types</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#add-two-types">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(() => {
+  const a = new CSSUnitValue(0, 'number');
+  const b = new CSSUnitValue(0, 'px');
+  assert_throws_js(TypeError, () => new CSSMathSum(a, b));
+}, 'Adding two types with different non-null percent hints throws TypeError');
+
+test(() => {
+  const a = new CSSUnitValue(0, 'px');
+  const b = new CSSUnitValue(0, 'px');
+  const result = new CSSMathSum(a, b);
+  assert_numeric_type_equals(result.type(), { length: 1 });
+}, 'Adding two types with the same nonzero values returns same type');
+
+test(() => {
+  const a = new CSSUnitValue(0, 'number');
+  const b = new CSSUnitValue(0, 'number');
+  const result = new CSSMathSum(a, b);
+  assert_numeric_type_equals(result.type(), { });
+}, 'Adding two types with empty maps with returns empty map');
+
+test(() => {
+  const a = new CSSUnitValue(0, 'px');
+  const b = new CSSUnitValue(0, 'percent');
+  const result = new CSSMathSum(a, b);
+  assert_numeric_type_equals(result.type(), { length: 1, percentHint: 'length' });
+}, 'Adding a type with percent returns type with percent hint');
+
+test(() => {
+  const a = new CSSMathProduct(new CSSUnitValue(0, 'px'), new CSSUnitValue(0, 'px'));
+  const b = new CSSUnitValue(0, 'percent');
+  assert_throws_js(TypeError, () => new CSSMathSum(a, b));
+}, 'Adding a type with percent 2 returns type with percent hint throws TypeError');
+
+test(() => {
+  const a = new CSSMathSum(new CSSUnitValue(0, 'px'), new CSSUnitValue(0, 'percent'));
+  const b = new CSSUnitValue(0, 'px');
+  const result = new CSSMathSum(a, b);
+  assert_numeric_type_equals(result.type(), { length: 1, percentHint: 'length' });
+}, 'Adding a type with a percent hint returns a type with the percent hint');
+
+test(() => {
+  const a = new CSSMathSum(new CSSUnitValue(0, 'px'), new CSSUnitValue(0, 'percent'));
+  const b = new CSSMathSum(new CSSUnitValue(0, 'px'), new CSSUnitValue(0, 'percent'));
+  const result = new CSSMathSum(a, b);
+  assert_numeric_type_equals(result.type(), { length: 1, percentHint: 'length' });
+}, 'Adding two types with the same percent hint returns a type with the percent hint');
+
+</script>

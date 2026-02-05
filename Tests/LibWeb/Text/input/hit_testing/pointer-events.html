@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+    <!-- #a2 should be invisible to hit testing -->
+    <div id="a1">
+        <div id="a2" style="width: 100px; height: 100px; pointer-events: none"></div>
+    </div>
+
+    <!-- #b3 should be visible to hit testing -->
+    <div id="b1">
+        <div id="b2" style="width: 100px; height: 100px; pointer-events: none">
+            <div id="b3" style="width: 100px; height: 100px; pointer-events: auto"></div>
+        </div>
+    </div>
+
+    <!-- #c1 should be hit, even though it is an inline element surrounding a block element -->
+    <a id="c1">
+        <div id="c2" style="width: 100px; height: 100px; pointer-events: none"></div>
+    </a>
+
+    <!-- a pointer event on #d4 should hit #d2 instead -->
+    <b id="d1">foo<i id="d2"><div id="d3">bar</div>baz<u id="d4" style="pointer-events: none">lorem</u></i></b>
+
+    <!-- div creates its own stacking context, #e2 must be hit instead of crashing -->
+    <div id="e1" style="position: fixed; width: 100px; height: 100px; pointer-events: none; background-color: red"></div>
+    <div id="e2" style="width: 100px; height: 100px; background-color: green"></div>
+
+    <!-- #f1 must be hit instead of #f2 -->
+    <a id="f1"><img id="f2" style="height: 30px; width: 30px; pointer-events: none"></a>
+
+    <!-- div is positioned and creates its own stacking context, #g2 must be hit -->
+    <div id="g1" style="pointer-events: none; position: relative; z-index: 0"><a id="g2" style="pointer-events: auto">ladybird</a></div>
+</body>
+<script>
+    test(() => {
+        const printHit = (element, x, y) => {
+            const rect = element.getBoundingClientRect();
+            const hit = internals.hitTest(rect.x + x, rect.y + y);
+            printElement(hit.node);
+            printElement(hit.node.parentNode);
+            println('---');
+        };
+
+        printHit(a1, 50, 50);
+        printHit(b1, 50, 50);
+        printHit(c2, 50, 50);
+        printHit(d4, 10, 8);
+        printHit(e1, 50, 50);
+        printHit(f1, 15, 15);
+        printHit(g1, 5, 5);
+    });
+</script>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	input:placeholder-shown should not be matched
+Pass	textarea:placeholder-shown should not be matched

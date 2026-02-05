@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>@import rule with layer parsing / serialization</title>
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#at-import">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  function setupSheet(rule) {
+    const style = document.createElement("style");
+    document.head.append(style);
+    const {sheet} = style;
+    const {cssRules} = sheet;
+
+    assert_equals(cssRules.length, 0, "Sheet should have no rules");
+    sheet.insertRule(rule);
+    assert_equals(cssRules.length, 1, "Sheet should have 1 rule");
+
+    return {sheet, cssRules};
+  }
+
+  function test_valid_layer_import(rule, serialized) {
+    if (serialized === undefined)
+        serialized = rule;
+
+    test(function() {
+      const {sheet, cssRules} = setupSheet(rule);
+
+      const serialization = cssRules[0].cssText;
+      assert_equals(serialization, serialized, 'serialization should be canonical');
+
+      const media = cssRules[0].media;
+      assert_equals(media.length, 0, 'layer() should be valid');
+
+      sheet.deleteRule(0);
+      assert_equals(cssRules.length, 0, 'Sheet should have no rule');
+      sheet.insertRule(serialization);
+      assert_equals(cssRules.length, 1, 'Sheet should have 1 rule');
+
+      assert_equals(cssRules[0].cssText, serialization, 'serialization should round-trip');
+    }, rule + ' should be a valid layered import rule');
+  }
+
+  function test_invalid_layer_import(rule) {
+    test(function() {
+      const {sheet, cssRules} = setupSheet(rule);
+
+      const media = cssRules[0].media;
+      assert_not_equals(media.length, 0,
+                        'invalid layer declaration should be parsed as <general-enclosed> media query');
+
+      sheet.deleteRule(0);
+      assert_equals(cssRules.length, 0, 'Sheet should have no rule');
+    }, rule + ' should still be a valid import rule with an invalid layer declaration');
+  }
+
+  test_valid_layer_import('@import url("nonexist.css") layer;');
+  test_valid_layer_import('@import url("nonexist.css") layer(A);');
+  test_valid_layer_import('@import url("nonexist.css") layer(A.B);');
+
+  test_valid_layer_import('@import url(nonexist.css) layer;',
+                          '@import url("nonexist.css") layer;');
+  test_valid_layer_import('@import url(nonexist.css) layer(A);',
+                          '@import url("nonexist.css") layer(A);');
+  test_valid_layer_import('@import url(nonexist.css) layer(A.B);',
+                          '@import url("nonexist.css") layer(A.B);');
+
+  test_valid_layer_import('@import "nonexist.css" layer;',
+                          '@import url("nonexist.css") layer;');
+  test_valid_layer_import('@import "nonexist.css" layer(A);',
+                          '@import url("nonexist.css") layer(A);');
+  test_valid_layer_import('@import "nonexist.css" layer(A.B);',
+                          '@import url("nonexist.css") layer(A.B);');
+
+  test_invalid_layer_import('@import url("nonexist.css") layer();');
+  test_invalid_layer_import('@import url("nonexist.css") layer(A B);');
+  test_invalid_layer_import('@import url("nonexist.css") layer(A . B);');
+  test_invalid_layer_import('@import url("nonexist.css") layer(A, B, C);');
+</script>

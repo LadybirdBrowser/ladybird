@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	empty URL: inline-unquoted
+Pass	empty URL: inline-quoted
+Pass	empty URL: external-unquoted
+Pass	empty URL: external-quoted

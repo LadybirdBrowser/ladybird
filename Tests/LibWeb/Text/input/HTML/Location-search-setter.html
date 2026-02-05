@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        try {
+            if (window.location.search === "") {
+                window.location.search = "?foo=bar";
+            } else {
+                println(`location.search set to ${window.location.search}`);
+                done();
+            }
+        } catch (e) {
+            println(`Setting location.search throws ${e.name}`);
+        }
+    });
+</script>

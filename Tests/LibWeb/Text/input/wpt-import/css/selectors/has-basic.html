@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Basic matching behavior of :has pseudo class</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+
+<main id=main>
+  <div id=a class="ancestor">
+    <div id=b class="parent ancestor">
+      <div id=c class="sibling descendant">
+        <div id=d class="descendant"></div>
+      </div>
+      <div id=e class="target descendant"></div>
+    </div>
+    <div id=f class="parent ancestor">
+      <div id=g class="target descendant"></div>
+    </div>
+    <div id=h class="parent ancestor">
+      <div id=i class="target descendant"></div>
+      <div id=j class="sibling descendant">
+        <div id=k class="descendant"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  function formatElements(elements) {
+    return elements.map(e => e.id).sort().join();
+  }
+
+  // Test that |selector| returns the given elements in #main.
+  function test_selector_all(selector, expected) {
+    test(function() {
+      let actual = Array.from(main.querySelectorAll(selector));
+      assert_equals(formatElements(actual), formatElements(expected));
+    }, `${selector} matches expected elements`);
+  }
+
+  // Test that |selector| returns the given element in #main.
+  function test_selector(selector, expected) {
+    test(function() {
+      assert_equals(main.querySelector(selector), expected);
+    }, `${selector} matches expected element`);
+  }
+
+  // Test that |selector| returns the given closest element.
+  function test_closest(node, selector, expected) {
+    test(function() {
+      assert_equals(node.closest(selector), expected);
+    }, `closest(${selector}) returns expected element`);
+  }
+
+  // Test that |selector| returns matching status.
+  function test_matches(node, selector, expected) {
+    test(function() {
+      assert_equals(node.matches(selector), expected);
+    }, `${selector} matches expectedly`);
+  }
+
+  test_selector_all(':has(#a)', []);
+  test_selector_all(':has(.ancestor)', [a]);
+  test_selector_all(':has(.target)', [a, b, f, h]);
+  test_selector_all(':has(.descendant)', [a, b, c, f, h, j]);
+  test_selector_all('.parent:has(.target)', [b, f, h]);
+  test_selector_all(':has(.sibling ~ .target)', [a, b]);
+  test_selector_all('.parent:has(.sibling ~ .target)', [b]);
+  test_selector_all(':has(:is(.target ~ .sibling .descendant))', [a, h, j]);
+  test_selector_all('.parent:has(:is(.target ~ .sibling .descendant))', [h]);
+  test_selector_all('.sibling:has(.descendant) ~ .target', [e]);
+  test_selector_all(':has(> .parent)', [a]);
+  test_selector_all(':has(> .target)', [b, f, h]);
+  test_selector_all(':has(> .parent, > .target)', [a, b, f, h]);
+  test_selector_all(':has(+ #h)', [f]);
+  test_selector_all('.parent:has(~ #h)', [b, f]);
+  test_selector('.sibling:has(.descendant)', c);
+  test_closest(k, '.ancestor:has(.descendant)', h);
+  test_matches(h, ':has(.target ~ .sibling .descendant)', true);
+</script>

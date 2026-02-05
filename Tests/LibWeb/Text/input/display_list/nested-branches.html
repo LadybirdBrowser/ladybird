@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .level1 {
+        overflow: hidden;
+        width: 300px;
+        height: 250px;
+        border: 2px solid black;
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+    }
+    .level2 {
+        flex: 1;
+        overflow: hidden;
+        border: 1px solid gray;
+    }
+    .level3 {
+        margin: 5px;
+        height: 40px;
+    }
+    .t1 { background: #f88; transform: rotate(3deg); }
+    .t2 { background: #8f8; transform: rotate(-3deg); }
+    .t3 { background: #88f; transform: scale(0.95); }
+    .t4 { background: #ff8; transform: scale(1.05); }
+</style>
+<div class="level1">
+    <div class="level2">
+        <div class="level3 t1">1-1</div>
+        <div class="level3 t2">1-2</div>
+    </div>
+    <div class="level2">
+        <div class="level3 t3">2-1</div>
+        <div class="level3 t4">2-2</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

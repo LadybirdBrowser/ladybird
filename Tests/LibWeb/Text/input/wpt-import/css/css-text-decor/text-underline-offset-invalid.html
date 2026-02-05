@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: parsing text-underline-offset with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#underline-offset">
+<meta name="assert" content="text-underline-offset supports the following values: auto | <length> | <percentage>">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("text-underline-offset", "from-font");
+test_invalid_value("text-underline-offset", "otto");
+test_invalid_value("text-underline-offset", "asdlflj");
+test_invalid_value("text-underline-offset", "-10");
+test_invalid_value("text-underline-offset", "60002020");
+test_invalid_value("text-underline-offset", "!@#$%^&");
+test_invalid_value("text-underline-offset", "10e2");
+test_invalid_value("text-underline-offset", "from font");
+</script>
+</body>
+</html>

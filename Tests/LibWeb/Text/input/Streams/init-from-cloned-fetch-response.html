@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        fetch("./../basic.html", { mode: "no-cors" })
+            .then(response => {
+                const clonedResponse = response.clone();
+                return clonedResponse.body;
+            })
+            .then(body => {
+                const reader = body.getReader();
+                reader.read();
+
+                println("Was able to create a reader from a cloned Fetch response!");
+                done();
+            });
+    });
+</script>

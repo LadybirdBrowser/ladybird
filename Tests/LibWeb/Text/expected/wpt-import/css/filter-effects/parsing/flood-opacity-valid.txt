@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['flood-opacity'] = "-1" should set the property value
+Pass	e.style['flood-opacity'] = "0.5" should set the property value
+Pass	e.style['flood-opacity'] = "3" should set the property value
+Pass	e.style['flood-opacity'] = "-100%" should set the property value
+Pass	e.style['flood-opacity'] = "50%" should set the property value
+Pass	e.style['flood-opacity'] = "300%" should set the property value
+Pass	e.style['flood-opacity'] = "calc(0.5 * sign(10em - 1px))" should set the property value

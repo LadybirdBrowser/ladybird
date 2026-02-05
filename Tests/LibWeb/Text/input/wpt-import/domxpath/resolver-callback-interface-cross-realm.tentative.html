@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-realm XPathNSResolver throws TypeError of its associated Realm</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#ref-for-prepare-to-run-script">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<iframe name="evaluateGlobalObject" src="resources/empty-document.html"></iframe>
+<iframe name="resolverGlobalObject" src="resources/empty-document.html"></iframe>
+<iframe name="lookupNamespaceURIGlobalObject" src="resources/empty-document.html"></iframe>
+<iframe name="relevantGlobalObject" src="resources/empty-document.html"></iframe>
+<iframe name="incumbentGlobalObject" src="resources/empty-document.html"></iframe>
+
+<script>
+setup({ allow_uncaught_exception: true });
+
+const expectedDOMExceptionType = "NAMESPACE_ERR";
+
+test_onload(() => {
+  const resolver = new resolverGlobalObject.Object;
+
+  assert_reports_exception(() => {
+    assert_throws_dom(expectedDOMExceptionType, evaluateGlobalObject.DOMException, bind_evaluate(resolver));
+  });
+}, "XPathNSResolver is cross-realm plain object without 'lookupNamespaceURI' property");
+
+test_onload(() => {
+  const resolver = new resolverGlobalObject.Object;
+  resolver.lookupNamespaceURI = new lookupNamespaceURIGlobalObject.Object;
+
+  assert_reports_exception(() => {
+    assert_throws_dom(expectedDOMExceptionType, evaluateGlobalObject.DOMException, bind_evaluate(resolver));
+  });
+}, "XPathNSResolver is cross-realm plain object with non-callable 'lookupNamespaceURI' property");
+
+test_onload(() => {
+  const { proxy, revoke } = resolverGlobalObject.Proxy.revocable(new resolverGlobalObject.Object, {});
+  revoke();
+
+  assert_reports_exception(() => {
+    assert_throws_dom(expectedDOMExceptionType, evaluateGlobalObject.DOMException, bind_evaluate(proxy));
+  });
+}, "XPathNSResolver is cross-realm non-callable revoked Proxy");
+
+test_onload(() => {
+  const { proxy, revoke } = resolverGlobalObject.Proxy.revocable(new resolverGlobalObject.Function, {});
+  revoke();
+
+  assert_reports_exception(() => {
+    assert_throws_dom(expectedDOMExceptionType, evaluateGlobalObject.DOMException, bind_evaluate(proxy));
+  });
+}, "XPathNSResolver is cross-realm callable revoked Proxy");
+
+test_onload(() => {
+  const { proxy, revoke } = lookupNamespaceURIGlobalObject.Proxy.revocable(new lookupNamespaceURIGlobalObject.Function, {});
+  revoke();
+
+  const resolver = new resolverGlobalObject.Object;
+  resolver.lookupNamespaceURI = proxy;
+
+  assert_reports_exception(() => {
+    assert_throws_dom(expectedDOMExceptionType, evaluateGlobalObject.DOMException, bind_evaluate(resolver));
+  });
+}, "XPathNSResolver is cross-realm plain object with revoked Proxy as 'lookupNamespaceURI' property");
+
+function test_onload(fn, desc) {
+  async_test(t => { window.addEventListener("load", t.step_func_done(fn)); }, desc);
+}
+
+function assert_reports_exception(fn) {
+  let error;
+  const onErrorHandler = event => {
+    error = event.error;
+    event.preventDefault();
+  };
+
+  resolverGlobalObject.addEventListener("error", onErrorHandler);
+  fn();
+  resolverGlobalObject.removeEventListener("error", onErrorHandler);
+
+  assert_equals(typeof error, "object");
+  assert_equals(error.constructor, evaluateGlobalObject.TypeError);
+}
+
+function bind_evaluate(resolver) {
+  const boundEvaluate = new incumbentGlobalObject.Function("evaluate", "relevantDocument", "resolver", `
+    evaluate.call(relevantDocument, "/foo:bar", relevantDocument.documentElement, resolver);
+  `);
+
+  return () => {
+    boundEvaluate(evaluateGlobalObject.document.evaluate, relevantGlobalObject.document, resolver);
+  };
+}
+</script>

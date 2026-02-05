@@ -1,0 +1,23 @@
+#import <DOM/Element.idl>
+
+// https://drafts.csswg.org/resize-observer-1/#resize-observer-interface
+[Exposed=(Window)]
+interface ResizeObserver {
+
+    constructor(ResizeObserverCallback callback);
+    undefined observe(Element target, optional ResizeObserverOptions options = {});
+    undefined unobserve(Element target);
+    undefined disconnect();
+
+};
+
+enum ResizeObserverBoxOptions {
+    "border-box", "content-box", "device-pixel-content-box"
+};
+
+dictionary ResizeObserverOptions {
+    ResizeObserverBoxOptions box = "content-box";
+};
+
+// https://drafts.csswg.org/resize-observer-1/#resize-observer-callback
+callback ResizeObserverCallback = undefined (sequence<ResizeObserverEntry> entries, ResizeObserver observer);

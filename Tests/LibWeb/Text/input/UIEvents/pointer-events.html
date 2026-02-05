@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        function logEvent(event) {
+            println(`${event.type} at (${event.clientX}, ${event.clientY})`);
+            if (event.type === "mouseup") {
+                done();
+            }
+        }
+
+        const eventsToLog = [
+            'pointerdown',
+            'pointerup',
+            'mousedown',
+            'mouseup',
+        ];
+        eventsToLog.forEach(eventType => {
+            window.addEventListener(eventType, logEvent);
+        });
+
+        internals.click(10, 20);
+    });
+</script>

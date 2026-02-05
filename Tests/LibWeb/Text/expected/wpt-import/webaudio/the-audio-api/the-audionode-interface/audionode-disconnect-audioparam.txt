@@ -1,0 +1,27 @@
+Harness status: Error
+
+Found 21 tests
+
+12 Pass
+9 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "disconnect(AudioParam)"
+Pass	Executing "disconnect(AudioParam, output)"
+Pass	Executing "exceptions"
+Pass	Audit report
+Pass	> [disconnect(AudioParam)] 
+Fail	X Channel #0 expected to have the value sequence of [2.25,1.5] but got 1 values, [0], instead of 2.
+Fail	X The index of value change is not equal to 11136. Got -1.
+Fail	< [disconnect(AudioParam)] 2 out of 2 assertions were failed.
+Pass	> [disconnect(AudioParam, output)] 
+Fail	X Channel #0 expected to have the value sequence of [3,1.5] but got 1 values, [0], instead of 2.
+Fail	X The index of value change in channel #0 is not equal to 11136. Got -1.
+Fail	X Channel #1 expected to have the value sequence of [6,3] but got 1 values, [0], instead of 2.
+Fail	X The index of value change in channel #1 is not equal to 11136. Got -1.
+Fail	< [disconnect(AudioParam, output)] 4 out of 4 assertions were failed.
+Pass	> [exceptions] 
+Pass	  gain1.disconnect(gain3.gain) threw InvalidAccessError: "No connection to given AudioParam".
+Pass	  splitter.disconnect(gain1.gain, 1) threw InvalidAccessError: "No connection from output 1 to given AudioParam".
+Pass	  splitter.disconnect(gain1.gain, 2) threw IndexSizeError: "Output index 2 exceeds number of outputs".
+Pass	< [exceptions] All assertions passed. (total 3 assertions)
+Fail	# AUDIT TASK RUNNER FINISHED: 2 out of 3 tasks were failed.

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<dialog id="test-dialog"></dialog>
+<script>
+    test(() => {
+        const dialog = document.getElementById("test-dialog");
+        println(`dialog.open state before show(): ${dialog.open}`)
+        dialog.show();
+        println(`dialog.open state after show(): ${dialog.open}`);
+    });
+</script>

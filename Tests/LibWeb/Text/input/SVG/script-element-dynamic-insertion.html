@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="script-container"></div>
+<script>
+    let scriptRan = false;
+    test(() => {
+        let script = document.createElementNS("http://www.w3.org/2000/svg", "script");
+        script.textContent = `scriptRan = true;`;
+        document.getElementById('script-container').appendChild(script);
+        println(`SVG script ran: ${scriptRan}`);
+    });
+</script>

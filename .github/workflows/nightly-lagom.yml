@@ -1,0 +1,99 @@
+name: Nightly Lagom
+
+on:
+  # Automatically run at the end of every day.
+  schedule:
+    - cron: '0 0 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # CI matrix - runs the job in lagom-template.yml with different configurations.
+  Lagom:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}, ${{ matrix.build_preset }}, ${{ matrix.toolchain }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: ['Linux']
+        arch: ['arm64']
+        build_preset: ['Sanitizer']
+        toolchain: ['Clang']
+        clang_plugins: [false]
+        runner_labels: ['["blacksmith-8vcpu-ubuntu-2404-arm"]']
+
+        include:
+          - os_name: 'Linux'
+            arch: 'x86_64'
+            build_preset: 'Distribution'
+            toolchain: 'GNU'
+            clang_plugins: false
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404"]'
+
+          - os_name: 'macOS'
+            arch: 'arm64'
+            build_preset: 'Distribution'
+            toolchain: 'Clang'
+            clang_plugins: false
+            runner_labels: '["macos-15", "self-hosted"]'
+
+          - os_name: 'Linux'
+            arch: 'arm64'
+            build_preset: 'Distribution'
+            toolchain: 'Clang'
+            clang_plugins: false
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
+
+          - os_name: 'Linux'
+            arch: 'x86_64'
+            build_preset: 'Sanitizer'
+            toolchain: 'Swift'
+            clang_plugins: false
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404"]'
+
+          - os_name: 'macOS'
+            arch: 'arm64'
+            build_preset: 'Sanitizer'
+            toolchain: 'Swift'
+            clang_plugins: false
+            runner_labels: '["macos-15", "self-hosted"]'
+
+          - os_name: 'Windows'
+            arch: 'x86_64'
+            build_preset: 'Sanitizer'
+            toolchain: 'ClangCL'
+            clang_plugins: false
+            runner_labels: '["blacksmith-8vcpu-windows-2025"]'
+
+    secrets: inherit
+    uses: ./.github/workflows/lagom-template.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      os_name: ${{ matrix.os_name }}
+      runner_labels: ${{ matrix.runner_labels }}
+      arch: ${{ matrix.arch }}
+      build_preset: ${{ matrix.build_preset }}
+      clang_plugins: ${{ matrix.clang_plugins }}
+
+  flatpak:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    name: Flatpak ${{ matrix.arch }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ['x86_64']
+        runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
+
+        include:
+          - arch: 'aarch64'
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
+
+    secrets: inherit
+    uses: ./.github/workflows/flatpak-template.yml
+    with:
+      arch: ${{ matrix.arch }}
+      runner_labels: ${{ matrix.runner_labels }}

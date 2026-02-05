@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        setTimeout(() => {
+            // We need to do this spoofing later in the event loop so that we don't end up
+            // telling the test runner the wrong URL in page_did_finish_loading.
+            spoofCurrentURL("https://example.com/service-worker-ready.html");
+
+            const ready = navigator.serviceWorker.ready;
+
+            println(`ready is a Promise: ${ready instanceof Promise}`);
+            println(`ready is the same object on second access: ${ready === navigator.serviceWorker.ready}`);
+
+            done();
+        }, 0);
+    });
+</script>

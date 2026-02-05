@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let stream = new ReadableStream({
+            type: "bytes",
+            autoAllocateChunkSize: 64
+        });
+        println(`PASS. Made: ${stream.constructor.name}`);
+    });
+</script>

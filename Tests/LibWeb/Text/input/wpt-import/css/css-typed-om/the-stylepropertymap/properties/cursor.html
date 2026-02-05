@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'cursor' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('cursor', [
+  { syntax: 'auto' },
+  { syntax: 'default' },
+  { syntax: 'none' },
+  { syntax: 'context-menu' },
+  { syntax: 'help' },
+  { syntax: 'pointer' },
+  { syntax: 'progress' },
+  { syntax: 'wait' },
+  { syntax: 'cell' },
+  { syntax: 'crosshair' },
+  { syntax: 'text' },
+  { syntax: 'vertical-text' },
+  { syntax: 'alias' },
+  { syntax: 'copy' },
+  { syntax: 'move' },
+  { syntax: 'no-drop' },
+  { syntax: 'not-allowed' },
+  { syntax: 'grab' },
+  { syntax: 'grabbing' },
+  { syntax: 'e-resize' },
+  { syntax: 'n-resize' },
+  { syntax: 'ne-resize' },
+  { syntax: 'nw-resize' },
+  { syntax: 's-resize' },
+  { syntax: 'se-resize' },
+  { syntax: 'sw-resize' },
+  { syntax: 'w-resize' },
+  { syntax: 'ew-resize' },
+  { syntax: 'ns-resize' },
+  { syntax: 'nesw-resize' },
+  { syntax: 'nwse-resize' },
+  { syntax: 'col-resize' },
+  { syntax: 'row-resize' },
+  { syntax: 'all-scroll' },
+  { syntax: 'zoom-in' },
+  { syntax: 'zoom-out' }
+]);
+
+runUnsupportedPropertyTests('cursor', [
+  'url(hand.cur), pointer', 'url(cursor1.png) 4 12, auto'
+]);
+
+</script>

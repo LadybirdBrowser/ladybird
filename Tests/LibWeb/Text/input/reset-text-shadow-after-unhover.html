@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    span:hover {
+        text-shadow: 0 0 3px #58a1e6;
+    }
+</style>
+<script src="./include.js"></script>
+<span>Hover over this span</span>
+<script>
+    test(() => {
+        // hover
+        internals.movePointerTo(10, 10);
+        println("hovered text-shadow: " + getComputedStyle(document.querySelector("span")).textShadow);
+
+        // unhover
+        internals.movePointerTo(0, 0);
+        println("unhovered text-shadow: " + getComputedStyle(document.querySelector("span")).textShadow);
+    });
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Checks that ':focus' pseudo-class matches inside 'focus' event handler
+Pass	Checks that ':focus-visible' pseudo-class matches inside 'focus' event handler
+Pass	Checks that ':focus-within' pseudo-class matches inside 'focus' event handler

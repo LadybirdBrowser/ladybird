@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing border with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-shorthands">
+<meta name="assert" content="border supports the full grammar '<line-width> || <line-style> || <color>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("border", "1px dotted red");
+test_valid_value("border", "green double thin", "thin double green");
+
+test_valid_value("border-top", "thin", ["thin", "thin none"]);
+test_valid_value("border-right", "double", ["double", "medium double"]);
+test_valid_value("border-bottom", "green", ["green", "medium none green"]);
+test_valid_value("border-left", "1px dotted red");
+</script>
+</body>
+</html>

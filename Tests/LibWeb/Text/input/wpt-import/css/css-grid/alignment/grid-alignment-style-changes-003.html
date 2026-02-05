@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Changing the Self-Alignment properties to interfere in Baseline Alignment</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-align">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#self-alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#justify-self-property">
+<link rel="help" href="https://drafts.csswg.org/css-align/#typedef-baseline-position">
+<meta name="assert" content="Changing the justify-self' property's value of a grid item from 'baseline' will exclude such item from its baseline context, which implies recomputing all the baseline offsets and aligning the items left in such context.">
+<style>
+#container {
+  position: relative;
+  display: inline-grid;
+  grid: 50px 50px 50px / 100px;
+  background: grey;
+  justify-items: baseline;
+}
+#container > div { writing-mode: vertical-rl; }
+#item1 {
+  width: 20px;
+  background: blue;
+}
+#item2 {
+  width: 50px;
+  margin: 0 10px;
+  background: green;
+}
+#item3 {
+  width: 30px;
+  background: red;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script src="support/style-change.js"></script>
+<script>
+function runTest() {
+    let before = {
+        item1: {"data-offset-x": 40 },
+        item2: {"data-offset-x": 40 },
+        item3: {"data-offset-x": 40 }
+    };
+
+    let after = {
+        item1: {"data-offset-x": 70 },
+        item2: {"data-offset-x": 40 },
+        item3: {"data-offset-x": 70 }
+    };
+
+    evaluateStyleChangeMultiple("before", before);
+    item2.style.justifySelf = "end";
+    evaluateStyleChangeMultiple("after", after);
+    done();
+}
+</script>
+<body onload="runTest()">
+    <div id="container">
+        <div id="item1" data-expected-width="20" data-expected-height="50" data-offset-y="0"></div>
+        <div id="item2" data-expected-width="50" data-expected-height="50" data-offset-y="50"></div>
+        <div id="item3" data-expected-width="30" data-expected-height="50" data-offset-y="100"></div>
+    </div>
+    <div id="log"></div>
+</body>

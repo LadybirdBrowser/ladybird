@@ -1,0 +1,566 @@
+Harness status: OK
+
+Found 561 tests
+
+561 Pass
+Pass	<h1> - display
+Pass	<h1> - margin-top
+Pass	<h1> - margin-right
+Pass	<h1> - margin-bottom
+Pass	<h1> - margin-left
+Pass	<h1> - padding-top
+Pass	<h1> - padding-right
+Pass	<h1> - padding-bottom
+Pass	<h1> - padding-left
+Pass	<h1> - font-size
+Pass	<h1> - font-weight
+Pass	<h2> - display
+Pass	<h2> - margin-top
+Pass	<h2> - margin-right
+Pass	<h2> - margin-bottom
+Pass	<h2> - margin-left
+Pass	<h2> - padding-top
+Pass	<h2> - padding-right
+Pass	<h2> - padding-bottom
+Pass	<h2> - padding-left
+Pass	<h2> - font-size
+Pass	<h2> - font-weight
+Pass	<h3> - display
+Pass	<h3> - margin-top
+Pass	<h3> - margin-right
+Pass	<h3> - margin-bottom
+Pass	<h3> - margin-left
+Pass	<h3> - padding-top
+Pass	<h3> - padding-right
+Pass	<h3> - padding-bottom
+Pass	<h3> - padding-left
+Pass	<h3> - font-size
+Pass	<h3> - font-weight
+Pass	<h4> - display
+Pass	<h4> - margin-top
+Pass	<h4> - margin-right
+Pass	<h4> - margin-bottom
+Pass	<h4> - margin-left
+Pass	<h4> - padding-top
+Pass	<h4> - padding-right
+Pass	<h4> - padding-bottom
+Pass	<h4> - padding-left
+Pass	<h4> - font-size
+Pass	<h4> - font-weight
+Pass	<h5> - display
+Pass	<h5> - margin-top
+Pass	<h5> - margin-right
+Pass	<h5> - margin-bottom
+Pass	<h5> - margin-left
+Pass	<h5> - padding-top
+Pass	<h5> - padding-right
+Pass	<h5> - padding-bottom
+Pass	<h5> - padding-left
+Pass	<h5> - font-size
+Pass	<h5> - font-weight
+Pass	<h6> - display
+Pass	<h6> - margin-top
+Pass	<h6> - margin-right
+Pass	<h6> - margin-bottom
+Pass	<h6> - margin-left
+Pass	<h6> - padding-top
+Pass	<h6> - padding-right
+Pass	<h6> - padding-bottom
+Pass	<h6> - padding-left
+Pass	<h6> - font-size
+Pass	<h6> - font-weight
+Pass	<hgroup> - display
+Pass	<hgroup> - margin-top
+Pass	<hgroup> - margin-right
+Pass	<hgroup> - margin-bottom
+Pass	<hgroup> - margin-left
+Pass	<hgroup> - padding-top
+Pass	<hgroup> - padding-right
+Pass	<hgroup> - padding-bottom
+Pass	<hgroup> - padding-left
+Pass	<hgroup> - font-size
+Pass	<hgroup> - font-weight
+Pass	<article> - display
+Pass	<article> - margin-top
+Pass	<article> - margin-right
+Pass	<article> - margin-bottom
+Pass	<article> - margin-left
+Pass	<article> - padding-top
+Pass	<article> - padding-right
+Pass	<article> - padding-bottom
+Pass	<article> - padding-left
+Pass	<article> - font-size
+Pass	<article> - font-weight
+Pass	<aside> - display
+Pass	<aside> - margin-top
+Pass	<aside> - margin-right
+Pass	<aside> - margin-bottom
+Pass	<aside> - margin-left
+Pass	<aside> - padding-top
+Pass	<aside> - padding-right
+Pass	<aside> - padding-bottom
+Pass	<aside> - padding-left
+Pass	<aside> - font-size
+Pass	<aside> - font-weight
+Pass	<nav> - display
+Pass	<nav> - margin-top
+Pass	<nav> - margin-right
+Pass	<nav> - margin-bottom
+Pass	<nav> - margin-left
+Pass	<nav> - padding-top
+Pass	<nav> - padding-right
+Pass	<nav> - padding-bottom
+Pass	<nav> - padding-left
+Pass	<nav> - font-size
+Pass	<nav> - font-weight
+Pass	<section> - display
+Pass	<section> - margin-top
+Pass	<section> - margin-right
+Pass	<section> - margin-bottom
+Pass	<section> - margin-left
+Pass	<section> - padding-top
+Pass	<section> - padding-right
+Pass	<section> - padding-bottom
+Pass	<section> - padding-left
+Pass	<section> - font-size
+Pass	<section> - font-weight
+Pass	<h1> (in <article>) - display
+Pass	<h1> (in <article>) - margin-top
+Pass	<h1> (in <article>) - margin-right
+Pass	<h1> (in <article>) - margin-bottom
+Pass	<h1> (in <article>) - margin-left
+Pass	<h1> (in <article>) - padding-top
+Pass	<h1> (in <article>) - padding-right
+Pass	<h1> (in <article>) - padding-bottom
+Pass	<h1> (in <article>) - padding-left
+Pass	<h1> (in <article>) - font-size
+Pass	<h1> (in <article>) - font-weight
+Pass	<h1> (in <article><article>) - display
+Pass	<h1> (in <article><article>) - margin-top
+Pass	<h1> (in <article><article>) - margin-right
+Pass	<h1> (in <article><article>) - margin-bottom
+Pass	<h1> (in <article><article>) - margin-left
+Pass	<h1> (in <article><article>) - padding-top
+Pass	<h1> (in <article><article>) - padding-right
+Pass	<h1> (in <article><article>) - padding-bottom
+Pass	<h1> (in <article><article>) - padding-left
+Pass	<h1> (in <article><article>) - font-size
+Pass	<h1> (in <article><article>) - font-weight
+Pass	<h1> (in <article><article><article>) - display
+Pass	<h1> (in <article><article><article>) - margin-top
+Pass	<h1> (in <article><article><article>) - margin-right
+Pass	<h1> (in <article><article><article>) - margin-bottom
+Pass	<h1> (in <article><article><article>) - margin-left
+Pass	<h1> (in <article><article><article>) - padding-top
+Pass	<h1> (in <article><article><article>) - padding-right
+Pass	<h1> (in <article><article><article>) - padding-bottom
+Pass	<h1> (in <article><article><article>) - padding-left
+Pass	<h1> (in <article><article><article>) - font-size
+Pass	<h1> (in <article><article><article>) - font-weight
+Pass	<h1> (in <article><article><article><article>) - display
+Pass	<h1> (in <article><article><article><article>) - margin-top
+Pass	<h1> (in <article><article><article><article>) - margin-right
+Pass	<h1> (in <article><article><article><article>) - margin-bottom
+Pass	<h1> (in <article><article><article><article>) - margin-left
+Pass	<h1> (in <article><article><article><article>) - padding-top
+Pass	<h1> (in <article><article><article><article>) - padding-right
+Pass	<h1> (in <article><article><article><article>) - padding-bottom
+Pass	<h1> (in <article><article><article><article>) - padding-left
+Pass	<h1> (in <article><article><article><article>) - font-size
+Pass	<h1> (in <article><article><article><article>) - font-weight
+Pass	<h1> (in <article><article><article><article><article>) - display
+Pass	<h1> (in <article><article><article><article><article>) - margin-top
+Pass	<h1> (in <article><article><article><article><article>) - margin-right
+Pass	<h1> (in <article><article><article><article><article>) - margin-bottom
+Pass	<h1> (in <article><article><article><article><article>) - margin-left
+Pass	<h1> (in <article><article><article><article><article>) - padding-top
+Pass	<h1> (in <article><article><article><article><article>) - padding-right
+Pass	<h1> (in <article><article><article><article><article>) - padding-bottom
+Pass	<h1> (in <article><article><article><article><article>) - padding-left
+Pass	<h1> (in <article><article><article><article><article>) - font-size
+Pass	<h1> (in <article><article><article><article><article>) - font-weight
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - display
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - margin-top
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - margin-right
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - margin-bottom
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - margin-left
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - padding-top
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - padding-right
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - padding-bottom
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - padding-left
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - font-size
+Pass	<h1> (in <article><article><article><article><article><hgroup>) - font-weight
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - display
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - margin-top
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - margin-right
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - margin-bottom
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - margin-left
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - padding-top
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - padding-right
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - padding-bottom
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - padding-left
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - font-size
+Pass	<h2> (in <article><article><article><article><article><hgroup>) - font-weight
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - display
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - margin-top
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - margin-right
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - margin-bottom
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - margin-left
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - padding-top
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - padding-right
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - padding-bottom
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - padding-left
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - font-size
+Pass	<h3> (in <article><article><article><article><article><hgroup>) - font-weight
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - display
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - margin-top
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - margin-right
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - margin-bottom
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - margin-left
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - padding-top
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - padding-right
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - padding-bottom
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - padding-left
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - font-size
+Pass	<h4> (in <article><article><article><article><article><hgroup>) - font-weight
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - display
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - margin-top
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - margin-right
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - margin-bottom
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - margin-left
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - padding-top
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - padding-right
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - padding-bottom
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - padding-left
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - font-size
+Pass	<h5> (in <article><article><article><article><article><hgroup>) - font-weight
+Pass	<h1> (in <aside>) - display
+Pass	<h1> (in <aside>) - margin-top
+Pass	<h1> (in <aside>) - margin-right
+Pass	<h1> (in <aside>) - margin-bottom
+Pass	<h1> (in <aside>) - margin-left
+Pass	<h1> (in <aside>) - padding-top
+Pass	<h1> (in <aside>) - padding-right
+Pass	<h1> (in <aside>) - padding-bottom
+Pass	<h1> (in <aside>) - padding-left
+Pass	<h1> (in <aside>) - font-size
+Pass	<h1> (in <aside>) - font-weight
+Pass	<h1> (in <aside><aside>) - display
+Pass	<h1> (in <aside><aside>) - margin-top
+Pass	<h1> (in <aside><aside>) - margin-right
+Pass	<h1> (in <aside><aside>) - margin-bottom
+Pass	<h1> (in <aside><aside>) - margin-left
+Pass	<h1> (in <aside><aside>) - padding-top
+Pass	<h1> (in <aside><aside>) - padding-right
+Pass	<h1> (in <aside><aside>) - padding-bottom
+Pass	<h1> (in <aside><aside>) - padding-left
+Pass	<h1> (in <aside><aside>) - font-size
+Pass	<h1> (in <aside><aside>) - font-weight
+Pass	<h1> (in <aside><aside><aside>) - display
+Pass	<h1> (in <aside><aside><aside>) - margin-top
+Pass	<h1> (in <aside><aside><aside>) - margin-right
+Pass	<h1> (in <aside><aside><aside>) - margin-bottom
+Pass	<h1> (in <aside><aside><aside>) - margin-left
+Pass	<h1> (in <aside><aside><aside>) - padding-top
+Pass	<h1> (in <aside><aside><aside>) - padding-right
+Pass	<h1> (in <aside><aside><aside>) - padding-bottom
+Pass	<h1> (in <aside><aside><aside>) - padding-left
+Pass	<h1> (in <aside><aside><aside>) - font-size
+Pass	<h1> (in <aside><aside><aside>) - font-weight
+Pass	<h1> (in <aside><aside><aside><aside>) - display
+Pass	<h1> (in <aside><aside><aside><aside>) - margin-top
+Pass	<h1> (in <aside><aside><aside><aside>) - margin-right
+Pass	<h1> (in <aside><aside><aside><aside>) - margin-bottom
+Pass	<h1> (in <aside><aside><aside><aside>) - margin-left
+Pass	<h1> (in <aside><aside><aside><aside>) - padding-top
+Pass	<h1> (in <aside><aside><aside><aside>) - padding-right
+Pass	<h1> (in <aside><aside><aside><aside>) - padding-bottom
+Pass	<h1> (in <aside><aside><aside><aside>) - padding-left
+Pass	<h1> (in <aside><aside><aside><aside>) - font-size
+Pass	<h1> (in <aside><aside><aside><aside>) - font-weight
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - display
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - margin-top
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - margin-right
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - margin-bottom
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - margin-left
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - padding-top
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - padding-right
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - padding-bottom
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - padding-left
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - font-size
+Pass	<h1> (in <aside><aside><aside><aside><aside>) - font-weight
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - display
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - margin-top
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - margin-right
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - margin-bottom
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - margin-left
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - padding-top
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - padding-right
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - padding-bottom
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - padding-left
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - font-size
+Pass	<h1> (in <aside><aside><aside><aside><aside><hgroup>) - font-weight
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - display
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - margin-top
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - margin-right
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - margin-bottom
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - margin-left
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - padding-top
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - padding-right
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - padding-bottom
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - padding-left
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - font-size
+Pass	<h2> (in <aside><aside><aside><aside><aside><hgroup>) - font-weight
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - display
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - margin-top
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - margin-right
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - margin-bottom
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - margin-left
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - padding-top
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - padding-right
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - padding-bottom
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - padding-left
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - font-size
+Pass	<h3> (in <aside><aside><aside><aside><aside><hgroup>) - font-weight
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - display
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - margin-top
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - margin-right
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - margin-bottom
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - margin-left
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - padding-top
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - padding-right
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - padding-bottom
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - padding-left
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - font-size
+Pass	<h4> (in <aside><aside><aside><aside><aside><hgroup>) - font-weight
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - display
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - margin-top
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - margin-right
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - margin-bottom
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - margin-left
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - padding-top
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - padding-right
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - padding-bottom
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - padding-left
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - font-size
+Pass	<h5> (in <aside><aside><aside><aside><aside><hgroup>) - font-weight
+Pass	<h1> (in <nav>) - display
+Pass	<h1> (in <nav>) - margin-top
+Pass	<h1> (in <nav>) - margin-right
+Pass	<h1> (in <nav>) - margin-bottom
+Pass	<h1> (in <nav>) - margin-left
+Pass	<h1> (in <nav>) - padding-top
+Pass	<h1> (in <nav>) - padding-right
+Pass	<h1> (in <nav>) - padding-bottom
+Pass	<h1> (in <nav>) - padding-left
+Pass	<h1> (in <nav>) - font-size
+Pass	<h1> (in <nav>) - font-weight
+Pass	<h1> (in <nav><nav>) - display
+Pass	<h1> (in <nav><nav>) - margin-top
+Pass	<h1> (in <nav><nav>) - margin-right
+Pass	<h1> (in <nav><nav>) - margin-bottom
+Pass	<h1> (in <nav><nav>) - margin-left
+Pass	<h1> (in <nav><nav>) - padding-top
+Pass	<h1> (in <nav><nav>) - padding-right
+Pass	<h1> (in <nav><nav>) - padding-bottom
+Pass	<h1> (in <nav><nav>) - padding-left
+Pass	<h1> (in <nav><nav>) - font-size
+Pass	<h1> (in <nav><nav>) - font-weight
+Pass	<h1> (in <nav><nav><nav>) - display
+Pass	<h1> (in <nav><nav><nav>) - margin-top
+Pass	<h1> (in <nav><nav><nav>) - margin-right
+Pass	<h1> (in <nav><nav><nav>) - margin-bottom
+Pass	<h1> (in <nav><nav><nav>) - margin-left
+Pass	<h1> (in <nav><nav><nav>) - padding-top
+Pass	<h1> (in <nav><nav><nav>) - padding-right
+Pass	<h1> (in <nav><nav><nav>) - padding-bottom
+Pass	<h1> (in <nav><nav><nav>) - padding-left
+Pass	<h1> (in <nav><nav><nav>) - font-size
+Pass	<h1> (in <nav><nav><nav>) - font-weight
+Pass	<h1> (in <nav><nav><nav><nav>) - display
+Pass	<h1> (in <nav><nav><nav><nav>) - margin-top
+Pass	<h1> (in <nav><nav><nav><nav>) - margin-right
+Pass	<h1> (in <nav><nav><nav><nav>) - margin-bottom
+Pass	<h1> (in <nav><nav><nav><nav>) - margin-left
+Pass	<h1> (in <nav><nav><nav><nav>) - padding-top
+Pass	<h1> (in <nav><nav><nav><nav>) - padding-right
+Pass	<h1> (in <nav><nav><nav><nav>) - padding-bottom
+Pass	<h1> (in <nav><nav><nav><nav>) - padding-left
+Pass	<h1> (in <nav><nav><nav><nav>) - font-size
+Pass	<h1> (in <nav><nav><nav><nav>) - font-weight
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - display
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - margin-top
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - margin-right
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - margin-bottom
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - margin-left
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - padding-top
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - padding-right
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - padding-bottom
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - padding-left
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - font-size
+Pass	<h1> (in <nav><nav><nav><nav><nav>) - font-weight
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - display
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - margin-top
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - margin-right
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - margin-bottom
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - margin-left
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - padding-top
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - padding-right
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - padding-bottom
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - padding-left
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - font-size
+Pass	<h1> (in <nav><nav><nav><nav><nav><hgroup>) - font-weight
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - display
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - margin-top
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - margin-right
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - margin-bottom
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - margin-left
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - padding-top
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - padding-right
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - padding-bottom
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - padding-left
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - font-size
+Pass	<h2> (in <nav><nav><nav><nav><nav><hgroup>) - font-weight
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - display
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - margin-top
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - margin-right
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - margin-bottom
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - margin-left
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - padding-top
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - padding-right
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - padding-bottom
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - padding-left
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - font-size
+Pass	<h3> (in <nav><nav><nav><nav><nav><hgroup>) - font-weight
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - display
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - margin-top
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - margin-right
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - margin-bottom
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - margin-left
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - padding-top
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - padding-right
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - padding-bottom
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - padding-left
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - font-size
+Pass	<h4> (in <nav><nav><nav><nav><nav><hgroup>) - font-weight
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - display
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - margin-top
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - margin-right
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - margin-bottom
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - margin-left
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - padding-top
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - padding-right
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - padding-bottom
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - padding-left
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - font-size
+Pass	<h5> (in <nav><nav><nav><nav><nav><hgroup>) - font-weight
+Pass	<h1> (in <section>) - display
+Pass	<h1> (in <section>) - margin-top
+Pass	<h1> (in <section>) - margin-right
+Pass	<h1> (in <section>) - margin-bottom
+Pass	<h1> (in <section>) - margin-left
+Pass	<h1> (in <section>) - padding-top
+Pass	<h1> (in <section>) - padding-right
+Pass	<h1> (in <section>) - padding-bottom
+Pass	<h1> (in <section>) - padding-left
+Pass	<h1> (in <section>) - font-size
+Pass	<h1> (in <section>) - font-weight
+Pass	<h1> (in <section><section>) - display
+Pass	<h1> (in <section><section>) - margin-top
+Pass	<h1> (in <section><section>) - margin-right
+Pass	<h1> (in <section><section>) - margin-bottom
+Pass	<h1> (in <section><section>) - margin-left
+Pass	<h1> (in <section><section>) - padding-top
+Pass	<h1> (in <section><section>) - padding-right
+Pass	<h1> (in <section><section>) - padding-bottom
+Pass	<h1> (in <section><section>) - padding-left
+Pass	<h1> (in <section><section>) - font-size
+Pass	<h1> (in <section><section>) - font-weight
+Pass	<h1> (in <section><section><section>) - display
+Pass	<h1> (in <section><section><section>) - margin-top
+Pass	<h1> (in <section><section><section>) - margin-right
+Pass	<h1> (in <section><section><section>) - margin-bottom
+Pass	<h1> (in <section><section><section>) - margin-left
+Pass	<h1> (in <section><section><section>) - padding-top
+Pass	<h1> (in <section><section><section>) - padding-right
+Pass	<h1> (in <section><section><section>) - padding-bottom
+Pass	<h1> (in <section><section><section>) - padding-left
+Pass	<h1> (in <section><section><section>) - font-size
+Pass	<h1> (in <section><section><section>) - font-weight
+Pass	<h1> (in <section><section><section><section>) - display
+Pass	<h1> (in <section><section><section><section>) - margin-top
+Pass	<h1> (in <section><section><section><section>) - margin-right
+Pass	<h1> (in <section><section><section><section>) - margin-bottom
+Pass	<h1> (in <section><section><section><section>) - margin-left
+Pass	<h1> (in <section><section><section><section>) - padding-top
+Pass	<h1> (in <section><section><section><section>) - padding-right
+Pass	<h1> (in <section><section><section><section>) - padding-bottom
+Pass	<h1> (in <section><section><section><section>) - padding-left
+Pass	<h1> (in <section><section><section><section>) - font-size
+Pass	<h1> (in <section><section><section><section>) - font-weight
+Pass	<h1> (in <section><section><section><section><section>) - display
+Pass	<h1> (in <section><section><section><section><section>) - margin-top
+Pass	<h1> (in <section><section><section><section><section>) - margin-right
+Pass	<h1> (in <section><section><section><section><section>) - margin-bottom
+Pass	<h1> (in <section><section><section><section><section>) - margin-left
+Pass	<h1> (in <section><section><section><section><section>) - padding-top
+Pass	<h1> (in <section><section><section><section><section>) - padding-right
+Pass	<h1> (in <section><section><section><section><section>) - padding-bottom
+Pass	<h1> (in <section><section><section><section><section>) - padding-left
+Pass	<h1> (in <section><section><section><section><section>) - font-size
+Pass	<h1> (in <section><section><section><section><section>) - font-weight
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - display
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - margin-top
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - margin-right
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - margin-bottom
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - margin-left
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - padding-top
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - padding-right
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - padding-bottom
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - padding-left
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - font-size
+Pass	<h1> (in <section><section><section><section><section><hgroup>) - font-weight
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - display
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - margin-top
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - margin-right
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - margin-bottom
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - margin-left
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - padding-top
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - padding-right
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - padding-bottom
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - padding-left
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - font-size
+Pass	<h2> (in <section><section><section><section><section><hgroup>) - font-weight
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - display
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - margin-top
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - margin-right
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - margin-bottom
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - margin-left
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - padding-top
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - padding-right
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - padding-bottom
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - padding-left
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - font-size
+Pass	<h3> (in <section><section><section><section><section><hgroup>) - font-weight
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - display
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - margin-top
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - margin-right
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - margin-bottom
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - margin-left
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - padding-top
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - padding-right
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - padding-bottom
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - padding-left
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - font-size
+Pass	<h4> (in <section><section><section><section><section><hgroup>) - font-weight
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - display
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - margin-top
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - margin-right
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - margin-bottom
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - margin-left
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - padding-top
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - padding-right
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - padding-bottom
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - padding-left
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - font-size
+Pass	<h5> (in <section><section><section><section><section><hgroup>) - font-weight

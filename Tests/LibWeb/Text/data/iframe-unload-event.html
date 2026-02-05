@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<iframe
+    name="test"
+    srcdoc="<script>window.addEventListener('unload', () => { window['test']; })</script>"
+></iframe>
+<script>
+    window.addEventListener("unload", () => {
+        window["test"];
+    });
+</script>

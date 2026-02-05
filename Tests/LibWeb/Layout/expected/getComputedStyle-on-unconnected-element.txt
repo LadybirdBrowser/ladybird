@@ -1,0 +1,14 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 39 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 23 0+0+8] children: inline
+      frag 0 from TextNode start: 0, length: 35, rect: [8,8 362.75x23] baseline: 17.5
+          "This test passes if we don't crash."
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x39]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x23]
+      TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x39] [children: 0] (z-index: auto)

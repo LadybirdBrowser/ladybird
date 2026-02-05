@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const inputTypes = [
+            "text",
+            "search",
+            "tel",
+            "url",
+            "email",
+            "password",
+        ];
+
+        inputTypes.forEach(type => {
+            const input = document.createElement("input");
+            input.type = type;
+            document.body.appendChild(input);
+            internals.sendText(input, "PASS");
+            println(`input[type=${type}] value: ${input.value}`);
+            input.remove();
+        });
+    });
+</script>

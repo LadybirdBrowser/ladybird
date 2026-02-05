@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="flags" content="dom">
+<title>CSS Test: CSSOM View MediaQueryList extends EventTarget (interop)</title>
+<link rel="help" href="https://www.w3.org/TR/cssom-view-1/#the-mediaquerylist-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/matchMedia.js"></script>
+<div id="log"></div>
+<script>
+"use strict";
+
+test(() => {
+    const mql = window.matchMedia("all");
+
+    let receivedEvent;
+    mql.addListener(event => {
+        receivedEvent = event;
+    });
+
+    const dispatchedEvent = new Event("change");
+    mql.dispatchEvent(dispatchedEvent);
+
+    assert_equals(receivedEvent, dispatchedEvent);
+}, "dispatchEvent triggers listener added with addListener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    const listener = {
+        handleEvent() {
+            calls++;
+        },
+    };
+
+    mql.addListener(listener);
+    mql.addEventListener("change", listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1, "triggerMQLEvent");
+
+    mql.dispatchEvent(new Event("change"));
+    assert_equals(calls, 2, "dispatchEvent");
+}, "listener added with addListener and addEventListener is called once");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    const listener = () => {
+        calls++;
+    };
+
+    mql.addListener(listener);
+    mql.addEventListener("change", listener, true);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 2, "triggerMQLEvent");
+
+    mql.dispatchEvent(new Event("change"));
+    assert_equals(calls, 4, "dispatchEvent");
+}, "listener added with addListener and addEventListener (capture) is called twice");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    const listener = {
+        handleEvent() {
+            calls++;
+        },
+    };
+
+    mql.addListener(listener);
+    mql.removeEventListener("change", listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 0, "triggerMQLEvent");
+
+    mql.dispatchEvent(new Event("change"));
+    assert_equals(calls, 0, "dispatchEvent");
+}, "removeEventListener removes listener added with addListener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    const listener = () => {
+        calls++;
+    };
+
+    mql.addListener(listener);
+    mql.removeEventListener("change", listener, true);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1, "triggerMQLEvent");
+
+    mql.dispatchEvent(new Event("change"));
+    assert_equals(calls, 2, "dispatchEvent");
+}, "removeEventListener (capture) doesn't remove listener added with addListener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    const listener = {
+        handleEvent() {
+            calls++;
+        },
+    };
+
+    mql.addEventListener("change", listener);
+    mql.removeListener(listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 0, "triggerMQLEvent");
+
+    mql.dispatchEvent(new Event("change"));
+    assert_equals(calls, 0, "dispatchEvent");
+}, "removeListener removes listener added with addEventListener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    const listener = () => {
+        calls++;
+    };
+
+    mql.addEventListener("change", listener, true);
+    mql.removeListener(listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1, "triggerMQLEvent");
+
+    mql.dispatchEvent(new Event("change"));
+    assert_equals(calls, 2, "dispatchEvent");
+}, "removeListener doesn't remove listener added with addEventListener (capture)");
+
+// See:
+//   * https://github.com/whatwg/dom/issues/746
+//   * https://bugzilla.mozilla.org/show_bug.cgi?id=1492446
+//   * https://bugs.chromium.org/p/chromium/issues/detail?id=949432
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = [];
+    mql.addListener(() => {
+        calls.push("addListener");
+    });
+    mql.addEventListener("change", {
+        handleEvent() {
+            calls.push("addEventListener");
+        },
+    }, true);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_array_equals(calls, ["addEventListener", "addListener"], "triggerMQLEvent");
+
+    calls = [];
+    mql.dispatchEvent(new Event("change"));
+    assert_array_equals(calls, ["addEventListener", "addListener"], "dispatchEvent");
+}, "capturing event listener fires before non-capturing listener at target");
+</script>

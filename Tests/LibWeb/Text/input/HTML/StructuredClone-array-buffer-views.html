@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const TYPED_ARRAYS = [
+        Uint8Array,
+        Uint8ClampedArray,
+        Uint16Array,
+        Uint32Array,
+        Int8Array,
+        Int16Array,
+        Int32Array,
+        Float32Array,
+        Float64Array,
+    ];
+
+    const BIGINT_TYPED_ARRAYS = [BigUint64Array, BigInt64Array];
+
+    test(() => {
+        TYPED_ARRAYS.forEach(T => {
+            const a = new T([30, 40, 50, 60]);
+            let b = structuredClone(a)
+            if (!a.every((value, index) => value === b[index]))
+                println("FAIL")
+            println(`${b[Symbol.toStringTag]} ${b}`)
+        });
+
+        BIGINT_TYPED_ARRAYS.forEach(T => {
+            const a = new T([30n, 40n, 50n, 60n]);
+            let b = structuredClone(a)
+            if (!a.every((value, index) => value === b[index]))
+                println("FAIL")
+
+            println(`${b[Symbol.toStringTag]} ${b}`)
+        });
+
+        // Test DataView clone
+        let a = new ArrayBuffer(64);
+        for(let i = 0; i < a.byteLength; ++i) {
+            a[i] = i;
+        }
+        let view = new DataView(a);
+        let view2 = structuredClone(view);
+        if (view.buffer === view2.buffer)
+            println("FAIL: Buffer not deep copied");
+
+        for (let i = 0; i < view.byteLength; ++i) {
+            if (!view[i] === view2[i])
+                println("FAIL: Data not copied")
+        }
+        println(`${view2[Symbol.toStringTag]} ${view2}`)
+    });
+</script>

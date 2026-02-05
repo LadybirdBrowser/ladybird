@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+    <title>Listbox-related Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests <a href="https://w3c.github.io/aria/#listbox">listbox</a> and related roles.</p>
+
+<div role="listbox" data-testname="div role is listbox" data-expectedrole="listbox" class="ex">
+    <div role="option" data-testname="role is option (in div listbox)" data-expectedrole="option" class="ex">x</div>
+    <div role="group" data-testname="role is group (in div listbox)" data-expectedrole="group" class="ex">
+        <span role="option" data-testname="role is option (in group, in div listbox)" data-expectedrole="option" class="ex">x</span>
+        <span role="option">x</span>
+    </div>
+    <div role="option">x</div>
+</div>
+
+<ul role="listbox" data-testname="ul role is listbox" data-expectedrole="listbox" class="ex">
+    <li role="option" data-testname="li role is option (in ul listbox)" data-expectedrole="option" class="ex">
+        x
+    </li>
+    <li role="option">
+        x
+    </li>
+</ul>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+{
+  "-moz-meter-bar": {
+    "alias-for": "slider-fill"
+  },
+  "-moz-progress-bar": {
+    "alias-for": "slider-fill"
+  },
+  "-moz-range-progress": {
+    "alias-for": "slider-fill"
+  },
+  "-moz-range-track": {
+    "alias-for": "slider-track"
+  },
+  "-moz-range-thumb": {
+    "alias-for": "slider-thumb"
+  },
+  "-webkit-meter-bar": {
+    "alias-for": "slider-track"
+  },
+  "-webkit-progress-bar": {
+    "alias-for": "slider-track"
+  },
+  "-webkit-progress-value": {
+    "alias-for": "slider-fill"
+  },
+  "-webkit-slider-runnable-track": {
+    "alias-for": "slider-track"
+  },
+  "-webkit-slider-thumb": {
+    "alias-for": "slider-thumb"
+  },
+  "after": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after"
+  },
+  "backdrop": {
+    "spec": "https://drafts.csswg.org/css-position-4/#selectordef-backdrop"
+  },
+  "before": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before"
+  },
+  "details-content": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-details-content"
+  },
+  "file-selector-button": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-file-selector-button"
+  },
+  "first-letter": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-letter",
+    "property-whitelist": [
+      "#font-properties",
+      "color",
+      "opacity",
+      "#background-properties",
+      "#inline-typesetting-properties",
+      "#text-decoration-properties",
+      "#inline-layout-properties",
+      "#margin-properties",
+      "#padding-properties",
+      "#border-properties",
+      "box-shadow"
+    ]
+  },
+  "first-line": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-line",
+    "property-whitelist": [
+      "#font-properties",
+      "color",
+      "opacity",
+      "#background-properties",
+      "#inline-typesetting-properties",
+      "#text-decoration-properties",
+      "FIXME: ruby-position",
+      "#inline-layout-properties"
+    ]
+  },
+  "marker": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker"
+  },
+  "part": {
+    "spec": "https://drafts.csswg.org/css-shadow-1/#selectordef-part",
+    "type": "function",
+    "function-syntax": "<ident>+"
+  },
+  "placeholder": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-placeholder",
+    "property-whitelist": [
+      "#font-properties",
+      "color",
+      "opacity",
+      "#background-properties",
+      "#inline-typesetting-properties",
+      "#text-decoration-properties",
+      "FIXME: ruby-position"
+    ]
+  },
+  "selection": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-selection",
+    "property-whitelist": [
+      "color",
+      "background-color",
+      "#text-decoration-properties",
+      "text-shadow",
+      "FIXME: stroke-color",
+      "FIXME: fill-color",
+      "stroke-width",
+      "#custom-properties"
+    ]
+  },
+  "slider-fill": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-fill"
+  },
+  "slider-thumb": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-thumb"
+  },
+  "slider-track": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-track"
+  },
+  "slotted": {
+    "spec": "https://drafts.csswg.org/css-shadow-1/#slotted-pseudo",
+    "type": "function",
+    "function-syntax": "<compound-selector>"
+  },
+  "view-transition": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition",
+    "is-pseudo-root": true
+  },
+  "view-transition-group": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-group",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
+  },
+  "view-transition-image-pair": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-image-pair",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
+  },
+  "view-transition-new": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-new",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
+  },
+  "view-transition-old": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-old",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
+  }
+}

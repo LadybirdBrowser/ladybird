@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = new Text("foobar");
+
+        const range = document.createRange();
+        range.setEnd(text, 5);
+        
+        text.deleteData(5, 1);
+        text.deleteData(4, 1);
+        text.deleteData(3, 1);
+
+        println(text.data);
+    })
+</script>

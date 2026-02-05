@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<canvas id="myCanvas" width="10" height="10"></canvas>
+<script>
+    test(() => {
+        myCanvas.offsetWidth;
+        let x = myCanvas.getContext("2d");
+        x.fillStyle = 'red';
+        x.fillRect(0, 0, 10, 10);
+        myCanvas.width = 20;
+        myCanvas.height = 20;
+        x.fillStyle = 'green';
+        x.fillRect(0, 0, 20, 20);
+        let data = x.getImageData(0, 0, 20, 20);
+        println(data.data[0]);
+        println(data.data[1]);
+        println(data.data[2]);
+        println(data.data[3]);
+    });
+</script>

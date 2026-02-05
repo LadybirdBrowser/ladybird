@@ -1,0 +1,19 @@
+text-input selectionStart: 0 selectionEnd: 0 selectionDirection: none
+date-input selectionStart: null selectionEnd: null selectionDirection: null
+textarea selectionStart: 0 selectionEnd: 0 selectionDirection: none
+text-input selectionStart: 18 selectionEnd: 18 selectionDirection: none
+date input setting selectionStart error: InvalidStateError: setSelectionStart does not apply to this input type
+select event fired: 0 18
+text-input selectionStart: 0 selectionEnd: 18 selectionDirection: none
+select event fired: 2 4
+text-input selectionStart: 2 selectionEnd: 4 selectionDirection: forward
+select event fired: 1 4
+text-input selectionStart: 1 selectionEnd: 4 selectionDirection: forward
+select event fired: 1 5
+text-input selectionStart: 1 selectionEnd: 5 selectionDirection: forward
+select event fired: 6 6
+text-input selectionStart: 6 selectionEnd: 6 selectionDirection: forward
+select event fired: 6 6
+text-input selectionStart: 6 selectionEnd: 6 selectionDirection: backward
+select event fired: 6 6
+textarea selectionStart: 0 selectionEnd: 9 selectionDirection: none

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Invalidate the result for the neutral keyframe if the named lines change.

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .spacer {
+        height: 1000px;
+    }
+    .container {
+        position: relative;
+        overflow: hidden;
+        width: 200px;
+        height: 100px;
+    }
+    #target {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 50px;
+        height: 50px;
+        background: black;
+    }
+</style>
+<div class="spacer"></div>
+<div class="container">
+    <div id="target"></div>
+</div>
+<script>
+    window.scrollTo(0, 1000);
+    test(() => {
+        const target = document.getElementById("target");
+        const rect = target.getBoundingClientRect();
+        const hitNode = internals.hitTest(rect.x + 10, rect.y + 10).node;
+        println(hitNode === target);
+    });
+</script>

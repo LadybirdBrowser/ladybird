@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Getting spellcheck IDL attribute
+Pass	Setting spellcheck IDL attribute to true
+Pass	Setting spellcheck IDL attribute to false

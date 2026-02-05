@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            --bar: 10px;
+            transition: --bar 1s linear;
+        }
+    </style>
+    <div id="foo"></div>
+    <script>
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                foo.style = "--bar: 100px";
+            });
+        });
+    </script>
+</html>

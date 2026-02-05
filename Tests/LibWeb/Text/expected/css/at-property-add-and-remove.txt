@@ -1,0 +1,6 @@
+Before registering --foo, its value is: 
+After registering --foo, its value is: "42"
+After removing --foo, its value is: 
+Before adding the new sheet, --bar's value is: 
+After adding the new sheet, --bar's value is: "1337"
+After removing the new sheet, --bar's value is: 

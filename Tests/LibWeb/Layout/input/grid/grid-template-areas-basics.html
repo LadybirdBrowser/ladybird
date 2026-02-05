@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+.container {
+    display: grid;
+    background-color: lightsalmon;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+        "left right-top"
+        "left right-bottom";
+}
+
+.item {
+    background-color: lightblue;
+}
+
+.right-bottom {
+    background-color: lightpink;
+    grid-area: right-bottom / right-bottom / right-bottom / right-bottom;
+}
+
+.left {
+    background-color: lightgreen;
+    grid-area: left;
+}
+
+.right-top {
+    background-color: lightgrey;
+    grid-column-end: right-top;
+}
+</style><div class="container"><div class="item right-bottom">right-bottom</div><div class="item left">left</div><div class="item right-top">right-top</div></div>

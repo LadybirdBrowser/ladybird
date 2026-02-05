@@ -1,0 +1,16 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("harfbuzz") {
+  libs = [
+    "harfbuzz",
+    "freetype",
+    "z",
+    "bz2",
+    "png16",
+    "brotlidec",
+    "brotlicommon",
+  ]
+  if (current_os == "mac") {
+    frameworks = [ "ApplicationServices.framework" ]
+  }
+}

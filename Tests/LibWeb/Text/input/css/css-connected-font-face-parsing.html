@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        @font-face {
+            font-family: Ahem;
+            src: url("./ahem.woff");
+        }
+    </style>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            const fontFace = Array.from(document.fonts)[0];
+
+            println(fontFace.ascentOverride);
+            println(fontFace.descentOverride);
+            println(fontFace.display);
+            println(fontFace.family);
+            println(fontFace.featureSettings);
+            println(fontFace.lineGapOverride);
+            println(fontFace.stretch);
+            println(fontFace.style);
+            println(fontFace.unicodeRange);
+            println(fontFace.weight);
+        });
+    </script>
+</html>

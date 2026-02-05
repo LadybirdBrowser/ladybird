@@ -1,0 +1,12 @@
+#import <DOM/Element.idl>
+#import <DOM/HTMLCollection.idl>
+
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface HTMLAllCollection {
+    readonly attribute unsigned long length;
+    getter Element (unsigned long index);
+    getter (HTMLCollection or Element)? namedItem([FlyString] DOMString name);
+    (HTMLCollection or Element)? item(optional [FlyString] DOMString nameOrIndex);
+
+    // Note: HTMLAllCollection objects have a custom [[Call]] internal method and an [[IsHTMLDDA]] internal slot.
+};

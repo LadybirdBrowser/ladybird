@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: user-action pseudo classes in :has() argument</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<style>
+  .ancestor:has(.descendant1:hover) { color: blue }
+  .ancestor:has(.descendant1:hover) .other-descendant { color: navy }
+  .ancestor:has(.descendant1:hover:active) { color: skyblue }
+  .ancestor:has(.descendant1:hover:active) .other-descendant { color: lightblue }
+  .ancestor:has(:focus) { color: green }
+  .ancestor:has(:focus) .other-descendant { color: darkgreen }
+  .ancestor:has(.descendant2:focus-visible) { color: yellowgreen }
+  .ancestor:has(.descendant2:focus-visible) .other-descendant { color: greenyellow }
+  .ancestor:has(.descendant3:focus-within) { color: lightgreen }
+  .ancestor:has(.descendant3:focus-within) .other-descendant { color: violet }
+</style>
+<div id=subject1 class=ancestor>
+  <div>
+    <div id=unhoverme>No :hover</div>
+    <div id=hoverme class=descendant1>Hover and click me</div>
+    <div id=focusme1 tabindex=1>Focus me</div>
+    <div id=focusme2 class=descendant2 tabindex=2>Focus me</div>
+    <div class=descendant3>
+      <div><div id=focusme3 tabindex=3>Focus me</div></div>
+    </div>
+  </div>
+  <div><div id=subject3 class=other-descendant>subject</div></div>
+</div>
+<div id=subject2 class=ancestor>
+  <div id=focusme4 tabindex=4>Focus me</div>
+  <div><div id=subject4 class=other-descendant>subject</div></div>
+</div>
+<script>
+  const tab_key = '\ue004';
+
+  promise_test(async () => {
+    assert_equals(getComputedStyle(subject1).color, "rgb(0, 0, 0)", "subject1 initially black");
+    assert_equals(getComputedStyle(subject2).color, "rgb(0, 0, 0)", "subject3 initially black");
+
+    await new test_driver
+        .Actions()
+        .pointerMove(0, 0, {origin: hoverme})
+        .send();
+    assert_equals(getComputedStyle(subject1).color, "rgb(0, 0, 255)",
+                  "subject1 should be blue");
+    assert_equals(getComputedStyle(subject3).color, "rgb(0, 0, 128)",
+                  "subject3 should be navy");
+
+    await new test_driver
+        .Actions()
+        .pointerMove(0, 0, {origin: unhoverme})
+        .send();
+    assert_equals(getComputedStyle(subject1).color, "rgb(0, 0, 0)",
+                  "subject1 should be back to black");
+    assert_equals(getComputedStyle(subject3).color, "rgb(0, 0, 0)",
+                  "subject3 should be back to black");
+
+    await new test_driver
+        .Actions()
+        .pointerMove(0, 0, {origin: hoverme})
+        .pointerDown()
+        .send();
+    assert_equals(getComputedStyle(subject1).color, "rgb(135, 206, 235)",
+                  "subject1 should be skyblue");
+    assert_equals(getComputedStyle(subject3).color, "rgb(173, 216, 230)",
+                  "subject3 should be lightblue");
+
+    // Clean up `pointerDown` from above. We want to test invalidation from
+    // `:hover:active` to `:hover`, but there's no guarantee that pointer
+    // state will stay the same between actions.
+    await new test_driver
+        .Actions()
+        .pointerUp()
+        .pointerMove(0, 0, {origin: unhoverme})
+        .send();
+
+    // Perform the entire activation chain again, then perform `pointerUp`.
+    await new test_driver
+        .Actions()
+        .pointerMove(0, 0, {origin: hoverme})
+        .pointerDown()
+        .pointerUp()
+        .send();
+    assert_equals(getComputedStyle(subject1).color, "rgb(0, 0, 255)",
+                  "subject1 should be blue");
+    assert_equals(getComputedStyle(subject3).color, "rgb(0, 0, 128)",
+                  "subject3 should be navy");
+
+    await new test_driver
+        .Actions()
+        .pointerMove(0, 0, {origin: focusme1})
+        .pointerDown()
+        .pointerUp()
+        .send();
+    assert_equals(getComputedStyle(subject1).color, "rgb(0, 128, 0)",
+                  "subject1 should be green");
+    assert_equals(getComputedStyle(subject3).color, "rgb(0, 100, 0)",
+                  "subject3 should be darkgreen");
+
+    await test_driver.send_keys(document.body, tab_key);
+    assert_equals(getComputedStyle(subject1).color, "rgb(154, 205, 50)",
+                  "subject1 should be yellowgreen");
+    assert_equals(getComputedStyle(subject3).color, "rgb(173, 255, 47)",
+                  "subject3 should be greenyellow");
+
+    await test_driver.send_keys(document.body, tab_key);
+    assert_equals(getComputedStyle(subject1).color, "rgb(144, 238, 144)",
+                  "subject1 should be lightgreen");
+    assert_equals(getComputedStyle(subject3).color, "rgb(238, 130, 238)",
+                  "subject3 should be violet");
+
+    focusme3.remove();
+    assert_equals(getComputedStyle(subject1).color, "rgb(0, 0, 0)",
+                  "subject1 should be black");
+    assert_equals(getComputedStyle(subject3).color, "rgb(0, 0, 0)",
+                  "subject3 should be black");
+
+    await test_driver.send_keys(document.body, tab_key);
+    assert_equals(getComputedStyle(subject2).color, "rgb(0, 128, 0)",
+                  "subject2 should be green");
+    assert_equals(getComputedStyle(subject4).color, "rgb(0, 100, 0)",
+                  "subject4 should be darkgreen");
+
+    focusme4.remove();
+    assert_equals(getComputedStyle(subject2).color, "rgb(0, 0, 0)",
+                  "subject2 should be black");
+    assert_equals(getComputedStyle(subject4).color, "rgb(0, 0, 0)",
+                  "subject4 should be black");
+  });
+</script>

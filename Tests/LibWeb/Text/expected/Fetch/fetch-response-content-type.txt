@@ -1,0 +1,2 @@
+text/html
+text/plain

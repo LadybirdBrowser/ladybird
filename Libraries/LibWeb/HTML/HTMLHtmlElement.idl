@@ -1,0 +1,12 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmlhtmlelement
+[Exposed=Window]
+interface HTMLHtmlElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString version;
+
+};

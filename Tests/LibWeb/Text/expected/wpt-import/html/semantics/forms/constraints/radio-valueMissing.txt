@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	The required attribute is not set
+Pass	One of the radios is required, but none checked
+Pass	One of the radios is required and checked
+Pass	One of the radios is required and another one is checked
+Pass	One of the radios is required and disabled, but none checked
+Pass	One of the radios is required, checked and disabled

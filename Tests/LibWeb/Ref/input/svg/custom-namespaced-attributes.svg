@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg:svg
+    width="200"
+    height="200"
+    xmlns:svg="http://www.w3.org/2000/svg"
+    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+    inkscape:test="test"
+>
+     <link rel="match" href="../../expected/svg/custom-namespaced-attributes-ref.svg" />
+     <svg:circle cx="100" cy="100" r="50" fill="#ff0000"/>
+</svg:svg>

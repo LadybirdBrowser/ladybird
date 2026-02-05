@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tests parsing of calc() expressions via CSSStyleValue.parse()</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om/#reify-a-math-expression">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-typed-om/resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+test(t => {
+  assert_style_value_equals(CSSStyleValue.parse('width', 'calc(1% + 2em + 3px)'),  new CSSMathSum(CSS.percent(1), CSS.em(2), CSS.px(3)));
+}, 'Parsing calc(1% + 2em + 3px)');
+
+test(t => {
+  assert_style_value_equals(CSSStyleValue.parse('width', 'calc(1px + 2% + 3em)'),  new CSSMathSum(CSS.px(1), CSS.percent(2), CSS.em(3)));
+}, 'Parsing calc(1px + 2% + 3em)');
+</script>
+</body>

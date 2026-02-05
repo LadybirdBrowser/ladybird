@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        function ic(o) {
+            return o.foo
+        }
+
+        window.foo = 123
+        println(ic(window))
+        delete window.foo
+        println(ic(window))
+    });
+</script>

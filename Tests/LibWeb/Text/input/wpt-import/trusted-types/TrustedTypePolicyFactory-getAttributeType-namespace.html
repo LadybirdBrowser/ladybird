@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+// Tests for getAttributeType with namespaces, based on
+// https://crbug.com/1305293 (attachment on comment 0).
+
+const parser = new DOMParser();
+[
+  parser.parseFromString(
+    '<!doctype html><html><head><script src="./foo.js"><'+'/script></head></html>',
+    'text/html'),
+  parser.parseFromString(
+    '<html xmlns="http://www.w3.org/1999/xhtml"><head><script src="./foo.js" /></head></html>',
+    'application/xhtml+xml'),
+  parser.parseFromString(
+  '<xml xmlns:html="http://www.w3.org/1999/xhtml"><html:script src="./foo.js" /></xml>',
+  'application/xml')
+].forEach((doc, index) => {
+  const element = doc.getElementsByTagNameNS("http://www.w3.org/1999/xhtml", 'script')[0];
+  const attribute = element.getAttributeNode("src");
+
+  test(_ => {
+    assert_equals(trustedTypes.getAttributeType(
+      element.localName, attribute.name, element.namespaceURI, attribute.namespaceURI),
+      "TrustedScriptURL");
+  }, `${index}: getAttributeType with full namespace info.`);
+
+  test(_ => {
+    assert_equals(trustedTypes.getAttributeType(
+      element.localName, attribute.name, element.namespaceURI, undefined),
+      "TrustedScriptURL");
+  },`${index}: getAttributeType with element namespace and empty attribute namespace`);
+
+  test(_ => {
+    assert_equals(trustedTypes.getAttributeType(
+        element.localName, attribute.name, undefined, undefined), "TrustedScriptURL");
+  }, `${index}: getAttributeType without namespaces.`);
+
+  test(_ => {
+    assert_equals(trustedTypes.getAttributeType(
+        element.localName, attribute.name, undefined, ""), "TrustedScriptURL");
+  }, `${index}: getAttributeType with undefined and empty namespace.`);
+
+  test(_ => {
+    assert_equals(trustedTypes.getAttributeType(
+      element.localName, attribute.name, "", undefined), "TrustedScriptURL");
+  }, `${index}: getAttributeType with empty and undefined namespace.`);
+
+  test(_ => {
+    assert_equals(trustedTypes.getAttributeType(
+        element.localName, attribute.name, "", ""), "TrustedScriptURL");
+  }, `${index}: getAttributeType with empty namespaces.`);
+
+  test(_ => {
+    assert_equals(trustedTypes.getAttributeType(
+        element.localName, attribute.name, element.namespaceURI, ""), "TrustedScriptURL");
+  }, `${index}: getAttributeType with element namespace and empty attribute namespace.`);
+});
+</script>
+</body>

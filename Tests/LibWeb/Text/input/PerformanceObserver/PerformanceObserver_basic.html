@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const bufferedMessages = [];
+    function printlnBuffered(message) {
+        bufferedMessages.push(message);
+    }
+
+    function synchronousWaitMicroseconds(microseconds) {
+        var start = performance.now() * 1000,
+            now = start;
+        while (now - start < microseconds) {
+            now = performance.now() * 1000;
+        }
+    }
+
+    const globalObserver = new PerformanceObserver((list, observer) => {
+        printlnBuffered(`observer === globalObserver: ${observer === globalObserver}`);
+        printlnBuffered(
+            `list instanceof PerformanceObserverEntryList: ${
+                list instanceof PerformanceObserverEntryList
+            }`
+        );
+
+        const allEntries = list.getEntries();
+        printlnBuffered(`allEntries instanceof Array: ${allEntries instanceof Array}`);
+        printlnBuffered(`allEntries.length === 3: ${allEntries.length === 3}`);
+        printlnBuffered(`allEntries[0] === startMark: ${allEntries[0] === startMark}`);
+        printlnBuffered(`allEntries[1] === measureMark: ${allEntries[1] === measureMark}`);
+        printlnBuffered(`allEntries[2] === endMark: ${allEntries[2] === endMark}`);
+
+        const markEntries = list.getEntriesByType("mark");
+        printlnBuffered(`markEntries instanceof Array: ${markEntries instanceof Array}`);
+        printlnBuffered(`markEntries.length === 2: ${markEntries.length === 2}`);
+        printlnBuffered(`markEntries[0] === startMark: ${markEntries[0] === startMark}`);
+        printlnBuffered(`markEntries[1] === endMark: ${markEntries[1] === endMark}`);
+
+        const measureEntries = list.getEntriesByType("measure");
+        printlnBuffered(`measureEntries instanceof Array: ${measureEntries instanceof Array}`);
+        printlnBuffered(`measureEntries.length === 1: ${measureEntries.length === 1}`);
+        printlnBuffered(`measureEntries[0] === measureMark: ${measureEntries[0] === measureMark}`);
+
+        const startEntries = list.getEntriesByName("start");
+        printlnBuffered(`startEntries instanceof Array: ${startEntries instanceof Array}`);
+        printlnBuffered(`startEntries.length === 1: ${startEntries.length === 1}`);
+        printlnBuffered(`startEntries[0] === startMark: ${startEntries[0] === startMark}`);
+
+        const endEntries = list.getEntriesByName("end");
+        printlnBuffered(`endEntries instanceof Array: ${endEntries instanceof Array}`);
+        printlnBuffered(`endEntries.length === 1: ${endEntries.length === 1}`);
+        printlnBuffered(`endEntries[0] === endMark: ${endEntries[0] === endMark}`);
+
+        const measureEntriesByName = list.getEntriesByName("measure");
+        printlnBuffered(
+            `measureEntriesByName instanceof Array: ${measureEntriesByName instanceof Array}`
+        );
+        printlnBuffered(`measureEntriesByName.length === 1: ${measureEntriesByName.length === 1}`);
+        printlnBuffered(
+            `measureEntriesByName[0] === measureMark: ${measureEntriesByName[0] === measureMark}`
+        );
+    });
+    globalObserver.observe({ entryTypes: ["measure", "mark"] });
+
+    const startMark = performance.mark("start");
+    // The resolution of the clock used by the Performance interface is 100 microseconds, so we wait twice that time
+    // between calls to ensure they are ordered as we expect.
+    synchronousWaitMicroseconds(200);
+    const endMark = performance.mark("end");
+    synchronousWaitMicroseconds(200);
+    const measureMark = performance.measure("measure", "start", "end");
+
+    function printCatchedException(func) {
+        try {
+            func();
+        } catch (e) {
+            if (e instanceof DOMException) {
+                printlnBuffered(`${e.name}: ${e.message}`);
+            } else {
+                printlnBuffered(e.toString());
+            }
+        }
+    }
+
+    printCatchedException(() => {
+        globalObserver.observe();
+    });
+
+    printCatchedException(() => {
+        globalObserver.observe({ entryTypes: [], buffered: true });
+    });
+
+    printCatchedException(() => {
+        globalObserver.observe({ entryTypes: [], type: "" });
+    });
+
+    printCatchedException(() => {
+        globalObserver.observe({ type: "" });
+    });
+
+    test(() => {
+        for (const message of bufferedMessages) {
+            println(message);
+        }
+
+        globalObserver.disconnect();
+        performance.mark("bad");
+        performance.measure("badmeasure", "end", "bad");
+        const records = globalObserver.takeRecords();
+        println(`records.length === 0: ${records.length === 0}`);
+    });
+</script>

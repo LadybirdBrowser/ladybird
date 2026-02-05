@@ -1,0 +1,45 @@
+#import <HTML/HTMLElement.idl>
+#import <HTML/HTMLFormElement.idl>
+#import <HTML/ValidityState.idl>
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#htmltextareaelement
+[Exposed=Window]
+interface HTMLTextAreaElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    [CEReactions] attribute DOMString autocomplete;
+    [CEReactions] attribute unsigned long cols;
+    [CEReactions, Reflect=dirname] attribute DOMString dirName;
+    [CEReactions, Reflect] attribute boolean disabled;
+    readonly attribute HTMLFormElement? form;
+    [CEReactions] attribute long maxLength;
+    [CEReactions] attribute long minLength;
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute DOMString placeholder;
+    [CEReactions, Reflect=readonly] attribute boolean readOnly;
+    [CEReactions, Reflect] attribute boolean required;
+    [CEReactions] attribute unsigned long rows;
+    [CEReactions, Reflect] attribute DOMString wrap;
+
+    readonly attribute DOMString type;
+    [CEReactions] attribute Utf16DOMString defaultValue;
+    [LegacyNullToEmptyString] attribute Utf16DOMString value;
+    readonly attribute unsigned long textLength;
+
+    readonly attribute boolean willValidate;
+    readonly attribute ValidityState validity;
+    readonly attribute Utf16DOMString validationMessage;
+    boolean checkValidity();
+    boolean reportValidity();
+    undefined setCustomValidity(DOMString error);
+
+    readonly attribute NodeList labels;
+
+    undefined select();
+    [ImplementedAs=selection_start_binding] attribute unsigned long selectionStart;
+    [ImplementedAs=selection_end_binding] attribute unsigned long selectionEnd;
+    [ImplementedAs=selection_direction_binding] attribute DOMString selectionDirection;
+    [ImplementedAs=set_range_text_binding] undefined setRangeText(Utf16DOMString replacement);
+    [ImplementedAs=set_range_text_binding] undefined setRangeText(Utf16DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
+    undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
+};

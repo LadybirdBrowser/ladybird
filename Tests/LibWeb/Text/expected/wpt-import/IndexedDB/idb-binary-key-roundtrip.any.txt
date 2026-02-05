@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Binary keys can be supplied using the view type Uint8Array
+Pass	Binary keys can be supplied using the view type Uint8ClampedArray
+Pass	Binary keys can be supplied using the view type Int8Array
+Pass	Binary keys can be supplied using the view type Uint16Array
+Pass	Binary keys can be supplied using the view type Int16Array
+Pass	Binary keys can be supplied using the view type Uint32Array
+Pass	Binary keys can be supplied using the view type Int32Array
+Pass	Binary keys can be supplied using the view type Float16Array
+Pass	Binary keys can be supplied using the view type Float32Array
+Pass	Binary keys can be supplied using the view type Float64Array
+Pass	ArrayBuffer can be used to supply a binary key
+Pass	DataView can be used to supply a binary key
+Pass	DataView with explicit offset can be used to supply a binary key
+Pass	DataView with explicit offset and length can be used to supply a binary key
+Pass	Uint8Array with explicit offset can be used to supply a binary key
+Pass	Uint8Array with explicit offset and length can be used to supply a binary key

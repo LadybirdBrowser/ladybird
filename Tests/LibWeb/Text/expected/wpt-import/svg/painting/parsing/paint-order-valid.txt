@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	e.style['paint-order'] = "normal" should set the property value
+Pass	e.style['paint-order'] = "fill" should set the property value
+Pass	e.style['paint-order'] = "stroke" should set the property value
+Pass	e.style['paint-order'] = "markers" should set the property value
+Pass	e.style['paint-order'] = "fill stroke" should set the property value
+Pass	e.style['paint-order'] = "fill markers" should set the property value
+Pass	e.style['paint-order'] = "stroke fill" should set the property value
+Pass	e.style['paint-order'] = "stroke markers" should set the property value
+Pass	e.style['paint-order'] = "markers fill" should set the property value
+Pass	e.style['paint-order'] = "markers stroke" should set the property value
+Pass	e.style['paint-order'] = "fill stroke markers" should set the property value
+Pass	e.style['paint-order'] = "fill markers stroke" should set the property value
+Pass	e.style['paint-order'] = "stroke fill markers" should set the property value
+Pass	e.style['paint-order'] = "stroke markers fill" should set the property value
+Pass	e.style['paint-order'] = "markers fill stroke" should set the property value
+Pass	e.style['paint-order'] = "markers stroke fill" should set the property value

@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap.has tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#check-if-stylepropertymap-has-a-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t);
+  assert_throws_js(TypeError, () => styleMap.has('lemon'));
+}, 'Calling StylePropertyMap.has with an unsupported property throws a TypeError');
+
+const gTestCases = [
+  { property: 'height', expected: false, desc: 'a property not in the property model' },
+  { property: '--Foo', expected: false, desc: 'a custom property not in the property model' },
+  { property: 'width', expected: true, desc: 'a valid property' },
+  { property: 'wIdTh', expected: true, desc: 'a valid property in mixed case' },
+  { property: 'margin', expected: true, desc: 'a valid shorthand specified explicitly' },
+  { property: 'padding', expected: false, desc: 'a valid shorthand only partially specified' },
+  { property: '--foo', expected: true, desc: 'a valid custom property' },
+  { property: 'transition-duration', expected: true, desc: 'a valid list-valued property' },
+];
+
+for (const {property, expected, desc} of gTestCases) {
+  test(t => {
+    const styleMap = createDeclaredStyleMap(t,
+      'width: 10px; --foo: auto; transition-duration: 1s, 2s; margin: 1px 2px 3px 4px; padding-left: 1px');
+    assert_equals(styleMap.has(property), expected);
+  }, 'Calling StylePropertyMap.has with ' + desc + ' returns ' + expected);
+}
+
+</script>

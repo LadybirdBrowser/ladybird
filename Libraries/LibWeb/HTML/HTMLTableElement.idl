@@ -1,0 +1,44 @@
+#import <HTML/HTMLElement.idl>
+#import <HTML/HTMLTableCaptionElement.idl>
+#import <HTML/HTMLTableRowElement.idl>
+#import <HTML/HTMLTableSectionElement.idl>
+#import <DOM/HTMLCollection.idl>
+
+// https://html.spec.whatwg.org/multipage/tables.html#htmltableelement
+[Exposed=Window]
+interface HTMLTableElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions] attribute HTMLTableCaptionElement? caption;
+    HTMLTableCaptionElement createCaption();
+    [CEReactions] undefined deleteCaption();
+
+    [CEReactions] attribute HTMLTableSectionElement? tHead;
+    HTMLTableSectionElement createTHead();
+    [CEReactions] undefined deleteTHead();
+
+    [CEReactions] attribute HTMLTableSectionElement? tFoot;
+    HTMLTableSectionElement createTFoot();
+    [CEReactions] undefined deleteTFoot();
+
+    [SameObject] readonly attribute HTMLCollection tBodies;
+    HTMLTableSectionElement createTBody();
+
+    [SameObject] readonly attribute HTMLCollection rows;
+    HTMLTableRowElement insertRow(optional long index = -1);
+    [CEReactions] undefined deleteRow(long index);
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect] attribute DOMString border;
+    [CEReactions, Reflect] attribute DOMString frame;
+    [CEReactions, Reflect] attribute DOMString rules;
+    [CEReactions, Reflect] attribute DOMString summary;
+    [CEReactions, Reflect] attribute DOMString width;
+
+    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute DOMString bgColor;
+    [CEReactions, LegacyNullToEmptyString, Reflect=cellpadding] attribute DOMString cellPadding;
+    [CEReactions, LegacyNullToEmptyString, Reflect=cellspacing] attribute DOMString cellSpacing;
+
+};

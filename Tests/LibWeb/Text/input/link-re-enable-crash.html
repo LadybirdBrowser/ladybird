@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    var scriptOnloadWasInvoked = false;
+</script>
+<link id="link" rel="stylesheet" href="valid.css" onload="link.disabled = true; link.disabled = false;">
+<script>
+    test(() => {
+        println("PASS (didn't crash)");
+    });
+</script>

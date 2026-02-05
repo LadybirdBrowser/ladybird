@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Compare constructors
+        testPart(() => WebKitCSSMatrix === DOMMatrix);
+
+        // 2. Use alias constructor
+        testPart(() => new WebKitCSSMatrix());
+
+        // 3. Check alias constructor
+        testPart(() => {
+            const m = new WebKitCSSMatrix();
+            return m.constructor === DOMMatrix;
+        });
+
+        // 4. Check constructor for alias
+        testPart(() => {
+            const m = new DOMMatrix();
+            return m.constructor === WebKitCSSMatrix;
+        });
+
+        // 5. Stringify alias constructor
+        testPart(() => {
+            const m = new WebKitCSSMatrix();
+            return {}.toString.call(m);
+        });
+    });
+</script>

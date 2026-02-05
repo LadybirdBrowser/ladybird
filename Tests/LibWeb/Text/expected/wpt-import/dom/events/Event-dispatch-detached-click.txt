@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Click event on an element not in the document
+Pass	Click event can be dispatched to an element that is not in the document.

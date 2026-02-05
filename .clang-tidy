@@ -1,0 +1,57 @@
+---
+# Globally Disabled checks:
+#
+# bugprone-easily-swappable-parameters: This warning is loud with no clear advice on how to fix the potential problem
+# FIXME: bugprone-macro-parentheses: Enable with clang-tidy-14 when NOLINTBEGIN/NOLINTEND are available for code generating macros
+# bugprone-reserved-identifier: LibC headers that show up in the header filter are part of "the implementation"
+#   cert-dcl37-c: Alias for bugprone-reserved-identifier
+#   cert-dcl51-cpp: Alias for bugprone-reserved-identifier
+# cert-dcl21-cpp: No reference to this rule exists on Carnegie Mellon's SEI CERT C++ Confluence. And the suggestion is unusual
+# misc-no-recursion: The project uses recursive algorithms in several places.
+# misc-include-cleaner: This check is nice for cleanliness, but is very very noisy
+# FIXME: misc-non-private-member-variables-in-classes: Audit uses of protected member variables to see if they really need to be protected
+# performance-noexcept-move-constructor: The project does not use exceptions, so there are no such optimizations available
+# performance-no-int-to-ptr: This rule flags every pointer to integer cast, which gets quite noisy. Should only be enabled on a case-by-case basis
+# readability-braces-around-statements: Redundant braces around single-line conditions is against project style
+# readability-function-cognitive-complexity: Most regular contributors seem to turn this one off anyway. Violations are hard to fix as well
+# readability-magic-numbers: This check is very noisy in the codebase, especially in AK.
+# readability-named-parameter: We frequently omit parameter names to work around -Wunused-parameter
+# FIXME: readability-uppercase-literal-suffix: Enable this check, the rationale is solid but the findings are numerous
+#
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  misc-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-macro-parentheses,
+  -bugprone-reserved-identifier,-cert-dcl37-c,-cert-dcl51-cpp,
+  -cert-dcl21-cpp,
+  -misc-const-correctness,
+  -misc-include-cleaner,
+  -misc-no-recursion,
+  -misc-non-private-member-variables-in-classes,
+  -misc-use-anonymous-namespace,
+  -performance-noexcept-move-constructor,
+  -performance-no-int-to-ptr,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-uppercase-literal-suffix,
+  -readability-use-anyofallof,
+  -readability-implicit-bool-conversion,
+WarningsAsErrors: ''
+HeaderFilterRegex: 'AK|Libraries|Services|Tests|Utilities'
+FormatStyle: none
+CheckOptions:
+  - key: bugprone-dangling-handle.HandleClasses
+    value: 'AK::StringView;AK::Span'
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: true

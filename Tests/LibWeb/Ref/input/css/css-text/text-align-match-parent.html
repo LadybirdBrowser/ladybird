@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../../../expected/css/css-text/text-align-match-parent-ref.html" />
+<style>
+     .outer-start { text-align: start; }
+     .outer-end { text-align: end; }
+     .outer-center { text-align: center; }
+     .ltr { direction: ltr; }
+     .rtl { direction: rtl; }
+     .inner { text-align: match-parent; }
+</style>
+</head>
+<body>
+<div class="outer-start ltr">
+     <div class="inner ltr">Left</div>
+     <div class="inner rtl">Left</div>
+</div>
+<div class="outer-center ltr">
+     <div class="inner ltr">Center</div>
+     <div class="inner rtl">Center</div>
+</div>
+<div class="outer-end ltr">
+     <div class="inner ltr">Right</div>
+     <div class="inner rtl">Right</div>
+</div>
+<div class="outer-start rtl">
+     <div class="inner ltr">Right</div>
+     <div class="inner rtl">Right</div>
+</div>
+<div class="outer-center rtl">
+     <div class="inner ltr">Center</div>
+     <div class="inner rtl">Center</div>
+</div>
+<div class="outer-end rtl">
+     <div class="inner ltr">Left</div>
+     <div class="inner rtl">Left</div>
+</div>
+</body>

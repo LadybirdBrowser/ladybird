@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors: The negation pseudo-class</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-3/#negation">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  test_valid_selector('button:not([disabled])');
+  test_valid_selector('*:not(foo)',
+      ['*:not(foo)', ':not(foo)']);
+  test_valid_selector(':not(:link):not(:visited)');
+  test_valid_selector('*|*:not(*)', ':not(*)');
+  test_valid_selector(':not(:hover)');
+  test_valid_selector(':not(*|*)', ':not(*)');
+  test_valid_selector('foo:not(bar)');
+  test_valid_selector(':not(:not(foo))');
+  test_valid_selector(':not(.a .b)');
+  test_valid_selector(':not(.a + .b)');
+  test_valid_selector(':not(.a .b ~ c)');
+  test_valid_selector(':not(span.a, div.b)');
+  test_valid_selector(':not(.a .b ~ c, .d .e)');
+  test_valid_selector(':not(:host)');
+  test_valid_selector(':not(:host(.a))');
+  test_valid_selector(':host(:not(.a))');
+  test_valid_selector(':not(:host(:not(.a)))');
+  test_valid_selector(':not([disabled][selected])', ':not([disabled][selected])');
+  test_valid_selector(':not([disabled],[selected])', ':not([disabled], [selected])');
+
+  test_invalid_selector(':not()');
+  test_invalid_selector(':not(:not())');
+  test_invalid_selector(':not(::before)');
+  test_invalid_selector(':not(:unknownpseudo)');
+  test_invalid_selector(':not(.a, :unknownpseudo)');
+  test_invalid_selector(':not(:unknownpseudo, .a)');
+  test_invalid_selector(':host(:not(.a .b))');
+</script>

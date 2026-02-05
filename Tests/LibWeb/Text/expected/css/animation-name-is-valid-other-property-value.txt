@@ -1,0 +1,4 @@
+#timing-function { animation: ease eAsE-In-OuT; }
+#direction { animation: normal rEvErSe; }
+#fill-mode { animation: none fOrWaRdS; }
+#running-state { animation: running pAuSeD; }

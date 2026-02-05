@@ -1,0 +1,14 @@
+#import <UIEvents/MouseEvent.idl>
+#import <HTML/DataTransfer.idl>
+
+// https://html.spec.whatwg.org/multipage/dnd.html#the-dragevent-interface
+[Exposed=Window]
+interface DragEvent : MouseEvent {
+    constructor(DOMString type, optional DragEventInit eventInitDict = {});
+
+    readonly attribute DataTransfer? dataTransfer;
+};
+
+dictionary DragEventInit : MouseEventInit {
+    DataTransfer? dataTransfer = null;
+};

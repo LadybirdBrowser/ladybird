@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    #disjoint-trim-values {
+        white-space: discard-inner preserve discard-after;
+    }
+
+    #duplicate-trim-values {
+        white-space: discard-inner discard-inner;
+    }
+
+    #collapse-values-after-trim {
+        white-space: discard-inner preserve;
+    }
+</style>
+<div id="disjoint-trim-values"></div>
+<div id="duplicate-trim-values"></div>
+<div id="collapse-values-after-trim"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("disjoint-trim-values")).whiteSpace);
+        println(getComputedStyle(document.getElementById("duplicate-trim-values")).whiteSpace);
+        println(getComputedStyle(document.getElementById("collapse-values-after-trim")).whiteSpace);
+    });
+</script>

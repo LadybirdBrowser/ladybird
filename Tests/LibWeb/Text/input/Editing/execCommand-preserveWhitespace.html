@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div contenteditable>foo<div style="white-space: pre">bar</div></div>
+<script>
+test(() => {
+    var divElm = document.querySelector('div');
+    println(`Before: ${divElm.innerHTML}`);
+
+    // Put cursor before 'bar'
+    var range = document.createRange();
+    range.setStart(divElm.childNodes[1].childNodes[0], 0);
+    getSelection().addRange(range);
+
+    // Press backspace
+    document.execCommand('delete');
+
+    println(`After: ${divElm.innerHTML}`);
+});
+</script>

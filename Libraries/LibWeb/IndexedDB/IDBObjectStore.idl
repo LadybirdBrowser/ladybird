@@ -1,0 +1,39 @@
+#import <IndexedDB/IDBRequest.idl>
+#import <IndexedDB/IDBIndex.idl>
+#import <IndexedDB/IDBCursor.idl>
+
+[Exposed=(Window,Worker)]
+interface IDBObjectStore {
+    attribute DOMString name;
+    readonly attribute any keyPath;
+    readonly attribute DOMStringList indexNames;
+    [SameObject] readonly attribute IDBTransaction transaction;
+    readonly attribute boolean autoIncrement;
+    
+    [NewObject] IDBRequest put(any value, optional any key);
+    [NewObject] IDBRequest add(any value, optional any key);
+    [NewObject] IDBRequest delete(any query);
+    [NewObject] IDBRequest clear();
+    [NewObject] IDBRequest get(any query);
+    [NewObject] IDBRequest getKey(any query);
+    [NewObject] IDBRequest getAll(optional any query, optional [EnforceRange] unsigned long count);
+    [NewObject] IDBRequest getAllKeys(optional any query, optional [EnforceRange] unsigned long count);
+    [NewObject] IDBRequest getAllRecords(optional IDBGetAllOptions options = {});
+    [NewObject] IDBRequest count(optional any query);
+    [NewObject] IDBRequest openCursor(optional any query, optional IDBCursorDirection direction = "next");
+    [NewObject] IDBRequest openKeyCursor(optional any query, optional IDBCursorDirection direction = "next");
+    IDBIndex index(DOMString name);
+    [NewObject] IDBIndex createIndex(DOMString name, (DOMString or sequence<DOMString>) keyPath, optional IDBIndexParameters options = {});
+    undefined deleteIndex(DOMString name);
+};
+
+dictionary IDBIndexParameters {
+    boolean unique = false;
+    boolean multiEntry = false;
+};
+
+dictionary IDBGetAllOptions {
+    any query = null;
+    [EnforceRange] unsigned long count;
+    IDBCursorDirection direction = "next";
+};

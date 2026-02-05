@@ -1,0 +1,33 @@
+<!doctype html>
+<style>
+    .outer {
+        height: 100px;
+    }
+    .inner {
+        display: inline-block;
+    }
+    .inner::before {
+        content: "Hi";
+        background-color: red;
+    }
+    .outer:hover .inner::before {
+        content: "Long text";
+        background-color: lime;
+    }
+</style>
+<script src="../include.js"></script>
+<div class="outer"><div class="inner"></div></div>
+<script>
+    test(() => {
+        const inner = document.querySelector('.inner');
+        println('Not hovering: ' + inner.clientWidth);
+
+        // Move mouse over .outer
+        internals.movePointerTo(80, 80);
+        println('Hovering: ' + inner.clientWidth);
+
+        // Move mouse away again
+        internals.movePointerTo(200, 200);
+        println('Not hovering: ' + inner.clientWidth);
+    });
+</script>

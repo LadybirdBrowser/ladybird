@@ -1,0 +1,24 @@
+#import <HTML/HTMLElement.idl>
+
+[MissingValueDefault=auto, InvalidValueDefault=auto]
+enum ClosedByAttribute {
+    "any",
+    "closerequest",
+    "none"
+};
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmldialogelement
+[Exposed=Window]
+interface HTMLDialogElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute boolean open;
+    attribute DOMString returnValue;
+    [CEReactions, Reflect=closedby, Enumerated=ClosedByAttribute] attribute DOMString closedBy;
+    [CEReactions] undefined show();
+    [CEReactions] undefined showModal();
+    [CEReactions] undefined close(optional DOMString returnValue);
+    [CEReactions] undefined requestClose(optional DOMString returnValue);
+
+};

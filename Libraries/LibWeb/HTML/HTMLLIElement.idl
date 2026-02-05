@@ -1,0 +1,14 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/grouping-content.html#htmllielement
+[Exposed=Window]
+interface HTMLLIElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions] attribute long value;
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString type;
+
+};

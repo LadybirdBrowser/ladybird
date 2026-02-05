@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.validity.rangeOverflow</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-validitystate-rangeoverflow">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<script>
+  var testElements = [
+    {
+      tag: "input",
+      types: ["datetime-local"],
+      testData: [
+        {conditions: {max: "", value: "2000-01-01T12:00:00"}, expected: false, name: "[target] The max attribute is not set"},
+        {conditions: {max: "2000-01-01T12:00:00", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {max: "2000-01-01  12:00:00", value: "2001-01-01T12:00:00"}, expected: false, name: "[target] The max attribute is an invalid local date time string"},
+        {conditions: {max: "2000-01-01T12:00:00", value: "2000-01-01T11:00:00"}, expected: false, name: "[target] The max attribute is greater than the value attribute"},
+        {conditions: {max: "2000-01-01T23:59:59", value: "2001-01-01T24:00:00"}, expected: false, name: "[target] The value is an invalid local date time string(hour is greater than 23)"},
+        {conditions: {max: "1970-01-01T12:00", value: "80-01-01T12:00"}, expected: false, name: "[target] The value if an invalid local date time string(year is two digits)"},
+        {conditions: {max: "2000-01-01T12:00:00", value: "2001-01-01T13:00:00"}, expected: true, name: "[target] The value is greater than max"},
+        {conditions: {max: "2000-01-01T12:00:00.1", value: "2000-01-01T12:00:00.2"}, expected: true, name: "[target] The value is greater than max(with millisecond in 1 digit)"},
+        {conditions: {max: "2000-01-01T12:00:00.01", value: "2000-01-01T12:00:00.02"}, expected: true, name: "[target] The value is greater than max(with millisecond in 2 digits)"},
+        {conditions: {max: "2000-01-01T12:00:00.001", value: "2000-01-01T12:00:00.002"}, expected: true, name: "[target] The value is greater than max(with millisecond in 3 digits)"},
+        {conditions: {max: "2000-01-01T12:00:00", value: "10000-01-01T12:00:00"}, expected: true, name: "[target] The value is greater than max(Year is 10000 should be valid)"},
+      ]
+    },
+    {
+      tag: "input",
+      types: ["date"],
+      testData: [
+        {conditions: {max: "", value: "2000-01-01"}, expected: false, name: "[target] The max attribute is not set"},
+        {conditions: {max: "2000-01-01", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {max: "2000/01/01", value: "2002-01-01"}, expected: false, name: "[target] The max attribute is an invalid date"},
+        {conditions: {max: "2000-01-01", value: "2000-2-2"}, expected: false, name: "[target] The value attribute is an invalid date"},
+        {conditions: {max: "987-01-01", value: "988-01-01"}, expected: false, name: "[target] The value is an invalid date(year is three digits)"},
+        {conditions: {max: "2000-01-01", value: "2000-13-01"}, expected: false, name: "[target] The value is an invalid date(month is greater than 12)"},
+        {conditions: {max: "2000-01-01", value: "2000-02-30"}, expected: false, name: "[target] The value is an invalid date(date is greater than 29 for Feb)"},
+        {conditions: {max: "2000-12-01", value: "2000-01-01"}, expected: false, name: "[target] The max attribute is greater than value attribute"},
+        {conditions: {max: "2000-12-01", value: "2001-01-01"}, expected: true, name: "[target] The value attribute is greater than max attribute"},
+        {conditions: {max: "9999-01-01", value: "10000-01-01"}, expected: true, name: "[target] The value attribute is greater than max attribute(Year is 10000 should be valid)"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["time"],
+      testData: [
+        {conditions: {max: "", value: "12:00:00"}, expected: false, name: "[target] The max attribute is not set"},
+        {conditions: {max: "12:00:00", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {max: "12.00.00", value: "12:00:01"}, expected: false, name: "[target] The max attribute is an invalid time string"},
+        {conditions: {max: "12:00:00", value: "12.00.01"}, expected: false, name: "[target] The value attribute is an invalid time string"},
+        {conditions: {max: "23:59:59", value: "24:00:00"}, expected: false, name: "[target] The value attribute is an invalid time string(hour is greater than 23)"},
+        {conditions: {max: "23:59:59", value: "23:60:00"}, expected: false, name: "[target] The value attribute is an invalid time string(minute is greater than 59)"},
+        {conditions: {max: "23:59:59", value: "23:59:60"}, expected: false, name: "[target] The value attribute is an invalid time string(second is greater than 59)"},
+        {conditions: {max: "13:00:00", value: "12:00:00"}, expected: false, name: "[target] The max attribute is greater than value attribute"},
+        {conditions: {max: "12:00:00", value: "13"}, expected: false, name: "[target] The time missing second and minute parts is invalid"},
+        {conditions: {max: "12:00:00", value: "12:00:02"}, expected: true, name: "[target] The value attribute is greater than max attribute"},
+        {conditions: {max: "12:00:00.1", value: "12:00:00.2"}, expected: true, name: "[target] The value is greater than max(with millisecond in 1 digit)"},
+        {conditions: {max: "12:00:00.01", value: "12:00:00.02"}, expected: true, name: "[target] The value is greater than max(with millisecond in 2 digit)"},
+        {conditions: {max: "12:00:00.001", value: "12:00:00.002"}, expected: true, name: "[target] The value is greater than max(with millisecond in 3 digit)"},
+        {conditions: {max: "12:00:00", value: "12:01"}, expected: true, name: "[target] The time missing second part is valid"},
+        {conditions: {max: "12:00:00", min: "14:00:00", value: "12:00:00"}, expected: false, name: "[target] The time is max for reversed range"},
+        {conditions: {max: "12:00:00", min: "14:00:00", value: "13:00:00"}, expected: true, name: "[target] The time is outside the accepted range for reversed range"},
+        {conditions: {max: "12:00:00", min: "14:00:00", value: "14:00:00"}, expected: false, name: "[target] The time is min for reversed range"},
+        {conditions: {max: "12:00:00", min: "14:00:00", value: "15:00:00"}, expected: false, name: "[target] The time is inside the accepted range for reversed range"},
+      ]
+    },
+    {
+      tag: "input",
+      types: ["number"],
+      testData: [
+        {conditions: {max: "", value: "10"}, expected: false, name: "[target] The max attribute is not set"},
+        {conditions: {max: "5", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {max: "5", value: "4"}, expected: false, name: "[target] The max is greater than value(integer)"},
+        {conditions: {max: "-5.5", value: "-5.6"}, expected: false, name: "[target] The max is greater than value(floating number)"},
+        {conditions: {max: "-0", value: "0"}, expected: false, name: "[target] The max equals to value"},
+        {conditions: {max: "5", value: "1abc"}, expected: false, name: "[target] The value is not a number"},
+        {conditions: {max: "5", value: "6"}, expected: true, name: "[target] The value is greater than max(integer)"},
+        {conditions: {max: "-5.5", value: "-5.4"}, expected: true, name: "[target] The value is greater than max(floating number)"},
+        {conditions: {max: "-1", value: "-.8"}, expected: true, name: "[target] The value is greater than max(special floating number)"},
+        {conditions: {max: "-5e-1", value: "5e+2"}, expected: true, name: "[target] The value is greater than max(scientific notation)"},
+      ]
+    }
+   ];
+
+  validator.run_test(testElements, "rangeOverflow");
+</script>

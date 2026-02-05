@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSMatrixComponent tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmatrixcomponent-cssmatrixcomponent">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script src="../resources/comparisons.js"></script>
+<script>
+'use strict';
+
+const EPSILON = 1e-6;
+
+const gTestMatrices = [
+  {
+    matrix: new DOMMatrix([0, -1, 3.14, -3.14, 10, 0]),
+    desc: 'a 2D matrix'
+  },
+  {
+    matrix: new DOMMatrix([1.1, 1.2, -13, -1.4, 2, 0, -2, 4, 3.1, 3, 3, 3.4, -4.1, 42, 43, 4.4]),
+    desc: 'a 3D matrix'
+  },
+];
+
+for (const {matrix, desc} of gTestMatrices) {
+  test(() => {
+    const component = new CSSMatrixComponent(matrix, { is2D: true });
+    assert_matrix_approx_equals(component.matrix, matrix, EPSILON);
+    assert_true(component.is2D);
+  }, 'CSSMatrixComponent can be constructed from ' + desc + ' with is2D true');
+
+  test(() => {
+    const component = new CSSMatrixComponent(matrix, { is2D: false });
+    assert_matrix_approx_equals(component.matrix, matrix, EPSILON);
+    assert_false(component.is2D);
+  }, 'CSSMatrixComponent can be constructed from ' + desc + ' with is2D false');
+
+  test(() => {
+    const component = new CSSMatrixComponent(matrix);
+    assert_matrix_approx_equals(component.matrix, matrix, EPSILON);
+    assert_equals(component.is2D, matrix.is2D);
+  }, 'CSSMatrixComponent can be constructed from ' + desc + ' without a CSSMatrixComponentOptions');
+
+  test(() => {
+    const component = new CSSMatrixComponent(matrix, null);
+    assert_matrix_approx_equals(component.matrix, matrix, EPSILON);
+    assert_equals(component.is2D, matrix.is2D);
+  }, 'CSSMatrixComponent can be constructed from ' + desc + ' with an invalid CSSMatrixComponentOptions');
+
+  test(() => {
+    let component = new CSSMatrixComponent(new DOMMatrixReadOnly([
+      0, 0, 0, 0, 0, 0
+    ]));
+
+    component.matrix = matrix;
+    assert_matrix_approx_equals(component.matrix, matrix, EPSILON);
+  }, 'CSSMatrixComponent.matrix can be updated to ' + desc);
+}
+
+</script>
+

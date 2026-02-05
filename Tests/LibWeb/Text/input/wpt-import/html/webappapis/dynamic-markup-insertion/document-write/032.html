@@ -1,0 +1,22 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  var tag_name_length = 100000;
+  var tag_name = "";
+  for (var i=0; i<tag_name_length; i++) {
+    tag_name += "a";
+  }
+  document.write("<body><" + tag_name + ">Filler Text</" + tag_name + ">");
+});
+</script>
+<script>
+t.step(function() {
+  assert_equals(document.body.childNodes[0].textContent, "Filler Text");
+}
+);
+t.done();
+</script>
+<div id="log"></div>

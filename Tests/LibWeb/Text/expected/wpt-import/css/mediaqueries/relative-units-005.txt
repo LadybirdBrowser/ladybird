@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	ex unit in media queries should match initial font
+Pass	ch unit in media queries should match initial font
+Pass	ic unit in media queries should match initial font

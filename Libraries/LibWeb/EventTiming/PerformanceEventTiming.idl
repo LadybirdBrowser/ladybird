@@ -1,0 +1,18 @@
+#import <PerformanceTimeline/PerformanceEntry.idl>
+
+// https://www.w3.org/TR/event-timing/#sec-performance-event-timing
+[Exposed=Window]
+interface PerformanceEventTiming : PerformanceEntry {
+    readonly attribute DOMHighResTimeStamp processingStart;
+    readonly attribute DOMHighResTimeStamp processingEnd;
+    readonly attribute boolean cancelable;
+    readonly attribute Node? target;
+    readonly attribute unsigned long long interactionId;
+    [Default] object toJSON();
+};
+
+
+// Potential fixme: This spec has some more IDLs
+// https://www.w3.org/TR/event-timing/#sec-event-counts
+// https://www.w3.org/TR/event-timing/#sec-extensions
+// https://www.w3.org/TR/event-timing/#sec-modifications-perf-timeline

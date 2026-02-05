@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: The RGB hexadecimal notations: #RRGGBB</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#hex-notation">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/hex-003-ref.html">
+<meta name="assert" content="3 digit hex">
+<style>
+    .test { background-color: red; width: 12em; height: 6em; margin-top:0}
+    .ref { background-color: #007700; width: 12em; height: 6em; margin-bottom: 0}
+    .test {background-color: #070}
+</style>
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <p class="ref"> </p>
+    <p class="test"> </p>
+</body>

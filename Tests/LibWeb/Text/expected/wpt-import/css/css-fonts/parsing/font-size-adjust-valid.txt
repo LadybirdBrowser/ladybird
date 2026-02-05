@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Fail
+Fail	e.style['font-size-adjust'] = "none" should set the property value
+Fail	e.style['font-size-adjust'] = "0.5" should set the property value
+Fail	e.style['font-size-adjust'] = "ex-height 0.5" should set the property value
+Fail	e.style['font-size-adjust'] = "cap-height 0.8" should set the property value
+Fail	e.style['font-size-adjust'] = "ch-width 0.4" should set the property value
+Fail	e.style['font-size-adjust'] = "ic-width 0.9" should set the property value
+Fail	e.style['font-size-adjust'] = "ic-height 0.9" should set the property value
+Fail	e.style['font-size-adjust'] = "from-font" should set the property value
+Fail	e.style['font-size-adjust'] = "ex-height from-font" should set the property value
+Fail	e.style['font-size-adjust'] = "cap-height from-font" should set the property value
+Fail	e.style['font-size-adjust'] = "ch-width from-font" should set the property value
+Fail	e.style['font-size-adjust'] = "ic-width from-font" should set the property value
+Fail	e.style['font-size-adjust'] = "ic-height from-font" should set the property value
+Fail	e.style['font-size-adjust'] = "calc(0.5)" should set the property value
+Fail	e.style['font-size-adjust'] = "ex-height calc(0.5)" should set the property value
+Fail	e.style['font-size-adjust'] = "cap-height calc(0.5)" should set the property value
+Fail	e.style['font-size-adjust'] = "cap-height calc(0.5 + 1)" should set the property value
+Fail	e.style['font-size-adjust'] = "cap-height calc(-0.5)" should set the property value
+Fail	e.style['font-size-adjust'] = "cap-height calc(10 + (sign(20cqw - 10px) * 5))" should set the property value

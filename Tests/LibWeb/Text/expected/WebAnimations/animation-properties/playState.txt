@@ -1,0 +1,5 @@
+Animation's playState is idle after cancel(): true
+Animation's playState is idle immediately after play(): true
+Animation's playState is paused after pause(): true
+Animation's playState is finished after finish(): true
+Animation's playState is finished after animation runs to completion: true

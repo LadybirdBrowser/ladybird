@@ -1,0 +1,40 @@
+Class: PointerEvent
+Parent: Function
+Type: 'pointerdown'
+Bubbles: false
+Cancelable: false
+Client X: 0
+Client Y: 0
+Pointer ID: 0
+Width: 1
+Height: 1
+Pressure: 0
+Tangential Pressure: 0
+Tilt X: 0
+Tilt Y: 0
+Twist: 0
+Altitude Angle: 1.5707963267948966
+Azimuth Angle: 0
+Pointer Type: ''
+Is Primary: false
+Is Trusted: false
+Class: PointerEvent
+Parent: Function
+Type: 'pointerdown'
+Bubbles: true
+Cancelable: true
+Client X: 100
+Client Y: 200
+Pointer ID: 0
+Width: 1
+Height: 1
+Pressure: 0
+Tangential Pressure: 0
+Tilt X: 0
+Tilt Y: 0
+Twist: 0
+Altitude Angle: 0
+Azimuth Angle: 0
+Pointer Type: ''
+Is Primary: false
+Is Trusted: false

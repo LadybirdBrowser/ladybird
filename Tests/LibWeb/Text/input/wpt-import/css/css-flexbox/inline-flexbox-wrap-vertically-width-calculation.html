@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: Inline flexbox width calculation with flex-direction: column and flex-wrap</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-wrap-property">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#Computing_widths_and_margins">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test checks that width is correctly computed for flexbox with flex-direction: column and flex-wrap.">
+<style>
+.inline-flexbox {
+    background-color: #aaa;
+    position: relative;
+}
+
+.writing-mode-vertical {
+  writing-mode: vertical-rl;
+}
+.inline-flexbox > * {
+    flex: none;
+}
+.inline-flexbox :nth-child(1) {
+    background-color: lightblue;
+}
+.inline-flexbox :nth-child(2) {
+    background-color: lightgreen;
+}
+.inline-flexbox :nth-child(3) {
+    background-color: pink;
+}
+.inline-flexbox :nth-child(4) {
+    background-color: yellow;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.inline-flexbox');">
+<div id=log></div>
+<div class="inline-flexbox column align-content-flex-start wrap" data-expected-width="110" data-expected-height="60">
+  <div style="width: 100px; height: 20px" data-offset-x="0" data-offset-y="0"></div>
+  <div style="width: 50px; height: 10px" data-offset-x="0" data-offset-y="20"></div>
+  <div style="width: 70px; height: 10px" data-offset-x="0" data-offset-y="30"></div>
+  <div style="width: 110px; height: 20px" data-offset-x="0" data-offset-y="40"></div>
+</div>
+
+<div class="inline-flexbox column align-content-flex-start wrap"
+  style="height: 35px" data-expected-width="130" data-expected-height="35">
+  <div style="width: 10px; height: 20px" data-offset-x="0" data-offset-y="0"></div>
+  <div style="width: 50px; height: 10px" data-offset-x="0" data-offset-y="20"></div>
+  <div style="width: 80px; height: 10px" data-offset-x="50" data-offset-y="0"></div>
+  <div style="width: 40px; height: 20px" data-offset-x="50" data-offset-y="10"></div>
+</div>
+
+<div class="inline-flexbox column align-content-flex-start wrap writing-mode-vertical" data-expected-width="280" data-expected-height="70">
+  <div style="width: 50px; height: 20px" data-offset-x="230" data-offset-y="0"></div>
+  <div style="width: 100px; height: 70px" data-offset-x="130" data-offset-y="0"></div>
+  <div style="width: 30px; height: 50px" data-offset-x="100" data-offset-y="0"></div>
+  <div style="width: 100px; height: 30px" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div
+  class="inline-flexbox column align-content-flex-start wrap writing-mode-vertical"
+  style="width: 200px" data-expected-width="200" data-expected-height="100">
+  <div style="width: 50px; height: 20px" data-offset-x="150" data-offset-y="0"></div>
+  <div style="width: 100px; height: 70px" data-offset-x="50" data-offset-y="0"></div>
+  <div style="width: 30px; height: 50px" data-offset-x="20" data-offset-y="0"></div>
+  <div style="width: 100px; height: 30px" data-offset-x="100" data-offset-y="70"></div>
+</div>
+
+<div class="inline-flexbox column align-content-flex-start wrap-reverse" data-expected-width="110" data-expected-height="60">
+  <div style="width: 100px; height: 20px" data-offset-x="10" data-offset-y="0"></div>
+  <div style="width: 50px; height: 10px" data-offset-x="60" data-offset-y="20"></div>
+  <div style="width: 70px; height: 10px" data-offset-x="40" data-offset-y="30"></div>
+  <div style="width: 110px; height: 20px" data-offset-x="0" data-offset-y="40"></div>
+</div>
+
+<div class="inline-flexbox column align-content-flex-start wrap-reverse"
+  style="height: 35px" data-expected-width="130" data-expected-height="35">
+  <div style="width: 10px; height: 20px" data-offset-x="120" data-offset-y="0">
+  </div>
+  <div style="width: 50px; height: 10px" data-offset-x="80" data-offset-y="20">
+  </div>
+  <div style="width: 80px; height: 10px" data-offset-x="0" data-offset-y="0">
+  </div>
+  <div style="width: 40px; height: 20px" data-offset-x="40" data-offset-y="10">
+  </div>
+</div>
+
+<div class="inline-flexbox column align-content-flex-start wrap-reverse writing-mode-vertical" data-expected-width="280" data-expected-height="70">
+  <div style="width: 50px; height: 20px" data-offset-x="230" data-offset-y="50"></div>
+  <div style="width: 100px; height: 50px" data-offset-x="130" data-offset-y="20"></div>
+  <div style="width: 30px; height: 30px" data-offset-x="100" data-offset-y="40"></div>
+  <div style="width: 100px; height: 70px" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div
+  class="inline-flexbox column align-content-flex-start wrap-reverse writing-mode-vertical"
+  style="width: 200px" data-expected-width="200" data-expected-height="100">
+  <div style="width: 50px; height: 20px" data-offset-x="150" data-offset-y="80">
+  </div>
+  <div style="width: 100px; height: 50px" data-offset-x="50" data-offset-y="50">
+  </div>
+  <div style="width: 30px; height: 70px" data-offset-x="20" data-offset-y="30">
+  </div>
+  <div style="width: 100px; height: 30px" data-offset-x="100" data-offset-y="0">
+  </div>
+</div>
+
+<div class="inline-flexbox column-reverse align-content-flex-start wrap" data-expected-width="110" data-expected-height="60">
+  <div style="width: 100px; height: 20px" data-offset-x="0" data-offset-y="40"></div>
+  <div style="width: 50px; height: 10px" data-offset-x="0" data-offset-y="30"></div>
+  <div style="width: 70px; height: 10px" data-offset-x="0" data-offset-y="20"></div>
+  <div style="width: 110px; height: 20px" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div class="inline-flexbox column-reverse align-content-flex-start wrap"
+  style="height: 35px" data-expected-width="130" data-expected-height="35">
+  <div style="width: 10px; height: 20px" data-offset-x="0" data-offset-y="15"></div>
+  <div style="width: 50px; height: 10px" data-offset-x="0" data-offset-y="5"></div>
+  <div style="width: 80px; height: 10px" data-offset-x="50" data-offset-y="25"></div>
+  <div style="width: 40px; height: 20px" data-offset-x="50" data-offset-y="5"></div>
+</div>
+
+<div class="inline-flexbox column-reverse align-content-flex-start wrap writing-mode-vertical" data-expected-width="280" data-expected-height="70">
+  <div style="width: 50px; height: 20px" data-offset-x="0" data-offset-y="0"></div>
+  <div style="width: 100px; height: 50px" data-offset-x="50" data-offset-y="0"></div>
+  <div style="width: 30px; height: 70px" data-offset-x="150" data-offset-y="0"></div>
+  <div style="width: 100px; height: 30px" data-offset-x="180" data-offset-y="0"></div>
+</div>
+
+<div
+  class="inline-flexbox column-reverse align-content-flex-start wrap writing-mode-vertical"
+  style="width: 200px" data-expected-width="200" data-expected-height="100">
+  <div style="width: 50px; height: 20px" data-offset-x="0" data-offset-y="0"></div>
+  <div style="width: 100px; height: 70px" data-offset-x="50" data-offset-y="0"></div>
+  <div style="width: 30px; height: 50px" data-offset-x="150" data-offset-y="0"></div>
+  <div style="width: 100px; height: 30px" data-offset-x="0" data-offset-y="70"></div>
+</div>
+
+<div class="inline-flexbox column-reverse align-content-flex-start wrap-reverse" data-expected-width="110" data-expected-height="60">
+  <div style="width: 100px; height: 20px" data-offset-x="10" data-offset-y="40"></div>
+  <div style="width: 50px; height: 10px" data-offset-x="60" data-offset-y="30"></div>
+  <div style="width: 70px; height: 10px" data-offset-x="40" data-offset-y="20"></div>
+  <div style="width: 110px; height: 20px" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div class="inline-flexbox column-reverse align-content-flex-start wrap-reverse"
+  style="height: 35px" data-expected-width="130" data-expected-height="35">
+  <div style="width: 10px; height: 20px" data-offset-x="120" data-offset-y="15">
+  </div>
+  <div style="width: 50px; height: 10px" data-offset-x="80" data-offset-y="5">
+  </div>
+  <div style="width: 80px; height: 10px" data-offset-x="0" data-offset-y="25">
+  </div>
+  <div style="width: 40px; height: 20px" data-offset-x="40" data-offset-y="5">
+  </div>
+</div>
+
+<div class="inline-flexbox column-reverse align-content-flex-start wrap-reverse writing-mode-vertical" data-expected-width="280" data-expected-height="70">
+  <div style="width: 50px; height: 70px" data-offset-x="0" data-offset-y="0"></div>
+  <div style="width: 100px; height: 20px" data-offset-x="50" data-offset-y="50"></div>
+  <div style="width: 30px; height: 50px" data-offset-x="150" data-offset-y="20"></div>
+  <div style="width: 100px; height: 30px" data-offset-x="180" data-offset-y="40"></div>
+</div>
+
+<div
+  class="inline-flexbox column-reverse align-content-flex-start wrap-reverse writing-mode-vertical"
+  style="width: 200px" data-expected-width="200" data-expected-height="120">
+  <div style="width: 50px; height: 20px" data-offset-x="0" data-offset-y="100">
+  </div>
+  <div style="width: 100px; height: 50px" data-offset-x="50" data-offset-y="70">
+  </div>
+  <div style="width: 30px; height: 30px" data-offset-x="150" data-offset-y="90">
+  </div>
+  <div style="width: 100px; height: 70px" data-offset-x="0" data-offset-y="0">
+  </div>
+</div>
+</body>
+</html>

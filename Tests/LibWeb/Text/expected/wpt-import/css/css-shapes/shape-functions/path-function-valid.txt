@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['clip-path'] = "path(evenodd, 'M10,10h80v80h-80zM25,25h50v50h-50z')" should set the property value
+Pass	e.style['clip-path'] = "path(evenodd, 'M10,10h80v80h-80zM25,25h50v50h-50')" should set the property value

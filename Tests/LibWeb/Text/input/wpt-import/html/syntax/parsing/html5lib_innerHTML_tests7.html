@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_innerHTML_tests7.html</title>
+    <meta name="timeout" content="long">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['7aabda442dc7b37110c3d03b1465fa893dc25625',];
+      var tests = {
+          "7aabda442dc7b37110c3d03b1465fa893dc25625":[async_test('html5lib_innerHTML_tests7.html 7aabda442dc7b37110c3d03b1465fa893dc25625'), "%3Cbody%3EX%3C/body%3E%3C/body%3E", "%23document%0A%7C%20%3Chead%3E%0A%7C%20%3Cbody%3E%0A%7C%20%20%20%22X%22", 'html'],
+      }
+      init_tests("innerHTML");
+    </script>
+  </body>
+</html>

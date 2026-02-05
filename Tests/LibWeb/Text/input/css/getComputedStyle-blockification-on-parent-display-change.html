@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:kling@ladybird.org">
+<script src="../include.js"></script>
+<style>
+    #container { display: block; }
+</style>
+<div id="container">
+    <span id="child">test</span>
+</div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const child = document.getElementById("child");
+
+        // Initially, span should be inline
+        println(`Initial child display: ${getComputedStyle(child).display}`);
+
+        // Change parent to flex - child should get blockified
+        container.style.display = "flex";
+
+        // Query color first (doesn't need layout) to trigger only update_style()
+        println(`Color after flex: ${getComputedStyle(child).color}`);
+        println(`Display after flex: ${getComputedStyle(child).display}`);
+
+        // Change parent back to block - child should un-blockify
+        container.style.display = "block";
+        println(`Display after block: ${getComputedStyle(child).display}`);
+    });
+</script>

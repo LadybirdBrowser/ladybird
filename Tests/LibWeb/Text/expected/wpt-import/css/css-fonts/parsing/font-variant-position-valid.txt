@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['font-variant-position'] = "normal" should set the property value
+Pass	e.style['font-variant-position'] = "sub" should set the property value
+Pass	e.style['font-variant-position'] = "super" should set the property value

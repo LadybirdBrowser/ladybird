@@ -1,0 +1,12 @@
+Original values
+xlink:href getAttributeNS = 'test'
+href getAttribute = 'test'
+Non-matching namespace
+xlink:href getAttributeNS = 'test'
+href getAttribute = 'test'
+Non-matching name
+xlink:href getAttributeNS = 'test'
+href getAttribute = 'test'
+Matching
+xlink:href getAttributeNS = 'null'
+href getAttribute = 'null'

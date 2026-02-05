@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>CSS Shadow Parts - :host::part() not matching in inner scope</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#part">
+<link rel="help" href="https://drafts.csswg.org/css-scoping/#host-selector">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="outer">
+  <template shadowrootmode="open">
+    <style>
+      :host::part(x) {
+        color: red;
+      }
+    </style>
+    <div id="inner">
+      <template shadowrootmode="open">
+        <style>
+          p { color: green; }
+        </style>
+        <p part="x">This should not be red</p>
+      </template>
+    </div>
+  </template>
+</div>
+<script>
+  test(() => {
+    const part = outer.shadowRoot.querySelector("#inner").shadowRoot.querySelector("p");
+    assert_equals(getComputedStyle(part).color, "rgb(0, 128, 0)");
+  }, ":host::part() should only match when the part is in the same tree as the rule");
+</script>

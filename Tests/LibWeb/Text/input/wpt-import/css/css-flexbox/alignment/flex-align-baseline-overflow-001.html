@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7660">
+<style>
+.target {
+  display: flex;
+  position: relative;
+  line-height: 0;
+  font-size: 20px;
+  inline-size: 300px;
+  margin-block: 10px;
+  padding: 10px;
+  border: solid 3px;
+}
+
+.inner {
+  overflow: hidden;
+  inline-size: 100px;
+  block-size: 80px;
+  margin: 10px;
+  border: solid 5px;
+  padding: 10px;
+  font-size: 30px;
+}
+
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="45"><span></span><br><span></span></div>
+  <div class="inner" data-offset-y="20">
+    <div>
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="55"><span></span><br><span></span></div>
+  <div class="inner" data-offset-y="20">
+    <div>
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="10"><span></span><br><span></span></div>
+  <div class="inner" data-offset-y="30">
+    <div style="margin-block-start: -200px;">
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="10"><span></span><br><span></span></div>
+  <div class="inner" data-offset-y="50">
+    <div style="margin-block-start: -200px;">
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="110"><span></span><br><span></span></div>
+  <div class="inner" data-offset-y="20">
+    <div style="margin-block-start: 200px;">
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="90"><span></span><br><span></span></div>
+  <div class="inner" data-offset-y="20">
+    <div style="margin-block-start: 200px;">
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>

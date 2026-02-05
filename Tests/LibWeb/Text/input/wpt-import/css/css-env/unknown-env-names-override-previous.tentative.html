@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-env-1/">
+    <title>Test unknown env() names will override previous values</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body style="background-color: green; background-color: env(unknown);">
+    <script>
+    test(() => {
+      const style = window.getComputedStyle(document.body);
+      assert_equals(style.getPropertyValue("background-color"), "rgba(0, 0, 0, 0)");
+    });
+    </script>
+  </body>
+</html>

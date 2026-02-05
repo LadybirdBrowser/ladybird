@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	simple scroll with style: 'margin' and 'overflow: scroll'
+Pass	simple scroll with style: 'margin' and 'overflow: hidden'
+Pass	simple scroll with style: 'padding' and 'overflow: scroll'
+Pass	simple scroll with style: 'padding' and 'overflow: hidden'

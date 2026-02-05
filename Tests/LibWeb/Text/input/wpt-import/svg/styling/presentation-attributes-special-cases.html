@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SVG presentation attributes - special cases</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/styling.html#PresentationAttributes">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="presentation-attributes.js"></script>
+<svg id="svg"></svg>
+<script>
+// 1. Test the special cases where presentation attributes are only allowed on
+// a specific set of elements.
+
+if (propertiesAreSupported(["cx", "cy"])) {
+  for (let e of ["circle", "ellipse"]) {
+    test(function() {
+      for (let p of ["cx", "cy"]) {
+        assertPresentationAttributeIsSupported(e, p, "1", p);
+      }
+    }, `cx and cy presentation attributes supported on ${e} element`);
+  }
+}
+
+if (propertiesAreSupported(["x", "y", "width", "height"])) {
+  for (let e of ["foreignObject", "image", "rect", "svg", "symbol", "use"]) {
+    test(function() {
+      for (let p of ["x", "y", "width", "height"]) {
+        assertPresentationAttributeIsSupported(e, p, "1", p);
+      }
+    }, `x, y, width, and height presentation attributes supported on ${e} element`);
+  }
+}
+
+if (CSS.supports("r", "initial")) {
+  test(function() {
+    assertPresentationAttributeIsSupported("circle", "r", "1", "r");
+  }, `r presentation attribute supported on circle element`);
+}
+
+if (propertiesAreSupported(["rx", "ry"])) {
+  for (let e of ["ellipse", "rect"]) {
+    test(function() {
+      for (let p of ["rx", "ry"]) {
+        assertPresentationAttributeIsSupported(e, p, "1", p);
+      }
+    }, `rx and ry presentation attributes supported on ${e} element`);
+  }
+}
+
+if (CSS.supports("d", "initial")) {
+  test(function() {
+    assertPresentationAttributeIsSupported("path", "d", "M0,0 L1,1", "d");
+  }, `d presentation attribute supported on path element`);
+}
+
+
+// 2. Test that for those presentation attributes only allowed on a specific
+// set of elements, that they are not supported on some other SVG element.
+// (We use 'g' as that element for testing.)
+
+if (propertiesAreSupported(["cx", "cy"])) {
+  test(function() {
+    for (let p of ["cx", "cy"]) {
+      assertPresentationAttributeIsNotSupported("g", p, "1", p);
+    }
+  }, `cx and cy presentation attributes not supported on other elements`);
+}
+
+if (propertiesAreSupported(["x", "y", "width", "height"])) {
+  test(function() {
+    for (let p of ["x", "y", "width", "height"]) {
+      assertPresentationAttributeIsNotSupported("g", p, "1", p);
+    }
+  }, `x, y, width, and height presentation attributes not supported on other elements`);
+}
+
+if (CSS.supports("r", "initial")) {
+  test(function() {
+    assertPresentationAttributeIsNotSupported("g", "r", "1", "r");
+  }, `r presentation attribute not supported on other elements`);
+}
+
+if (propertiesAreSupported(["rx", "ry"])) {
+  test(function() {
+    for (let p of ["rx", "ry"]) {
+      assertPresentationAttributeIsNotSupported("g", p, "1", p);
+    }
+  }, `rx and ry presentation attributes not supported on other elements`);
+}
+
+if (CSS.supports("d", "initial")) {
+  test(function() {
+    assertPresentationAttributeIsNotSupported("g", "d", "M0,0 L1,1", "d");
+  }, `d presentation attribute not supported on other elements`);
+}
+
+
+// 3. Test that the fill presentation attribute is not supported on any
+// animation elements.
+
+if (CSS.supports("fill", "initial")) {
+  for (let e of ["animate", "animateMotion", "animateTransform", "set"]) {
+    test(function() {
+      assertPresentationAttributeIsNotSupported(e, "fill", "blue", "fill");
+    }, `fill presentation attribute not supported on ${e}`);
+  }
+}
+
+
+if (CSS.supports("transform", "initial")) {
+  // 4. Test support for the presentation attributes of the transform property,
+  // which have a different spelling depending on which element they're on.
+
+  test(function() {
+    assertPresentationAttributeIsSupported("g", "transform", "scale(2)", "transform");
+  }, `transform presentation attribute supported on g`);
+
+  test(function() {
+    assertPresentationAttributeIsSupported("pattern", "patternTransform", "scale(2)", "transform");
+  }, `patternTransform presentation attribute supported on pattern`);
+
+  for (let e of ["linearGradient", "radialGradient"]) {
+    test(function() {
+      assertPresentationAttributeIsSupported(e, "gradientTransform", "scale(2)", "transform");
+    }, `gradientTransform presentation attribute supported on ${e}`);
+  }
+
+
+  // 5. Test that the wrong spellings of the presentation attributes of the
+  // transform property are not supported.
+
+  test(function() {
+    for (let e of ["pattern", "linearGradient", "radialGradient"]) {
+      assertPresentationAttributeIsNotSupported(e, "transform", "scale(2)", "transform");
+    }
+  }, `transform presentation attribute not supported on pattern or gradient elements`);
+
+  test(function() {
+    for (let e of ["g", "linearGradient", "radialGradient"]) {
+      assertPresentationAttributeIsNotSupported(e, "patternTransform", "scale(2)", "transform");
+    }
+  }, `patternTransform presentation attribute not supported on g or gradient elements`);
+
+  test(function() {
+    for (let e of ["g", "pattern"]) {
+      assertPresentationAttributeIsNotSupported(e, "gradientTransform", "scale(2)", "transform");
+    }
+  }, `gradientTransform presentation attribute not supported on g or pattern elements`);
+}
+</script>

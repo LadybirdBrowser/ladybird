@@ -1,0 +1,8 @@
+'red' => rgb(255, 0, 0)
+'#408080' => rgb(64, 128, 128)
+'transparent' => rgba(0, 0, 0, 0)
+' GreeN 	' => rgb(0, 128, 0)
+'cafe' => rgb(202, 254, 0)
+'' => rgba(0, 0, 0, 0)
+'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' => rgb(219, 239, 234)
+'#emoji above U+FFFF 🙃' => rgb(224, 176, 255)

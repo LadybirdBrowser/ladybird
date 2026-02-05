@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic & Extrinsic Sizing Test: parsing box-sizing with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-box-sizing">
+<meta name="assert" content="box-sizing supports only the grammar 'content-box | border-box'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("box-sizing", "margin-box");
+test_invalid_value("box-sizing", "padding-box");
+test_invalid_value("box-sizing", "fill-box");
+test_invalid_value("box-sizing", "stroke-box");
+test_invalid_value("box-sizing", "view-box");
+
+test_invalid_value("box-sizing", "content-box border-box");
+test_invalid_value("box-sizing", "content-box, border-box");
+</script>
+</body>
+</html>

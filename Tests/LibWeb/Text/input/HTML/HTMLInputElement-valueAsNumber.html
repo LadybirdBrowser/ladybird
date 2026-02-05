@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<input id="input-element" value="100" style="display: none;" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const inputElement = document.getElementById("input-element");
+
+        const allInputTypes = [
+            "number",
+            "range",
+            "hidden",
+            "text",
+            "search",
+            "tel",
+            "url",
+            "email",
+            "password",
+            "date",
+            "month",
+            "week",
+            "time",
+            "datetime-local",
+            "color",
+            "checkbox",
+            "radio",
+            "file",
+            "submit",
+            "image",
+            "reset",
+            "button",
+        ];
+
+        println("valueAsNumber getter:");
+        for (const type of allInputTypes) {
+            inputElement.type = type;
+            println(`${type}: ${inputElement.valueAsNumber}`);
+        }
+
+        println("valueAsNumber setter:");
+        for (const type of allInputTypes) {
+            try {
+                inputElement.type = type;
+                inputElement.valueAsNumber = 100;
+                println(`${type} did not throw: ${inputElement.valueAsNumber}`);
+            } catch (e) {
+                println(`${type} threw exception: ${e.name}: ${e.message}`);
+            }
+        }
+    });
+</script>

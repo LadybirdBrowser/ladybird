@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	All properties can serialize 'initial'
+Pass	All properties (except 'all') can serialize their initial value (computed)
+Pass	All properties (except 'all') can serialize their initial value (specified)
+Pass	All shorthands can serialize their longhands set to 'initial'
+Pass	All shorthands (except 'all') can serialize their longhands set to their initial value
+Pass	All aliases can serialize target property set to 'initial'
+Pass	All aliases can serialize target property set to its initial value
+Pass	Can't serialize shorthand when longhands are set to different css-wide keywords
+Pass	Can't serialize shorthand when longhands have different priority
+Pass	Can't serialize shorthand set to 'initial' when some longhand is missing
+Pass	Can't serialize shorthand set to initial value when some longhand is missing

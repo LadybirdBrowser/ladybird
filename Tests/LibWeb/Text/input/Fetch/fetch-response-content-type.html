@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const data = ["<h1>Well hello friends!</h1>"];
+        const blob = new Blob(data, { type: "text/html" });
+
+        const response1 = new Response(blob);
+
+        const response2 = new Response(blob, {
+            headers: {
+                "Content-Type": "text/plain",
+            },
+        });
+
+        println(response1.headers.get("Content-Type"));
+        println(response2.headers.get("Content-Type"));
+    });
+</script>

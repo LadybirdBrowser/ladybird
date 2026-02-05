@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>test reference</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<style>
+div { font-size: 50px; }
+.green { background: green; }
+.grid {
+    display: grid;
+    grid-template-columns: min-content max-content;
+}
+</style>
+
+<p>This test passes if there are two green rectangles and no red.
+
+<div class=grid>
+    <div style="grid-area: 1/1">&nbsp;</div>
+    <div style="grid-area: 2/2"id=test class="grid">
+        <div>&nbsp;</div>
+        <div class=green></div>
+        <div class=green></div>
+        <div>&nbsp;</div>
+    </div>
+</div>
+
+
+

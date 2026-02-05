@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<head>
+  <style>
+    details {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: magenta;
+    }
+
+    details details {
+      background-color: mediumaquamarine;
+      margin-left: 20px;
+    }
+  </style>
+  <script src="../include.js"></script>
+</head>
+<body>
+  <details id="outer-details"><summary>outer title</summary>
+    <div>outer title</div>
+    <details id="inner-details">
+      <summary>inner title</summary>
+      <p id="nested-details-content">inner content</p>
+    </details>
+  </details>
+</body>
+<script>
+    test(() => {
+        const nestedDetailsContent = document.getElementById('nested-details-content');
+        println(nestedDetailsContent.getBoundingClientRect().width);
+        const outerDetails = document.getElementById('outer-details');
+        outerDetails.open = true;
+        println(nestedDetailsContent.getBoundingClientRect().width);
+        const innerDetails = document.getElementById('inner-details');
+        innerDetails.open = true;
+        println(nestedDetailsContent.getBoundingClientRect().width);
+    });
+</script>
+</html>

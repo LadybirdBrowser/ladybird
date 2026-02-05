@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const video = document.createElement("video");
+        video.textTracks.addEventListener("addtrack", () => {
+            println(`addtrack event called`);
+            done();
+        });
+
+        const track = video.addTextTrack("subtitles", "demo label", "en-GB");
+        println(`track.kind: ${track.kind}`);
+        println(`track.label: ${track.label}`);
+        println(`track.language: ${track.language}`);
+        println(`track.mode: ${track.mode}`);
+    });
+</script>

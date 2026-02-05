@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Computed position-visibility</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-visibility">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/inheritance-testcommon.js"></script>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  test_computed_value("position-visibility", "always");
+  test_computed_value("position-visibility", "anchors-valid");
+  test_computed_value("position-visibility", "anchors-visible");
+  test_computed_value("position-visibility", "no-overflow");
+
+  test_computed_value("position-visibility", "initial", "anchors-visible");
+
+  test_computed_value("position-visibility", "anchors-valid anchors-visible");
+  test_computed_value("position-visibility", "anchors-valid no-overflow");
+  test_computed_value("position-visibility", "anchors-visible anchors-valid", "anchors-valid anchors-visible");
+  test_computed_value("position-visibility", "anchors-visible no-overflow");
+  test_computed_value("position-visibility", "no-overflow anchors-valid", "anchors-valid no-overflow");
+  test_computed_value("position-visibility", "no-overflow anchors-visible", "anchors-visible no-overflow");
+
+  test_computed_value("position-visibility", "anchors-valid anchors-visible no-overflow");
+  test_computed_value("position-visibility", "anchors-valid no-overflow anchors-visible", "anchors-valid anchors-visible no-overflow");
+  test_computed_value("position-visibility", "anchors-visible anchors-valid no-overflow", "anchors-valid anchors-visible no-overflow");
+  test_computed_value("position-visibility", "anchors-visible no-overflow anchors-valid", "anchors-valid anchors-visible no-overflow");
+  test_computed_value("position-visibility", "no-overflow anchors-valid anchors-visible", "anchors-valid anchors-visible no-overflow");
+  test_computed_value("position-visibility", "no-overflow anchors-visible anchors-valid", "anchors-valid anchors-visible no-overflow");
+
+  assert_not_inherited("position-visibility", "anchors-visible", "no-overflow");
+</script>

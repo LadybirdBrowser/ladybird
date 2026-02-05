@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const xmlDocument = new DOMParser().parseFromString("<xml></xml>", "application/xml");
+        const validCdata = xmlDocument.createCDATASection("Some <CDATA> data & then some");
+        xmlDocument.querySelector("xml").appendChild(validCdata);
+        println(new XMLSerializer().serializeToString(xmlDocument));
+
+        try {
+            document.createCDATASection("This isn't valid for HTML documents")
+        } catch (e) {
+            println(`Exception: ${e.name}`);
+        }
+
+        try {
+            const cdataWithAnEndDelimiter = xmlDocument.createCDATASection("This: ']]>' is a CDATA end delimiter");
+        } catch (e) {
+            println(`Exception: ${e.name}`);
+        }
+    });
+</script>

@@ -1,0 +1,16 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(
+function() {
+  document.write("<i>Filler Text");
+  document.write("</i><b>Filler Text");
+  assert_equals(document.body.firstChild.localName, "i");
+  assert_equals(document.body.firstChild.textContent, "Filler Text");
+  assert_equals(document.body.childNodes[1].localName, "b");
+  assert_equals(document.body.childNodes[1].textContent, "Filler Text");
+}
+);
+</script>
+<div id="log"></div>

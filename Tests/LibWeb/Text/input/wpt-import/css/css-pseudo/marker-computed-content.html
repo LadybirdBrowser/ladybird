@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: Computed size of ::marker</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#marker-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-content/#content-property">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<meta name="assert" content="This test checks that 'content' resolves correctly in ::marker." />
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+.no-list > li {
+  display: block;
+}
+.normal::marker {
+  content: normal;
+}
+.string::marker {
+  content: "string";
+}
+.image::marker {
+  content: url("about:invalid");
+}
+.none::marker {
+  content: none;
+}
+</style>
+<div id="log"></div>
+<ol class="list">
+  <li class="default">item</li>
+  <li class="normal">item</li>
+  <li class="string">item</li>
+  <li class="image">item</li>
+  <li class="none">item</li>
+</ol>
+<ol class="no-list">
+  <li class="default">item</li>
+  <li class="normal">item</li>
+  <li class="string">item</li>
+  <li class="image">item</li>
+  <li class="none">item</li>
+</ol>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+const expectations = {
+  default: 'normal',
+  normal: 'normal',
+  string: '"string"',
+  image: 'url("about:invalid")',
+  none: 'none',
+};
+for (const target of document.querySelectorAll('.list > li')) {
+  const {content} = getComputedStyle(target, '::marker');
+  test(() => {
+    assert_equals(content, expectations[target.className]);
+  }, `Computed 'content' for list-item ::marker, variant ${target.className}`);
+}
+for (const target of document.querySelectorAll('.no-list > li')) {
+  const {content} = getComputedStyle(target, '::marker');
+  test(() => {
+    assert_equals(content, expectations[target.className]);
+  }, `Computed 'content' for non-list-item ::marker, variant ${target.className}`);
+}
+</script>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="i1"></iframe>
+<script>
+    asyncTest((done) => {
+        i1.src = '../../data/bad.xml';
+        i1.onload = function() {
+            println("Got load event");
+            println(i1.contentDocument);
+            println(i1.contentDocument.documentElement.innerText);
+            done();
+        }
+    });
+</script>

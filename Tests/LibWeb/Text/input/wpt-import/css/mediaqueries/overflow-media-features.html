@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<title>CSS Media Queries Test: overflow media features</title>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#descdef-media-update">
+<meta assert="The test is supposed to be run on computer displays as it will no match otherwise">
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+
+<script>
+query_should_be_known("(overflow-inline)");
+query_should_be_known("(overflow-inline: none)");
+query_should_be_known("(overflow-inline: scroll)");
+
+query_should_be_unknown("overflow-inline");
+query_should_be_unknown("(overflow-inline: ?)");
+query_should_be_unknown("(overflow-inline: 10px)");
+query_should_be_unknown("(overflow-inline: 0)");
+
+query_should_be_known("(overflow-block)");
+query_should_be_known("(overflow-block: none)");
+query_should_be_known("(overflow-block: scroll)");
+query_should_be_known("(overflow-block: paged)");
+
+query_should_be_unknown("overflow-block");
+query_should_be_unknown("(overflow-block: ?)");
+query_should_be_unknown("(overflow-block: 10px)");
+query_should_be_unknown("(overflow-block: 0)");
+
+test(() => {
+  let match_standard = window.matchMedia("(overflow-inline: scroll)");
+  assert_true(match_standard.matches);
+}, "Check that overflow-inline: scroll always matches non printing documents");
+
+test(() => {
+  let match_standard = window.matchMedia("(overflow-block: scroll)");
+  assert_true(match_standard.matches);
+}, "Check that overflow-block: scroll always matches non printing documents");
+
+test(() => {
+  let match_standard = window.matchMedia("(overflow-inline: none)");
+  assert_false(match_standard.matches);
+}, "Check that overflow-inline: none doesn't match non printing documents");
+
+test(() => {
+  let match_standard = window.matchMedia("(overflow-block: none)");
+  assert_false(match_standard.matches);
+}, "Check that overflow-block: none doesn't match non printing documents");
+
+test(() => {
+  let match_standard = window.matchMedia("(overflow-block: paged)");
+  assert_false(match_standard.matches);
+}, "Check that overflow-block: paged doesn't match non printing documents");
+</script>

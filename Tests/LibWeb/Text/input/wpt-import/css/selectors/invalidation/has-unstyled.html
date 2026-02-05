@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selector Invalidation: :has() affected by unstyled elements</title>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+.none { display: none; }
+#subject:has(.test) { color: red; }
+#subject:has(~ #sibling .test) { color: green; }
+#subject:has(:is(.test_inner #subject_descendant)) { color: blue; }
+#subject:has(~ #sibling :is(.test_inner #sibling_descendant)) { color: yellow; }
+</style>
+
+<main id=main>
+  <div id=subject>
+    <div id=subject_child class="none">
+      <div id=subject_descendant></div>
+    </div>
+  </div>
+  <div id=sibling class="none">
+    <div id=sibling_child>
+      <div id=sibling_descendant></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const grey = 'rgb(128, 128, 128)';
+const red = 'rgb(255, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+const blue = 'rgb(0, 0, 255)';
+const yellow = "rgb(255, 255, 0)";
+const colors = {
+  grey: {
+    classTest: grey,
+  },
+  red: {
+    classTest: red,
+  },
+  green: {
+    classTest: green,
+  },
+  blue: {
+    classTest: blue,
+  },
+  yellow: {
+    classTest: yellow,
+  },
+};
+
+function testColor(test_name, color) {
+    test(function() {
+        assert_equals(getComputedStyle(subject).color, color);
+    }, test_name);
+}
+
+function testClassChange(element, cls, expectedColorName)
+{
+    const expectedColorForClassTest = colors[expectedColorName].classTest;
+    element.classList.add(cls);
+    testColor(`add ${cls} to ${element.id}`, expectedColorForClassTest);
+    element.classList.remove(cls);
+    testColor(`remove ${cls} from ${element.id}`, grey);
+}
+
+testColor('Initial color', grey);
+
+testClassChange(subject_descendant, 'test', 'red');
+testClassChange(sibling_descendant, 'test', 'green');
+testClassChange(subject_child, 'test_inner', 'blue');
+testClassChange(sibling_child, 'test_inner', 'yellow');
+
+</script>

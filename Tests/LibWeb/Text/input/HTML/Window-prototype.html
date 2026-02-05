@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(window)
+        println(window.__proto__)
+        println(window.__proto__.__proto__)
+        println(window.__proto__.__proto__.__proto__);
+        println(window.__proto__.__proto__.__proto__.__proto__);
+        println(window.__proto__.__proto__.__proto__.__proto__.__proto__);
+    });
+</script>

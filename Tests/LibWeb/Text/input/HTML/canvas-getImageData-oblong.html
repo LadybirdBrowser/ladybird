@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body><canvas id=c width=1 height=2></div>
+<script>
+    test(() => {
+        let x = c.getContext("2d");
+        x.clearRect(0, 0, 1, 1);
+        let d = x.getImageData(0, 0, 1, 2);
+        println(d);
+        println("PASS: Didn't crash");
+    });
+</script>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['animation-delay'] = "-5ms" should set the property value
+Pass	e.style['animation-delay'] = "0s" should set the property value
+Pass	e.style['animation-delay'] = "10s" should set the property value
+Pass	e.style['animation-delay'] = "20s, 10s" should set the property value

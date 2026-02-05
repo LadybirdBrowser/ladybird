@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const {readable} = new TransformStream({
+            start(controller) {
+                println("In start");
+                controller.enqueue("Hello, world!");
+            }
+        });
+        const reader = readable.getReader();
+        reader.read().then(function processText({done, value}) {
+            println(`Done: ${done}`);
+            if (done)
+                return;
+
+            println(value);
+            reader.read().then(processText);
+        });
+    });
+</script>

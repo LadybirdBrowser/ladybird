@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-optical-sizing with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-optical-sizing">
+<meta name="assert" content="font-optical-sizing supports only the grammar 'auto | none'.">
+<meta name="assert" content="font-optical-sizing string has three letters.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-optical-sizing', 'normal');
+test_invalid_value('font-optical-sizing', 'auto none');
+</script>
+</body>
+</html>

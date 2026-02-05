@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/sticky-overflow-scroll-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+    .container {
+        position: sticky;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        overflow-y: scroll;
+        scrollbar-width: none;
+    }
+    .top {
+        height: 100px;
+        background: red;
+    }
+    .bottom {
+        height: 100px;
+        background: green;
+    }
+</style>
+<div class="container">
+    <div class="top"></div>
+    <div class="bottom"></div>
+</div>
+<script>
+    // Scroll so the red part is hidden and only green is visible
+    document.querySelector('.container').scrollTop = 100;
+</script>

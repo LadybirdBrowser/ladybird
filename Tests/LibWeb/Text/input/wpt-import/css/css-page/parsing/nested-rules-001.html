@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-page-3/#syntax-page-selector">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+@page p0{
+  @page a{ size: letter; }
+}
+@page p1{
+  @namespace svg url(http://www.w3.org/2000/svg);
+}
+@page p2{
+  @font-face{}
+}
+@page p3{
+  @font-feature-values font one{}
+}
+@page p4{
+  @font-palette-values --alternate{}
+}
+@page p5{
+  @counter-style x{}
+}
+@page p6{
+  @keyframes y{}
+}
+@page p7{
+  @property z{
+    syntax: "<color>";
+    inherits: false;
+    initial-value: #c0ffee;
+  }
+}
+@page p8{
+  @import url("style.css") screen;
+}
+</style>
+
+<script>
+'use strict';
+test(t => {
+  assert_equals(document.styleSheets.length, 1);
+  let styleSheet = document.styleSheets[0];
+  const ruleTypes = [
+    "page",
+    "namespace",
+    "font-face",
+    "font-feature-values",
+    "font-palette-values",
+    "counter-style",
+    "keyframes",
+    "property",
+    "import"
+  ];
+  assert_equals(styleSheet.rules.length, ruleTypes.length);
+  for(let i = 0; i < styleSheet.rules.length; i++){
+    // Just test that this is the right rule first.
+    assert_equals(styleSheet.rules[i].selectorText, "p" + i,
+        "@page p" + i + " was not parsed at all");
+    // Test that the nested rule was not valid.
+    assert_equals(styleSheet.rules[i].cssText, "@page p" + i + " { }",
+        "@" + ruleTypes[i] + " rules should not be allowed in @page rules");
+  }
+}, "nested-rules-001");
+</script>

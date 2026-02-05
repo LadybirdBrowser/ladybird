@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>max-height composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-height">
+<meta name="assert" content="max-height supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'max-height',
+  underlying: '50px',
+  addFrom: '100px',
+  addTo: '200px',
+}, [
+  {at: -0.3, expect: '120px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '200px'},
+  {at: 1, expect: '250px'},
+  {at: 1.5, expect: '300px'},
+]);
+
+test_composition({
+  property: 'max-height',
+  underlying: '100px',
+  addFrom: '10px',
+  addTo: '2px',
+}, [
+  {at: -0.5, expect: '114px'},
+  {at: 0, expect: '110px'},
+  {at: 0.5, expect: '106px'},
+  {at: 1, expect: '102px'},
+  {at: 1.5, expect: '98px'}, // Value clamping should happen after composition.
+]);
+
+test_composition({
+  property: 'max-height',
+  underlying: '10%',
+  addFrom: '100px',
+  addTo: '20%',
+}, [
+  {at: -0.3, expect: 'calc(130px + 4%)'},
+  {at: 0, expect: 'calc(100px + 10%)'},
+  {at: 0.5, expect: 'calc(50px + 20%)'},
+  {at: 1, expect: '30%'},
+  {at: 1.5, expect: 'calc(-50px + 40%)'},
+]);
+
+test_composition({
+  property: 'max-height',
+  underlying: '50px',
+  addFrom: '100px',
+  replaceTo: '200px',
+}, [
+  {at: -0.3, expect: '135px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '175px'},
+  {at: 1, expect: '200px'},
+  {at: 1.5, expect: '225px'},
+]);
+
+test_composition({
+  property: 'max-height',
+  underlying: '100px',
+  addFrom: '100px',
+  addTo: 'none',
+}, [
+  {at: -0.3, expect: '200px'},
+  {at: 0, expect: '200px'},
+  {at: 0.5, expect: 'none'},
+  {at: 1, expect: 'none'},
+  {at: 1.5, expect: 'none'},
+]);
+
+test_composition({
+  property: 'max-height',
+  underlying: '100px',
+  addFrom: 'min-content',
+  addTo: '100px',
+}, [
+  {at: -0.3, expect: 'min-content'},
+  {at: 0, expect: 'min-content'},
+  {at: 0.5, expect: '200px'},
+  {at: 1, expect: '200px'},
+  {at: 1.5, expect: '200px'},
+]);
+</script>
+</body>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html><head>
+  <title>scheduler: event/for attribute on script</title>
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <script src="testlib/testlib.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+attributes = [
+  {for:"window", event:"onload()", expect:true},
+  {for:"window", event:"onload", expect:true},
+  {for:"  WINdow\t\n", event:"ONload\t\n", expect:true},
+  {for:"window", event:"load", expect:false},
+  {for:"window", event:"onpageshow", expect:false},
+  {for:"document", event:"onload", expect:false},
+]
+
+function test_maker(array_name) {
+  return function(x, i) {
+    var title = "for='" + x.for + "' event='" + x.event + "' " + array_name.replace("_", " ") + " " + (x.expect ? "executes immediately" : "does not execute");
+    script_content = "var d =" + array_name + "[" + i  + "];"
+    script_content += x.expect?"d[1].step(function() {d[3] = true});":"d[1].step(function() {assert_unreached()});"
+    return [x, async_test(title), script_content, false];
+  }
+}
+
+parser_inserted = attributes.map(test_maker("parser_inserted"));
+dom_inserted = attributes.map(test_maker("dom_inserted"));
+
+parser_inserted.forEach(function(x) {
+  var d = x[0];
+  document.write("<script for='" + d.for + "' event='" + d.event + "'>" + x[2] + "<\/script>");
+});
+
+dom_inserted.forEach(function(x) {
+  var d = x[0];
+  var s = document.createElement("script");
+  s.setAttribute("event", d.event);
+  s.setAttribute("for", d.for);
+  s.textContent = x[2];
+  document.body.appendChild(s);
+});
+</script>
+
+<script>
+var all_tests = parser_inserted.concat(dom_inserted);
+
+all_tests.filter(function(x) {return x[0]["expect"]}).forEach(function(x) {var t = x[1]; t.step(function() {assert_true(x[3])});})
+
+onload = function() {
+  all_tests.forEach(function(x) {var t = x[1]; t.step(function() {t.done()})});
+}
+</script>
+
+</body>
+</html>

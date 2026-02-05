@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    div:has(.target) { --match: 1; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+
+        // Build nested structure: root > d0 > d1 > ... > d19 > span.target
+        let current = root;
+        for (let i = 0; i < 20; i++) {
+            const div = document.createElement("div");
+            div.id = `d${i}`;
+            current.appendChild(div);
+            current = div;
+        }
+        current.innerHTML = '<span class="target"></span>';
+
+        // Force style computation
+        document.body.offsetHeight;
+
+        // All ancestors should match :has(.target)
+        for (let i = 0; i < 20; i++) {
+            const el = document.getElementById(`d${i}`);
+            const val = getComputedStyle(el).getPropertyValue("--match").trim();
+            if (val !== "1") {
+                println(`FAIL: d${i} should match :has(.target)`);
+                return;
+            }
+        }
+        println("PASS");
+    });
+</script>

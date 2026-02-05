@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#predicates">
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+function nodesetToSet(result) {
+  const set = new Set();
+  for (let node = result.iterateNext(); node; node = result.iterateNext()) {
+    set.add(node);
+  }
+  return set;
+}
+
+test(() => {
+  const doc = document.implementation.createHTMLDocument();
+  doc.body.innerHTML = '<table></table>' +
+    '<table><tr><th><th><th><th></table>' +
+    '<table></table>';
+  const result = nodesetToSet(doc.evaluate('(//table)[count((//table)[2]/descendant::th)-1]', doc.documentElement));
+  assert_equals(result.size, 1);
+  assert_true(result.has(doc.body.lastChild));
+}, 'An expression in a predicate should not change the context node');
+</script>
+</body>

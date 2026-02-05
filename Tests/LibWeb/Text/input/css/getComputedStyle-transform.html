@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const e = document.createElement("div");
+        document.body.appendChild(e);
+        function checkTransform(transform) {
+            e.style.transform = transform;
+            const computedStyle = getComputedStyle(e);
+            const serialized = computedStyle.transform;
+            println(transform + " => " + serialized);
+        }
+        for (transform of [
+            "none",
+            "matrix(1, 2, 3, 4, 5, 6)",
+            "matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)",
+            "perspective(none)",
+            "perspective(0)",
+            "perspective(4cm)",
+            "translate(1%, 2px)",
+            "translate3d(1%, 2px, 3em)",
+            "translateX(1px)",
+            "translateY(1%)",
+            "scale(1, 2)",
+            "scale(100%, 200%)",
+            "scale(calc(1 / 2))",
+            "scale(calc(50% + 25%))",
+            "scale(calc(NaN))",
+            "scaleX(2)",
+            "scaleX(200%)",
+            "scaleY(2.5)",
+            "scaleY(250%)",
+            "scaleZ(1.5)",
+            "scaleZ(150%)",
+            "scale3d(1, 2, 1.5)",
+            "scale3d(100%, 200%, 150%)",
+            "rotate(1deg)",
+            "rotateX(1rad)",
+            "rotateY(1grad)",
+            "rotateZ(1turn)",
+            "rotate3d(0, 1, 0, 45rad)",
+            "skew(1deg, 1rad)",
+            "skewX(1deg)",
+            "skewY(1rad)",
+        ]) {
+            checkTransform(transform);
+        }
+        e.remove();
+    });
+</script>

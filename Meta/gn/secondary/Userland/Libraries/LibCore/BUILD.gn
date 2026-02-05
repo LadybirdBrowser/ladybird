@@ -1,0 +1,207 @@
+import("//Meta/gn/build/libs/vulkan/enable.gni")
+
+# These are the minimal set of sources needed to build the code generators. We separate them to allow
+# LibCore to depend on generated sources.
+shared_library("minimal") {
+  output_name = "core-minimal"
+
+  include_dirs = [ "//Userland/Libraries" ]
+
+  sources = [
+    "ArgsParser.cpp",
+    "ArgsParser.h",
+    "DirIterator.cpp",
+    "DirIterator.h",
+    "Directory.cpp",
+    "Directory.h",
+    "DirectoryEntry.cpp",
+    "DirectoryEntry.h",
+    "Environment.cpp",
+    "Environment.h",
+    "File.cpp",
+    "File.h",
+    "Forward.h",
+    "StandardPaths.cpp",
+    "StandardPaths.h",
+    "System.cpp",
+    "System.h",
+    "Version.cpp",
+    "Version.h",
+  ]
+
+  deps = [ "//AK" ]
+}
+
+source_set("sources") {
+  include_dirs = [ "//Userland/Libraries" ]
+  deps = [ "//AK" ]
+  sources = [
+    "AnonymousBuffer.cpp",
+    "AnonymousBuffer.h",
+    "Command.cpp",
+    "Command.h",
+    "ConfigFile.cpp",
+    "ConfigFile.h",
+    "DateTime.cpp",
+    "DateTime.h",
+    "DeferredInvocationContext.h",
+    "ElapsedTimer.cpp",
+    "ElapsedTimer.h",
+    "Event.cpp",
+    "Event.h",
+    "EventLoop.cpp",
+    "EventLoop.h",
+    "EventLoopImplementation.cpp",
+    "EventLoopImplementation.h",
+    "EventLoopImplementationUnix.cpp",
+    "EventLoopImplementationUnix.h",
+    "EventReceiver.cpp",
+    "EventReceiver.h",
+    "MappedFile.cpp",
+    "MappedFile.h",
+    "MimeData.cpp",
+    "MimeData.h",
+    "NetworkResponse.h",
+    "Notifier.cpp",
+    "Notifier.h",
+    "Platform/ProcessInfo.h",
+    "Platform/ProcessStatistics.h",
+    "Process.cpp",
+    "Process.h",
+    "Promise.h",
+    "Proxy.h",
+    "Resource.cpp",
+    "Resource.h",
+    "ResourceImplementation.cpp",
+    "ResourceImplementationFile.cpp",
+    "SharedCircularQueue.h",
+    "Socket.cpp",
+    "Socket.h",
+    "SocketAddress.h",
+    "SystemServerTakeover.cpp",
+    "SystemServerTakeover.h",
+    "TCPServer.cpp",
+    "TCPServer.h",
+    "ThreadEventQueue.cpp",
+    "ThreadEventQueue.h",
+    "ThreadedPromise.h",
+    "Timer.cpp",
+    "Timer.h",
+    "UDPServer.cpp",
+    "UDPServer.h",
+  ]
+  if (current_os != "android") {
+    sources += [
+      "LocalServer.cpp",
+      "LocalServer.h",
+    ]
+  }
+  if (current_os == "mac") {
+    sources += [ "MachPort.cpp" ]
+  }
+
+  if (current_os == "linux") {
+    sources += [ "Platform/ProcessStatisticsLinux.cpp" ]
+  } else if (current_os == "mac") {
+    sources += [
+      "Platform/ProcessStatisticsMach.cpp",
+      "Platform/ProcessStatisticsMach.h",
+    ]
+  } else {
+    sources += [ "Platform/ProcessStatisticsUnimplemented.cpp" ]
+  }
+}
+
+source_set("filewatcher") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "FileWatcher.h" ]
+  deps = [ "//AK" ]
+  frameworks = []
+  if (current_os == "linux") {
+    sources += [ "FileWatcherLinux.cpp" ]
+  } else if (current_os == "mac") {
+    sources += [ "FileWatcherMacOS.mm" ]
+    frameworks += [
+      "CoreFoundation.framework",
+      "CoreServices.framework",
+      "Foundation.framework",
+    ]
+  } else {
+    sources += [ "FileWatcherUnimplemented.cpp" ]
+  }
+}
+
+source_set("timezonewatcher") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TimeZoneWatcher.h" ]
+  deps = [ "//AK" ]
+  frameworks = []
+  if (current_os == "linux") {
+    sources += [ "TimeZoneWatcherLinux.cpp" ]
+  } else if (current_os == "mac") {
+    sources += [ "TimeZoneWatcherMacOS.mm" ]
+    frameworks += [
+      "CoreFoundation.framework",
+      "CoreServices.framework",
+      "Foundation.framework",
+    ]
+  } else {
+    sources += [ "TimeZoneWatcherUnimplemented.cpp" ]
+  }
+}
+
+source_set("metal") {
+  if (current_os == "mac") {
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [ "//AK" ]
+    sources = [
+      "IOSurface.cpp",
+      "MetalContext.mm",
+    ]
+    frameworks = [
+      "IOSurface.framework",
+      "Metal.framework",
+    ]
+  }
+}
+
+source_set("vulkan") {
+  if (enable_vulkan) {
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [
+      "//AK",
+      "//Meta/gn/build/libs/vulkan",
+    ]
+    sources = [ "VulkanContext.cpp" ]
+  }
+}
+
+shared_library("LibCore") {
+  libs = []
+
+  if (current_os == "linux" || current_os == "android") {
+    libs += [ "dl" ]
+  }
+  if (current_os == "linux") {
+    libs += [ "rt" ]
+  }
+  if (current_os == "android") {
+    libs += [ "log" ]
+  }
+
+  output_name = "core"
+
+  deps = [
+    ":filewatcher",
+    ":metal",
+    ":sources",
+    ":timezonewatcher",
+    ":vulkan",
+    "//Meta/gn/build/libs/crypt",
+    "//Meta/gn/build/libs/pthread",
+    "//Userland/Libraries/LibURL",
+    "//Userland/Libraries/LibUnicode",
+  ]
+
+  public_deps = [ ":minimal" ]
+}

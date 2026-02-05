@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+21 Pass
+11 Fail
+Pass	"::part(--foo)" should be a valid selector
+Pass	"::part(bar)" should be a valid selector
+Pass	"::part(--)" should be a valid selector
+Pass	"::part(--0)" should be a valid selector
+Pass	"::part(foo bar)" should be a valid selector
+Pass	"::part(-foo bar)" should be a valid selector
+Pass	"::part(foo):focus" should be a valid selector
+Pass	"::part(foo):hover" should be a valid selector
+Pass	"::part(foo):focus-within" should be a valid selector
+Fail	"::part(foo)::before" should be a valid selector
+Fail	"::part(foo)::after" should be a valid selector
+Fail	"::part(foo)::placeholder" should be a valid selector
+Fail	"::part(foo)::first-line" should be a valid selector
+Fail	"::part(foo)::first-letter" should be a valid selector
+Fail	"::part(foo)::file-selector-button" should be a valid selector
+Pass	"::part(foo):is(:focus)" should be a valid selector
+Pass	":lang(en)::part(foo)" should be a valid selector
+Pass	":dir(ltr)::part(foo)" should be a valid selector
+Pass	"::part(foo):lang(en)" should be a valid selector
+Pass	"::part(foo):dir(ltr)" should be a valid selector
+Pass	"::part(foo):disabled" should be a valid selector
+Pass	"::part(foo):checked" should be a valid selector
+Pass	":part()" should be an invalid selector
+Pass	":part(0)" should be an invalid selector
+Pass	":part('foo')" should be an invalid selector
+Pass	":part([foo])" should be an invalid selector
+Pass	"::part(foo) + ::part(bar)" should be an invalid selector
+Fail	"::part(foo):is(ul)" should be a valid selector
+Fail	"::part(foo):is(nav ul)" should be a valid selector
+Fail	"::part(foo):where(ul)" should be a valid selector
+Fail	"::part(foo):where(nav ul)" should be a valid selector
+Fail	"::part(foo):has(li)" should be an invalid selector

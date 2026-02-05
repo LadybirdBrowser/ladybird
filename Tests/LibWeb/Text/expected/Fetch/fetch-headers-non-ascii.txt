@@ -1,0 +1,34 @@
+--------------------------------
+Headers constructor
+--------------------------------
+Accept: before-æøå-after
+X-Test: before-ß-after
+
+--------------------------------
+Headers.append()
+--------------------------------
+Accept: before-æøå-after
+X-Test: before-ß-after
+
+--------------------------------
+Headers.set()
+--------------------------------
+Accept: before-æøå-after
+X-Test: before-ß-after
+
+--------------------------------
+Headers.getSetCookie()
+--------------------------------
+Set-Cookie: before-æøå-after
+
+--------------------------------
+Headers iterator
+--------------------------------
+accept: before-æøå-after
+x-test: before-ß-after
+
+--------------------------------
+Headers.forEach()
+--------------------------------
+accept: before-æøå-after
+x-test: before-ß-after

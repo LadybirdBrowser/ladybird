@@ -1,0 +1,8 @@
+source_set("WebVTT") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "VTTCue.cpp",
+    "VTTRegion.cpp",
+  ]
+}

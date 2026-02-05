@@ -1,0 +1,20 @@
+documentFragment.lookupNamespaceURI(null): null
+documentFragment.lookupNamespaceURI(""): null
+documentFragment.lookupNamespaceURI("foo"): null
+documentFragment.lookupNamespaceURI("xml"): null
+documentFragment.lookupNamespaceURI("xmlns"): null
+docType.lookupNamespaceURI(null): null
+docType.lookupNamespaceURI(""): null
+docType.lookupNamespaceURI("foo"): null
+docType.lookupNamespaceURI("xml"): null
+docType.lookupNamespaceURI("xmlns"): null
+element.lookupNamespaceURI(null): null
+element.lookupNamespaceURI(""): null
+element.lookupNamespaceURI("foo"): null
+element.lookupNamespaceURI("xml"): http://www.w3.org/XML/1998/namespace
+element.lookupNamespaceURI("xmlns"): http://www.w3.org/2000/xmlns/
+After setting element attribute xmlns:bar='exampleNamespaceURI'
+element.lookupNamespaceURI(null): null
+element.lookupNamespaceURI(""): null
+element.lookupNamespaceURI("foo"): null
+element.lookupNamespaceURI("bar"): exampleNamespaceURI

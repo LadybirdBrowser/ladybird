@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Validation for placeholder option
+Pass	Check form not submitted for invalid select

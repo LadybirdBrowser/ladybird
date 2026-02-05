@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        setTimeout(() => {
+            println("setTimeout completed");
+            done();
+        }, 0);
+    });
+</script>

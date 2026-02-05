@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<input type="checkbox">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const input = document.querySelector("input");
+        input.focus();
+        input.blur();
+        println("PASS (didn't crash)");
+    });
+</script>

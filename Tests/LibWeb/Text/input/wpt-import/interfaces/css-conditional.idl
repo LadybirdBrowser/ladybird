@@ -1,0 +1,29 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Conditional Rules Module Level 3 (https://drafts.csswg.org/css-conditional-3/)
+
+partial interface CSSRule {
+    const unsigned short SUPPORTS_RULE = 12;
+};
+
+[Exposed=Window]
+interface CSSConditionRule : CSSGroupingRule {
+    readonly attribute CSSOMString conditionText;
+};
+
+[Exposed=Window]
+interface CSSMediaRule : CSSConditionRule {
+    [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
+    readonly attribute boolean matches;
+};
+
+[Exposed=Window]
+interface CSSSupportsRule : CSSConditionRule {
+  readonly attribute boolean matches;
+};
+
+partial namespace CSS {
+  boolean supports(CSSOMString property, CSSOMString value);
+  boolean supports(CSSOMString conditionText);
+};

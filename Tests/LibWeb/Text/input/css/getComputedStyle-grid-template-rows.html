@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<body></body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const d = document.createElement("div");
+        d.style.cssText = 'display: grid; grid-template: [a] "a" [c] "b" / 10px;';
+        document.body.append(d);
+        println(getComputedStyle(d).gridTemplateRows);
+    });
+</script>

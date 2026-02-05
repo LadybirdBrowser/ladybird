@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: parsing counter-set with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#propdef-counter-set">
+<meta name="assert" content="counter-set supports only the grammar '[ <counter-name> <integer>? ]+ | none'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('counter-set', 'none chapter');
+test_invalid_value('counter-set', 'reversed(none)');
+test_invalid_value('counter-set', 'reversed(chapter)');
+test_invalid_value('counter-set', '3');
+test_invalid_value('counter-set', '99 imagenum');
+test_invalid_value('counter-set', 'section -1, imagenum 99');
+test_invalid_value('counter-set', 'section 3.14');
+test_invalid_value('counter-set', 'inherit 2');
+test_invalid_value('counter-set', 'initial 2');
+test_invalid_value('counter-set', 'unset 2');
+test_invalid_value('counter-set', 'default 2');
+test_invalid_value('counter-set', 'revert 2');
+test_invalid_value('counter-set', 'revert-layer 2');
+</script>
+</body>
+</html>

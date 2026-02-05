@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CSS Animations: parsing @keyframes name with invalid values</title>
+    <link rel="author" title="yisibl(一丝)" href="https://github.com/yisibl"/>
+    <link rel="help" href="https://drafts.csswg.org/css-animations/#typedef-keyframes-name">
+    <meta name="assert" content="@keyframes name supports the full grammar '<custom-ident> | <string>'.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+    <div>
+        <main id="main"></main>
+    </div>
+    <script>
+        test_keyframes_name_invalid('none');
+
+        // The CSS-wide keywords are not valid <custom-ident>s. The default keyword is reserved and is also not a valid <custom-ident>.
+        // Spec: https://drafts.csswg.org/css-values-4/#identifier-value
+        test_keyframes_name_invalid('default');
+        test_keyframes_name_invalid('initial');
+        test_keyframes_name_invalid('inherit');
+        test_keyframes_name_invalid('unset');
+        test_keyframes_name_invalid('revert');
+        test_keyframes_name_invalid('revert-layer');
+
+        test_keyframes_name_invalid('12');
+        test_keyframes_name_invalid('-12');
+        test_keyframes_name_invalid('12foo');
+        test_keyframes_name_invalid('foo.bar');
+        test_keyframes_name_invalid('one two');
+        test_keyframes_name_invalid('one, two');
+
+        test_keyframes_name_invalid('one, initial');
+        test_keyframes_name_invalid('one, inherit');
+        test_keyframes_name_invalid('one, unset');
+        test_keyframes_name_invalid('default, two');
+        test_keyframes_name_invalid('revert, three');
+        test_keyframes_name_invalid('revert-layer, four');
+        // TODO: https://bugs.chromium.org/p/chromium/issues/detail?id=1342609
+        // test_keyframes_name_invalid('--foo');
+    </script>
+</body>
+</html>

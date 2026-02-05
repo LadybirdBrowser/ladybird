@@ -1,0 +1,15 @@
+<!DOCTYPE html><html><head><style>
+iframe {
+    border: 5px solid black;
+    margin: 5px;
+}
+</style></head><body><div id="container"></div><script>
+    const container = document.getElementById("container");
+    const manyIframes = "<iframe height=10 width=10></iframe>".repeat(10);
+    const topDiv = document.createElement("div");
+    topDiv.style.position = "absolute";
+    topDiv.style.height = "1px";
+    topDiv.style.width = "1px";
+    topDiv.innerHTML = manyIframes;
+    container.appendChild(topDiv);
+</script></body></html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>IDBFactory.cmp() - invalid key</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="help" href="https://dvcs.w3.org/hg/IndexedDB/raw-file/tip/Overview.html#widl-IDBFactory-cmp-short-any-first-any-second">
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=resources/support.js></script>
+<div id=log></div>
+<script>
+    test( function() {
+        assert_throws_js(TypeError, function() {
+            indexedDB.cmp();
+        });
+    }, "IDBFactory.cmp() - no argument");
+
+    test( function() {
+        assert_throws_dom("DataError", function() {
+            indexedDB.cmp(null, null);
+        });
+        assert_throws_dom("DataError", function() {
+            indexedDB.cmp(1, null);
+        });
+        assert_throws_dom("DataError", function() {
+            indexedDB.cmp(null, 1);
+        });
+    }, "IDBFactory.cmp() - null");
+
+    test( function() {
+        assert_throws_dom("DataError", function() {
+            indexedDB.cmp(NaN, NaN);
+        });
+        assert_throws_dom("DataError", function() {
+            indexedDB.cmp(1, NaN);
+        });
+        assert_throws_dom("DataError", function() {
+            indexedDB.cmp(NaN, 1);
+        });
+    }, "IDBFactory.cmp() - NaN");
+</script>
+

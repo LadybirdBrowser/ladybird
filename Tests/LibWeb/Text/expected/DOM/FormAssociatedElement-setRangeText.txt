@@ -1,0 +1,13 @@
+Calling setRangeText() on an element where setRangeText doesn't apply throws: InvalidStateError
+setRangeText("foo") on: textarea - Value: foo
+setRangeText("foo", 1, 3) on: textarea - Value: tfoot
+setRangeText("foo") on: password - Value: footest
+setRangeText("foo", 1, 3) on: passwordInput - Value: tfoot
+setRangeText("foo") on: search - Value: footest
+setRangeText("foo", 1, 3) on: searchInput - Value: tfoot
+setRangeText("foo") on: tel - Value: footest
+setRangeText("foo", 1, 3) on: telInput - Value: tfoot
+setRangeText("foo") on: text - Value: footest
+setRangeText("foo", 1, 3) on: textInput - Value: tfoot
+setRangeText("foo") on: url - Value: footest
+setRangeText("foo", 1, 3) on: urlInput - Value: tfoot

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	'all' shorthand alone
+Pass	'all' shorthand with 'width' and 'height'
+Pass	'all' shorthand with 'direction' and 'unicode-bidi'
+Fail	'all' shorthand with 'width', 'height' and custom properties
+Pass	'all' shorthand with all longhands
+Pass	all:initial should not exclude custom from cssText

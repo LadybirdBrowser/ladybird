@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<my-shadow-box id="box1"></my-shadow-box>
+<my-shadow-box id="box2"></my-shadow-box>
+<script>
+    const myStyleSheet = new CSSStyleSheet();
+
+    myStyleSheet.replaceSync(`
+      .box {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+      }
+    `);
+
+    class MyShadowBox extends HTMLElement {
+        constructor() {
+            super();
+
+            const shadowRoot = this.attachShadow({ mode: 'open' });
+            shadowRoot.adoptedStyleSheets = [myStyleSheet];
+
+            this.box = document.createElement('div');
+            this.box.classList.add('box');
+
+            shadowRoot.appendChild(this.box);
+        }
+
+        getBoxColor() {
+            return getComputedStyle(this.box).backgroundColor;
+        }
+    }
+
+
+    test(() => {
+        customElements.define('my-shadow-box', MyShadowBox);
+
+        println("color of box 1 before rule insertion: " + box1.getBoxColor());
+        println("color of box 2 before rule insertion: " + box2.getBoxColor());
+        myStyleSheet.insertRule(
+            '.box { background-color: green; }',
+            myStyleSheet.cssRules.length
+        );
+        println("color of box 1 after rule insertion: " + box1.getBoxColor());
+        println("color of box 2 after rule insertion: " + box2.getBoxColor());
+    });
+</script>

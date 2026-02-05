@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	basic sibling-index() test
+Pass	basic sibling-count() test
+Pass	sibling-index() in calc() with percentage
+Pass	sibling-count() on pseudo-element
+Pass	sibling-index() on root
+Pass	sibling-count() on root

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<select></select>
+<script>
+    test(() => {
+        const selectElement = document.querySelector("select");
+        const optionElement = document.createElement("option");
+        optionElement.innerHTML = "option text"
+        selectElement.appendChild(optionElement);
+        document.body.removeChild(selectElement);
+        println("PASS (didn't crash)");
+    });
+</script>

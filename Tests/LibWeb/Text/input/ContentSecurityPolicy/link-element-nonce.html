@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<head>
+    <meta http-equiv="Content-Security-Policy" content="style-src 'nonce-value';">
+    <link rel="stylesheet" href="../body-background-color-red.css" nonce="value">
+</head>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(window.getComputedStyle(document.body).backgroundColor);
+    });
+</script>

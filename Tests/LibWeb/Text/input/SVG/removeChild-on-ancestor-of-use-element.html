@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="svgContainer1">
+<svg><use id="use1" href="#foo" /></svg>
+</div>
+<div id="svgContainer2">
+<svg><use id="use2" href="#foo" /></svg>
+</div>
+<svg id="foo"></svg>
+<script>
+    function check(use) {
+        let sr = internals.getShadowRoot(use);
+        println(use.id + " > " + sr.firstChild + " " + sr.firstChild.id);
+    }
+    asyncTest((done) => {
+        // NOTE: We use setTimeout() here to ensure that the SVG use elements have had their shadow clone trees instantiated.
+        setTimeout(function() {
+            check(use1);
+            check(use2);
+            svgContainer1.remove();
+            // use1 is gone, but use2 should still have children!
+            try {
+                check(use1);
+            } catch (e) {
+                println("no use1");
+            }
+            check(use2);
+            done();
+        }, 10);
+    });
+</script>

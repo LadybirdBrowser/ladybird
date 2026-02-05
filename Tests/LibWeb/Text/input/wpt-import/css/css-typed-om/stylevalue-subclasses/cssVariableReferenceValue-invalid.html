@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSVariableReferenceValue Error Handling</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssvariablereferencevalue">
+<meta name="assert" content="Test CSSVariableReferenceValue constructor and attributes error handling" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(() => {
+  assert_throws_js(TypeError, () => new CSSVariableReferenceValue(''));
+}, 'Constructing a CSSVariableReferenceValue with an empty variable name ' +
+   'throws a TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => new CSSVariableReferenceValue('bar'));
+}, 'Constructing a CSSVariableReferenceValue with an invalid variable name ' +
+   'throws SyntaxError');
+
+</script>

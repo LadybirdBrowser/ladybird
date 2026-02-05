@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        width: 100px;
+        height: 100px;
+
+        position: absolute;
+        top: 20px;
+        left: 20px;
+
+        cursor: grab;
+        background-color: red;
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.movePointerTo(0, 0);
+        println(internals.currentCursor());
+
+        internals.movePointerTo(100, 100);
+        println(internals.currentCursor());
+
+        foo.addEventListener("mousemove", e => e.preventDefault());
+
+        internals.movePointerTo(0, 0);
+        println(internals.currentCursor());
+
+        internals.movePointerTo(100, 100);
+        println(internals.currentCursor());
+    });
+</script>

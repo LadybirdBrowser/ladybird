@@ -1,0 +1,24 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>Select element with "readonly" attribute shouldn't be barred from constraint validation</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<select id="singleSelect" readonly>
+  <option>1
+  <option>2
+</select>
+
+<select id="multiSelect" readonly multiple>
+  <option>a
+  <option>b
+  <option>c
+  <option>d
+</select>
+
+<script>
+  test(() => {
+    assert_true(singleSelect.willValidate);
+    assert_true(multiSelect.willValidate);
+  });
+</script>

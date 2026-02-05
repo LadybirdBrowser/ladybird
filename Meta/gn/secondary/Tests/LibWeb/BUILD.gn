@@ -1,0 +1,66 @@
+import("//Tests/unittest.gni")
+
+unittest("TestCSSIDSpeed") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestCSSIDSpeed.cpp" ]
+  deps = [ "//Userland/Libraries/LibWeb" ]
+}
+
+unittest("TestCSSPixels") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestCSSPixels.cpp" ]
+  deps = [ "//Userland/Libraries/LibWeb" ]
+}
+
+unittest("TestFetchInfrastructure") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestFetchInfrastructure.cpp" ]
+  deps = [ "//Userland/Libraries/LibWeb" ]
+}
+
+unittest("TestFetchURL") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestFetchURL.cpp" ]
+  deps = [
+    "//Userland/Libraries/LibURL",
+    "//Userland/Libraries/LibWeb",
+  ]
+}
+
+unittest("TestHTMLTokenizer") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestHTMLTokenizer.cpp" ]
+  deps = [ "//Userland/Libraries/LibWeb" ]
+}
+
+unittest("TestMicrosyntax") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestMicrosyntax.cpp" ]
+  deps = [ "//Userland/Libraries/LibWeb" ]
+}
+
+unittest("TestMimeSniff") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestMimeSniff.cpp" ]
+  deps = [ "//Userland/Libraries/LibWeb" ]
+}
+
+unittest("TestNumbers") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestNumbers.cpp" ]
+  deps = [ "//Userland/Libraries/LibWeb" ]
+}
+
+group("LibWeb") {
+  testonly = true
+  deps = [
+    ":TestCSSIDSpeed",
+    ":TestCSSPixels",
+    ":TestFetchInfrastructure",
+    ":TestFetchURL",
+    ":TestHTMLTokenizer",
+    ":TestMicrosyntax",
+    ":TestMimeSniff",
+    ":TestNumbers",
+  ]
+}

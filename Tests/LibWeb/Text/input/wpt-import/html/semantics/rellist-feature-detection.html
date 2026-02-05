@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<title>Test relList attribute</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+let link_support_table = {};
+// https://html.spec.whatwg.org/multipage/links.html#linkTypes
+link_support_table['link'] = {
+  supported : ['modulepreload', 'preload', 'preconnect', 'dns-prefetch',
+               'stylesheet', 'icon', 'alternate', 'prefetch',
+               'prerender', 'next', 'manifest', 'apple-touch-icon',
+               'apple-touch-icon-precomposed', 'canonical'],
+  unsupported : ['author', 'bookmark', 'external', 'help', 'import',
+                 'license', 'nofollow', 'pingback', 'prev', 'search',
+                 'tag', 'noreferrer', 'noopener']
+};
+link_support_table['a'] =  {
+  supported : ['noreferrer', 'noopener', 'opener'],
+  unsupported : ['author', 'bookmark', 'external', 'help', 'license',
+                 'nofollow', 'pingback', 'prev', 'search', 'tag',
+                 'modulepreload', 'preload', 'preconnect', 'dns-prefetch',
+                 'stylesheet', 'import', 'icon', 'alternate', 'prefetch',
+                 'prerender', 'next', 'manifest', 'apple-touch-icon',
+                 'apple-touch-icon-precomposed', 'canonical']
+};
+link_support_table['area'] = link_support_table['a'];
+link_support_table['form'] = link_support_table['a'];
+
+function test_rellist(tag_name) {
+  const rel_table = link_support_table[tag_name];
+  const element = document.createElement(tag_name);
+  let tag = element.tagName;
+  // Test that setting rel is also setting relList, for both
+  // valid and invalid values.
+  element.rel = 'whatever';
+  assert_true(element.relList.contains('whatever'), 'tag = ' + tag + ', setting rel must work');
+  element.rel = 'prefetch';
+  assert_true(element.relList.contains('prefetch'), 'tag = ' + tag + ', setting rel must work');
+  // Test that add() works.
+  element.relList.add('preloadwhatever');
+  assert_equals(element.rel, 'prefetch preloadwhatever', 'tag = ' + tag + ', add must work');
+  assert_true(element.relList.contains('preloadwhatever'), 'tag = ' + tag + ', add must work');
+  // Test that remove() works.
+  element.relList.remove('preloadwhatever');
+  assert_equals(element.rel, 'prefetch', 'tag = ' + tag + ', remove must work');
+  assert_false(element.relList.contains('preloadwhatever'), 'tag = ' + tag + ', remove must work');
+  // Test that toggle() works.
+  element.relList.toggle('prefetch', false);
+  assert_equals(element.rel, '', 'tag = ' + tag + ', toggle must work');
+  element.relList.toggle('prefetch', true);
+  assert_equals(element.rel, 'prefetch', 'tag = ' + tag + ', toggle must work');
+  // Test that replace() works.
+  element.relList.replace('prefetch', 'first');
+  assert_equals(element.rel, 'first', 'tag = ' + tag + ', replace must work');
+  // Test that indexed item getter works.
+  element.relList.add('second');
+  assert_equals(element.relList.length, 2, 'tag = ' + tag + ', relList length must be correct');
+  assert_equals(element.relList[0], 'first', 'tag = ' + tag + ', relList indexed item must work');
+  assert_equals(element.relList[1], 'second', 'tag = ' + tag + ', relList indexed item must work');
+  // Test that relList is  [SameObject].
+  let savedRelList = element.relList;
+  element.rel = 'something';
+  assert_equals(element.relList, savedRelList, 'tag = ' + tag + ', SameObject must work');
+
+  // Test that supports() is returning true for valid values
+  // and false for invalid ones.
+  let supported = rel_table['supported'];
+  for (let link_type in supported) {
+    assert_true(element.relList.supports(supported[link_type]), 'tag = ' + tag + ', link type = ' + supported[link_type] + ' must be supported');
+    assert_true(element.relList.supports(supported[link_type].toUpperCase()), 'tag = ' + tag + ', link type = ' + supported[link_type].toUpperCase() + ' must be supported');
+  }
+  let unsupported = rel_table['unsupported'];
+  for (let link_type in unsupported) {
+    assert_false(element.relList.supports(unsupported[link_type]), 'tag = ' + tag + ', link type = ' + unsupported[link_type] + ' must be unsupported');
+  }
+}
+
+['link', 'a', 'area', 'form'].forEach(tag_name => {
+  test(
+    () => test_rellist(tag_name),
+    `Make sure that relList based feature detection is working for <${tag_name}>`
+  );
+});
+</script>

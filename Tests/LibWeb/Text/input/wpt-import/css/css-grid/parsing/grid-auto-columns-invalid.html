@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-auto-columns with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-auto-columns">
+<meta name="assert" content="grid-auto-columns supports only the grammar '<track-size>+'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <track-breadth>
+test_invalid_value("grid-auto-columns", "none");
+test_invalid_value("grid-auto-columns", "-1px");
+test_invalid_value("grid-auto-columns", "-4%");
+
+// minmax( <inflexible-breadth> , <track-breadth> )
+test_invalid_value("grid-auto-columns", "minmax(1px)");
+test_invalid_value("grid-auto-columns", "minmax(1px, 2px, 3px)");
+test_invalid_value("grid-auto-columns", "minmax(5fr, 1px)");
+test_invalid_value("grid-auto-columns", "minmax(6px, -7%)");
+test_invalid_value("grid-auto-columns", "minmax(8px, -9fr)");
+
+// fit-content( <length-percentage> )
+test_invalid_value("grid-auto-columns", "fit-content(-1px)");
+test_invalid_value("grid-auto-columns", "fit-content(1px, 2px)");
+test_invalid_value("grid-auto-columns", "fit-content(1px auto)");
+
+// <track-size>+
+test_invalid_value("grid-auto-columns", "2em / 3em");
+test_invalid_value("grid-auto-columns", "auto, 10%");
+test_invalid_value("grid-auto-columns", "1px [a] 1px");
+test_invalid_value("grid-auto-columns", "[] 1px []");
+</script>
+</body>
+</html>

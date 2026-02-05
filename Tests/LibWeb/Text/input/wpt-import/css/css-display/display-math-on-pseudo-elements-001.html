@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>display: math and inline-math on pseudo elements compute to flow</title>
+<link rel="help" href="https://drafts.csswg.org/css-display/#the-display-properties">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .inline::before { content: 'math'; display: math; }
+  .inline::after { content: 'math'; display: math; }
+  .block::before { content: 'math'; display: block math; }
+  .block::after { content: 'math'; display: block math; }
+</style>
+<div>
+  <div class="block"></div>
+  <math class="block"></math>
+  <math><mrow class="block"></mrow></math>
+  <div class="inline"></div>
+  <math class="inline"></math>
+  <math><mrow class="inline"></mrow></math>
+</div>
+<script>
+  Array.from(document.querySelectorAll('[class]')).forEach(element => {
+      test(function() {
+          assert_equals(window.getComputedStyle(element, "::before").display,
+                        element.getAttribute('class'));
+          assert_equals(window.getComputedStyle(element, "::after").display,
+                        element.getAttribute('class'));
+      }, `computed display on ::before and ::after for <${element.localName} class="${element.className}">`);
+  });
+</script>

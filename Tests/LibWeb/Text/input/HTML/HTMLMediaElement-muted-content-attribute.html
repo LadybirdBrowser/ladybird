@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<video id="defaultMuted" muted=""></video>
+<video id="notDefaultMuted"></video>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const defaultMutedVideoElement = document.getElementById("defaultMuted");
+        println("Initial muted state when muted content attribute is present: " + defaultMutedVideoElement.muted);
+        defaultMutedVideoElement.muted = false;
+        defaultMutedVideoElement.removeAttribute("muted");
+        defaultMutedVideoElement.setAttribute("muted", "");
+        println(`Changing the muted attribute after object creation changes the muted state: ${defaultMutedVideoElement.muted}`);
+        defaultMutedVideoElement.remove();
+        document.body.appendChild(defaultMutedVideoElement)
+        println(`Re-inserting the video element into the document changes the muted state: ${defaultMutedVideoElement.muted}`);
+
+        const notDefaultMutedVideoElement = document.getElementById("notDefaultMuted");
+        notDefaultMutedVideoElement.setAttribute("muted", "");
+        notDefaultMutedVideoElement.remove();
+        document.body.appendChild(notDefaultMutedVideoElement);
+        println(`Re-inserting non-default muted video element into the document changes the muted state: ${notDefaultMutedVideoElement.muted}`);
+
+        const scriptCreatedVideoElement = document.createElement("video");
+        scriptCreatedVideoElement.setAttribute("muted", "");
+        document.body.appendChild(scriptCreatedVideoElement);
+        println(`Muted state of a script-created video element after adding the muted content attribute ${scriptCreatedVideoElement.muted}`);
+    });
+</script>

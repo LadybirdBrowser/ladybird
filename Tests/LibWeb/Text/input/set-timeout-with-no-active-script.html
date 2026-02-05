@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        queueMicrotask(setTimeout.bind(this, () => {}));
+        queueMicrotask(() => {
+            println("didn't crash!");
+        });
+    });
+</script>

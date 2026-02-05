@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#function-substring-after">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="helpers.js"></script>
+<body>
+<div id="context"></div>
+<script>
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span>^^^bar$$$</span><span>bar<b>^</b></span><b>bar</b>';
+  assert_equals(evaluateString('substring-after((./span)[1], ./b)', context), '$$$');
+}, 'substring-after() arguments depending on the context node');
+</script>
+</body>

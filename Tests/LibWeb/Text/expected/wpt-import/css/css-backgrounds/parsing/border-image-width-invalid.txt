@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['border-image-width'] = "none" should not set the property value
+Pass	e.style['border-image-width'] = "-1px" should not set the property value
+Pass	e.style['border-image-width'] = "-2%" should not set the property value
+Pass	e.style['border-image-width'] = "-3" should not set the property value
+Pass	e.style['border-image-width'] = "1 2 3 4 5" should not set the property value

@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="include.js"></script>
+<p id="a">Well Hello Friends</p>
+
+<script>
+    test(() => {
+        var selection = window.getSelection();
+        selection.setBaseAndExtent(a.firstChild, 0, a.firstChild, 4);
+
+        if (selection.toString() !== "Well") {
+            println("FAIL: selection is not what we expected initially");
+            return;
+        }
+
+        selection.modify("extend", "forward", "character");
+        if (selection.toString() !== "Well ") {
+            println("FAIL: selection is not what we expected after extending by character");
+            return;
+        }
+
+        selection.modify("extend", "forward", "word");
+        if (selection.toString() !== "Well Hello") {
+            println("FAIL: selection is not what we expected after extending by word");
+            return;
+        }
+
+        selection.modify("move", "backward", "character");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 9 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 9 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving backward by character");
+            return;
+        }
+
+        println("PASS");
+    });
+</script>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="oldBox"><p>A box.</p></div>
+<script>
+    test(() => {
+        let oldElement = document.getElementById("oldBox");
+        println(`${oldElement.id}='${oldElement.innerHTML}'`);
+
+        oldElement.outerHTML = '<div id="newBox"><p>Changed box.</p></div>';
+
+        let newElement = document.getElementById("newBox");
+        println(`${newElement.id}='${newElement.innerHTML}'`);
+
+        try {
+            document.documentElement.outerHTML = 'should throw exception!';
+        } catch (e) {
+            println(e);
+        }
+    });
+</script>

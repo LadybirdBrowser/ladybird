@@ -1,0 +1,46 @@
+#import <WebAudio/AudioParam.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#enumdef-channelcountmode
+enum ChannelCountMode {
+    "max",
+    "clamped-max",
+    "explicit"
+};
+
+// https://webaudio.github.io/web-audio-api/#enumdef-channelinterpretation
+enum ChannelInterpretation {
+    "speakers",
+    "discrete"
+};
+
+// https://webaudio.github.io/web-audio-api/#AudioNodeOptions
+dictionary AudioNodeOptions {
+    unsigned long channelCount;
+    ChannelCountMode channelCountMode;
+    ChannelInterpretation channelInterpretation;
+};
+
+// https://webaudio.github.io/web-audio-api/#AudioNode
+[Exposed=Window]
+interface AudioNode : EventTarget {
+    AudioNode connect(AudioNode destinationNode,
+                      optional unsigned long output = 0,
+                      optional unsigned long input = 0);
+    undefined connect(AudioParam destinationParam, optional unsigned long output = 0);
+    undefined disconnect();
+    undefined disconnect(unsigned long output);
+    undefined disconnect(AudioNode destinationNode);
+    undefined disconnect(AudioNode destinationNode, unsigned long output);
+    undefined disconnect(AudioNode destinationNode,
+                         unsigned long output,
+                         unsigned long input);
+    undefined disconnect(AudioParam destinationParam);
+    undefined disconnect(AudioParam destinationParam, unsigned long output);
+    readonly attribute BaseAudioContext context;
+    readonly attribute unsigned long numberOfInputs;
+    readonly attribute unsigned long numberOfOutputs;
+    attribute unsigned long channelCount;
+    attribute ChannelCountMode channelCountMode;
+    attribute ChannelInterpretation channelInterpretation;
+};

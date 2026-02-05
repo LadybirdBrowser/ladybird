@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+
+<link rel="author" title="Martin Robinson" href="mailto:mrobinson@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/css2/#float-position"/>
+<meta name="assert" content="When a floating box has a negative margin negative enough that it pushes the float past the top of the block formatting context, it should render properly."/>
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/negative-block-margin-pushing-float-out-of-block-formatting-context-ref.html"/>
+
+<body>
+<div style="height: 100px;"></div>
+<div style="position: absolute;">
+    <div style="float: left; width: 50px; height: 50px; margin-top: -100px; background: green;"></div>
+</div>
+</body>

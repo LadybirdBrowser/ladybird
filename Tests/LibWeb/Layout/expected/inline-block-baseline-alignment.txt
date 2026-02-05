@@ -1,0 +1,35 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,44 44.6875x18] baseline: 13.796875
+      frag 1 from BlockContainer start: 0, length: 0, rect: [52.6875,8 27.640625x54] baseline: 49.796875
+      BlockContainer <div> at [8,44] inline-block [0+0+0 44.6875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,44 44.6875x18] baseline: 13.796875
+            "short"
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [52.6875,8] inline-block [0+0+0 27.640625 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [52.6875,8 27.15625x18] baseline: 13.796875
+            "foo"
+        frag 1 from TextNode start: 0, length: 3, rect: [52.6875,26 27.640625x18] baseline: 13.796875
+            "bar"
+        frag 2 from TextNode start: 0, length: 3, rect: [52.6875,44 27.203125x18] baseline: 13.796875
+            "baz"
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x54]
+      PaintableWithLines (BlockContainer<DIV>) [8,44 44.6875x18]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>) [52.6875,8 27.640625x54]
+        TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x70] [children: 0] (z-index: auto)

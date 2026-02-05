@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 36 tests
+
+36 Pass
+Pass	Constructing CSSUnitValue with an unknown unit throws a TypeError
+Pass	Constructing CSSUnitValue with a empty string unit throws a TypeError
+Pass	CSSUnitValue can be constructed with number
+Pass	CSSUnitValue can be constructed with percent
+Pass	CSSUnitValue can be constructed with em
+Pass	CSSUnitValue can be constructed with ex
+Pass	CSSUnitValue can be constructed with ch
+Pass	CSSUnitValue can be constructed with ic
+Pass	CSSUnitValue can be constructed with rem
+Pass	CSSUnitValue can be constructed with lh
+Pass	CSSUnitValue can be constructed with rlh
+Pass	CSSUnitValue can be constructed with vw
+Pass	CSSUnitValue can be constructed with vh
+Pass	CSSUnitValue can be constructed with vi
+Pass	CSSUnitValue can be constructed with vb
+Pass	CSSUnitValue can be constructed with vmin
+Pass	CSSUnitValue can be constructed with vmax
+Pass	CSSUnitValue can be constructed with cm
+Pass	CSSUnitValue can be constructed with mm
+Pass	CSSUnitValue can be constructed with Q
+Pass	CSSUnitValue can be constructed with in
+Pass	CSSUnitValue can be constructed with pt
+Pass	CSSUnitValue can be constructed with pc
+Pass	CSSUnitValue can be constructed with px
+Pass	CSSUnitValue can be constructed with deg
+Pass	CSSUnitValue can be constructed with grad
+Pass	CSSUnitValue can be constructed with rad
+Pass	CSSUnitValue can be constructed with turn
+Pass	CSSUnitValue can be constructed with s
+Pass	CSSUnitValue can be constructed with ms
+Pass	CSSUnitValue can be constructed with Hz
+Pass	CSSUnitValue can be constructed with kHz
+Pass	CSSUnitValue can be constructed with dpi
+Pass	CSSUnitValue can be constructed with dpcm
+Pass	CSSUnitValue can be constructed with dppx
+Pass	CSSUnitValue can be constructed with fr

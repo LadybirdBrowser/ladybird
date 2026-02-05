@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Values Test: computed value of calc() values using multiplication/division with mixed units</title>
+
+  <link rel="help" href="https://www.w3.org/TR/css-values-4/#calc-computed-value">
+
+  <meta name="flags" content="">
+  <meta content="This meta-test checks for the resolution and absolutization of computed values with mixed units to 'px' when multiplication/division is used." name="assert">
+
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+
+  <style>
+  html {
+      font-size: 30px;
+  }
+
+  body {
+      font-size: 16px;
+      line-height: 1.25; /* computed value: 20px */
+      width: 520px;
+      height: 500px;
+      margin: 20px;
+  }
+
+  div#target {
+      height: 100px;
+      width: 100px;
+  }
+  </style>
+
+  <div id="target"></div>
+
+  <script>
+  function startTesting() {
+    var targetElement = document.getElementById("target");
+
+    function verifyComputedStyle(property_name, specified_value, expected_value) {
+      test(function() {
+        targetElement.style.setProperty(property_name, "initial");
+        targetElement.style.setProperty(property_name, specified_value);
+        assert_equals(getComputedStyle(targetElement)[property_name], expected_value);
+      }, `testing ${property_name}: ${specified_value}`);
+    }
+
+    verifyComputedStyle("width", "calc(5px * 10lh / 1px)", "1000px");
+    /*
+      10lh = 200px
+      5px * 200px / 1px = 1000px^2 / 1px = 1000px
+      Total = 1000px
+    */
+
+    verifyComputedStyle("width", "calc(20% * 0.5em / 1px)", "832px");
+    /*
+      20% of 520px = 104px
+      0.5em = 8px
+      104px * 8px / 1px = 832px^2 / 1px = 832px
+      Total = 832px
+    */
+
+    verifyComputedStyle("width", "calc(4px * 4em / 1px)", "256px");
+    /*
+      4em = 64px
+      4px * 64px / 1px = 256px^2 / 1px = 256px
+      Total = 256px
+    */
+
+    verifyComputedStyle("width", "calc(400px / 4lh * 1px)", "5px");
+    /*
+      4lh = 80px
+      400px / 80px * 1px = 5 * 1px = 5px
+      Total = 5px
+    */
+
+    verifyComputedStyle("width", "calc(20% / 0.5em * 1px)", "13px");
+    /*
+      20% of 520px = 104px
+      0.5em = 8px
+      104px / 8px * 1px = 13 * 1px = 13px
+      Total = 13px
+    */
+
+    verifyComputedStyle("width", "calc(52px * 1px / 10%)", "1px");
+    /*
+      10% of 520px = 52px
+      52px * 1px / 52px = 1px
+      Total = 1px
+    */
+
+    verifyComputedStyle("width", "calc(100px * 1px / 1px / 1)", "100px");
+  }
+
+  startTesting();
+
+  </script>

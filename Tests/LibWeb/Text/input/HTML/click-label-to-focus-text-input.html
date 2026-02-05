@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+</style>
+<label id="lbl">Label<input id="textInput" type="text"></label>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        textInput.addEventListener("focusin", () => {
+            println("Text input focused");
+            done();
+        });
+    
+        internals.click(10, 10);
+    });
+</script>

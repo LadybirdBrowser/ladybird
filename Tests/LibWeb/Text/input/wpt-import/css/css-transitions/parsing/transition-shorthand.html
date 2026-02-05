@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transitions: transition sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#transition-shorthand-property">
+<meta name="assert" content="transition supports the full grammar '<single-transition> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('transition', '1s -3s cubic-bezier(0, -2, 1, 3) top', {
+  'transition-property': 'top',
+  'transition-duration': '1s',
+  'transition-timing-function': 'cubic-bezier(0, -2, 1, 3)',
+  'transition-delay': '-3s',
+  'transition-behavior': 'normal'
+});
+
+test_shorthand_value('transition', '1s -3s, cubic-bezier(0, -2, 1, 3) top', {
+  'transition-property': 'all, top',
+  'transition-duration': '1s, 0s',
+  'transition-timing-function': 'ease, cubic-bezier(0, -2, 1, 3)',
+  'transition-delay': '-3s, 0s',
+  'transition-behavior': 'normal, normal'
+});
+
+test_shorthand_value('transition', 'cubic-bezier(0, -2, 1, 3) top, 1s -3s', {
+  'transition-property': 'top, all',
+  'transition-duration': '0s, 1s',
+  'transition-timing-function': 'cubic-bezier(0, -2, 1, 3), ease',
+  'transition-delay': '0s, -3s',
+  'transition-behavior': 'normal, normal'
+});
+</script>
+</body>
+</html>

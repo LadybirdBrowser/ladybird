@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const unpairedSurrogates = "hello\uDC00friends\uD800:)";
+        const replacedSurrogates = "hello\uFFFDfriends\uFFFD:)";
+
+        const blob = new Blob([unpairedSurrogates]);
+        println(await blob.text() === replacedSurrogates ? "PASS" : "FAIL")
+
+        const file = new File([unpairedSurrogates], "someFileName");
+        println(await file.text() === replacedSurrogates ? "PASS" : "FAIL")
+
+        done();
+    });
+</script>

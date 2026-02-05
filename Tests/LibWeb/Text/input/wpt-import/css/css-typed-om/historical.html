@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Historical features</title>
+<link rel=help href="https://drafts.css-houdini.org/css-typed-om/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+test(function() {
+  // https://github.com/w3c/css-houdini-drafts/commit/5261c1a323ea062d69cb5a3f1e69734fd176948a
+  assert_false("CSSPositionValue" in self);
+}, "Support for CSSPositionValue");
+
+// https://github.com/w3c/css-houdini-drafts/commit/5a1663db3f9c36ffa7b2013afdd345e98ae03d5e
+// https://github.com/w3c/css-houdini-drafts/commit/223258ea4c71aa60b1bd675602dddfbb414e0481
+const deprecatedProperties = ["toRGB", "toHSL", "toHWB", "toGray", "toLCH", "toLab", "toColor", "toDeviceCMYK", "to", "colorSpace"];
+for (const deprecatedProperty of deprecatedProperties) {
+  test(function() {
+    const cssColorValue = new CSSRGB(0, 0, 0);
+    assert_false(deprecatedProperty in cssColorValue);
+  }, `${deprecatedProperty} should not exist on CSSColorValue`);
+}
+</script>

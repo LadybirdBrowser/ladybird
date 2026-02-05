@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style type="text/css">
+    #top {
+        margin-top: 500px;
+        padding-top: 100px;
+        background-color: navy;
+        width: 100%;
+        height: 50px;
+    }
+    .picture {
+        background: magenta !important;
+        position: relative;
+        height: 50px;
+        width: 100%;
+        margin-bottom: 1000px;
+    }
+</style>
+<a style="font-size: 50px" href="#top" id="link">Take test</a>
+<div id="top"></div>
+<div class="picture"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let completed = false;
+        document.addEventListener("scroll", event => {
+            if (completed)
+                return;
+            completed = true;
+            println("The page has been scrolled to y: " + window.scrollY);
+            done();
+        });
+
+        document.getElementById("link").click();
+    });
+</script>

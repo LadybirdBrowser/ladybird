@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridTemplateColumns</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-columns">
+<meta name="assert" content="grid-template-columns computed value is the keyword none or a computed track list.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/css-grid/support/grid-child-utils.js"></script>
+<style>
+
+#target {
+    display: grid;
+    width: 54px;
+    height: 32px;
+};
+
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target">
+    <div></div>
+    <div></div>
+    <div style="grid-column: 4"></div>
+    <div id="child"></div>
+    <div style="grid-column: 10"></div>
+    <div></div>
+  </div>
+</div>
+<script>
+
+// Style with 3 repeat tracks.
+let style3 =
+    "[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]";
+let col3Tester = new GridChildHelper(gridChildHelperCol, style3);
+let rowTester = new GridChildHelper(gridChildHelperRow, style3);
+
+// Style with 2 repeat tracks.
+let style2 =
+    "[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h]) [i j] 7px [k] 8px [l m]";
+let col2Tester = new GridChildHelper(gridChildHelperCol, style2);
+
+rowTester.runTest(3,
+    "[a] 1px [b] 2px [c d e f] 3px [g] 0px [h] 0px [i j k] 7px [k] 8px [l m]");
+rowTester.runTest(5,
+    "[a] 1px [b] 2px [c d e f] 0px [g] 0px [h] 5px [i j k] 7px [k] 8px [l m]");
+rowTester.runTest("3 / 8",
+    "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+rowTester.runTest("4 / span 2",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+rowTester.runTest("4 / 5",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h] 0px [i j k] 7px [k] 8px [l m]");
+
+col3Tester.runTest(3,
+    "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h] 0px [i j e f] 0px [g] 0px [h] 0px [i j e f] 0px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+col3Tester.runTest(6,
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h] 0px [i j e f] 3px [g] 0px [h] 0px [i j e f] 0px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+col3Tester.runTest("3 / 8",
+    "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h] 5px [i j e f] 3px [g] 4px [h] 0px [i j e f] 0px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+col3Tester.runTest("5 / span 2",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h] 5px [i j e f] 3px [g] 0px [h] 0px [i j e f] 0px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+col3Tester.runTest("7 / span 2",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h] 0px [i j e f] 0px [g] 4px [h] 5px [i j e f] 0px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+col3Tester.runTest("5 / 8",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h] 5px [i j e f] 3px [g] 4px [h] 0px [i j e f] 0px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+col3Tester.runTest("8 / 10",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h] 0px [i j e f] 0px [g] 0px [h] 5px [i j e f] 3px [g] 4px [h] 5px [i j k] 7px [k] 8px [l m]");
+
+col2Tester.runTest(3,
+    "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 0px [g] 0px [h e f] 0px [g] 0px [h e f] 0px [g] 4px [h e f] 3px [g] 0px [h i j] 7px [k] 8px [l m]");
+col2Tester.runTest(6,
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h e f] 0px [g] 4px [h e f] 0px [g] 0px [h e f] 0px [g] 4px [h e f] 3px [g] 0px [h i j] 7px [k] 8px [l m]");
+col2Tester.runTest("3 / 8",
+    "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 3px [g] 4px [h e f] 3px [g] 0px [h e f] 0px [g] 4px [h e f] 3px [g] 0px [h i j] 7px [k] 8px [l m]");
+col2Tester.runTest("6 / span 2",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h e f] 0px [g] 4px [h e f] 3px [g] 0px [h e f] 0px [g] 4px [h e f] 3px [g] 0px [h i j] 7px [k] 8px [l m]");
+col2Tester.runTest("5 / 10",
+    "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h e f] 3px [g] 4px [h e f] 3px [g] 4px [h e f] 3px [g] 4px [h e f] 3px [g] 0px [h i j] 7px [k] 8px [l m]");
+
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+audio crossOrigin initial value: null
+audio crossOrigin value after setting to "invalid": anonymous
+audio crossOrigin value after setting to "use-credentials": use-credentials
+audio crossOrigin value after setting to null: null
+audio crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
+audio crossOrigin value after setting to "": anonymous
+audio crossOrigin value after calling removeAttribute: null
+script crossOrigin initial value: null
+script crossOrigin value after setting to "invalid": anonymous
+script crossOrigin value after setting to "use-credentials": use-credentials
+script crossOrigin value after setting to null: null
+script crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
+script crossOrigin value after setting to "": anonymous
+script crossOrigin value after calling removeAttribute: null
+video crossOrigin initial value: null
+video crossOrigin value after setting to "invalid": anonymous
+video crossOrigin value after setting to "use-credentials": use-credentials
+video crossOrigin value after setting to null: null
+video crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
+video crossOrigin value after setting to "": anonymous
+video crossOrigin value after calling removeAttribute: null
+link crossOrigin initial value: null
+link crossOrigin value after setting to "invalid": anonymous
+link crossOrigin value after setting to "use-credentials": use-credentials
+link crossOrigin value after setting to null: null
+link crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
+link crossOrigin value after setting to "": anonymous
+link crossOrigin value after calling removeAttribute: null
+img crossOrigin initial value: null
+img crossOrigin value after setting to "invalid": anonymous
+img crossOrigin value after setting to "use-credentials": use-credentials
+img crossOrigin value after setting to null: null
+img crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
+img crossOrigin value after setting to "": anonymous
+img crossOrigin value after calling removeAttribute: null

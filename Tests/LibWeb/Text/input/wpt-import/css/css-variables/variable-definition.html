@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>variable-definition: get variable value using getPropertyValue</title>
+
+    <meta rel="author" title="Kevin Babbitt">
+    <meta rel="author" title="Greg Whitworth">
+    <link rel="author" title="Microsoft Corporation" href="http://microsoft.com" />
+    <link rel="help" href="http://www.w3.org/TR/css-variables-1/#using-variables">
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="log"></div>
+
+<script type="text/javascript">
+    "use strict";
+
+    let templates = [
+        { varName:"--var",     expectedValue:"",        style:"",                           testName:"no variable"},
+        { varName:"--var",     expectedValue:"value",   style:"--var:value",                testName:"variable"},
+        { varName:"--v",       expectedValue:"value",   style:"--v:value",                  testName:"single char variable"},
+        { varName:"---",       expectedValue:"value",   style:"---:value",                  testName:"single char '-' variable"},
+        { varName:"--",        expectedValue:"",        style:"--:value",                   testName:"no char variable"},
+        { varName:"--var",     expectedValue:" ",       style:"--var: ",                    testName:"white space value (single space)"},
+        { varName:"--var",     expectedValue:" ",      style:"--var:  ",                   testName:"white space value (double space)"},
+        { varName:"--var",     expectedValue:"value2",  style:"--var:value1; --var:value2", testName:"overwrite"},
+        { varName:"--var",     expectedValue:" ",   style:"--var:value;--var:;",        testName:"can overwrite with no value"},
+        { varName:"--var",     expectedValue:" ",       style:"--var:value;--var: ;",       testName:"can overwrite with space value"},
+        { varName:"--var",     expectedValue:"value1",  style:"--var:value1; --Var:value2", testName:"case sensetivity"},
+        { varName:"--Var",     expectedValue:"value2",  style:"--var:value1; --Var:value2", testName:"case sensetivity2"},
+        { varName:"---var",    expectedValue:"value",  style:"---var:value;",               testName:"parsing three dashes at start of variable"},
+        { varName:"-var4" ,    expectedValue:"",        style:"-var4:value3",               testName:"parsing multiple dashes with one dash at start of variable"},
+        { varName:"--var",     expectedValue:"value",  style:"--var: value",               testName:" leading white space (single space)"},
+        { varName:"--var",     expectedValue:"value1 value2", style:"--var:value1 value2",  testName:" middle white space (single space)"},
+        { varName:"--var",     expectedValue:"value",  style:"--var:value ",               testName:" trailing white space (single space)"},
+        { varName:"--var",     expectedValue:"value", style:"--var:  value",              testName:" leading white space (double space) 2"},
+        { varName:"--var",     expectedValue:"value1  value2", style:"--var:value1  value2",testName:" middle white space (double space) 2"},
+        { varName:"--var",     expectedValue:"value", style:"--var:value  ",              testName:" trailing white space (double space) 2"},
+        { varName:"--var",     expectedValue:"value1",  style:"--var:value1 !important;", testName:"!important"},
+        { varName:"--var",     expectedValue:"value1",  style:"--var:value1!important;--var:value2;", testName:"!important 2"},
+        { varName:"--var",     expectedValue:"value1", style:"--var:value1 !important;--var:value2;", testName:"!important (with space)"}
+    ];
+
+    templates.forEach(function (template) {
+        test( function () {
+            let div = document.createElement("div");
+            div.style.cssText = template.style;
+            document.body.appendChild(div);
+            let value = div.style.getPropertyValue(template.varName);
+            assert_equals(value, template.expectedValue, "Expected Value should match actual value");
+            document.body.removeChild(div);
+        }, template.testName);
+    });
+
+    templates.forEach(function (template) {
+        test( function () {
+            let div = document.createElement("div");
+            div.style.cssText = template.style;
+            document.body.appendChild(div);
+            let computedStyle = window.getComputedStyle(div);
+            let value = computedStyle.getPropertyValue(template.varName);
+            assert_equals(value, template.expectedValue, "Expected Value should match actual value");
+            document.body.removeChild(div);
+        }, template.testName +" (Computed Style)");
+    });
+
+    templates.forEach(function (template) {
+        test( function () {
+            let div = document.createElement("div");
+            div.style.cssText = template.style;
+            document.body.appendChild(div);
+            let divChild = document.createElement("div");
+            div.appendChild(divChild);
+            let computedStyle = window.getComputedStyle(divChild);
+            let value = computedStyle.getPropertyValue(template.varName);
+            assert_equals(value, template.expectedValue, "Expected Value should match actual value");
+            document.body.removeChild(div);
+        }, template.testName +" (Cascading)");
+    });
+
+    let template2 = [
+        { varToSet:"--varUnique",       setValue:"green", varNameForRetrieval:"--varUnique",        expectedValue:"green",  testName:"basic CSSOM.setProperty"},
+        { varToSet:"--varUnique2 ",     setValue:"green", varNameForRetrieval:"--varUnique2 ",      expectedValue:"",       testName:"CSSOM.setProperty with space 1"},
+        { varToSet:"--varUnique3 name", setValue:"green", varNameForRetrieval:"--varUnique3 name",  expectedValue:"",       testName:"CSSOM.setProperty with space 2"},
+        { varToSet:"--varUnique4 name", setValue:"green", varNameForRetrieval:"--varUnique4",       expectedValue:"",       testName:"CSSOM.setProperty with space 3"},
+    ];
+
+    template2.forEach(function (template) {
+        test( function () {
+            let div = document.createElement("div");
+            div.style.setProperty(template.varToSet, template.setValue);
+            document.body.appendChild(div);
+            let computedStyle = window.getComputedStyle(div);
+            let value = computedStyle.getPropertyValue(template.varNameForRetrieval);
+            assert_equals(value, template.expectedValue, "Expected Value should match actual value");
+            document.body.removeChild(div);
+        }, template.testName);
+    });
+</script>
+
+</body>
+</html>

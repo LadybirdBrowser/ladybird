@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 29 tests
+
+29 Pass
+Pass	calling undefined callbacks throws
+Pass	Attributes without type constraints will work as before.
+Pass	trustedTypes.createPolicy(.., null) creates empty policy.
+Pass	TestPolicyTrustedHTML0 (TrustedHTML: s => s)
+Pass	TestPolicyTrustedHTML1 (TrustedHTML: s => null)
+Pass	TestPolicyTrustedHTML2 (TrustedHTML: s => "well, " + s)
+Pass	TestPolicyTrustedHTML3 (TrustedHTML: s => { throw new Error() })
+Pass	TestPolicyTrustedHTML4 (TrustedHTML: callback_to_capture_this(s) {
+      return String(this);
+    })
+Pass	TestPolicyTrustedHTML5 (TrustedHTML: s => { aGlobalVarForSideEffectTesting = s; return s })
+Pass	TestPolicyTrustedHTML6 (TrustedHTML: s => aGlobalVarForSideEffectTesting + s)
+Pass	TestPolicyTrustedHTML7 (TrustedHTML: function () { [native code] })
+Pass	TestPolicyTrustedHTML8 (TrustedHTML: s => aGlobalFunction(s))
+Pass	TestPolicyTrustedScript0 (TrustedScript: s => s)
+Pass	TestPolicyTrustedScript1 (TrustedScript: s => null)
+Pass	TestPolicyTrustedScript2 (TrustedScript: s => "well, " + s)
+Pass	TestPolicyTrustedScript3 (TrustedScript: s => { throw new Error() })
+Pass	TestPolicyTrustedScript4 (TrustedScript: callback_to_capture_this(s) {
+      return String(this);
+    })
+Pass	TestPolicyTrustedScript5 (TrustedScript: s => { aGlobalVarForSideEffectTesting = s; return s })
+Pass	TestPolicyTrustedScript6 (TrustedScript: s => aGlobalVarForSideEffectTesting + s)
+Pass	TestPolicyTrustedScript7 (TrustedScript: function () { [native code] })
+Pass	TestPolicyTrustedScript8 (TrustedScript: s => aGlobalFunction(s))
+Pass	TestPolicyTrustedScriptURL0 (TrustedScriptURL: s => s)
+Pass	TestPolicyTrustedScriptURL1 (TrustedScriptURL: s => null)
+Pass	TestPolicyTrustedScriptURL2 (TrustedScriptURL: s => s + "#duck")
+Pass	TestPolicyTrustedScriptURL3 (TrustedScriptURL: s => { throw new Error() })
+Pass	TestPolicyTrustedScriptURL4 (TrustedScriptURL: callback_to_capture_this(s) {
+      return String(this);
+    })
+Pass	TestPolicyTrustedScriptURL5 (TrustedScriptURL: s => s + "#" + aGlobalVarForSideEffectTesting)
+Pass	TestPolicyTrustedScriptURL6 (TrustedScriptURL: function () { [native code] })
+Pass	TestPolicyTrustedScriptURL7 (TrustedScriptURL: s => anotherGlobalFunction(s))

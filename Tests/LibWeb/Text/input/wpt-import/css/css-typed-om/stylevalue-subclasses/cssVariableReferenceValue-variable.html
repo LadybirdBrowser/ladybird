@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSVariableReferenceValue.variable</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssvariablereferencevalue-variable">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  let result = new CSSVariableReferenceValue('--foo');
+  result.variable = '--bar';
+  assert_equals(result.variable, '--bar', 'variable reflects new value');
+}, 'CSSVariableReferenceValue.variable can updated to a valid custom ' +
+   'property name');
+
+test(() => {
+  let result = new CSSVariableReferenceValue('--foo');
+  assert_throws_js(TypeError, () => result.variable = '');
+  assert_equals(result.variable, '--foo', 'variable does not change');
+}, 'Updating CSSVariableReferenceValue.variable to the empty string ' +
+   'throws TypeError');
+
+test(() => {
+  let result = new CSSVariableReferenceValue('--foo');
+  assert_throws_js(TypeError, () => result.variable = 'bar');
+  assert_equals(result.variable, '--foo', 'variable does not change');
+}, 'Updating CSSVariableReferenceValue.variable to an invalid custom ' +
+   'property name throws TypeError');
+
+</script>

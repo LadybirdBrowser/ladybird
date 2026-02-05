@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Trailing declarations
+Pass	Mixed declarations
+Pass	CSSNestedDeclarations.style
+Pass	Nested group rule
+Pass	Nested @scope rule
+Pass	Inner rule starting with an ident
+Pass	Inserting a CSSNestedDeclaration rule into style rule
+Pass	Inserting a CSSNestedDeclaration rule into nested group rule
+Pass	Attempting to insert a CSSNestedDeclaration rule into top-level @media rule
+Pass	Attempting to insert a CSSNestedDeclaration rule into a stylesheet
+Pass	Attempting to insert a CSSNestedDeclaration rule, empty block
+Pass	Attempting to insert a CSSNestedDeclaration rule, all invalid declarations

@@ -1,0 +1,11 @@
+// The docker image used below was generated from '.devcontainer/devcontainer.json'
+// by the '.github/workflows/dev-container.yml' workflow.
+//
+// By building this dev container image in advance, tools
+// like GitHub Codespaces (https://containers.dev/supporting)
+// do not need to install all the prerequsite dependencies from scratch,
+// getting you into your development environment faster!
+{
+    "name": "Ladybird (Pre-Built Image)",
+    "image": "ghcr.io/ladybirdbrowser/ladybird-devcontainer:base"
+}

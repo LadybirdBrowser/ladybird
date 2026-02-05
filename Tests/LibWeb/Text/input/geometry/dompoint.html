@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            try {
+                println(`${testCounter}. ${JSON.stringify(part())}`);
+            } catch (e) {
+                println(`${testCounter}. Exception: ${e.name}`);
+            }
+            testCounter++;
+        }
+
+        // 1. Creating a DOMPoint
+        testPart(() => new DOMPoint(10, 20));
+
+        // 2. Creating DOMPoint with fromPoint
+        testPart(() => DOMPoint.fromPoint({ x: 1, y: 2, z: 3, w: 4 }));
+
+        // 3. Creating a DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]));
+
+        // 4. Transforming a DOMPoint using a DOMMatrix
+        testPart(function () {
+            const matrix = new DOMMatrix([10, 20, 30, 40, 50, 60]);
+            const point = new DOMPoint(10, 20);
+            return point.matrixTransform(matrix);
+        });
+
+        // 5. Transforming a point using a DOMMatrix
+        testPart(function () {
+            const matrix = new DOMMatrix([10, 20, 30, 40, 50, 60]);
+            return matrix.transformPoint(new DOMPoint(10, 20));
+        });
+
+        // 6. Transforming a point using a DOMMatrix
+        testPart(function () {
+            const matrix = new DOMMatrix([10, 20, 30, 40, 50, 60]);
+            return matrix.transformPoint({x: 10, y: 20});
+        });
+        
+        // 7. Transforming a point using a matrixTransform with an invalid DOMMatrixInit
+        testPart(function () {
+            const point = new DOMPoint(10, 20);
+            return point.matrixTransform({ is2D: true, m33: 1.0000001 });
+        });
+    });
+</script>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Get fieldset elements length
+        testPart(() => {
+            const fieldset = document.createElement('fieldset');
+            fieldset.innerHTML = `<input><input><button></button>`;
+            return fieldset.elements.length;
+        });
+
+        // 2. Get fieldset elements set stuff
+        testPart(() => {
+            const fieldset = document.createElement('fieldset');
+            fieldset.innerHTML = `<input><input value="FAIL"><button></button>`;
+            fieldset.elements[0].value = 'PASS';
+            return fieldset.children[0].value;
+        });
+    });
+</script>

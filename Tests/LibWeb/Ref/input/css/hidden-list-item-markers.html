@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/hidden-list-item-markers-ref.html" />
+<style>
+  .hidden {
+    visibility: hidden;
+  }
+  .display-none {
+    display: none;
+  }
+  #a { color: red; }
+  #b { color: green; }
+  #c { color: blue; }
+  #d { color: orange; }
+</style>
+There should be nothing visible below.
+<ul class="hidden">
+  <li id="a"></li>
+</ul>
+<ul class="display-none">
+  <li id="b"></li>
+</ul>
+<ul>
+  <li class="hidden" id="c"></li>
+  <li class="display-none" id="d"></li>
+</ul>

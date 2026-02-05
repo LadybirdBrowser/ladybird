@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	IDBCursor.continue() - continues
+Pass	IDBCursor.continue() - with given key
+Pass	IDBCursor.continue() - skip far forward
+Pass	IDBCursor.continue() - within range
+Pass	IDBCursor.continue() - within single key range
+Pass	IDBCursor.continue() - within single key range, with several results

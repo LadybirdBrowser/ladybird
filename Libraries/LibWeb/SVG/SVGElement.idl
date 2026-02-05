@@ -1,0 +1,21 @@
+#import <CSS/ElementCSSInlineStyle.idl>
+#import <DOM/Element.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/HTMLOrSVGElement.idl>
+#import <HTML/DOMStringMap.idl>
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGSVGElement.idl>
+
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGElement
+[Exposed=Window]
+interface SVGElement : Element {
+
+    [SameObject] readonly attribute SVGAnimatedString className;
+
+    readonly attribute SVGSVGElement? ownerSVGElement;
+    readonly attribute SVGElement? viewportElement;
+};
+
+SVGElement includes GlobalEventHandlers;
+SVGElement includes HTMLOrSVGElement;
+SVGElement includes ElementCSSInlineStyle;

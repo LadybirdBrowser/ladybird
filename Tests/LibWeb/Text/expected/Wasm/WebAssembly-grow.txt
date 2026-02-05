@@ -1,0 +1,3 @@
+Made memory [object WebAssembly.Memory] with buffer [object ArrayBuffer] (byteLength 655360)
+After growing buffer (byteLength 983040)
+Got error: 'TypeError: Number '4294967296' is outside of allowed range of 0 to 4294967295'

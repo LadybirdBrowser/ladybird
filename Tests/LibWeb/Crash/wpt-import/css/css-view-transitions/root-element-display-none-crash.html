@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html class=test-wait>
+<title>View transitions: html display none</title>
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/">
+<link rel="author" href="mailto:vmpstr@chromium.org">
+
+<style>
+html {
+  display: none;
+}
+</style>
+
+<script>
+function finish() {
+  document.documentElement.removeAttribute("class");
+}
+
+async function runTest() {
+  if (!document.startViewTransition) {
+    document.body.textContent = "Precondition Failed: Missing document.startViewTransition";
+    finish();
+    return;
+  }
+
+  document.startViewTransition().finished.then(finish, finish);
+}
+onload = () => requestAnimationFrame(() => requestAnimationFrame(runTest));
+</script>
+

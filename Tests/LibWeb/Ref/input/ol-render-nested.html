@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../expected/ol-render-nested-ref.html" />
+</head>
+<body>
+<!--
+    FIXME: Add support hierarchical markers https://drafts.csswg.org/css-lists-3/#example-598c7e61
+-->
+<!DOCTYPE html>
+<body>
+<ol>
+  <li>One
+  <li value=5>Five
+    <ol start=31>
+      <li>Thirty-one
+      <li>Thirty-two
+        <ol reversed>
+          <li>Four
+          <li>Three
+          <li>Two
+          <li>One
+        </ol>
+      <li>Thirty-three
+    </ol>
+  <li>Six
+</ol>
+</body>
+</body>

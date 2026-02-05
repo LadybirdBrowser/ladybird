@@ -1,0 +1,163 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<link rel="help" href="https://open-ui.org/components/invokers.explainer/" />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/invoker-utils.js"></script>
+
+<div id="div"></div>
+<button id="button"></button>
+
+<script>
+  test(function () {
+    const event = new CommandEvent("test");
+    assert_equals(event.command, "");
+    assert_readonly(event, "command", "readonly attribute value");
+  }, "command is a readonly defaulting to ''");
+
+  test(function () {
+    const event = new CommandEvent("test");
+    assert_equals(event.source, null);
+    assert_readonly(event, "source", "readonly attribute value");
+  }, "source is readonly defaulting to null");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: "sAmPle" });
+    assert_equals(event.command, "sAmPle");
+  }, "command reflects initialized attribute");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: undefined });
+    assert_equals(event.command, "");
+  }, "command set to undefined");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: null });
+    assert_equals(event.command, "null");
+  }, "command set to null");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: false });
+    assert_equals(event.command, "false");
+  }, "command set to false");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: "" });
+    assert_equals(event.command, "");
+  }, "command explicitly set to empty string");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: true });
+    assert_equals(event.command, "true");
+  }, "command set to true");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: 0.5 });
+    assert_equals(event.command, "0.5");
+  }, "command set to a number");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: [] });
+    assert_equals(event.command, "");
+  }, "command set to []");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: [1, 2, 3] });
+    assert_equals(event.command, "1,2,3");
+  }, "command set to [1, 2, 3]");
+
+  test(function () {
+    const event = new CommandEvent("test", { command: { sample: 0.5 } });
+    assert_equals(event.command, "[object Object]");
+  }, "command set to an object");
+
+  test(function () {
+    const event = new CommandEvent("test", {
+      command: {
+        toString() {
+          return "sample";
+        },
+      },
+    });
+    assert_equals(event.command, "sample");
+  }, "command set to an object with a toString function");
+
+  test(function () {
+    const eventInit = { command: "sample", source: document.body };
+    const event = new CommandEvent("test", eventInit);
+    assert_equals(event.command, "sample");
+    assert_equals(event.source, document.body);
+  }, "CommandEventInit properties set value");
+
+  test(function () {
+    const eventInit = {
+      command: "open",
+      source: document.getElementById("div"),
+    };
+    const event = new CommandEvent("beforetoggle", eventInit);
+    assert_equals(event.command, "open");
+    assert_equals(event.source, document.getElementById("div"));
+  }, "CommandEventInit properties set value 2");
+
+  test(function () {
+    const eventInit = {
+      command: "closed",
+      source: document.getElementById("button"),
+    };
+    const event = new CommandEvent("toggle", eventInit);
+    assert_equals(event.command, "closed");
+    assert_equals(event.source, document.getElementById("button"));
+  }, "CommandEventInit properties set value 3");
+
+  test(function () {
+    const event = new CommandEvent("test", { source: undefined });
+    assert_equals(event.source, null);
+  }, "source set to undefined");
+
+  test(function () {
+    const event = new CommandEvent("test", { source: null });
+    assert_equals(event.source, null);
+  }, "source set to null");
+
+  test(function () {
+    assert_throws_js(
+      TypeError,
+      function () {
+        new CommandEvent("test", { source: false });
+      },
+      "source is not an object",
+    );
+  }, "source set to false");
+
+  test(function () {
+    assert_throws_js(
+      TypeError,
+      function () {
+        const event = new CommandEvent("test", { source: true });
+      },
+      "source is not an object",
+    );
+  }, "source set to true");
+
+  test(function () {
+    assert_throws_js(
+      TypeError,
+      function () {
+        const event = new CommandEvent("test", { source: {} });
+      },
+      "source is not an object",
+    );
+  }, "source set to {}");
+
+  test(function () {
+    assert_throws_js(
+      TypeError,
+      function () {
+        const eventInit = { command: "closed", source: new XMLHttpRequest() };
+        const event = new CommandEvent("toggle", eventInit);
+      },
+      "source is not an Element",
+    );
+  }, "source set to non-Element EventTarget");
+</script>

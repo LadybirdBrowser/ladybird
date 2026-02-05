@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        location.hash = "#1";
+        println(location.hash);
+        location.hash = "#2";
+        println(location.hash);
+    });
+</script>

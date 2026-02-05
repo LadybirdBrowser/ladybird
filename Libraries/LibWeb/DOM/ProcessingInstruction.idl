@@ -1,0 +1,7 @@
+#import <DOM/CharacterData.idl>
+
+// https://dom.spec.whatwg.org/#processinginstruction
+[Exposed=Window]
+interface ProcessingInstruction : CharacterData {
+    readonly attribute DOMString target;
+};

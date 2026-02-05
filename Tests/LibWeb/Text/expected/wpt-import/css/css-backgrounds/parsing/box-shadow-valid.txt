@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 38 tests
+
+38 Pass
+Pass	e.style['box-shadow'] = "none" should set the property value
+Pass	e.style['box-shadow'] = "1px 2px" should set the property value
+Pass	e.style['box-shadow'] = "red 1px 2px 3px -4px inset" should set the property value
+Pass	e.style['box-shadow'] = "inset 1px 2px red" should set the property value
+Pass	e.style['box-shadow'] = "1px -2px inset, red -3px 4px" should set the property value
+Pass	e.style['box-shadow'] = "inset 1px -2px, -3px 4px red" should set the property value
+Pass	e.style['box-shadow'] = "4px 4px green" should set the property value
+Pass	e.style['box-shadow'] = "green -4px 4px" should set the property value
+Pass	e.style['box-shadow'] = "-4px 4px 0 green" should set the property value
+Pass	e.style['box-shadow'] = "green -4px 4px 0" should set the property value
+Pass	e.style['box-shadow'] = "-4px 4px 0 0 green" should set the property value
+Pass	e.style['box-shadow'] = "green -4px 4px 0 0" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px inset" should set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px 0 inset" should set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px 0" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px 0 0 inset" should set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px 0 0" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px green inset" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px inset green" should set the property value
+Pass	e.style['box-shadow'] = "inset green 4px -4px" should set the property value
+Pass	e.style['box-shadow'] = "green inset 4px -4px" should set the property value
+Pass	e.style['box-shadow'] = "green 4px -4px inset" should set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px green" should set the property value
+Pass	e.style['box-shadow'] = "inset green 4px -4px 0" should set the property value
+Pass	e.style['box-shadow'] = "green inset 4px -4px 0" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px 0 green inset" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px 0 inset green" should set the property value
+Pass	e.style['box-shadow'] = "green 4px -4px 0 inset" should set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px 0 green" should set the property value
+Pass	e.style['box-shadow'] = "inset green 4px -4px 0 0" should set the property value
+Pass	e.style['box-shadow'] = "green inset 4px -4px 0 0" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px 0 0 green inset" should set the property value
+Pass	e.style['box-shadow'] = "4px -4px 0 0 inset green" should set the property value
+Pass	e.style['box-shadow'] = "green 4px -4px 0 0 inset" should set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px 0 0 green" should set the property value
+Pass	e.style['box-shadow'] = "1px 1px calc(-1px)" should set the property value
+Pass	e.style['box-shadow'] = "1px 1px calc(1em - 2px)" should set the property value

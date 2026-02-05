@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Test: 'contain: size' on table captions should cause them to be sized as if they had no contents.</title>
+  <link rel="author" title="Morgan Rae Reschenberg" href="mailto:mreschenberg@berkeley.edu">
+  <link rel="help" href="https://drafts.csswg.org/css-contain/#containment-size">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/contain-size-table-caption-001-ref.html">
+  <style>
+  .contain {
+    contain:size;
+  }
+  .innerContents {
+    height: 100px;
+    width: 100px;
+    color: transparent;
+  }
+  caption {
+    border: 1em solid green;
+  }
+  </style>
+</head>
+<body>
+  <table>
+    <caption class="contain">
+      <div class="innerContents">
+        inner
+      </div>
+    </caption>
+  </table>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const writableStream = new WritableStream(
+            {
+                write(chunk) {}
+            }
+        );
+        const stream = new ReadableStream({
+            start(controller) {},
+            pull(controller) {},
+            cancel() {},
+        });
+
+        stream.getReader();
+        stream.pipeTo(writableStream)
+            .catch(reason => {
+                println(reason);
+                done();
+            });
+    });
+</script>

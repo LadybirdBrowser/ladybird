@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <title>Region Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests synonym roles image/img and none/presentation via <a href="https://w3c.github.io/core-aam/#roleMappingComputedRole">Core-AAM Computed Role</a>.</p>
+
+<!-- spec resolution https://github.com/w3c/core-aam/issues/166 -->
+
+<div role="none" id="none" data-testname="none role == computedrole none" class="ex-generic">x</div><!-- preferred -->
+<div role="presentation" id="presentation" data-testname="synonym presentation role == computedrole none" class="ex-generic">x</div><!-- synonym -->
+
+<div role="image" id="image" data-expectedrole="image" data-testname="image role == computedrole image" class="ex">x</div><!-- preferred -->
+<div role="img" id="img" data-expectedrole="image" data-testname="synonym img role == computedrole image" class="ex">x</div><!-- synonym -->
+
+<!-- `directory` synonym deprecated in ARIA 1.2; these examples should all return computedrole `list` -->
+<ul role="list" id="list2" data-expectedrole="list" data-testname="list role == computedrole list" class="ex"><li>x</li></ul>
+<ul role="directory" id="directory" data-expectedrole="list" data-testname="directory role == computedrole list" class="ex"><li>x</li></ul>
+<div role="directory" id="div" data-expectedrole="list" data-testname="div w/directory role == computedrole list" class="ex"><div role="listitem">x</div></div>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+</body>
+</html>

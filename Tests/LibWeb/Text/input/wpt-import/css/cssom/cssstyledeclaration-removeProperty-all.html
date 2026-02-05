@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSSStyleDeclaration.removeProperty("all")</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#dom-cssstyledeclaration-removeproperty">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  test(function() {
+    let style = document.createElement("div").style;
+    style.width = "40px";
+    assert_equals(style.length, 1, "setter should work as expected");
+    style.removeProperty("all");
+    assert_equals(style.length, 0, "all is a shorthand of all properties, so should remove the property");
+  });
+</script>

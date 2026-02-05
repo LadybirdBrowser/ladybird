@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const iframe = document.getElementById("testIframe");
+
+        function navigateIframe(src) {
+            return new Promise(resolve => {
+                iframe.addEventListener("load", () => {
+                    resolve();
+                });
+                iframe.src = src;
+            });
+        }
+
+        let receivedMessageCount = 0;
+        window.addEventListener("message", event => {
+            println(event.data);
+            receivedMessageCount++;
+            if (receivedMessageCount === 2) {
+                done();
+            }
+        });
+
+        await navigateIframe("../../data/iframe-test-content-1.html");
+        await navigateIframe("../../data/iframe-test-content-2.html");
+    });
+</script>
+<iframe id="testIframe" src="about:blank"></iframe>

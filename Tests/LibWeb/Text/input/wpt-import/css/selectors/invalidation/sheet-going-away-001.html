@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: invalidation of class changes when the sheet the style depends on goes away</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#invalid">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1432850">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  body { background: green; }
+</style>
+<style id="style">
+  .red { background: red; }
+</style>
+<body class="red">
+Should have a green background.
+<script>
+test(() => {
+  document.body.offsetTop;
+  assert_equals(getComputedStyle(document.body).backgroundColor, "rgb(255, 0, 0)");
+  document.body.className = "";
+  style.remove();
+  assert_equals(getComputedStyle(document.body).backgroundColor, "rgb(0, 128, 0)");
+}, "Style should be recomputed correctly when the stylesheet it depends on goes away");
+</script>
+</body>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    #test {
+        height: 0;
+    }
+</style>
+<script src="include.js"></script>
+<div id="test">test</div>
+<script>
+    test(() => {
+        const divElement = document.getElementById("test");
+        divElement.scrollBy(1, 1);
+        divElement.remove();
+        println("PASS (didn't crash)");
+    });
+</script>

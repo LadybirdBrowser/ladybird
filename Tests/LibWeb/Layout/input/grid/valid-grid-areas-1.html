@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+.grid-container {
+    display: grid;
+    background-color: lightsalmon;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-areas: "one one three two";
+}
+
+.grid-item {
+    background-color: lightblue;
+    grid-column-start: one;
+    grid-column-end: one;
+}
+</style><div class="grid-container"><div class="grid-item">1fr</div></div>

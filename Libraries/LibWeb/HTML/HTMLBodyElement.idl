@@ -1,0 +1,20 @@
+#import <DOM/EventHandler.idl>
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/sections.html#htmlbodyelement
+[Exposed=Window]
+interface HTMLBodyElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    // Obsolete
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString text;
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString link;
+    [CEReactions, LegacyNullToEmptyString, Reflect=vlink] attribute DOMString vLink;
+    [CEReactions, LegacyNullToEmptyString, Reflect=alink] attribute DOMString aLink;
+    [CEReactions, LegacyNullToEmptyString, Reflect=bgcolor] attribute DOMString bgColor;
+    [CEReactions, Reflect] attribute DOMString background;
+
+};
+
+HTMLBodyElement includes WindowEventHandlers;

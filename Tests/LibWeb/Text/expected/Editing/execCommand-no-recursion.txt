@@ -1,0 +1,4 @@
+input event
+inner result: false
+outer result: true
+foo

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://www.w3.org/TR/css-text-decor-4/#underline-offset">
+<meta name="test" content="text-underline-offset supports animation by computed value type">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.target {
+  font: 16px sans-serif;
+}
+</style>
+
+<body>
+  <template id="target-template">T</template>
+</body>
+
+<script>
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '15px',
+  to: '0px',
+}, [
+  {at: 0, expect: '15px'},
+  {at: 0.3, expect: '10.5px'},
+  {at: 0.6, expect: '6px'},
+  {at: 1, expect: '0px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '16px',
+  to: '0px',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '11.2px'},
+  {at: 0.6, expect: '6.4px'},
+  {at: 1, expect: '0px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '16px',
+  to: '32px',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '20.8px'},
+  {at: 0.6, expect: '25.6px'},
+  {at: 1, expect: '32px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '1em',
+  to: '0em',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '11.2px'},
+  {at: 0.6, expect: '6.4px'},
+  {at: 1, expect: '0px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '1em',
+  to: '2em',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '20.8px'},
+  {at: 0.6, expect: '25.6px'},
+  {at: 1, expect: '32px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '100%',
+  to: '0%',
+}, [
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '70%'},
+  {at: 0.6, expect: '40%'},
+  {at: 1, expect: '0%'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '100%',
+  to: '200%',
+}, [
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '130%'},
+  {at: 0.6, expect: '160%'},
+  {at: 1, expect: '200%'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '16px',
+  to: '0em',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '11.2px'},
+  {at: 0.6, expect: '6.4px'},
+  {at: 1, expect: '0px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '16px',
+  to: '2em',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '20.8px'},
+  {at: 0.6, expect: '25.6px'},
+  {at: 1, expect: '32px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '16px',
+  to: '0%',
+}, [
+  {at: 0, expect: 'calc(0% + 16px)'},
+  {at: 0.3, expect: 'calc(0% + 11.2px)'},
+  {at: 0.6, expect: 'calc(0% + 6.4px)'},
+  {at: 1, expect: '0%'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '16px',
+  to: '200%',
+}, [
+  {at: 0, expect: 'calc(0% + 16px)'},
+  {at: 0.3, expect: 'calc(60% + 11.2px)'},
+  {at: 0.6, expect: 'calc(120% + 6.4px)'},
+  {at: 1, expect: '200%'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '1em',
+  to: '0px',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '11.2px'},
+  {at: 0.6, expect: '6.4px'},
+  {at: 1, expect: '0px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '1em',
+  to: '32px',
+}, [
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '20.8px'},
+  {at: 0.6, expect: '25.6px'},
+  {at: 1, expect: '32px'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '1em',
+  to: '0%',
+}, [
+  {at: 0, expect: 'calc(0% + 16px)'},
+  {at: 0.3, expect: 'calc(0% + 11.2px)'},
+  {at: 0.6, expect: 'calc(0% + 6.4px)'},
+  {at: 1, expect: '0%'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '1em',
+  to: '200%',
+}, [
+  {at: 0, expect: 'calc(0% + 16px)'},
+  {at: 0.3, expect: 'calc(60% + 11.2px)'},
+  {at: 0.6, expect: 'calc(120% + 6.4px)'},
+  {at: 1, expect: '200%'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '100%',
+  to: '0px',
+}, [
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '70%'},
+  {at: 0.6, expect: '40%'},
+  {at: 1, expect: '0%'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '100%',
+  to: '32px',
+}, [
+  {at: 0, expect: 'calc(100% + 0px)'},
+  {at: 0.3, expect: 'calc(70% + 9.6px)'},
+  {at: 0.6, expect: 'calc(40% + 19.2px)'},
+  {at: 1, expect: 'calc(0% + 32px)'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '100%',
+  to: '0em',
+}, [
+  {at: 0, expect: 'calc(100% + 0em)'},
+  {at: 0.3, expect: 'calc(70% + 0em)'},
+  {at: 0.6, expect: 'calc(40% + 0em)'},
+  {at: 1, expect: 'calc(0% + 0em)'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '100%',
+  to: '2em',
+}, [
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: 'calc(70% + 9.6px)'},
+  {at: 0.6, expect: 'calc(40% + 19.2px)'},
+  {at: 1, expect: 'calc(0% + 32px)'},
+]);
+
+test_interpolation({
+  property: 'text-underline-offset',
+  from: '0%',
+  to: '100%',
+}, [
+  {at: 0, expect: '0%'},
+  {at: 0.3, expect: '30%'},
+  {at: 0.6, expect: '60%'},
+  {at: 1, expect: '100%'},
+]);
+</script>

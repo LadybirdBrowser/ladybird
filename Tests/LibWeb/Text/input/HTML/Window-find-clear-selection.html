@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div>test</div>
+<script>
+    test(() => {
+        let result = window.find("test");
+        println(`window.find("test") initial result: ${result}`);
+        window.getSelection().removeAllRanges();
+        result = window.find("test");
+        println(`window.find("test") after clearing the previous selection: ${result}`);
+    });
+</script>

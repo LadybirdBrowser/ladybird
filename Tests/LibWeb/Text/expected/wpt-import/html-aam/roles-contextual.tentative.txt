@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	el-footer
+Pass	el-footer-ancestormain
+Pass	el-header
+Pass	el-header-ancestormain

@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<!-- Adapted from https://wpt.live/css/css-cascade/layer-basic.html
+ and https://wpt.live/css/css-cascade/layer-important.html -->
+<target class="first"></target>
+<target class="second"></target>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // In all test cases, the rule specified as "color: green" should win.
+        var testCases = [
+            {
+                title: 'A1 Anonymous layers',
+                style: `
+                    @layer { }
+                    target { color: green; }
+                `,
+            },
+            {
+                title: 'A2 Anonymous layers',
+                style: `
+                    target { color: green; }
+                    @layer {
+                        target { color: red; }
+                    }
+                `,
+            },
+            {
+                title: 'A3 Anonymous layers',
+                style: `
+                    @layer {
+                        target { color: red; }
+                    }
+                    target { color: green; }
+                `,
+            },
+            {
+                title: 'A4 Anonymous layers',
+                style: `
+                    @layer {
+                        target { color: red; }
+                    }
+                    @layer {
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'A5 Anonymous layers',
+                style: `
+                    @layer {
+                        target { color: green; }
+                        @layer {
+                            target { color: red; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'A6 Anonymous layers',
+                style: `
+                    @layer {
+                        @layer {
+                            target { color: red; }
+                        }
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'A7 Anonymous layers',
+                style: `
+                    @layer {
+                        @layer {
+                            target { color: red; }
+                        }
+                        target { color: red; }
+                    }
+                    @layer {
+                        @layer {
+                            target { color: red; }
+                        }
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'A8 Anonymous layers',
+                style: `
+                    @layer {
+                        @layer {
+                            @layer {
+                                target { color: red; }
+                            }
+                        }
+                        target { color: red; }
+                    }
+                    @layer {
+                        @layer {
+                            target { color: red; }
+                        }
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'A9 Anonymous layers',
+                style: `
+                    @layer {
+                        @layer {
+                            target { color: red; }
+                        }
+                        target { color: red; }
+                    }
+                    @layer {
+                        @layer {
+                            @layer {
+                                target { color: red; }
+                            }
+                        }
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'B1 Named layers',
+                style: `
+                    @layer A {
+                    }
+                    target { color: green; }
+                `,
+            },
+            {
+                title: 'B2 Named layers',
+                style: `
+                    @layer A {
+                        target { color: red; }
+                    }
+                    target { color: green; }
+                `,
+            },
+            {
+                title: 'B3 Named layers',
+                style: `
+                    @layer A {
+                        target { color: red; }
+                    }
+                    @layer A {
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'B4 Named layers',
+                style: `
+                    @layer A {
+                        target { color: red; }
+                    }
+                    @layer B {
+                        target { color: green; }
+                    }
+                    @layer A {
+                        target { color: red; }
+                    }
+                `,
+            },
+            {
+                title: 'B5 Named layers',
+                style: `
+                    @layer A {
+                        target { color: green; }
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'B6 Named layers',
+                style: `
+                    @layer A {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer A {
+                        @layer A {
+                            target { color: green; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'B7 Named layers',
+                style: `
+                    @layer A {
+                        target { color: red; }
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer B {
+                        target { color: green; }
+                    }
+                    @layer A {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'B8 Named layers',
+                style: `
+                    @layer A {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer B {
+                        @layer A {
+                            target { color: green; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'B9 Named layers',
+                style: `
+                    @layer A {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer B {
+                        @layer A {
+                            target.first { color: green; }
+                        }
+                    }
+                   @layer A {
+                        @layer A {
+                            target.first { color: red; }
+                            target.second { color: green; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'B10 Named layers',
+                style: `
+                    @layer A {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer B {
+                        @layer A {
+                            target.first { color: green; }
+                        }
+                    }
+                   @layer A {
+                        @layer B {
+                            target.first { color: red; }
+                            target.second { color: green; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'C1 Named layers shorthand',
+                style: `
+                    @layer A.A {
+                        target { color: red; }
+                    }
+                    @layer B.A {
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'C2 Named layers shorthand',
+                style: `
+                    @layer A.A {
+                        target { color: red; }
+                    }
+                    @layer B.A {
+                        target.first { color: green; }
+                    }
+                    @layer A.A {
+                        target.first { color: red; }
+                        target.second { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'C3 Named layers shorthand',
+                style: `
+                    @layer A.A {
+                        target { color: red; }
+                    }
+                    @layer B.A {
+                        target.first { color: green; }
+                    }
+                    @layer A.B {
+                        target.first { color: red; }
+                        target.second { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'C4 Named layers shorthand',
+                style: `
+                    @layer A {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer B.A {
+                        target { color: green; }
+                    }
+                    @layer A.A
+                        target { color: red; }
+                    }
+                `,
+            },
+            {
+                title: 'C5 Named layers shorthand',
+                style: `
+                    @layer A {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer B.A {
+                        target { color: green; }
+                    }
+                    @layer A.B {
+                        target { color: red; }
+                    }
+                `,
+            },
+            {
+                title: 'D1 Mixed named and anonymous layers',
+                style: `
+                    @layer A {
+                        target { color: red; }
+                    }
+                    @layer {
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'D2 Mixed named and anonymous layers',
+                style: `
+                    @layer A {
+                        @layer {
+                            target { color: red; }
+                        }
+                    }
+                    @layer A {
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'D3 Mixed named and anonymous layers',
+                style: `
+                    @layer A {
+                        @layer {
+                            target { color: red; }
+                        }
+                    }
+                    @layer A {
+                        @layer {
+                            target { color: green; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'D4 Mixed named and anonymous layers',
+                style: `
+                    @layer A {
+                        @layer {
+                            target { color: red; }
+                        }
+                    }
+                    @layer {
+                        target { color: green; }
+                    }
+                    @layer A {
+                        @layer {
+                            target { color: red; }
+                        }
+                    }
+                `,
+            },
+            {
+                title: 'D5 Mixed named and anonymous layers',
+                style: `
+                    @layer {
+                        @layer A {
+                            target { color: red; }
+                        }
+                    }
+                    @layer {
+                        target { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'E1 Statement syntax',
+                style: `
+                    @layer A, B, C;
+                    @layer A {
+                        target.first { color: red; }
+                        target.second { color: red; }
+                    }
+                    @layer B {
+                        target.first { color: red; }
+                    }
+                    @layer C {
+                        target.first { color: green; }
+                        target.second { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'E2 Statement syntax',
+                style: `
+                    @layer A, C, B;
+                    @layer A {
+                        target.first { color: red; }
+                        target.second { color: red; }
+                    }
+                    @layer B {
+                        target.first { color: green; }
+                    }
+                    @layer C {
+                        target.first { color: red; }
+                        target.second { color: green; }
+                    }
+                `,
+            },
+            {
+                title: 'E3 Statement syntax',
+                style: `
+                    @layer C, B, A;
+                    @layer A {
+                        target.first { color: green; }
+                        target.second { color: green; }
+                    }
+                    @layer B {
+                        target.first { color: red; }
+                    }
+                    @layer C {
+                        target.first { color: red; }
+                        target.second { color: red; }
+                    }
+                `,
+            },
+            {
+                title: 'E4 Statement syntax',
+                style: `
+                    @layer B, A.B, A.A;
+                    @layer A {
+                        @layer A {
+                            target.first { color: green; }
+                        }
+                        @layer B {
+                            target.first { color: red; }
+                            target.second { color: green; }
+                        }
+                    }
+                    @layer B {
+                        target { color: red; }
+                    }
+                `,
+            },
+            {
+                title: 'E5 Statement syntax',
+                style: `
+                    @layer A.B, B, A.A;
+                    @layer A {
+                        @layer A {
+                            target.first { color: red; }
+                        }
+                        @layer B {
+                            target.first { color: red; }
+                            target.second { color: red; }
+                        }
+                    }
+                    @layer B {
+                        target { color: green; }
+                    }
+                `,
+            },
+
+            {
+                title: 'I.A1 Unlayered !important style',
+                style: `
+                    target { color: green !important; }
+                    target { color: red; }
+                `
+            },
+            {
+                title: 'I.B1 Same specificity, layered !important first',
+                style: `
+                    @layer { target { color: green !important; } }
+                    target { color: red; }
+                `,
+            },
+            {
+                title: 'I.C1 Same specificity, layered !important second',
+                style: `
+                    target { color: red; }
+                    @layer { target { color: green !important; } }
+                `,
+            },
+            {
+                title: 'I.D1 Same specificity, all !important',
+                style: `
+                    @layer { target { color: green !important; } }
+                    @layer { target { color: red !important; } }
+                    target { color: red !important; }
+                `,
+            },
+            {
+                title: 'I.D2 Same specificity, all !important',
+                style: `
+                    @layer { target { color: green !important; } }
+                    target { color: red !important; }
+                    @layer { target { color: red !important; } }
+                `,
+            },
+            {
+                title: 'I.D3 Same specificity, all !important',
+                style: `
+                    target { color: red !important; }
+                    @layer { target { color: green !important; } }
+                    @layer { target { color: red !important; } }
+                `,
+            },
+            {
+                title: 'I.D4 Same specificity, all !important',
+                style: `
+                    @layer A, B;
+                    @layer B { target { color: red !important; } }
+                    @layer A { target { color: green !important; } }
+                    target { color: red !important; }
+                `,
+            },
+            {
+                title: 'I.E1 Different specificity, all !important',
+                style: `
+                    @layer { target { color: green !important; } }
+                    @layer { target { color: red !important; } }
+                    target.first { color: red !important; }
+                `,
+            },
+            {
+                title: 'I.E2 Different specificity, all !important',
+                style: `
+                    @layer { target { color: green !important; } }
+                    @layer { target.first { color: red !important; } }
+                    target { color: red !important; }
+                `,
+            },
+        ];
+
+        for (let testCase of testCases) {
+            const styleElement = document.createElement('style');
+            styleElement.textContent = testCase['style'];
+            document.head.append(styleElement);
+
+            var targets = document.querySelectorAll('target');
+            for (let target of targets) {
+                let actual = window.getComputedStyle(target).color;
+                if (actual === 'rgb(0, 128, 0)') {
+                    println(`PASS: ${testCase['title']} (${target.classList[0]} target)`);
+                } else {
+                    println(`FAIL: ${testCase['title']} (${target.classList[0]} target) - Expected 'rgb(0, 128, 0)', got '${actual}'`);
+                }
+            }
+
+            styleElement.remove();
+        }
+
+    });
+</script>

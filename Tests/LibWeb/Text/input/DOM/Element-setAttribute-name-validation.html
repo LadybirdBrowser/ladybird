@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let e = document.createElement('div');
+        function testInvalidQualifiedName(name) {
+            try {
+                e.setAttribute(name, 'bar');
+                println('FAIL')
+            } catch (e) {
+                println('OK: ' + e);
+            }
+        }
+
+        invalidNames =
+            ['',  '=foo', 'f/oo', 'fo o', 'foo>']
+
+        for (let i = 0; i < invalidNames.length; i++) {
+            testInvalidQualifiedName(invalidNames[i])
+        }
+    });
+</script>

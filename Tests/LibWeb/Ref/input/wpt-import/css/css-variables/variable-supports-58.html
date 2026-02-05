@@ -1,0 +1,16 @@
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<!DOCTYPE html>
+<title>CSS Test: Test a property declaration in an @supports rule with property name "--".</title>
+<link rel="author" title="Cameron McCormack" href="mailto:cam@mcc.id.au">
+<link rel="help" href="http://www.w3.org/TR/css-variables-1/#defining-variables">
+<link rel="match" href="../../../../expected/wpt-import/css/css-variables/support/color-green-ref.html">
+<style>
+body { color: green; }
+@supports (--: a) {
+  p { color: red; }
+}
+</style>
+<p>This text must be green.</p>

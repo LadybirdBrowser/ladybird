@@ -1,0 +1,4 @@
+event=test1 cancelable=false
+event=test2 cancelable=true
+event=test3 cancelable=false
+event=test4 cancelable=true

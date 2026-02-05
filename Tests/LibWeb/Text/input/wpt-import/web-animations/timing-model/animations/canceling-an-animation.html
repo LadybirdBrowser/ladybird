@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Canceling an animation</title>
+<link rel="help"
+    href="https://drafts.csswg.org/web-animations/#canceling-an-animation-section">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  const animation = createDiv(t).animate(null, 100 * MS_PER_SEC);
+  animation.cancel();
+
+  assert_equals(animation.startTime, null,
+                'The start time of a canceled animation should be unresolved');
+  assert_equals(animation.currentTime, null,
+                'The hold time of a canceled animation should be unresolved');
+}, 'Canceling an animation should cause its start time and hold time to be'
+   + ' unresolved');
+
+promise_test(t => {
+  const animation = createDiv(t).animate(null, 100 * MS_PER_SEC);
+  const retPromise = animation.ready.then(() => {
+    assert_unreached('ready promise was fulfilled');
+  }).catch(err => {
+    assert_equals(err.name, 'AbortError',
+                  'ready promise is rejected with AbortError');
+  });
+
+  animation.cancel();
+
+  return retPromise;
+}, 'A play-pending ready promise should be rejected when the animation is'
+   + ' canceled');
+
+promise_test(async t => {
+  const animation = createDiv(t).animate(null, 100 * MS_PER_SEC);
+  await animation.ready;
+
+  // Make it pause-pending
+  animation.pause();
+
+  // We need to store the original ready promise since cancel() will
+  // replace it
+  const originalPromise = animation.ready;
+  animation.cancel();
+
+  await promise_rejects_dom(t, 'AbortError', originalPromise,
+                        'Cancel should abort ready promise');
+}, 'A pause-pending ready promise should be rejected when the animation is'
+   + ' canceled');
+
+promise_test(async t => {
+  const animation = createDiv(t).animate(null);
+  animation.cancel();
+  const promiseResult = await animation.ready;
+  assert_equals(promiseResult, animation);
+}, 'When an animation is canceled, it should create a resolved Promise');
+
+test(t => {
+  const animation = createDiv(t).animate(null);
+  const promise = animation.ready;
+  animation.cancel();
+  assert_not_equals(animation.ready, promise);
+  promise_rejects_dom(t, 'AbortError', promise, 'Cancel should abort ready promise');
+}, 'The ready promise should be replaced when the animation is canceled');
+
+promise_test(t => {
+  const animation = new Animation(
+    new KeyframeEffect(null, null, { duration: 1000 }),
+    null
+  );
+  assert_equals(animation.playState, 'idle',
+                'The animation should be initially idle');
+
+  animation.finished.then(t.step_func(() => {
+    assert_unreached('Finished promise should not resolve');
+  }), t.step_func(() => {
+    assert_unreached('Finished promise should not reject');
+  }));
+
+  animation.cancel();
+
+  return waitForAnimationFrames(3);
+}, 'The finished promise should NOT be rejected if the animation is already'
+   + ' idle');
+
+promise_test(t => {
+  const animation = new Animation(
+    new KeyframeEffect(null, null, { duration: 1000 }),
+    null
+  );
+  assert_equals(animation.playState, 'idle',
+                'The animation should be initially idle');
+
+  animation.oncancel = t.step_func(() => {
+    assert_unreached('Cancel event should not be fired');
+  });
+
+  animation.cancel();
+
+  return waitForAnimationFrames(3);
+}, 'The cancel event should NOT be fired if the animation is already'
+   + ' idle');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const animation = div.animate({}, 100 * MS_PER_SEC);
+  div.remove();
+
+  const eventWatcher = new EventWatcher(t, animation, 'cancel');
+
+  await animation.ready;
+  animation.cancel();
+
+  await eventWatcher.wait_for('cancel');
+
+  assert_equals(animation.effect.target.parentNode, null,
+    'cancel event should be fired for the animation on an orphaned element');
+}, 'Canceling an animation should fire cancel event on orphaned element');
+
+</script>
+</body>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing border-inline-width with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-inline-width">
+<meta name="assert" content="border-inline-width supports the full grammar '<line-width>{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <length> | thin | medium | thick
+test_valid_value("border-inline-start-width", "10px");
+test_valid_value("border-inline-start-width", "calc(10px + 0.5em)", "calc(0.5em + 10px)");
+test_valid_value("border-inline-start-width", "thick");
+test_valid_value("border-inline-start-width", "thin");
+test_valid_value("border-inline-end-width", "0", "0px");
+test_valid_value("border-inline-end-width", "calc(10px - 0.5em)", "calc(-0.5em + 10px)");
+test_valid_value("border-inline-end-width", "medium");
+test_valid_value("border-inline-width", "10px");
+test_valid_value("border-inline-width", "medium calc(10px + 0.5em)", "medium calc(0.5em + 10px)");
+test_valid_value("border-inline-width", "10px 10px", "10px");
+</script>
+</body>
+</html>

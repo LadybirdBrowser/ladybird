@@ -1,0 +1,25 @@
+<!DOCTYPE html><style>
+.parent {
+    width: 200px;
+    height: 200px;
+    background: grey;
+    position: relative;
+}
+.bad {
+    position: absolute;
+    background-color: red;
+    top: 10px;
+    right: 20px;
+    bottom: 40px;
+    left: 30px;
+}
+.good {
+    position: absolute;
+    inset: 10px 20px 40px 30px;
+    background-color: green;
+}
+</style>
+<div class="parent">
+    <div class="bad">Bad</div>
+    <div class="good"></div>
+</div>

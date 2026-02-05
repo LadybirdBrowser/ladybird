@@ -1,0 +1,13 @@
+import("//Meta/gn/build/libs/pulse/enable.gni")
+
+config("pulseaudio_config") {
+  visibility = [ ":pulse" ]
+  libs = [ "pulse" ]
+  defines = [ "HAVE_PULSEAUDIO" ]
+}
+
+group("pulse") {
+  if (enable_pulseaudio) {
+    public_configs = [ ":pulseaudio_config" ]
+  }
+}

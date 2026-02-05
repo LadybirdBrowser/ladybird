@@ -1,0 +1,20 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 40 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 22 0+1+8] children: not-inline
+      Box <div.flexrow> at [11,11] flex-container(row) [0+1+0 778 0+1+0] [0+1+0 20 0+1+0] [FFC] children: not-inline
+        Box <div.project> at [12,12] flex-container(column) flex-item [0+1+0 44.03125 0+1+0] [0+1+0 18 0+1+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [12,12] flex-item [0+0+0 44.03125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [12,12 44.03125x18] baseline: 13.796875
+                "pillow"
+            TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x42]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x24]
+      PaintableBox (Box<DIV>.flexrow) [10,10 780x22]
+        PaintableBox (Box<DIV>.project) [11,11 46.03125x20]
+          PaintableWithLines (BlockContainer(anonymous)) [12,12 44.03125x18]
+            TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x40] [children: 0] (z-index: auto)

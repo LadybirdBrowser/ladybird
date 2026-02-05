@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 35 tests
+
+35 Fail
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 1
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 2
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 3
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 4
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 5
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 6
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 7
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 8
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 9
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 10
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 11
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 12
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 13
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 14
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 15
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 16
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 17
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 18
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 19
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 20
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 21
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 22
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 23
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 24
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 25
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 26
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 27
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 28
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 29
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 30
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 31
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 32
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 33
+Fail	CSS Fonts Module Level 4: parsing @font-palette-values 34

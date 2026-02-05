@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Before adding 'a' to #host: Check #subject1 color
+Pass	Before adding 'a' to #host: Check #subject2 color
+Pass	After adding 'a' to #host: Check #subject1 color
+Pass	After adding 'a' to #host: Check #subject2 color

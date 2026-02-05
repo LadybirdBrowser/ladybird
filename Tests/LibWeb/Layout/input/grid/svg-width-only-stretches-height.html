@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+* {
+	margin: 0;
+}
+
+.grid {
+	display: grid;
+	width: 50px;
+	grid-template-columns: auto;
+	grid-template-rows: 200px;
+	justify-items: start;
+	align-items: stretch;
+	background: red;
+}
+
+svg {
+	display: block;
+	background: lime;
+}
+</style>
+
+<div class="grid">
+	<!--
+		This SVG has an intrinsic width (from the width attribute), but no intrinsic height and no intrinsic aspect ratio.
+		In the grid row axis, it should still stretch to fill the 200px track size.
+	-->
+	<svg width="50"></svg>
+</div>

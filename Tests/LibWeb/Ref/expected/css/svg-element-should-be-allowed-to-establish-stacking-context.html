@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    #container {
+        display: flow-root;
+        position: relative;
+        width: 200px;
+        background: #ffffe0;
+    }
+
+    #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 200px;
+        height: 40px;
+        background: crimson;
+        z-index: 0;
+    }
+
+    #sc {
+        width: 100px;
+        height: 100px;
+        margin-top: 30px;
+        position: relative;
+        z-index: 1;
+        background: lightgreen;
+    }
+</style>
+<div id="container">
+    <div id="overlay"></div>
+    <div id="sc"></div>
+</div>

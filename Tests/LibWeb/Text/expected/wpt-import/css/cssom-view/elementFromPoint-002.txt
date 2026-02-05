@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Checking whether dynamic changes to visibility interact correctly with
+  table anonymous boxes

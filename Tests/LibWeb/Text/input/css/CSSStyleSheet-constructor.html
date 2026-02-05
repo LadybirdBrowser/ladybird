@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cssRule = "* { font-size: 16px; }";
+        const sheet = new CSSStyleSheet();
+        println(`Empty sheet ownerNode: ${sheet.ownerNode}`);
+        println(`Empty sheet ownerRule: ${sheet.ownerRule}`);
+        println(`Empty sheet title: ${sheet.title}`);
+        println(`Empty sheet cssRules is empty: ${sheet.cssRules.length === 0}`);
+        println(`Empty sheet is disabled by default: ${sheet.disabled}`);
+
+        sheet.insertRule(cssRule);
+        println(`cssRules length after insertRule(): ${sheet.cssRules.length}`);
+        println(`cssRules text: ${sheet.cssRules[0].cssText}`);
+
+        println(`rules and cssRules are the same object: ${sheet.cssRules === sheet.rules}`);
+
+        sheet.deleteRule(0);
+        println(`cssRules length after deleteRule(): ${sheet.cssRules.length}`);
+
+        const disabledSheet = new CSSStyleSheet({ disabled: true });
+        println(`Disabled sheet is disabled: ${disabledSheet.disabled}`);
+    });
+</script>

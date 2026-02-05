@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Cross-origin Window methods have correct 'length'
+Pass	Cross-origin Window accessors have correct 'length'
+Pass	Cross-origin Location `replace` method has correct 'length'
+Pass	Cross-origin Location `href` setter has correct 'length'

@@ -1,0 +1,6 @@
+(before) child.style.width: 192px
+(before) child.style.height: 192px
+(before) child.style.fontSize: 96px
+(after) child.style.width: 600px
+(after) child.style.height: 600px
+(after) child.style.fontSize: 300px

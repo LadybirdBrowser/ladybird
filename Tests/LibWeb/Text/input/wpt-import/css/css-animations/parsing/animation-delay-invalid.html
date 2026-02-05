@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: parsing animation-delay with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#propdef-animation-delay">
+<meta name="assert" content="animation-delay supports only the grammar '<single-animation-play-state> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("animation-delay", "infinite");
+test_invalid_value("animation-delay", "0");
+test_invalid_value("animation-delay", "1s 2s 3s");
+
+test_invalid_value("animation-delay", "initial, -3s");
+test_invalid_value("animation-delay", "-3s, initial");
+</script>
+</body>
+</html>

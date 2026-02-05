@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	CSSKeywordValue.value can be updated to a CSS wide keyword
+Pass	CSSKeywordValue.value can be updated to a CSS keyword
+Pass	CSSKeywordValue.value can be updated to an unsupported CSS keyword
+Pass	CSSKeywordValue.value can be updated to a string containing multiple tokens
+Pass	CSSKeywordValue.value can be updated to a unicode string
+Pass	Updating CSSKeywordValue.value with an empty string throws a TypeError

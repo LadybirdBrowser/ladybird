@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSS Typed OM IDL</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#idl-index">
+<meta name="timeout" content="long">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/WebIDLParser.js"></script>
+<script src="../../resources/idlharness.js"></script>
+
+<style>
+  body {
+    font-size: normal;
+  }
+</style>
+
+<script>
+'use strict';
+
+idl_test(
+  ['css-typed-om'],
+  ['cssom', 'SVG', 'geometry', 'html', 'dom', 'mathml-core'],
+  idl_array => {
+    try {
+      self.styleMap = document.styleSheets[0].rules[0].styleMap;
+    } catch (e) {}
+
+    try {
+      self.unitValue = CSSStyleValue.parse('height', '10px');
+    } catch (e) {}
+
+    try {
+      self.mathSum = CSSStyleValue.parse('width', 'calc(100% - 32px)');
+    } catch (e) {}
+
+    try {
+      self.transformValue = CSSStyleValue.parse('transform', 'translateX(0)');
+    } catch (e) {}
+
+    try {
+      self.rotate = CSSStyleValue.parse('transform', 'rotateX(0)')[0];
+    } catch (e) {}
+
+    try {
+      self.scale = CSSStyleValue.parse('transform', 'scale(1)')[0];
+    } catch (e) {}
+
+    try {
+      self.skew = CSSStyleValue.parse('transform', 'skew(0,0)')[0];
+      self.skewX = CSSStyleValue.parse('transform', 'skewX(0)')[0];
+      self.skewY = CSSStyleValue.parse('transform', 'skewY(0)')[0];
+    } catch (e) {}
+
+    try {
+      self.perspective = CSSStyleValue.parse('transform', 'perspective(0)')[0];
+    } catch (e) {}
+
+    try {
+      self.matrix = CSSStyleValue.parse('transform', 'matrix(0, 0, 0, 0, 0, 0)')[0];
+    } catch (e) {}
+
+    idl_array.add_objects({
+      StylePropertyMap: ['styleMap'],
+      CSSUnitValue: ['unitValue'],
+      CSSMathSum: ['mathSum'],
+      CSSTransformValue: ['transformValue'],
+      CSSTranslate: ['transformValue[0]'],
+      CSSRotate: ['rotate'],
+      CSSScale: ['scale'],
+      CSSSkew: ['skew'],
+      CSSSkewX: ['skewX'],
+      CSSSkewY: ['skewY'],
+      CSSPerspective: ['perspective'],
+      CSSMatrixComponent: ['matrix'],
+    });
+  }
+);
+</script>

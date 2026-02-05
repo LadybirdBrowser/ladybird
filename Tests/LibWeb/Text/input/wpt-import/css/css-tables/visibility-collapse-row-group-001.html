@@ -1,0 +1,124 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<link rel='stylesheet' href='support/base.css' />
+<link rel="author" title="Joy Yu" href="mailto:joysyu@mit.edu">
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-the-table-height">
+<link rel="help" href="https://www.w3.org/TR/2017/WD-css-tables-3-20170307/#visible-track">
+<style>
+    x-table {
+      border: 5px solid black;
+    }
+    x-table span {
+        display: inline-block;
+        vertical-align: top;
+        background: lime;
+        margin: 3px;
+        height: 100px;
+        width: 100px;
+    }
+</style>
+<main>
+    <h1>Visibility collapse</h1>
+    <a href="https://drafts.csswg.org/css-tables-3/#computing-the-table-height">Spec</a>
+    <p>
+    Collapsing a row group but making its rows visible should still result in a
+    collapsed row group.
+    </p>
+    <x-table id="one">
+      <x-tbody>
+        <x-tr>
+            <x-td>
+                <span>row 1</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+        <x-tr>
+            <x-td>
+                <span>row 2</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+      </x-tbody>
+        <x-tr id="thirdRowRef">
+            <x-td>
+                <span>row 3</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+    </x-table>
+    When row group is collapsed, visible rows within the row group are still collapsed and therefore invisible.
+    <x-table id="two">
+      <x-tbody style="visibility:collapse;">
+        <x-tr style="visibility:visible;" id="firstRow">
+            <x-td>
+                <span>row 1</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+        <x-tr style="visibility:visible;" id="secondRow">
+            <x-td>
+                <span>row 2</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+    </x-tbody>
+        <x-tr id="thirdRow">
+            <x-td>
+                <span>row 3</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+    </x-table>
+</main>
+
+<script>
+    tests = [
+    [
+        document.getElementById('two').offsetWidth,
+        document.getElementById('one').offsetWidth,
+        "row group visibility:collapse doesn't change table width"
+    ],
+    [
+        document.getElementById('two').offsetHeight,
+        116,
+        "row group visibility:collapse changes table height"
+    ],
+    [
+        document.getElementById('firstRow').offsetHeight,
+        0,
+        "the first row should be collapsed"
+    ],
+    [
+        document.getElementById('secondRow').offsetHeight,
+        0,
+        "the second row should be collapsed"
+    ],
+    [
+        document.getElementById('thirdRow').offsetHeight,
+        document.getElementById('thirdRowRef').offsetHeight,
+        "the third row stays the same"
+    ]];
+
+    for (i = 0; i< tests.length; i++) {
+        test(function()
+            {
+                assert_equals.apply(this, tests[i]);
+            },
+            tests[i][2]);
+    };
+</script>
+</html>

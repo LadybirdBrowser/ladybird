@@ -1,0 +1,41 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 104 0+0+8] children: not-inline
+      Box <div.container> at [9,9] flex-container(row) [0+1+0 500 0+1+282] [0+1+0 102 0+1+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.box> at [10,10] flex-item [0+1+0 229.328125 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 17, rect: [10,10 144.546875x18] baseline: 13.796875
+              "1 I grow the most"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.box> at [241.328125,10] flex-item [0+1+0 164.671875 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 8, rect: [241.328125,10 67.375x18] baseline: 13.796875
+              "2 I grow"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.box> at [408,10] flex-item [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [408,10 68x18] baseline: 13.796875
+              "3 I don't"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,112] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x120]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x104]
+      PaintableBox (Box<DIV>.container) [8,8 502x104]
+        PaintableWithLines (BlockContainer<DIV>.box) [9,9 231.328125x102]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.box) [240.328125,9 166.671875x102]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.box) [407,9 102x102]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,112 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x120] [children: 0] (z-index: auto)

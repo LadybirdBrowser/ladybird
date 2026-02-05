@@ -1,0 +1,4 @@
+xlink:href getAttributeNode = 'null'
+xlink:href getAttributeNodeNS = 'Attr': name = xlink:href value = test
+href getAttributeNode = 'Attr': name = href value = test
+href getAttributeNodeNS = 'null'

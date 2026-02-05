@@ -1,0 +1,17 @@
+<!DOCTYPE HTML>
+<title>select setCustomValidity</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<select id='select_test'></select>
+
+<script>
+
+test(() => {
+  let elem = document.getElementById("select_test");
+  assert_false(elem.validity.customError);
+  elem.setCustomValidity("custom error");
+  assert_true(elem.validity.customError);
+}, "select setCustomValidity is correct")
+
+</script>

@@ -1,0 +1,13 @@
+<!doctype html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/2692">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1467309">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<title>-- is a reserved property name</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(function() {
+  assert_false(CSS.supports("--", "initial"), "-- is a reserved property name");
+});
+</script>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-clip-text-inside-scrollable-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    #text {
+        background: linear-gradient(#6d98cc, #8a64e5);
+        background-clip: text;
+        color: transparent;
+        font-size: 50px;
+    }
+
+    #scrollable {
+        width: 300px;
+        height: 300px;
+        border: 1px solid black;
+        overflow: scroll;
+    }
+</style>
+<div id="scrollable">
+    <div style="height: 200px"></div>
+    Clip<span id="text">Text</span>
+    <div style="height: 600px"></div>
+</div>
+<script>
+    const scrollContainer = document.getElementById("scrollable");
+    scrollContainer.scrollTop = 200;
+</script>

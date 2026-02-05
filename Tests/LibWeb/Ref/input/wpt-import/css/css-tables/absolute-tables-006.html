@@ -1,0 +1,35 @@
+<!doctype html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#def-cb">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square-only.html">
+<link rel="bookmark" href="https://crbug.com/977507" />
+<meta name="assert" content="Abspos table works when it is dynamically added" />
+
+<style>
+table {
+  border-spacing: 0px;
+}
+td {
+  padding: 0px;
+}
+.outerTable {
+  height: 100px;
+  width: 100px;
+  position: relative;
+}
+.innerTable {
+  position: absolute;
+  top: 0px;
+  width: 100px;
+  height: 100%;
+  color: green;
+  background: green;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<table class=outerTable>
+  <td id=outerCell></td>
+</table>
+<script>
+outerCell.innerHTML = "<table class=innerTable><td>some text</td></table>";
+</script>

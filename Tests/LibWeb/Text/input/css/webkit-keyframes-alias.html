@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style id="test-style">
+@-webkit-keyframes test-animation {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const sheet = document.getElementById("test-style").sheet;
+        const rule = sheet.cssRules[0];
+
+        println(`Rule type: ${rule.type}`);
+        println(`Rule is CSSKeyframesRule: ${rule instanceof CSSKeyframesRule}`);
+        println(`Animation name: ${rule.name}`);
+        println(`Number of keyframes: ${rule.cssRules.length}`);
+    });
+</script>

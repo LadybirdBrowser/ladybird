@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+          const origin = Origin.from(window);
+          println(origin);
+          println(origin.isSameOrigin(Origin.from(window)));
+    });
+</script>

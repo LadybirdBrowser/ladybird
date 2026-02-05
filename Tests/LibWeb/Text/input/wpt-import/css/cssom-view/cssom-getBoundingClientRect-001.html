@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSSOM View - 6.1 - getBoundingClientRect tests</title>
+    <meta charset="utf-8">
+    <link rel="author" title="Chris Wu" href="mailto:pwx.frontend@gmail.com">
+    <link rel="help" href="http://www.w3.org/TR/cssom-view/#dom-element-getboundingclientrect">
+    <meta name="flags" content="dom">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style type="text/css">
+        #testItem {
+            width: 279px;
+            height: 188px;
+            margin: 100px 0 0 178px;
+            background-color: purple;
+            font-size: 26px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 188px;
+        }
+    </style>
+</head>
+<body>
+    <div id="testItem">test item</div>
+    <div id="log"></div>
+    <script>
+        var titem = document.getElementById('testItem').getBoundingClientRect();
+        test(
+            function(){
+                assert_equals(titem.bottom - titem.top, titem.height, "height should equal bottom minus top")
+            }, "getBoundingClientRect() should return a DOMRect where height=bottom-top"
+        );
+        test(
+            function(){
+                assert_equals(titem.right - titem.left, titem.width, "width should equal right minus left")
+            }, "getBoundingClientRect() should return a DOMRect where width=right-left"
+        )
+    </script>
+</body>
+</html>

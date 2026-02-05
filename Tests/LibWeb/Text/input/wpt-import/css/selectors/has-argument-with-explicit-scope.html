@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>:has pseudo class behavior with explicit ':scope' in its argument</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<main>
+ <div id=d01 class="a">
+  <div id=scope1 class="b">
+    <div id=d02 class="c">
+      <div id=d03 class="c">
+        <div id=d04 class="d"></div>
+      </div>
+    </div>
+    <div id=d05 class="e"></div>
+  </div>
+ </div>
+ <div id=d06>
+  <div id=scope2 class="b">
+    <div id=d07 class="c">
+      <div id=d08 class="c">
+        <div id=d09></div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<script>
+  function formatElements(elements) {
+    return elements.map(e => e.id).sort().join();
+  }
+
+  // Test that |selector| returns the given elements in the given scope element
+  function test_selector_all(scope, selector, expected) {
+    test(function() {
+      let actual = Array.from(scope.querySelectorAll(selector));
+      assert_equals(formatElements(actual), formatElements(expected));
+    }, `${selector} matches expected elements on ${scope.id}`);
+  }
+
+  // Test that |selector1| and |selector2| returns same elements in the given scope element
+  function compare_selector_all(scope, selector1, selector2) {
+    test(function() {
+      let result1 = Array.from(scope.querySelectorAll(selector1));
+      let result2 = Array.from(scope.querySelectorAll(selector2));
+      assert_equals(formatElements(result1), formatElements(result2));
+    }, `${selector1} and ${selector2} returns same elements on ${scope.id}`);
+  }
+
+  // descendants of a scope element cannot have the scope element as its descendant
+  test_selector_all(scope1, ':has(:scope)', []);
+  test_selector_all(scope1, ':has(:scope .c)', []);
+  test_selector_all(scope1, ':has(.a :scope)', []);
+
+  // there can be more simple and efficient alternative for a ':scope' in ':has'
+  test_selector_all(scope1, '.a:has(:scope) .c', [d02, d03]);
+  compare_selector_all(scope1, '.a:has(:scope) .c', ':is(.a :scope .c)');
+  test_selector_all(scope2, '.a:has(:scope) .c', []);
+  compare_selector_all(scope2, '.a:has(:scope) .c', ':is(.a :scope .c)');
+  test_selector_all(scope1, '.c:has(:is(:scope .d))', [d02, d03]);
+  compare_selector_all(scope1, '.c:has(:is(:scope .d))', ':scope .c:has(.d)');
+  compare_selector_all(scope1, '.c:has(:is(:scope .d))', '.c:has(.d)');
+  test_selector_all(scope2, '.c:has(:is(:scope .d))', []);
+  compare_selector_all(scope2, '.c:has(:is(:scope .d))', ':scope .c:has(.d)');
+  compare_selector_all(scope2, '.c:has(:is(:scope .d))', '.c:has(.d)');
+</script>

@@ -1,0 +1,7 @@
+Tests/LibJS/Runtime/invalid-lhs-in-assignment.js
+Tests/LibJS/Runtime/unicode-identifier-escape.js
+Tests/LibJS/Runtime/modules/failing.mjs
+
+Tests/LibWeb/Crash/wpt-import/
+Tests/LibWeb/Ref/input/wpt-import
+Tests/LibWeb/Text/input/wpt-import

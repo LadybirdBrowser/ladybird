@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	e.style['border-image'] = "auto" should not set the property value
+Pass	e.style['border-image'] = "none, url(\"http://www.example.com/\")" should not set the property value
+Pass	e.style['border-image'] = "stretch repeat round" should not set the property value
+Pass	e.style['border-image'] = "fill" should not set the property value
+Pass	e.style['border-image'] = "1 2 3 4 5" should not set the property value
+Pass	e.style['border-image'] = "1% fill 2%" should not set the property value
+Pass	e.style['border-image'] = "1 / -2px" should not set the property value
+Pass	e.style['border-image'] = "-1 / 2px" should not set the property value
+Pass	e.style['border-image'] = "1 / 1 2 3 4 5" should not set the property value
+Pass	e.style['border-image'] = "1 2 3 4 5 / / 1px" should not set the property value
+Pass	e.style['border-image'] = "1 / / auto" should not set the property value
+Pass	e.style['border-image'] = "1 2% 3 4% / / 1%" should not set the property value
+Pass	e.style['border-image'] = "1 2% 3 4% fill / / 1 2 3 4 5" should not set the property value
+Pass	e.style['border-image'] = "1 / none / 1px" should not set the property value
+Pass	e.style['border-image'] = "1 2% 3 4% / 1 2 3 4 5 / 2" should not set the property value
+Pass	e.style['border-image'] = "1 2 3 4 5 / 1px / 1px" should not set the property value
+Pass	e.style['border-image'] = "1 / 1px / auto" should not set the property value

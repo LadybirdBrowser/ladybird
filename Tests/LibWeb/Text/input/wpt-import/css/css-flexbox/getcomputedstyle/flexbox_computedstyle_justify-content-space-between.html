@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>flexbox | computed style | justify-content: space-between</title>
+<link rel="author" href="http://opera.com" title="Opera Software">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#justify-content-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<meta name="flags" content="dom">
+<style>
+body {
+	color: red;
+	justify-content: space-between;
+}
+</style>
+<div id="log"></div>
+<script>
+test(function() {
+    var body = document.body;
+
+    assert_equals(getComputedStyle(body).getPropertyValue("justify-content"),
+	          "space-between");
+});
+</script>

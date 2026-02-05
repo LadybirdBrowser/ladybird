@@ -1,0 +1,39 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+      BlockContainer <div.a> at [8,8] floating [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.b> at [9,9] [0+1+0 30 0+1+0] [0+1+0 30 0+1+0] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [9,9 9.34375x18] baseline: 13.796875
+              "B"
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      BlockContainer <div.a> at [40,8] floating [0+0+0 32.3125 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [51,19 10.3125x18] baseline: 24.296875
+        BlockContainer <span.ib.c> at [51,19] inline-block [0+1+10 10.3125 10+1+0] [0+1+10 18 10+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [51,19 10.3125x18] baseline: 13.796875
+              "C"
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      BlockContainer <div.a> at [72.3125,8] floating [0+0+0 33.140625 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [83.3125,19 11.140625x18] baseline: 33.59375
+        BlockContainer <span.ib.d> at [83.3125,19] inline-block [0+1+10 11.140625 10+1+0] [0+1+10 18 10+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [83.3125,19 11.140625x18] baseline: 13.796875
+              "D"
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x48]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,8 32x32]
+        PaintableWithLines (BlockContainer<DIV>.b) [8,8 32x32]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.a) [40,8 32.3125x40]
+        PaintableWithLines (BlockContainer<SPAN>.ib.c) [40,8 32.3125x40]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.a) [72.3125,8 33.140625x40]
+        PaintableWithLines (BlockContainer<SPAN>.ib.d) [72.3125,8 33.140625x40]
+          TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x48] [children: 0] (z-index: auto)

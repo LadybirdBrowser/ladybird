@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	invoker should reflect  properly
+Pass	invoker should reflect show-modal properly
+Pass	invoker should reflect toggle-popover properly
+Pass	invoker should reflect hide-popover properly
+Pass	invoker should reflect show-popover properly
+Pass	invoker should reflect close properly
+Pass	invoker should reflect --custom properly
+Pass	invoker should reflect odd cased sHoW-MoDaL properly - as show-modal
+Pass	invoker should reflect odd cased tOgGlE-pOpOvEr properly - as toggle-popover
+Pass	invoker should reflect odd cased hIdE-pOpOvEr properly - as hide-popover
+Pass	invoker should reflect odd cased sHoW-pOpOvEr properly - as show-popover
+Pass	invoker should reflect odd cased ClOsE properly - as close
+Pass	invoker should reflect odd cased --cUsToM properly - as --cUsToM
+Pass	invoker should reflect the invalid value "invalid" as the empty string
+Pass	invoker should reflect the invalid value "show-invalid" as the empty string
+Pass	invoker should reflect the invalid value "foo-bar" as the empty string

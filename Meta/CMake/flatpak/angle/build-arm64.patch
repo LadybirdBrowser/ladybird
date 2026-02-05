@@ -1,0 +1,13 @@
+diff --git a/toolchain/linux/BUILD.gn b/toolchain/linux/BUILD.gn
+index a6e20a05c..8eaab3250 100644
+--- a/toolchain/linux/BUILD.gn
++++ b/toolchain/linux/BUILD.gn
+@@ -31,7 +31,7 @@ clang_toolchain("clang_arm64") {
+ }
+
+ gcc_toolchain("arm64") {
+-  toolprefix = "aarch64-linux-gnu-"
++  toolprefix = ""
+
+   cc = "${toolprefix}gcc"
+   cxx = "${toolprefix}g++"

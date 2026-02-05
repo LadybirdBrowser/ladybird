@@ -1,0 +1,42 @@
+Harness status: OK
+
+Found 37 tests
+
+37 Pass
+Pass	div role is tablist
+Pass	role is tab (in div tablist)
+Pass	role is tabpanel (with sibling div tablist)
+Pass	div role is tablist (with selection)
+Pass	role is tab and tab is selected
+Pass	role is tab and tab is not selected
+Pass	role is tabpanel (faux selected)
+Pass	role is tabpanel (faux unselected)
+Pass	div role is tablist (with selection, roving tabindex)
+Pass	role is tab, tab is selected and in tab order
+Pass	role is tab and tab is not selected, not tabbable
+Pass	role is tab and tab is not selected, not tabbable (duplicate)
+Pass	role is tabpanel with selection, roving tabindex
+Pass	role is tabpanel with selection, roving tabindex (duplicate)
+Pass	role is tabpanel with selection, roving tabindex (duplicate 2)
+Pass	div role is tablist (with non-empty tabpanel)
+Pass	role is tab and tab is selected (with non-empty tabpanel content)
+Pass	role is tab and tab is not selected (with non-empty tabpanel content)
+Pass	role is tabpanel with selection, non-empty content
+Pass	role is tabpanel with selection, non-empty content (duplicate)
+Pass	div role is tablist (with non-empty tabpanel and aria-controls)
+Pass	role is tab, tab is selected (with aria-controls)
+Pass	role is tab, tab is not selected (with aria-controls)
+Pass	role is tabpanel with aria-controls and non-empty content
+Pass	role is tabpanel with aria-controls and non-empty content (duplicate)
+Pass	div role for button parent container is tablist
+Pass	button role is tab (in div tablist)
+Pass	ul role is tablist
+Pass	role is tab (within li), tab is selected and in tab order
+Pass	role is tab (within li), tab is not selected and in tab order
+Pass	role is tabpanel as sibling to ul
+Pass	role is tabpanel as sibling to ul (duplicate)
+Pass	ul role is tablist (child li have role none)
+Pass	role is tab (within li with role none), tab is selected and in tab order
+Pass	role is tab (within li with role none), tab is not selected and in tab order
+Pass	role is tabpanel as sibling to ul with child role none li elements
+Pass	role is tabpanel as sibling to ul with child role none li elements (duplicate)

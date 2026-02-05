@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>text-shadow interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-shadow-property">
+<meta name="assert" content="text-shadow supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  text-shadow: 30px 10px 30px orange;
+}
+
+.target {
+  display: inline-block;
+  font-size: 60pt;
+  margin-right: 20px;
+  margin-bottom: 30px;
+  color: green;
+  text-shadow: 10px 30px 10px orange;
+}
+
+.expected {
+  margin-right: 40px;
+}
+</style>
+<body>
+<template id="target-template">T</template>
+<script>
+test_interpolation({
+  property: 'text-shadow',
+  from: neutralKeyframe,
+  to: 'green 20px 20px 20px',
+}, [
+  {at: -0.3, expect: 'rgb(255, 176, 0) 7px 33px 7px'},
+  {at: 0, expect: 'rgb(255, 165, 0) 10px 30px 10px'},
+  {at: 0.3, expect: 'rgb(179, 154, 0) 13px 27px 13px'},
+  {at: 0.6, expect: 'rgb(102, 143, 0) 16px 24px 16px'},
+  {at: 1, expect: 'rgb(0, 128, 0) 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 110, 0) 25px 15px 25px'},
+]);
+
+test_interpolation({
+  property: 'text-shadow',
+  from: 'initial',
+  to: 'green 20px 20px 20px',
+}, [
+  {at: -0.3, expect: 'rgba(0, 0, 0, 0) -6px -6px 0px'},
+  {at: 0, expect: 'rgba(0, 0, 0, 0) 0px 0px 0px'},
+  {at: 0.3, expect: 'rgba(0, 128, 0, 0.3) 6px 6px 6px'},
+  {at: 0.6, expect: 'rgba(0, 128, 0, 0.6) 12px 12px 12px'},
+  {at: 1, expect: 'rgb(0, 128, 0) 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 192, 0) 30px 30px 30px'},
+]);
+
+test_interpolation({
+  property: 'text-shadow',
+  from: 'inherit',
+  to: 'green 20px 20px 20px',
+}, [
+  {at: -0.3, expect: 'rgb(255, 176, 0) 33px 7px 33px'},
+  {at: 0, expect: 'rgb(255, 165, 0) 30px 10px 30px'},
+  {at: 0.3, expect: 'rgb(179, 154, 0) 27px 13px 27px'},
+  {at: 0.6, expect: 'rgb(102, 143, 0) 24px 16px 24px'},
+  {at: 1, expect: 'rgb(0, 128, 0) 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 110, 0) 15px 25px 15px'},
+]);
+
+test_interpolation({
+  property: 'text-shadow',
+  from: 'unset',
+  to: 'green 20px 20px 20px',
+}, [
+  {at: -0.3, expect: 'rgb(255, 176, 0) 33px 7px 33px'},
+  {at: 0, expect: 'rgb(255, 165, 0) 30px 10px 30px'},
+  {at: 0.3, expect: 'rgb(179, 154, 0) 27px 13px 27px'},
+  {at: 0.6, expect: 'rgb(102, 143, 0) 24px 16px 24px'},
+  {at: 1, expect: 'rgb(0, 128, 0) 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 110, 0) 15px 25px 15px'},
+]);
+
+test_interpolation({
+  property: 'text-shadow',
+  from: 'black 15px 10px 5px',
+  to: 'orange -15px -10px 25px',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 24px 16px 0px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 15px 10px 5px'},
+  {at: 0.3, expect: 'rgb(77, 50, 0) 6px 4px 11px'},
+  {at: 0.6, expect: 'rgb(153, 99, 0) -3px -2px 17px'},
+  {at: 1, expect: 'rgb(255, 165, 0) -15px -10px 25px'},
+  {at: 1.5, expect: 'rgb(255, 248, 0) -30px -20px 35px'},
+]);
+
+test_interpolation({
+  property: 'text-shadow',
+  from: 'black 10px 10px 10px',
+  to: 'currentColor 10px 10px 10px',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 10px 10px 10px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 10px 10px 10px'},
+  {at: 0.3, expect: 'rgb(0, 38, 0) 10px 10px 10px'},
+  {at: 0.6, expect: 'rgb(0, 77, 0) 10px 10px 10px'},
+  {at: 1, expect: 'rgb(0, 128, 0) 10px 10px 10px'},
+  {at: 1.5, expect: 'rgb(0, 192, 0) 10px 10px 10px'},
+]);
+
+test_interpolation({
+  property: 'text-shadow',
+  from: 'black 0px 0px 0px',
+  to: 'black 1px 1px 1px',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) -0.3px -0.3px 0px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 0px 0px 0px'},
+  {at: 0.3, expect: 'rgb(0, 0, 0) 0.3px 0.3px 0.3px'},
+  {at: 0.6, expect: 'rgb(0, 0, 0) 0.6px 0.6px 0.6px'},
+  {at: 1, expect: 'rgb(0, 0, 0) 1px 1px 1px'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) 1.5px 1.5px 1.5px'},
+]);
+</script>
+</body>

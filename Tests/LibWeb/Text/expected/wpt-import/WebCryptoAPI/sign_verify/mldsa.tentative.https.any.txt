@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 40 tests
+
+40 Pass
+Pass	setup
+Pass	ML-DSA-44 basic test verification
+Pass	ML-DSA-65 basic test verification
+Pass	ML-DSA-87 basic test verification
+Pass	ML-DSA-44 basic test verification with altered signature after call
+Pass	ML-DSA-65 basic test verification with altered signature after call
+Pass	ML-DSA-87 basic test verification with altered signature after call
+Pass	ML-DSA-44 basic test with altered plaintext after call
+Pass	ML-DSA-65 basic test with altered plaintext after call
+Pass	ML-DSA-87 basic test with altered plaintext after call
+Pass	ML-DSA-44 basic test using privateKey to verify
+Pass	ML-DSA-65 basic test using privateKey to verify
+Pass	ML-DSA-87 basic test using privateKey to verify
+Pass	ML-DSA-44 basic test using publicKey to sign
+Pass	ML-DSA-65 basic test using publicKey to sign
+Pass	ML-DSA-87 basic test using publicKey to sign
+Pass	ML-DSA-44 basic test no verify usage
+Pass	ML-DSA-65 basic test no verify usage
+Pass	ML-DSA-87 basic test no verify usage
+Pass	ML-DSA-44 basic test round trip
+Pass	ML-DSA-65 basic test round trip
+Pass	ML-DSA-87 basic test round trip
+Pass	ML-DSA-44 basic test signing with wrong algorithm name
+Pass	ML-DSA-65 basic test signing with wrong algorithm name
+Pass	ML-DSA-87 basic test signing with wrong algorithm name
+Pass	ML-DSA-44 basic test verifying with wrong algorithm name
+Pass	ML-DSA-65 basic test verifying with wrong algorithm name
+Pass	ML-DSA-87 basic test verifying with wrong algorithm name
+Pass	ML-DSA-44 basic test verification failure due to altered signature
+Pass	ML-DSA-65 basic test verification failure due to altered signature
+Pass	ML-DSA-87 basic test verification failure due to altered signature
+Pass	ML-DSA-44 basic test verification failure due to shortened signature
+Pass	ML-DSA-65 basic test verification failure due to shortened signature
+Pass	ML-DSA-87 basic test verification failure due to shortened signature
+Pass	ML-DSA-44 basic test verification failure due to altered plaintext
+Pass	ML-DSA-65 basic test verification failure due to altered plaintext
+Pass	ML-DSA-87 basic test verification failure due to altered plaintext
+Pass	ML-DSA-44 invalid signature verification
+Pass	ML-DSA-65 invalid signature verification
+Pass	ML-DSA-87 invalid signature verification

@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CurrentColor can be used inside light-dark</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-adjust/#color-scheme-effect">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7561">
+<link rel="match" href="../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square-only.html">
+<style>
+.square {
+  width: 100px;
+  height: 100px;
+  color: green;
+  background-color: light-dark(currentColor, currentColor);
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div class="square"></div>

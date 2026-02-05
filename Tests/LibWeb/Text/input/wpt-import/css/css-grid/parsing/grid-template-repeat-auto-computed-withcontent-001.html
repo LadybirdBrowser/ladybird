@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridTemplateColumns</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-columns">
+<meta name="assert" content="grid-template-columns computed value is the keyword none or a computed track list.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/css-grid/support/grid-child-utils.js"></script>
+<style>
+
+#target {
+    display: grid;
+    width: 32px;
+    height: 10px;
+};
+
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target">
+    <div></div>
+    <div></div>
+    <div id="child"></div>
+    <div style="grid-column: 7"></div>
+    <div></div>
+  </div>
+</div>
+<script>
+
+let autoFitTester = new GridChildHelper(gridChildHelperCol,
+    "[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h]) [i] 5px [k] 6px [l m] ");
+
+let autoFillTester = new GridChildHelper(gridChildHelperCol,
+    "[a] 1px [b] 2px [c d] repeat(auto-fill, [e f] 3px [g] 4px [h]) [i] 5px [k] 6px [l m] ");
+
+// Auto-fit
+autoFitTester.runTest(3, "[a] 1px [b] 2px [c d e f] 3px [g] 0px [h e f] 0px [g] 0px [h i] 5px [k] 6px [l m]");
+autoFitTester.runTest(4, "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h e f] 0px [g] 0px [h i] 5px [k] 6px [l m]");
+autoFitTester.runTest(5, "[a] 1px [b] 2px [c d e f] 0px [g] 0px [h e f] 3px [g] 0px [h i] 5px [k] 6px [l m]");
+autoFitTester.runTest(6, "[a] 1px [b] 2px [c d e f] 0px [g] 0px [h e f] 0px [g] 4px [h i] 5px [k] 6px [l m]");
+autoFitTester.runTest("4 / 5", "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h e f] 0px [g] 0px [h i] 5px [k] 6px [l m]");
+autoFitTester.runTest("4 / 6", "[a] 1px [b] 2px [c d e f] 0px [g] 4px [h e f] 3px [g] 0px [h i] 5px [k] 6px [l m]");
+autoFitTester.runTest("3 / 6", "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 3px [g] 0px [h i] 5px [k] 6px [l m]");
+// Auto-fill. These tests are semi-redundant, but should still pass.
+autoFillTester.runTest(3, "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 3px [g] 4px [h i] 5px [k] 6px [l m]");
+autoFillTester.runTest(4, "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 3px [g] 4px [h i] 5px [k] 6px [l m]");
+autoFillTester.runTest(5, "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 3px [g] 4px [h i] 5px [k] 6px [l m]");
+autoFillTester.runTest("4 / 7", "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 3px [g] 4px [h i] 5px [k] 6px [l m]");
+autoFillTester.runTest("3 / 6", "[a] 1px [b] 2px [c d e f] 3px [g] 4px [h e f] 3px [g] 4px [h i] 5px [k] 6px [l m]");
+
+</script>
+</body>
+</html>

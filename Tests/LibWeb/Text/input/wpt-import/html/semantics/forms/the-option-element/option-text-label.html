@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLOptionElement.text</title>
+<link rel=author title=Ms2ger href="mailto:Ms2ger@gmail.com">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#dom-option-text">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var option = document.createElement("option");
+  option.setAttribute("label", "label");
+  option.textContent = "text";
+  assert_equals(option.text, "text");
+}, "Option with non-empty label.");
+
+test(function() {
+  var option = document.createElement("option");
+  option.setAttribute("label", "");
+  option.textContent = "text";
+  assert_equals(option.text, "text");
+}, "Option with empty label.");
+</script>

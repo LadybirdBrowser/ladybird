@@ -1,0 +1,124 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLSelectElement.checkValidity</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/forms.html#the-select-element:attr-select-required-4">
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+
+test(function() {
+  var select = document.createElement('select');
+  assert_true(select.willValidate, "A select element is a submittable element that is a candidate for constraint validation.");
+  var placeholder = document.createElement('option');
+  select.appendChild(placeholder);
+  assert_true(select.checkValidity(), "Always valid when the select isn't a required value.");
+  select.required = true;
+  assert_true(placeholder.selected, "If display size is 1, multiple is absent and no options have selectedness true, the first option is selected.");
+  assert_equals(select.value, "", "The placeholder's value should be the select's value right now");
+  assert_false(select.checkValidity(), "A selected placeholder option should invalidate the select.");
+  var emptyOption = document.createElement('option');
+  select.appendChild(emptyOption);
+  emptyOption.selected = true;
+  assert_equals(select.value, "", "The empty value should be set.");
+  assert_true(select.checkValidity(), "An empty non-placeholder option should be a valid choice.");
+  var filledOption = document.createElement('option');
+  filledOption.value = "test";
+  select.appendChild(filledOption);
+  filledOption.selected = true;
+  assert_equals(select.value, "test", "The non-empty value should be set.");
+  assert_true(select.checkValidity(), "A non-empty non-placeholder option should be a valid choice.");
+  select.removeChild(placeholder);
+  select.appendChild(emptyOption); // move emptyOption to second place
+  emptyOption.selected = true;
+  assert_equals(select.value, "", "The empty value should be set.");
+  assert_true(select.checkValidity(), "Only the first option can be seen as a placeholder.");
+  placeholder.disabled = true;
+  select.insertBefore(placeholder, filledOption);
+  placeholder.selected = true;
+  assert_equals(select.value, "", "A disabled first placeholder option should result in an empty value.");
+  assert_false(select.checkValidity(), "A disabled first placeholder option should invalidate the select.");
+}, "Placeholder label options within a select");
+
+test(function() {
+  var select = document.createElement('select');
+  select.required = true;
+  var optgroup = document.createElement('optgroup');
+  var emptyOption = document.createElement('option');
+  optgroup.appendChild(emptyOption);
+  select.appendChild(optgroup);
+  emptyOption.selected = true;
+  assert_equals(select.value, "", "The empty value should be set.");
+  assert_true(select.checkValidity(), "The first option is not considered a placeholder if it is located within an optgroup.");
+  var otherEmptyOption = document.createElement('option');
+  otherEmptyOption.value = "";
+  select.appendChild(otherEmptyOption);
+  otherEmptyOption.selected = true;
+  assert_equals(select.value, "", "The empty value should be set.");
+  assert_true(select.checkValidity(), "The empty option should be accepted as it is not the first option in the tree ordered list.");
+}, "Placeholder label-like options within optgroup");
+
+test(function() {
+  var select = document.createElement('select');
+  select.required = true;
+  select.size = 2;
+  var emptyOption = document.createElement('option');
+  select.appendChild(emptyOption);
+  assert_false(emptyOption.selected, "Display size is not 1, so the first option should not be selected.");
+  assert_false(select.checkValidity(), "If no options are selected the select must be seen as invalid.");
+  emptyOption.selected = true;
+  assert_true(select.checkValidity(), "If one option is selected, the select should be considered valid.");
+  var otherEmptyOption = document.createElement('option');
+  otherEmptyOption.value = "";
+  select.appendChild(otherEmptyOption);
+  otherEmptyOption.selected = true;
+  assert_false(emptyOption.selected, "Whenever an option has its selectiveness set to true, the other options must be set to false.");
+  otherEmptyOption.selected = false;
+  assert_false(otherEmptyOption.selected, "It should be possible to set the selectiveness to false with a display size more than one.");
+  assert_false(select.checkValidity(), "If no options are selected the select must be seen as invalid.");
+}, "Validation on selects with display size set as more than one");
+
+test(function() {
+  var select = document.createElement('select');
+  select.required = true;
+  select.multiple = true;
+  var emptyOption = document.createElement('option');
+  select.appendChild(emptyOption);
+  assert_false(select.checkValidity(), "If no options are selected the select must be seen as invalid.");
+  emptyOption.selected = true;
+  assert_true(select.checkValidity(), "If one option is selected, the select should be considered valid.");
+  var optgroup = document.createElement('optgroup');
+  optgroup.appendChild(emptyOption); // Move option to optgroup
+  select.appendChild(optgroup);
+  assert_true(select.checkValidity(), "If one option within an optgroup or not is selected, the select should be considered valid.");
+}, "Validation on selects with multiple set");
+
+test(function() {
+  var select = document.createElement('select');
+  select.required = true;
+  var option = document.createElement('option');
+  option.value = 'test';
+  option.disabled = true;
+  option.selected = true;
+  select.appendChild(option);
+  assert_true(select.checkValidity(), "When a required select has an option that is selected and disabled, the select should be considered valid.");
+}, "Validation on selects with non-empty disabled option");
+
+test(function() {
+  var select = document.createElement('select');
+  select.required = true;
+  var placeholder = document.createElement('option');
+  select.appendChild(placeholder);
+  var nonPlaceholder = document.createElement('option');
+  nonPlaceholder.textContent = "non-placeholder-option";
+  select.appendChild(nonPlaceholder);
+
+  assert_false(select.checkValidity(), "If the placeholder label option is selected, required select element shouldn't be valid.");
+  placeholder.remove();
+  assert_true(select.checkValidity(), "If the placeholder label option is removed, required select element should become valid.");
+  select.prepend(placeholder);
+  assert_false(select.checkValidity(), "If the placeholder label option is selected, required select element shouldn't be valid.");
+
+}, "Remove and add back the placeholder label option");
+
+</script>

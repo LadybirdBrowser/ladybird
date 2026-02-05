@@ -1,0 +1,14 @@
+Harness status: Error
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Pass	click the form submission button should close the dialog
+Pass	form submission should return correct value
+Pass	returnValue doesn't update when there's no value attribute.
+Pass	returnValue does update when there's an empty value attribute.
+Fail	input image button should return the coordinates
+Pass	formmethod attribute should use dialog form submission
+Pass	closing the dialog while submitting should stop the submission
+Fail	calling form.submit() in click handler of submit button should start the submission synchronously

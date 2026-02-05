@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="timeout" content="long">
+    <meta name="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#custom-state-pseudo-class" />
+    <title>CustomStateSet doesn't crash after GC on detached node</title>
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../common/gc.js"></script>
+  </head>
+  <body>
+    <custom-state id="myCE"></custom-state>
+    <script>
+    customElements.define('custom-state', class extends HTMLElement {
+      connectedCallback() {
+        this.elementInternals = this.attachInternals();
+      }
+    });
+
+    promise_test(async function() {
+      const states = myCE.elementInternals.states;
+      myCE.remove();
+      await garbageCollect();
+      states.add('still-works');
+      assert_equals(states.size, 1);
+      assert_true(states.delete('still-works'));
+      assert_equals(states.size, 0);
+    }, "customstateset doesn't crash after GC on detached node");
+    </script>
+  </body>
+</html>

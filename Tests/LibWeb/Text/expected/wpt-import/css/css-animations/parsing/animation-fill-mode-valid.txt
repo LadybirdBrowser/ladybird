@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['animation-fill-mode'] = "none" should set the property value
+Pass	e.style['animation-fill-mode'] = "forwards" should set the property value
+Pass	e.style['animation-fill-mode'] = "backwards" should set the property value
+Pass	e.style['animation-fill-mode'] = "both" should set the property value
+Pass	e.style['animation-fill-mode'] = "none, forwards, backwards, both" should set the property value

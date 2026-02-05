@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            try {
+                new DOMMatrix("var(--a)");
+                println("Fail! Should throw error");
+            } catch {
+                println("Pass!");
+            }
+        });
+    </script>
+</html>

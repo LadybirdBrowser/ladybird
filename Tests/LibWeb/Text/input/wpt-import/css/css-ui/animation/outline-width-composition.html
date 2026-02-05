@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>outline-width composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-ui-3/#outline-width">
+<meta name="assert" content="outline-width supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<style>
+.target {
+  /* If outline-style is none (the default), the computed style of outline-width is 0. */
+  outline-style: solid;
+}
+</style>
+<script>
+test_composition({
+  property: 'outline-width',
+  underlying: '50px',
+  addFrom: '100px',
+  addTo: '200px',
+}, [
+  {at: -0.3, expect: '120px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '200px'},
+  {at: 1, expect: '250px'},
+  {at: 1.5, expect: '300px'},
+]);
+
+test_composition({
+  property: 'outline-width',
+  underlying: '100px',
+  addFrom: '10px',
+  addTo: '2px',
+}, [
+  {at: -0.5, expect: '114px'},
+  {at: 0, expect: '110px'},
+  {at: 0.5, expect: '106px'},
+  {at: 1, expect: '102px'},
+  {at: 1.5, expect: '98px'}, // Value clamping should happen after composition.
+]);
+
+test_composition({
+  property: 'outline-width',
+  underlying: '10em',
+  addFrom: '100px',
+  addTo: '20em',
+}, [
+  {at: -0.3, expect: 'calc(130px + 4em)'},
+  {at: 0, expect: 'calc(100px + 10em)'},
+  {at: 0.5, expect: 'calc(50px + 20em)'},
+  {at: 1, expect: '30em'},
+  {at: 1.5, expect: 'calc(-50px + 40em)'},
+]);
+
+test_composition({
+  property: 'outline-width',
+  underlying: '50px',
+  addFrom: '100px',
+  replaceTo: '200px',
+}, [
+  {at: -0.3, expect: '135px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '175px'},
+  {at: 1, expect: '200px'},
+  {at: 1.5, expect: '225px'},
+]);
+
+test_composition({
+  property: 'outline-width',
+  underlying: 'thick', // 5px
+  addFrom: '11px',
+  addTo: 'thin', // 1px
+}, [
+  {at: -0.3, expect: '19px'},
+  {at: 0, expect: '16px'},
+  {at: 0.5, expect: '11px'},
+  {at: 1, expect: '6px'},
+  {at: 1.5, expect: '1px'},
+  {at: 2, expect: '0px'}, // CSS outline-width can't be negative.
+]);
+</script>
+</body>

@@ -1,0 +1,12 @@
+Form for #label-no-for is null
+Control for #label-no-for is null: true
+Form for #parent-of-input2: #form2
+label.form is the same as label.control.form for #parent-of-input2: true
+Form for #label-for-input2: #form2
+label.form is the same as label.control.form for #label-for-input2: true
+Form for #label-for-input1: #form1
+label.form is the same as label.control.form for #label-for-input1: true
+Form for #label-for-non-labelable-element is null
+Control for #label-for-non-labelable-element is null: true
+Form for #label-for-nonexistent-element is null
+Control for #label-for-nonexistent-element is null: true

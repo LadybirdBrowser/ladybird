@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const key = `foo_${crypto.randomUUID()}`;
+
+        window.onmessage = () => {
+           try {
+                println(localStorage.getItem(key));
+                localStorage.setItem(key, "bar");
+                println(localStorage.getItem(key));
+                localStorage.removeItem(key);
+            } catch (e) {
+                println(e);
+            }
+
+            done();
+        };
+
+        const frame = document.createElement("iframe");
+        frame.src = `../../data/local-storage-iframe.html?key=${key}`;
+        document.body.appendChild(frame);
+    });
+</script>

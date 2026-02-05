@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<input type="radio" id="radioButton">
+<script src="include.js"></script>
+<script>
+    let changeEventFired = false;
+    radioButton.addEventListener("change", () => {
+      changeEventFired = true;
+    });
+    asyncTest(async done => {
+        radioButton.focus();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        radioButton.blur();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        if (changeEventFired) {
+            println("FAIL: Change event was fired when it shouldn't have been.");
+        } else {
+            println("PASS: Change event was not fired");
+        }
+
+        done();
+    });
+</script>

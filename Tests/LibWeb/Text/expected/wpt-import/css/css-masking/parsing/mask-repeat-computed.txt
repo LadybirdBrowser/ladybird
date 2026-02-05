@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	Property mask-repeat value 'repeat-x'
+Pass	Property mask-repeat value 'repeat-y'
+Pass	Property mask-repeat value 'repeat'
+Pass	Property mask-repeat value 'space'
+Pass	Property mask-repeat value 'round'
+Pass	Property mask-repeat value 'no-repeat'
+Pass	Property mask-repeat value 'repeat repeat'
+Pass	Property mask-repeat value 'repeat space'
+Pass	Property mask-repeat value 'repeat round'
+Pass	Property mask-repeat value 'repeat no-repeat'
+Pass	Property mask-repeat value 'space repeat'
+Pass	Property mask-repeat value 'space space'
+Pass	Property mask-repeat value 'space round'
+Pass	Property mask-repeat value 'space no-repeat'
+Pass	Property mask-repeat value 'round repeat'
+Pass	Property mask-repeat value 'round space'
+Pass	Property mask-repeat value 'round round'
+Pass	Property mask-repeat value 'round no-repeat'
+Pass	Property mask-repeat value 'no-repeat repeat'
+Pass	Property mask-repeat value 'no-repeat space'
+Pass	Property mask-repeat value 'no-repeat round'
+Pass	Property mask-repeat value 'no-repeat no-repeat'

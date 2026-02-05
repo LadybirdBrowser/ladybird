@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.checkValidity()</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-cva-checkvalidity">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<script>
+  var testElements = [
+    {
+      tag: "input",
+      types: ["text", "search", "tel", "password"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {maxLength: "4", value: "abcdef"}, expected: true, name: "[target] not suffering from being too long", dirty: true},
+        {conditions: {pattern: "[A-Z]", value: "abc"}, expected: false, name: "[target] suffering from a pattern mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["url"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {maxLength: "20", value: "http://www.example.com"}, expected: true, name: "[target] suffering from being too long", dirty: true},
+        {conditions: {pattern: "http://www.example.com", value: "http://www.example.net"}, expected: false, name: "[target] suffering from a pattern mismatch"},
+        {conditions: {value: "abc"}, expected: false, name: "[target] suffering from a type mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["email"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {maxLength: "10", value: "test@example.com"}, expected: true, name: "[target] not suffering from being too long", dirty: true},
+        {conditions: {pattern: "test@example.com", value: "test@example.net"}, expected: false, name: "[target] suffering from a pattern mismatch"},
+        {conditions: {value: "abc"}, expected: false, name: "[target] suffering from a type mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["datetime-local"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {max: "2000-01-01T12:00:00", value: "2001-01-01T12:00:00"}, expected: false, name: "[target] suffering from an overflow"},
+        {conditions: {min: "2001-01-01T12:00:00", value: "2000-01-01T12:00:00"}, expected: false, name: "[target] suffering from an underflow"},
+        {conditions: {step: 2 * 60 * 1000, value: "2001-01-01T12:03:00"}, expected: false, name: "[target] suffering from a step mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["date"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {max: "2000-01-01", value: "2001-01-01"}, expected: false, name: "[target] suffering from an overflow"},
+        {conditions: {min: "2001-01-01", value: "2000-01-01"}, expected: false, name: "[target] suffering from an underflow"},
+        {conditions: {step: 2 * 1 * 86400000, value: "2001-01-03"}, expected: false, name: "[target] suffering from a step mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["month"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {max: "2000-01", value: "2001-01"}, expected: false, name: "[target] suffering from an overflow"},
+        {conditions: {min: "2001-01", value: "2000-01"}, expected: false, name: "[target] suffering from an underflow"},
+        {conditions: {step: 3 * 1 * 1, value: "2001-03"}, expected: false, name: "[target] suffering from a step mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["week"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {max: "2000-W01", value: "2001-W01"}, expected: false, name: "[target] suffering from an overflow"},
+        {conditions: {min: "2001-W01", value: "2000-W01"}, expected: false, name: "[target] suffering from an underflow"},
+        {conditions: {step: 2 * 1 * 604800000, value: "2001-W03"}, expected: false, name: "[target] suffering from a step mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["time"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {max: "12:00:00", value: "13:00:00"}, expected: false, name: "[target] suffering from an overflow"},
+        {conditions: {min: "12:00:00", value: "11:00:00"}, expected: false, name: "[target] suffering from an underflow"},
+        {conditions: {step: 2 * 60 * 1000, value: "12:03:00"}, expected: false, name: "[target] suffering from a step mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["number"],
+      testData: [
+        {conditions: {max: "5", value: "6"}, expected: false, name: "[target] suffering from an overflow"},
+        {conditions: {min: "5", value: "4"}, expected: false, name: "[target] suffering from an underflow"},
+        {conditions: {step: 2 * 1 * 1, value: "3"}, expected: false, name: "[target] suffering from a step mismatch"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["checkbox", "radio"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {required: true, checked: false, name: "test1"}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["file"],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {required: true, files: null}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "select",
+      types: [],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    },
+    {
+      tag: "textarea",
+      types: [],
+      testData: [
+        {conditions: {}, expected: true, name: "[target] no constraint"},
+        {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
+      ]
+    }
+  ];
+
+  validator.run_test(testElements, "checkValidity");
+</script>

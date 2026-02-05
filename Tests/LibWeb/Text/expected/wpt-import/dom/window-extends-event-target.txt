@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	EventTarget methods on Window instances are inherited from the EventTarget prototype
+Pass	window.addEventListener respects custom `this`
+Pass	window.addEventListener treats nullish `this` as `window`

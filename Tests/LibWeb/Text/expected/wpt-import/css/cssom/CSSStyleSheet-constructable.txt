@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+24 Pass
+8 Fail
+Pass	document.adoptedStyleSheets should initially have length 0.
+Pass	new CSSStyleSheet produces empty CSSStyleSheet
+Pass	title can be set in the CSSStyleSheet constructor
+Pass	CSSStyleSheet.replace produces Promise<CSSStyleSheet>
+Pass	Constructed style sheets can be applied on document
+Pass	Constructed style sheets can be applied on shadow root
+Pass	Re-attaching shadow host with adopted stylesheets work
+Fail	Attaching a shadow root that already has adopted stylesheets work
+Pass	Re-attaching shadow host and updating attributes work
+Pass	Changes to constructed stylesheets through CSSOM is reflected
+Pass	Constructed stylesheet can be used and modified in multiple TreeScopes
+Pass	Stylesheets constructed on the main Document cannot be used in iframes
+Pass	Stylesheet constructed on iframe cannot be used in the main Document
+Pass	Adding non-constructed stylesheet to AdoptedStyleSheets is not allowed when the owner document of the stylesheet is in the same document tree as the AdoptedStyleSheets
+Pass	Adding non-constructed stylesheet to AdoptedStyleSheets is not allowed when the owner document of the stylesheet and the AdoptedStyleSheets are in different document trees
+Pass	CSSStyleSheet.replaceSync replaces stylesheet text synchronously
+Fail	CSSStyleSheet.replaceSync correctly updates the style of its adopters synchronously
+Fail	Adopted sheets are ordered after non-adopted sheets in the shadow root
+Fail	Adopted sheets are ordered after non-adopted sheets in the document
+Pass	Inserting an @import rule through insertRule on a constructed stylesheet throws an exception
+Fail	CSSStyleSheet.replaceSync should not trigger any loads from @import rules
+Pass	CSSStyleSheet.replace allows, but ignores, import rule inside
+Fail	CSSStyleSheet.replace ignores @import rule but still loads other rules
+Pass	CSSStyleSheet.replaceSync allows, but ignores, import rule inside
+Pass	CSSStyleSheet.replace does not reject on failed imports
+Pass	Cloning a shadow host will not clone shadow root, and also adoptedStyleSheets
+Pass	Importing a shadow host will not copy shadow root, and also adoptedStyleSheets
+Fail	Adopting a shadow host will empty adoptedStyleSheets if adopting to a different document
+Fail	Adopting a shadow host's ancestor will empty adoptedStyleSheets if adopting to a different document
+Pass	Forcing a style update after adding an adopted stylesheet on a disconnected shadow root should not crash.
+Pass	Modifying an adopted stylesheet on a disconnected shadow root should not crash.
+Pass	Constructing a sheet with the default base URL uses the constructor document's base URL for CSS rules

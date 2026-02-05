@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing new font-weight lighter/bolder table introduced in CSS Fonts level 4</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-weight-prop" />
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+
+    <div id="testcases">
+        <div class="testcase" style="font-family: 'CSSTest Weights Full';">
+            <span style="font-weight:lighter;color:red;">A</span>A<span style="font-weight:bolder;color:red;">A</span>
+            <span style="font: menu; font-size: 10px;">(default)</span>
+        </div>
+    </div>
+
+    <script>
+
+        testRelativeWeights = [
+            { baseWeight: 99,   lighter: "99",  bolder: "400" },
+            { baseWeight: 100,  lighter: "100", bolder: "400" },
+            { baseWeight: 349,  lighter: "100", bolder: "400" },
+            { baseWeight: 350,  lighter: "100", bolder: "700" },
+            { baseWeight: 549,  lighter: "100", bolder: "700" },
+            { baseWeight: 550,  lighter: "400", bolder: "900" },
+            { baseWeight: 749,  lighter: "400", bolder: "900" },
+            { baseWeight: 750,  lighter: "700", bolder: "900" },
+            { baseWeight: 899,  lighter: "700", bolder: "900" },
+            { baseWeight: 900,  lighter: "700", bolder: "900" },
+            { baseWeight: 901,  lighter: "700", bolder: "901" },
+        ];
+
+        var testcases = document.getElementById("testcases");
+        var testcase_template = testcases.firstElementChild; testcases.removeChild(testcase_template);
+        testRelativeWeights.forEach(function(element) {
+
+            var base = testcase_template.cloneNode(true);
+            base.children[2].textContent = element.baseWeight;
+            base.style.fontWeight = element.baseWeight;
+            testcases.appendChild(base);
+
+            test(() => {
+                var actualLighter = window.getComputedStyle(base.children[0]).fontWeight;
+                assert_equals(actualLighter, element.lighter, "Lighter value for " + element.baseWeight + " should match expected value.");
+                base.children[0].style.color = 'green';
+            }, "Test lighter font-weight for base weight " + element.baseWeight);
+
+            test(() => {
+                var actualBolder = window.getComputedStyle(base.children[1]).fontWeight;
+                assert_equals(actualBolder, element.bolder, "Bolder value " + element.baseWeight + " should match expected value.");
+                base.children[1].style.color = 'green';
+            }, "Test bolder font-weight for base weight " + element.baseWeight);
+        });
+
+    </script>
+</body>
+</html>

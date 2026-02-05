@@ -1,0 +1,33 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,0] [0+0+0 800 0+0+0] [0+0+0 300 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        Box <div> at [0,0] flex-container(row) [0+0+0 800 0+0+0] [0+0+0 300 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [0,0] flex-item [0+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [0,300] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,300] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x600]
+      PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
+      PaintableWithLines (BlockContainer<DIV>) [0,0 800x300]
+        PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
+        PaintableBox (Box<DIV>) [0,0 800x300]
+          PaintableWithLines (BlockContainer<DIV>) [0,0 50x30]
+        PaintableWithLines (BlockContainer(anonymous)) [0,300 800x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,300 800x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x600] [children: 0] (z-index: auto)

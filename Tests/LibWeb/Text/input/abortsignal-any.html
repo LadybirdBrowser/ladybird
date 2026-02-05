@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        function make_callback(signal, signal_number) {
+            return () => println(`Abort callback for signal: ${signal_number}. Reason: ${signal.reason}`);
+        }
+
+        function make_signal_list() {
+            const controller1 = new AbortController();
+            const controller2 = new AbortController();
+            const controller3 = new AbortController();
+
+            let signals = [];
+            signals.push(AbortSignal.any([controller1.signal]));
+            signals.push(AbortSignal.any([controller1.signal, controller2.signal]));
+            signals.push(AbortSignal.any([controller2.signal]));
+            signals.push(AbortSignal.any([controller2.signal, controller1.signal]));
+
+            const nestedSignal = AbortSignal.any([...signals, controller3.signal]);
+            signals.push(nestedSignal);
+
+            for (let i = 0; i < signals.length; i++) {
+                const signal = signals[i];
+                signal.onabort = make_callback(signal, i);
+            }
+
+            return { controllers: [controller1, controller2, controller3], signals: signals};
+        }
+
+        function print_aborted_signals(signals) {
+            for (let i = 0; i < signals.length; i++) {
+                const signal = signals[i];
+                println(`Signal ${i} aborted: ${signal.aborted}`);
+            }
+        }
+
+        const signal_list1 = make_signal_list();
+        print_aborted_signals(signal_list1.signals);
+        signal_list1.controllers[0].abort("Test AbortController 1");
+        print_aborted_signals(signal_list1.signals);
+
+        const signal_list2 = make_signal_list();
+        print_aborted_signals(signal_list2.signals);
+        signal_list2.controllers[1].abort("Test AbortController 2");
+        print_aborted_signals(signal_list2.signals);
+
+        const signal_list3 = make_signal_list();
+        print_aborted_signals(signal_list3.signals);
+        signal_list3.controllers[2].abort("Test AbortController 3");
+        print_aborted_signals(signal_list3.signals);
+    });
+</script>

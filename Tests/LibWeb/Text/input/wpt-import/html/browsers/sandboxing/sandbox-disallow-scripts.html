@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Script execution in sandbox iframe</title>
+    <link rel="author" title="Kinuko Yasuda" href="mailto:kinuko@chromium.org">
+    <link rel="help" href="http://www.w3.org/html/wg/drafts/html/master/browsers.html#sandboxing">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+    <h1>Script execution in sandbox iframe</h1>
+    <script type="text/javascript">
+      var t = async_test("Running script from sandbox iframe is disallowed")
+      var called = 0;
+      function calledFromIframe() {
+        called++;
+      }
+      function loaded() {
+        assert_equals(called, 0);
+        t.done();
+      }
+    </script>
+
+    <iframe src="../../../html/browsers/sandboxing/inner-iframe.html" style="visibility:hidden;display:none" sandbox id="sandboxedframe" onload="loaded();"></iframe>
+
+    <div id="log"></div>
+  </body>
+</html>

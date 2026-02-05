@@ -1,0 +1,15 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#canvaslinecap
+// enum CanvasLineCap { "butt", "round", "square" };
+// enum CanvasLineJoin { "round", "bevel", "miter" };
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvaspathdrawingstyles
+interface mixin CanvasPathDrawingStyles {
+    attribute unrestricted double lineWidth;
+    attribute CanvasLineCap lineCap;
+    attribute CanvasLineJoin lineJoin;
+    attribute unrestricted double miterLimit;
+
+    undefined setLineDash(sequence<unrestricted double> segments);
+    sequence<unrestricted double> getLineDash();
+    attribute unrestricted double lineDashOffset;
+};

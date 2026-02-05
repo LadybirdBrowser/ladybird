@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Ensure the `beforetoggle` event can be used to populate content before the popover renders

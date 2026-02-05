@@ -1,0 +1,8 @@
+1. "Fast match #host selector matches: No"
+2. "Fast match .host-class selector matches: No"
+3. "Fast match div selector matches: No"
+4. "Fast match :host selector matches: Yes"
+5. "Complex match #host:not(.other) matches: No"
+6. "Complex match .host-class:where(.exists) matches: No"
+7. "Complex match div:has(span) matches: No"
+8. "Complex match :host(.host-class) matches: Yes"

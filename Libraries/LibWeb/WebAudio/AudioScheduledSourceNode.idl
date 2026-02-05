@@ -1,0 +1,10 @@
+#import <DOM/EventHandler.idl>
+#import <WebAudio/AudioNode.idl>
+
+// https://webaudio.github.io/web-audio-api/#AudioScheduledSourceNode
+[Exposed=Window]
+interface AudioScheduledSourceNode : AudioNode {
+    attribute EventHandler onended;
+    undefined start(optional double when = 0);
+    undefined stop(optional double when = 0);
+};

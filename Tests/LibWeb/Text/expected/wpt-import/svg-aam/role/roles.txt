@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	el-a[href]
+Pass	el-a[xlink:href]
+Pass	el-g
+Pass	el-image

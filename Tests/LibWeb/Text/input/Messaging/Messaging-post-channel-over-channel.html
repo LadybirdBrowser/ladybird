@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let channel = new MessageChannel();
+
+        const port1Logs = [];
+        const port2Logs = [];
+        const port3Logs = [];
+
+        channel.port1.onmessage = (event) => {
+            port1Logs.push("Port1: " + JSON.stringify(event.data));
+            if (event.ports.length > 0) {
+                event.ports[0].postMessage("Hello from the transferred port");
+                return;
+            }
+            channel.port1.postMessage(event.data);
+        };
+
+        channel.port2.onmessage = (event) => {
+            port2Logs.push("Port2: " + JSON.stringify(event.data));
+            if (event.data === "DONE") {
+                for (let log of port1Logs)
+                    println(log);
+                for (let log of port2Logs)
+                    println(log);
+                for (let log of port3Logs)
+                    println(log);
+                done();
+            }
+        };
+
+        let channel2 = new MessageChannel();
+
+        channel2.port2.onmessage = (event) => {
+            port3Logs.push("Port3: " + JSON.stringify(event.data));
+            channel.port2.postMessage("DONE");
+        }
+
+        channel.port2.postMessage("Hello");
+        channel.port2.postMessage({ foo: channel2.port1 }, { transfer: [channel2.port1] });
+    });
+</script>

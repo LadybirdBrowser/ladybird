@@ -1,0 +1,62 @@
+Harness status: OK
+
+Found 57 tests
+
+57 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Navigator: original interface defined
+Pass	Partial interface Navigator: valid exposure set
+Pass	Partial interface Navigator: member names are unique
+Pass	Partial interface WorkerNavigator: original interface defined
+Pass	Partial interface WorkerNavigator: valid exposure set
+Pass	Partial interface WorkerNavigator: member names are unique
+Pass	Partial interface Navigator[2]: member names are unique
+Pass	Partial interface mixin NavigatorID: member names are unique
+Pass	Navigator includes NavigatorID: member names are unique
+Pass	Navigator includes NavigatorLanguage: member names are unique
+Pass	Navigator includes NavigatorOnLine: member names are unique
+Pass	Navigator includes NavigatorContentUtils: member names are unique
+Pass	Navigator includes NavigatorCookies: member names are unique
+Pass	Navigator includes NavigatorPlugins: member names are unique
+Pass	Navigator includes NavigatorConcurrentHardware: member names are unique
+Pass	WorkerNavigator includes NavigatorID: member names are unique
+Pass	WorkerNavigator includes NavigatorLanguage: member names are unique
+Pass	WorkerNavigator includes NavigatorOnLine: member names are unique
+Pass	WorkerNavigator includes NavigatorConcurrentHardware: member names are unique
+Pass	Serial interface: existence and properties of interface object
+Pass	Serial interface object length
+Pass	Serial interface object name
+Pass	Serial interface: existence and properties of interface prototype object
+Pass	Serial interface: existence and properties of interface prototype object's "constructor" property
+Pass	Serial interface: existence and properties of interface prototype object's @@unscopables property
+Pass	Serial interface: attribute onconnect
+Pass	Serial interface: attribute ondisconnect
+Pass	Serial interface: operation getPorts()
+Pass	Serial interface: operation requestPort(optional SerialPortRequestOptions)
+Pass	Serial must be primary interface of navigator.serial
+Pass	Stringification of navigator.serial
+Pass	Serial interface: navigator.serial must inherit property "onconnect" with the proper type
+Pass	Serial interface: navigator.serial must inherit property "ondisconnect" with the proper type
+Pass	Serial interface: navigator.serial must inherit property "getPorts()" with the proper type
+Pass	Serial interface: navigator.serial must inherit property "requestPort(optional SerialPortRequestOptions)" with the proper type
+Pass	Serial interface: calling requestPort(optional SerialPortRequestOptions) on navigator.serial with too few arguments must throw TypeError
+Pass	SerialPort interface: existence and properties of interface object
+Pass	SerialPort interface object length
+Pass	SerialPort interface object name
+Pass	SerialPort interface: existence and properties of interface prototype object
+Pass	SerialPort interface: existence and properties of interface prototype object's "constructor" property
+Pass	SerialPort interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SerialPort interface: attribute onconnect
+Pass	SerialPort interface: attribute ondisconnect
+Pass	SerialPort interface: attribute connected
+Pass	SerialPort interface: attribute readable
+Pass	SerialPort interface: attribute writable
+Pass	SerialPort interface: operation getInfo()
+Pass	SerialPort interface: operation open(SerialOptions)
+Pass	SerialPort interface: operation setSignals(optional SerialOutputSignals)
+Pass	SerialPort interface: operation getSignals()
+Pass	SerialPort interface: operation close()
+Pass	SerialPort interface: operation forget()
+Pass	Navigator interface: attribute serial
+Pass	Navigator interface: navigator must inherit property "serial" with the proper type

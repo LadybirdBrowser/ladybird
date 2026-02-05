@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/counter-set-remove-ref.html" />
+<style>
+div::before { content: counter(item) ': '; }
+.Inc1 { counter-increment: item 1; }
+.Set8 { counter-set: item 8; }
+</style>
+
+<div class='Inc1'>One</div>
+<div id='remove' class='Set8'>One</div>
+<div class='Inc1'>Two</div>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('remove').classList.remove('Set8');
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['shape-rendering'] = "optimizelegibility" should not set the property value
+Pass	e.style['shape-rendering'] = "auto optimizespeed" should not set the property value

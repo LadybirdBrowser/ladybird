@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/scrollable-content-inside-fixed-position-box-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        height: 2000px;
+    }
+
+    .fixed-element {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 250px;
+        height: 300px;
+        padding: 10px;
+        background-color: #f1f1f1;
+        border: 1px solid #ccc;
+        overflow-y: auto;
+    }
+
+    .fixed-element .box {
+        margin-bottom: 10px;
+        padding: 10px;
+        color: white;
+        text-align: center;
+        font-weight: bold;
+        border-radius: 5px;
+    }
+
+    .box1 {
+        background-color: #ff5733;
+        height: 100px;
+    }
+
+    .box2 {
+        background-color: #33c1ff;
+        height: 150px;
+    }
+
+    .box3 {
+        background-color: #75ff33;
+        height: 120px;
+    }
+
+    .box4 {
+        background-color: #ff33e6;
+        height: 80px;
+    }
+
+    .box5 {
+        background-color: #ffd633;
+        height: 140px;
+    }
+</style>
+<div class="fixed-element">
+    <h2>Fixed Element</h2>
+    <div class="box box1">Box 1</div>
+    <div class="box box2">Box 2</div>
+    <div class="box box3">Box 3</div>
+    <div class="box box4">Box 4</div>
+    <div class="box box5">Box 5</div>
+</div>
+<script>
+    window.onload = function () {
+        window.scroll(0, 500);
+    };
+</script>

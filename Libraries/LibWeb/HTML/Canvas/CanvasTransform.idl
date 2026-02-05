@@ -1,0 +1,14 @@
+#import <Geometry/DOMMatrix.idl>
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvastransform
+interface mixin CanvasTransform {
+    undefined scale(unrestricted double x, unrestricted double y);
+    undefined rotate(unrestricted double radians);
+    undefined translate(unrestricted double x, unrestricted double y);
+    undefined transform(unrestricted double a, unrestricted double b, unrestricted double c, unrestricted double d, unrestricted double e, unrestricted double f);
+
+    [NewObject] DOMMatrix getTransform();
+    undefined setTransform(unrestricted double a, unrestricted double b, unrestricted double c, unrestricted double d, unrestricted double e, unrestricted double f);
+    undefined setTransform(optional DOMMatrix2DInit transform = {});
+    undefined resetTransform();
+};

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: getComputedStyle().animationDelay</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#propdef-animation-delay">
+<meta name="assert" content="animation-delay converts to seconds.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #container {
+    container-type: inline-size;
+    width: 100px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value("animation-delay", "-500ms", "-0.5s");
+test_computed_value("animation-delay", "calc(2 * 3s)", "6s");
+test_computed_value("animation-delay", "20s, 10s");
+test_computed_value("animation-delay", 'calc(10s + (sign(2cqw - 10px) * 5s))', '5s');
+</script>
+</body>
+</html>

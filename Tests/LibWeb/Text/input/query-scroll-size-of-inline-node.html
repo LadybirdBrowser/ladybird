@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<span id="empty-span"></span>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const hiddenDiv = document.getElementById('empty-span');
+    const scrollHeight = hiddenDiv.scrollHeight;
+    const scrollWidth = hiddenDiv.scrollWidth;
+    println(`Scroll Height: ${scrollHeight}px, Scroll Width: ${scrollWidth}px`);
+});
+</script>

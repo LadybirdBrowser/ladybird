@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-size interpolation with zoom</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-3/#propdef-font-size">
+<meta name="assert" content="font-size supports animation as a length, respecting zoom">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.container {
+  zoom: 2;
+}
+.target {
+  display: inline-block;
+}
+.expected {
+  color: green;
+  margin-right: 30px;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <span class="container">
+    <div class="target">TT</div>
+  </span>
+</template>
+</body>
+
+<script>
+// The container has zoom: 2 applied to it.
+test_interpolation({
+  property: 'font-size',
+  from: '10px',
+  to: '20px'
+}, [
+  {at: -2, expect: '0px'}, // CSS font-size can't be negative.
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+</script>

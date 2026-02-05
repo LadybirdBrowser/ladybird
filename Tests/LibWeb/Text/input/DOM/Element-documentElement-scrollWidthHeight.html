@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+#a {
+    background: red;
+    height: 1432px;
+    width: 1234px;
+}
+</style>
+<div id="a"></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    println(`document.documentElement.scrollWidth: ${document.documentElement.scrollWidth}`);
+    println(`document.documentElement.scrollHeight: ${document.documentElement.scrollHeight}`);
+});
+</script>

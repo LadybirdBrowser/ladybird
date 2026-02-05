@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: mask-image: mask layer image</title>
+    <link rel="author" title="Astley Chen" href="mailto:aschen@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-mask-image">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/mask-image/mask-image-1-ref.html">
+    <meta name="assert" content="Test checks whether image as mask layer works correctly or not.">
+    <style type="text/css">
+      div {
+        background-color: purple;
+        width: 100px;
+        height: 100px;
+      }
+
+      div.mask-by-png {
+        mask-image: url(../../../../../data/transparent-100x50-blue-100x50.png);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mask-by-png"></div>
+    <!-- Hack to make the test runner wait for the image to load -->
+    <img src="../../../../../data/transparent-100x50-blue-100x50.png" style="opacity: 0"/>
+  </body>
+</html>

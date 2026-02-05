@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders: getComputedStyle().borderWidth</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-width">
+<meta name="assert" content="border-width computed value is the absolute length; zero if the border style is none or hidden.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #box {
+    border-style: dotted; /* Avoid border-*-width computed style 0 */
+    border-top-width: thin;
+    border-right-width: medium;
+    border-bottom-width: thick;
+  }
+  #target {
+    border-style: dotted; /* Avoid border-*-width computed style 0 */
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="box"></div>
+<div id="target"></div>
+<script>
+'use strict';
+const box = document.getElementById('box');
+const thinWidth = getComputedStyle(box).borderTopWidth;
+const mediumWidth = getComputedStyle(box).borderRightWidth;
+const thickWidth = getComputedStyle(box).borderBottomWidth;
+
+test_computed_value("border-width", "1px");
+test_computed_value("border-width", "1px 2px");
+test_computed_value("border-width", "1px 2px 3px");
+test_computed_value("border-width", "1px 2px 3px 4px");
+
+test_computed_value("border-width", "0.5em", "20px");
+test_computed_value("border-width", "2px thin medium thick", "2px " + thinWidth + " " + mediumWidth + " " + thickWidth);
+
+test_computed_value("border-top-width", "0px");
+test_computed_value("border-right-width", "10px");
+test_computed_value("border-bottom-width", "calc(-0.5em + 10px)", "0px");
+test_computed_value("border-left-width", "calc(0.5em + 10px)", "30px");
+
+test(() => {
+  const thin = Number(thinWidth.replace("px", ""));
+  const medium = Number(mediumWidth.replace("px", ""));
+  const thick = Number(thickWidth.replace("px", ""));
+  assert_less_than_equal(0, thin);
+  assert_less_than_equal(thin, medium);
+  assert_less_than_equal(medium, thick);
+}, "thin ≤ medium ≤ thick");
+</script>
+</body>
+</html>

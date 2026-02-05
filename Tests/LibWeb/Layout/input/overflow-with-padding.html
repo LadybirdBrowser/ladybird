@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+.outer {
+    border: 1px solid black;
+    padding: 25px;
+    width: 400px;
+    height: 70px;
+    overflow: auto;
+}
+.inner {
+    border: 1px solid black;
+    width: 400px;
+    height: 100px;
+    overflow: visible;
+}
+</style>
+
+<div class="outer"><div class="inner">This should be scrollable vertically because of the padding.<span></span></div></div>
+<div class="outer"><div class="inner">This padding represents, within the scrollable overflow rectangle, the box’s own padding so that when its content is scrolled to the end, there is padding between the end-edge of its in-flow (or floated) content and the border edge of the box. It typically ends up being exactly the same size as the box’s own padding, except in a few cases—such as when an out-of-flow positioned element, or the visible overflow of a descendent, has already increased the size of the scrollable overflow rectangle outside the conceptual “content edge” of the scroll container’s content.</div></div>

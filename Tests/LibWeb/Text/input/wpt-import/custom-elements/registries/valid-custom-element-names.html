@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/pull/7991">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+function isAsciiLowerAlpha(codePoint) {
+  return codePoint >= 0x61 && codePoint <= 0x7A;
+}
+function isAsciiUpperAlpha(codePoint) {
+  return codePoint >= 0x41 && codePoint <= 0x5A;
+}
+function isAsciiAlpha(codePoint) {
+  return isAsciiLowerAlpha(codePoint) || isAsciiUpperAlpha(codePoint);
+}
+function isAsciiDigit(codePoint) {
+  return codePoint >= 0x30 && codePoint <= 0x39;
+}
+function isAsciiWhitespace(codePoint) {
+  return codePoint == 0x9 || codePoint == 0xA || codePoint == 0xC || codePoint == 0xD || codePoint == 0x20;
+}
+
+function debugString(str) {
+  const codePoints = [];
+  for (const c of str) {
+    codePoints.push(c.codePointAt(0));
+  }
+  return `code points: ${JSON.stringify(codePoints)}, string: "${str}"`;
+}
+
+const validCustomElementNames = [
+  'annotation-xml-custom',
+];
+const invalidCustomElementNames = [
+  '',
+  'annotation-xml',
+  'color-profile',
+  'font-face',
+  'font-face-src',
+  'font-face-uri',
+  'font-face-format',
+  'font-face-name',
+  'missing-glyph',
+];
+
+const testCodePoints = [0x1F171, 0x1F196, 0x10000];
+for (let i = 0; i < 0x80; i++) {
+  testCodePoints.push(i);
+}
+
+const elementLocalNameRegex = /^(?:[A-Za-z][^\0\t\n\f\r\u0020/>]*|[:_\u0080-\u{10FFFF}][A-Za-z0-9-.:_\u0080-\u{10FFFF}]*)$/u;
+
+function isValidCustomElementName(str) {
+  if (!str.length) {
+    return false;
+  }
+
+  if (!str.includes('-')) {
+    return false;
+  }
+
+  let first = true;
+  for (const c of str) {
+    const codePoint = c.codePointAt(0);
+    if (first) {
+      if (!isAsciiLowerAlpha(codePoint)) {
+        return false;
+      }
+      first = false;
+    }
+    if (isAsciiUpperAlpha(codePoint)) {
+      return false;
+    }
+  }
+
+  return elementLocalNameRegex.test(str);
+}
+
+// In order to test the branching logic of valid element local names and the
+// requirement of having a '-' character, this method generates different
+// variations of potential custom element names given two code points.
+function createStringWithSeparatorMode(codePoint, prefix, separatorMode) {
+  const str = String.fromCodePoint(codePoint);
+  if (separatorMode == 0) {
+    return `${prefix}${str}`;
+  } else if (separatorMode == 1) {
+    return `${prefix}-${str}`;
+  } else if (separatorMode == 2) {
+    return `${prefix}${str}-element`;
+  }
+}
+
+for (const prefix of ['', 'a', 'A', ' ', '\0']) {
+  for (const codePoint of testCodePoints) {
+    for (const separatorMode of [0, 1, 2]) {
+      const str = createStringWithSeparatorMode(
+        codePoint, prefix, separatorMode);
+      if (isValidCustomElementName(str)) {
+        validCustomElementNames.push(str);
+      } else {
+        invalidCustomElementNames.push(str);
+      }
+    }
+  }
+}
+
+let nextClassNumber = 1;
+function createElementClass() {
+  const name = `CustomElement${nextClassNumber++}`;
+  const newClass = function() {};
+  newClass.prototype = HTMLElement;
+  return newClass;
+}
+
+promise_test(async t => {
+  for (const validName of validCustomElementNames) {
+    try {
+      const newClass = createElementClass();
+      customElements.define(validName, newClass);
+      await customElements.whenDefined(validName);
+    } catch (error) {
+      assert_unreached(`Custom element name should have been valid but threw error: ${debugString(validName)} ${error.toString()}`);
+    }
+  }
+
+  for (const invalidName of invalidCustomElementNames) {
+    const newClass = createElementClass();
+    assert_throws_dom(
+      'SyntaxError',
+      () => customElements.define(invalidName, newClass),
+      `customElements.define should have thrown for invalid name: ${debugString(invalidName)}`);
+    await promise_rejects_dom(t, 'SyntaxError',
+      customElements.whenDefined(invalidName),
+      `customElements.whenDefined should have thrown for invalid name: ${debugString(invalidName)}`);
+  }
+});
+</script>

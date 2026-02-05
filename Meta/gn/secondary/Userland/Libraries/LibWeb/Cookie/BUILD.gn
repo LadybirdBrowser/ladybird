@@ -1,0 +1,10 @@
+source_set("Cookie") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "Cookie.cpp",
+    "Cookie.h",
+    "ParsedCookie.cpp",
+    "ParsedCookie.h",
+  ]
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Ellipse Invalid Position Argument Values</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-ellipse">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="This test verifies that invalid position arguments on ellipse() don't parse">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+         <script type="text/javascript">
+            var invalid_ellipse_position_tests = [
+                {"name": "ellipse(at foo)"},
+                {"name": "ellipse(at 50)"},
+                {"name": "ellipse(at 10px 20px 30px)"},
+                {"name": "ellipse(at 20% 30% 40%)"},
+                {"name": "ellipse(at 20px, 30px)"},
+                {"name": "ellipse(at 20%, 30%)"},
+                {"name": "ellipse(at 20px, 30px, 40px)"},
+                {"name": "ellipse(at 20%, 30%, 40%)"},
+                {"name": "ellipse(at closest-side)"},
+                {"name": "ellipse(at farthest-side)"},
+                {"name": "ellipse(at 20px 30px closest-side)"},
+                {"name": "ellipse(at 20px 30px farthest-side)"},
+                {"name": "ellipse(at 20px 30px foo)"},
+                {"name": "ellipse(at closest-side 20px 30px)"},
+                {"name": "ellipse(at farthest-side 20px 30px)"},
+                {"name": "ellipse(at 20% 30% closest-side)"},
+                {"name": "ellipse(at 20% 30% farthest-side)"},
+                {"name": "ellipse(at closest-side 20% 30%)"},
+                {"name": "ellipse(at farthest-side 20% 30%)"},
+                {"name": "ellipse(at closest-side farthest-side 20px)"},
+                {"name": "ellipse(at closest-side farthest-side 20%)"},
+                {"name": "ellipse(at farthest-side closest-side closest-side)"},
+                {"name": "ellipse(at farthest-side, closest-side, closest-side)"},
+                {"name": "ellipse(at left 50x top 50px bottom)"}
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(invalid_ellipse_position_tests) );
+        </script>
+    </body>
+</html>

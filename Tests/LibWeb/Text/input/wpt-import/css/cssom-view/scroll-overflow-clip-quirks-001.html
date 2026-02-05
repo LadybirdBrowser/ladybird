@@ -1,0 +1,23 @@
+<!-- quirks -->
+<title>CSSOM scrollingElement reflects the propagated scroll to viewport correctly</title>
+<meta charset="utf-8">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/css-overflow/#overflow-propagation">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-document-scrollingelement">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/5601">
+<style>
+  :root {
+    overflow: clip;
+  }
+  body {
+    overflow: scroll;
+  }
+</style>
+<script>
+test(function() {
+  assert_equals(document.scrollingElement, null);
+});
+</script>

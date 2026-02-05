@@ -1,0 +1,4 @@
+lone td.cellIndex = -1
+parented td.cellIndex = 0
+lone th.cellIndex = -1
+parented th.cellIndex = 0

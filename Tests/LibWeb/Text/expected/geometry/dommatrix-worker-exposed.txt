@@ -1,0 +1,6 @@
+1. {"a":1,"b":2,"c":3,"d":4,"e":5,"f":6,"m11":1,"m12":2,"m13":0,"m14":0,"m21":3,"m22":4,"m23":0,"m24":0,"m31":0,"m32":0,"m33":1,"m34":0,"m41":5,"m42":6,"m43":0,"m44":1,"is2D":true,"isIdentity":false}
+2. "matrix(1, 0, 0, 1, 0, 0)"
+3. "Google Inc."
+4. TypeError: undefined is not a function (evaluated from '<object>.setMatrixValue')
+5. [object DOMMatrix]
+6. undefined

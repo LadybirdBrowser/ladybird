@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	blob without type
+Pass	blob with type
+Pass	blob with custom name
+Pass	file without lastModified or custom name
+Pass	file with lastModified and custom name

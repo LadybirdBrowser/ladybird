@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+        var doc = document.implementation.createDocument(SVG_NAMESPACE, "svg", null);
+        var child = doc.createElementNS(SVG_NAMESPACE, "x-child");
+        doc.documentElement.appendChild(child);
+        doc.title = "foo";
+        println(`title == ${doc.documentElement.firstChild.tagName}`);
+    });
+</script>

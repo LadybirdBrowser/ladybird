@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	undefined
+Fail	null
+Fail	number
+Fail	boolean
+Fail	symbol
+Fail	object coercion (abrupt completion)

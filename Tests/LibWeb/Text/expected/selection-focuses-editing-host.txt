@@ -1,0 +1,15 @@
+-- Simple editing host --
+Range: [object Text] 1 [object Text] 2
+<DIV id="a">
+-- Editing host with nested <span> --
+Range: [object Text] 1 [object Text] 1
+<DIV id="b">
+-- Refocusing on same editing host --
+Range: [object Text] 0 [object Text] 0
+<DIV id="b">
+-- Nested editing host --
+Range: [object Text] 0 [object Text] 3
+<DIV id="d">
+-- Nested editing host with uneditable element as parent --
+Range: [object Text] 0 [object Text] 3
+<SPAN>

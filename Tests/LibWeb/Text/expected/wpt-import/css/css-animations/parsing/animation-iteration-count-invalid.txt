@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['animation-iteration-count'] = "auto" should not set the property value
+Pass	e.style['animation-iteration-count'] = "-2" should not set the property value
+Pass	e.style['animation-iteration-count'] = "3 4" should not set the property value
+Pass	e.style['animation-iteration-count'] = "initial, 4" should not set the property value
+Pass	e.style['animation-iteration-count'] = "4, initial" should not set the property value

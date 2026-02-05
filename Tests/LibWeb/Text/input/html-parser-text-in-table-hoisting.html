@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<body><table><tr>PASS</tr></table></body>
+<script>
+    test(() => {
+        // Remove the table. "PASS" should still be visible,
+        // as the HTML parser inserts it *before* the table
+        // under these circumstances.
+        document.querySelector("table").remove()
+        println(document.body.innerText);
+    });
+</script>

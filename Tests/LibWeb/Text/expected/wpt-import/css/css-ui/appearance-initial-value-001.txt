@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	support for appearance
+Pass	initial value for appearance
+Pass	support for -webkit-appearance
+Pass	initial value for -webkit-appearance

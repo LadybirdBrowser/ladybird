@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Containment Test: element with 'contain: content' and absolutely positioned descendants</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://drafts.csswg.org/css-contain/#contain-property">
+  <link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+
+  <meta name="assert" content="This test checks that an element with 'contain: content' acts as containing block for its absolutely positioned descendants.">
+
+  <style>
+  div
+    {
+      width: 100px;
+    }
+
+  div#contain-content
+    {
+      background-color: red;
+      contain: content;
+      height: 100px;
+    }
+
+  div.abspos
+    {
+      background-color: green;
+      height: 50px;
+      position: absolute;
+      right: 0;
+    }
+
+  div#first-abspos
+    {
+      top: 0px;
+    }
+
+  div#second-abspos
+    {
+      bottom: 0px;
+    }
+  </style>
+
+  <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.
+
+  <div id="contain-content">
+    <div id="first-abspos" class="abspos"></div>
+    <div id="second-abspos" class="abspos"></div>
+  </div>

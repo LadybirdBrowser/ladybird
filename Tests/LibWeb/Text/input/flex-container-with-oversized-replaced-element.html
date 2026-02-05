@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+#flex {
+  display: flex;
+  align-items: center;
+  height: 200px;
+  /* Below properties exclusively so we can see things properly */
+  margin: 100px 0 100px 0;
+  background: tan;
+}
+</style>
+<div id="flex">
+  <img id="img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAGQAQMAAADRPL3zAAAABlBMVEUwMDCAgIDHGf6uAAAAQ0lEQVRo3u3YMREAQAgDQRzg3+U7gDbl9+y1i4AMNdGrjBBCCCGEXJas84wQQgghhJwWW5kQQgghhPgnEkIIIYSQT1nvD3WWWfRskgAAAABJRU5ErkJggg==">
+</div>
+<script>
+  asyncTest(async (dome) => {
+    window.addEventListener('load', () => {
+      const image = document.getElementById("img");
+      const computedImageStyle = getComputedStyle(image);
+      const container = document.getElementById("flex");
+      const computedContainerHeight = getComputedStyle(container).height;
+
+      println(`Natural height of image (${image.naturalHeight}px) should be same as computed height (${computedImageStyle.height}).`);
+      println(`Natural width of image (${image.naturalWidth}px) should be same as computed width (${computedImageStyle.width}).`);
+      println(`Computed height of image (${computedImageStyle.height}) should be larger than computed height of container (${computedContainerHeight}).`);
+      dome();
+    });
+  });
+</script>

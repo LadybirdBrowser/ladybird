@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Declared StylePropertyMap tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#declared-stylepropertymap-objects">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<style>
+div {
+  height: 10px;
+  width: 50%;
+  width: 'lemon';
+  --foo: auto;
+  transition-duration: 1s, 2s;
+  color: 10;
+}
+
+#target {
+  height: 20px;
+  --foo: 1s;
+  width: 10%;
+}
+</style>
+<div style="width: 50px">
+  <div id="target" style="top: 5px; --bar: auto;"></div>
+</div>
+<script>
+'use strict';
+
+const target = document.getElementById('target');
+const styleMap = document.styleSheets[0].rules[0].styleMap;
+
+test(() => {
+  const properties = [...styleMap.keys()];
+  assert_array_equals(properties, ['height', 'width', '--foo', 'transition-duration']);
+}, 'Declared StylePropertyMap only contains properties in the style rule');
+
+test(() => {
+  assert_style_value_equals(styleMap.get('height'), CSS.px(10));
+}, 'Declared StylePropertyMap contains CSS property declarations in style rules');
+
+test(() => {
+  assert_equals(styleMap.get('top'), undefined);
+  assert_equals(styleMap.get('--bar'), undefined);
+}, 'Declared StylePropertyMap does not contain inline styles');
+
+test(() => {
+  assert_style_value_equals(styleMap.get('--foo'), new CSSUnparsedValue(['auto']));
+}, 'Declared StylePropertyMap contains custom property declarations');
+
+test(() => {
+  assert_equals(styleMap.get('color'), undefined);
+}, 'Declared StylePropertyMap does not contain properties with invalid values');
+
+test(() => {
+  assert_style_value_equals(styleMap.get('width'), CSS.percent(50));
+}, 'Declared StylePropertyMap contains properties with their last valid value');
+
+test(() => {
+  const style = document.createElement('style');
+  document.head.appendChild(style);
+
+  style.sheet.insertRule('.test { width: 10px; }');
+  let rule = style.sheet.rules[0];
+
+  let styleMap = rule.styleMap;
+  assert_style_value_equals(styleMap.get('width'), CSS.px(10));
+
+  rule.style.width = '20px';
+  assert_style_value_equals(styleMap.get('width'), CSS.px(20));
+
+  styleMap.set('width', CSS.px(30));
+  assert_equals(rule.cssText, '.test { width: 30px; }');
+}, 'Declared StylePropertyMap is live');
+
+</script>

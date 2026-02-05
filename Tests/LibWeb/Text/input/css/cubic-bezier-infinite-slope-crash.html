@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        animation-name: anim;
+        animation-play-state: paused;
+        animation-fill-mode: forwards;
+        animation-timing-function: cubic-bezier(0.4, 0.1, 1, 0);
+    }
+
+    @keyframes anim {}
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const foo = document.getElementById("foo");
+        const anim = foo.getAnimations()[0];
+        anim.onfinish = function () {
+            println("PASS! (Didn't crash)");
+            done();
+        };
+        anim.play();
+    });
+</script>

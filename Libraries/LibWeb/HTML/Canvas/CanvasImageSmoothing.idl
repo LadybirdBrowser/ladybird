@@ -1,0 +1,8 @@
+#import <HTML/CanvasRenderingContext2D.idl>
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasimagesmoothing
+interface mixin CanvasImageSmoothing {
+    // image smoothing
+    attribute boolean imageSmoothingEnabled; // (default true)
+    attribute ImageSmoothingQuality imageSmoothingQuality; // (default low)
+};

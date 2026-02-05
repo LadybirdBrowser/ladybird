@@ -1,0 +1,37 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Scroll-driven Animations Module Level 1 (https://drafts.csswg.org/scroll-animations-1/)
+
+enum ScrollAxis {
+  "block",
+  "inline",
+  "x",
+  "y"
+};
+
+dictionary ScrollTimelineOptions {
+  Element? source;
+  ScrollAxis axis = "block";
+};
+
+[Exposed=Window]
+interface ScrollTimeline : AnimationTimeline {
+  constructor(optional ScrollTimelineOptions options = {});
+  readonly attribute Element? source;
+  readonly attribute ScrollAxis axis;
+};
+
+dictionary ViewTimelineOptions {
+  Element subject;
+  ScrollAxis axis = "block";
+  (DOMString or sequence<(CSSNumericValue or CSSKeywordValue)>) inset = "auto";
+};
+
+[Exposed=Window]
+interface ViewTimeline : ScrollTimeline {
+  constructor(optional ViewTimelineOptions options = {});
+  readonly attribute Element subject;
+  readonly attribute CSSNumericValue startOffset;
+  readonly attribute CSSNumericValue endOffset;
+};

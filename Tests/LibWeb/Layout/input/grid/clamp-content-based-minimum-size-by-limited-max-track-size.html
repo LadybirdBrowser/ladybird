@@ -1,0 +1,22 @@
+<!DOCTYPE html><style>
+.grid {
+  display: grid;
+  background-color: grey;
+  border: solid thick;
+  width: 50px;
+  height: 50px;
+  grid-template-rows: 25px 25px;
+  grid-template-columns: minmax(auto, 0px);
+}
+
+.grid>div:nth-child(1) {
+  color: blue;
+  background: cyan;
+}
+
+.grid>div:nth-child(2) {
+  background: magenta;
+}
+</style>
+<div class="grid"><div id="a">XXXXXXXXXX</div><div id="b"></div></div>
+<div class="grid"><div id="a" style="margin: 0px 5px"></div><div id="b"></div></div>

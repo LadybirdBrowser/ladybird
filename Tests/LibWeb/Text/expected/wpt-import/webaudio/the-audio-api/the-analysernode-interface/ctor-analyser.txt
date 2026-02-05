@@ -1,0 +1,83 @@
+Harness status: OK
+
+Found 78 tests
+
+78 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "initialize"
+Pass	Executing "invalid constructor"
+Pass	Executing "default constructor"
+Pass	Executing "test AudioNodeOptions"
+Pass	Executing "constructor with options"
+Pass	Executing "construct invalid options"
+Pass	Executing "setting min/max"
+Pass	Audit report
+Pass	> [initialize] 
+Pass	  context = new OfflineAudioContext(...) did not throw an exception.
+Pass	< [initialize] All assertions passed. (total 1 assertions)
+Pass	> [invalid constructor] 
+Pass	  new AnalyserNode() threw TypeError: "AnalyserNode() needs one argument".
+Pass	  new AnalyserNode(1) threw TypeError: "Not an object of type BaseAudioContext".
+Pass	  new AnalyserNode(context, 42) threw TypeError: "Not an object of type AnalyserOptions".
+Pass	< [invalid constructor] All assertions passed. (total 3 assertions)
+Pass	> [default constructor] 
+Pass	  node0 = new AnalyserNode(context) did not throw an exception.
+Pass	  node0 instanceof AnalyserNode is equal to true.
+Pass	  node0.numberOfInputs is equal to 1.
+Pass	  node0.numberOfOutputs is equal to 1.
+Pass	  node0.channelCount is equal to 2.
+Pass	  node0.channelCountMode is equal to max.
+Pass	  node0.channelInterpretation is equal to speakers.
+Pass	  node0.fftSize is equal to 2048.
+Pass	  node0.frequencyBinCount is equal to 1024.
+Pass	  node0.minDecibels is equal to -100.
+Pass	  node0.maxDecibels is equal to -30.
+Pass	  node0.smoothingTimeConstant is equal to 0.8.
+Pass	< [default constructor] All assertions passed. (total 12 assertions)
+Pass	> [test AudioNodeOptions] 
+Pass	  new AnalyserNode(c, {channelCount: 17}) did not throw an exception.
+Pass	  node.channelCount is equal to 17.
+Pass	  new AnalyserNode(c, {channelCount: 0}) threw NotSupportedError: "Invalid channel count".
+Pass	  new AnalyserNode(c, {channelCount: 99}) threw NotSupportedError: "Invalid channel count".
+Pass	  new AnalyserNode(c, {channelCountMode: "max"} did not throw an exception.
+Pass	  node.channelCountMode is equal to max.
+Pass	  new AnalyserNode(c, {channelCountMode: "max"}) did not throw an exception.
+Pass	  node.channelCountMode after valid setter is equal to max.
+Pass	  new AnalyserNode(c, {channelCountMode: "clamped-max"}) did not throw an exception.
+Pass	  node.channelCountMode after valid setter is equal to clamped-max.
+Pass	  new AnalyserNode(c, {channelCountMode: "explicit"}) did not throw an exception.
+Pass	  node.channelCountMode after valid setter is equal to explicit.
+Pass	  new AnalyserNode(c, {channelCountMode: "foobar"} threw TypeError: "Invalid value 'foobar' for enumeration type 'ChannelCountMode'".
+Pass	  node.channelCountMode after invalid setter is equal to explicit.
+Pass	  new AnalyserNode(c, {channelInterpretation: "speakers"}) did not throw an exception.
+Pass	  node.channelInterpretation is equal to speakers.
+Pass	  new AnalyserNode(c, {channelInterpretation: "discrete"}) did not throw an exception.
+Pass	  node.channelInterpretation is equal to discrete.
+Pass	  new AnalyserNode(c, {channelInterpretation: "foobar"}) threw TypeError: "Invalid value 'foobar' for enumeration type 'ChannelInterpretation'".
+Pass	  node.channelInterpretation after invalid setter is equal to discrete.
+Pass	< [test AudioNodeOptions] All assertions passed. (total 20 assertions)
+Pass	> [constructor with options] 
+Pass	  node1 = new AnalyserNode(c, {"fftSize":32,"maxDecibels":1,"minDecibels":-13,"smoothingTimeConstant":0.125}) did not throw an exception.
+Pass	  node1 instanceof AnalyserNode is equal to true.
+Pass	  node1.fftSize is equal to 32.
+Pass	  node1.maxDecibels is equal to 1.
+Pass	  node1.minDecibels is equal to -13.
+Pass	  node1.smoothingTimeConstant is equal to 0.125.
+Pass	< [constructor with options] All assertions passed. (total 6 assertions)
+Pass	> [construct invalid options] 
+Pass	  node = new AnalyserNode(c, { fftSize: 33 }) threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  node = new AnalyserNode(c, { maxDecibels: -500 }) threw IndexSizeError: "Analyser node minDecibels greater than maxDecibels".
+Pass	  node = new AnalyserNode(c, { minDecibels: -10 }) threw IndexSizeError: "Analyser node minDecibels greater than maxDecibels".
+Pass	  node = new AnalyserNode(c, { smoothingTimeConstant: 2 }) threw IndexSizeError: "Analyser node smoothingTimeConstant not between 0.0 and 1.0".
+Pass	  node = new AnalyserNode(c, { frequencyBinCount: 33 }) did not throw an exception.
+Pass	  node.frequencyBinCount is equal to 1024.
+Pass	< [construct invalid options] All assertions passed. (total 6 assertions)
+Pass	> [setting min/max] 
+Pass	  node = new AnalyserNode(c, {"minDecibels":-10,"maxDecibels":20}) did not throw an exception.
+Pass	  node = new AnalyserNode(c, {"maxDecibels":20,"minDecibels":-10}) did not throw an exception.
+Pass	  node = new AnalyserNode(c, {"minDecibels":-200,"maxDecibels":-150}) did not throw an exception.
+Pass	  node = new AnalyserNode(c, {"maxDecibels":-150,"minDecibels":-200}) did not throw an exception.
+Pass	  node = new AnalyserNode(c, {"maxDecibels":-150,"minDecibels":-10}) threw IndexSizeError: "Analyser node minDecibels greater than maxDecibels".
+Pass	  node = new AnalyserNode(c, {"minDecibels":-10,"maxDecibels":-150}) threw IndexSizeError: "Analyser node minDecibels greater than maxDecibels".
+Pass	< [setting min/max] All assertions passed. (total 6 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 7 tasks ran successfully.

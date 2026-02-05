@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../expected/ol-render-node-insert-before-child-ref.html" />
+</head>
+<html class="reftest-wait">
+<body>
+<ol id="ol1">
+    <li>One</li>
+    <li id="three">Three</li>
+</ol>
+<ol reversed id="ol2">
+    <li>Three</li>
+    <li id="one">One</li>
+</ol>
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const ol1 = document.getElementById("ol1");
+        const ol2 = document.getElementById("ol2");
+        const three = document.getElementById("three");
+        const one = document.getElementById("one");
+
+        const two1 = document.createElement("li");
+        two1.innerHTML = "Two";
+
+        const two2 = document.createElement("li");
+        two2.innerHTML = "Two";
+
+        ol1.insertBefore( two1, three );
+        ol2.insertBefore( two2, one );
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</body>
+</html>

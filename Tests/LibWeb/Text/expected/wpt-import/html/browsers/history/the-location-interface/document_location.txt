@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	document not in a browsing context
+Pass	document.location equals window.location
+Pass	Attribute getter deduplication
+Pass	Attribute setter deduplication

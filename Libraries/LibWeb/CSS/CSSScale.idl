@@ -1,0 +1,11 @@
+#import <CSS/CSSNumericValue.idl>
+#import <CSS/CSSTransformComponent.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssscale
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSScale : CSSTransformComponent {
+    constructor(CSSNumberish x, CSSNumberish y, optional CSSNumberish z);
+    attribute CSSNumberish x;
+    attribute CSSNumberish y;
+    attribute CSSNumberish z;
+};

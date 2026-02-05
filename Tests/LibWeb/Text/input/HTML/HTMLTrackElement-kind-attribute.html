@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const trackElement = document.createElement("track");
+        println(`kind initial value: '${trackElement.kind}'`);
+        trackElement.kind = "invalid";
+        println(`kind value after setting to "invalid": '${trackElement.kind}'`);
+        trackElement.kind = "captions";
+        println(`kind value after setting to "captions": '${trackElement.kind}'`);
+        trackElement.kind = null;
+        println(`kind value after setting to null: '${trackElement.kind}'`);
+        trackElement.kind = "CHAPTERS";
+        println(`kind value after setting to "CHAPTERS": '${trackElement.kind}'`);
+        trackElement.kind = "";
+        println(`kind value after setting to "": '${trackElement.kind}'`);
+        trackElement.removeAttribute("kind");
+        println(`kind value after calling removeAttribute: '${trackElement.kind}'`);
+    });
+</script>

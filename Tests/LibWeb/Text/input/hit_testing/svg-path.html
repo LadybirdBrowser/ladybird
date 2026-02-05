@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<svg width="200" height="100">
+    <rect id="test" width="200" height="100" style="fill:blue;" />
+</svg>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        document.getElementById("test").addEventListener("click", () => {
+            println("<rect> clicked");
+            done();
+        });
+        internals.click(50, 50);
+    });
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    #container {
+        width: 300px;
+        height: 500px;
+        overflow: auto;
+        position: relative;
+        border: 2px solid black;
+    }
+
+    .content {
+        background-color: lightblue;
+        height: 100%;
+    }
+
+    .box {
+        background-color: magenta;
+        width: 100px;
+        height: 50px;
+        position: absolute;
+        top: 0px;
+        right: 50px;
+    }
+</style>
+<div id="container">
+    <div class="content">
+        <div class="box"></div>
+    </div>
+</div>

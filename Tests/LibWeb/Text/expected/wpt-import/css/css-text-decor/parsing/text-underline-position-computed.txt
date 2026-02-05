@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Property text-underline-position value 'auto'
+Pass	Property text-underline-position value 'under'
+Pass	Property text-underline-position value 'from-font'
+Pass	Property text-underline-position value 'left'
+Pass	Property text-underline-position value 'right'
+Pass	Property text-underline-position value 'under left'
+Pass	Property text-underline-position value 'from-font left'

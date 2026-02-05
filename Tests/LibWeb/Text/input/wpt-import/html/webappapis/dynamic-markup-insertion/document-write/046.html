@@ -1,0 +1,20 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  var s = "<body><textarea>";
+  for (var i=0; i<s.length; i++) {
+    document.write(s[i]);
+  }
+});
+</script><span>Filler</span></textarea>
+<script>
+t.step(function() {
+  assert_equals(document.body.childNodes[0].localName, "textarea");
+  assert_equals(document.body.childNodes[0].textContent, "<span>Filler</span>");
+})
+t.done();
+</script>
+<div id="log"></div>

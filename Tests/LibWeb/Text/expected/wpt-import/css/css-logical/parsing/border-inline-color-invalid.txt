@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	e.style['border-inline-start-color'] = "#12" should not set the property value
+Pass	e.style['border-inline-start-color'] = "auto" should not set the property value
+Pass	e.style['border-inline-start-color'] = "red green" should not set the property value
+Pass	e.style['border-inline-start-color'] = "rgb" should not set the property value
+Pass	e.style['border-inline-start-color'] = "rgb(1,2,3,4,5)" should not set the property value
+Pass	e.style['border-inline-start-color'] = "rgb(10%, 20, 30%)" should not set the property value
+Pass	e.style['border-inline-end-color'] = "#123456789" should not set the property value
+Pass	e.style['border-inline-end-color'] = "123" should not set the property value
+Pass	e.style['border-inline-end-color'] = "hsla(1,2,3,4,5)" should not set the property value
+Pass	e.style['border-inline-end-color'] = "red, green" should not set the property value
+Pass	e.style['border-inline-end-color'] = "rgb(1)" should not set the property value
+Pass	e.style['border-inline-end-color'] = "rgba(-2, 300, 400%, -0.5)" should not set the property value
+Pass	e.style['border-inline-color'] = "auto" should not set the property value
+Pass	e.style['border-inline-color'] = "lime, transparent" should not set the property value
+Pass	e.style['border-inline-color'] = "red green blue" should not set the property value

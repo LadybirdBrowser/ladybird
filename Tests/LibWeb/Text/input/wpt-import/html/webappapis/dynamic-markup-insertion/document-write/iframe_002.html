@@ -1,0 +1,22 @@
+<!doctype html>
+<title>document.write into iframe</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<iframe id="test"></iframe>
+<script>
+test(
+function() {
+  var iframe = document.getElementById("test");
+  var s = "<i id='a'>Filler Text</i><b id=b>Filler Text</b>"
+  for (var i=0; i<s.length; i++) {
+    iframe.contentDocument.write(s[i]);
+  }
+  iframe.contentDocument.close();
+  assert_equals(iframe.contentDocument.body.childNodes[0].textContent, "Filler Text");
+  assert_equals(iframe.contentDocument.body.childNodes[0].localName, "i");
+  assert_equals(iframe.contentDocument.body.childNodes[0].getAttribute('id'), "a");
+  assert_equals(iframe.contentDocument.body.childNodes[1].textContent, "Filler Text");
+  assert_equals(iframe.contentDocument.body.childNodes[1].localName, "b");
+  assert_equals(iframe.contentDocument.body.childNodes[1].getAttribute('id'), "b");
+});
+</script>
+<div id="log"></div>

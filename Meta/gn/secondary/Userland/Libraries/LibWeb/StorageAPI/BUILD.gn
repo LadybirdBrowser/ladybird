@@ -1,0 +1,9 @@
+source_set("StorageAPI") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "NavigatorStorage.cpp",
+    "StorageKey.cpp",
+    "StorageManager.cpp",
+  ]
+}

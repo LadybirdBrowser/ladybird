@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>WebCryptoAPI: encrypt()/decrypt() ChaCha20-Poly1305</title>
+<meta name="timeout" content="long">
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id=log></div>
+<script src="../../WebCryptoAPI/encrypt_decrypt/chacha20_poly1305.tentative.https.any.js"></script>

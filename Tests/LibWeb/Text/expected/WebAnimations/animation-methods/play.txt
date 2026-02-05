@@ -1,0 +1,4 @@
+Cannot rewind an animation with an infinite effect end
+play() leaves animation's startTime unresolved: true
+play() does not recreate the animation's ready promise
+play() does not synchronously resolve the ready promise

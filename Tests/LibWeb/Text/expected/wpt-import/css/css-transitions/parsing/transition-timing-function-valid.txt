@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	e.style['transition-timing-function'] = "linear" should set the property value
+Pass	e.style['transition-timing-function'] = "linear(0 0%, 0.5 50%, 1 100%)" should set the property value
+Pass	e.style['transition-timing-function'] = "linear(0 0%, 10 10%, 10 50%, 25.4 75%, 100 100%)" should set the property value
+Pass	e.style['transition-timing-function'] = "linear(0 0%, 1 100%)" should set the property value
+Pass	e.style['transition-timing-function'] = "ease" should set the property value
+Pass	e.style['transition-timing-function'] = "ease-in" should set the property value
+Pass	e.style['transition-timing-function'] = "ease-out" should set the property value
+Pass	e.style['transition-timing-function'] = "ease-in-out" should set the property value
+Pass	e.style['transition-timing-function'] = "cubic-bezier(0.1, 0.2, 0.8, 0.9)" should set the property value
+Pass	e.style['transition-timing-function'] = "cubic-bezier(0, -2, 1, 3)" should set the property value
+Pass	e.style['transition-timing-function'] = "cubic-bezier(0, 0.7, 1, 1.3)" should set the property value
+Pass	e.style['transition-timing-function'] = "step-start" should set the property value
+Pass	e.style['transition-timing-function'] = "step-end" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(4)" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(4, start)" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(2, end)" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(2, jump-start)" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(2, jump-end)" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(2, jump-both)" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(2, jump-none)" should set the property value
+Pass	e.style['transition-timing-function'] = "steps(sibling-index(), jump-none)" should set the property value
+Pass	e.style['transition-timing-function'] = "linear, ease, linear" should set the property value

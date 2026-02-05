@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const array = new Uint8Array(16);
+        array.fill(0x41);
+        crypto.getRandomValues(new Uint8Array(array.buffer, 2, 8));
+        println(`Is first 2 bytes still 0x41? ${array.slice(0, 2).every(value => value === 0x41)}`);
+        println(`Is last 6 bytes still 0x41? ${array.slice(10).every(value => value === 0x41)}`);
+    });
+</script>

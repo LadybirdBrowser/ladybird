@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Selectors Level 4: :focus, :focus-visible and :focus-within in focus event</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#focus-pseudo">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#focus-visible-pseudo">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#focus-within-pseudo">
+<link rel="help" href="https://w3c.github.io/uievents/#event-type-focus">
+<link rel="help" href="https://crbug.com/523126">
+<meta name='author' title='Takayoshi Kochi' href='mailto:kochi@chromium.org'>
+<meta name='author' title='Manuel Rego Casasnovas' href='mailto:rego@igalia.com'>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<input type="text">
+<script>
+var input = document.querySelector('input');
+input.addEventListener('focus', function(e) {
+  test(() => {
+    try {
+      var focusPseudo = document.querySelector(':focus');
+      assert_equals(e.target, focusPseudo, "':focus' matches event.target");
+    } catch (error) {
+      assert_unreached("':focus'  is an invalid selector. SyntaxError: " + error);
+    }
+  }, "Checks that ':focus' pseudo-class matches inside 'focus' event handler");
+  test(() => {
+    try {
+      var focusVisiblePseudo = document.querySelector(':focus-visible');
+      assert_equals(e.target, focusVisiblePseudo, "':focus-visible' matches event.target");
+    } catch (error) {
+      assert_unreached("':focus-visible'  is an invalid selector. SyntaxError: " + error);
+    }
+  }, "Checks that ':focus-visible' pseudo-class matches inside 'focus' event handler");
+  test(() => {
+    try {
+      var focusWithinPseudo = document.querySelector(':focus-within');
+      assert_equals(document.documentElement, focusWithinPseudo, "':focus-within' matches document.documentElement");
+    } catch (error) {
+      assert_unreached("':focus-within'  is an invalid selector. SyntaxError: " + error);
+    }
+  }, "Checks that ':focus-within' pseudo-class matches inside 'focus' event handler");
+}, false);
+input.focus();
+</script>

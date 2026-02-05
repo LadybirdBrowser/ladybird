@@ -1,0 +1,13 @@
+JS bytecode executable ""
+[   0]    0: GetGlobal dst:reg6, identifier:console
+[  10]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  28]       GetGlobal dst:reg9, identifier:add
+[  38]       Call dst:reg8, callee:reg9, this_value:Undefined, add, arguments:[Int32(1), Int32(2)]
+[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  88]       End value:reg5
+
+JS bytecode executable "add"
+[   0]    0: Add dst:reg5, lhs:arg0, rhs:arg1
+[  10]       Return value:reg5
+
+3

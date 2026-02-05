@@ -1,0 +1,8 @@
+Cannot finish an animation with no effective playback rate
+Cannot finish an animation with an infinite effect end
+finish() updates animation's pending playback rate
+finish() updates currentTime of animation with positive playback rate
+finish() updates currentTime of animation with negative playback rate
+finish() updates animation's startTime
+finish() sends an onfinish event
+finish() recreated the animation's finished promise

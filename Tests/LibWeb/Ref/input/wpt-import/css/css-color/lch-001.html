@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: Specifying Lab and LCH</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#specifying-lab-lch">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/greensquare-ref.html">
+<meta name="assert" content="lch() with no alpha">
+<style>
+    .test { background-color: red; width: 12em; height: 12em; }
+    .test { background-color: lch(46.2775% 67.9892 134.3912); } /* green (sRGB #008000) converted to LCH */
+</style>
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <div class="test"></div>
+</body>

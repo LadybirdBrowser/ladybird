@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: Relayout align flex items</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#align-items-property">
+<meta name="assert" content="This test ensures that align items work properly after changing existing values with 'flex-end' and 'stretch'.">
+<link href="support/flexbox.css" rel="stylesheet">
+<style>
+.flexbox {
+    height: 100px;
+    position: relative;
+}
+.flexbox > div {
+    border: 5px solid green;
+    width: 50px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+</head>
+<body>
+<div id=log></div>
+<div id="from-stretch" class="flexbox">
+    <div data-expected-height="10" data-offset-y="90"></div>
+    <div data-expected-height="10" data-offset-y="90" class="align-self-auto"></div>
+    <div data-expected-height="10" data-offset-y="0" class="align-self-flex-start"></div>
+    <div data-expected-height="10" data-offset-y="90" class="align-self-flex-end"></div>
+    <div data-expected-height="10" data-offset-y="45" class="align-self-center"></div>
+    <div data-expected-height="10" data-offset-y="0" class="align-self-baseline"></div>
+    <div data-expected-height="100" data-offset-y="0" class="align-self-stretch"></div>
+</div>
+
+<div id="to-stretch" class="flexbox align-items-flex-start">
+    <div data-expected-height="100" data-offset-y="0"></div>
+    <div data-expected-height="100" data-offset-y="0" class="align-self-auto"></div>
+    <div data-expected-height="10" data-offset-y="0" class="align-self-flex-start"></div>
+    <div data-expected-height="10" data-offset-y="90" class="align-self-flex-end"></div>
+    <div data-expected-height="10" data-offset-y="45" class="align-self-center"></div>
+    <div data-expected-height="10" data-offset-y="0" class="align-self-baseline"></div>
+    <div data-expected-height="100" data-offset-y="0" class="align-self-stretch"></div>
+</div>
+<script>
+document.body.offsetLeft;
+document.getElementById("from-stretch").style.alignItems = "flex-end";
+document.getElementById("to-stretch").style.alignItems = "stretch";
+checkLayout(".flexbox");
+</script>
+</body>
+</html>

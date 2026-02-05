@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+}
+table {
+    position: relative;
+    top: 100px;
+    left: 50px;
+}
+</style><table><tr><td><canvas id="c"></canvas></td></tr></table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const c = document.getElementById("c");
+
+        for (let n = c; n; n = n.offsetParent) {
+            println("nodeName: " + n.nodeName);
+            println("offsetTop: " + n.offsetTop);
+            println("offsetLeft: " + n.offsetLeft);
+            println("offsetParent: " + n.offsetParent);
+            println("");
+        }
+    });
+</script>

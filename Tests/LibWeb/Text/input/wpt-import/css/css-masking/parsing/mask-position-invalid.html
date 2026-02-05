@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: parsing mask-position with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-mask-position">
+<meta name="assert" content="mask-position supports only the '<position>#' grammar.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("mask-position", "auto");
+test_invalid_value("mask-position", "1px 2px 3px");
+test_invalid_value("mask-position", "left right");
+test_invalid_value("mask-position", "bottom 10%");
+test_invalid_value("mask-position", "bottom 10% top 20%");
+
+test_invalid_value("mask-position", "center left 1px");
+test_invalid_value("mask-position", "center top 2px");
+test_invalid_value("mask-position", "right 3% center");
+test_invalid_value("mask-position", "left 4px top");
+test_invalid_value("mask-position", "right top 5px");
+test_invalid_value("mask-position", "bottom 6% center");
+test_invalid_value("mask-position", "bottom 7% left");
+test_invalid_value("mask-position", "bottom right 8%");
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/HTML/canvas-close-empty-path-ref.html" />
+<div>There should be no diagonal line drawn to the canvas</div>
+<canvas width="100" height="100" style="border:1px solid black"></canvas>
+<script>
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Start a fresh path but DO NOT moveTo() first.
+    ctx.beginPath();
+    // Should be a no-op per spec if there's no current subpath.
+    ctx.closePath();
+
+    // Because there's no current point, lineTo(50,50) should start a new subpath at (50,50)
+    // and draw nothing until a subsequent lineTo/moveTo.
+    // If an unintended moveTo(0,0) happened, this will draw from (0,0)->(50,50).
+    ctx.lineTo(50, 50);
+
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+</script>

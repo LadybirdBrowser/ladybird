@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        transition: background-color 1s 2s linear,
+            opacity,
+            this is an invalid property value;
+    }
+</style>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        println("PASS! (Did not crash/timeout)");
+    });
+</script>

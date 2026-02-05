@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: getComputedStyle().maskComposite</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-mask-composite">
+<meta name="assert" content="mask-composite computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("mask-composite", "add");
+test_computed_value("mask-composite", "subtract");
+test_computed_value("mask-composite", "intersect");
+test_computed_value("mask-composite", "exclude");
+</script>
+</body>
+</html>

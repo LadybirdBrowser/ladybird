@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#function-normalize-space">
+<link rel="help" href="https://www.w3.org/TR/xpath-functions-31/#func-normalize-space">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<div id="target"> a <br> b</div>
+<script>
+function normalizeSpace(exp) {
+  return document.evaluate(`normalize-space("${exp}")`, document).stringValue;
+}
+
+test(() => {
+  assert_equals(document.evaluate('normalize-space()', document.querySelector('#target')).stringValue, 'a b');
+}, 'normalize-space() without arguments');
+
+test(() => {
+  assert_equals(normalizeSpace(' a \t  b\r\nc '), 'a b c');
+
+  assert_equals(normalizeSpace('y\x0B\x0C\x0E\x0Fz'), 'y\x0b\x0c\x0e\x0fz');
+  assert_equals(normalizeSpace('\xA0 \u3000'), '\xA0 \u3000');
+}, 'normalize-space() should handle only #x20, #x9, #xD, and #xA');
+</script>

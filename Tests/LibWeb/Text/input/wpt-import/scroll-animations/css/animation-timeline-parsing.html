@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#animation-timeline">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+</head>
+<div id="target"></div>
+<script>
+test_valid_value('animation-timeline', 'initial');
+test_valid_value('animation-timeline', 'inherit');
+test_valid_value('animation-timeline', 'unset');
+test_valid_value('animation-timeline', 'revert');
+test_valid_value('animation-timeline', 'auto');
+test_valid_value('animation-timeline', 'none');
+test_valid_value('animation-timeline', 'auto, auto');
+test_valid_value('animation-timeline', 'none, none');
+test_valid_value('animation-timeline', 'auto, none');
+test_valid_value('animation-timeline', 'none, auto');
+test_valid_value('animation-timeline', '--test');
+test_valid_value('animation-timeline', '--test1, --test2');
+test_valid_value('animation-timeline', '--test1, --test2, none, --test3, auto');
+
+test_invalid_value('animation-timeline', 'test1');
+test_invalid_value('animation-timeline', '10px');
+test_invalid_value('animation-timeline', 'auto auto');
+test_invalid_value('animation-timeline', 'none none');
+test_invalid_value('animation-timeline', 'foo bar');
+test_invalid_value('animation-timeline', '"foo" "bar"');
+test_invalid_value('animation-timeline', 'rgb(1, 2, 3)');
+test_invalid_value('animation-timeline', '#fefefe');
+test_invalid_value('animation-timeline', '"test"');
+
+// https://drafts.csswg.org/scroll-animations-1/#scroll-notation
+//
+// animation-timeline: scroll(<axis>? <scroller>?);
+// <axis> = block | inline | x | y
+// <scroller> = root | nearest | self
+test_valid_value('animation-timeline', 'scroll()');
+test_valid_value('animation-timeline', ' scroll() ', 'scroll()');
+test_valid_value('animation-timeline', 'scroll(block)', 'scroll()');
+test_valid_value('animation-timeline', 'scroll(inline)');
+test_valid_value('animation-timeline', 'scroll(x)');
+test_valid_value('animation-timeline', 'scroll(y)');
+test_valid_value('animation-timeline', 'scroll(root)');
+test_valid_value('animation-timeline', 'scroll(nearest)', 'scroll()');
+test_valid_value('animation-timeline', 'scroll(self)');
+test_valid_value('animation-timeline', 'scroll(inline nearest)', 'scroll(inline)');
+test_valid_value('animation-timeline', 'scroll(nearest inline)', 'scroll(inline)');
+test_valid_value('animation-timeline', 'scroll(block self)', 'scroll(self)');
+test_valid_value('animation-timeline', 'scroll(self block)', 'scroll(self)');
+test_valid_value('animation-timeline', 'scroll(y root)', 'scroll(root y)');
+
+test_invalid_value('animation-timeline', 'scroll(abc root)');
+test_invalid_value('animation-timeline', 'scroll(abc)');
+test_invalid_value('animation-timeline', 'scroll(y abc)');
+test_invalid_value('animation-timeline', 'scroll("string")');
+
+// https://drafts.csswg.org/scroll-animations-1/#view-notation
+test_valid_value('animation-timeline', 'view()');
+test_valid_value('animation-timeline', ' view() ', 'view()');
+test_valid_value('animation-timeline', 'view(block)', 'view()');
+test_valid_value('animation-timeline', 'view(inline)');
+test_valid_value('animation-timeline', 'view(x)');
+test_valid_value('animation-timeline', 'view(y)');
+test_valid_value('animation-timeline', 'view(y 1px 2px)');
+test_valid_value('animation-timeline', 'view(y 1px)');
+test_valid_value('animation-timeline', 'view(y auto)', 'view(y)');
+test_valid_value('animation-timeline', 'view(y auto auto)', 'view(y)');
+test_valid_value('animation-timeline', 'view(y auto 1px)');
+test_valid_value('animation-timeline', 'view(1px 2px y)', 'view(y 1px 2px)');
+test_valid_value('animation-timeline', 'view(1px y)', 'view(y 1px)');
+test_valid_value('animation-timeline', 'view(auto x)', 'view(x)');
+test_valid_value('animation-timeline', 'view(1px 2px)');
+test_valid_value('animation-timeline', 'view(1px)');
+test_valid_value('animation-timeline', 'view(1px 1px)', 'view(1px)');
+test_valid_value('animation-timeline', 'view(1px auto)');
+test_valid_value('animation-timeline', 'view(auto calc(1% + 1px))');
+test_valid_value('animation-timeline', 'view(2em calc(1% + 1em))');
+test_valid_value('animation-timeline', 'view(auto)', 'view()');
+test_valid_value('animation-timeline', 'view(auto auto)', 'view()');
+
+test_invalid_value('animation-timeline', 'view(y 1px 2px 3px)');
+test_invalid_value('animation-timeline', 'view(1px y 3px)');
+test_invalid_value('animation-timeline', 'view(1px 2px 3px)');
+test_invalid_value('animation-timeline', 'view(abc block)');
+test_invalid_value('animation-timeline', 'view(abc)');
+test_invalid_value('animation-timeline', 'view(y abc)');
+test_invalid_value('animation-timeline', 'view("string")');
+</script>

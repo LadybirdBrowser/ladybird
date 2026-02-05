@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+8 Pass
+2 Fail
+Pass	Property font-feature-settings value 'normal'
+Pass	Property font-feature-settings value '"dlig"'
+Pass	Property font-feature-settings value '"smcp"'
+Pass	Property font-feature-settings value '"c2sc"'
+Pass	Property font-feature-settings value '"liga" 0'
+Pass	Property font-feature-settings value '"tnum", "hist"'
+Pass	Property font-feature-settings value '"PKRN"'
+Pass	Property font-feature-settings value '"dlig", "smcp", "dlig" 0'
+Fail	Property font-feature-settings value '"liga" calc(10 + (sign(2cqw - 10px) * 5))'
+Fail	Property font-feature-settings value '"liga" calc(10 + (sign(2cqw - 10px) * 5)), "dlig" calc(20 + (sign(2cqw - 10px) * 5))'

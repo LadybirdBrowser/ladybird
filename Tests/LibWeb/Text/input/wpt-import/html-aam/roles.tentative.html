@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTML-AAM Role Verification Tests</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tests the computedrole mappings defined in <a href="https://w3c.github.io/html-aam/">HTML-AAM</a>. Most test names correspond to a unique ID defined in the spec.<p>
+
+<p>These should remain in alphabetical order, and include all HTML tagnames. If a tag is not tested here, include a pointer to the file where it is tested, such as: <code>&lt;!-- caption -&gt; ./table-roles.html --&gt;</code></p>
+
+<input type="checkbox" switch data-testname="el-input-checkbox-switch" data-expectedrole="switch" class="ex">
+
+<!--
+  These thead, tbody, and tfoot role tests are pending spec discussion.
+  See https://github.com/w3c/html-aam/issues/474
+-->
+<table>
+  <thead data-testname="el-thead" data-expectedrole="rowgroup" class="ex">
+    <tr>
+      <th>a</th>
+      <th>b</th>
+      <th>c</th>
+    </tr>
+  </thead>
+  <tbody data-testname="el-tbody" data-expectedrole="rowgroup" class="ex">
+    <tr>
+      <th>1</th>
+      <td>2</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>5</td>
+      <td>6</td>
+    </tr>
+  </tbody>
+  <tfoot data-testname="el-tfoot" data-expectedrole="rowgroup" class="ex">
+    <tr>
+      <th>x</th>
+      <th>y</th>
+      <th>z</th>
+    </tr>
+  </tfoot>
+</table>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

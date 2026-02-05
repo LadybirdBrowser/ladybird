@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    .grid-container {
+        display: grid;
+        grid-template-rows:
+                [headline-start]
+                auto
+                [headline-end content-start]
+                auto
+                [content-end];
+        grid-template-columns:
+                [content-start title-start]
+                100px
+                [title-end]
+                repeat(3, 100px)
+                [content-end];
+    }
+    .headline {
+        grid-row: headline;
+        grid-column: title;
+        background-color: lightsalmon;
+    }
+    .content {
+        height: 100px;
+        grid-row: content;
+        grid-column: content;
+        background-color: lightblue;
+    }
+</style>
+<div class="grid-container">
+    <div class="headline">Headline</div>
+    <div class="content">Content</div>
+</div>

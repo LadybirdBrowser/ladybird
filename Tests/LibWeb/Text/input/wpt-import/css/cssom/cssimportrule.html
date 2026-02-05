@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSSOM CSSRule CSSImportRule interface</title>
+    <link rel="author" title="Letitia Lew" href="mailto:lew.letitia@gmail.com">
+    <link rel="help" href="http://www.w3.org/TR/cssom-1/#css-rules">
+    <link rel="help" href="http://www.w3.org/TR/cssom-1/#the-cssrule-interface">
+    <link rel="help" href="http://www.w3.org/TR/cssom-1/#the-cssimportrule-interface">
+    <meta name="flags" content="dom">
+    <meta name="assert" content="All properties for this CSSImportRule instance of CSSRule are initialized correctly">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+
+    <style id="styleElement" type="text/css">
+        @import url("support/a-green.css");
+        @import url("support/a-green.css") screen;
+        @import url("support/a-green.css") all;
+        @import url("support/a-green") supports((display: flex) or (display: block));
+        @import url('quote"quote');
+        @page { background-color: red; }
+    </style>
+</head>
+<body>
+    <div id="log"></div>
+
+    <script type="text/javascript">
+        var styleSheet, ruleList, rule, ruleWithMedia, ruleWithMediaAll, ruleWithSupports, ruleWithQuote;
+        setup(function() {
+            styleSheet = document.getElementById("styleElement").sheet;
+            ruleList = styleSheet.cssRules;
+            rule = ruleList[0];
+            ruleWithMedia = ruleList[1];
+            ruleWithMediaAll = ruleList[2];
+            ruleWithSupports = ruleList[3];
+            ruleWithQuote = ruleList[4];
+        });
+
+        test(function() {
+            assert_true(rule instanceof CSSRule);
+            assert_true(rule instanceof CSSImportRule);
+            assert_true(ruleWithMedia instanceof CSSRule);
+            assert_true(ruleWithMedia instanceof CSSImportRule);
+            assert_true(ruleWithSupports instanceof CSSRule);
+            assert_true(ruleWithSupports instanceof CSSImportRule);
+        }, "CSSRule and CSSImportRule types");
+
+        test(function() {
+            assert_equals(rule.STYLE_RULE, 1);
+            assert_equals(rule.IMPORT_RULE, 3);
+            assert_equals(rule.MEDIA_RULE, 4);
+            assert_equals(rule.FONT_FACE_RULE, 5);
+            assert_equals(rule.PAGE_RULE, 6);
+            assert_equals(rule.NAMESPACE_RULE, 10);
+            assert_idl_attribute(rule, "type");
+            assert_equals(typeof rule.type, "number");
+        }, "Type of CSSRule#type and constant values");
+
+        test(function() {
+            assert_true(rule instanceof CSSRule);
+            assert_idl_attribute(rule, "cssText");
+            assert_idl_attribute(rule, "parentRule");
+            assert_idl_attribute(rule, "parentStyleSheet");
+
+            assert_readonly(rule, "type");
+            assert_readonly(rule, "parentRule");
+            assert_readonly(rule, "parentStyleSheet");
+        }, "Existence and writability of CSSRule attributes");
+
+        test(function() {
+            assert_equals(rule.type, rule.IMPORT_RULE);
+            assert_equals(typeof rule.cssText, "string");
+            assert_equals(rule.cssText, '@import url("support/a-green.css");');
+            assert_equals(ruleWithMedia.cssText, '@import url("support/a-green.css") screen;');
+            assert_equals(ruleWithMediaAll.cssText, '@import url("support/a-green.css") all;');
+            assert_equals(ruleWithSupports.cssText, '@import url("support/a-green") supports((display: flex) or (display: block));');
+            assert_equals(ruleWithQuote.cssText, '@import url("quote\\\"quote");');
+            assert_equals(rule.parentRule, null);
+            assert_true(rule.parentStyleSheet instanceof CSSStyleSheet);
+        }, "Values of CSSRule attributes");
+
+        test(function() {
+            assert_idl_attribute(rule, "href");
+            assert_idl_attribute(rule, "media");
+            assert_idl_attribute(rule, "styleSheet");
+
+            assert_readonly(rule, "href");
+            assert_readonly(rule, "styleSheet");
+        }, "Existence and writability of CSSImportRule attributes");
+
+        test(function() {
+            assert_equals(typeof rule.href, "string");
+            assert_true(rule.media instanceof MediaList);
+            assert_true(rule.styleSheet instanceof CSSStyleSheet);
+            assert_true(ruleWithMedia.media.length > 0);
+            assert_equals(ruleWithMedia.media.mediaText, "screen");
+        }, "Values of CSSImportRule attributes");
+
+        test(function() {
+            ruleWithMedia.media = "print";
+            assert_equals(ruleWithMedia.media.mediaText, "print");
+        }, "CSSImportRule : MediaList mediaText attribute should be updated due to [PutForwards]");
+
+        test(function() {
+            var ruleWithPage = ruleList[5];
+            ruleWithPage.style = "margin-top: 10px;"
+            assert_equals(ruleWithPage.style.cssText, "margin-top: 10px;");
+        }, "CSSStyleDeclaration cssText attribute should be updated due to [PutForwards]");
+
+        test(function() {
+            styleSheet.media = "screen";
+            assert_equals(styleSheet.media.mediaText, "screen");
+        }, "StyleSheet : MediaList mediaText attribute should be updated due to [PutForwards]");
+
+        test(function() {
+            assert_idl_attribute(ruleWithSupports, "supportsText");
+            assert_readonly(ruleWithSupports, "supportsText");
+        }, "Existence and writability of CSSImportRule supportsText attribute");
+
+        test(function() {
+            assert_equals(ruleWithSupports.supportsText, "(display: flex) or (display: block)");
+        }, "Value of CSSImportRule supportsText attribute");
+    </script>
+</body>
+</html>

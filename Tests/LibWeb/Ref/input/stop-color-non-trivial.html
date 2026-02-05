@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html style="color: rgb(calc(255 * sign(1em - 1px)) 0 0)">
+    <link rel="match" href="../expected/stop-color-non-trivial-ref.html" />
+    <svg viewBox="0 0 10 10">
+        <defs>
+            <linearGradient id="myGradient">
+                <stop offset="0" stop-color="currentcolor" />
+                <stop offset="100%" stop-color="rgb(0 calc(255 * sign(1em - 1px)) 0)" />
+            </linearGradient>
+        </defs>
+        <circle cx="5" cy="5" r="4" fill="url('#myGradient')" />
+    </svg>
+</html>

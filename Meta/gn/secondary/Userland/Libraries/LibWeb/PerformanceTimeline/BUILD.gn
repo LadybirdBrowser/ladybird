@@ -1,0 +1,10 @@
+source_set("PerformanceTimeline") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "EntryTypes.cpp",
+    "PerformanceEntry.cpp",
+    "PerformanceObserver.cpp",
+    "PerformanceObserverEntryList.cpp",
+  ]
+}

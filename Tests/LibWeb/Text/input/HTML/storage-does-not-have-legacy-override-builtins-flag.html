@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const functionName of ["key", "getItem", "setItem", "removeItem", "clear"]) {
+            const failFunction = function () { println(`FAIL: Overriden ${functionName} was called`); };
+            window.localStorage[functionName] = failFunction;
+
+            println(`${functionName} should still be native: '${window.localStorage[functionName].toString()}'`);
+            println(`${functionName}'s stringified function was added to storage: '${window.localStorage.getItem(functionName)}'`);
+            window.localStorage[functionName]("1", "2");
+        }
+    });
+</script>

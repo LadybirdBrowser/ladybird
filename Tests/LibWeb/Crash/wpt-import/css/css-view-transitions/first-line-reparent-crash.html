@@ -1,0 +1,13 @@
+<!doctype html>
+<html class="test-wait">
+<script>
+window.addEventListener("load", () => {
+  const a = document.createElement("style")
+  document.documentElement.appendChild(a)
+  a.textContent = ":first-line{}"
+  document.adoptNode(document.body)
+  document.startViewTransition().ready.then(() => {
+    document.documentElement.className = "";
+  });
+})
+</script>

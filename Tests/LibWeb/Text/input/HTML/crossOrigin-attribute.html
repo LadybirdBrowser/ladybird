@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (let elementName of ["audio", "script", "video", "link", "img"]) {
+          const element = document.createElement(elementName);
+          println(`${elementName} crossOrigin initial value: ${element.crossOrigin}`);
+          element.crossOrigin = "invalid";
+          println(`${elementName} crossOrigin value after setting to "invalid": ${element.crossOrigin}`);
+          element.crossOrigin = "use-credentials";
+          println(`${elementName} crossOrigin value after setting to "use-credentials": ${element.crossOrigin}`);
+          element.crossOrigin = null;
+          println(`${elementName} crossOrigin value after setting to null: ${element.crossOrigin}`);
+          element.crossOrigin = "USE-CREDENTIALS";
+          println(`${elementName} crossOrigin value after setting to "USE-CREDENTIALS": ${element.crossOrigin}`);
+          element.crossOrigin = "";
+          println(`${elementName} crossOrigin value after setting to "": ${element.crossOrigin}`);
+          element.removeAttribute("crossOrigin");
+          println(`${elementName} crossOrigin value after calling removeAttribute: ${element.crossOrigin}`);
+        }
+    });
+</script>

@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	e.style['transform'] = "none scale(2)" should not set the property value
+Pass	e.style['transform'] = "translateX(3%) none" should not set the property value
+Pass	e.style['transform'] = "matrix(1, 2)" should not set the property value
+Pass	e.style['transform'] = "translate(1px, 2px, 3px)" should not set the property value
+Pass	e.style['transform'] = "translateX(-4px, 5px)" should not set the property value
+Pass	e.style['transform'] = "translateY(4%, 5%)" should not set the property value
+Pass	e.style['transform'] = "scale(6, 7, 8)" should not set the property value
+Pass	e.style['transform'] = "scale(6%, 7%, 8%)" should not set the property value
+Pass	e.style['transform'] = "scaleX(1, 2)" should not set the property value
+Pass	e.style['transform'] = "scaleX(1%, 2%)" should not set the property value
+Pass	e.style['transform'] = "scaleY(3, 4)" should not set the property value
+Pass	e.style['transform'] = "scaleY(3%, 4%)" should not set the property value
+Pass	e.style['transform'] = "rotate(0, 0)" should not set the property value
+Pass	e.style['transform'] = "rotate(0, 0, 0)" should not set the property value
+Pass	e.style['transform'] = "rotate(0, 0, 0, 0)" should not set the property value
+Pass	e.style['transform'] = "skew(0, 0, 0)" should not set the property value
+Pass	e.style['transform'] = "skewX(0, 0)" should not set the property value
+Pass	e.style['transform'] = "skewY(0, 0)" should not set the property value
+Pass	e.style['transform'] = "scaleX(2), scaleY(3)" should not set the property value

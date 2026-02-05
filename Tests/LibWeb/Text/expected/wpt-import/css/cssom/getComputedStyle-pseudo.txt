@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 26 tests
+
+22 Pass
+1 Fail
+3 Optional Feature Unsupported
+Pass	Resolution of width is correct when pseudo-element argument is ignored (due to no colon)
+Fail	Resolution of width is correct when pseudo-element argument is invalid (due to a trailing token)
+Pass	Resolution of width is correct for ::before and ::after pseudo-elements (single-colon)
+Pass	Resolution of width is correct for ::before and ::after pseudo-elements (double-colon)
+Pass	Pseudo-elements can use the full range of CSS syntax
+Pass	Resolution of width is correct for ::before and ::after pseudo-elements of display: contents elements
+Pass	Resolution of nonexistent pseudo-element styles
+Pass	Resolution of pseudo-element styles in display: none elements
+Pass	Item-based blockification of pseudo-elements
+Pass	Item-based blockification of nonexistent pseudo-elements
+Pass	display: contents on pseudo-elements
+Pass	Dynamically change to display: contents on pseudo-elements
+Pass	Unknown pseudo-elements
+Pass	CSSStyleDeclaration is immutable
+Pass	Unknown pseudo-element with a known identifier: backdrop
+Pass	Unknown pseudo-element with a known identifier: file-selector-button
+Optional Feature Unsupported	Unknown pseudo-element with a known identifier: grammar-error
+Optional Feature Unsupported	Unknown pseudo-element with a known identifier: highlight(name)
+Pass	Unknown pseudo-element with a known identifier: marker
+Pass	Unknown pseudo-element with a known identifier: placeholder
+Optional Feature Unsupported	Unknown pseudo-element with a known identifier: spelling-error
+Pass	Unknown pseudo-element with a known identifier: view-transition
+Pass	Unknown pseudo-element with a known identifier: view-transition-image-pair(name)
+Pass	Unknown pseudo-element with a known identifier: view-transition-group(name)
+Pass	Unknown pseudo-element with a known identifier: view-transition-old(name)
+Pass	Unknown pseudo-element with a known identifier: view-transition-new(name)

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Display of textarea</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1700535">
+<link rel="help" href="https://github.com/whatwg/html/issues/4082">
+<meta name="assert" content="textarea has inline block display.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<textarea id="t"></textarea>
+<script>
+    test(
+      function(){
+        var target = document.getElementById("t");
+        assert_equals(getComputedStyle(target).display, "inline-block");
+      }, "textarea has inline block display");
+</script>
+</body>
+</html>

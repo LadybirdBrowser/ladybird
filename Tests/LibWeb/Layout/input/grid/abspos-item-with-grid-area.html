@@ -1,0 +1,23 @@
+<!DOCTYPE html><style>
+* {
+    border: 1px solid black;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 100px 100px;
+    grid-template-areas: "a b";
+    position: relative;
+    width: 200px;
+    height: 100px;
+}
+
+.abspos-item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50px;
+    height: 50px;
+    grid-area: b;
+}
+</style><div class="grid"><div class="abspos-item"></div></div>

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<body>
+    <script src="include.js"></script>
+    <script>
+        test(() => {
+            let mfrac = document.createElement("mfrac");
+            let th = document.createElement("th");
+            mfrac.appendChild(th);
+            document.body.appendChild(mfrac);
+            println("PASS (didn't crash)");
+        });
+    </script>
+</body>

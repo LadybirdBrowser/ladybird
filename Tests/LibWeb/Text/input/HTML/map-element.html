@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Get areas from map
+        testPart(() => {
+            const map = document.createElement('map');
+            for (let i = 0; i < 10; i++) {
+                map.appendChild(document.createElement('area'));
+            }
+            for (let i = 0; i < 10; i++) {
+                map.appendChild(document.createElement('div'));
+            }
+            return map.areas.length;
+        });
+
+        // 2. Check if areas is same object and live
+        testPart(() => {
+            const map = document.createElement('map');
+            for (let i = 0; i < 10; i++) {
+                map.appendChild(document.createElement('div'));
+            }
+            for (let i = 0; i < 10; i++) {
+                map.appendChild(document.createElement('area'));
+            }
+            const areas = map.areas;
+            map.appendChild(document.createElement('area'));
+            return areas.length;
+        });
+    });
+</script>

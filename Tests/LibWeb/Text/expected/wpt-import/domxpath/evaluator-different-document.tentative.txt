@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+4 Pass
+4 Fail
+Fail	evaluate operation on XML document, context node in XML document, no namespace resolver
+Pass	evaluate operation on HTML document, context node in HTML document, no namespace resolver
+Pass	evaluate operation on XML document, context node in HTML document, no namespace resolver
+Fail	evaluate operation on HTML document, context node in XML document, no namespace resolver
+Fail	evaluate operation on XML document, context node in XML document, with namespace resolver
+Pass	evaluate operation on HTML document, context node in HTML document, with namespace resolver
+Pass	evaluate operation on XML document, context node in HTML document, with namespace resolver
+Fail	evaluate operation on HTML document, context node in XML document, with namespace resolver

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<style>
+    .wrapper {
+        position: relative;
+        width: 400px;
+        height: 200px;
+        border: 5px solid red;
+    }
+
+    .scrollable-container {
+        width: 100%;
+        height: 100%;
+        overflow-y: scroll;
+    }
+
+    .outer-sticky {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 350px;
+        height: 100px;
+        background: #3498db;
+        z-index: 1;
+    }
+
+    /* Inner sticky is stuck and clamped to bottom of outer sticky.
+       Inner wants top: 80px, but can only go to 60px (outer is 100px, inner is 40px) */
+    .inner-sticky {
+        position: absolute;
+        top: 60px;
+        left: 0px;
+        width: 200px;
+        height: 40px;
+        background: #e74c3c;
+    }
+
+    .orange-content {
+        position: absolute;
+        top: 100px;
+        left: 0px;
+        width: 385px;
+        height: 100px;
+        background-color: orange;
+    }
+
+    .spacer {
+        height: 300px;
+        background-color: orange;
+    }
+
+    .fill-space {
+        height: 100px;
+    }
+</style>
+
+<div class="wrapper">
+    <div class="scrollable-container" id="container">
+        <div class="spacer"></div>
+        <div class="fill-space"></div>
+        <div class="spacer"></div>
+    </div>
+    <div class="outer-sticky">
+        <div class="inner-sticky"></div>
+    </div>
+    <div class="orange-content"></div>
+</div>
+
+<script>
+    document.getElementById("container").scrollTop = 310;
+</script>

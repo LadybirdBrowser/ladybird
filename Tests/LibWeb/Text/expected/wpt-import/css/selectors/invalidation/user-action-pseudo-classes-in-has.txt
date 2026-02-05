@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	CSS Selectors Invalidation: user-action pseudo classes in :has() argument

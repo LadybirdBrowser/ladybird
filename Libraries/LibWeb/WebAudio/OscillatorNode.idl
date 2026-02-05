@@ -1,0 +1,29 @@
+#import <WebAudio/AudioScheduledSourceNode.idl>
+#import <WebAudio/PeriodicWave.idl>
+
+// https://webaudio.github.io/web-audio-api/#enumdef-oscillatortype
+enum OscillatorType {
+    "sine",
+    "square",
+    "sawtooth",
+    "triangle",
+    "custom"
+};
+
+// https://webaudio.github.io/web-audio-api/#OscillatorOptions
+dictionary OscillatorOptions : AudioNodeOptions {
+    OscillatorType type = "sine";
+    float frequency = 440;
+    float detune = 0;
+    PeriodicWave periodicWave;
+};
+
+// https://webaudio.github.io/web-audio-api/#OscillatorNode
+[Exposed=Window]
+interface OscillatorNode : AudioScheduledSourceNode {
+    constructor(BaseAudioContext context, optional OscillatorOptions options = {});
+    attribute OscillatorType type;
+    readonly attribute AudioParam frequency;
+    readonly attribute AudioParam detune;
+    undefined setPeriodicWave(PeriodicWave periodicWave);
+};

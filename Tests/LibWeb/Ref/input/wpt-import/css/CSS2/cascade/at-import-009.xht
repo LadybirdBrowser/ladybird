@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: @import following a known but invalid @rule</title>
+        <link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact"/>
+        <link rel="help" href="http://www.w3.org/TR/CSS21/syndata.html#at-rules" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/cascade/../reference/ref-this-text-should-be-green.xht"/>
+        <meta name="flags" content="invalid" />
+        <meta name="assert" content="@import is respected after known but ignored @rule." />
+        <style type="text/css">
+           @media;
+           @page;
+           @charset;
+           @import "support/import-green.css";
+        </style>
+    </head>
+    <body>
+        <p class="import">This text should be green.</p>
+    </body>
+</html>

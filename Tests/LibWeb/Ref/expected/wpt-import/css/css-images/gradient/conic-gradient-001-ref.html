@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tests the maximum value of color stops in conic-gradient().</title>
+<style>
+    body {
+        background-color: lightblue;
+    }
+
+    .test {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    li {
+        width: 100px;
+        height: 100px;
+        margin-right: 30px;
+        margin-bottom: 30px;
+        outline: 1px solid black;
+        font-size: 14px;
+        text-align: center;
+        background: lime;
+    }
+</style>
+<p>Should be lime in the background of all boxes.</p>
+<ol class="test">
+    <li>0 999999999%</li>
+    <li>0 calc(Infinity * 0%)</li>
+    <li>0 calc(Infinity * 1%)</li>
+    <li>calc(Infinity * 0%) 100%</li>
+    <li>calc(Infinity * 1%) 100%</li>
+    <li>calc(Infinity * -1%) 100%</li>
+    <li>0% calc(Infinity * 1%)</li>
+    <li>from calc(Infinity * 1deg)</li>
+    <li>from calc(Infinity * 0deg)</li>
+</ol>

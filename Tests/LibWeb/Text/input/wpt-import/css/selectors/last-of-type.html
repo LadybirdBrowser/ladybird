@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Selectors :last-of-type</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-last-of-type-pseudo">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<!--
+  See also:
+  * child-indexed-pseudo-class.html
+  * child-indexed-no-parent.html
+-->
+<body>
+
+<div>
+  <div id="target1">Whitespace nodes should be ignored.</div>
+</div>
+
+<div>
+  <div></div>
+  <div id="target2">Thre is another child element of the same type.</div>
+</div>
+
+<div>
+  <div id="target3">There is a posterior child element of another type.</div>
+  <blockquote></blockquote>
+</div>
+
+<div>
+  <blockquote>
+    <div id="target4">A next element of the parent should not affect.</div>
+  </blockquote>
+  <div></div>
+</div>
+
+<div>
+  <div>
+    <div id="target5">The parent element of the same type should not affect.</div>
+  </div>
+</div>
+
+<div>
+  <div id="target6">A child of the next element should not affect.</div>
+  <blockquote>
+    <div></div>
+  </blockquote>
+</div>
+
+<div>
+  <div id="target7" data-expected="false">The first child element of the same
+type should not match.</div>
+  <div></div>
+</div>
+
+<div>
+  <div id="target8" data-expected="false">The first child element of the same
+type should not match, the last child has a case-different tag name.</div>
+  <DIV></DIV>
+</div>
+
+<div>
+  <div id="insertAfter1"></div>
+</div>
+
+<script>
+for (let i = 1; i <= 8; ++i) {
+  let target = document.querySelector(`#target${i}`);
+  test(() => {
+    if (target.dataset.expected == 'false')
+      assert_false(target.matches('div:last-of-type'));
+    else
+      assert_true(target.matches('div:last-of-type'));
+  }, target.textContent.replaceAll('\n', ' '));
+}
+
+test(() => {
+  const ia1 = document.querySelector('#insertAfter1');
+  const target = document.createElement('div');
+  assert_true(ia1.matches('div:last-of-type'));
+  ia1.parentNode.insertBefore(target, ia1.nextSibling);
+  assert_true(target.matches('div:last-of-type'));
+  assert_false(ia1.matches('div:last-of-type'));
+
+  target.remove();
+  assert_true(ia1.matches('div:last-of-type'));
+}, 'Dynamic insertion and removal');
+</script>
+

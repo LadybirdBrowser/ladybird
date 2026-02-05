@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- https://github.com/SerenityOS/serenity/issues/23609 -->
+<style>
+    :root {
+        --accent: #00f;
+    }
+</style>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(done => {
+        document.getElementById("foo").animate({
+            borderTop: ['2px solid var(--accent)'],
+        }, {
+            duration: 1000,
+            iterations: Infinity,
+        });
+
+        requestAnimationFrame(() => {
+            println("PASS! (Didn't crash)");
+            done();
+        });
+    });
+</script>

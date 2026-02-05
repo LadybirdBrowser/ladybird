@@ -1,0 +1,50 @@
+#import <Crypto/Crypto.idl>
+#import <Fetch/Request.idl>
+#import <Fetch/Response.idl>
+#import <HighResolutionTime/Performance.idl>
+#import <HTML/ImageBitmap.idl>
+#import <HTML/MessagePort.idl>
+#import <IndexedDB/IDBFactory.idl>
+#import <ServiceWorker/CacheStorage.idl>
+#import <TrustedTypes/TrustedTypePolicyFactory.idl>
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
+typedef (DOMString or Function) TimerHandler;
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
+interface mixin WindowOrWorkerGlobalScope {
+    [Replaceable] readonly attribute USVString origin;
+    readonly attribute boolean isSecureContext;
+    readonly attribute boolean crossOriginIsolated;
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#dom-reporterror
+    undefined reportError(any e);
+
+    // timers
+    long setTimeout(TimerHandler handler, optional long timeout = 0, any... arguments);
+    undefined clearTimeout(optional long id = 0);
+    long setInterval(TimerHandler handler, optional long timeout = 0, any... arguments);
+    undefined clearInterval(optional long id = 0);
+
+    // ImageBitmap
+    Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, optional ImageBitmapOptions options = {});
+    Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, long sx, long sy, long sw, long sh, optional ImageBitmapOptions options = {});
+
+    // https://fetch.spec.whatwg.org/#fetch-method
+    [NewObject] Promise<Response> fetch(RequestInfo input, optional RequestInit init = {});
+
+    // https://w3c.github.io/hr-time/#the-performance-attribute
+    [Replaceable] readonly attribute Performance performance;
+
+    // https://w3c.github.io/IndexedDB/#factory-interface
+    [SameObject] readonly attribute IDBFactory indexedDB;
+
+    // https://w3c.github.io/webcrypto/#crypto-interface
+    [SameObject] readonly attribute Crypto crypto;
+
+    // https://w3c.github.io/ServiceWorker/#cache-storage-interface
+    [SecureContext, SameObject] readonly attribute CacheStorage caches;
+
+    // https://w3c.github.io/trusted-types/dist/spec/#extensions-to-the-windoworworkerglobalscope-interface
+    readonly attribute TrustedTypePolicyFactory trustedTypes;
+};

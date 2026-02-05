@@ -1,0 +1,39 @@
+/* https://svgwg.org/svg2-draft/styling.html#UAStyleSheet */
+
+@namespace url(http://www.w3.org/2000/svg);
+@namespace xml url(http://www.w3.org/XML/1998/namespace);
+
+svg:not(:root), image, marker, pattern, symbol { overflow: hidden; }
+
+*:not(svg),
+*:not(foreignObject) > svg {
+    transform-origin: 0 0;
+}
+
+*[xml|space=preserve] {
+    white-space-collapse: preserve-spaces;
+}
+
+/* NOTE: These rules are in the SVG spec, but don't match how other engines behave.
+         So we simply comment them out for now.
+defs,
+clipPath, mask, marker,
+desc, title, metadata,
+pattern, linearGradient, radialGradient,
+script, style,
+symbol {
+    display: none !important;
+}
+:host(use) > symbol {
+    display: inline !important;
+}
+*/
+
+:link, :visited {
+    cursor: pointer;
+}
+
+foreignObject {
+    display: block;
+    overflow: hidden;
+}

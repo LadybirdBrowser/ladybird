@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-sizes">
+<link rel="help" href="https://crbug.com/1445937">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="Changing flex intrinsic sizing algorithm doesn't break any of these cases." />
+
+<style>
+  section.bugreport {
+    outline: 1px solid grey;
+    margin-bottom: 25px;
+    padding: 3px;
+  }
+
+  #wrapping-broke .flex {
+    display: flex;
+    width: min-content;
+    outline: 2px solid;
+    margin-bottom: 10px;
+  }
+
+  #wrapping-broke span.orange100 {
+    float: left;
+    height: 25px;
+    width: 100px;
+    background: orange;
+  }
+
+  #bug1454306 .fourUpList {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr;
+    width: 800px;
+    background: yellow;
+  }
+
+  #bug1454306 .thumbnail-list--item {
+    display: flex;
+    width: 100%;
+    outline: 1px solid;
+  }
+
+  #bug1454306 .thumbnail-list--item-photo {
+    height: 50px;
+    width: 50px;
+  }
+
+  #bug1454306 .thumbnail-list--item-header {
+    flex: 1 0 calc(70% - 10.5px)
+  }
+</style>
+
+<section id="wrapping-broke" class="bugreport">
+  <p>https://crbug.com/1445937 We need to see a 100x100 orange square, not a
+    400x25 orange rectangle.</p>
+  <div class="flex" data-expected-width="100">
+    <!-- one item with very negative desired flex fraction -->
+    <div>
+      <span class="orange100"></span>
+      <span class="orange100"></span>
+      <span class="orange100"></span>
+      <span class="orange100"></span>
+    </div>
+    <!-- second item with desired flex fraction 0 -->
+    <div></div>
+  </div>
+</section>
+
+<section id="bug1454306" class="bugreport">
+  <p>https://crbug.com/1454306 The boxes each must be 1/4 the size of the yellow
+    containing block. No overflow.</p>
+
+  <!-- This compat case needs the item in the example below to contribute its
+      min-content to container's min-content. In one of our earlier
+      implementations, the item contributed its flex-basis (aka max-content).
+
+    <item style="flex: 1 0 calc(70% - 10.5px)">
+      max-content larger than flex basis
+    </item>
+  -->
+
+  <div class=fourUpList>
+
+    <div class=thumbnail-list--item data-expected-width="200">
+      <div class=thumbnail-list--item-header>Some News Headline</div>
+      <div class=thumbnail-list--item-photo></div>
+    </div>
+
+    <div class=thumbnail-list--item data-expected-width="200">
+      <div class=thumbnail-list--item-header>Some Other News Headline 2</div>
+      <div class=thumbnail-list--item-photo></div>
+    </div>
+
+    <div class=thumbnail-list--item data-expected-width="200">
+      <div class=thumbnail-list--item-header>Even another Headline 3</div>
+      <div class=thumbnail-list--item-photo></div>
+    </div>
+
+    <div class=thumbnail-list--item data-expected-width="200">
+      <div class=thumbnail-list--item-header>
+        Peets Coffee announces plans to move Oakland
+      </div>
+      <div class=thumbnail-list--item-photo></div>
+    </div>
+
+  </div>
+</section>
+
+<section id="gmail-tables" class="bugreport">
+  <p>https://bugs.chromium.org/p/chromium/issues/detail?id=1457103 We need a
+    100x100 green square here.</p>
+  <!-- This case requires that the %-width fixed table has a large flex basis, which means the table's intrinsic max width has to be large.-->
+  <div style="width: 100px;">
+    <div style="display: table;">
+      <div style="display: table-cell">
+        <div class=flex style="display: flex; height: 100px; background: green;"
+          data-expected-width="100">
+          <table style="width: 100%; table-layout: fixed;"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  checkLayout('#wrapping-broke .flex');
+  checkLayout('#bug1454306');
+  checkLayout('#gmail-tables .flex');
+</script>

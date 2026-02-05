@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        document.getElementById("foo").animate(
+            { transform: ["scale(0)", "scale(0)"] },
+            { duration: 1000 },
+        );
+        requestAnimationFrame(() => {
+            println("no crash!");
+            done();
+        });
+    });
+</script>

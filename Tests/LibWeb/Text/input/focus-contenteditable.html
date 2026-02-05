@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #editable {
+        border: 1px solid black;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="editable" contenteditable="true"></div>
+<script>
+    asyncTest((done) => {
+        document.getElementById("editable").addEventListener("focus", () => {
+            println("contenteditable is focused");
+            done();
+        });
+        internals.click(50, 50);
+    });
+</script>

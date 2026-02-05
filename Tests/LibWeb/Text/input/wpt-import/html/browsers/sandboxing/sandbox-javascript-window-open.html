@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>window.open in sandbox iframe</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../common/utils.js"></script>
+<body>
+<script>
+promise_test(async test => {
+  let message = new Promise(resolve => {
+    window.addEventListener("message", event => resolve(event.data));
+  });
+  let iframe = document.createElement("iframe");
+  iframe.sandbox = "allow-scripts allow-popups allow-same-origin";
+  iframe.src = "./resources/sandbox-javascript-window-open.html";
+  document.body.appendChild(iframe);
+  assert_equals(await message, "disallow-document-domain");
+});
+</script>

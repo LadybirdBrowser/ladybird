@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reference Test</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <style>
+  p
+    {
+      margin-bottom: 30px;
+    }
+
+  div
+    {
+      height: 30px;
+    }
+
+  div.orange
+    {
+      background-color: orange;
+    }
+
+  div.blue
+    {
+      background-color: blue;
+    }
+
+  div#lime
+    {
+      background-color: lime;
+    }
+  </style>
+
+  <p>Test passes if there are 5 horizontal stripes across the page in this order (from top to bottom): an orange stripe, a blue stripe, a bright green stripe, a blue stripe and then an orange stripe.
+
+  <div class="orange"></div>
+
+  <div class="blue"></div>
+
+  <div id="lime"></div>
+
+  <div class="blue"></div>
+
+  <div class="orange"></div>

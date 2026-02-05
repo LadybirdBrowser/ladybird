@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing border-block-style with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-block">
+<meta name="assert" content="border-block-style supports the full grammar '<line-style>{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// none | hidden | dotted | dashed | solid | double | groove | ridge | inset | outset
+test_valid_value("border-block-start-style", "dotted");
+test_valid_value("border-block-start-style", "groove");
+test_valid_value("border-block-start-style", "inset");
+test_valid_value("border-block-start-style", "none");
+test_valid_value("border-block-start-style", "solid");
+test_valid_value("border-block-end-style", "dashed");
+test_valid_value("border-block-end-style", "double");
+test_valid_value("border-block-end-style", "hidden");
+test_valid_value("border-block-end-style", "outset");
+test_valid_value("border-block-end-style", "ridge");
+test_valid_value("border-block-style", "dotted");
+test_valid_value("border-block-style", "double groove");
+test_valid_value("border-block-style", "hidden hidden", "hidden");
+</script>
+</body>
+</html>

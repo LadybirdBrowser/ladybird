@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .scroll-container {
+        width: 200px;
+        height: 100px;
+        overflow: auto;
+    }
+    .fixed {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        width: 80px;
+        height: 40px;
+        background: red;
+    }
+    .normal {
+        width: 150px;
+        height: 50px;
+        background: green;
+    }
+</style>
+<div class="scroll-container">
+    <div class="normal">Normal</div>
+    <div class="fixed">Fixed</div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap iterable tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#the-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+function findInStyleMap(styleMap, property) {
+  const index = [...styleMap.keys()].indexOf(property);
+  if (index == -1)
+    return null;
+  return [...styleMap.values()][index];
+}
+
+// Puts normal CSS properties before vendor prefixed ones
+function comparePropertyNames(a, b) {
+  if (a.startsWith('-') == b.startsWith('-'))
+    return a < b ? -1 : 1;
+  return b.startsWith('-') ? -1 : 1;
+}
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, '--A: A; width: 10px; --C: C; transition-duration: 1s, 2s; color: red; --B: B;');
+  const expectedKeys = [...getComputedStyle(document.body)].sort(comparePropertyNames).concat('--A', '--B', '--C');
+  assert_array_equals([...styleMap.keys()], expectedKeys);
+}, 'StylePropertyMap iterates properties in correct order');
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, 'width: 10px; transition-duration: 1s, 2s; height: 20px');
+  assert_style_value_array_equals(findInStyleMap(styleMap, 'width'), [CSS.px(10)]);
+}, 'StylePropertyMap iterator returns CSS properties with the correct CSSStyleValue');
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, 'width: 10px; transition-duration: 1s, 2s; height: 20px');
+  assert_style_value_array_equals(findInStyleMap(styleMap, 'transition-duration'), [CSS.s(1), CSS.s(2)]);
+}, 'StylePropertyMap iterator returns list-valued properties with the correct CSSStyleValue');
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, '--A: A; --C: C; color: red; --B: B;');
+  assert_style_value_array_equals(findInStyleMap(styleMap, '--A'), [new CSSUnparsedValue(['A'])]);
+  assert_style_value_array_equals(findInStyleMap(styleMap, '--B'), [new CSSUnparsedValue(['B'])]);
+  assert_style_value_array_equals(findInStyleMap(styleMap, '--C'), [new CSSUnparsedValue(['C'])]);
+}, 'StylePropertyMap iterator returns custom properties with the correct CSSStyleValue');
+
+test(t => {
+  // This is to test for https://github.com/w3c/css-houdini-drafts/issues/700
+  const styleMap = createComputedStyleMap(t, '--豈: 豈; --💩: 💩;');
+  const keys = [...styleMap.keys()];
+
+  assert_array_equals(keys.slice(-2), ['--💩', '--豈']);
+}, 'Computed StylePropertyMap sorts custom properties in increasing ' +
+   'code-point order');
+
+</script>

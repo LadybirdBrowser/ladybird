@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<div id="root"></div>
+
+<script>
+test(function() {
+  var observer = new IntersectionObserver(function(e) {}, {});
+  test(function() { assert_equals(observer.root, null) },
+       "observer.root");
+  test(function() { assert_array_equals(observer.thresholds, [0]) },
+       "observer.thresholds");
+  test(function() { assert_equals(observer.rootMargin, "0px 0px 0px 0px") },
+       "observer.rootMargin");
+
+  observer = new IntersectionObserver(function(e) {}, {
+    rootMargin: " ",
+    threshold: []
+  });
+  test(function() { assert_array_equals(observer.thresholds, [0]) },
+       "empty observer.thresholds");
+  test(function() { assert_equals(observer.rootMargin, "0px 0px 0px 0px") },
+       "whitespace observer.rootMargin");
+
+  var rootDiv = document.getElementById("root");
+  observer = new IntersectionObserver(function(e) {}, {
+    root: rootDiv,
+    threshold: [0, 0.25, 0.5, 1.0],
+    rootMargin: "10% 20px"
+  });
+  test(function() { assert_equals(observer.root, rootDiv) },
+       "set observer.root");
+  test(function() { assert_array_equals(observer.thresholds, [0, 0.25, 0.5, 1.0]) },
+       "set observer.thresholds");
+  test(function() { assert_equals(observer.rootMargin, "10% 20px 10% 20px") },
+       "set observer.rootMargin");
+}, "Observer attribute getters.");
+
+</script>

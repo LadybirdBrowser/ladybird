@@ -1,0 +1,38 @@
+<!doctype html>
+<head>
+	<title>CSS Test (Conditional Rules): Invalid rules after @supports</title>
+	<!-- This test is paired with at-media-003.html ; please keep them in sync -->
+	<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+	<link rel="help" href="https://www.w3.org/TR/css-conditional-3/#contents-of">
+	<link rel="match" href="../../../../expected/wpt-import/css/css-conditional/at-supports-001-ref.html">
+	<meta name="assert"
+	      content="Test passes if rules required to occur before all style rules are invalid after @supports.">
+	<style>
+		@namespace x "http://www.w3.org/";
+		@supports (background: blue) { /* invalidates later rules even if empty */ }
+		@import "support/fail.css";
+		@namespace y "http://www.w3.org/";
+
+		.test1, x|div { background: green; }
+		.test1, y|div { background: red; }
+
+		div {
+			background: red;
+			height: 50px;
+			width: 100px;
+		}
+	</style>
+	<style>
+		@supports (background: blue) {
+			/* @supports isn't invalidated, only misordered stuff after it is */
+			.test2 { background: green; }
+		}
+		@import "support/fail.css";
+	</style>
+</head>
+<body>
+	<p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+	<div class="test1"></div>
+	<div class="test2"></div>
+</body>
+</html>

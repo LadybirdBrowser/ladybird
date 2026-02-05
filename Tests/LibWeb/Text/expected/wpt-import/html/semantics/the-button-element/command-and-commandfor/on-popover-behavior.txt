@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+27 Pass
+1 Fail
+Pass	changing command attribute inside invokeevent doesn't impact the invocation
+Pass	invoking (as toggle-popover) closed popover opens
+Pass	invoking (as toggle-popover) closed popover with preventDefault does not open
+Pass	invoking (as show-popover) closed popover opens
+Pass	invoking (as show-popover) closed popover with preventDefault does not open
+Pass	invoking (as tOgGlE-pOpOvEr) closed popover opens
+Pass	invoking (as tOgGlE-pOpOvEr) closed popover with preventDefault does not open
+Pass	invoking (as sHoW-pOpOvEr) closed popover opens
+Pass	invoking (as sHoW-pOpOvEr) closed popover with preventDefault does not open
+Pass	invoking (as toggle-popover) open popover closes
+Pass	invoking (as toggle-popover) open popover with preventDefault does not close
+Pass	invoking (as toggle-popover) from within open popover closes
+Pass	invoking (as toggle-popover) from within open popover with preventDefault does not close
+Pass	invoking (as hide-popover) open popover closes
+Pass	invoking (as hide-popover) open popover with preventDefault does not close
+Pass	invoking (as hide-popover) from within open popover closes
+Pass	invoking (as hide-popover) from within open popover with preventDefault does not close
+Pass	invoking (as tOgGlE-pOpOvEr) open popover closes
+Pass	invoking (as tOgGlE-pOpOvEr) open popover with preventDefault does not close
+Pass	invoking (as tOgGlE-pOpOvEr) from within open popover closes
+Pass	invoking (as tOgGlE-pOpOvEr) from within open popover with preventDefault does not close
+Pass	invoking (as hIdE-pOpOvEr) open popover closes
+Pass	invoking (as hIdE-pOpOvEr) open popover with preventDefault does not close
+Pass	invoking (as hIdE-pOpOvEr) from within open popover closes
+Pass	invoking (as hIdE-pOpOvEr) from within open popover with preventDefault does not close
+Pass	invoking (as show-popover) open popover is noop
+Pass	invoking (as hide-popover) closed popover is noop
+Fail	invoking (as show-popover) should create an implicit anchor reference for anchor positioning.

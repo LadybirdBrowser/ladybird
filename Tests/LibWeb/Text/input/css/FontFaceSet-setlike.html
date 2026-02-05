@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const fontFaceSet = document.fonts;
+        const fontFace = new FontFace("Hash Sans", 'url(../../../../Assets/HashSans.woff)');
+
+        println("-- Empty FontFaceSet --");
+        println(`fontFaceSet.size: ${fontFaceSet.size}`);
+        println(`fontFaceSet.has(fontFace): ${fontFaceSet.has(fontFace)}`);
+        for (const fontFaceKey of fontFaceSet) {
+            println("FAIL: FontFace is supposed to be empty");
+        }
+        println(`fontFaceSet.status: ${fontFaceSet.status}`);
+
+        const deleteBeforeAdd = fontFaceSet.delete(fontFace);
+        println(`deleteBeforeAdd: ${deleteBeforeAdd}`);
+
+        println("-- Add Font --");
+        fontFaceSet.add(fontFace);
+
+        println(`fontFaceSet.size: ${fontFaceSet.size}`);
+        println(`fontFaceSet.has(fontFace): ${fontFaceSet.has(fontFace)}`);
+        for (const fontFaceKey of fontFaceSet) {
+            println(`fontFaceKey.name: ${fontFaceKey.family}`);
+        }
+        // Should be changed 'loading' until the font is loaded; should fire loading event
+        println(`FIXME: fontFaceSet.status: ${fontFaceSet.status}`);
+
+        println("-- Delete Font --");
+        const didDelete = fontFaceSet.delete(fontFace);
+        println(`fontFaceSet.size: ${fontFaceSet.size}`);
+        println(`fontFaceSet.has(fontFace): ${fontFaceSet.has(fontFace)}`);
+        println(`didDelete: ${didDelete}`);
+        println(`fontFaceSet.status: ${fontFaceSet.status}`);
+
+        println("-- Add Font again --");
+        fontFaceSet.add(fontFace);
+        println(`fontFaceSet.size: ${fontFaceSet.size}`);
+        println(`fontFaceSet.has(fontFace): ${fontFaceSet.has(fontFace)}`);
+        // Should be changed 'loading' until the font is loaded; should fire loading event
+        println(`FIXME: fontFaceSet.status: ${fontFaceSet.status}`);
+
+        println("-- Clear FontFaceSet --");
+        fontFaceSet.clear();
+        println(`fontFaceSet.size: ${fontFaceSet.size}`);
+        println(`fontFaceSet.has(fontFace): ${fontFaceSet.has(fontFace)}`);
+        println(`fontFaceSet.status: ${fontFaceSet.status}`);
+    });
+</script>

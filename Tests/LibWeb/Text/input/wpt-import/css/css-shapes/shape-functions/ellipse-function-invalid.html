@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing the ellipse() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-ellipse">
+<meta name="assert" content="Tests parsing of the ellipse() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("shape-outside", "ellipse(10px)");
+test_invalid_value("shape-outside", "ellipse(10px -20px)");
+test_invalid_value("shape-outside", "ellipse(20px, 40px at center)");
+test_invalid_value("shape-outside", "ellipse(farthest-side at)");
+test_invalid_value("shape-outside", "ellipse(1% 2% top right)");
+test_invalid_value("shape-outside", "ellipse(3% at 100% 0%)");
+test_invalid_value("shape-outside", "ellipse(closest-side)");
+test_invalid_value("shape-outside", "ellipse(farthest-side at 100% 0%)");
+test_invalid_value("shape-outside", "ellipse(10% -20% at 30% 40%)");
+test_invalid_value("shape-outside", "ellipse(-50px 60px at 70% 80%)");
+</script>
+</body>
+</html>

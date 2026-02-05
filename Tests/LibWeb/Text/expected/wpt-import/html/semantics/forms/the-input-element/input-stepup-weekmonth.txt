@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Calling stepUp() on input -month- where value > max should not modify value.
+Pass	Calling stepUp() on input -week- where value > max should not modify value.

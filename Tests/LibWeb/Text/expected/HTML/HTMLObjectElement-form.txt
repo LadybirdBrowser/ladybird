@@ -1,0 +1,3 @@
+objectElement.form initial value is null: true
+objectElement.form.id after appending to #form1: form1
+objectElement.form value after removing from #form1 is null: true

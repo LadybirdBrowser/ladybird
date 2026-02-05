@@ -1,0 +1,28 @@
+shared_library("LibIPC") {
+  output_name = "ipc"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "Concepts.h",
+    "Connection.cpp",
+    "Connection.h",
+    "ConnectionFromClient.h",
+    "ConnectionToServer.h",
+    "Decoder.cpp",
+    "Decoder.h",
+    "Encoder.cpp",
+    "Encoder.h",
+    "File.h",
+    "Forward.h",
+    "Message.cpp",
+    "Message.h",
+    "MultiServer.h",
+    "SingleServer.h",
+    "Stub.h",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibThreading",
+    "//Userland/Libraries/LibURL",
+  ]
+}

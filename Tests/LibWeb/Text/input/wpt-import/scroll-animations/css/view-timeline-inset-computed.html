@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#view-timeline-inset">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7243">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<style>
+  #outer { font-size:10px; }
+  #outer { view-timeline-inset: 1px 2px, auto 3px; }
+  #target { view-timeline-inset: 42px; }
+</style>
+<div id=outer>
+  <div id=target></div>
+</div>
+<script>
+test_computed_value('view-timeline-inset', 'initial', 'auto');
+test_computed_value('view-timeline-inset', 'inherit', '1px 2px, auto 3px');
+test_computed_value('view-timeline-inset', 'unset', 'auto');
+test_computed_value('view-timeline-inset', 'revert', 'auto');
+test_computed_value('view-timeline-inset', '1px');
+test_computed_value('view-timeline-inset', '1%');
+test_computed_value('view-timeline-inset', 'calc(1% + 1px)');
+test_computed_value('view-timeline-inset', '1px 2px');
+test_computed_value('view-timeline-inset', '1px 2em', '1px 20px');
+test_computed_value('view-timeline-inset', 'calc(1px + 1em) 2px', '11px 2px');
+test_computed_value('view-timeline-inset', '1px 2px, 3px 4px');
+test_computed_value('view-timeline-inset', '1px auto, auto 4px');
+test_computed_value('view-timeline-inset', '1px, 2px, 3px');
+test_computed_value('view-timeline-inset', '1px 1px, 2px 3px', '1px, 2px 3px');
+test_computed_value('view-timeline-inset', 'auto auto, auto auto', 'auto, auto');
+
+test(() => {
+  let style = getComputedStyle(document.getElementById('target'));
+  assert_not_equals(Array.from(style).indexOf('view-timeline-inset'), -1);
+}, 'The view-timeline-inset property shows up in CSSStyleDeclaration enumeration');
+
+test(() => {
+  let style = document.getElementById('target').style;
+  assert_not_equals(style.cssText.indexOf('view-timeline-inset'), -1);
+}, 'The view-timeline-inset property shows up in CSSStyleDeclaration.cssText');
+</script>

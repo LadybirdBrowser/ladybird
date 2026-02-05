@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<title>CSS Fonts 4 test: parsing the tech() function in the src descriptor</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-face-src-parsing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="testStyle">
+</style>
+<script>
+  const sheet = testStyle.sheet;
+  tests = [
+    // No tech() function
+    { src: 'url("foo.ttf")', valid: true },
+    // Empty tech() is not valid
+    { src: 'url("foo.ttf") tech()', valid: false },
+    // Check that each valid keyword is accepted
+    { src: 'url("foo.ttf") tech(features-opentype)', valid: true },
+    { src: 'url("foo.ttf") tech(features-aat)', valid: true },
+    { src: 'url("foo.ttf") tech(color-COLRv0)', valid: true },
+    { src: 'url("foo.ttf") tech(color-COLRv1)', valid: true },
+    { src: 'url("foo.ttf") tech(color-sbix)', valid: true },
+    { src: 'url("foo.ttf") tech(color-CBDT)', valid: true },
+    { src: 'url("foo.ttf") tech(variations)', valid: true },
+    { src: 'url("foo.ttf") tech(palettes)', valid: true },
+    // tech() does not accept strings (unlike format()!)
+    { src: 'url("foo.ttf") tech("features-opentype")', valid: false },
+    { src: 'url("foo.ttf") tech("color-COLRv0")', valid: false },
+    { src: 'url("foo.ttf") tech("variations")', valid: false },
+    // tech() accepts a comma-separated list of keywords
+    { src: 'url("foo.ttf") tech(features-opentype, color-COLRv0, variations, palettes)', valid: true },
+    { src: 'url("foo.ttf") tech(features-opentype color-COLRv0 variations palettes)', valid: false },
+    // Invalid font-tech keywords should be a parse error
+    { src: 'url("foo.ttf") tech(feature-opentype)', valid: false },
+    { src: 'url("foo.ttf") tech(feature-aat)', valid: false },
+    { src: 'url("foo.ttf") tech(feature-graphite)', valid: false },
+    { src: 'url("foo.ttf") tech(auto)', valid: false },
+    { src: 'url("foo.ttf") tech(default)', valid: false },
+    { src: 'url("foo.ttf") tech(inherit)', valid: false },
+    { src: 'url("foo.ttf") tech(initial)', valid: false },
+    { src: 'url("foo.ttf") tech(none)', valid: false },
+    { src: 'url("foo.ttf") tech(normal)', valid: false },
+    { src: 'url("foo.ttf") tech(xyzzy)', valid: false },
+    { src: 'url("foo.ttf") tech(xyzzy, features-opentype)', valid: false },
+    { src: 'url("foo.ttf") tech(features-opentype, xyzzy)', valid: false },
+    // format() function must precede tech() if both are present
+    { src: 'url("foo.ttf") format(opentype) tech(features-opentype)', valid: true },
+    { src: 'url("foo.ttf") tech(features-opentype) format(opentype)', valid: false },
+    // Unsupported technology (for example: no browser has incremental transfer yet), might be
+    // dropped from the list, next component of the list should be accepted.
+    { src: 'url("foo.ttf") tech(incremental), url("bar.html")', dontcomparetech: true, valid: true },
+    { src: 'url("foo.ttf") tech(incremental, color-SVG, features-graphite, features-aat), url("bar.html")', dontcomparetech: true, valid: true },
+    { src: 'url("foo.ttf") tech(color-SVG, features-graphite), url("bar.html")', dontcomparetech: true, valid: true },
+    { src: 'url("foo.ttf") tech(color-SVG), url("bar.html")', dontcomparetech: true, valid: true },
+    { src: 'url("foo.ttf") tech(features-graphite), url("bar.html")', dontcomparetech: true, valid: true },
+    // No invalid functions.
+    { src: 'url("foo.ttf") dummy("opentype") tech(variations)', valid: false },
+    { src: 'url("foo.ttf") dummy("opentype") dummy(variations)', valid: false },
+    { src: 'url("foo.ttf") format(opentype) tech(features-opentype) dummy(something)', valid: false },
+    // A parsing error in one component does not make the entire descriptor invalid.
+    { src: 'url("foo.ttf") format(dummy), url("foo.ttf") tech(variations)', valid: true },
+    // check_same_tech isn't currently smart enough to handle this.
+    { src: 'url("foo.ttf") tech(color), url("bar.html")', dontcomparetech: true, valid: true },
+  ];
+
+  // Assert that the two arguments have the same set of keywords in the tech() function,
+  // (although their ordering may differ).
+  function check_same_tech(serialized, specified) {
+    if (!specified.includes("tech(")) {
+      assert_false(serialized.includes("tech("), "expected no tech() function");
+      return;
+    }
+    // Extract the lists of tech() keywords and sort them for comparison.
+    const tech = /tech\((.+)\)/;
+    var specified_techs = tech.exec(specified)[1].split(/,\s*/).sort().join(", ");
+    var serialized_techs = tech.exec(serialized)[1].split(/,\s*/).sort().join(", ");
+    // Per CSSOM spec, keywords are serialized in ASCII-lowercase form:
+    // https://drafts.csswg.org/cssom/#serialize-a-css-component-value
+    assert_equals(serialized_techs, specified_techs.toLowerCase(), "expected matching tech() lists");
+  }
+
+  for (let t of tests) {
+    test(() => {
+      assert_equals(sheet.cssRules.length, 0, "testSheet should initially be empty");
+      sheet.insertRule("@font-face { src: " + t.src + "}");
+      try {
+        assert_equals(sheet.cssRules[0].style.getPropertyValue("src") != "", t.valid);
+        if (t.valid && !t.dontcomparetech) {
+          check_same_tech(sheet.cssRules[0].style.getPropertyValue("src"), t.src);
+        }
+      } finally {
+        sheet.deleteRule(0);
+      }
+    }, "Check that src: " + t.src + " is " + (t.valid ? "valid" : "invalid"));
+  }
+</script>

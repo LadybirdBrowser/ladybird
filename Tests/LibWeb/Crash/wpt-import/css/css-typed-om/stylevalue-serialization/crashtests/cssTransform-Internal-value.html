@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="help" href="https://crbug.com/1204782">
+<title>Serialize transform components must not crash when the internal CSS value is null</title>
+
+<script>
+    var v98 = new CSSUnitValue(1, "px");
+    var v100 = v98.div(CSS.px(1));
+    var v106 = v98.mul(v100);
+    var v201 = new CSSTranslate(v106,  v98,  v98);
+    v201.toString()
+</script>

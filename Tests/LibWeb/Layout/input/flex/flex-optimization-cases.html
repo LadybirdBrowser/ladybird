@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<style>
+* {
+    outline: 1px solid black;
+}
+body {
+    width: 500px;
+    height: 2000px;
+}
+</style>
+
+<div style="display: flex;">
+    <div style="background: rgba(255, 0, 0, 0.2);">abcdefghij</div>
+</div>
+
+<div style="display: flex;">
+    <div style="width: 0; background: rgba(0, 255, 0, 0.2);">abcdefghij</div>
+</div>
+
+<div style="display: flex;">
+    <div style="background: rgba(0, 0, 255, 0.2);">
+        <span style="display: inline-block; width: 100px;">x</span>
+    </div>
+</div>
+
+<div style="display: flex;">
+    <div style="width: min-content; background: rgba(255, 255, 0, 0.2);">longwordlongwordlongword</div>
+</div>
+
+<div style="display: flex; flex-direction: column;">
+    <div style="background: rgba(0, 255, 255, 0.2);">
+        <div style="height: 200px; background: rgba(255, 0, 255, 0.2);"></div>
+    </div>
+</div>
+
+<div style="display: flex;">
+    <div style="flex: 1 1 auto; background: rgba(192, 0, 0, 0.2);">abcdefghij</div>
+</div>
+
+<div style="display: flex;">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAIAQMAAAD+wSzIAAAABlBMVEX///+/v7+jQ3Y5AAAADklEQVQI12P4AIX8EAgALgAD/aNpbtEAAAAASUVORK5CYII"
+         style="flex-basis: auto; background: rgba(0, 192, 0, 0.2);">
+</div>
+
+<div style="display: flex; flex-wrap: wrap; width: 100px;">
+    <div style="flex-basis: auto; background: rgba(0, 0, 192, 0.2);">longwordlongwordlongword</div>
+</div>
+
+<div style="display: flex;">
+    <div style="aspect-ratio: 2 / 1; background: rgba(192, 192, 0, 0.2);">hello</div>
+</div>
+
+<div style="display: flex;">
+    <div style="aspect-ratio: 2 / 1; width: 200px; background: rgba(0, 192, 192, 0.2);"></div>
+</div>
+
+<div style="display: flex;">
+    <div style="aspect-ratio: 1 / 1; background: rgba(192, 0, 192, 0.2);">
+        <div style="height: 100px; background: rgba(128, 0, 0, 0.2);"></div>
+    </div>
+</div>
+
+<div style="display: flex; flex-direction: column;">
+    <div style="overflow: hidden; background: rgba(0, 128, 0, 0.2);">
+        <div style="height: 120px; background: rgba(0, 0, 128, 0.2);"></div>
+    </div>
+</div>
+
+<div style="display: flex; flex-direction: column;">
+    <div style="overflow: auto; background: rgba(128, 128, 0, 0.2);">
+        <div style="height: 300px; background: rgba(0, 128, 128, 0.2);"></div>
+    </div>
+</div>
+
+<div style="display: flex;">
+    <div style="overflow: scroll; background: rgba(128, 0, 128, 0.2);">
+        <div style="width: 300px; height: 150px; background: rgba(64, 0, 0, 0.2);"></div>
+    </div>
+</div>
+
+<div style="display: flex;">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAIAQMAAAD+wSzIAAAABlBMVEX///+/v7+jQ3Y5AAAADklEQVQI12P4AIX8EAgALgAD/aNpbtEAAAAASUVORK5CYII"
+         style="aspect-ratio: 1 / 1; background: rgba(0, 64, 0, 0.2);">
+</div>

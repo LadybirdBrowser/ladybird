@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['border-image-outset'] = "1px" should set the property value
+Pass	e.style['border-image-outset'] = "2" should set the property value
+Pass	e.style['border-image-outset'] = "1px 2 3px 4" should set the property value

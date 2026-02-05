@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS variable references - shorthand properties - via CSSOM</title>
+
+    <meta rel="author" title="Kevin Babbitt">
+    <meta rel="author" title="Greg Whitworth">
+    <link rel="author" title="Microsoft Corporation" href="http://microsoft.com" />
+    <link rel="help" href="http://www.w3.org/TR/css-variables-1/#serializing-custom-props">
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+
+<div id="target"></div>
+
+<script type="text/javascript">
+    "use strict";
+
+    function runTest() {
+        var target = document.getElementById("target");
+
+        target.style.setProperty("margin", "var(--prop)");
+        assert_equals(target.style.margin, "var(--prop)", "margin property value after calling setProperty");
+        assert_equals(target.style.getPropertyValue("margin"), "var(--prop)", "getPropertyValue('margin') after calling setProperty");
+
+        target.style.removeProperty("margin");
+        assert_equals(target.style.margin, "", "margin property value after calling removeProperty");
+        assert_equals(target.style.getPropertyValue("margin"), "", "getPropertyValue('margin') after calling removeProperty");
+    }
+
+    test(runTest);
+</script>
+
+</body>
+</html>

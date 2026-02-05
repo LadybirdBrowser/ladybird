@@ -1,0 +1,32 @@
+#import <DOM/Node.idl>
+
+// https://dom.spec.whatwg.org/#callbackdef-nodefilter
+[Exposed=Window]
+interface NodeFilter {
+
+    // FIXME: This should be a callback interface.
+
+    // Constants for acceptNode()
+    const unsigned short FILTER_ACCEPT = 1;
+    const unsigned short FILTER_REJECT = 2;
+    const unsigned short FILTER_SKIP = 3;
+
+    // Constants for whatToShow
+    const unsigned long SHOW_ALL = 0xFFFFFFFF;
+    const unsigned long SHOW_ELEMENT = 0x1;
+    const unsigned long SHOW_ATTRIBUTE = 0x2;
+    const unsigned long SHOW_TEXT = 0x4;
+    const unsigned long SHOW_CDATA_SECTION = 0x8;
+    const unsigned long SHOW_ENTITY_REFERENCE = 0x10; // legacy
+    const unsigned long SHOW_ENTITY = 0x20; // legacy
+    const unsigned long SHOW_PROCESSING_INSTRUCTION = 0x40;
+    const unsigned long SHOW_COMMENT = 0x80;
+    const unsigned long SHOW_DOCUMENT = 0x100;
+    const unsigned long SHOW_DOCUMENT_TYPE = 0x200;
+    const unsigned long SHOW_DOCUMENT_FRAGMENT = 0x400;
+    const unsigned long SHOW_NOTATION = 0x800; // legacy
+
+    // FIXME: Uncomment this once NodeFilter is a callback interface.
+    // unsigned short acceptNode(Node node);
+
+};

@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset=utf-8>
+<!-- WARNING: These tests are preliminary and probably partly incorrect.  -->
+<title>CSSOM View automated IDL tests</title>
+<meta name="timeout" content="long">
+<link rel="author" title="Ms2ger" href="mailto:Ms2ger@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-view-1/#idl-index">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script src=../../resources/WebIDLParser.js></script>
+<script src=../../resources/idlharness.js></script>
+
+<input id="caretPositionInput" style="position: absolute; top: 0; left: 0; border: 0;">
+
+<h1>CSSOM View IDL tests</h1>
+<div id=log></div>
+
+<script>
+'use strict';
+
+const waitForLoad = new Promise(resolve => { addEventListener('load', resolve); });
+
+idl_test(
+  ['cssom-view'],
+  ['css-pseudo', 'cssom', 'uievents', 'SVG', 'html', 'dom'],
+  async idlArray => {
+    idlArray.add_objects({
+      Window: ['window'],
+      MediaQueryList: ['matchMedia("all")'],
+      MediaQueryListEvent: ['new MediaQueryListEvent("change")'],
+      Screen: ['screen'],
+      Document: ['document'],
+      CaretPosition: ['document.caretPositionFromPoint(5, 5)'],
+      Element: ['document.createElementNS("x", "y")'],
+      HTMLElement: ['document.createElement("div")'],
+      HTMLImageElement: ['document.createElement("img")'],
+      Range: ['new Range()'],
+      MouseEvent: ['new MouseEvent("foo")'],
+      Text: ['document.createTextNode("x")'],
+      VisualViewport: ['self.visualViewport'],
+      // CSSPseudoElement: [],
+    });
+
+    await waitForLoad;
+  }
+);
+</script>

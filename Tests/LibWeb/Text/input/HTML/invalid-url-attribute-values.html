@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const elementList = [
+            { "img": "currentSrc" },
+            { "object": "data" },
+        ];
+        for (const elementDescriptor of elementList) {
+            [elementName, propertyName] = Object.entries(elementDescriptor)[0];
+            const element = document.createElement(elementName);
+            println(`${elementName}.${propertyName} default value: '${element[propertyName]}'`);
+        }
+    });
+</script>

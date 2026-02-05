@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const image = document.createElement("img");
+
+        image.onload = async () => {
+            const printDimensions = (name, imageBitmapToPrint) => {
+                println(`${name} imageBitmap width: ${imageBitmapToPrint.width}`);
+                println(`${name} imageBitmap height: ${imageBitmapToPrint.height}`);
+            };
+
+            const imageBitmap = await createImageBitmap(image);
+            println("before cloning:");
+            printDimensions("original", imageBitmap);
+
+            println("after cloning, before transferring:");
+            const clonedImageBitmap = structuredClone(imageBitmap);
+            printDimensions("original", imageBitmap);
+            printDimensions("cloned", clonedImageBitmap);
+
+            println("after cloning, after transferring:");
+            const transferredImageBitmap = structuredClone(imageBitmap, { transfer: [imageBitmap] });
+            printDimensions("original", imageBitmap);
+            printDimensions("cloned", clonedImageBitmap);
+            printDimensions("transferred", transferredImageBitmap);
+
+            done();
+        };
+
+        image.src = "../../../Assets/120.png";
+    });
+</script>

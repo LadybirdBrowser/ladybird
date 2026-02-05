@@ -1,0 +1,24 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head>
+<title>CSS Test: Test for wrapping around floats whose top is below the top of what must wrap around them</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+<link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats" />
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-wrap-top-below-003r-ref.xht"/>
+<meta name="assert" content="However, line boxes created next to the float are shortened to make room for the margin box of the float." />
+<style type="text/css">
+
+body { width: 400px; border: medium solid; }
+span { display: inline-block; vertical-align: top; width: 100px; height: 50px; background: aqua; }
+
+</style>
+</head>
+<body>
+
+<div style="float: right; width: 250px; height: 75px;"></div>
+<div style="float: left; width: 250px; height: 75px;"></div>
+<span></span>
+<span></span>
+
+
+
+</body></html>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const work = new Worker("worker-importScripts.js");
+        work.onmessage = (evt) => {
+            println(`importScripts() works as expected: ${evt.data}`);
+            done();
+        };
+    });
+</script>

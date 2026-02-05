@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	e.style['scroll-timeline-name'] = "initial" should set the property value
+Pass	e.style['scroll-timeline-name'] = "inherit" should set the property value
+Pass	e.style['scroll-timeline-name'] = "unset" should set the property value
+Pass	e.style['scroll-timeline-name'] = "revert" should set the property value
+Pass	e.style['scroll-timeline-name'] = "none" should set the property value
+Pass	e.style['scroll-timeline-name'] = "--abc" should set the property value
+Pass	e.style['scroll-timeline-name'] = "  --abc" should set the property value
+Pass	e.style['scroll-timeline-name'] = "--aBc" should set the property value
+Pass	e.style['scroll-timeline-name'] = "--foo, --bar" should set the property value
+Pass	e.style['scroll-timeline-name'] = "--bar, --foo" should set the property value
+Pass	e.style['scroll-timeline-name'] = "none, none" should set the property value
+Pass	e.style['scroll-timeline-name'] = "--a, none, --b" should set the property value
+Pass	e.style['scroll-timeline-name'] = "auto" should not set the property value
+Pass	e.style['scroll-timeline-name'] = "abc" should not set the property value
+Pass	e.style['scroll-timeline-name'] = "default" should not set the property value
+Pass	e.style['scroll-timeline-name'] = "10px" should not set the property value
+Pass	e.style['scroll-timeline-name'] = "foo bar" should not set the property value
+Pass	e.style['scroll-timeline-name'] = "\"foo\" \"bar\"" should not set the property value
+Pass	e.style['scroll-timeline-name'] = "rgb(1, 2, 3)" should not set the property value
+Pass	e.style['scroll-timeline-name'] = "#fefefe" should not set the property value

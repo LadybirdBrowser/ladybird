@@ -1,0 +1,64 @@
+*.swo
+*.swp
+*.config
+*.creator
+*.creator.user
+*.creator.user.*
+*.files
+*.includes
+*.cflags
+*.cxxflags
+*.autosave
+build*/
+Build*/
+Toolchain/Tarballs
+Toolchain/Build
+Toolchain/Local
+.vscode
+.vs
+.ccls-cache
+compile_commands.json
+.cache
+.clang_complete
+.idea/
+cmake-build-debug/
+output/
+.vim/
+.exrc
+.helix/
+.flatpak-builder/
+
+# Environments
+.venv/
+.venv*/
+venv*/
+
+# Gradle/AndroidStudio
+.gradle/
+.cxx/
+local.properties
+# We can't build from cmd.exe anyway
+gradlew.bat
+
+Libraries/LibWasm/Tests/Fixtures/SpecTests
+Libraries/LibWasm/Tests/Spec
+
+Tests/LibWeb/WPT/wpt
+Tests/LibWeb/WPT/metadata
+Tests/LibWeb/WPT/MANIFEST.json
+
+test-dumps
+
+# HTTP Test server artifacts from ./Tests/LibWeb/Fixtures/http-test-server.py
+http-test-server.pid.txt
+http-test-server.log
+
+Meta/CMake/vcpkg/user-variables.cmake
+
+# Ensure that all files in /Base can be tracked, even if they match one of the above rules
+!/Base/**
+
+# Keep last to ensure .DS_Store is never tracked, even if otherwise allowed by any exception above.
+.DS_Store
+
+__pycache__

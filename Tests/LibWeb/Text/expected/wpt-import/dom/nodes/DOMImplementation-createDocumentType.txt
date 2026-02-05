@@ -1,0 +1,87 @@
+Harness status: OK
+
+Found 82 tests
+
+82 Pass
+Pass	DOMImplementation.createDocumentType(qualifiedName, publicId, systemId)
+Pass	createDocumentType("", "", "") should work
+Pass	createDocumentType("test:root", "1234", "") should work
+Pass	createDocumentType("test:root", "1234", "test") should work
+Pass	createDocumentType("test:root", "test", "") should work
+Pass	createDocumentType("test:root", "test", "test") should work
+Pass	createDocumentType("_:_", "", "") should work
+Pass	createDocumentType("_:h0", "", "") should work
+Pass	createDocumentType("_:test", "", "") should work
+Pass	createDocumentType("_:_.", "", "") should work
+Pass	createDocumentType("_:a-", "", "") should work
+Pass	createDocumentType("l_:_", "", "") should work
+Pass	createDocumentType("ns:_0", "", "") should work
+Pass	createDocumentType("ns:a0", "", "") should work
+Pass	createDocumentType("ns0:test", "", "") should work
+Pass	createDocumentType("ns:EEE.", "", "") should work
+Pass	createDocumentType("ns:_-", "", "") should work
+Pass	createDocumentType("a.b:c", "", "") should work
+Pass	createDocumentType("a-b:c.j", "", "") should work
+Pass	createDocumentType("a-b:c", "", "") should work
+Pass	createDocumentType("foo", "", "") should work
+Pass	createDocumentType("1foo", "", "") should work
+Pass	createDocumentType("foo1", "", "") should work
+Pass	createDocumentType("f1oo", "", "") should work
+Pass	createDocumentType("@foo", "", "") should work
+Pass	createDocumentType("foo@", "", "") should work
+Pass	createDocumentType("f@oo", "", "") should work
+Pass	createDocumentType("edi:{", "", "") should work
+Pass	createDocumentType("edi:}", "", "") should work
+Pass	createDocumentType("edi:~", "", "") should work
+Pass	createDocumentType("edi:'", "", "") should work
+Pass	createDocumentType("edi:!", "", "") should work
+Pass	createDocumentType("edi:@", "", "") should work
+Pass	createDocumentType("edi:#", "", "") should work
+Pass	createDocumentType("edi:$", "", "") should work
+Pass	createDocumentType("edi:%", "", "") should work
+Pass	createDocumentType("edi:^", "", "") should work
+Pass	createDocumentType("edi:&", "", "") should work
+Pass	createDocumentType("edi:*", "", "") should work
+Pass	createDocumentType("edi:(", "", "") should work
+Pass	createDocumentType("edi:)", "", "") should work
+Pass	createDocumentType("edi:+", "", "") should work
+Pass	createDocumentType("edi:=", "", "") should work
+Pass	createDocumentType("edi:[", "", "") should work
+Pass	createDocumentType("edi:]", "", "") should work
+Pass	createDocumentType("edi:\\", "", "") should work
+Pass	createDocumentType("edi:/", "", "") should work
+Pass	createDocumentType("edi:;", "", "") should work
+Pass	createDocumentType("edi:`", "", "") should work
+Pass	createDocumentType("edi:<", "", "") should work
+Pass	createDocumentType("edi:>", "", "") should throw INVALID_CHARACTER_ERR
+Pass	createDocumentType("edi:,", "", "") should work
+Pass	createDocumentType("edi:a ", "", "") should throw INVALID_CHARACTER_ERR
+Pass	createDocumentType("edi:\"", "", "") should work
+Pass	createDocumentType("{", "", "") should work
+Pass	createDocumentType("}", "", "") should work
+Pass	createDocumentType("'", "", "") should work
+Pass	createDocumentType("~", "", "") should work
+Pass	createDocumentType("`", "", "") should work
+Pass	createDocumentType("@", "", "") should work
+Pass	createDocumentType("#", "", "") should work
+Pass	createDocumentType("$", "", "") should work
+Pass	createDocumentType("%", "", "") should work
+Pass	createDocumentType("^", "", "") should work
+Pass	createDocumentType("&", "", "") should work
+Pass	createDocumentType("*", "", "") should work
+Pass	createDocumentType("(", "", "") should work
+Pass	createDocumentType(")", "", "") should work
+Pass	createDocumentType("f:oo", "", "") should work
+Pass	createDocumentType(":foo", "", "") should work
+Pass	createDocumentType("foo:", "", "") should work
+Pass	createDocumentType("prefix::local", "", "") should work
+Pass	createDocumentType("foo", "foo", "") should work
+Pass	createDocumentType("foo", "", "foo") should work
+Pass	createDocumentType("foo", "f'oo", "") should work
+Pass	createDocumentType("foo", "", "f'oo") should work
+Pass	createDocumentType("foo", "f\"oo", "") should work
+Pass	createDocumentType("foo", "", "f\"oo") should work
+Pass	createDocumentType("foo", "f'o\"o", "") should work
+Pass	createDocumentType("foo", "", "f'o\"o") should work
+Pass	createDocumentType("foo", "foo>", "") should work
+Pass	createDocumentType("foo", "", "foo>") should work

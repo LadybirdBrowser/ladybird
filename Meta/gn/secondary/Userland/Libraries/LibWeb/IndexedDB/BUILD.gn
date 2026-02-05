@@ -1,0 +1,14 @@
+source_set("IndexedDB") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+
+  sources = [
+    "IDBFactory.cpp",
+    "IDBFactory.h",
+    "IDBOpenDBRequest.cpp",
+    "IDBOpenDBRequest.h",
+    "IDBRequest.cpp",
+    "IDBRequest.h",
+  ]
+}

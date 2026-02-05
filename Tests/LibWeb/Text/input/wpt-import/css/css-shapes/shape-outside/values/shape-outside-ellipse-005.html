@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Ellipse Valid Radii - length units</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-ellipse">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="An ellipse's radii may be in any valid length unit.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+        <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+            setup({explicit_done: true});
+            generate_tests(ParsingUtils.testInlineStyle, ParsingUtils.buildRadiiTests('ellipse', 'lengthUnit + inline', ParsingUtils.validUnits));
+            ParsingUtils.setupFonts();
+            document.fonts.load("10px Ahem").then(()=> {
+                generate_tests(ParsingUtils.testComputedStyle,
+                                ParsingUtils.buildRadiiTests('ellipse', 'lengthUnit + computed', ParsingUtils.validUnits));
+                ParsingUtils.restoreFonts();
+                done();
+            });
+        </script>
+    </body>
+</html>

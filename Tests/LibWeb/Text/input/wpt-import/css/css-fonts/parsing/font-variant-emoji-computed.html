@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: getComputedStyle().fontVariantEmoji</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-variant-emoji-prop">
+<meta name="assert" content="font-variant-emoji computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value('font-variant-emoji', 'normal');
+test_computed_value('font-variant-emoji', 'text');
+test_computed_value('font-variant-emoji', 'emoji');
+test_computed_value('font-variant-emoji', 'unicode');
+</script>
+</body>
+</html>

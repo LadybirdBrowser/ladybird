@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Dominik Röttsches" href="drott@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-font-loading/#font-face-load">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/4510">
+<meta name="assert" content="Ensure that an empty font family name loads and resolves to array." />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+promise_test(function(t) {
+  var testFontFace = new FontFace('a', 'url(a)');
+  document.fonts.add(testFontFace);
+  return document.fonts.load("1px \"\"").then(function(result) {
+    assert_true(Array.isArray(result),
+                "Resolved promise's value must be an array.") });
+})
+</script>
+</html>

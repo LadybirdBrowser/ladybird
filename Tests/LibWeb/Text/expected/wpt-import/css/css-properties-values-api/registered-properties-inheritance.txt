@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+2 Pass
+6 Fail
+Fail	Registered properties are correctly inherited (or not) depending on the inherits flag.
+Fail	Explicitly inheriting from a parent with an invalid value results in initial value.
+Pass	Explicitly inheriting from a parent with no value results in initial value.
+Pass	Explicitly inheriting from a parent with a value results in that value.
+Fail	Reference to undefined variable results in inherited value
+Fail	Reference to syntax-incompatible variable results in inherited value
+Fail	Font-relative units are absolutized before before inheritance
+Fail	Calc expressions are resolved before inheritance

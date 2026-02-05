@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	e.style['transition'] = "1s" should set the property value
+Pass	e.style['transition'] = "cubic-bezier(0, -2, 1, 3)" should set the property value
+Pass	e.style['transition'] = "1s -3s" should set the property value
+Pass	e.style['transition'] = "none" should set the property value
+Pass	e.style['transition'] = "top" should set the property value
+Pass	e.style['transition'] = "1s -3s cubic-bezier(0, -2, 1, 3) top" should set the property value
+Pass	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should set the property value
+Pass	e.style['transition'] = "all" should set the property value
+Pass	e.style['transition'] = "all 1s" should set the property value
+Pass	e.style['transition'] = "initial" should set the property value

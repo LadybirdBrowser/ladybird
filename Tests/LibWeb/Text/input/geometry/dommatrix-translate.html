@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Translate DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).translateSelf(25, 25));
+
+        // 2. Translate DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().translate(25, 25)));
+
+        // 3. Translate DOMMatrix with preMultiplySelf
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).preMultiplySelf(new DOMMatrix().translate(25, 25)));
+
+        // 4. Translate DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).translateSelf(50, 50));
+
+        // 5. Translate DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).multiply(new DOMMatrix().translate(50, 50)));
+
+        // 6. Translate DOMMatrix with preMultiplySelf
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).preMultiplySelf(new DOMMatrix().translate(50, 50)));
+    });
+</script>

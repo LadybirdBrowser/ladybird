@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // We need an actual XML document to test this.
+        const svgstr = `<svg xmlns="http://www.w3.org/2000/svg">PASS</svg>`;
+        const svg = new DOMParser().parseFromString(svgstr, "image/svg+xml").documentElement;
+        println(svg.innerHTML);
+    });
+</script>

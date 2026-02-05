@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['text-shadow'] = "auto" should not set the property value
+Pass	e.style['text-shadow'] = "10px 20px -30px" should not set the property value
+Pass	e.style['text-shadow'] = "10px" should not set the property value
+Pass	e.style['text-shadow'] = "10px 20px 30px 40px" should not set the property value
+Pass	e.style['text-shadow'] = "red 10px 20px blue" should not set the property value
+Pass	e.style['text-shadow'] = "10% 20px" should not set the property value
+Pass	e.style['text-shadow'] = "10px 20% 30px" should not set the property value
+Pass	e.style['text-shadow'] = "lime 10px 20px 30%" should not set the property value

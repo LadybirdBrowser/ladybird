@@ -1,0 +1,31 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 28 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 12 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 12 0+0+772] [0+0+0 12 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,8] table-box [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,10] table-row-group [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] children: not-inline
+            Box <tr> at [10,10] table-row [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] children: not-inline
+              BlockContainer <td> at [11,11] table-cell [0+0+1 6 1+0+0] [0+0+1 6 1+0+0] [BFC] children: not-inline
+                TableWrapper <(anonymous)> at [11,11] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+                  Box <table> at [11,11] table-box [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [TFC] children: not-inline
+                    Box <tbody> at [13,13] table-row-group [0+0+0 2 0+0+0] [0+0+0 2 0+0+0] children: not-inline
+                      Box <tr> at [13,13] table-row [0+0+0 2 0+0+0] [0+0+0 2 0+0+0] children: not-inline
+                        BlockContainer <td> at [14,14] table-cell [0+0+1 0 1+0+0] [0+0+1 0 1+0+0] [BFC] children: inline
+                          TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x28]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x12]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 12x12]
+        PaintableBox (Box<TABLE>) [8,8 12x12]
+          PaintableBox (Box<TBODY>) [10,10 8x8]
+            PaintableBox (Box<TR>) [10,10 8x8]
+              PaintableWithLines (BlockContainer<TD>) [10,10 8x8]
+                PaintableWithLines (TableWrapper(anonymous)) [11,11 6x6]
+                  PaintableBox (Box<TABLE>) [11,11 6x6]
+                    PaintableBox (Box<TBODY>) [13,13 2x2]
+                      PaintableBox (Box<TR>) [13,13 2x2]
+                        PaintableWithLines (BlockContainer<TD>) [13,13 2x2]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x28] [children: 0] (z-index: auto)

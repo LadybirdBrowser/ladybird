@@ -1,0 +1,153 @@
+/*
+ * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/IDBDatabasePrototype.h>
+#include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/HTML/DOMStringList.h>
+#include <LibWeb/IndexedDB/ConnectionState.h>
+#include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/IDBTransaction.h>
+#include <LibWeb/IndexedDB/Internal/Database.h>
+#include <LibWeb/IndexedDB/Internal/ObjectStore.h>
+#include <LibWeb/StorageAPI/StorageKey.h>
+
+namespace Web::IndexedDB {
+
+using KeyPath = Variant<String, Vector<String>>;
+
+// https://w3c.github.io/IndexedDB/#dictdef-idbobjectstoreparameters
+struct IDBObjectStoreParameters {
+    Optional<KeyPath> key_path;
+    bool auto_increment { false };
+};
+
+// https://w3c.github.io/IndexedDB/#dictdef-idbtransactionoptions
+struct IDBTransactionOptions {
+    Bindings::IDBTransactionDurability durability = Bindings::IDBTransactionDurability::Default;
+};
+
+// https://w3c.github.io/IndexedDB/#IDBDatabase-interface
+// https://www.w3.org/TR/IndexedDB/#database-connection
+class IDBDatabase : public DOM::EventTarget {
+    WEB_PLATFORM_OBJECT(IDBDatabase, DOM::EventTarget);
+    GC_DECLARE_ALLOCATOR(IDBDatabase);
+
+public:
+    virtual ~IDBDatabase() override;
+
+    [[nodiscard]] static GC::Ref<IDBDatabase> create(JS::Realm&, Database&);
+
+    void set_version(u64 version) { m_version = version; }
+    void set_close_pending(bool close_pending) { m_close_pending = close_pending; }
+    void set_state(ConnectionState state);
+
+    [[nodiscard]] String uuid() const { return m_uuid; }
+    [[nodiscard]] String name() const { return m_name; }
+    [[nodiscard]] u64 version() const { return m_version; }
+    [[nodiscard]] bool close_pending() const { return m_close_pending; }
+    [[nodiscard]] ConnectionState state() const { return m_state; }
+    [[nodiscard]] GC::Ref<Database> associated_database() { return m_associated_database; }
+    [[nodiscard]] ReadonlySpan<GC::Ref<ObjectStore>> object_store_set() { return m_object_store_set; }
+    void add_to_object_store_set(GC::Ref<ObjectStore> object_store) { m_object_store_set.append(object_store); }
+    void remove_from_object_store_set(GC::Ref<ObjectStore> object_store)
+    {
+        m_object_store_set.remove_first_matching([&](auto& entry) { return entry == object_store; });
+    }
+
+    [[nodiscard]] ReadonlySpan<GC::Ref<IDBTransaction>> transactions() { return m_transactions; }
+    void add_transaction(GC::Ref<IDBTransaction> transaction) { m_transactions.append(transaction); }
+
+    [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
+    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(String const&, IDBObjectStoreParameters const&);
+    WebIDL::ExceptionOr<void> delete_object_store(String const&);
+
+    WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> transaction(Variant<String, Vector<String>>, Bindings::IDBTransactionMode = Bindings::IDBTransactionMode::Readonly, IDBTransactionOptions = { .durability = Bindings::IDBTransactionDurability::Default });
+
+    void close();
+
+    void set_onabort(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onabort();
+    void set_onclose(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onclose();
+    void set_onerror(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onerror();
+    void set_onversionchange(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onversionchange();
+
+    void register_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
+    void unregister_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
+
+    void wait_for_transactions_to_finish(ReadonlySpan<GC::Ref<IDBTransaction>>, GC::Ref<GC::Function<void()>> on_complete);
+
+protected:
+    explicit IDBDatabase(JS::Realm&, Database&);
+
+    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor& visitor) override;
+
+private:
+    template<typename GetNotifier, typename... Args>
+    void notify_each_database_observer(GetNotifier&& get_notifier, Args&&... args)
+    {
+        ScopeGuard guard { [&]() { m_database_observers_being_notified.clear_with_capacity(); } };
+        m_database_observers_being_notified.ensure_capacity(m_database_observers.size());
+
+        for (auto observer : m_database_observers)
+            m_database_observers_being_notified.unchecked_append(observer);
+
+        for (auto database_observer : m_database_observers_being_notified) {
+            if (auto notifier = get_notifier(*database_observer))
+                notifier->function()(forward<Args>(args)...);
+        }
+    }
+
+    // IDBDatabase should not visit IDBDatabaseObserver to avoid leaks.
+    // It's responsibility of object that requires IDBDatabaseObserver to keep it alive.
+    HashTable<GC::RawRef<IDBDatabaseObserver>> m_database_observers;
+    Vector<GC::Ref<IDBDatabaseObserver>> m_database_observers_being_notified;
+
+    struct TransactionFinishState final : public GC::Cell {
+        GC_CELL(TransactionFinishState, GC::Cell);
+        GC_DECLARE_ALLOCATOR(TransactionFinishState);
+
+        virtual void visit_edges(Visitor& visitor) override;
+
+        void add_transaction_to_observe(GC::Ref<IDBTransaction> transaction);
+
+        Vector<GC::Ref<IDBTransactionObserver>> transaction_observers;
+        GC::Ptr<GC::Function<void()>> after_all;
+    };
+
+    Vector<GC::Ref<TransactionFinishState>> m_transaction_finish_queue;
+
+    u64 m_version { 0 };
+    String m_name;
+
+    // Each connection has a close pending flag which is initially false.
+    bool m_close_pending { false };
+
+    // When a connection is initially created it is in an opened state.
+    ConnectionState m_state { ConnectionState::Open };
+
+    // A connection has an object store set, which is initialized to the set of object stores in the associated database when the connection is created.
+    // The contents of the set will remain constant except when an upgrade transaction is live.
+    Vector<GC::Ref<ObjectStore>> m_object_store_set;
+
+    // NOTE: There is an associated database in the spec, but there is no mention where it is assigned, nor where its from
+    //       So we stash the one we have when opening a connection.
+    GC::Ref<Database> m_associated_database;
+
+    // NOTE: We need to keep track of what transactions were created by this connection
+    Vector<GC::Ref<IDBTransaction>> m_transactions;
+
+    // NOTE: Used for debug purposes
+    String m_uuid;
+};
+
+}

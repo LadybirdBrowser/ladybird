@@ -1,0 +1,105 @@
+Harness status: OK
+
+Found 61 tests
+
+57 Pass
+4 Fail
+Pass	headingoffset (set via attribute) should change the level a heading matches against
+Pass	headingoffset (set via attribute) should change the level when a parent changes offset
+Pass	headingoffset (set via property) should change the level a heading matches against
+Pass	headingoffset (set via property) should change the level when a parent changes offset
+Fail	headingoffset should not impact modals or explicit headingreset containers
+Pass	case 1: heading level for <h1 data-expected-offset="2"><!-- Level 2, h1 + 1 = 2 --></h1> should match based on expected document structure
+Pass	case 2: heading level for <h2 data-expected-offset="3"><!-- Level 3, h2 + 1 = 3 --></h2> should match based on expected document structure
+Pass	case 3: heading level for <h3 data-expected-offset="4"><!-- Level 4, h3 + 1 = 4 --></h3> should match based on expected document structure
+Pass	case 4: heading level for <h1 data-expected-offset="4"><!-- Level 4, h1 + 2 + 1 = 4 --></h1> should match based on expected document structure
+Pass	case 5: heading level for <h2 data-expected-offset="5"><!-- Level 5, h2 + 2 + 1 = 5 --></h2> should match based on expected document structure
+Pass	case 6: heading level for <h1 data-expected-offset="1"><!-- Level 1, h1 (headingreset)--></h1> should match based on expected document structure
+Pass	case 7: heading level for <h1 data-expected-offset="4"><!-- Level 4, h1 + 2 + 1 = 4 --></h1> should match based on expected document structure
+Pass	case 8: heading level for <h1 data-expected-offset="1" headingreset="">
+        <!-- Level 1, h1 (headingreset) -->
+      </h1> should match based on expected document structure
+Pass	case 9: heading level for <h1 data-expected-offset="9"><!-- Level 9, h1 + 8 --></h1> should match based on expected document structure
+Pass	case 10: heading level for <h2 data-expected-offset="9"><!-- Level 9, h2 + 8 (clamped) --></h2> should match based on expected document structure
+Pass	case 11: heading level for <h3 data-expected-offset="9"><!-- Level 9, h3 + 8 (clamped) --></h3> should match based on expected document structure
+Pass	case 12: heading level for <h4 data-expected-offset="9"><!-- Level 9, h4 + 8 (clamped) --></h4> should match based on expected document structure
+Pass	case 13: heading level for <h5 data-expected-offset="9"><!-- Level 9, h5 + 8 (clamped) --></h5> should match based on expected document structure
+Pass	case 14: heading level for <h6 data-expected-offset="9"><!-- Level 9, h6 + 8 (clamped) --></h6> should match based on expected document structure
+Pass	case 15: heading level for <h1 data-expected-offset="1"><!-- Level 1, h1 (headingreset)--></h1> should match based on expected document structure
+Pass	case 16: heading level for <h1 data-expected-offset="9"><!-- Level 9, h1 + 8 --></h1> should match based on expected document structure
+Pass	case 17: heading level for <h1 data-expected-offset="1"><!-- Level 1, h1 + (-3 clamped to 0) --></h1> should match based on expected document structure
+Pass	case 18: heading level for <h2 data-expected-offset="2"><!-- Level 2, h2 + (-3 clamped to 0) --></h2> should match based on expected document structure
+Pass	case 19: heading level for <h3 data-expected-offset="3"><!-- Level 3, h3 + (-3 clamped to 0) --></h3> should match based on expected document structure
+Pass	case 20: heading level for <h4 data-expected-offset="4"><!-- Level 4, h4 + (-3 clamped to 0) --></h4> should match based on expected document structure
+Pass	case 21: heading level for <h5 data-expected-offset="5"><!-- Level 5, h5 + (-3 clamped to 0) --></h5> should match based on expected document structure
+Pass	case 22: heading level for <h6 data-expected-offset="6"><!-- Level 6, h6 + (-3 clamped to 0) --></h6> should match based on expected document structure
+Pass	case 23: heading level for <h1 data-expected-offset="1"><!-- Level 1, h1 (headingreset)--></h1> should match based on expected document structure
+Pass	case 24: heading level for <h1 data-expected-offset="1"><!-- Level 1, h1 + (-3 clamped to 0) --></h1> should match based on expected document structure
+Pass	case 25: heading level for <h1 data-expected-offset="5"><!-- Level 5, h1 + 2 + 2 = 5 --></h1> should match based on expected document structure
+Pass	case 26: heading level for <h2 data-expected-offset="6"><!-- Level 6, h2 + 2 + 2 = 6 --></h2> should match based on expected document structure
+Pass	case 27: heading level for <h3 data-expected-offset="7"><!-- Level 7, h3 + 2 + 2 = 7 --></h3> should match based on expected document structure
+Pass	case 28: heading level for <h4 data-expected-offset="8"><!-- Level 8, h4 + 2 + 2 = 8 --></h4> should match based on expected document structure
+Pass	case 29: heading level for <h5 data-expected-offset="9"><!-- Level 9, h5 + 2 + 2 = 9 --></h5> should match based on expected document structure
+Pass	case 30: heading level for <h6 data-expected-offset="9">
+        <!-- Level 9, h6 + 2 + 2 = (10 clamped to 9) -->
+      </h6> should match based on expected document structure
+Pass	case 31: heading level for <h1 data-expected-offset="3" headingoffset="2" headingreset="">
+        <!-- Level 3, h1 + 2 + (headingreset) -->
+      </h1> should match based on expected document structure
+Pass	case 32: heading level for <h2 data-expected-offset="4" headingoffset="2" headingreset="">
+        <!-- Level 4, h2 + 2 + (headingreset) -->
+      </h2> should match based on expected document structure
+Fail	case 33: heading level for <h2 data-expected-offset="4"><!-- Level 4, h2 + 1 + 1 --></h2> should match based on expected document structure
+Fail	case 34: heading level for <h4 data-expected-offset="6"><!-- Level 6, h4 + 1 + 1 --></h4> should match based on expected document structure
+Pass	case 35: heading level for <h4 data-expected-offset="4" headingreset="">
+    <!-- Level 4, h4 (headingreset) -->
+  </h4> should match based on expected document structure
+Fail	case 36: heading level for <h2 data-expected-offset="4"><!-- Level 4, h2 + 1 + 1 --></h2> should match based on expected document structure
+Pass	case 37: heading level for <h1 data-expected-offset="2" headingoffset="1"><!-- Level 2, h1 + 1 --></h1> should match based on expected document structure
+Pass	case 38: heading level for <h2 data-expected-offset="3" headingoffset="1"><!-- Level 3, h2 + 1 --></h2> should match based on expected document structure
+Pass	case 39: heading level for <h1 data-expected-offset="3" headingoffset="2"><!-- Level 3, h1 + 2--></h1> should match based on expected document structure
+Pass	case 40: heading level for <h2 data-expected-offset="4" headingoffset="2"><!-- Level 4, h2 + 2 --></h2> should match based on expected document structure
+Pass	case 41: heading level for <h1 data-expected-offset="2" headingoffset="1" headingreset="">
+  <!-- Level 2, h1 + 1 (headingreset) -->
+</h1> should match based on expected document structure
+Pass	case 42: heading level for <h2 data-expected-offset="3" headingoffset="1" headingreset="">
+  <!-- Level 3, h2 + 1 (headingreset) -->
+</h2> should match based on expected document structure
+Pass	case 43: heading level for <h1 data-expected-offset="3" headingoffset="2" headingreset="">
+  <!-- Level 3, h1 + 2 (headingreset) -->
+</h1> should match based on expected document structure
+Pass	case 44: heading level for <h2 data-expected-offset="4" headingoffset="2" headingreset="">
+  <!-- Level 4, h2 + 2 (headingreset) -->
+</h2> should match based on expected document structure
+Pass	case 45: heading level for <h1 data-expected-offset="9" headingoffset="20" headingreset="">
+  <!-- Level 9, h1 + 20 (clamped)  -->
+</h1> should match based on expected document structure
+Pass	case 46: heading level for <h2 data-expected-offset="9" headingoffset="20" headingreset="">
+  <!-- Level 9, h2 + 20 (clamped) -->
+</h2> should match based on expected document structure
+Pass	case 47: heading level for <h1 data-expected-offset="1" headingoffset="0" headingreset="">
+  <!-- Level 1, h1 + 0 -->
+</h1> should match based on expected document structure
+Pass	case 48: heading level for <h2 data-expected-offset="2" headingoffset="0" headingreset="">
+  <!-- Level 2, h2 + 0 -->
+</h2> should match based on expected document structure
+Pass	case 49: heading level for <h1 data-expected-offset="2" headingoffset="1"><!-- Level 2, h1 + 1 --></h1> should match based on expected document structure
+Pass	case 50: heading level for <h2 data-expected-offset="3" headingoffset="1"><!-- Level 3, h2 + 1 --></h2> should match based on expected document structure
+Pass	case 51: heading level for <h1 data-expected-offset="2" headingoffset="1" headingreset="">
+    <!-- Level 2, h1 + 1 -->
+  </h1> should match based on expected document structure
+Pass	case 52: heading level for <h2 data-expected-offset="3" headingoffset="1" headingreset="">
+    <!-- Level 3, h2 + 1 -->
+  </h2> should match based on expected document structure
+Pass	case 53: heading level for <h1 data-expected-offset="1" headingoffset="-1" headingreset="">
+    <!-- Level 1, h1 + (-1 clamped to 0) -->
+  </h1> should match based on expected document structure
+Pass	case 54: heading level for <h2 data-expected-offset="2" headingoffset="-1" headingreset="">
+    <!-- Level 2, h2 + (-1 clamped to 0) -->
+  </h2> should match based on expected document structure
+Pass	case 55: heading level for <h1 data-expected-offset="5">
+            <!-- Level 5, h1 + 1 + (-6 clamped to 0) + 3 + (-1 clamped to 0) -->
+          </h1> should match based on expected document structure
+Pass	case 56: heading level for <h1 data-expected-offset="9" headingoffset="9" aria-level="3">
+  <!-- Level 3 -->
+</h1> should match based on expected document structure

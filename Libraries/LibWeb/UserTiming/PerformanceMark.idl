@@ -1,0 +1,14 @@
+#import <PerformanceTimeline/PerformanceEntry.idl>
+
+// https://w3c.github.io/user-timing/#dom-performancemark
+[Exposed=(Window,Worker)]
+interface PerformanceMark : PerformanceEntry {
+    constructor(DOMString markName, optional PerformanceMarkOptions markOptions = {});
+    readonly attribute any detail;
+};
+
+// https://w3c.github.io/user-timing/#ref-for-dom-performancemarkoptions-1
+dictionary PerformanceMarkOptions {
+    any detail;
+    DOMHighResTimeStamp startTime;
+};

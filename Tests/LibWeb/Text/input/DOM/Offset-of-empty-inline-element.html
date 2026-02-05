@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.getElementById("empty");
+        println("Top: " + element.offsetTop);
+        println("Left: " + element.offsetLeft);
+    });
+</script>
+<body>
+    <span id="empty"></span>
+</body>

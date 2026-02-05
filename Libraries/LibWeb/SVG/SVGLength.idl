@@ -1,0 +1,24 @@
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGLength
+[Exposed=Window]
+interface SVGLength {
+    const unsigned short SVG_LENGTHTYPE_UNKNOWN = 0;
+    const unsigned short SVG_LENGTHTYPE_NUMBER = 1;
+    const unsigned short SVG_LENGTHTYPE_PERCENTAGE = 2;
+    const unsigned short SVG_LENGTHTYPE_EMS = 3;
+    const unsigned short SVG_LENGTHTYPE_EXS = 4;
+    const unsigned short SVG_LENGTHTYPE_PX = 5;
+    const unsigned short SVG_LENGTHTYPE_CM = 6;
+    const unsigned short SVG_LENGTHTYPE_MM = 7;
+    const unsigned short SVG_LENGTHTYPE_IN = 8;
+    const unsigned short SVG_LENGTHTYPE_PT = 9;
+    const unsigned short SVG_LENGTHTYPE_PC = 10;
+
+    readonly attribute unsigned short unitType;
+
+    attribute float value;
+    [FIXME] attribute float valueInSpecifiedUnits;
+    [FIXME] attribute DOMString valueAsString;
+
+    [FIXME] undefined newValueSpecifiedUnits(unsigned short unitType, float valueInSpecifiedUnits);
+    [FIXME] undefined convertToSpecifiedUnits(unsigned short unitType);
+};

@@ -1,0 +1,12 @@
+style.cssText = background: yellow;
+style.length = 9
+style[] =
+1. background-color
+2. background-image
+3. background-position-x
+4. background-position-y
+5. background-size
+6. background-repeat
+7. background-attachment
+8. background-origin
+9. background-clip

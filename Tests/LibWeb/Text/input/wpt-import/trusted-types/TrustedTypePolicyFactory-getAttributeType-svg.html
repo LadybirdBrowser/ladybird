@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+
+<body>
+<div id="target"></div>
+<script>
+  test(t => {
+    assert_equals(trustedTypes.getAttributeType("script", "href"), null);
+  }, "trustedTypes.getAttributeType html script[href]");
+  test(t => {
+    assert_equals(trustedTypes.getAttributeType("script", "href", "http://www.w3.org/2000/svg"), "TrustedScriptURL");
+  }, "trustedTypes.getAttributeType svg script[href]");
+  test(t => {
+    assert_equals(trustedTypes.getAttributeType("script", "href", "http://www.w3.org/2000/svg", "http://www.w3.org/1999/xlink"), "TrustedScriptURL");
+  }, "trustedTypes.getAttributeType svg script[href] xlink href");
+  test(t => {
+    assert_equals(trustedTypes.getAttributeType("script", "href", "http://www.w3.org/2000/svg", "http://www.w3.org/other"), null);
+  }, "trustedTypes.getAttributeType svg script[href] other href");
+</script>
+</body>

@@ -1,0 +1,6 @@
+element.classList initial value: ""
+element.classList after setting classList to "a": "a"
+element.classList after setting className to "": ""
+element.classList after setting to className to "a a b c": "a a b c"
+element.classList after setting to className to "   a a b c ": "   a a b c "
+element.classList.replace(" ", "") throws "SyntaxError"

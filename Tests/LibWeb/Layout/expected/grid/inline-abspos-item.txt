@@ -1,0 +1,37 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 537 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 521 0+0+8] children: not-inline
+      Box <div.grid> at [18,117] positioned [4+6+0 550 0+3+221] [1+9+100 400 0+12+3] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [18,117] [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 5, length: 1, rect: [18,117 11.5625x18] baseline: 13.796875
+              "X"
+          frag 1 from TextNode start: 0, length: 2, rect: [18,135 23.125x18] baseline: 13.796875
+              "XX"
+          TextNode <#text> (not painted)
+          BreakNode <br> (not painted)
+          TextNode <#text> (not painted)
+          BlockContainer <div.abspos> at [41.125,135] positioned [0+0+0 23.125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 2, rect: [41.125,135 23.125x18] baseline: 13.796875
+                "XX"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,532] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x537]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x521]
+      PaintableBox (Box<DIV>.grid) [12,8 559x521]
+        PaintableWithLines (BlockContainer<DIV>) [18,117 200x150]
+          TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.abspos) [41.125,135 23.125x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,532 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x537] [children: 0] (z-index: auto)

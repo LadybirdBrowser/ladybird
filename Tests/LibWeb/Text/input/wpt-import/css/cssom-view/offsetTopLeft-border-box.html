@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlelement-interface">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+
+.container {
+  position: relative;
+  font: 20px/1 Ahem;
+  width: 150px;
+  height: 100px;
+  padding: 2px 10px;
+  border-width: 3px 6px;
+  border-style: solid;
+  box-sizing: border-box;
+}
+
+.target { background: grey; }
+.hl { writing-mode:horizontal-tb; }
+.vlr { writing-mode:vertical-lr; }
+</style>
+<div id=tests>
+<div class="container hl">
+  <span class="target">x</span>
+</div>
+<div class="container vlr">
+  <span class="target">x</span>
+</div>
+<div class="container hl">
+  <div class="target">x</div>
+</div>
+<div class="container vlr">
+  <div class="target">x</div>
+</div>
+</div>
+<script>
+setup({explicit_done: true});
+onload = () => {
+  // Clone the above tests for the following 'display' types:
+  let display = ['inline-block', 'grid', 'inline-grid', 'flex', 'inline-flex', 'flow-root' ];
+  let tests = document.querySelector('#tests');
+  display.forEach((display) => {
+    let t = tests.cloneNode(true);
+    [...t.children].forEach((child) => {
+      child.setAttribute("style", "display:"+display);
+    });
+    document.body.appendChild(t);
+  });
+  // Check that all of them return an offset relative the padding edge.
+  var i = 0;
+  document.querySelectorAll('.target').forEach((target) => {
+    test(() => {
+      assert_equals(target.offsetLeft, 10, 'offsetLeft');
+      assert_equals(target.offsetTop, 2, 'offsetTop');
+    }, 'container: ' + i);
+    i++;
+  });
+  done();
+};
+</script>

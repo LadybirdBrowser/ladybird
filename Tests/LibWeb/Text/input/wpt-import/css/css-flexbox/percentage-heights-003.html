@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: Resolving relative height content within a flex container against flexed size</title>
+<link rel="author" title="Microsoft" href="https://www.microsoft.com/" />
+<link rel="author" title="Greg Whitworth" href="gwhit@microsoft.com" />
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#definite-sizes" />
+<link rel="issue" href="https://github.com/w3c/csswg-drafts/issues/1679" />
+<meta name="assert" content="This test checks that percentage heights of content within a flex item are resolved against the flexed item" />
+
+<style>
+.flexbox {
+    display: flex;
+    min-height: 100%;
+}
+
+.column {
+    flex-flow: column;
+}
+
+.column-wrap {
+    flex-flow: column wrap;
+}
+
+.flexbox > div {
+    background: teal;
+    flex-grow: 1;
+}
+
+.flexbox span {
+    height: 100%;
+    background: orange;
+    display: block;
+}
+.vert-wm {
+    writing-mode: vertical-rl;
+}
+.horiz-wm {
+    writing-mode: horizontal-tb;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<!-- The wrapper divs are here to give the flexbox something to fill  -->
+
+<!-- definite unwrapped column flexbox -->
+<div style="height: 100px;">
+    <div class="flexbox column" style="height: 0">
+        <div>
+            <span data-expected-height="100"></span>
+        </div>
+    </div>
+</div>
+
+<!-- definite wrapped column flexbox -->
+<div style="height: 100px;">
+    <div class="flexbox column-wrap" style="height: 0">
+       <div>
+            <span data-expected-height="50"></span>
+        </div>
+        <div>
+            <span data-expected-height="50"></span>
+        </div>
+    </div>
+</div>
+
+<!-- indefinite unwrapped column flexbox -->
+<div style="height: 100px;">
+    <div class="flexbox column">
+        <div>
+            <span data-expected-height="0"></span>
+        </div>
+    </div>
+</div>
+
+<!-- indefinite unwrapped column flexbox where item doesn't stretch -->
+<div style="height: 100px;">
+    <div class="flexbox column">
+        <div style="align-self: flex-start">
+            <span data-expected-height="0"></span>
+        </div>
+    </div>
+</div>
+
+<!-- indefinite wrapped column flexbox -->
+<div style="height: 100px;">
+    <div class="flexbox column-wrap">
+       <div>
+            <span data-expected-height="0"></span>
+        </div>
+        <div>
+            <span data-expected-height="0"></span>
+        </div>
+    </div>
+</div>
+
+<!-- indefinite unwrapped column flexbox, with orthogonal-flow flex item. The
+     flex item's main size (height) is definite, since it's the item's inline
+     size, and inline sizes always end up definite. -->
+<div style="height: 100px;">
+    <div class="flexbox column">
+        <div class="vert-wm">
+            <span data-expected-height="100"></span>
+        </div>
+    </div>
+</div>
+
+<!-- indefinite unwrapped row-oriented vertical-writing-mode flexbox, with
+     orthogonal-flow (horizontal-writing-mode) flex item. The flex item's
+     height (main size) is definite, since its parent flex container has a
+     definite main size, because the flex container's main axis is its
+     inline-axis and inline sizes are definite. -->
+<div style="height: 100px;">
+    <div class="flexbox vert-wm">
+        <div class="horiz-wm">
+            <span data-expected-height="100"></span>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

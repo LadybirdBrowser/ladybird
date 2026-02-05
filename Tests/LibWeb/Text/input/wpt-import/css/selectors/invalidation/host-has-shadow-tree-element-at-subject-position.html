@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>:host:has(...) to check whether a shadow host has a shadow tree element (subject position)</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<div class="ancestor host_context">
+  <div id="host" class="ancestor">
+    <template shadowrootmode="open">
+      <style>
+        :host:has(.descendant) { color: green; }
+        :host:has(> .child) { color: blue; }
+        :host:has(~ .sibling) { color: yellow; }
+        :host:has(:is(.ancestor .descendant)) { color: purple; }
+        :host:has(.descendant):has(> .child) { color: pink; }
+        :host-context(.host_context):has(> .child > .grand_child) { color: ivory; }
+        :host(.host_context):has(> .child > .grand_child) { color: skyblue; }
+        :host:has(> .child > .grand_child):host(.host_context):has(> .child > .descendant) { color: lightgreen; }
+      </style>
+      <div id="shadow_child">
+        <div id="shadow_descendant"></div>
+      </div>
+    </template>
+    <div class="child">
+      <div class="descendant"></div>
+    </div>
+  </div>
+  <div class="sibling"></div>
+</div>
+
+<script>
+const black = 'rgb(0, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+const blue = 'rgb(0, 0, 255)';
+const yellow = 'rgb(255, 255, 0)';
+const purple = 'rgb(128, 0, 128)';
+const pink = 'rgb(255, 192, 203)';
+const ivory = 'rgb(255, 255, 240)';
+const skyblue = 'rgb(135, 206, 235)';
+const lightgreen = 'rgb(144, 238, 144)';
+
+var shadow_root = host.shadowRoot;
+
+function element(id) {
+  return document.getElementById(id);
+}
+
+function shadow_element(id) {
+  return shadow_root.getElementById(id);
+}
+
+function test_color(test_name, color) {
+  test(function() {
+    assert_equals(getComputedStyle(host).color, color);
+  }, test_name);
+}
+
+function create_div(id, class_name) {
+  let div = document.createElement('div');
+  div.id = id;
+  div.classList.add(class_name);
+  return div
+}
+
+test_color('Initial color', black);
+
+shadow_element('shadow_child').classList.add('descendant');
+test_color(`Add .descendant to #shadow_child`, green);
+
+shadow_element('shadow_child').classList.remove('descendant');
+test_color(`Remove .descendant from #shadow_child`, black);
+
+shadow_element('shadow_descendant').classList.add('descendant');
+test_color(`Add .descendant to #shadow_descendant`, green);
+
+shadow_element('shadow_child').classList.add('ancestor');
+test_color(`Add .ancestor to #shadow_child:has(.descendant)`, purple);
+
+shadow_element('shadow_child').classList.remove('ancestor');
+test_color(`Remove .ancestor from #shadow_child:has(.descendant)`, green);
+
+shadow_element('shadow_child').classList.add('child');
+test_color(`Add .child to #shadow_child:has(.descendant)`, pink);
+
+shadow_element('shadow_child').classList.remove('child');
+test_color(`Remove .child from #shadow_child:has(.descendant)`, green);
+
+shadow_element('shadow_descendant').classList.remove('descendant');
+test_color(`Remove .descendant from #shadow_descendant`, black);
+
+shadow_element('shadow_child').classList.add('child');
+test_color(`Add .child to #shadow_child`, blue);
+
+shadow_element('shadow_descendant').classList.add('grand_child');
+test_color(`Add .grand_child to #shadow_descendant`, ivory);
+
+element('host').classList.add('host_context');
+test_color(`Add .host_context to #host`, skyblue);
+
+shadow_element('shadow_descendant').classList.add('descendant');
+test_color(`Add .descendant to #shadow_descendant.grand_child`, lightgreen);
+
+shadow_element('shadow_descendant').classList.remove('descendant');
+test_color(`Remove .descendant from #shadow_descendant.grand_child`, skyblue);
+
+shadow_element('shadow_descendant').classList.remove('grand_child');
+test_color(`Remove .grand_child from #shadow_descendant`, blue);
+
+shadow_element('shadow_child').classList.remove('child');
+test_color(`Remove .child from #shadow_child`, black);
+
+shadow_element('shadow_descendant').classList.add('child');
+test_color(`Add .child to #shadow_descendant`, black);
+
+shadow_element('shadow_descendant').classList.remove('child');
+test_color(`Remove .child from #shadow_descendant`, black);
+
+div = shadow_root.insertBefore(create_div('first_child', 'descendant'),
+                               shadow_root.firstChild);
+test_color(`Insert #first_child.descendant to shadow root`, green);
+div.remove();
+test_color(`Remove #first_child.descendant from shadow root`, black);
+
+div = shadow_root.insertBefore(create_div('last_child', 'descendant'), null);
+test_color(`Insert #last_child.descendant to shadow root`, green);
+div.remove();
+test_color(`Remove #last_child.descendant from shadow root`, black);
+
+div = shadow_root.insertBefore(create_div('child_in_middle','descendant'),
+                               shadow_element('shadow_child'));
+test_color(`Insert #child_in_middle.descendant before #shadow_child`, green);
+div.remove();
+test_color(`Remove #child_in_middle.descendant from shadow root`, black);
+
+div = shadow_element('shadow_child')
+          .insertBefore(create_div('grand_child','descendant'),
+                        shadow_element('shadow_descendant'));
+test_color(`Insert #grand_child.descendant before #shadow_descendant`, green);
+div.remove();
+test_color(`Remove #grand_child.descendant from shadow tree`, black);
+
+</script>

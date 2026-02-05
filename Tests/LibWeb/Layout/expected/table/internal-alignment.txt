@@ -1,0 +1,28 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 220 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 204 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 204 0+0+0] children: not-inline
+        TableWrapper <(anonymous)> at [300,8] [0+0+0 200 0+0+584] [0+0+0 204 0+0+0] [BFC] children: not-inline
+          Box <table> at [301,9] table-box [0+1+0 198 0+1+0] [0+1+0 202 0+1+0] [TFC] children: not-inline
+            Box <tbody> at [303,11] table-row-group [0+0+0 194 0+0+0] [0+0+0 198 0+0+0] children: not-inline
+              Box <tr> at [303,11] table-row [0+0+0 194 0+0+0] [0+0+0 198 0+0+0] children: not-inline
+                BlockContainer <td> at [304,85] table-cell [0+0+1 192 1+0+0] [0+0+74 50 74+0+0] [BFC] children: not-inline
+                  BlockContainer <p> at [304,101] [0+0+0 192 0+0+0] [16+0+0 18 0+0+16] children: inline
+                    frag 0 from TextNode start: 0, length: 4, rect: [304,101 26.25x18] baseline: 13.796875
+                        "left"
+                    TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x220]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x204]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x204]
+        PaintableWithLines (TableWrapper(anonymous)) [300,8 200x204]
+          PaintableBox (Box<TABLE>) [300,8 200x204]
+            PaintableBox (Box<TBODY>) [303,11 194x198]
+              PaintableBox (Box<TR>) [303,11 194x198]
+                PaintableWithLines (BlockContainer<TD>) [303,11 194x198]
+                  PaintableWithLines (BlockContainer<P>) [304,101 192x18]
+                    TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x220] [children: 0] (z-index: auto)

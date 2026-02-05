@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Deleting a @namespace rule when list contains anything other than @import or @namespace rules should throw InvalidStateError.

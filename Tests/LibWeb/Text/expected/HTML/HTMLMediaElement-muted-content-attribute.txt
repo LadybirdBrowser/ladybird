@@ -1,0 +1,5 @@
+Initial muted state when muted content attribute is present: true
+Changing the muted attribute after object creation changes the muted state: false
+Re-inserting the video element into the document changes the muted state: false
+Re-inserting non-default muted video element into the document changes the muted state: false
+Muted state of a script-created video element after adding the muted content attribute false

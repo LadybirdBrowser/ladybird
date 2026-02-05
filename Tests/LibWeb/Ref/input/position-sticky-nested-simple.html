@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/position-sticky-nested-simple-ref.html" />
+<style>
+    .scrollable-container {
+        width: 400px;
+        height: 200px;
+        overflow-y: scroll;
+        border: 5px solid red;
+    }
+
+    .outer-sticky {
+        position: sticky;
+        top: 0px;
+        width: 350px;
+        height: 100px;
+        background: #3498db;
+    }
+
+    .inner-sticky {
+        position: sticky;
+        top: 30px;
+        width: 200px;
+        height: 40px;
+        background: #e74c3c;
+    }
+
+    .spacer {
+        height: 300px;
+        background-color: orange;
+    }
+</style>
+
+<div class="scrollable-container" id="container">
+    <div class="spacer"></div>
+    <div class="outer-sticky">
+        <div class="inner-sticky"></div>
+    </div>
+    <div class="spacer"></div>
+</div>
+
+<script>
+    // Scroll to a position where outer sticky is stuck at top: 0
+    // and inner sticky is stuck at top: 30px from scrollport
+    document.getElementById("container").scrollTop = 320;
+</script>

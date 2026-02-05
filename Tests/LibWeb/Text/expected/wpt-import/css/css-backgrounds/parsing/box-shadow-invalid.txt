@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 40 tests
+
+40 Pass
+Pass	e.style['box-shadow'] = "auto" should not set the property value
+Pass	e.style['box-shadow'] = "1 2" should not set the property value
+Pass	e.style['box-shadow'] = "1% 2%" should not set the property value
+Pass	e.style['box-shadow'] = "1px calc(2px + 2%)" should not set the property value
+Pass	e.style['box-shadow'] = "1px" should not set the property value
+Pass	e.style['box-shadow'] = "1px 2px 3px 4px 5px" should not set the property value
+Pass	e.style['box-shadow'] = "red 1px 2px blue" should not set the property value
+Pass	e.style['box-shadow'] = "red" should not set the property value
+Pass	e.style['box-shadow'] = "4px red" should not set the property value
+Pass	e.style['box-shadow'] = "red 4px" should not set the property value
+Pass	e.style['box-shadow'] = "-4px red 4px" should not set the property value
+Pass	e.style['box-shadow'] = "red -4px 4px red" should not set the property value
+Pass	e.style['box-shadow'] = "-4px 4px red 0" should not set the property value
+Pass	e.style['box-shadow'] = "-4px 4px 0 red 0" should not set the property value
+Pass	e.style['box-shadow'] = "inset" should not set the property value
+Pass	e.style['box-shadow'] = "inset 4px" should not set the property value
+Pass	e.style['box-shadow'] = "4px inset" should not set the property value
+Pass	e.style['box-shadow'] = "4px inset -4px" should not set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px inset" should not set the property value
+Pass	e.style['box-shadow'] = "4px -4px inset 0" should not set the property value
+Pass	e.style['box-shadow'] = "4px -4px 0 inset 0" should not set the property value
+Pass	e.style['box-shadow'] = "red inset" should not set the property value
+Pass	e.style['box-shadow'] = "inset red" should not set the property value
+Pass	e.style['box-shadow'] = "4px red inset" should not set the property value
+Pass	e.style['box-shadow'] = "red inset 4px" should not set the property value
+Pass	e.style['box-shadow'] = "4px inset red" should not set the property value
+Pass	e.style['box-shadow'] = "inset red 4px" should not set the property value
+Pass	e.style['box-shadow'] = "4px red inset -4px" should not set the property value
+Pass	e.style['box-shadow'] = "4px inset red -4px" should not set the property value
+Pass	e.style['box-shadow'] = "inset 4px red -4px" should not set the property value
+Pass	e.style['box-shadow'] = "4px red 4px inset" should not set the property value
+Pass	e.style['box-shadow'] = "red 4px inset -4px" should not set the property value
+Pass	e.style['box-shadow'] = "4px inset -4px red" should not set the property value
+Pass	e.style['box-shadow'] = "4px -4px red inset 0" should not set the property value
+Pass	e.style['box-shadow'] = "4px -4px inset red 0" should not set the property value
+Pass	e.style['box-shadow'] = "inset 4px -4px red 0" should not set the property value
+Pass	e.style['box-shadow'] = "4px -4px red 0 inset" should not set the property value
+Pass	e.style['box-shadow'] = "red 4px -4px inset 0" should not set the property value
+Pass	e.style['box-shadow'] = "4px -4px inset 0 red" should not set the property value
+Pass	e.style['box-shadow'] = "1px 1px -1px" should not set the property value

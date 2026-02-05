@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	'calc(100px * 0 / 0)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(100px / 0)' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(100px / (0))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(100px / (2 - 2))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(100px / (2 - (-62 + 64)))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(100px * (1 / 0))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(100px * (1 / (0)))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(100px * (1 / (2 - 2)))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(100px * (1 / (2 - (-62 + 64))))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(1px * max(1/0, 0))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(1px * min(1/0, 0))' as a specified value should serialize as 'calc(0px)'.
+Pass	'calc(1px * max(0/0, 0))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * min(0/0, 0))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * max(0/0, min(0,10)))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * clamp(0/0, 0, 10))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * max(0, min(10, 0/0)))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * clamp(0, 10, 0/0))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * max(0, min(0/0, 10)))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * clamp(0, 0/0, 10))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * clamp(-1/0, 0, 1/0))' as a specified value should serialize as 'calc(0px)'.
+Pass	'calc(1px * clamp(-1/0, 1/0, 10))' as a specified value should serialize as 'calc(10px)'.

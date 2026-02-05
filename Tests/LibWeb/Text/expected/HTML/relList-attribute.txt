@@ -1,0 +1,30 @@
+a.relList initial length: 0
+a.relList always returns the same value: true
+a.relList for after setting rel to "whatever": whatever
+a.relList for after setting rel to "prefetch": prefetch
+a.relList contains "prefetch": true
+a.relList contains "whatever": false
+area.relList initial length: 0
+area.relList always returns the same value: true
+area.relList for after setting rel to "whatever": whatever
+area.relList for after setting rel to "prefetch": prefetch
+area.relList contains "prefetch": true
+area.relList contains "whatever": false
+form.relList initial length: 0
+form.relList always returns the same value: true
+form.relList for after setting rel to "whatever": whatever
+form.relList for after setting rel to "prefetch": prefetch
+form.relList contains "prefetch": true
+form.relList contains "whatever": false
+link.relList initial length: 0
+link.relList always returns the same value: true
+link.relList for after setting rel to "whatever": whatever
+link.relList for after setting rel to "prefetch": prefetch
+link.relList contains "prefetch": true
+link.relList contains "whatever": false
+svg.a.relList initial length: 0
+svg.a.relList always returns the same value: true
+svg.a.relList for after setting rel to "whatever": whatever
+svg.a.relList for after setting rel to "prefetch": prefetch
+svg.a.relList contains "prefetch": true
+svg.a.relList contains "whatever": false

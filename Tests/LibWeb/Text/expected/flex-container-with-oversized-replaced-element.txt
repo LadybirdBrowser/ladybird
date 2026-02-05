@@ -1,0 +1,3 @@
+Natural height of image (400px) should be same as computed height (400px).
+Natural width of image (200px) should be same as computed width (200px).
+Computed height of image (400px) should be larger than computed height of container (200px).

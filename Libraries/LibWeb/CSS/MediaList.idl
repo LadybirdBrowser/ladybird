@@ -1,0 +1,9 @@
+// https://www.w3.org/TR/cssom-1/#the-medialist-interface
+[Exposed=Window]
+interface MediaList {
+    [LegacyNullToEmptyString] stringifier attribute CSSOMString mediaText;
+    readonly attribute unsigned long length;
+    getter CSSOMString? item(unsigned long index);
+    undefined appendMedium(CSSOMString medium);
+    undefined deleteMedium(CSSOMString medium);
+};

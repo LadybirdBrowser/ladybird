@@ -1,0 +1,6 @@
+// https://w3c.github.io/trusted-types/dist/spec/#trusted-html
+[Exposed=(Window,Worker)]
+interface TrustedHTML {
+    stringifier;
+    Utf16DOMString toJSON();
+};

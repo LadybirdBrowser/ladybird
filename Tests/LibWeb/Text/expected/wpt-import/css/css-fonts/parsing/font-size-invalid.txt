@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['font-size'] = "auto" should not set the property value
+Pass	e.style['font-size'] = "medium small" should not set the property value
+Pass	e.style['font-size'] = "-10px" should not set the property value
+Pass	e.style['font-size'] = "-20%" should not set the property value

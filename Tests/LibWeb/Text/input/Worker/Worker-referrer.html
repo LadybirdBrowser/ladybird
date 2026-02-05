@@ -1,0 +1,61 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        const reflectorUrl = await server.createEcho("GET", "/worker-referrer/reflector", {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json",
+            },
+            reflect_headers_in_body: true,
+        });
+
+        const workerUrl = await server.createEcho("GET", "/worker-referrer/worker.js", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/javascript",
+            },
+            body: `fetch("${reflectorUrl}").then(r => r.json()).then(r => postMessage(r))`,
+        });
+
+        const redirectSecondUrl = await server.createEcho("GET", "/redirect-second", {
+            status: 302,
+            headers: {
+                Location: workerUrl,
+            },
+        });
+
+        const redirectFirstUrl = await server.createEcho("GET", "/redirect-first", {
+            status: 302,
+            headers: {
+                Location: redirectSecondUrl,
+            },
+        });
+
+        const iframeUrl = await server.createEcho("GET", "/worker-referrer/iframe", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/html",
+            },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    new Worker("/redirect-first").onmessage = e => window.parent.postMessage(e.data, "*")
+                <\/script>`,
+        });
+
+        window.onmessage = e => {
+            const referrer = new URL(e.data["Referer"][0]);
+            referrer.port = "";
+
+            println("Got referrer: " + referrer);
+            done();
+        };
+
+        document.querySelector("iframe").src = iframeUrl;
+    });
+</script>
+<iframe></iframe>

@@ -1,0 +1,50 @@
+Harness status: OK
+
+Found 44 tests
+
+39 Pass
+5 Fail
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandIndeterm("stylewithcss") after
+Fail	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandIndeterm("bold") before
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandState("bold") before
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandValue("bold") before
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandIndeterm("bold") after
+Fail	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandState("bold") after
+Pass	[["stylewithcss","false"],["bold",""]] "<span style=font-weight:100>fo[o</span><span style=font-weight:200>b]ar</span>" queryCommandValue("bold") after
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><b>e</b></span>f]</b>ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><b>e</b></span>f]</b>ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><b>e</b></span>f]</b>ghi" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><b>e</b></span>f]</b>ghi" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><span contenteditable><b>e</b></span></span>f]</b>ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><span contenteditable><b>e</b></span></span>f]</b>ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><span contenteditable><b>e</b></span></span>f]</b>ghi" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["bold",""]] "abc<b>[d<span contenteditable=\"false\"><span contenteditable><b>e</b></span></span>f]</b>ghi" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>[def]</i>ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>[def]</i>ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>[def]</i>ghi" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>[def]</i>ghi" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "abc[<i>def</i>]ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc[<i>def</i>]ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc[<i>def</i>]ghi" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["bold",""]] "abc[<i>def</i>]ghi" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>{def}</i>ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>{def}</i>ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>{def}</i>ghi" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["bold",""]] "abc<i>{def}</i>ghi" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "abc{<i>def</i>}ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc{<i>def</i>}ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc{<i>def</i>}ghi" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["bold",""]] "abc{<i>def</i>}ghi" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>[def</i>]ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>[def</i>]ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc<i>[def</i>]ghi" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["bold",""]] "abc<i>[def</i>]ghi" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "abc[<i>def]</i>ghi": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc[<i>def]</i>ghi": execCommand("bold", false, "") return value
+Pass	[["stylewithcss","false"],["bold",""]] "abc[<i>def]</i>ghi" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["bold",""]] "abc[<i>def]</i>ghi" compare innerHTML

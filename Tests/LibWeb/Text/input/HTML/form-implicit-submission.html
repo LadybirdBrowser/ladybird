@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<form id="defaultButton">
+    <input />
+    <button>PASS</button>
+</form>
+<form id="defaultButtonAsInput">
+    <input />
+    <input type="submit" value="PASS" />
+</form>
+<form id="defaultButtonIsSecond">
+    <input />
+    <button type="button">FAIL</button>
+    <button>PASS</button>
+    <button type="button">FAIL</button>
+</form>
+<form id="defaultButtonIsLast">
+    <input />
+    <button type="button">FAIL</button>
+    <button type="button">FAIL</button>
+    <button>PASS</button>
+</form>
+<button form="defaultButtonIsBeforeForm">PASS</button>
+<form id="defaultButtonIsBeforeForm">
+    <input />
+</form>
+<form id="defaultButtonIsAfterForm">
+    <input />
+</form>
+<button form="defaultButtonIsAfterForm">PASS</button>
+<form id="defaultButtonIsDynamicallyInserted">
+    <input />
+    <button>FAIL</button>
+</form>
+<form id="defaultButtonIsDisabled">
+    <input />
+    <button disabled>FAIL</button>
+</form>
+<form id="noButton">
+    <input />
+</form>
+<form id="noDefaultButton">
+    <input />
+    <button type="button">FAIL</button>
+</form>
+<form id="excessiveBlockingElements1">
+    <input />
+    <input />
+</form>
+<form id="excessiveBlockingElements2">
+    <input />
+    <input type="time" />
+</form>
+<script src="../include.js"></script>
+<script>
+    let handledEvent = false;
+
+    const enterTextAndSubmitForm = form => {
+        const input = form.querySelector("input");
+
+        handledEvent = false;
+        internals.sendText(input, "wfh :^)");
+        internals.commitText();
+
+        println(`${form.id}: handledEvent=${handledEvent}`);
+    };
+
+    test(() => {
+        const button = document.createElement("button");
+        button.setAttribute("form", "defaultButtonIsDynamicallyInserted");
+        button.innerText = "PASS";
+
+        const dynamicForm = document.getElementById("defaultButtonIsDynamicallyInserted");
+        dynamicForm.insertBefore(button, dynamicForm.elements[0]);
+
+        document.querySelectorAll("form").forEach(form => {
+            form.addEventListener("submit", event => {
+                event.preventDefault();
+
+                println(`${form.id}: submit`);
+                handledEvent = true;
+            });
+
+            for (const element of form.elements) {
+                element.addEventListener("click", () => {
+                    const text = element.value || element.innerText;
+                    println(`${form.id}: click button=${text}`);
+
+                    handledEvent = true;
+                });
+            }
+
+            enterTextAndSubmitForm(form);
+        });
+    });
+</script>

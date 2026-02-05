@@ -1,0 +1,217 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#background-position">
+<meta name="test" content="background-position animation handles origin parameters">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  background-position: 80px 80px;
+}
+.target {
+  border: 3px solid skyblue;
+  width: 100px;
+  height: 100px;
+  background-image: linear-gradient(to right, green, green);
+  background-size: 20px 20px;
+  background-repeat: no-repeat;
+  background-position: 10px 10px;
+  display: inline-block;
+}
+
+.actual {
+  background-image: linear-gradient(to right, red, red);
+}
+.expected {
+  margin-left: -106px;
+}
+</style>
+
+<body></body>
+
+<script>
+// neutral
+test_interpolation({
+  property: 'background-position',
+  from: neutralKeyframe,
+  to: 'left 20px top 20px',
+}, [
+  {at: 0, expect: '10px 10px'},
+  {at: 0.25, expect: '12.5px 12.5px'},
+  {at: 0.5, expect: '15px 15px'},
+  {at: 0.75, expect: '17.5px 17.5px'},
+  {at: 1, expect: '20px 20px'},
+]);
+
+// initial
+test_interpolation({
+  property: 'background-position',
+  from: 'initial',
+  to: 'left 20px top 20px',
+}, [
+  {at: 0, expect: '0% 0%'},
+  {at: 0.25, expect: 'calc(0% + 5px) calc(0% + 5px)'},
+  {at: 0.5, expect: 'calc(0% + 10px) calc(0% + 10px)'},
+  {at: 0.75, expect: 'calc(0% + 15px) calc(0% + 15px)'},
+  {at: 1, expect: 'calc(0% + 20px) calc(0% + 20px)'},
+]);
+
+// inherit
+test_interpolation({
+  property: 'background-position',
+  from: 'inherit',
+  to: 'left 20px top 20px',
+}, [
+  {at: 0, expect: '80px 80px'},
+  {at: 0.25, expect: '65px 65px'},
+  {at: 0.5, expect: '50px 50px'},
+  {at: 0.75, expect: '35px 35px'},
+  {at: 1, expect: '20px 20px'},
+]);
+
+// unset
+test_interpolation({
+  property: 'background-position',
+  from: 'unset',
+  to: 'left 20px top 20px',
+}, [
+  {at: 0, expect: '0% 0%'},
+  {at: 0.25, expect: 'calc(0% + 5px) calc(0% + 5px)'},
+  {at: 0.5, expect: 'calc(0% + 10px) calc(0% + 10px)'},
+  {at: 0.75, expect: 'calc(0% + 15px) calc(0% + 15px)'},
+  {at: 1, expect: 'calc(0% + 20px) calc(0% + 20px)'},
+]);
+
+// left-top
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'left 20px top 20px',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: 'calc(5px + 37.5%) calc(5px + 37.5%)'},
+  {at: 0.5, expect: 'calc(10px + 25%) calc(10px + 25%)'},
+  {at: 0.75, expect: 'calc(15px + 12.5%) calc(15px + 12.5%)'},
+  {at: 1, expect: 'calc(0% + 20px) calc(0% + 20px)'},
+]);
+
+// center-top
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'center top 20px',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: '50% calc(5px + 37.5%)'},
+  {at: 0.5, expect: '50% calc(10px + 25%)'},
+  {at: 0.75, expect: '50% calc(15px + 12.5%)'},
+  {at: 1, expect: '50% calc(0% + 20px)'},
+]);
+
+// right-top
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'right 20px top 20px',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: 'calc(-5px + 62.5%) calc(5px + 37.5%)'},
+  {at: 0.5, expect: 'calc(-10px + 75%) calc(10px + 25%)'},
+  {at: 0.75, expect: 'calc(-15px + 87.5%) calc(15px + 12.5%)'},
+  {at: 1, expect: 'calc(-20px + 100%) calc(0% + 20px)'},
+]);
+
+// left-center
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'left 20px center',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: 'calc(5px + 37.5%) 50%'},
+  {at: 0.5, expect: 'calc(10px + 25%) 50%'},
+  {at: 0.75, expect: 'calc(15px + 12.5%) 50%'},
+  {at: 1, expect: 'calc(0% + 20px) 50%'},
+]);
+
+// center-center
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'center center',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: '50% 50%'},
+  {at: 0.5, expect: '50% 50%'},
+  {at: 0.75, expect: '50% 50%'},
+  {at: 1, expect: '50% 50%'},
+]);
+
+// right-center
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'right 20px center',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: 'calc(-5px + 62.5%) 50%'},
+  {at: 0.5, expect: 'calc(-10px + 75%) 50%'},
+  {at: 0.75, expect: 'calc(-15px + 87.5%) 50%'},
+  {at: 1, expect: 'calc(-20px + 100%) 50%'},
+]);
+
+// left-bottom
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'left 20px bottom 20px',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: 'calc(5px + 37.5%) calc(-5px + 62.5%)'},
+  {at: 0.5, expect: 'calc(10px + 25%) calc(-10px + 75%)'},
+  {at: 0.75, expect: 'calc(15px + 12.5%) calc(-15px + 87.5%)'},
+  {at: 1, expect: 'calc(0% + 20px) calc(-20px + 100%)'},
+]);
+
+// center-bottom
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'center bottom 20px',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: '50% calc(-5px + 62.5%)'},
+  {at: 0.5, expect: '50% calc(-10px + 75%)'},
+  {at: 0.75, expect: '50% calc(-15px + 87.5%)'},
+  {at: 1, expect: '50% calc(-20px + 100%)'},
+]);
+
+// right-bottom
+test_interpolation({
+  property: 'background-position',
+  from: 'center center',
+  to: 'right 20px bottom 20px',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: 'calc(-5px + 62.5%) calc(-5px + 62.5%)'},
+  {at: 0.5, expect: 'calc(-10px + 75%) calc(-10px + 75%)'},
+  {at: 0.75, expect: 'calc(-15px + 87.5%) calc(-15px + 87.5%)'},
+  {at: 1, expect: 'calc(-20px + 100%) calc(-20px + 100%)'},
+]);
+
+// Single values
+test_interpolation({
+  property: 'background-position',
+  from: 'center',
+  to: 'bottom',
+}, [
+  {at: 0, expect: '50% 50%'},
+  {at: 0.25, expect: '50% 62.5%'},
+  {at: 0.5, expect: '50% 75%'},
+  {at: 0.75, expect: '50% 87.5%'},
+  {at: 1, expect: '50% 100%'},
+]);
+</script>

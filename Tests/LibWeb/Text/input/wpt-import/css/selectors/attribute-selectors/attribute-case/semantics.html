@@ -1,0 +1,269 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Selectors: semantics of case-sensitivity attribute selector</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#attribute-case">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style></style>
+<div id=log></div>
+<iframe id="quirks" src="resources/semantics-quirks.html"></iframe>
+<iframe id="xml" src="resources/semantics-xml.xhtml"></iframe>
+<script>
+setup({explicit_done:true});
+var match = [
+  // [selector, attrs...] (each attr is [ns, name, value])
+  ["[foo='BAR'] /* sanity check (match) */", ["", "foo", "BAR"]],
+  ["[foo='bar'] /* sanity check (match) */", ["", "foo", "bar"]],
+  ["[align='left'] /* sanity check (match) */", ["", "align", "left"]],
+  ["[class~='a'] /* sanity check (match) */", ["", "class", "X a b"]],
+  ["[class~='A'] /* sanity check (match) */", ["", "class", "x A B"]],
+  ["[id^='a'] /* sanity check (match) */", ["", "id", "ab"]],
+  ["[id$='A'] /* sanity check (match) */", ["", "id", "XA"]],
+  ["[lang|='a'] /* sanity check (match) */", ["", "lang", "a-b"]],
+  ["[lang*='A'] /* sanity check (match) */", ["", "lang", "XAB"]],
+  ["@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */",
+   ["http://www.w3.org/XML/1998/namespace", "lang", "A"]],
+  // Case-insensitive matching.
+  ["[foo='bar' i]", ["", "foo", "BAR"]],
+  ["[foo='' i]", ["", "foo", ""]],
+  ["[foo='a\u0308' i] /* COMBINING in both */", ["", "foo", "A\u0308"]],
+  ["[foo='A\u0308' i] /* COMBINING in both */", ["", "foo", "a\u0308"]],
+  ["[*|foo='bar' i]", ["", "foo", "x"], ["a", "foo", "x"], ["b", "foo", "BAR"], ["c", "foo", "x"]],
+  ["[*|foo='bar' i]", ["", "foo", "BAR"], ["a", "foo", "x"], ["b", "foo", "x"], ["c", "foo", "x"]],
+  ["[align='left' i]", ["", "align", "LEFT"]],
+  ["[align='LEFT' i]", ["", "align", "left"]],
+  ["[class~='a' i]", ["", "class", "X A B"]],
+  ["[class~='A' i]", ["", "class", "x a b"]],
+  ["[id^='a' i]", ["", "id", "AB"]],
+  ["[id$='A' i]", ["", "id", "xa"]],
+  ["[lang|='a' i]", ["", "lang", "A-B"]],
+  ["[lang*='A' i]", ["", "lang", "xab"]],
+  ["[*|lang='a' i]", ["http://www.w3.org/XML/1998/namespace", "lang", "A"]],
+  ["[*|lang='A' i]", ["http://www.w3.org/XML/1998/namespace", "lang", "a"]],
+  ["@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i]", ["http://www.w3.org/XML/1998/namespace", "lang", "a"]],
+  ["[foo='bar' i][foo='bar' i]", ["", "foo", "BAR"]],
+  ["[foo='BAR'][foo='bar' i]", ["", "foo", "BAR"]],
+  ["[foo='bar' i][foo='BAR']", ["", "foo", "BAR"]],
+  // Case-sensitive matching.
+  ["[foo='bar' s]", ["", "foo", "bar"]],
+  ["[foo='' s]", ["", "foo", ""]],
+  ["[foo='a\u0308' s] /* COMBINING in both */", ["", "foo", "a\u0308"]],
+  ["[*|foo='bar' s]", ["", "foo", "x"], ["a", "foo", "x"], ["b", "foo", "bar"], ["c", "foo", "x"]],
+  ["[*|foo='bar' s]", ["", "foo", "bar"], ["a", "foo", "x"], ["b", "foo", "x"], ["c", "foo", "x"]],
+  ["[align='left' s]", ["", "align", "left"]],
+  ["[align='LEFT' s]", ["", "align", "LEFT"]],
+  ["[class~='a' s]", ["", "class", "x a b"]],
+  ["[class~='A' s]", ["", "class", "X A B"]],
+  ["[id^='a' s]", ["", "id", "ab"]],
+  ["[id$='A' s]", ["", "id", "XA"]],
+  ["[lang|='a' s]", ["", "lang", "a-b"]],
+  ["[lang*='A' s]", ["", "lang", "XAB"]],
+  ["[*|lang='a' s]", ["http://www.w3.org/XML/1998/namespace", "lang", "a"]],
+  ["[*|lang='A' s]", ["http://www.w3.org/XML/1998/namespace", "lang", "A"]],
+  ["@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s]", ["http://www.w3.org/XML/1998/namespace", "lang", "A"]],
+  ["[foo='BAR' s][foo='BAR' s]", ["", "foo", "BAR"]],
+];
+
+var matchHTMLOnly = [
+  ["[align='left'] /* sanity check (match HTML) */", ["", "align", "LEFT"]],
+  ["[align='LEFT'] /* sanity check (match HTML) */", ["", "align", "left"]],
+  ["[lang|='a'] /* sanity check (match HTML) */", ["", "lang", "A-B"]],
+  ["[lang*='A'] /* sanity check (match HTML) */", ["", "lang", "xab"]],
+];
+
+var nomatch = [
+  ["[missingattr] /* sanity check (no match) */", ["", "foo", "BAR"]],
+  ["[foo='bar'] /* sanity check (no match) */", ["", "foo", "BAR"]],
+  ["[class~='a'] /* sanity check (no match) */", ["", "class", "X A B"]],
+  ["[class~='A'] /* sanity check (no match) */", ["", "class", "x a b"]],
+  ["[id^='a'] /* sanity check (no match) */", ["", "id", "AB"]],
+  ["[id$='A']", ["", "id", "xa"]],
+  ["[*|lang='a'] /* sanity check (no match) */",
+   ["http://www.w3.org/XML/1998/namespace", "lang", "A"]],
+  ["[*|lang='A'] /* sanity check (no match) */",
+   ["http://www.w3.org/XML/1998/namespace", "lang", "a"]],
+  ["@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (no match) */",
+   ["http://www.w3.org/XML/1998/namespace", "lang", "a"]],
+  // Case-insensitive matching.
+  ["[foo='' i]", ["", "foo", "BAR"]],
+  ["[foo='\u0000' i] /* \\0 in selector */", ["", "foo", ""]],
+  ["[foo='' i] /* \\0 in attribute */", ["", "foo", "\u0000"]],
+  ["[foo='\u00E4' i]", ["", "foo", "\u00C4"]],
+  ["[foo='\u00C4' i]", ["", "foo", "\u00E4"]],
+  ["[foo='a\u0308' i] /* COMBINING in selector */", ["", "foo", "\u00C4"]],
+  ["[foo~='a\u0308' i] /* COMBINING in selector */", ["", "foo", "\u00E4"]],
+  ["[foo^='A\u0308' i] /* COMBINING in selector */", ["", "foo", "\u00C4"]],
+  ["[foo$='A\u0308' i] /* COMBINING in selector */", ["", "foo", "\u00E4"]],
+  ["[foo*='\u00E4' i] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo|='\u00E4' i] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='\u00C4' i] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo='\u00C4' i] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='a\u0308' i] /* COMBINING in selector */", ["", "foo", "a"]],
+  ["[foo='a\u0308' i] /* COMBINING in selector */", ["", "foo", "A"]],
+  ["[foo='A\u0308' i] /* COMBINING in selector */", ["", "foo", "a"]],
+  ["[foo='A\u0308' i] /* COMBINING in selector */", ["", "foo", "A"]],
+  ["[foo='a' i] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo='A' i] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo='a' i] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='A' i] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='i' i]", ["", "foo", "\u0130"]],
+  ["[foo='i' i]", ["", "foo", "\u0131"]],
+  ["[foo='I' i]", ["", "foo", "\u0130"]],
+  ["[foo='I' i]", ["", "foo", "\u0131"]],
+  ["[foo='\u0130' i]", ["", "foo", "i"]],
+  ["[foo='\u0131' i]", ["", "foo", "i"]],
+  ["[foo='\u0130' i]", ["", "foo", "I"]],
+  ["[foo='\u0131' i]", ["", "foo", "I"]],
+  ["[foo='bar' i]", ["", "foo", "x"], ["a", "foo", "BAR"]],
+  ["[|foo='bar' i]", ["", "foo", "x"], ["a", "foo", "BAR"]],
+  ["[foo='bar' i]", ["", "FOO", "bar"]],
+  ["[foo='\t' i] /* tab in selector */", ["", "foo", " "]],
+  ["[foo=' ' i] /* tab in attribute */", ["", "foo", "\t"]],
+  ["@namespace x 'a'; [x|foo='' i]", ["A", "foo", ""]],
+  ["@namespace x 'A'; [x|foo='' i]", ["a", "foo", ""]],
+  ["[foo='bar' i][foo='bar']", ["", "foo", "BAR"]],
+  ["[foo='bar' i]", ["", "baz", "BAR"]],
+  ["[foo^='é' i]", ["", "foo", "É"]],
+  ["[foo$='é' i]", ["", "foo", "É"]],
+  ["[foo*='é' i]", ["", "foo", "É"]],
+  ["[foo|='é' i]", ["", "foo", "É"]],
+  ["[foo^='É' i]", ["", "foo", "é"]],
+  ["[foo$='É' i]", ["", "foo", "é"]],
+  ["[foo*='É' i]", ["", "foo", "é"]],
+  ["[foo|='É' i]", ["", "foo", "é"]],
+  // Case-sensitive matching
+  ["[foo='' s]", ["", "foo", "BAR"]],
+  ["[foo='\u0000' s] /* \\0 in selector */", ["", "foo", ""]],
+  ["[foo='' s] /* \\0 in attribute */", ["", "foo", "\u0000"]],
+  ["[foo='\u00E4' s]", ["", "foo", "\u00C4"]],
+  ["[foo='\u00C4' s]", ["", "foo", "\u00E4"]],
+  ["[foo='a\u0308' s] /* COMBINING in selector */", ["", "foo", "\u00C4"]],
+  ["[foo~='a\u0308' s] /* COMBINING in selector */", ["", "foo", "\u00E4"]],
+  ["[foo^='A\u0308' s] /* COMBINING in selector */", ["", "foo", "\u00C4"]],
+  ["[foo$='A\u0308' s] /* COMBINING in selector */", ["", "foo", "\u00E4"]],
+  ["[foo*='\u00E4' s] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo|='\u00E4' s] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='\u00C4' s] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo='\u00C4' s] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='a\u0308' s] /* COMBINING in selector */", ["", "foo", "a"]],
+  ["[foo='a\u0308' s] /* COMBINING in selector */", ["", "foo", "A"]],
+  ["[foo='A\u0308' s] /* COMBINING in selector */", ["", "foo", "a"]],
+  ["[foo='A\u0308' s] /* COMBINING in selector */", ["", "foo", "A"]],
+  ["[foo='a' s] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo='A' s] /* COMBINING in attribute */", ["", "foo", "a\u0308"]],
+  ["[foo='a' s] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='A' s] /* COMBINING in attribute */", ["", "foo", "A\u0308"]],
+  ["[foo='i' s]", ["", "foo", "\u0130"]],
+  ["[foo='i' s]", ["", "foo", "\u0131"]],
+  ["[foo='I' s]", ["", "foo", "\u0130"]],
+  ["[foo='I' s]", ["", "foo", "\u0131"]],
+  ["[foo='\u0130' s]", ["", "foo", "i"]],
+  ["[foo='\u0131' s]", ["", "foo", "i"]],
+  ["[foo='\u0130' s]", ["", "foo", "I"]],
+  ["[foo='\u0131' s]", ["", "foo", "I"]],
+  ["[foo='bar' s]", ["", "foo", "x"], ["a", "foo", "BAR"]],
+  ["[|foo='bar' s]", ["", "foo", "x"], ["a", "foo", "BAR"]],
+  ["[foo='bar' s]", ["", "FOO", "bar"]],
+  ["[foo='\t' s] /* tab in selector */", ["", "foo", " "]],
+  ["[foo=' ' s] /* tab in attribute */", ["", "foo", "\t"]],
+  ["@namespace x 'a'; [x|foo='' s]", ["A", "foo", ""]],
+  ["@namespace x 'A'; [x|foo='' s]", ["a", "foo", ""]],
+  ["[foo='bar' s][foo='bar']", ["", "foo", "BAR"]],
+  ["[foo='bar' s]", ["", "baz", "BAR"]],
+  ["[foo='bar' s]", ["", "foo", "BAR"]],
+  ["[foo='a\u0308' s] /* COMBINING in both */", ["", "foo", "A\u0308"]],
+  ["[foo='A\u0308' s] /* COMBINING in both */", ["", "foo", "a\u0308"]],
+  ["[*|foo='bar' s]", ["", "foo", "x"], ["a", "foo", "x"], ["b", "foo", "BAR"], ["c", "foo", "x"]],
+  ["[*|foo='bar' s]", ["", "foo", "BAR"], ["a", "foo", "x"], ["b", "foo", "x"], ["c", "foo", "x"]],
+  ["[align='left' s]", ["", "align", "LEFT"]],
+  ["[align='LEFT' s]", ["", "align", "left"]],
+  ["[class~='a' s]", ["", "class", "X A B"]],
+  ["[class~='A' s]", ["", "class", "x a b"]],
+  ["[id^='a' s]", ["", "id", "AB"]],
+  ["[id$='A' s]", ["", "id", "xa"]],
+  ["[lang|='a' s]", ["", "lang", "A-B"]],
+  ["[lang*='A' s]", ["", "lang", "xab"]],
+  ["[*|lang='a' s]", ["http://www.w3.org/XML/1998/namespace", "lang", "A"]],
+  ["[*|lang='A' s]", ["http://www.w3.org/XML/1998/namespace", "lang", "a"]],
+  ["@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s]", ["http://www.w3.org/XML/1998/namespace", "lang", "a"]],
+  ["[foo='bar' s][foo='bar' s]", ["", "foo", "BAR"]],
+  ["[foo='BAR' s][foo='bar']", ["", "foo", "BAR"]],
+  ["[foo='bar'][foo='BAR' s]", ["", "foo", "BAR"]],
+  ["[foo='BAR'][foo='bar' s]", ["", "foo", "BAR"]],
+  ["[foo='bar' s][foo='BAR']", ["", "foo", "bar"]],
+];
+var mode = "standards mode";
+function format_attrs(attrs) {
+  var rv = [];
+  attrs.forEach(function(attr) {
+    var str = "";
+    var ns = attr[0];
+    var name = attr[1];
+    var value = attr[2];
+    if (ns)
+      str += "{" + ns + "}";
+    str += name + "=\"" + value + "\"";
+    rv.push(str);
+  });
+  return rv.join(" ");
+}
+onload = function() {
+  var quirks = document.getElementById('quirks').contentWindow;
+  var xml = document.getElementById('xml').contentWindow;
+  [window, quirks, xml].forEach(function(global) {
+    var style = global.document.getElementsByTagName('style')[0];
+    var elm;
+    function clean_slate() {
+      style.textContent = '';
+      if (elm)
+        elm.parentNode.removeChild(elm);
+      elm = global.document.createElement('div');
+      global.document.body.appendChild(elm);
+    }
+    function set_attrs(attrs) {
+      attrs.forEach(function(attr) {
+        elm.setAttributeNS(attr[0], attr[1], attr[2]);
+      });
+    }
+    var localMatch = match.slice();
+    if (global != xml) {
+      localMatch.push(...matchHTMLOnly);
+    }
+    localMatch.forEach(function(arr) {
+      var s = arr[0];
+      var attrs = arr.slice(1);
+      var ns_decl = s.substr(0, "@namespace".length) == "@namespace";
+      test(function() {
+        clean_slate();
+        set_attrs(attrs);
+        style.textContent = s + ' { visibility:hidden }';
+        assert_equals(style.sheet.cssRules.length, (ns_decl ? 2 : 1), 'rule didn\'t parse into CSSOM');
+        assert_equals(global.getComputedStyle(elm).visibility, 'hidden', 'selector didn\'t match');
+      }, s + ' <div ' + format_attrs(attrs) + '> in ' + global.mode);
+      if (!ns_decl) {
+        test(function() {
+          assert_equals(global.document.querySelector(s), elm, 'selector didn\'t match');
+        }, s + ' <div ' + format_attrs(attrs) + '> with querySelector in ' + global.mode);
+      }
+    });
+    nomatch.forEach(function(arr) {
+      var s = arr[0];
+      var attrs = arr.slice(1);
+      var ns_decl = s.substr(0, "@namespace".length) == "@namespace";
+      test(function() {
+        clean_slate();
+        set_attrs(attrs);
+        style.textContent = s + ' { visibility:hidden }';
+        assert_equals(style.sheet.cssRules.length, (ns_decl ? 2 : 1), 'rule didn\'t parse into CSSOM');
+        assert_equals(global.getComputedStyle(elm).visibility, 'visible', 'selector matched');
+      }, s + ' <div ' + format_attrs(attrs) + '> in ' + global.mode);
+      if (!ns_decl) {
+        test(function() {
+          assert_equals(global.document.querySelector(s), null, 'selector matched');
+        }, s + ' <div ' + format_attrs(attrs) + '> with querySelector in ' + global.mode);
+      }
+    });
+  });
+  done();
+};
+</script>

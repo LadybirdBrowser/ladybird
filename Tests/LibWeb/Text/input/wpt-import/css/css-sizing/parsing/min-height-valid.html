@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic & Extrinsic Sizing Test: parsing min-height with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-min-height">
+<meta name="assert" content="min-height supports the full grammar 'auto | <length-percentage> | min-content | max-content | fit-content(<length-percentage>)'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("min-height", "auto");
+test_valid_value("min-height", "min-content");
+test_valid_value("min-height", "max-content");
+
+test_valid_value("min-height", "0", "0px");
+test_valid_value("min-height", "10%");
+test_valid_value("min-height", "0.5em");
+test_valid_value("min-height", "calc(10% - 0.5em)");
+
+test_valid_value("min-height", "fit-content(10%)");
+test_valid_value("min-height", "fit-content(0.5em)");
+test_valid_value("min-height", "fit-content(calc(10% - 0.5em))");
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+source_set("ReferrerPolicy") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "AbstractOperations.cpp",
+    "ReferrerPolicy.cpp",
+  ]
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Selectors Invalidation: :first-child :last-child</title>
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-first-child-pseudo">
+    <meta name="assert" content="This tests that the :first-child and :last-child selectors are effective">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      div {
+        color: black;
+      }
+      span:first-child {
+        color: blue;
+      }
+      span:last-child {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"><span>first-initially</span><span>last-initially</span></div>
+    <script>
+
+'use strict';
+const black = 'rgb(0, 0, 0)';
+const blue = 'rgb(0, 0, 255)';
+const red = 'rgb(255, 0, 0)';
+
+test(() => {
+  const target = document.querySelector('#target');
+  const first = target.firstChild;
+  assert_equals(getComputedStyle(first).color, blue);
+  target.insertAdjacentHTML('afterbegin', '\n<span>foo</span><span>bar</span>');
+  assert_equals(getComputedStyle(target.firstElementChild).color, blue);
+  assert_equals(getComputedStyle(first).color, black);
+  while (target.firstElementChild !== first)
+    target.removeChild(target.firstElementChild);
+  assert_equals(getComputedStyle(first).color, blue);
+}, 'Adding multiple nodes at once should invalidate :first-child correctly.');
+
+test(() => {
+  const target = document.querySelector('#target');
+  const last = target.lastChild;
+  assert_equals(getComputedStyle(last).color, red);
+  target.insertAdjacentHTML('beforeend', '\n<span>foo</span><span>bar</span>');
+  assert_equals(getComputedStyle(target.lastChild).color, red);
+  assert_equals(getComputedStyle(last).color, black);
+  while (target.lastChild !== last)
+    target.removeChild(target.lastChild);
+  assert_equals(getComputedStyle(last).color, red);
+}, 'Adding multiple nodes at once should invalidate :last-child correctly.');
+
+    </script>
+  </body>
+</html>

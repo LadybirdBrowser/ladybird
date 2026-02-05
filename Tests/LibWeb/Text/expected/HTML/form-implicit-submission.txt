@@ -1,0 +1,28 @@
+defaultButton: click button=PASS
+defaultButton: submit
+defaultButton: handledEvent=true
+defaultButtonAsInput: click button=PASS
+defaultButtonAsInput: submit
+defaultButtonAsInput: handledEvent=true
+defaultButtonIsSecond: click button=PASS
+defaultButtonIsSecond: submit
+defaultButtonIsSecond: handledEvent=true
+defaultButtonIsLast: click button=PASS
+defaultButtonIsLast: submit
+defaultButtonIsLast: handledEvent=true
+defaultButtonIsBeforeForm: click button=PASS
+defaultButtonIsBeforeForm: submit
+defaultButtonIsBeforeForm: handledEvent=true
+defaultButtonIsAfterForm: click button=PASS
+defaultButtonIsAfterForm: submit
+defaultButtonIsAfterForm: handledEvent=true
+defaultButtonIsDynamicallyInserted: click button=PASS
+defaultButtonIsDynamicallyInserted: submit
+defaultButtonIsDynamicallyInserted: handledEvent=true
+defaultButtonIsDisabled: handledEvent=false
+noButton: submit
+noButton: handledEvent=true
+noDefaultButton: submit
+noDefaultButton: handledEvent=true
+excessiveBlockingElements1: handledEvent=false
+excessiveBlockingElements2: handledEvent=false

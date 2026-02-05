@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<iframe id="iframe"></iframe>
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let iframe = document.getElementById("iframe");
+        let input = document.getElementById("input");
+
+        input.addEventListener("change", () => {
+            println(input.value);
+            done();
+        });
+
+        iframe.onload = () => {
+            internals.movePointerTo(20, 40);
+            internals.mouseDown(20, 40);
+
+            iframe.onload = () => {
+                internals.sendText(input, "wfh :^)");
+                internals.commitText();
+            };
+
+            iframe.src = "data:text/html,<p contenteditable>Text 2</p>";
+        };
+
+        iframe.src = "data:text/html,<p contenteditable>Text 1</p>";
+    });
+</script>

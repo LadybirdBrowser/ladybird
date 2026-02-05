@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const shadowRealm = new ShadowRealm();
+        const result = shadowRealm.evaluate(`() => new Event("My DOM Event").type;`)();
+        println(result);
+    });
+</script>

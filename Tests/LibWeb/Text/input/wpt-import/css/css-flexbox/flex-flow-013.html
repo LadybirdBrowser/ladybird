@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox Test: flex-flow - column column-reverse and row-reverse</title>
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#propdef-flex-direction">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#propdef-flex-flow">
+<meta name="assert" content="Test ensures that setting 'flex-flow' property to either 'column',
+'column-reverse' or 'row-reverse' in combination with different 'direction' and 'writing-mode'
+values works properly.">
+<style>
+body {
+    margin: 0;
+}
+.flexbox {
+    width: 600px;
+    display: flex;
+    background-color: grey;
+}
+.flexbox > div {
+    height: 20px;
+    width: 20px;
+    border: 0;
+}
+
+.rtl {
+    direction: rtl;
+}
+
+.vertical-rl, .vertical-lr, .column, .column-reverse {
+    height: 600px;
+}
+
+.vertical-rl {
+    writing-mode: vertical-rl;
+}
+
+.vertical-lr {
+    writing-mode: vertical-lr;
+}
+
+.row-reverse {
+    flex-flow: row-reverse;
+}
+
+.column {
+    flex-flow: column;
+}
+
+.column-reverse {
+    flex-flow: column-reverse;
+}
+
+.flexbox > .first {
+    background-color: blue;
+}
+.flexbox > .second {
+    background-color: green;
+}
+.flexbox > .third {
+    background-color: red;
+}
+
+.flexbox > div > div {
+    background-color: orange;
+    height: 10px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox">
+  <div class="first" data-expected-width="75" data-offset-x="0" style="flex: 1 0 0; margin: 0 auto;"></div>
+  <div class="second" data-expected-width="350" data-offset-x="75" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-x="275"></div></div>
+  <div class="third" data-expected-width="75" data-offset-x="425" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+
+<div class="flexbox rtl">
+  <div class="first" data-expected-width="75" data-offset-x="525" style="flex: 1 0 0; margin: 0 auto;"></div>
+  <div class="second" data-expected-width="350" data-offset-x="175" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-x="175"></div></div>
+  <div class="third" data-expected-width="75" data-offset-x="100" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+
+<div class="flexbox row-reverse">
+  <div class="first" data-expected-width="75" data-offset-x="525" style="flex: 1 0 0; margin: 0 auto;"></div>
+  <div class="second" data-expected-width="350" data-offset-x="175" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-x="375"></div></div>
+  <div class="third" data-expected-width="75" data-offset-x="0" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+
+<div class="flexbox rtl row-reverse">
+  <div class="first" data-expected-width="75" data-offset-x="0" style="flex: 1 0 0; margin: 0 auto;"></div>
+  <div class="second" data-expected-width="350" data-offset-x="75" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-x="75"></div></div>
+  <div class="third" data-expected-width="75" data-offset-x="525" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+
+<div style="position: relative;">
+<div class="flexbox column">
+  <div class="first" data-expected-height="150" data-offset-y="0" style="flex: 1 0 0; margin: auto 200px auto 150px;"></div>
+  <div class="second" data-expected-height="300" data-offset-y="150" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-y="150" data-offset-x="200"></div></div>
+  <div class="third" data-expected-height="150" data-offset-y="450" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+</div>
+
+<div style="position: relative;">
+<div class="flexbox column-reverse">
+  <div class="first" data-expected-height="150" data-offset-y="450" style="flex: 1 0 0; margin: auto 200px auto 150px;"></div>
+  <div class="second" data-expected-height="300" data-offset-y="150" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-y="150" data-offset-x="200"></div></div>
+  <div class="third" data-expected-height="150" data-offset-y="0" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+</div>
+
+<div style="position: relative;">
+<div class="flexbox column rtl">
+  <div class="first" data-expected-height="150" data-offset-y="0" data-offset-x="480" style="flex: 1 0 0; margin: auto 100px auto 50px;"></div>
+  <div class="second" data-expected-height="300" data-offset-y="150" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-y="150" data-offset-x="380"></div></div>
+  <div class="third" data-expected-height="150" data-offset-y="450" data-offset-x="580" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+</div>
+
+<div style="position: relative;">
+<div class="flexbox column-reverse rtl">
+  <div class="first" data-expected-height="150" data-offset-y="450" data-offset-x="480" style="flex: 1 0 0; margin: auto 100px auto 50px;"></div>
+  <div class="second" data-expected-height="300" data-offset-y="150" style="flex: 2 0 0; padding-inline-start: 200px"><div data-offset-y="150" data-offset-x="380"></div></div>
+  <div class="third" data-expected-height="150" data-offset-y="0" data-offset-x="580" style="flex: 1 0 0; margin-inline-end: 100px;"></div>
+</div>
+</div>
+
+<div style="position: relative;">
+<div data-expected-height="600" class="flexbox vertical-lr column">
+  <div class="first" data-offset-x="0" data-expected-width="500" style="flex: 1 0 0; min-width: 300px"></div>
+  <div class="second" data-offset-x="500" data-offset-y="100" data-expected-width="100" style="flex: 1 0 200px; max-width: 100px; margin: 100px 0 50px 0;"></div>
+</div>
+</div>
+
+<div style="position: relative;">
+<div data-expected-height="600" class="flexbox vertical-lr column-reverse">
+  <div class="first" data-offset-x="100" data-expected-width="500" style="flex: 1 0 0; min-width: 300px"></div>
+  <div class="second" data-offset-x="0" data-offset-y="100" data-expected-width="100" style="flex: 1 0 200px; max-width: 100px; margin: 100px 0 50px 0;"></div>
+</div>
+</div>
+
+<div style="position: relative;">
+<div data-expected-height="600" class="flexbox vertical-rl column">
+  <div class="first" data-offset-x="100" data-expected-width="500" style="flex: 1 0 0; min-width: 300px; margin-bottom: 100px"></div>
+  <div class="second" data-offset-x="0" data-offset-y="100" data-expected-width="100" style="flex: 1 0 200px; max-width: 100px; margin: 100px 0 50px 0;"></div>
+</div>
+</div>
+
+<div style="position: relative;">
+<div data-expected-height="600" class="flexbox vertical-rl column-reverse">
+  <div class="first" data-offset-x="0" data-expected-width="500" style="flex: 1 0 0; min-width: 300px; margin-bottom: 100px"></div>
+  <div class="second" data-offset-x="500" data-offset-y="100" data-expected-width="100" style="flex: 1 0 200px; max-width: 100px; margin: 100px 0 50px 0;"></div>
+</div>
+</div>
+
+</body>
+</html>

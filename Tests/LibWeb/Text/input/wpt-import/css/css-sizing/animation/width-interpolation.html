@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>width interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-width">
+<meta name="assert" content="width supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  width: 100px;
+  overflow: visible;
+}
+.target {
+  font-size: 16px;
+  background-color: black;
+  width: 10px;
+  height: 10px;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body>
+  <template id="target-template">
+    <div class="container">
+      <div class="target"></div>
+    </div>
+  </template>
+</body>
+
+<script>
+test_interpolation({
+  property: 'width',
+  from: neutralKeyframe,
+  to: '40px',
+}, [
+  {at: -0.3, expect: '1px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '19px'},
+  {at: 0.6, expect: '28px'},
+  {at: 1, expect: '40px'},
+  {at: 1.5, expect: '55px'},
+]);
+
+test_no_interpolation({
+  property: 'width',
+  from: 'initial',
+  to: '40px',
+});
+
+test_interpolation({
+  property: 'width',
+  from: 'inherit',
+  to: '40px',
+}, [
+  {at: -0.3, expect: '118px'},
+  {at: 0, expect: '100px'},
+  {at: 0.3, expect: '82px'},
+  {at: 0.6, expect: '64px'},
+  {at: 1, expect: '40px'},
+  {at: 1.5, expect: '10px'},
+]);
+
+test_no_interpolation({
+  property: 'width',
+  from: 'unset',
+  to: '40px',
+});
+
+test_interpolation({
+  property: 'width',
+  from: '0px',
+  to: '100px',
+}, [
+  {at: -0.3, expect: '0px'}, // CSS width can't be negative.
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '30px'},
+  {at: 0.6, expect: '60px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '150px'}
+]);
+
+test_interpolation({
+  property: 'width',
+  from: '10px',
+  to: '100%'
+}, [
+  {at: -0.3, expect: '0px'}, // CSS width can't be negative.
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '37px'},
+  {at: 0.6, expect: '64px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '145px'}
+]);
+
+test_no_interpolation({
+  property: 'width',
+  from: 'auto',
+  to: '40px',
+});
+
+// The "vw" unit equals to 1% of the width of the viewport's initial containing
+// block:
+// https://developer.mozilla.org/en-US/docs/Web/CSS/length
+function vw(x) {
+    return (x * window.innerWidth / 100);
+}
+
+// In here, 16 is the font-size which is the value of 1em, and vw(10) is the
+// value of 10vw. The calc here takes the "at" in the next interpolation test
+// and computes the expected value.
+function calc(x) {
+    return Math.max(16 + (vw(10) - 16) * x, 0).toFixed(2) + "px";
+}
+
+test_interpolation({
+    property: 'width',
+    from: '1em',
+    to: '10vw'
+}, [
+    {at: -0.3, expect: calc(-0.3)},
+    {at: 0, expect: calc(0)},
+    {at: 0.3, expect: calc(0.3)},
+    {at: 0.6, expect: calc(0.6)},
+    {at: 1, expect: calc(1)},
+    {at: 1.5, expect: calc(1.5)}
+]);
+
+test_no_interpolation({
+  property: 'width',
+  from: 'auto',
+  to: 'fit-content',
+});
+
+test_no_interpolation({
+  property: 'width',
+  from: 'stretch',
+  to: 'auto',
+});
+
+test_no_interpolation({
+  property: 'width',
+  from: '30px',
+  to: 'fit-content',
+});
+
+test_no_interpolation({
+  property: 'width',
+  from: 'max-content',
+  to: 'min-content',
+});
+
+test_no_interpolation({
+  property: 'width',
+  from: 'max-content',
+  to: neutralKeyframe,
+});
+
+test_no_interpolation({
+  property: 'width',
+  from: neutralKeyframe,
+  to: 'min-content',
+});
+
+</script>
+</body>

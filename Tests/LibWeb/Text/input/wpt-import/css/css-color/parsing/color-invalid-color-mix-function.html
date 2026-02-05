@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 5: Parsing and serialization of colors using invalid color-mix() function syntax</title>
+<link rel="author" title="Sam Weinig" href="mailto:weinig@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#color-mix">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#resolving-mix">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#serial-color-mix">
+<meta name="assert" content="invalid color-mix() values fail to parse for all color interpolation methods">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20%) -10%, hsl(30deg 30% 40%))`); // Percentages less than 0 are not valid.
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20%) 150%, hsl(30deg 30% 40%))`); // Percentages greater than 100 are not valid.
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20%) 0%, hsl(30deg 30% 40%) 0%)`); // Sum of percengates cannot be 0%.
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20% 40%) -10%, hsl(30deg 30% 40% 80%))`); // Percentages less than 0 are not valid.
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20% 40%) 150%, hsl(30deg 30% 40% 80%))`); // Percentages greater than 100 are not valid.
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20% 40%) 0%, hsl(30deg 30% 40% 80%) 0%)`); // Sum of percengates cannot be 0%.
+    test_invalid_value(`color`, `color-mix(in hsl hue, hsl(120deg 10% 20%), hsl(30deg 30% 40%))`); // `hue` keyword without a specified method.
+    test_invalid_value(`color`, `color-mix(in hsl shorter, hsl(120deg 10% 20%), hsl(30deg 30% 40%))`); // Specified hue method without trailing `hue` keyword.
+    test_invalid_value(`color`, `color-mix(in hsl foo, hsl(120deg 10% 20%), hsl(30deg 30% 40%))`); // Trailing identifier after color space that is not a hue method.
+    test_invalid_value(`color`, `color-mix(in hsl hsl(120deg 10% 20%), hsl(30deg 30% 40%))`); // Missing comma after interpolation method.
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20%) hsl(30deg 30% 40%))`); // Missing comma between colors.
+    test_invalid_value(`color`, `color-mix(hsl(120deg 10% 20%), hsl(30deg 30% 40%), in hsl)`); // Interpolation method not at the beginning.
+
+    test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20%) -10%, hwb(30deg 30% 40%))`); // Percentages less than 0 are not valid.
+    test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20%) 150%, hwb(30deg 30% 40%))`); // Percentages greater than 100 are not valid.
+    test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20%) 0%, hwb(30deg 30% 40%) 0%)`); // Sum of percengates cannot be 0%.
+    test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20% 40%) -10%, hwb(30deg 30% 40% 80%))`); // Percentages less than 0 are not valid.
+    test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20% 40%) 150%, hwb(30deg 30% 40% 80%))`); // Percentages greater than 100 are not valid.
+    test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20% 40%) 0%, hwb(30deg 30% 40% 80%) 0%)`); // Sum of percengates cannot be 0%.
+    test_invalid_value(`color`, `color-mix(in hwb hue, hwb(120deg 10% 20%), hwb(30deg 30% 40%))`); // `hue` keyword without a specified method.
+    test_invalid_value(`color`, `color-mix(in hwb shorter, hwb(120deg 10% 20%), hwb(30deg 30% 40%))`); // Specified hue method without trailing `hue` keyword.
+    test_invalid_value(`color`, `color-mix(in hwb foo, hwb(120deg 10% 20%), hwb(30deg 30% 40%))`); // Trailing identifier after color space that is not a hue method.
+    test_invalid_value(`color`, `color-mix(in hwb hwb(120deg 10% 20%), hwb(30deg 30% 40%))`); // Missing comma after interpolation method.
+    test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20%) hwb(30deg 30% 40%))`); // Missing comma between colors.
+    test_invalid_value(`color`, `color-mix(hwb(120deg 10% 20%), hwb(30deg 30% 40%), in hwb)`); // Interpolation method not at the beginning.
+    test_invalid_value(`color`, `color-mix(in srgb, red, blue blue)`); // Too many parameters.
+
+    for (const colorSpace of [ "lch", "oklch" ]) {
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg) -10%, ${colorSpace}(50% 60 70deg))`); // Percentages less than 0 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg) 150%, ${colorSpace}(50% 60 70deg))`); // Percentages greater than 100 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg) 0%, ${colorSpace}(50% 60 70deg) 0%)`); // Sum of percengates cannot be 0%.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg / .4) -10%, ${colorSpace}(50% 60 70deg / .8))`); // Percentages less than 0 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg / .4) 150%, ${colorSpace}(50% 60 70deg / .8))`); // Percentages greater than 100 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg / .4) 0%, ${colorSpace}(50% 60 70deg / .8) 0%)`); // Sum of percengates cannot be 0%.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} hue, ${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg))`); // `hue` keyword without a specified method.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} shorter, ${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg))`); // Specified hue method without trailing `hue` keyword.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} foo, ${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg))`); // Trailing identifier after color space that is not a hue method.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} ${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg))`); // Missing comma after interpolation method.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg) ${colorSpace}(50% 60 70deg))`); // Missing comma between colors.
+        test_invalid_value(`color`, `color-mix(${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg), in ${colorSpace})`); // Interpolation method not at the beginning.
+    }
+
+    for (const colorSpace of [ "lab", "oklab" ]) {
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30) -10%, ${colorSpace}(50% 60 70))`); // Percentages less than 0 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30) 150%, ${colorSpace}(50% 60 70))`); // Percentages greater than 100 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30) 0%, ${colorSpace}(50% 60 70) 0%)`); // Sum of percengates cannot be 0%.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30 / .4) -10%, ${colorSpace}(50% 60 70 / .8))`); // Percentages less than 0 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30 / .4) 150%, ${colorSpace}(50% 60 70 / .8))`); // Percentages greater than 100 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30 / .4) 0%, ${colorSpace}(50% 60 70 / .8) 0%)`); // Sum of percengates cannot be 0%.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} longer hue, ${colorSpace}(10% 20 30), ${colorSpace}(50% 60 70))`); // Hue modifier on a non-polar color space.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} ${colorSpace}(10% 20 30), ${colorSpace}(50% 60 70))`); // Missing comma after interpolation method.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30) ${colorSpace}(50% 60 70))`); // Missing comma between colors.
+        test_invalid_value(`color`, `color-mix(${colorSpace}(10% 20 30), ${colorSpace}(50% 60 70), in ${colorSpace})`); // Interpolation method not at the beginning.
+    }
+
+    for (const colorSpace of [ "srgb", "srgb-linear", "display-p3", "display-p3-linear", "a98-rgb", "prophoto-rgb", "rec2020", "xyz", "xyz-d50", "xyz-d65" ]) {
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) -10%, color(${colorSpace} .5 .6 .7))`); // Percentages less than 0 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 150%, color(${colorSpace} .5 .6 .7))`); // Percentages greater than 100 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 0%, color(${colorSpace} .5 .6 .7) 0%)`); // Sum of percengates cannot be 0%.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) -10%, color(${colorSpace} .5 .6 .7 / .8))`); // Percentages less than 0 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) 150%, color(${colorSpace} .5 .6 .7 / .8))`); // Percentages greater than 100 are not valid.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3 / .4) 0%, color(${colorSpace} .5 .6 .7 / .8) 0%)`); // Sum of percengates cannot be 0%.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} longer hue, color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7))`); // Hue modifier on a non-polar color space.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace} color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7))`); // Missing comma after interpolation method.
+        test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) color(${colorSpace} .5 .6 .7))`); // Missing comma between colors.
+        test_invalid_value(`color`, `color-mix(color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7), in ${colorSpace})`); // Interpolation method not at the beginning.
+    }
+</script>
+</body>
+</html>

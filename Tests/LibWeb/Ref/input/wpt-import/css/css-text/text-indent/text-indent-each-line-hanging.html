@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>text-indent 'each-line' and 'hanging' modifiers</title>
+    <link rel="author" title="Jaehun Lim" href="mailto:ljaehun.lim@samsung.com">
+    <link rel="help" href="https://drafts.csswg.org/css-text-3/#text-indent-property">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-text/text-indent/reference/text-indent-each-line-hanging-ref.html">
+    <meta name="assert" content="'each-line' and 'hanging' properly works">
+
+    <link rel="stylesheet" href="../../../../../data/fonts/ahem.css" />
+    <style>
+    div { width:80px; font: 10px Ahem; background-color:lightgray; }
+    .normal { text-indent: 4em; }
+    .eachline { text-indent: 4em each-line; }
+    .hanging { text-indent: 4em hanging; }
+    .eachlinehanging { text-indent: 4em each-line hanging; }
+    .indent { color: blue; }
+    </style>
+</head>
+<body>
+All black boxes should be left-aligned. All blue boxes should be right-aligned.
+
+<!-- normal text-indent -->
+<div class="normal">
+<span class="indent">xxxx</span> xxxx<br>xxxx
+</div>
+<br>
+<!-- each-line with a soft wrap break -->
+<div class="eachline">
+<span class="indent">xxxx</span> xxxx xxxx
+</div>
+<br>
+<!-- each-line with a forced line break -->
+<div class="eachline">
+<span class="indent">xxxx</span><br><span class="indent">xxxx</span><br><span class="indent">xxxx</span>
+</div>
+<br>
+<!-- each-line with a soft wrap break and a forced line break -->
+<div class="eachline">
+<span class="indent">xxxx</span> xxxx<br><span class="indent">xxxx</span>
+</div>
+<br>
+<!-- normal text-indent with hanging -->
+<div class="hanging">
+xxxx <span class="indent">xxxx</span><br><span class="indent">xxxx</span>
+</div>
+<br>
+<!-- each-line and hanging with a soft wrap break -->
+<div class="eachlinehanging">
+xxxx <span class="indent">xxxx</span> <span class="indent">xxxx</span>
+</div>
+<br>
+<!-- each-line and hanging with a forced line break -->
+<div class="eachlinehanging">
+xxxx<br>xxxx<br>xxxx
+</div>
+<br>
+<!-- each-line and hanging with a soft wrap break and a forced line break -->
+<div class="eachlinehanging">
+xxxx <span class="indent">xxxx</span><br>xxxx
+</div>
+</body>
+</html>

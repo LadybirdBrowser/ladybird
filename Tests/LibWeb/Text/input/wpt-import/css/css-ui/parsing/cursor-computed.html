@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS UI Level 3: getComputedStyle().cursor</title>
+<link rel="help" href="https://drafts.csswg.org/css-ui-3/#cursor">
+<meta name="assert" content="cursor computed value is as specified for keywords.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("cursor", "auto");
+test_computed_value("cursor", "default");
+test_computed_value("cursor", "none");
+test_computed_value("cursor", "context-menu");
+test_computed_value("cursor", "help");
+test_computed_value("cursor", "pointer");
+test_computed_value("cursor", "progress");
+test_computed_value("cursor", "wait");
+test_computed_value("cursor", "cell");
+test_computed_value("cursor", "crosshair");
+test_computed_value("cursor", "text");
+test_computed_value("cursor", "vertical-text");
+test_computed_value("cursor", "alias");
+test_computed_value("cursor", "copy");
+test_computed_value("cursor", "move");
+test_computed_value("cursor", "no-drop");
+test_computed_value("cursor", "not-allowed");
+test_computed_value("cursor", "grab");
+test_computed_value("cursor", "grabbing");
+test_computed_value("cursor", "e-resize");
+test_computed_value("cursor", "n-resize");
+test_computed_value("cursor", "ne-resize");
+test_computed_value("cursor", "nw-resize");
+test_computed_value("cursor", "s-resize");
+test_computed_value("cursor", "se-resize");
+test_computed_value("cursor", "sw-resize");
+test_computed_value("cursor", "w-resize");
+test_computed_value("cursor", "ew-resize");
+test_computed_value("cursor", "ns-resize");
+test_computed_value("cursor", "nesw-resize");
+test_computed_value("cursor", "nwse-resize");
+test_computed_value("cursor", "col-resize");
+test_computed_value("cursor", "row-resize");
+test_computed_value("cursor", "all-scroll");
+test_computed_value("cursor", "zoom-in");
+test_computed_value("cursor", "zoom-out");
+
+// Not yet tested: // [ [<url> [<x> <y>]?,]*
+// "relative URLs converted to absolute"
+</script>
+</body>
+</html>

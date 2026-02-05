@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Setting element.dataset['foo'] should also change the value of element.getAttribute('data-foo')
+Pass	Setting element.dataset['fooBar'] should also change the value of element.getAttribute('data-foo-bar')
+Pass	Setting element.dataset['-'] should also change the value of element.getAttribute('data--')
+Pass	Setting element.dataset['Foo'] should also change the value of element.getAttribute('data--foo')
+Pass	Setting element.dataset['-Foo'] should also change the value of element.getAttribute('data---foo')
+Pass	Setting element.dataset[''] should also change the value of element.getAttribute('data-')
+Pass	Setting element.dataset['à'] should also change the value of element.getAttribute('data-à')
+Pass	Setting element.dataset['-foo'] should throw a SYNTAX_ERR
+Pass	Setting element.dataset['foo '] should throw an INVALID_CHARACTER_ERR
+Pass	Setting element.dataset[';foo'] should not throw.
+Pass	Setting element.dataset['ெfoo'] should also change the value of element.getAttribute('ெfoo')

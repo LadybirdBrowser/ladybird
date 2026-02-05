@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Test (Selectors): By default initial programatic focus matches :focus-visible and it shows an auto focus ring</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<link rel="help" href="https://html.spec.whatwg.org/#phrasing-content-3" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<style>
+  #warning {
+    display: none;
+    background: red;
+  }
+
+  @supports not selector(:focus-visible) {
+    #instructions {
+      display: none;
+    }
+
+    #warning {
+      display: block;
+    }
+  }
+</style>
+
+<p>This test checks that by default, if using JavaScript to focus an element triggers <code>:focus-visible</code> matching, then the element should show a focus ring with <code>outline-style: auto</code>.</p>
+<ol id="instructions">
+  <li>If the element below that says "Target" show a focus ring with <code>outline-style: auto</code>, then the test result is SUCCESS.</li>
+</ol>
+<p id="warning">Your user-agent does not support <code>:focus-visible</code> pseudo-class, please SKIP this test.</p>
+<div id="target" tabindex="0">Target</div>
+<script>
+  // Check that :focus-visible is supported.
+  test_valid_selector(':focus-visible');
+
+  async_test(function(t) {
+    target.addEventListener("focus", t.step_func(function() {
+      assert_equals(getComputedStyle(target).outlineStyle, "auto", `outline-style for ${target.tagName}#${target.id} should be auto`);
+      t.done();
+    }));
+    target.focus();
+  }, "By default initial programatic focus matches ':focus-visible', so the element shows a focus ring with 'outline-style: auto'");
+</script>

@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+<title>Forms</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<h3>input_stepDown</h3>
+<input type='number' id='input_number'>
+<input type="number" id="number_input" min="300" step="1" value="200">
+<input type="date" id="date_input"  min="2011-02-10" step="1" value="2010-02-10">
+<input type="datetime-local" id="dtl_input" min="2011-02-10T20:13" step="1" value="2010-02-10T20:13">
+<input type="time" id="time_input" min="21:13" step="60" value="20:13">
+
+<script>
+    var input_number = document.getElementById("input_number");
+    input_number.max = "30";
+    input_number.step = "3";
+    input_number.value = "30";
+    input_number.stepDown(5);
+
+    if (typeof(input_number.stepDown) == "function") {
+      test(function() {
+        assert_equals(input_number.value, "15", "call of stepDown method is failed.");
+      });
+    } else {
+      test(function() {
+        assert_unreached("stepDown attribute is not exist.");
+      });
+    }
+
+   function testStepDownOverflow(id, value, type) {
+      test(function() {
+        var input = document.getElementById(id);
+        input.stepDown();
+        assert_equals(input.value, value, "value shouldn't change.");
+      }, "Calling stepDown() on input - " + type + " - where value < min should not modify value.");
+    }
+
+    testStepDownOverflow("number_input", "200", "number");
+    testStepDownOverflow("date_input", "2010-02-10", "date");
+    testStepDownOverflow("dtl_input", "2010-02-10T20:13", "datetime-local");
+    testStepDownOverflow("time_input", "20:13", "time");
+</script>
+</html>

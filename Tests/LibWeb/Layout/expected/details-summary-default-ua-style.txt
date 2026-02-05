@@ -1,0 +1,22 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 154 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 138 0+0+8] children: not-inline
+      BlockContainer <details> at [68,68] [0+10+50 664 50+10+0] [0+10+50 18 50+10+0] children: not-inline
+        ListItemBox <summary> at [84,68] [0+0+0 656 0+0+0] [0+0+0 18 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [84,68 36.84375x18] baseline: 13.796875
+              "hello"
+          ListItemMarkerBox <(anonymous)> at [68,73] [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <slot> at [68,86] [0+0+0 664 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x154]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x138]
+      PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x138]
+        PaintableWithLines (ListItemBox<SUMMARY>) [84,68 656x18]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [68,73 8x8]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<SLOT>) [68,86 664x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x154] [children: 0] (z-index: auto)

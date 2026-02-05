@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        await server.createEcho("GET", "/worker-script-fetch-referrer/worker.js", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/javascript",
+            },
+            reflect_headers_in_body: true,
+            body: "postMessage($HEADERS)",
+        });
+
+        const iframeUrl = await server.createEcho("GET", "/worker-script-fetch-referrer/iframe", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/html",
+            },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    history.replaceState(null, "", new URL("/updated-via-history", location.href))
+                    new Worker("/worker-script-fetch-referrer/worker.js").onmessage = e => window.parent.postMessage(e.data, "*")
+                <\/script>`,
+        });
+
+        window.onmessage = e => {
+            const referrer = new URL(e.data["Referer"][0]);
+            referrer.port = "";
+
+            println("Got referrer: " + referrer);
+            done();
+        };
+
+        document.querySelector("iframe").src = iframeUrl;
+    });
+</script>
+<iframe></iframe>

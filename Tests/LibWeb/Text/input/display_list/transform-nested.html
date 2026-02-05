@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .outer {
+        transform: rotate(45deg);
+        width: 200px;
+        height: 200px;
+        background: lightblue;
+    }
+    .inner {
+        transform: scale(0.5);
+        width: 100px;
+        height: 100px;
+        background: coral;
+    }
+</style>
+<div class="outer">
+    <div class="inner">Nested</div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -1,0 +1,15 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 136 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 120 0+0+8] children: inline
+      frag 0 from ImageBox start: 0, length: 0, rect: [8,8 120x120] baseline: 120
+      ImageBox <input> at [8,8] inline-block [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
+      TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x136]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x120]
+      ImagePaintable (ImageBox<INPUT>) [8,8 120x120]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x136] [children: 0] (z-index: auto)

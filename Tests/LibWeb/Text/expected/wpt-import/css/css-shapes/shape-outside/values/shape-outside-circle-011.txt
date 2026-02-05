@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	circle(at calc(10in)) - inline style
+Pass	circle(at calc(10in + 20px)) - inline style
+Pass	circle(at calc(30%)) - inline style
+Pass	circle(at calc(100%/4)) - inline style
+Pass	circle(at calc(25%*3)) - inline style
+Pass	circle(at calc(25%*3 - 10in)) - inline style
+Pass	circle(at calc((12.5%*6 + 10in) / 4)) - inline style
+Pass	circle(at calc(10in)) - computed style
+Pass	circle(at calc(10in + 20px)) - computed style
+Pass	circle(at calc(30%)) - computed style
+Pass	circle(at calc(100%/4)) - computed style
+Pass	circle(at calc(25%*3)) - computed style
+Pass	circle(at calc(25%*3 - 10in)) - computed style
+Pass	circle(at calc((12.5%*6 + 10in) / 4)) - computed style

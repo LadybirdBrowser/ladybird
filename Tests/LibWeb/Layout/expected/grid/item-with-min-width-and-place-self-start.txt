@@ -1,0 +1,12 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] [GFC] children: not-inline
+      Box <section> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] [FFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
+    PaintableBox (Box<BODY>) [8,8 784x200]
+      PaintableBox (Box<SECTION>) [8,8 784x200]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x216] [children: 0] (z-index: auto)

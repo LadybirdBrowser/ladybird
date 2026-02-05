@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>calc interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-3/#calc-notation">
+<meta name="assert" content="calc supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.container {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border: black solid 2px;
+  display: inline-block;
+  margin-left: 10px;
+  margin-right: 10px;
+  background-color: white;
+}
+.target {
+  position: absolute;
+  width: 10px;
+  height: 50px;
+  background-color: black;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <div class="container">
+    <div class="target"></div>
+  </div>
+</template>
+<div class="target" id="inf-target"></div>
+<script>
+const APPROX_INFINITY = (function() {
+  const target = document.getElementById("inf-target");
+  target.style.letterSpacing = "calc(1px * infinity)";
+  const inf = parseFloat(getComputedStyle(target).letterSpacing);
+  target.remove();
+  return inf;
+}());
+
+test_interpolation({
+  property: 'left',
+  from: '0px',
+  to: 'calc(infinity * 1px)',
+  target_names:['CSS Transitions', 'CSS Transitions with transition: all']
+}, [
+  {at: -0.25, expect: `${APPROX_INFINITY * -0.25 }px`},
+  {at: 0, expect: '0px'},
+  {at: 0.25, expect: `${APPROX_INFINITY * 0.25}px`},
+  {at: 0.5, expect: `${APPROX_INFINITY * 0.5}px`},
+  {at: 0.75, expect: `${APPROX_INFINITY * 0.75}px`},
+  {at: 1, expect: `${APPROX_INFINITY}px`},
+  {at: 1.25, expect: `${APPROX_INFINITY * 1.25}px`}
+]);
+
+test_interpolation({
+  property: 'left',
+  from: '0px',
+  to: 'calc(infinity * 1px)',
+  target_names:['CSS Animations', 'Web Animations']
+}, [
+  {at: -0.25, expect: `${-APPROX_INFINITY}px`},
+  {at: 0, expect: `0px`},
+  {at: 0.25, expect: `${APPROX_INFINITY}px`},
+  {at: 0.5, expect: `${APPROX_INFINITY}px`},
+  {at: 0.75, expect: `${APPROX_INFINITY}px`},
+  {at: 1, expect: `${APPROX_INFINITY}px`},
+  {at: 1.25, expect: `${APPROX_INFINITY}px`}
+]);
+
+test_interpolation({
+  property: 'left',
+  from: 'calc(50% - 25px)',
+  to: 'calc(100% - 10px)'
+}, [
+  {at: -0.25, expect: '-10px'},
+  {at: 0, expect: '0px'},
+  {at: 0.25, expect: '10px'},
+  {at: 0.5, expect: '20px'},
+  {at: 0.75, expect: '30px'},
+  {at: 1, expect: '40px'},
+  {at: 1.25, expect: '50px'}
+]);
+
+test_interpolation({
+  property: 'text-indent',
+  from: 'calc(50% - 25px)',
+  to: 'calc(100% - 10px)'
+}, [
+  {at: -0.25, expect: 'calc(((50% - 25px) * 1.25) + ((100% - 10px) * -0.25))'},
+  {at: 0, expect: 'calc(50% - 25px)'},
+  {at: 0.25, expect: 'calc(((50% - 25px) * 0.75) + ((100% - 10px) * 0.25))'},
+  {at: 0.5, expect: 'calc(((50% - 25px) * 0.5) + ((100% - 10px) * 0.5))'},
+  {at: 0.75, expect: 'calc(((50% - 25px) * 0.25) + ((100% - 10px) * 0.75))'},
+  {at: 1, expect: 'calc(100% - 10px)'},
+  {at: 1.25, expect: 'calc(((50% - 25px) * -0.25) + ((100% - 10px) * 1.25))'}
+]);
+
+test_interpolation({
+  property: 'text-indent',
+  from: '0em',
+  to: '100px'
+}, [
+  {at: -0.25, expect: '-25px'},
+  {at: 0, expect: '0em'},
+  {at: 0.25, expect: '25px'},
+  {at: 0.5, expect: '50px'},
+  {at: 0.75, expect: '75px'},
+  {at: 1, expect: '100px'},
+  {at: 1.25, expect: '125px'}
+]);
+
+test_interpolation({
+  property: 'text-indent',
+  from: '0%',
+  to: '100px'
+}, [
+  {at: -0.25, expect: 'calc(0% + -25px)'},
+  {at: 0, expect: '0%'},
+  {at: 0.25, expect: 'calc(0% + 25px)'},
+  {at: 0.5, expect: 'calc(0% + 50px)'},
+  {at: 0.75, expect: 'calc(0% + 75px)'},
+  {at: 1, expect: 'calc(0% + 100px)'},
+  {at: 1.25, expect: 'calc(0% + 125px)'}
+]);
+
+</script>
+</body>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElementNS("namespace", "prefix:localName");
+        const identicalElement = document.createElementNS("namespace", "prefix:localName");
+        const identicalElementWithCapitalizedName = document.createElementNS("namespace", "PREFIX:LOCALNAME");
+        const elementWithDifferentNamespace = document.createElementNS("namespace2", "prefix:localName");
+        const elementWithDifferentPrefix = document.createElementNS("namespace", "prefix2:localName");
+        const elementWithDifferentLocalName = document.createElementNS("namespace", "prefix:localName2");
+        const elementWithAttribute = document.createElementNS("namespace", "prefix:localName");
+        elementWithAttribute.setAttribute("foo", "bar");
+
+        println(`element.isEqualNode(element): ${element.isEqualNode(element)}`);
+        println(`element.isEqualNode(identicalElement): ${element.isEqualNode(identicalElement)}`);
+        println(`identicalElement.isEqualNode(element): ${identicalElement.isEqualNode(element)}`);
+        println(`element.isEqualNode(identicalElementWithCapitalizedName): ${element.isEqualNode(identicalElement)}`);
+        println(`element.isEqualNode(elementWithDifferentNamespace): ${element.isEqualNode(elementWithDifferentNamespace)}`);
+        println(`element.isEqualNode(elementWithDifferentPrefix): ${element.isEqualNode(elementWithDifferentPrefix)}`);
+        println(`element.isEqualNode(elementWithDifferentLocalName): ${element.isEqualNode(elementWithDifferentLocalName)}`);
+        println(`element.isEqualNode(elementWithAttribute): ${element.isEqualNode(elementWithAttribute)}`);
+
+        element.setAttribute("foo2", "bar");
+        println(`element.isEqualNode(elementWithAttribute) (after adding non-matching attribute): ${element.isEqualNode(elementWithAttribute)}`);
+
+        element.setAttribute("foo", "bar");
+        println(`element.isEqualNode(elementWithAttribute) (after adding matching attribute): ${element.isEqualNode(elementWithAttribute)}`);
+
+        element.removeAttribute("foo2");
+        println(`element.isEqualNode(elementWithAttribute) (after removing non-matching attribute): ${element.isEqualNode(elementWithAttribute)}`);
+    });
+</script>

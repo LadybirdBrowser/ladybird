@@ -1,0 +1,31 @@
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://www.w3.org/TR/webaudio/#enumdef-audiocontextlatencycategory
+enum AudioContextLatencyCategory { "balanced", "interactive", "playback" };
+
+// https://webaudio.github.io/web-audio-api/#AudioContext
+[Exposed=Window]
+interface AudioContext : BaseAudioContext {
+    constructor(optional AudioContextOptions contextOptions = {});
+    readonly attribute double baseLatency;
+    readonly attribute double outputLatency;
+    AudioTimestamp getOutputTimestamp ();
+    Promise<undefined> resume ();
+    Promise<undefined> suspend ();
+    Promise<undefined> close ();
+    MediaElementAudioSourceNode createMediaElementSource (HTMLMediaElement mediaElement);
+    [FIXME] MediaStreamAudioSourceNode createMediaStreamSource (MediaStream mediaStream);
+    [FIXME] MediaStreamTrackAudioSourceNode createMediaStreamTrackSource (MediaStreamTrack mediaStreamTrack);
+    [FIXME] MediaStreamAudioDestinationNode createMediaStreamDestination ();
+};
+
+dictionary AudioContextOptions {
+    (AudioContextLatencyCategory or double) latencyHint = "interactive";
+    float sampleRate;
+};
+
+dictionary AudioTimestamp {
+    [GenerateAsRequired] double contextTime;
+    // FIXME: Should be DOMHighResTimeStamp, but DOMHighResTimeStamp doesn't get parsed as a double during codegen
+    [GenerateAsRequired] double performanceTime;
+};

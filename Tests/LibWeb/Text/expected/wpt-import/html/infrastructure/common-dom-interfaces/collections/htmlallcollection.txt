@@ -1,0 +1,47 @@
+Harness status: OK
+
+Found 41 tests
+
+30 Pass
+11 Fail
+Pass	document.all is an HTMLAllCollection
+Pass	length attribute
+Pass	indexed property getter
+Pass	indexed property getter out of range
+Pass	named property getter
+Pass	named property getter with dot syntax
+Pass	named property getter with invalid name
+Pass	named property getter returning collection
+Pass	named property getter with "array index property name"
+Pass	named property getter with invalid "array index property name"
+Pass	named property getter with undefined
+Pass	named property getter with null
+Pass	namedItem method
+Pass	namedItem method with invalid name
+Pass	namedItem method returning collection
+Pass	namedItem method with "array index property name"
+Pass	namedItem method with invalid "array index property name"
+Pass	namedItem method with undefined
+Pass	namedItem method with null
+Pass	namedItem method with no argument
+Fail	legacy caller
+Fail	legacy caller with invalid name
+Fail	legacy caller returning collection
+Fail	legacy caller with "array index property name"
+Fail	legacy caller with "array index property name" as number
+Fail	legacy caller with invalid "array index property name"
+Fail	legacy caller with undefined
+Fail	legacy caller with null
+Fail	legacy caller with no argument
+Pass	legacy caller is not a constructor
+Fail	legacy caller with arbitrary this value
+Pass	item method
+Pass	item method with invalid name
+Pass	item method returning collection
+Pass	item method with "array index property name"
+Pass	item method with "array index property name" as number
+Pass	item method with invalid "array index property name"
+Pass	item method with undefined
+Pass	item method with null
+Pass	item method with no argument
+Fail	collections are new live HTMLCollection instances

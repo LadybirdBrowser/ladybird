@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<input id=input type=text>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("change", () => {
+            println(input.value);
+        });
+
+        internals.sendText(input, "wfh :^)");
+        internals.commitText();
+
+        // A second commit should not result in a change event.
+        internals.commitText();
+    })
+</script>

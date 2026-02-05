@@ -1,0 +1,13 @@
+source_set("XHR") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "EventNames.cpp",
+    "FormData.cpp",
+    "FormDataIterator.cpp",
+    "ProgressEvent.cpp",
+    "XMLHttpRequest.cpp",
+    "XMLHttpRequestEventTarget.cpp",
+    "XMLHttpRequestUpload.cpp",
+  ]
+}

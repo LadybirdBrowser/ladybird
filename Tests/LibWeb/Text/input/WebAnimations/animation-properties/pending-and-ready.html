@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+        const animation = foo.animate({}, { duration: 100 });
+
+        animation.play();
+        println(`Animation is pending after a call to play(): ${animation.pending}`);
+
+        await animation.ready;
+        println(`Animation is not pending after ready promise resolves: ${!animation.pending}`);
+
+        animation.pause();
+        println(`Animation is pending after a call to pause(): ${animation.pending}`);
+
+        await animation.ready;
+        println(`Animation is not pending after ready promise resolves: ${!animation.pending}`);
+    });
+</script>

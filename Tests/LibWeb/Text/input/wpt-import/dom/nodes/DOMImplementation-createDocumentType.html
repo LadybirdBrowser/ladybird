@@ -1,0 +1,123 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>DOMImplementation.createDocumentType(qualifiedName, publicId, systemId)</title>
+<link rel=help href="https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-documenttype-name">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-documenttype-publicid">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-documenttype-systemid">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-node-ownerdocument">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+test(function() {
+  var tests = [
+    ["", "", "", null],
+    ["test:root", "1234", "", null],
+    ["test:root", "1234", "test", null],
+    ["test:root", "test", "", null],
+    ["test:root", "test", "test", null],
+    ["_:_", "", "", null],
+    ["_:h0", "", "", null],
+    ["_:test", "", "", null],
+    ["_:_.", "", "", null],
+    ["_:a-", "", "", null],
+    ["l_:_", "", "", null],
+    ["ns:_0", "", "", null],
+    ["ns:a0", "", "", null],
+    ["ns0:test", "", "", null],
+    ["ns:EEE.", "", "", null],
+    ["ns:_-", "", "", null],
+    ["a.b:c", "", "", null],
+    ["a-b:c.j", "", "", null],
+    ["a-b:c", "", "", null],
+    ["foo", "", "", null],
+    ["1foo", "", "", null],
+    ["foo1", "", "", null],
+    ["f1oo", "", "", null],
+    ["@foo", "", "", null],
+    ["foo@", "", "", null],
+    ["f@oo", "", "", null],
+    ["edi:{", "", "", null],
+    ["edi:}", "", "", null],
+    ["edi:~", "", "", null],
+    ["edi:'", "", "", null],
+    ["edi:!", "", "", null],
+    ["edi:@", "", "", null],
+    ["edi:#", "", "", null],
+    ["edi:$", "", "", null],
+    ["edi:%", "", "", null],
+    ["edi:^", "", "", null],
+    ["edi:&", "", "", null],
+    ["edi:*", "", "", null],
+    ["edi:(", "", "", null],
+    ["edi:)", "", "", null],
+    ["edi:+", "", "", null],
+    ["edi:=", "", "", null],
+    ["edi:[", "", "", null],
+    ["edi:]", "", "", null],
+    ["edi:\\", "", "", null],
+    ["edi:/", "", "", null],
+    ["edi:;", "", "", null],
+    ["edi:`", "", "", null],
+    ["edi:<", "", "", null],
+    ["edi:>", "", "", "INVALID_CHARACTER_ERR"],
+    ["edi:,", "", "", null],
+    ["edi:a ", "", "", "INVALID_CHARACTER_ERR"],
+    ["edi:\"", "", "", null],
+    ["{", "", "", null],
+    ["}", "", "", null],
+    ["'", "", "", null],
+    ["~", "", "", null],
+    ["`", "", "", null],
+    ["@", "", "", null],
+    ["#", "", "", null],
+    ["$", "", "", null],
+    ["%", "", "", null],
+    ["^", "", "", null],
+    ["&", "", "", null],
+    ["*", "", "", null],
+    ["(", "", "", null],
+    [")", "", "", null],
+    ["f:oo", "", "", null],
+    [":foo", "", "", null],
+    ["foo:", "", "", null],
+    ["prefix::local", "", "", null],
+    ["foo", "foo", "", null],
+    ["foo", "", "foo", null],
+    ["foo", "f'oo", "", null],
+    ["foo", "", "f'oo", null],
+    ["foo", 'f"oo', "", null],
+    ["foo", "", 'f"oo', null],
+    ["foo", "f'o\"o", "", null],
+    ["foo", "", "f'o\"o", null],
+    ["foo", "foo>", "", null],
+    ["foo", "", "foo>", null]
+  ]
+
+  var doc = document.implementation.createHTMLDocument("title");
+  var doTest = function(aDocument, aQualifiedName, aPublicId, aSystemId) {
+    var doctype = aDocument.implementation.createDocumentType(aQualifiedName, aPublicId, aSystemId);
+    assert_equals(doctype.name, aQualifiedName, "name")
+    assert_equals(doctype.nodeName, aQualifiedName, "nodeName")
+    assert_equals(doctype.publicId, aPublicId, "publicId")
+    assert_equals(doctype.systemId, aSystemId, "systemId")
+    assert_equals(doctype.ownerDocument, aDocument, "ownerDocument")
+    assert_equals(doctype.nodeValue, null, "nodeValue")
+  }
+  tests.forEach(function(t) {
+    var qualifiedName = t[0], publicId = t[1], systemId = t[2], expected = t[3]
+    test(function() {
+      if (expected) {
+        assert_throws_dom(expected, function() {
+          document.implementation.createDocumentType(qualifiedName, publicId, systemId)
+        })
+      } else {
+        doTest(document, qualifiedName, publicId, systemId);
+        doTest(doc, qualifiedName, publicId, systemId);
+      }
+    }, "createDocumentType(" + format_value(qualifiedName) + ", " + format_value(publicId) + ", " + format_value(systemId) + ") should " +
+       (expected ? "throw " + expected : "work"));
+  });
+})
+</script>

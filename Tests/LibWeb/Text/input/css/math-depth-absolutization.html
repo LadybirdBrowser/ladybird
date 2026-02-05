@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            math-depth: sibling-count();
+        }
+
+        #bar {
+            math-depth: random(fixed 0.5, 0, 10);
+        }
+    </style>
+    <div id="foo"></div>
+    <div id="bar"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            println(getComputedStyle(foo).mathDepth);
+            println(getComputedStyle(bar).mathDepth);
+        });
+    </script>
+</html>

@@ -1,0 +1,12 @@
+Uint8Array 30,40,50,60
+Uint8ClampedArray 30,40,50,60
+Uint16Array 30,40,50,60
+Uint32Array 30,40,50,60
+Int8Array 30,40,50,60
+Int16Array 30,40,50,60
+Int32Array 30,40,50,60
+Float32Array 30,40,50,60
+Float64Array 30,40,50,60
+BigUint64Array 30,40,50,60
+BigInt64Array 30,40,50,60
+DataView [object DataView]

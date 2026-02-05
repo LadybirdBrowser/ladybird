@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSLab tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#csshwb">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gValidLightnessInputs = [
+  {lightness: CSS.percent(50), desc: 'percent', expected: CSS.percent(50)},
+  {lightness: 0.5, desc: 'number', expected: CSS.percent(50)},
+];
+
+const gInvalidLightnessInputs = [
+  {lightness: CSS.px(1), desc: "css pixels"},
+  {lightness: CSS.deg(180), desc: "degrees"},
+]
+
+for (const {lightness, desc, expected} of gValidLightnessInputs) {
+  test(() => {
+    const result = new CSSLab(lightness, 0.5, 0.5);
+    assert_color_channel_approx_equals(result.l, expected);
+  }, `Constructing a CSSLab with ${desc} for the lightness works as intended.`);
+
+  test(() => {
+    const result = new CSSLab(CSS.percent(0), 0.5, 0.5);
+    result.l = lightness;
+    assert_color_channel_approx_equals(result.l, expected);
+  }, `CSSLab.l can be updated with a ${desc}.`);
+}
+
+for (const {lightness, desc} of gInvalidLightnessInputs) {
+  test(() => {
+    assert_throws_dom("SyntaxError", () => new CSSLab(lightness, 0, 0));
+  }, `Constructing a CSSLab with ${desc} for lightness throws a SyntaxError.`);
+}
+
+test(() => {
+  const result = new CSSLab(CSS.percent(27), 7, CSS.number(8));
+  assert_color_channel_approx_equals(result.l, CSS.percent(27));
+  assert_color_channel_approx_equals(result.a, CSS.number(7));
+  assert_color_channel_approx_equals(result.b, CSS.number(8));
+  assert_color_channel_approx_equals(result.alpha, CSS.percent(100));
+}, 'CSSLab can be constructed from three numbers and will get an alpha of 100%.');
+
+test(() => {
+  const result = new CSSLab(0.2, 7, CSS.number(8), CSS.percent(0.4));
+  assert_color_channel_approx_equals(result.l, CSS.percent(20));
+  assert_color_channel_approx_equals(result.a, CSS.number(7));
+  assert_color_channel_approx_equals(result.b, CSS.number(8));
+  assert_color_channel_approx_equals(result.alpha, CSS.percent(0.4));
+}, 'CSSLab can be constructed from four numbers.');
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => new CSSLab(CSS.number(1), 0, 0, 0));
+  assert_throws_dom("SyntaxError", () => new CSSLab(0, 0, 0, CSS.number(1)));
+}, `Constructing a CSSLab with CSS.number for l or alpha throws a SyntaxError`);
+
+for (const attr of ['l', 'alpha']) {
+  test(() => {
+    const result = new CSSLab(CSS.percent(0), 0, 0);
+    assert_throws_dom("SyntaxError", () => result[attr] = CSS.number(1));
+  }, `Updating a CSSLab with CSS.number for ${attr} throws a SyntaxError`);
+
+  test(() => {
+    const result = new CSSLab(CSS.percent(0), 0, 0);
+    result[attr] = 0.5;
+    assert_color_channel_approx_equals(result[attr], CSS.percent(50));
+  }, 'CSSLab.' + attr + ' can be updated to a number.');
+
+  test(() => {
+    const result = new CSSLab(CSS.percent(0), 0, 0);
+    result[attr] = CSS.percent(50);
+    assert_color_channel_approx_equals(result[attr], CSS.percent(50));
+  }, 'CSSLab.' + attr + ' can be updated with a CSS percent.');
+}
+</script>

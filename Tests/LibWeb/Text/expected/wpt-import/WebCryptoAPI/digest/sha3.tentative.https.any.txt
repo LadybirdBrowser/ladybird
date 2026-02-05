@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	SHA3-256 with empty source data
+Pass	SHA3-256 with empty source data and altered buffer after call
+Pass	SHA3-384 with empty source data
+Pass	SHA3-384 with empty source data and altered buffer after call
+Pass	SHA3-512 with empty source data
+Pass	SHA3-512 with empty source data and altered buffer after call
+Pass	SHA3-256 with short source data
+Pass	SHA3-256 with short source data and altered buffer after call
+Pass	SHA3-384 with short source data
+Pass	SHA3-384 with short source data and altered buffer after call
+Pass	SHA3-512 with short source data
+Pass	SHA3-512 with short source data and altered buffer after call
+Pass	SHA3-256 with medium source data
+Pass	SHA3-256 with medium source data and altered buffer after call
+Pass	SHA3-384 with medium source data
+Pass	SHA3-384 with medium source data and altered buffer after call
+Pass	SHA3-512 with medium source data
+Pass	SHA3-512 with medium source data and altered buffer after call
+Pass	SHA3-256 with long source data
+Pass	SHA3-256 with long source data and altered buffer after call
+Pass	SHA3-384 with long source data
+Pass	SHA3-384 with long source data and altered buffer after call
+Pass	SHA3-512 with long source data
+Pass	SHA3-512 with long source data and altered buffer after call

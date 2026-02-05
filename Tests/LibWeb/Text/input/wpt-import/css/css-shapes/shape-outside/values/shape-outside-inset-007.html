@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Inset Radial Args - Invalid</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-inset">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="These tests verify invalid radial component arguments don't parse.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+            var invalid_radial_args_tests = [
+                // no units
+                {"name": "inset(10px round 10 20 30 40)"},
+                {"name": "inset(10px round 10px 20 30 40)"},
+                {"name": "inset(10px round 10px 20px 30 40)"},
+                {"name": "inset(10px round 10px 20px 30px 40)"},
+                {"name": "inset(10px round 10px 20px 30px 40px / 10 20 30 40)"},
+                {"name": "inset(10px round 10px 20px 30px 40px / 10px 20 30 40)"},
+                {"name": "inset(10px round 10px 20px 30px 40px / 10px 20px 30 40)"},
+                {"name": "inset(10px round 10px 20px 30px 40px / 10px 20px 30px 40)"},
+                // commas
+                {"name": "inset(10px round  10px, 20px, 30px, 40px)"},
+                {"name": "inset(10px round  10px, 20px, 30px 40px)"},
+                {"name": "inset(10px round  10px, 20px 30px 40px)"},
+                {"name": "inset(10px round  10px 20px, 30px, 40px)"},
+                {"name": "inset(10px round  10px 20px 30px, 40px)"},
+                {"name": "inset(10px round  10px, 20px, 30px, 40px / 10px, 20px, 30px, 40px)"},
+                {"name": "inset(10px round  10px 20px, 30px, 40px / 10px 20px, 30px, 40)"},
+                {"name": "inset(10px round  10px 20px 30px, 40px / 10px 20px 30px, 40)"},
+                // bogus args
+                {"name": "inset(10px round  foo, bar, boo, $$)"},
+                {"name": "inset(10px round  10px, xx, px pt)"},
+                {"name": "inset(10px round  word)"}
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(invalid_radial_args_tests) );
+        </script>
+    </body>
+</html>

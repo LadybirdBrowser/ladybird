@@ -1,0 +1,26 @@
+#import <DOM/Element.idl>
+#import <Geometry/DOMRect.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
+
+// https://www.w3.org/TR/intersection-observer/#intersectionobserverentry
+[Exposed=Window]
+interface IntersectionObserverEntry {
+    // FIXME: constructor(IntersectionObserverEntryInit intersectionObserverEntryInit);
+    readonly attribute DOMHighResTimeStamp time;
+    readonly attribute DOMRectReadOnly? rootBounds;
+    readonly attribute DOMRectReadOnly boundingClientRect;
+    readonly attribute DOMRectReadOnly intersectionRect;
+    readonly attribute boolean isIntersecting;
+    readonly attribute double intersectionRatio;
+    readonly attribute Element target;
+};
+
+dictionary IntersectionObserverEntryInit {
+    required DOMHighResTimeStamp time;
+    required DOMRectInit? rootBounds;
+    required DOMRectInit boundingClientRect;
+    required DOMRectInit intersectionRect;
+    required boolean isIntersecting;
+    required double intersectionRatio;
+    required Element target;
+};

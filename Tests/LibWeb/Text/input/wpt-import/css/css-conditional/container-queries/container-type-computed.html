@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Computed values of container-type</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-type">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div id="target"></div>
+<script>
+setup(() => assert_implements_size_container_queries());
+
+test_computed_value('container-type', 'initial', 'normal');
+test_computed_value('container-type', 'unset', 'normal');
+test_computed_value('container-type', 'inline-size');
+test_computed_value('container-type', 'size');
+test_computed_value('container-type', 'normal');
+</script>

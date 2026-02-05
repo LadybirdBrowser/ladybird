@@ -1,0 +1,2 @@
+responseURL before: ''
+responseURL after: 'data:text/html,hello'

@@ -1,0 +1,56 @@
+Harness status: OK
+
+Found 50 tests
+
+48 Pass
+2 Fail
+Pass	e.style['scroll-timeline'] = "none block" should set the property value
+Pass	e.style['scroll-timeline'] = "none inline" should set the property value
+Pass	e.style['scroll-timeline'] = "--abc x" should set the property value
+Pass	e.style['scroll-timeline'] = "--abc inline" should set the property value
+Pass	e.style['scroll-timeline'] = "--aBc inline" should set the property value
+Pass	e.style['scroll-timeline'] = "--inline inline" should set the property value
+Pass	e.style['scroll-timeline'] = "--abc" should set the property value
+Pass	e.style['scroll-timeline'] = "--inline block" should set the property value
+Pass	e.style['scroll-timeline'] = "--block block" should set the property value
+Pass	e.style['scroll-timeline'] = "--y block" should set the property value
+Pass	e.style['scroll-timeline'] = "--x block" should set the property value
+Pass	e.style['scroll-timeline'] = "--a, --b, --c" should set the property value
+Pass	e.style['scroll-timeline'] = "--a inline, --b block, --c y" should set the property value
+Pass	e.style['scroll-timeline'] = "--auto" should set the property value
+Pass	e.style['scroll-timeline'] = "" should not set the property value
+Pass	e.style['scroll-timeline'] = "--abc --abc" should not set the property value
+Pass	e.style['scroll-timeline'] = "block none" should not set the property value
+Pass	e.style['scroll-timeline'] = "inline --abc" should not set the property value
+Pass	e.style['scroll-timeline'] = "default" should not set the property value
+Pass	e.style['scroll-timeline'] = "," should not set the property value
+Pass	e.style['scroll-timeline'] = ",,block,," should not set the property value
+Pass	Property scroll-timeline value 'none block'
+Pass	Property scroll-timeline value '--abc inline'
+Pass	Property scroll-timeline value 'none y'
+Pass	Property scroll-timeline value '--abc x'
+Pass	Property scroll-timeline value '--y y'
+Pass	Property scroll-timeline value '--abc'
+Pass	Property scroll-timeline value '--inline block'
+Pass	Property scroll-timeline value '--block block'
+Pass	Property scroll-timeline value '--y block'
+Pass	Property scroll-timeline value '--x block'
+Pass	Property scroll-timeline value '--a, --b, --c'
+Pass	Property scroll-timeline value '--a inline, --b block, --c y'
+Pass	e.style['scroll-timeline'] = "--abc y" should set scroll-timeline-axis
+Pass	e.style['scroll-timeline'] = "--abc y" should set scroll-timeline-name
+Pass	e.style['scroll-timeline'] = "--abc y" should not set unrelated longhands
+Pass	e.style['scroll-timeline'] = "--inline x" should set scroll-timeline-axis
+Pass	e.style['scroll-timeline'] = "--inline x" should set scroll-timeline-name
+Pass	e.style['scroll-timeline'] = "--inline x" should not set unrelated longhands
+Pass	e.style['scroll-timeline'] = "--abc y, --def" should set scroll-timeline-axis
+Pass	e.style['scroll-timeline'] = "--abc y, --def" should set scroll-timeline-name
+Pass	e.style['scroll-timeline'] = "--abc y, --def" should not set unrelated longhands
+Pass	e.style['scroll-timeline'] = "--abc, --def" should set scroll-timeline-axis
+Pass	e.style['scroll-timeline'] = "--abc, --def" should set scroll-timeline-name
+Pass	e.style['scroll-timeline'] = "--abc, --def" should not set unrelated longhands
+Pass	Shorthand contraction of scroll-timeline-name:--abc:undefined;scroll-timeline-axis:inline:undefined
+Pass	Shorthand contraction of scroll-timeline-name:--a, --b:undefined;scroll-timeline-axis:inline, block:undefined
+Pass	Shorthand contraction of scroll-timeline-name:none, none:undefined;scroll-timeline-axis:block, block:undefined
+Fail	Shorthand contraction of scroll-timeline-name:--a, --b, --c:undefined;scroll-timeline-axis:inline, inline:undefined
+Fail	Shorthand contraction of scroll-timeline-name:--a, --b:undefined;scroll-timeline-axis:inline, inline, inline:undefined

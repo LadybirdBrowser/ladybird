@@ -1,0 +1,64 @@
+<!doctype html>
+<title>Selectors: CSSOM of case-sensitivity attribute selector</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#attribute-case">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+function new_sheet(use_media) {
+  var style = document.getElementsByTagName('style')[0];
+  if (style)
+    style.parentNode.removeChild(style);
+  style = document.createElement('style');
+  document.head.appendChild(style);
+  if (use_media) {
+    style.textContent = '@media all {}';
+    return style.sheet.cssRules[0];
+  }
+  return style.sheet;
+}
+
+var tests = [
+  // test input, expected serialization
+  ['[foo="bar"] /* sanity check */', '[foo="bar"]'],
+  ['[foo="bar" i]', '[foo="bar" i]'],
+  ['[foo="bar" /**/ i]', '[foo="bar" i]'],
+  ['[foo="bar"/**/i]', '[foo="bar" i]'],
+  ['[*|foo="bar" i]', '[*|foo="bar" i]'],
+  ['[foo="bar" s]', '[foo="bar" s]'],
+  ['[foo="bar" /**/ s]', '[foo="bar" s]'],
+  ['[foo="bar"/**/s]', '[foo="bar" s]'],
+  ['[*|foo="bar" s]', '[*|foo="bar" s]'],
+]
+
+tests.forEach(function(arr) {
+  var input = arr[0];
+  var expected = arr[1];
+  ["", " in @media"].forEach(function(use_media) {
+    test(function() {
+      var sheet = new_sheet(use_media);
+      sheet.insertRule(input + ' {}', 0);
+      assert_equals(sheet.cssRules.length, 1);
+    }, input + ' insertRule' + use_media);
+
+    test(function() {
+      var sheet = new_sheet(use_media);
+      sheet.insertRule(input + ' {}', 0);
+      assert_equals(sheet.cssRules[0].cssText.substr(0, expected.length), expected);
+    }, input + ' getting CSSRule#cssText' + use_media);
+
+    test(function() {
+      var sheet = new_sheet(use_media);
+      sheet.insertRule(input + ' {}', 0);
+      assert_equals(sheet.cssRules[0].selectorText, expected);
+    }, input + ' getting CSSStyleRule#selectorText' + use_media);
+
+    test(function() {
+      var sheet = new_sheet(use_media);
+      sheet.insertRule('foobar {}', 0);
+      sheet.cssRules[0].selectorText = input;
+      assert_equals(sheet.cssRules[0].selectorText, expected);
+    }, input + ' setting CSSStyleRule#selectorText' + use_media);
+  });
+});
+</script>

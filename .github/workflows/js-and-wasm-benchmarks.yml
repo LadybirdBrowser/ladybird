@@ -1,0 +1,142 @@
+name: 'JS benchmarks'
+
+on:
+  workflow_run:
+    workflows: ['Package the js repl as a binary artifact']
+    branches: [master]
+    types: [completed]
+
+jobs:
+  js-benchmarks:
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+    if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: ['Linux']
+        arch: ['x86_64']
+        package_type: ['Linux-x86_64']
+        runner_labels: ['["ubuntu-24.04-internal", "js-benchmarks", "self-hosted"]']
+
+        include:
+          - os_name: 'macOS'
+            arch: 'arm64'
+            package_type: 'macOS-arm64'
+            runner_labels: '["macos-15", "js-benchmarks", "self-hosted"]'
+
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: 'Checkout LadybirdBrowser/js-benchmarks'
+        uses: actions/checkout@v6.0.2
+        with:
+          repository: LadybirdBrowser/js-benchmarks
+          path: js-benchmarks
+          ref: master
+
+      - name: 'Determine js-benchmarks commit hash'
+        id: js-benchmarks-commit
+        shell: bash
+        run: |
+          cd js-benchmarks
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Install dependencies'
+        if: ${{ matrix.os_name == 'Linux' }}
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y python3-venv
+
+      - name: 'Download JS repl artifact'
+        uses: dawidd6/action-download-artifact@v14
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ladybird-js-${{ matrix.package_type }}
+          path: js-repl
+
+      - name: 'Extract JS repl'
+        shell: bash
+        run: |
+          cd js-repl
+          tar -xvzf ladybird-js-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
+
+      - name: 'Determine JS repl build commit hash'
+        id: js-build-commit
+        shell: bash
+        run: |
+          commit_hash=$(cat js-repl/COMMIT)
+          echo "sha=${commit_hash}" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Download wasm repl artifact'
+        uses: dawidd6/action-download-artifact@v14
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ladybird-wasm-${{ matrix.package_type }}
+          path: wasm-repl
+          if_no_artifact_found: warn
+
+      - name: 'Extract wasm repl'
+        if: ${{ hashFiles('wasm-repl/*.tar.gz') != '' }}
+        shell: bash
+        run: |
+          cd wasm-repl
+          tar -xvzf ladybird-wasm-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
+
+      - name: 'Run the benchmarks'
+        shell: bash
+        run: |
+          cd js-benchmarks
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python3 -m pip install -r requirements.txt
+
+          run_options='--iterations=5'
+
+          js_path="${{ github.workspace }}/js-repl/bin/js"
+          run_options="${run_options} --executable=${js_path}"
+
+          wasm_path="${{ github.workspace }}/wasm-repl/bin/wasm"
+          if [ -x "${wasm_path}" ]; then
+              run_options="${run_options} --wasm-executable=${wasm_path}"
+          else
+              echo "Wasm repl not found; skipping wasm benchmarks."
+          fi
+
+          if [ "${{ github.event.workflow_run.event }}" = "workflow_dispatch" ]; then
+              # Upstream was run manually; we might run into failing benchmarks as a result of older builds.
+              run_options="${run_options} --continue-on-failure"
+          fi
+
+          ./run.py ${run_options}
+
+      - name: 'Save results as an artifact'
+        uses: actions/upload-artifact@v6
+        with:
+          name: js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: js-benchmarks/results.json
+          retention-days: 90
+
+      - name: 'Call webhook'
+        shell: bash
+        run: |
+          echo '{
+              "commit": "${{ steps.js-build-commit.outputs.sha }}",
+              "benchmarks_commit": "${{ steps.js-benchmarks-commit.outputs.sha }}",
+              "os": "${{ matrix.os_name }}",
+              "arch": "${{ matrix.arch }}",
+              "artifact": "js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}",
+              "artifact_run_id": "${{ github.run_id }}"
+          }' > request.json
+          curl \
+              --fail \
+              --silent \
+              --show-error \
+              --header 'Content-Type: application/json' \
+              --header "X-Hub-Signature-256: sha256=$(openssl dgst -sha256 -hmac '${{ secrets.JS_BENCHMARKS_WEBHOOK_SECRET }}' request.json | cut -d' ' -f2)" \
+              --data-binary '@request.json' \
+              '${{ secrets.JS_BENCHMARKS_WEBHOOK_URL }}'

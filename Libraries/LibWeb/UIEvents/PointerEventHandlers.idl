@@ -1,0 +1,14 @@
+// https://w3c.github.io/pointerevents/#extensions-to-the-globaleventhandlers-mixin
+partial interface mixin GlobalEventHandlers {
+    attribute EventHandler onpointerover;
+    attribute EventHandler onpointerenter;
+    attribute EventHandler onpointerdown;
+    attribute EventHandler onpointermove;
+    [SecureContext] attribute EventHandler onpointerrawupdate;
+    attribute EventHandler onpointerup;
+    attribute EventHandler onpointercancel;
+    attribute EventHandler onpointerout;
+    attribute EventHandler onpointerleave;
+    attribute EventHandler ongotpointercapture;
+    attribute EventHandler onlostpointercapture;
+};

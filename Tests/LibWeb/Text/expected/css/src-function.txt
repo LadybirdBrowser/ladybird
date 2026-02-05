@@ -1,0 +1,5 @@
+Before: none
+Using url('cool.png'): url("cool.png")
+Using url(var(--some-url)): none
+Using src('cool.png'): src("cool.png")
+Using src(var(--some-url)): src("awesome.png")

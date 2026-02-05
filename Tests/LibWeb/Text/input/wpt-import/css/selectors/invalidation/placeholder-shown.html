@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>CSS Selectors Test: :placeholder-shown invalidation</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#placeholder">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #target { color: red; }
+  input:placeholder-shown + #target { color: green; }
+</style>
+<input id="input" type="text">
+<span id="target"></span>
+<script>
+  const red = "rgb(255, 0, 0)";
+  const green = "rgb(0, 128, 0)";
+
+  test(() => {
+    assert_equals(getComputedStyle(target).color, red);
+  }, "Initially no placeholder text");
+
+  test(() => {
+    input.setAttribute("placeholder", "PLACEHOLDER");
+    assert_equals(getComputedStyle(target).color, green);
+  }, "Added placeholder text");
+
+  test(() => {
+    input.setAttribute("placeholder", "");
+    assert_equals(getComputedStyle(target).color, green);
+  }, "Set placeholder text to empty string");
+
+  test(() => {
+    input.removeAttribute("placeholder");
+    assert_equals(getComputedStyle(target).color, red);
+  }, "Removed placeholder attribute");
+</script>

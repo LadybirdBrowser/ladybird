@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Evaluating XPath expressions with orhpaned Attr as context node doesn't crash</title>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=1236967">
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+for (const expression of [
+    "..",
+    "parent",
+    "ancestor::*",
+    "ancestor-or-self::*",
+    "following::*",
+    "preceding::*",
+]) {
+    const orphanedAttr = document.createAttribute("foo");
+    new XPathEvaluator().evaluate(expression, orphanedAttr, null, 2);
+}
+</script>

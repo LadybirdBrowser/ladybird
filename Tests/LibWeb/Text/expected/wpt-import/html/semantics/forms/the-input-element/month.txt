@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	year can be more than four digits
+Pass	valid value test
+Pass	year can contain prefixes of zero, as long as there are at least four digits
+Pass	month type support on input element
+Pass	User agents must not allow the user to set the value to a non-empty string that is not a valid month string.
+Pass	Month value can be empty string.
+Pass	When value attribute has two digits year value, the value,which is invalid, must return empty string.
+Pass	When value is set with invalid value, the value must return empty string.
+Pass	When step attribute is given invalid value, it must ignore the invalid value and use defaul value instead.
+Pass	Month should be <= 13: If the value of the element is not a valid month string, then set it to the empty string instead.
+Pass	Month should be > 0: If the value of the element is not a valid month string, then set it to the empty string instead.>
+Pass	Year should be > 0: If the value of the element is not a valid year string, then set it to the empty string instead.>
+Pass	Month should be two digits: If the value of the element is not a valid month string, then set it to the empty string instead.>
+Pass	Month should be two digits not characters: If the value of the element is not a valid month string, then set it to the empty string instead.>
+Pass	Value should be two parts: If the value of the element is not a valid month string, then set it to the empty string instead.>

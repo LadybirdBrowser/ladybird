@@ -1,0 +1,25 @@
+<!doctype html>
+<style>
+iframe {
+    width: 0;
+    height: 0;
+    border: 1px solid black;
+}
+</style>
+<script src="../include.js"></script>
+<body><iframe id="i1"></iframe>
+<script>
+    asyncTest((done) => {
+        i1.srcdoc = `
+<style>
+@media all and (min-height: 1px) { #y1 { text-transform: uppercase; } }
+</style><div id=y1>transformed text</div><script>document.body.offsetWidth</` + `script>`;
+        i1.onload = function() {
+            i1.setAttribute("style", "height: 100px; width: 100px");
+            println(i1.contentDocument.body.innerText);
+            i1.removeAttribute("style");
+            println(i1.contentDocument.body.innerText);
+            done();
+        };
+    });
+</script>

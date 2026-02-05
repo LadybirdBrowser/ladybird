@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<body>
+<script>
+  // Trusted HTML assignments do not throw.
+  test(t => {
+    let p = createHTML_policy(window, 1);
+    let html = p.createHTML(INPUTS.HTML);
+    let parser = new DOMParser();
+    let doc = parser.parseFromString(html, "text/html");
+    assert_equals(doc.body.innerText, RESULTS.HTML);
+  }, "document.innerText assigned via policy (successful HTML transformation).");
+
+  // String assignments throw.
+  test(t => {
+    var parser = new DOMParser();
+    assert_throws_js(TypeError, _ => {
+      var doc = parser.parseFromString("Fail", "text/html");
+    });
+  }, "`document.innerText = string` throws.");
+
+  // Null assignment throws.
+  test(t => {
+    var parser = new DOMParser();
+    assert_throws_js(TypeError, _ => {
+      var doc = parser.parseFromString(null, "text/html");
+    });
+  }, "'document.innerText = null' throws");
+
+  // After default policy creation string assignment implicitly calls createHTML.
+  test(t => {
+    let p = window.trustedTypes.createPolicy("default", {
+      createHTML: (value, type, sink) => {
+        assert_equals(sink, "DOMParser parseFromString");
+        return createHTMLJS(value);
+      }
+    });
+
+    let parser = new DOMParser();
+    let doc = parser.parseFromString(INPUTS.HTML, "text/html");
+    assert_equals(doc.body.innerText, RESULTS.HTML);
+  }, "'document.innerText = string' assigned via default policy (successful HTML transformation).");
+
+  // After default policy creation null assignment implicitly calls createHTML.
+  test(t => {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(null, "text/html");
+    assert_equals(doc.body.innerText, "null");
+  }, "'document.innerText = null' assigned via default policy does not throw");
+</script>

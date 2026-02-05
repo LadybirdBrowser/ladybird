@@ -1,0 +1,3 @@
+<xml><![CDATA[Some <CDATA> data & then some]]></xml>
+Exception: NotSupportedError
+Exception: InvalidCharacterError

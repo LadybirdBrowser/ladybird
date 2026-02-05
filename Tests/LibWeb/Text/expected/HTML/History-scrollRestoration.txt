@@ -1,0 +1,4 @@
+auto
+auto
+manual
+auto

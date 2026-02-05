@@ -1,0 +1,47 @@
+#import <CSS/CSSStyleValue.idl>
+#import <CSS/CSSUnitValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#enumdef-cssnumericbasetype
+enum CSSNumericBaseType {
+    "length",
+    "angle",
+    "time",
+    "frequency",
+    "resolution",
+    "flex",
+    "percent",
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dictdef-cssnumerictype
+dictionary CSSNumericType {
+    long length;
+    long angle;
+    long time;
+    long frequency;
+    long resolution;
+    long flex;
+    long percent;
+    CSSNumericBaseType percentHint;
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSNumericValue : CSSStyleValue {
+    CSSNumericValue add(CSSNumberish... values);
+    CSSNumericValue sub(CSSNumberish... values);
+    CSSNumericValue mul(CSSNumberish... values);
+    CSSNumericValue div(CSSNumberish... values);
+    CSSNumericValue min(CSSNumberish... values);
+    CSSNumericValue max(CSSNumberish... values);
+
+    [ImplementedAs=equals_for_bindings] boolean equals(CSSNumberish... value);
+
+    CSSUnitValue to(USVString unit);
+    // FIXME: CSSMathSum toSum(USVString... units);
+    [ImplementedAs=type_for_bindings] CSSNumericType type();
+
+    [Exposed=Window] static CSSNumericValue parse(USVString cssText);
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
+typedef (double or CSSNumericValue) CSSNumberish;

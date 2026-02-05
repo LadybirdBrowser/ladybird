@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Conditional Test: Parsing of container-type</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-type">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div id="target"></div>
+<script>
+setup(() => assert_implements_size_container_queries());
+
+test_valid_value('container-type', 'initial');
+test_valid_value('container-type', 'inherit');
+test_valid_value('container-type', 'unset');
+test_valid_value('container-type', 'revert');
+test_valid_value('container-type', 'normal');
+test_valid_value('container-type', 'size');
+test_valid_value('container-type', 'inline-size');
+
+test_invalid_value('container-type', 'none');
+test_invalid_value('container-type', 'auto');
+test_invalid_value('container-type', 'block-size');
+test_invalid_value('container-type', 'normal normal');
+test_invalid_value('container-type', 'normal inline-size');
+test_invalid_value('container-type', 'inline-size normal');
+test_invalid_value('container-type', 'inline-size inline-size');
+test_invalid_value('container-type', 'inline-size block-size');
+test_invalid_value('container-type', 'block-size inline-size');
+test_invalid_value('container-type', 'size inline-size');
+test_invalid_value('container-type', 'inline-size size');
+test_invalid_value('container-type', 'normal, normal');
+test_invalid_value('container-type', 'foo');
+test_invalid_value('container-type', '"foo"');
+test_invalid_value('container-type', 'foo, bar');
+test_invalid_value('container-type', '#fff');
+test_invalid_value('container-type', '1px');
+test_invalid_value('container-type', 'default');
+test_invalid_value('container-type', 'size nonsense');
+test_invalid_value('container-type', 'style');
+test_invalid_value('container-type', 'inline-size style', 'style inline-size');
+test_invalid_value('container-type', 'style inline-size');
+test_invalid_value('container-type', 'style size');
+</script>

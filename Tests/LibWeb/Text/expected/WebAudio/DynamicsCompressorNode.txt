@@ -1,0 +1,10 @@
+DynamicsCompressorNode
+AudioNode
+EventTarget
+Object
+[object AudioParam] current: -24, default: -24, min: -100, max: 0, rate: k-rate
+[object AudioParam] current: 30, default: 30, min: 0, max: 40, rate: k-rate
+[object AudioParam] current: 12, default: 12, min: 1, max: 20, rate: k-rate
+[object AudioParam] current: 0.003000000026077032, default: 0.003000000026077032, min: 0, max: 1, rate: k-rate
+[object AudioParam] current: 0.25, default: 0.25, min: 0, max: 1, rate: k-rate
+reduction: 0

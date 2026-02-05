@@ -1,0 +1,4 @@
+use1 > [object SVGSVGElement] foo
+use2 > [object SVGSVGElement] foo
+no use1
+use2 > [object SVGSVGElement] foo

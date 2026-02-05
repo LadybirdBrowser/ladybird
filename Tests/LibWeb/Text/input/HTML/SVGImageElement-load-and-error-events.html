@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="text/javascript">
+    const SOURCES = [
+        "data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==", // Valid
+        "file:///i-do-not-exist",  // invalid
+        "https://something.invalid", // invalid
+    ];
+
+    const runTest = (source) => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const image = document.createElementNS(svgNamespace, "image");
+        const svg = document.createElementNS(svgNamespace, "svg");
+        svg.appendChild(image);
+        document.body.appendChild(svg);
+
+        return new Promise((resolve) => {
+            image.addEventListener("load", () => {
+                resolve(`SUCCESS: "${source}"`);
+                document.body.removeChild(svg);
+            });
+
+            image.addEventListener("error", () => {
+                resolve(`FAIL: "${source}"`);
+                document.body.removeChild(svg);
+            });
+
+            image.setAttributeNS("http://www.w3.org/1999/xlink", "href", source);
+        });
+    };
+
+    asyncTest(done => {
+        const promises = SOURCES.map(source => runTest(source));
+
+        Promise.allSettled(promises)
+            .then(results => {
+                results.forEach(result => println(result.value));
+            })
+            .finally(done);
+    });
+</script>

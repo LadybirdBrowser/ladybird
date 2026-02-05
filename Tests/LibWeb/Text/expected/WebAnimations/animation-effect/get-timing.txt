@@ -1,0 +1,9 @@
+num properties: 8
+delay: 10
+endDelay: 20
+fill: forwards
+iterationStart: 30
+iterations: 40
+duration: 50
+direction: alternate-reverse
+easing: linear

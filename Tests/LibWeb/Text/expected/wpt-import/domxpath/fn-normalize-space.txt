@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	normalize-space() without arguments
+Fail	normalize-space() should handle only #x20, #x9, #xD, and #xA

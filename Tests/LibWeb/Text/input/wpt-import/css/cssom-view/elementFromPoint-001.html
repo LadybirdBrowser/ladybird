@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSSOM View - 5 - extensions to the Document interface</title>
+    <link rel="author" title="Neils Christoffersen" href="mailto:neils.christoffersen@gmail.com">
+    <link rel="help" href="http://www.w3.org/TR/cssom-view/#extensions-to-the-document-interface">
+    <meta name="flags" content="dom">
+    <meta name="assert" content="elementFromPoint returns correct element">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+    #targetDiv {
+        position: absolute;
+        top: 10;
+        left: 10;
+        height: 100px;
+        width: 100px;
+    }
+    </style>
+</head>
+<body>
+    <div id="myDiv"></div>
+    <div id="log"></div>
+    <div id="targetDiv">
+    </div>
+    <script>
+        var element = document.elementFromPoint(15, 15);
+
+        test ( function() {
+            assert_equals(element.id, "targetDiv", "elementFromPoint didn't return the correct element");
+        });
+    </script>
+</body>
+</html>

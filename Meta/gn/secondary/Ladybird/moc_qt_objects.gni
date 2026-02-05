@@ -1,0 +1,18 @@
+import("qt_install_prefix.gni")
+
+template("moc_qt_objects") {
+  action_foreach(target_name) {
+    forward_variables_from(invoker, [ "sources" ])
+
+    script = "//Meta/gn/build/invoke_process_with_args.py"
+
+    outputs = [ "$target_gen_dir/moc_{{source_name_part}}.cpp" ]
+    args = [
+      qt_install_libexec + "moc",
+      "{{source}}",
+      "-o",
+      rebase_path(target_gen_dir, root_build_dir) +
+          "/moc_{{source_name_part}}.cpp",
+    ]
+  }
+}

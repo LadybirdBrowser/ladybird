@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const blob = new Blob(["Hi Blob!"], { type: "text/plain" });
+
+        const formData = new FormData();
+        formData.append("test", blob, "test.txt");
+
+        const file = formData.get("test");
+        println(`Name: ${file.name}`);
+        println(`Type: ${file.type}`);
+    });
+</script>

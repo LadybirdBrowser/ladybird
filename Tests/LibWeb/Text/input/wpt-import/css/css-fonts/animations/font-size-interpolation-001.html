@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-size interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-3/#propdef-font-size">
+<meta name="assert" content="font-size supports animation as length">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  font-size: 30px;
+}
+.target {
+  display: inline-block;
+  font: 10px sans-serif;
+}
+.expected {
+  color: green;
+  margin-right: 30px;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <span>
+    <div class="target">Test Text</div>
+  </span>
+</template>
+</body>
+
+<script>
+test_interpolation({
+  property: 'font-size',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -2, expect: '0px'},
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_interpolation({
+  property: 'font-size',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -2, expect: '8px'},
+  {at: -0.3, expect: '14.8px'},
+  {at: 0, expect: '16px'},
+  {at: 0.3, expect: '17.2px'},
+  {at: 0.6, expect: '18.4px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '22px'},
+]);
+
+test_interpolation({
+  property: 'font-size',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -2, expect: '50px'},
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'font-size',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -2, expect: '50px'},
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'font-size',
+  from: '4px',
+  to: '14px'
+}, [
+  {at: -2, expect: '0px'},  // CSS font-size can't be negative.
+  {at: -0.3, expect: '1px'},
+  {at: 0, expect: '4px'},
+  {at: 0.3, expect: '7px'},
+  {at: 0.6, expect: '10px'},
+  {at: 1, expect: '14px'},
+  {at: 1.5, expect: '19px'},
+]);
+</script>

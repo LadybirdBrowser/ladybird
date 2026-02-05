@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+    <iframe id="iframeOuter"></iframe>
+
+    <script>
+        asyncTest(async done => {
+            const iframeOuter = document.getElementById('iframeOuter');
+
+            window.addEventListener('message', (event) => {
+                println(event.data);
+                done();
+            });
+
+            // Data URLs result in the iframes having an opaque origin, resulting in cross origin access.
+            const iframeOuterContent = `
+                <iframe id="iframeInner" src="data:text/html,<p>Iframe 1 content</p>" style="width: 300px; height: 100px;"></iframe>
+
+                <script>
+                    const iframeInner = document.getElementById('iframeInner');
+
+                    iframeInner.onload = () => {
+                        try {
+                            iframeInner.contentWindow.parent.frames[0].thing;
+                        } catch (e) {
+                            window.top.postMessage(e.message, '*');
+                        }
+                    }
+
+                <\/script>
+            `;
+
+            iframeOuter.src = 'data:text/html,' + encodeURIComponent(iframeOuterContent);
+        })
+    </script>
+</body>

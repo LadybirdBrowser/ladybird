@@ -1,0 +1,2 @@
+:root { background: 1px 1px; }
+PASS (didn't crash)

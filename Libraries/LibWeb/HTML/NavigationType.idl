@@ -1,0 +1,7 @@
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationtype
+enum NavigationType {
+    "push",
+    "replace",
+    "reload",
+    "traverse"
+};

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	e.style['shape-outside'] = "circle(123)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(at)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(4% 20%)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(4% 20% at center)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(4px 20px)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(4px, 20px)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(at 4px, 20px)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(-10px at 20px 30px)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(-10% at 20% 30%)" should not set the property value
+Pass	e.style['shape-outside'] = "circle(1% 2% at 0% 100%)" should not set the property value

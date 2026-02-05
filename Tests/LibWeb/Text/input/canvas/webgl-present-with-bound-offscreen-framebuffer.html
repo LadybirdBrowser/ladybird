@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<canvas id="canvas" width="1" height="1"></canvas>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    let gl = canvas.getContext("webgl");
+    if (!gl) {
+        println("FIXME: This test relies on having a GPU backend enabled, which it is not in run-tests mode :(");
+        return;
+    }
+
+    let framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+    let texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+    gl.clearColor(1, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+    await animationFrame();
+    await animationFrame();
+
+    const pixelBuffer = new Uint8Array(4);
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixelBuffer);
+    console.log(`Framebuffer pixel value: ${pixelBuffer}`);
+});
+</script>
+</body>
+</html>

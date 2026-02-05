@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-shorthand">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script src="../../css/support/shorthand-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_valid_value('scroll-timeline', 'none block', 'none');
+test_valid_value('scroll-timeline', 'none inline');
+test_valid_value('scroll-timeline', '--abc x');
+test_valid_value('scroll-timeline', '--abc inline');
+test_valid_value('scroll-timeline', '--aBc inline');
+test_valid_value('scroll-timeline', '--inline inline');
+test_valid_value('scroll-timeline', '--abc');
+
+test_valid_value('scroll-timeline', '--inline block', '--inline');
+test_valid_value('scroll-timeline', '--block block', '--block');
+test_valid_value('scroll-timeline', '--y block', '--y');
+test_valid_value('scroll-timeline', '--x block', '--x');
+
+test_valid_value('scroll-timeline', '--a, --b, --c');
+test_valid_value('scroll-timeline', '--a inline, --b block, --c y', '--a inline, --b, --c y');
+test_valid_value('scroll-timeline', '--auto');
+
+test_invalid_value('scroll-timeline', '');
+test_invalid_value('scroll-timeline', '--abc --abc');
+test_invalid_value('scroll-timeline', 'block none');
+test_invalid_value('scroll-timeline', 'inline --abc');
+test_invalid_value('scroll-timeline', 'default');
+test_invalid_value('scroll-timeline', ',');
+test_invalid_value('scroll-timeline', ',,block,,');
+
+test_computed_value('scroll-timeline', 'none block', 'none');
+test_computed_value('scroll-timeline', '--abc inline');
+test_computed_value('scroll-timeline', 'none y');
+test_computed_value('scroll-timeline', '--abc x');
+test_computed_value('scroll-timeline', '--y y');
+test_computed_value('scroll-timeline', '--abc');
+test_computed_value('scroll-timeline', '--inline block', '--inline');
+test_computed_value('scroll-timeline', '--block block', '--block');
+test_computed_value('scroll-timeline', '--y block', '--y');
+test_computed_value('scroll-timeline', '--x block', '--x');
+test_computed_value('scroll-timeline', '--a, --b, --c');
+test_computed_value('scroll-timeline', '--a inline, --b block, --c y', '--a inline, --b, --c y');
+
+test_shorthand_value('scroll-timeline', '--abc y',
+{
+  'scroll-timeline-name': '--abc',
+  'scroll-timeline-axis': 'y',
+});
+test_shorthand_value('scroll-timeline', '--inline x',
+{
+  'scroll-timeline-name': '--inline',
+  'scroll-timeline-axis': 'x',
+});
+test_shorthand_value('scroll-timeline', '--abc y, --def',
+{
+  'scroll-timeline-name': '--abc, --def',
+  'scroll-timeline-axis': 'y, block',
+});
+test_shorthand_value('scroll-timeline', '--abc, --def',
+{
+  'scroll-timeline-name': '--abc, --def',
+  'scroll-timeline-axis': 'block, block',
+});
+
+function test_shorthand_contraction(shorthand, longhands, expected) {
+  let longhands_fmt = Object.entries(longhands).map((e) => `${e[0]}:${e[1]}:${e[2]}`).join(';');
+  test((t) => {
+    t.add_cleanup(() => {
+      for (let shorthand of Object.keys(longhands))
+        target.style.removeProperty(shorthand);
+    });
+    for (let [shorthand, value] of Object.entries(longhands))
+      target.style.setProperty(shorthand, value);
+    assert_equals(target.style.getPropertyValue(shorthand), expected, 'Declared value');
+    assert_equals(getComputedStyle(target).getPropertyValue(shorthand), expected, 'Computed value');
+  }, `Shorthand contraction of ${longhands_fmt}`);
+}
+
+test_shorthand_contraction('scroll-timeline', {
+  'scroll-timeline-name': '--abc',
+  'scroll-timeline-axis': 'inline',
+}, '--abc inline');
+
+test_shorthand_contraction('scroll-timeline', {
+  'scroll-timeline-name': '--a, --b',
+  'scroll-timeline-axis': 'inline, block',
+}, '--a inline, --b');
+
+test_shorthand_contraction('scroll-timeline', {
+  'scroll-timeline-name': 'none, none',
+  'scroll-timeline-axis': 'block, block',
+}, 'none, none');
+
+// Longhands with different lengths:
+
+test_shorthand_contraction('scroll-timeline', {
+  'scroll-timeline-name': '--a, --b, --c',
+  'scroll-timeline-axis': 'inline, inline',
+}, '--a inline, --b inline, --c inline');
+
+test_shorthand_contraction('scroll-timeline', {
+  'scroll-timeline-name': '--a, --b',
+  'scroll-timeline-axis': 'inline, inline, inline',
+}, '--a inline, --b inline');
+</script>

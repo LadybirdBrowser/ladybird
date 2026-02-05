@@ -1,0 +1,24 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head>
+<title>CSS Test: Test for float placement rules</title>
+<link rel="author" title="Robert O'Callahan" href="mailto:robert@ocallahan.org" />
+<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+<link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#float-position" />
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-placement-vertical-001-ref.xht"/>
+<meta name="assert" content="A floating box must be placed as high as possible. " />
+<style type="text/css">
+.left { float:left; }
+.right { float:right; }
+.left, .right { width:50px; height:50px; background:yellow; }
+p { overflow:auto; }
+</style>
+</head>
+<body style="width:400px;">
+<p>Hello<span><span class="left"></span>Kitty</span>
+</p><p>Hello<span><span class="right"></span>Kitty</span>
+</p><p dir="rtl">Hello<span><span class="left"></span>Kitty</span>
+</p><p dir="rtl">Hello<span><span class="right"></span>Kitty</span>
+</p><p style="text-align:right;">Hello<span><span class="left"></span>Kitty</span>
+</p><p style="text-align:right;">Hello<span><span class="right"></span>Kitty</span>
+
+
+</p></body></html>

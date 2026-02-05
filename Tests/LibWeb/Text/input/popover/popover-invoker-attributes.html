@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<button id="toggleButton" popovertarget="mypopover" popovertargetaction="toggle">Toggle the popover</button>
+<div id="mypopover" popover>Popover content</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const button = document.getElementById("toggleButton");
+        const div = document.getElementById("mypopover");
+
+        if (button.popoverTargetElement === div)
+            println("PASS");
+
+        button.popoverTargetElement = null;
+        if (button.popoverTargetElement === null)
+            println("PASS");
+        button.popoverTargetElement = div;
+        if (button.popoverTargetElement === div)
+            println("PASS");
+
+
+        if (button.popoverTargetAction === "toggle")
+            println("PASS");
+
+        button.popoverTargetAction = "invalid_value";
+
+        if (button.popoverTargetAction === "toggle")
+            println("PASS");
+    });
+</script>

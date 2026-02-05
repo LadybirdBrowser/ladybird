@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        let effect = new KeyframeEffect(null, [{ marginLeft: "10px" }]);
+        let copiedEffect = new KeyframeEffect(effect);
+        let copiedKeyframes = copiedEffect.getKeyframes();
+        println(`anim count: ${copiedKeyframes.length}`);
+        if (copiedKeyframes.length > 0)
+            println(`keyframe: ${JSON.stringify(copiedKeyframes[0])}`);
+    })
+</script>

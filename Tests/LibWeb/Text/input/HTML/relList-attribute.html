@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function relListTest(tagName, element) {
+        const relList = element.relList;
+        println(`${tagName}.relList initial length: ${relList.length}`);
+        println(`${tagName}.relList always returns the same value: ${relList === element.relList}`);
+        element.rel = "whatever";
+        println(`${tagName}.relList for after setting rel to "whatever": ${relList}`);
+        element.relList = "prefetch";
+        println(`${tagName}.relList for after setting rel to "prefetch": ${relList}`);
+        println(`${tagName}.relList contains "prefetch": ${relList.contains("prefetch")}`);
+        println(`${tagName}.relList contains "whatever": ${relList.contains("whatever")}`);        
+    }
+
+    test(() => {
+        const tagNamesToTest = [
+            "a",
+            "area",
+            "form",
+            "link",
+        ];
+        const svgTagNamesToTest = [
+            "a",
+        ];
+
+        for (const tagName of tagNamesToTest) {
+            const element = document.createElement(tagName);
+            relListTest(tagName, element);
+        }
+        for (const tagName of svgTagNamesToTest) {
+            const element = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+            relListTest(`svg.${tagName}`, element);
+        }
+    });
+</script>

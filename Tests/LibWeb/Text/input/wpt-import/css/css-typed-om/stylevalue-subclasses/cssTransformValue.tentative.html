@@ -1,0 +1,97 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSTransformValue tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#transformvalue-objects">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script src="../resources/comparisons.js"></script>
+<script>
+'use strict';
+
+test(() => {
+  assert_throws_js(TypeError, () => new CSSTransformValue());
+  assert_throws_js(TypeError, () => new CSSTransformValue([]));
+}, 'Constructing a CSSTransformValue with no components throws TypeError');
+
+test(() => {
+  const values = [
+    new CSSScale(1, 1),
+    new CSSTranslate(CSS.px(1), CSS.px(1)),
+    new CSSRotate(CSS.deg(90))
+  ];
+
+  const transform = new CSSTransformValue(values);
+  assert_style_value_array_equals(transform, values);
+}, 'CSSTransformValue can be constructed with multiple transforms');
+
+test(() => {
+  const values = [
+    new CSSScale(1, 1),
+    new CSSTranslate(CSS.px(1), CSS.px(1)),
+    new CSSRotate(CSS.deg(90))
+  ];
+
+  const transform = new CSSTransformValue(values);
+  assert_style_value_array_equals(transform, values);
+
+  values.pop();
+  var new_value = new CSSRotate(CSS.deg(45));
+  values[2] = new_value;
+  transform[2] = new_value;
+  assert_style_value_array_equals(transform, values);
+}, 'CSSTransformValue.set correctly sets the CSSTransformComponent at the given index');
+
+test(() => {
+  const values = [
+    new CSSScale(1, 1),
+    new CSSTranslate(CSS.px(1), CSS.px(1)),
+    new CSSRotate(CSS.deg(90))
+  ];
+
+  const transform = new CSSTransformValue(values);
+  assert_style_value_array_equals(transform, values);
+
+  var new_value = new CSSRotate(CSS.deg(45));
+  values[3] = new_value;
+  transform[3] = new_value;
+  assert_style_value_array_equals(transform, values);
+}, 'Setting a component in CSSTransformValue correctly appends the CSSTransformComponent if index specified is greater than length');
+
+test(() => {
+  const transform = new CSSTransformValue([
+    new CSSScale(1, 1),
+    new CSSTranslate(CSS.px(1), CSS.px(1), CSS.px(1)),
+    new CSSScale(1, 1)
+  ]);
+  assert_equals(transform.is2D, false);
+}, 'CSSTransformValue.is2D is false when given mix of 2D and 3D transforms');
+
+test(() => {
+  const transform = new CSSTransformValue([
+    new CSSScale(1, 1),
+    new CSSTranslate(CSS.px(1), CSS.px(1)),
+    new CSSScale(1, 1)
+  ]);
+  assert_equals(transform.is2D, true);
+}, 'CSSTransformValue.is2D is true when given only 2D transforms');
+
+test(() => {
+  let transform = new CSSTransformValue([new CSSScale(1, 2)]);
+  assert_throws_js(TypeError, () => transform.is2D = false);
+  assert_equals(transform.is2D, true);
+}, 'CSSTransformValue.is2D is readonly');
+
+test(() => {
+  const transformArray = [
+    new CSSScale(2, 2),
+    new CSSMatrixComponent(new DOMMatrixReadOnly([1, 1, 1, 1, 1, 1])),
+    new CSSScale(5, 6)
+  ];
+
+  const transformValue = new CSSTransformValue(transformArray);
+
+  const newTransformArray = [...transformValue];
+  assert_style_value_array_equals([...transformValue], transformArray);
+}, 'Can iterate through CSSTransformValue components');
+</script>

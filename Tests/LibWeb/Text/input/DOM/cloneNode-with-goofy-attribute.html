@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg><circle id=c a(></svg>
+<script>
+    test(() => {
+        let cloned = c.cloneNode()
+        println(c.attributes[1].localName)
+        println(cloned.attributes[1].localName)
+    });
+</script>

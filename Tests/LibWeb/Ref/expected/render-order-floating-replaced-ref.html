@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+.row > div {
+  height: 64px;
+  float: left;
+}
+
+.row { clear: both; }
+.row > :nth-child(1) { width: 32px; }
+.row > :nth-child(2) { width: 64px; }
+.red { background-color: red; }
+.green { background-color: green; }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <div class="red"></div>
+      <div class="green"></div>
+    </div>
+    <div class="row">
+      <div class="green"></div>
+      <div class="red"></div>
+    </div>
+  </body>
+</html>

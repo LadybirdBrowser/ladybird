@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Inline StylePropertyMap.set() with shorthands</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#set-a-value-on-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+const gInvalidTestCases = [
+  { property: 'margin', values: [CSS.deg(0)], desc: 'an invalid CSSStyleValue' },
+  { property: 'margin', values: ['10s'], desc: 'an invalid String' },
+];
+
+for (const {property, values, desc} of gInvalidTestCases) {
+  test(t => {
+    let styleMap = createInlineStyleMap(t, '');
+    assert_throws_js(TypeError, () => styleMap.set(property, ...values));
+  }, 'Setting a shorthand with ' + desc + ' on inline style throws TypeError');
+}
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, 'margin: 1px 2px 3px 4px');
+
+  const result = styleMap.get('margin');
+  elem.style.margin = '';
+  styleMap.set('margin', result);
+
+  assert_equals(elem.style.getPropertyValue('margin'), '1px 2px 3px 4px');
+  assert_equals(elem.style.getPropertyValue('margin-top'), '1px');
+  assert_equals(elem.style.getPropertyValue('margin-right'), '2px');
+  assert_equals(elem.style.getPropertyValue('margin-bottom'), '3px');
+  assert_equals(elem.style.getPropertyValue('margin-left'), '4px');
+}, 'Setting a shorthand with a CSSStyleValue updates inline style');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t);
+
+  styleMap.set('margin', '1px 2px 3px 4px');
+
+  assert_equals(elem.style.getPropertyValue('margin'), '1px 2px 3px 4px');
+  assert_equals(elem.style.getPropertyValue('margin-top'), '1px');
+  assert_equals(elem.style.getPropertyValue('margin-right'), '2px');
+  assert_equals(elem.style.getPropertyValue('margin-bottom'), '3px');
+  assert_equals(elem.style.getPropertyValue('margin-left'), '4px');
+}, 'Setting a shorthand with a string updates inline style');
+
+</script>

@@ -1,0 +1,7 @@
+window.find(): false
+window.find("this"): true, selection from: 0 to 4
+window.find("this"): false
+window.find("A"): true, selection from: 8 to 9
+window.find("t"): true, selection from: 10 to 11
+window.find("t"): true, selection from: 13 to 14
+window.find("t"): false

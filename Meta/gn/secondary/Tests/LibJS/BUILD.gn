@@ -1,0 +1,29 @@
+import("//Tests/unittest.gni")
+
+unittest("test-js") {
+  use_js_main = true
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "test-js.cpp" ]
+  deps = [
+    "//Userland/Libraries/LibFileSystem",
+    "//Userland/Libraries/LibJS",
+  ]
+}
+
+executable("test262-runner") {
+  sources = [ "test262-runner.cpp" ]
+  include_dirs = [ "//Userland/Libraries" ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibJS",
+  ]
+}
+
+group("LibJS") {
+  testonly = true
+  deps = [
+    ":test-js",
+    ":test262-runner",
+  ]
+}

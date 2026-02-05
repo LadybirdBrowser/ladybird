@@ -1,0 +1,33 @@
+=== Test 1: Opacity 1 -> 0.5 (should create SC) ===
+Before: opacity element has SC = false
+After opacity=0.5: opacity element has SC = true
+
+=== Test 2: Opacity 0.5 -> 0.3 (SC should persist, no rebuild needed) ===
+After opacity=0.3: opacity element has SC = true
+
+=== Test 3: Opacity 0.3 -> 1 (should remove SC) ===
+After opacity=1: opacity element has SC = false
+
+=== Test 4: Transform none -> translateX(10px) (should create SC) ===
+Before: transform element has SC = false
+After transform=translateX(10px): transform element has SC = true
+
+=== Test 5: Transform translateX(10px) -> translateX(20px) (SC should persist) ===
+After transform=translateX(20px): transform element has SC = true
+
+=== Test 6: Transform translateX(20px) -> none (should remove SC) ===
+After transform=none: transform element has SC = false
+
+=== Test 7: Filter none -> blur(1px) (should create SC) ===
+Before: filter element has SC = false
+After filter=blur(1px): filter element has SC = true
+
+=== Test 8: Filter blur(1px) -> none (should remove SC) ===
+After filter=none: filter element has SC = false
+
+=== Test 9: Isolation auto -> isolate (should create SC) ===
+Before: isolation element has SC = false
+After isolation=isolate: isolation element has SC = true
+
+=== Test 10: Isolation isolate -> auto (should remove SC) ===
+After isolation=auto: isolation element has SC = false

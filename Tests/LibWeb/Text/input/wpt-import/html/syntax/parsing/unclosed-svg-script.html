@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+    var scriptWithEndTagRan = false;
+    var scriptWithoutEndTagRan = false;
+    var scriptWithBogusEndTagInsideRan = false;
+    var scriptWithBreakout = false;
+    var scriptSelfClosing = false;
+</script>
+<svg>
+    <script>scriptWithEndTagRan = true;</script>
+</svg>
+<svg>
+    <script>scriptWithoutEndTagRan = true;
+</svg>
+<svg>
+    <script>scriptWithBogusEndTagInsideRan = true;</g></script>
+</svg>
+<svg>
+    <script>scriptWithBreakout = true;<s></script>
+</svg>
+<svg>
+    <script href="support/svg-script-self-closing.js"/>
+</svg>
+</s>
+<script>
+    test(function() {
+        assert_true(scriptWithEndTagRan);
+    }, "SVG scripts with end tag should run");
+    test(function() {
+        assert_false(scriptWithoutEndTagRan);
+    }, "SVG scripts without end tag should not run");
+    test(function() {
+        assert_true(scriptWithBogusEndTagInsideRan);
+    }, "SVG scripts with bogus end tag inside should run");
+    test(function() {
+        assert_false(scriptWithBreakout);
+    }, "SVG scripts ended by HTML breakout should not run");
+    test(function() {
+        assert_true(scriptSelfClosing);
+    }, "SVG scripts with self-closing start tag should run");
+</script>

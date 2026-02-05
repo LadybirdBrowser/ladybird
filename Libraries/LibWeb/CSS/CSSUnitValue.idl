@@ -1,0 +1,9 @@
+#import <CSS/CSSNumericValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSUnitValue : CSSNumericValue {
+    constructor(double value, USVString unit);
+    attribute double value;
+    readonly attribute USVString unit;
+};

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#cssom">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @property --valid {
+    syntax: "<color> | none";
+    inherits: false;
+    initial-value: red;
+  }
+  @property --valid-reverse {
+    initial-value: 0px;
+    inherits: true;
+    syntax: "<length>";
+  }
+  @property --valid-universal {
+    syntax: "*";
+    inherits: false;
+  }
+  @property --valid-whitespace {
+    syntax: " <color># ";
+    inherits: false;
+    initial-value: red, blue;
+  }
+  @property --vALId {
+    syntax: "<color> | none";
+    inherits: false;
+    initial-value: red;
+  }
+  @property --no-descriptors {
+
+  }
+  @property --no-syntax {
+    inherits: false;
+    initial-value: red;
+  }
+  @property --no-inherits {
+    syntax: "<color> | none";
+    initial-value: red;
+  }
+  @property --no-initial-color-value {
+    syntax: "<color> | none";
+    inherits: false;
+  }
+  @property --no-initial-universal-value {
+    syntax: "*";
+    inherits: false;
+  }
+  @property --syntax-only {
+    syntax: "<color> | none";
+  }
+  @property --inherits-only {
+    inherits: true;
+  }
+  @property --initial-value-only {
+    initial-value: red;
+  }
+  /* U+0009 CHARACTER TABULATION */
+  @property --tab\9 tab {
+    syntax: "*";
+    inherits: true;
+  }
+</style>
+<script>
+
+function find_at_property_rule(name) {
+  for (let rule of document.styleSheets[0].cssRules) {
+    if (rule.constructor.name != "CSSPropertyRule")
+      continue;
+    if (rule.name == name)
+      return rule;
+  }
+  return null;
+}
+
+function test_invalid(name) {
+  test(() => {
+    let rule = find_at_property_rule(name);
+    assert_true(!rule);
+  }, `Rule for ${name} is invalid`);
+}
+
+function test_css_text(name, expected) {
+  test(() => {
+    let rule = find_at_property_rule(name);
+    assert_true(!!rule);
+    assert_equals(rule.cssText, expected);
+  }, `Rule for ${name} has expected cssText`);
+}
+
+function test_name(name) {
+  test(() => {
+    let rule = find_at_property_rule(name);
+    assert_true(!!rule);
+    assert_equals(rule.name, name);
+  }, `Rule for ${name} returns expected value for CSSPropertyRule.name`);
+}
+
+function test_syntax(name, expected) {
+  test(() => {
+    let rule = find_at_property_rule(name);
+    assert_true(!!rule);
+    assert_equals(rule.syntax, expected);
+  }, `Rule for ${name} returns expected value for CSSPropertyRule.syntax`);
+}
+
+function test_inherits(name, expected) {
+  test(() => {
+    let rule = find_at_property_rule(name);
+    assert_true(!!rule);
+    assert_equals(rule.inherits, expected);
+  }, `Rule for ${name} returns expected value for CSSPropertyRule.inherits`);
+}
+
+function test_initial_value(name, expected) {
+  test(() => {
+    let rule = find_at_property_rule(name);
+    assert_true(!!rule);
+    assert_equals(rule.initialValue, expected);
+  }, `Rule for ${name} returns expected value for CSSPropertyRule.initialValue`);
+}
+
+// Invalid @property rules.
+test_invalid('--no-descriptors');
+test_invalid('--no-syntax');
+test_invalid('--no-inherits');
+test_invalid('--no-initial-color-value');
+test_invalid('--syntax-only', '@property --syntax-only { syntax: "<color> | none"; }');
+test_invalid('--inherits-only', '@property --inherits-only { inherits: true; }');
+test_invalid('--initial-value-only', '@property --initial-value-only { initial-value: red; }');
+
+// CSSPropertyRule.cssText
+
+test_css_text('--valid', '@property --valid { syntax: "<color> | none"; inherits: false; initial-value: red; }');
+test_css_text('--valid-reverse', '@property --valid-reverse { syntax: "<length>"; inherits: true; initial-value: 0px; }');
+test_css_text('--valid-universal', '@property --valid-universal { syntax: "*"; inherits: false; }');
+test_css_text('--valid-whitespace', '@property --valid-whitespace { syntax: " <color># "; inherits: false; initial-value: red, blue; }');
+test_css_text('--vALId', '@property --vALId { syntax: "<color> | none"; inherits: false; initial-value: red; }');
+
+test_css_text('--no-initial-universal-value', '@property --no-initial-universal-value { syntax: "*"; inherits: false; }');
+
+test_css_text('--tab\ttab', '@property --tab\\9 tab { syntax: "*"; inherits: true; }');
+
+// CSSRule.type
+
+test(() => {
+  let rule = find_at_property_rule('--valid');
+  assert_equals(rule.type, 0);
+}, 'CSSRule.type returns 0');
+
+// CSSPropertyRule.name
+
+test_name('--valid');
+test_name('--valid-reverse');
+test_name('--valid-universal');
+test_name('--valid-whitespace');
+test_name('--vALId');
+
+test_name('--no-initial-universal-value');
+
+// CSSPropertyRule.syntax
+
+test_syntax('--valid', '<color> | none');
+test_syntax('--valid-reverse', '<length>');
+test_syntax('--valid-universal', '*');
+test_syntax('--valid-whitespace', ' <color># ');
+test_syntax('--vALId', '<color> | none');
+
+test_syntax('--no-initial-universal-value', '*');
+
+// CSSPropertyRule.inherits
+
+test_inherits('--valid', false);
+test_inherits('--valid-reverse', true);
+test_inherits('--valid-universal', false);
+test_inherits('--valid-whitespace', false);
+test_inherits('--vALId', false);
+
+test_inherits('--no-initial-universal-value', false);
+
+// CSSPropertyRule.initialValue
+
+test_initial_value('--valid', 'red');
+test_initial_value('--valid-reverse', '0px');
+test_initial_value('--valid-universal', null);
+test_initial_value('--valid-whitespace', 'red, blue');
+test_initial_value('--vALId', 'red');
+
+test_initial_value('--no-initial-universal-value', null);
+
+</script>

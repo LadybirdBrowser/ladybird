@@ -1,0 +1,29 @@
+<!doctype html>
+<title>CSS Test: @namespace in CSSOM is not severely broken</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1464865">
+<link rel="help" href="https://drafts.csswg.org/cssom/#insert-a-css-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id="s">
+  div { color: green }
+</style>
+<div>Should be green</div>
+<script>
+test(function() {
+  assert_throws_dom("InvalidStateError", function() {
+    s.sheet.insertRule('@namespace myhtml url("http://www.w3.org/1999/xhtml")', 0);
+  });
+  assert_equals(s.sheet.cssRules.length, 1, "Shouldn't have been inserted");
+  assert_throws_dom("SyntaxError", function() {
+    s.sheet.insertRule("myhtml|div { color: red !important }", 0);
+  });
+  assert_equals(s.sheet.cssRules.length, 1);
+  assert_equals(
+    getComputedStyle(document.querySelector("div")).color,
+    "rgb(0, 128, 0)",
+    "Namespace shouldn't be registered"
+  );
+});
+</script>
+

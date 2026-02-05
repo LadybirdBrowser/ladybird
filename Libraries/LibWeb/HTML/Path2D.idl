@@ -1,0 +1,12 @@
+#import <Geometry/DOMMatrixReadOnly.idl>
+#import <HTML/Canvas/CanvasPath.idl>
+
+// https://html.spec.whatwg.org/multipage/canvas.html#path2d
+[Exposed=(Window,Worker)]
+interface Path2D {
+    constructor(optional (Path2D or DOMString) path);
+
+    undefined addPath(Path2D path, optional DOMMatrix2DInit transform = {});
+};
+
+Path2D includes CanvasPath;

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        function testSignal(signal) {
+            return fetch("./basic.html", { signal })
+                .then(() => {
+                    println("FAIL");
+                })
+                .catch(error => {
+                    println(`Aborted: ${signal.aborted}`);
+                    println(`Reason: "${error}"`);
+                });
+        }
+
+        testSignal(AbortSignal.abort())
+            .then(() => testSignal(AbortSignal.abort("This is a test")))
+            .finally(done);
+    });
+</script>

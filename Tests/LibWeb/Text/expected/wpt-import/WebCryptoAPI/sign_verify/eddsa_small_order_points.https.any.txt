@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Ed25519 Verification checks with small-order key of order - Test 0
+Pass	Ed25519 Verification checks with small-order key of order - Test 1
+Pass	Ed25519 Verification checks with small-order key of order - Test 2
+Pass	Ed25519 Verification checks with small-order key of order - Test 3
+Pass	Ed25519 Verification checks with small-order key of order - Test 4
+Pass	Ed25519 Verification checks with small-order key of order - Test 5
+Pass	Ed25519 Verification checks with small-order key of order - Test 6
+Pass	Ed25519 Verification checks with small-order key of order - Test 7
+Pass	Ed25519 Verification checks with small-order key of order - Test 8
+Pass	Ed25519 Verification checks with small-order key of order - Test 9
+Pass	Ed25519 Verification checks with small-order key of order - Test 10
+Pass	Ed25519 Verification checks with small-order key of order - Test 11
+Pass	Ed25519 Verification checks with small-order key of order - Test 12
+Pass	Ed25519 Verification checks with small-order key of order - Test 13

@@ -1,0 +1,69 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/Window.idl>
+#import <ServiceWorker/ServiceWorkerGlobalScope.idl>
+
+[GenerateToValue]
+dictionary CookieListItem {
+    USVString name;
+    USVString value;
+};
+
+typedef sequence<CookieListItem> CookieList;
+
+dictionary CookieStoreGetOptions {
+    USVString name;
+    USVString url;
+};
+
+enum CookieSameSite {
+    "strict",
+    "lax",
+    "none"
+};
+
+dictionary CookieInit {
+    required USVString name;
+    required USVString value;
+    DOMHighResTimeStamp? expires = null;
+    USVString? domain = null;
+    USVString path = "/";
+    CookieSameSite sameSite = "strict";
+    boolean partitioned = false;
+};
+
+dictionary CookieStoreDeleteOptions {
+    required USVString name;
+    USVString? domain = null;
+    USVString path = "/";
+    boolean partitioned = false;
+};
+
+// https://cookiestore.spec.whatwg.org/#cookiestore
+[Exposed=(ServiceWorker,Window), SecureContext]
+interface CookieStore : EventTarget {
+    Promise<CookieListItem?> get(USVString name);
+    Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
+
+    Promise<CookieList> getAll(USVString name);
+    Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+
+    Promise<undefined> set(USVString name, USVString value);
+    Promise<undefined> set(CookieInit options);
+
+    Promise<undefined> delete(USVString name);
+    Promise<undefined> delete(CookieStoreDeleteOptions options);
+
+    [Exposed=Window] attribute EventHandler onchange;
+};
+
+// https://cookiestore.spec.whatwg.org/#Window
+[SecureContext]
+partial interface Window {
+    [SameObject] readonly attribute CookieStore cookieStore;
+};
+
+// https://cookiestore.spec.whatwg.org/#ServiceWorkerGlobalScope
+partial interface ServiceWorkerGlobalScope {
+    [SameObject] readonly attribute CookieStore cookieStore;
+};

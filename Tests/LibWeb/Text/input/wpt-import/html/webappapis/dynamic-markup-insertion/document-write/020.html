@@ -1,0 +1,18 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  document.write("<body><");
+});
+</script>!--comment-->
+<script>
+t.step(function() {
+  assert_equals(document.body.childNodes[0].nodeType, document.COMMENT_NODE);
+  assert_equals(document.body.childNodes[0].data, "comment");
+}
+);
+t.done();
+</script>
+<div id="log"></div>

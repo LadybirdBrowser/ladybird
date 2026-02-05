@@ -1,0 +1,90 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 102 0+0+0] [BFC] children: not-inline
+    BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+      TextNode <#text> (not painted)
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 86 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 99.171875 0+0+684.828125] [0+0+0 86 0+0+0] [BFC] children: not-inline
+        Box <table#full-table> at [8,8] table-box [0+0+0 99.171875 0+0+0] [0+0+0 68 0+0+18] [TFC] children: not-inline
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <caption> at [8,76] [0+0+0 99.171875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 5, length: 9, rect: [16.21875,76 82.734375x18] baseline: 13.796875
+                "A Caption"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          Box <thead> at [10,10] table-header-group [0+0+0 95.171875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+            Box <tr> at [10,10] table-row [0+0+0 95.171875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <td> at [11,11] table-cell [0+0+1 93.171875 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 9, rect: [11,11 73.65625x18] baseline: 13.796875
+                    "Head Cell"
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          Box <tbody> at [10,32] table-row-group [0+0+0 95.171875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+            Box <tr> at [10,32] table-row [0+0+0 95.171875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <td> at [11,33] table-cell [0+0+1 93.171875 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 9, rect: [11,33 70.234375x18] baseline: 13.796875
+                    "Body Cell"
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          Box <tfoot> at [10,54] table-footer-group [0+0+0 95.171875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+            Box <tr> at [10,54] table-row [0+0+0 95.171875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <td> at [11,55] table-cell [0+0+1 93.171875 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 11, rect: [11,55 93.171875x18] baseline: 13.796875
+                    "Footer Cell"
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,94] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x102]
+    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x86]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 99.171875x86]
+        PaintableBox (Box<TABLE>#full-table) [8,8 99.171875x68]
+          PaintableWithLines (BlockContainer<CAPTION>) [8,76 99.171875x18]
+            TextPaintable (TextNode<#text>)
+          PaintableBox (Box<THEAD>) [10,10 95.171875x20]
+            PaintableBox (Box<TR>) [10,10 95.171875x20]
+              PaintableWithLines (BlockContainer<TD>) [10,10 95.171875x20]
+                TextPaintable (TextNode<#text>)
+          PaintableBox (Box<TBODY>) [10,32 95.171875x20]
+            PaintableBox (Box<TR>) [10,32 95.171875x20]
+              PaintableWithLines (BlockContainer<TD>) [10,32 95.171875x20]
+                TextPaintable (TextNode<#text>)
+          PaintableBox (Box<TFOOT>) [10,54 95.171875x20]
+            PaintableBox (Box<TR>) [10,54 95.171875x20]
+              PaintableWithLines (BlockContainer<TD>) [10,54 95.171875x20]
+                TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,94 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x102] [children: 0] (z-index: auto)

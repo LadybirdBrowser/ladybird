@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+<script src="../wpt-import/css/support/parsing-testcommon.js"></script>
+<script>
+    test_valid_selector(':dir(rtl)');
+    test_valid_selector(':dir(    rtl )', ':dir(rtl)');
+    test_valid_selector(':dir(ltr):dir(rtl)');
+
+    // Firefox converts this to lowercase but Chrome keeps the original casing. Interop issue?
+    test_valid_selector('foo:dir(RTL)', ['foo:dir(rtl)', 'foo:dir(RTL)']);
+
+    // Values other than ltr and rtl are not invalid, but do not match anything.
+    test_valid_selector(':dir(auto)');
+    test_valid_selector(':dir(none)');
+    test_valid_selector(':dir(something-made-up)');
+
+    test_invalid_selector(':dir()');
+    test_invalid_selector(':dir("ltr")');
+    test_invalid_selector(':dir(ltr, rtl)');
+</script>

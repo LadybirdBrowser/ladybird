@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Computed 'content' for list-item ::marker, variant default
+Pass	Computed 'content' for list-item ::marker, variant normal
+Pass	Computed 'content' for list-item ::marker, variant string
+Pass	Computed 'content' for list-item ::marker, variant image
+Pass	Computed 'content' for list-item ::marker, variant none
+Pass	Computed 'content' for non-list-item ::marker, variant default
+Pass	Computed 'content' for non-list-item ::marker, variant normal
+Pass	Computed 'content' for non-list-item ::marker, variant string
+Pass	Computed 'content' for non-list-item ::marker, variant image
+Pass	Computed 'content' for non-list-item ::marker, variant none
