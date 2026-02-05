@@ -15,6 +15,8 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-counter-styles-3/#counter-styles
 class CounterStyle {
 public:
+    static CounterStyle from_counter_style_definition(CounterStyleDefinition const&, HashMap<FlyString, CounterStyle> const&);
+
     static CounterStyle create(FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, FlyString prefix, FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<FlyString> fallback, CounterStylePad pad)
     {
         // NB: All counter styles apart from 'decimal' must have a fallback.
