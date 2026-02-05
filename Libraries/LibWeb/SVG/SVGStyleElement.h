@@ -6,12 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/DOM/StyleElementUtils.h>
+#include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::SVG {
 
-class SVGStyleElement final : public SVGElement {
+class SVGStyleElement final
+    : public SVGElement
+    , public DOM::StyleElementBase {
     WEB_PLATFORM_OBJECT(SVGStyleElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGStyleElement);
 
@@ -22,20 +24,17 @@ public:
     virtual void inserted() override;
     virtual void removed_from(Node* old_parent, Node& old_root) override;
 
-    CSS::CSSStyleSheet* sheet();
-    CSS::CSSStyleSheet const* sheet() const;
-
 private:
     SVGStyleElement(DOM::Document&, DOM::QualifiedName);
 
     // ^DOM::Node
     virtual bool is_svg_style_element() const override { return true; }
 
+    // ^DOM::StyleElementBase
+    virtual Element& as_element() override { return *this; }
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
-
-    // The semantics and processing of a ‘style’ and its attributes must be the same as is defined for the HTML ‘style’ element.
-    DOM::StyleElementUtils m_style_element_utils;
 };
 
 }

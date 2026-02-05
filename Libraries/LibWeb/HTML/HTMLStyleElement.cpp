@@ -31,24 +31,24 @@ void HTMLStyleElement::initialize(JS::Realm& realm)
 void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_style_element_utils.visit_edges(visitor);
+    visit_style_element_edges(visitor);
 }
 
 void HTMLStyleElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
     Base::children_changed(metadata);
-    m_style_element_utils.update_a_style_block(*this);
+    update_a_style_block();
 }
 
 void HTMLStyleElement::inserted()
 {
-    m_style_element_utils.update_a_style_block(*this);
+    update_a_style_block();
     Base::inserted();
 }
 
 void HTMLStyleElement::removed_from(Node* old_parent, Node& old_root)
 {
-    m_style_element_utils.update_a_style_block(*this);
+    update_a_style_block();
     Base::removed_from(old_parent, old_root);
 }
 
@@ -57,10 +57,10 @@ void HTMLStyleElement::attribute_changed(FlyString const& name, Optional<String>
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::media) {
-        if (auto* sheet = m_style_element_utils.sheet())
+        if (auto* sheet = this->sheet())
             sheet->set_media(value.value_or({}));
     } else if (name == HTML::AttributeNames::type) {
-        m_style_element_utils.update_a_style_block(*this);
+        update_a_style_block();
     }
 }
 
@@ -89,20 +89,6 @@ void HTMLStyleElement::set_disabled(bool disabled)
     // 2. If the given value is true, set this's associated CSS style sheet's disabled flag.
     //    Otherwise, unset this's associated CSS style sheet's disabled flag.
     sheet()->set_disabled(disabled);
-}
-
-// https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
-CSS::CSSStyleSheet* HTMLStyleElement::sheet()
-{
-    // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
-    return m_style_element_utils.sheet();
-}
-
-// https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
-CSS::CSSStyleSheet const* HTMLStyleElement::sheet() const
-{
-    // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
-    return m_style_element_utils.sheet();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet

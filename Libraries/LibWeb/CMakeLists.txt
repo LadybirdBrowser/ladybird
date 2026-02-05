@@ -350,7 +350,7 @@ set(SOURCES
     DOM/Slottable.cpp
     DOM/StaticNodeList.cpp
     DOM/StaticRange.cpp
-    DOM/StyleElementUtils.cpp
+    DOM/StyleElementBase.cpp
     DOM/StyleInvalidator.cpp
     DOM/Text.cpp
     DOM/TreeWalker.cpp

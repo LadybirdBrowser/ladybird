@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Preston Taylor <PrestonLeeTaylor@proton.me>
  * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOM/StyleElementUtils.h>
+#include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -28,8 +29,10 @@ namespace Web::DOM {
 // The element is not on the stack of open elements of an HTML parser or XML parser, and it becomes connected or disconnected.
 //
 // https://html.spec.whatwg.org/multipage/semantics.html#update-a-style-block
-void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
+void StyleElementBase::update_a_style_block()
 {
+    auto& style_element = as_element();
+
     // OPTIMIZATION: Skip parsing CSS if we're in the middle of parsing a HTML fragment.
     //               The style block will be parsed upon insertion into a proper document.
     if (style_element.document().is_temporary_document_for_fragment_parsing())
@@ -134,7 +137,21 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
     attempts_to_fetch_subresources_finished(m_associated_css_style_sheet);
 }
 
-void StyleElementUtils::visit_edges(JS::Cell::Visitor& visitor)
+// https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
+CSS::CSSStyleSheet* StyleElementBase::sheet()
+{
+    // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
+    return m_associated_css_style_sheet;
+}
+
+// https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
+CSS::CSSStyleSheet const* StyleElementBase::sheet() const
+{
+    // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
+    return m_associated_css_style_sheet;
+}
+
+void StyleElementBase::visit_style_element_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_associated_css_style_sheet);
     visitor.visit(m_style_sheet_list);
