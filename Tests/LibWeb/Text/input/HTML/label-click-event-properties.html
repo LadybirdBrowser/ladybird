@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+label {
+    display: block;
+    width: 100px;
+    height: 20px;
+}
+input {
+    display: block;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    width: 100px;
+    height: 20px;
+}
+</style>
+<label for="input" id="label">hello</label>
+<input id="input">
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        let labelEventProps = null;
+
+        label.addEventListener("click", (e) => {
+            if (e.target === label) {
+                labelEventProps = {
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                };
+            }
+        });
+
+        input.addEventListener("click", (e) => {
+            println(`target: ${e.target.id}`);
+            println(`clientX preserved from label event: ${e.clientX === labelEventProps.clientX}`);
+            println(`clientY preserved from label event: ${e.clientY === labelEventProps.clientY}`);
+
+            const inputRect = input.getBoundingClientRect();
+            println(`offsetX relative to input: ${e.offsetX === labelEventProps.clientX - inputRect.left}`);
+            println(`offsetY relative to input: ${e.offsetY === labelEventProps.clientY - inputRect.top}`);
+            done();
+        });
+
+        internals.click(50, 10);
+    });
+</script>
