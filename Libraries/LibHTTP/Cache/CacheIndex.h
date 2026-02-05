@@ -36,7 +36,7 @@ class CacheIndex {
 public:
     static ErrorOr<CacheIndex> create(Database::Database&);
 
-    void create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
+    ErrorOr<void> create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
     void remove_entry(u64 cache_key, u64 vary_key);
     void remove_entries_exceeding_cache_limit(Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
     void remove_entries_accessed_since(UnixDateTime, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
@@ -63,6 +63,7 @@ private:
     struct Limits {
         u64 free_disk_space { 0 };
         u64 maximum_disk_cache_size { 0 };
+        u64 maximum_disk_cache_entry_size { 0 };
     };
 
     CacheIndex(Database::Database&, Statements, Limits);

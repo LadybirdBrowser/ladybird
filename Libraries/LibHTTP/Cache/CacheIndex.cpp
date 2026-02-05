@@ -135,6 +135,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     Limits limits {
         .free_disk_space = disk_space.free_bytes,
         .maximum_disk_cache_size = maximum_disk_cache_size,
+        .maximum_disk_cache_entry_size = compute_maximum_disk_cache_entry_size(maximum_disk_cache_size),
     };
 
     return CacheIndex { database, statements, limits };
@@ -147,7 +148,7 @@ CacheIndex::CacheIndex(Database::Database& database, Statements statements, Limi
 {
 }
 
-void CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
+ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto now = UnixDateTime::now();
 
@@ -160,6 +161,12 @@ void CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, NonnullRe
     remove_exempted_headers(request_headers);
     remove_exempted_headers(response_headers);
 
+    auto serialized_request_headers = serialize_headers(request_headers);
+    auto serialized_response_headers = serialize_headers(response_headers);
+
+    if (data_size + serialized_request_headers.length() + serialized_response_headers.length() > m_limits.maximum_disk_cache_entry_size)
+        return Error::from_string_literal("Cache entry size exceeds allowed maximum");
+
     Entry entry {
         .vary_key = vary_key,
         .url = move(url),
@@ -171,8 +178,10 @@ void CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, NonnullRe
         .last_access_time = now,
     };
 
-    m_database->execute_statement(m_statements.insert_entry, {}, cache_key, vary_key, entry.url, serialize_headers(entry.request_headers), serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
+    m_database->execute_statement(m_statements.insert_entry, {}, cache_key, vary_key, entry.url, serialized_request_headers, serialized_response_headers, entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
     m_entries.ensure(cache_key).append(move(entry));
+
+    return {};
 }
 
 void CacheIndex::remove_entry(u64 cache_key, u64 vary_key)

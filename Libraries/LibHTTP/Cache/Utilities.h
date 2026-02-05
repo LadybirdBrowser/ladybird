@@ -22,6 +22,7 @@ constexpr inline auto TEST_CACHE_REVALIDATION_STATUS_HEADER = "X-Ladybird-Revali
 constexpr inline auto TEST_CACHE_REQUEST_TIME_OFFSET = "X-Ladybird-Request-Time-Offset"sv;
 
 u64 compute_maximum_disk_cache_size(u64 free_bytes);
+u64 compute_maximum_disk_cache_entry_size(u64 maximum_disk_cache_size);
 
 String serialize_url_for_cache_storage(URL::URL const&);
 u64 create_cache_key(StringView url, StringView method);
