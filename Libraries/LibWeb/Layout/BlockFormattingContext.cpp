@@ -902,6 +902,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (box.children_are_inline()) {
             layout_inline_children(as<BlockContainer>(box), space_available_for_children);
         } else {
+            auto registered_block_container_y_position_update_callback = false;
             if (box_state.border_top > 0 || box_state.padding_top > 0) {
                 // margin-top of block container can't collapse with it's children if it has non zero border or padding
                 m_margin_state.reset();
@@ -912,8 +913,14 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                         place_block_level_element_in_normal_flow_vertically(box, margin_top + y);
                     }
                 });
+                registered_block_container_y_position_update_callback = true;
             }
+
             layout_block_level_children(as<BlockContainer>(box), space_available_for_children);
+
+            if (registered_block_container_y_position_update_callback) {
+                m_margin_state.unregister_block_container_y_position_update_callback();
+            }
         }
     }
 
