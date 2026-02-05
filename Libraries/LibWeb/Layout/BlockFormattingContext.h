@@ -166,6 +166,11 @@ private:
             m_block_container_y_position_update_callback = move(callback);
         }
 
+        void unregister_block_container_y_position_update_callback()
+        {
+            m_block_container_y_position_update_callback = {};
+        }
+
         CSSPixels current_collapsed_margin() const
         {
             return m_current_positive_collapsible_margin + m_current_negative_collapsible_margin;
