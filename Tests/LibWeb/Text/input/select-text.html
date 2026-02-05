@@ -22,5 +22,21 @@
         internals.sendKey(text, "Right", modifiers);
         // Should be equal to "Lorem ip"
         println(window.getSelection());
+
+        // After click() with clickCount=2, mouseUp is called, resetting selection mode.
+        // Subsequent drag should select character-by-character, not word-by-word.
+        internals.click(147, 20, 2);
+        println(window.getSelection());  // "dolor"
+        internals.mouseDown(147, 20);
+        internals.mouseMove(220, 20);
+        internals.mouseUp(220, 20);
+        println(window.getSelection());  // Should be characters, not whole words
+
+        // After clickAndHold() with clickCount=2, selection mode is preserved.
+        // Subsequent drag should extend by whole words.
+        internals.clickAndHold(147, 20, 2);
+        internals.mouseMove(220, 20);
+        internals.mouseUp(220, 20);
+        println(window.getSelection());  // Should be "dolor sit" (whole words)
     });
 </script>
