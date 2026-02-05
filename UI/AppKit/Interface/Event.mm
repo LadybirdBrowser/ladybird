@@ -54,7 +54,9 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
     int wheel_delta_y = 0;
 
     if (type == Web::MouseEvent::Type::MouseDown) {
-        if (event.clickCount % 2 == 0) {
+        if (event.clickCount % 3 == 0) {
+            type = Web::MouseEvent::Type::TripleClick;
+        } else if (event.clickCount % 2 == 0) {
             type = Web::MouseEvent::Type::DoubleClick;
         }
     } else if (type == Web::MouseEvent::Type::MouseWheel) {

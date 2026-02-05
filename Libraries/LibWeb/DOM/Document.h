@@ -110,6 +110,7 @@ enum class InvalidateLayoutTreeReason {
     X(EventHandlerHandleMouseMove)            \
     X(EventHandlerHandleMouseUp)              \
     X(EventHandlerHandleMouseWheel)           \
+    X(EventHandlerHandleTripleClick)          \
     X(HTMLElementGetTheTextSteps)             \
     X(HTMLElementOffsetHeight)                \
     X(HTMLElementOffsetLeft)                  \

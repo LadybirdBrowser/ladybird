@@ -418,7 +418,24 @@ void WebContentView::mouseMoveEvent(QMouseEvent* event)
 
 void WebContentView::mousePressEvent(QMouseEvent* event)
 {
-    enqueue_native_event(Web::MouseEvent::Type::MouseDown, *event);
+    auto elapsed = event->timestamp() - m_last_click_timestamp;
+    auto distance = (event->position() - m_last_click_position).manhattanLength();
+
+    if (elapsed < static_cast<u64>(QApplication::doubleClickInterval()) && distance < QApplication::startDragDistance())
+        ++m_click_count;
+    else
+        m_click_count = 1;
+    m_last_click_timestamp = event->timestamp();
+    m_last_click_position = event->position();
+
+    if (m_click_count == 3) {
+        enqueue_native_event(Web::MouseEvent::Type::TripleClick, *event);
+        m_click_count = 0;
+    } else if (m_click_count == 2) {
+        enqueue_native_event(Web::MouseEvent::Type::DoubleClick, *event);
+    } else {
+        enqueue_native_event(Web::MouseEvent::Type::MouseDown, *event);
+    }
 }
 
 void WebContentView::mouseReleaseEvent(QMouseEvent* event)
@@ -443,7 +460,9 @@ void WebContentView::wheelEvent(QWheelEvent* event)
 
 void WebContentView::mouseDoubleClickEvent(QMouseEvent* event)
 {
-    enqueue_native_event(Web::MouseEvent::Type::DoubleClick, *event);
+    // NOTE: Qt calls this instead of mousePressEvent on the 2nd click. Forward to mousePressEvent so our click
+    //       counting logic handles double and triple clicks uniformly.
+    mousePressEvent(event);
 }
 
 void WebContentView::dragEnterEvent(QDragEnterEvent* event)

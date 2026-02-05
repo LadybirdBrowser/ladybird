@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <style>
-    div {
+    div, p {
         font-size: 20px;
+        margin: 0;
     }
+    #triple-container { margin-top: 100px; width: 300px; }
 </style>
 <div id="text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi sapien velit, sagittis vel mauris eget, placerat mattis arcu. Praesent ac pharetra dolor.</div>
+<div id="triple-container">
+    <p id="triple1">First paragraph for triple-click test.</p>
+    <p id="triple2">Second paragraph with <a href="#">a link</a> inside.</p>
+</div>
 <script>
     test(() => {
         // Select word "Lorem" by dispatching double click event
@@ -38,5 +44,14 @@
         internals.mouseMove(220, 20);
         internals.mouseUp(220, 20);
         println(window.getSelection());  // Should be "dolor sit" (whole words)
+
+        // Triple-click + drag should select entire paragraphs.
+        // Drag from first paragraph to second paragraph (which contains <a>).
+        const triple1 = document.getElementById("triple1");
+        const triple2 = document.getElementById("triple2");
+        internals.clickAndHold(20, triple1.offsetTop + 10, 3);
+        internals.mouseMove(20, triple2.offsetTop + 10);
+        internals.mouseUp(20, triple2.offsetTop + 10);
+        println(window.getSelection());
     });
 </script>

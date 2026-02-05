@@ -109,6 +109,10 @@ private:
 
     Gfx::IntSize m_viewport_size;
 
+    u64 m_last_click_timestamp { 0 };
+    QPointF m_last_click_position;
+    u8 m_click_count { 0 };
+
     QMenu* m_select_dropdown { nullptr };
 };
 
