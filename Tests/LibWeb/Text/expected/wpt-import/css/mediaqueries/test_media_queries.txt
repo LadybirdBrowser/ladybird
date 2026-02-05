@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 1345 tests
 
-1343 Pass
-2 Fail
+1345 Pass
 Pass	query_should_be_parseable: (orientation)
 Pass	query_should_be_parseable: not (orientation)
 Pass	expression_should_be_known: (orientation)
@@ -1262,8 +1261,8 @@ Pass	should_apply: [badsyntax],all
 Pass	should_not_apply: badmedium,[badsyntax]
 Pass	should_not_apply: [badsyntax],badmedium
 Pass	query_should_not_be_parseable: all and color :
-Fail	query_should_not_be_parseable: all and color : 1
-Fail	should_not_apply: all and min-color : 1
+Pass	query_should_not_be_parseable: all and color : 1
+Pass	should_not_apply: all and min-color : 1
 Pass	should_not_apply: (bogus)
 Pass	should_not_apply: not all and (bogus)
 Pass	should_not_apply: only all and (bogus)

@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 28 tests
 
-26 Pass
-2 Fail
+28 Pass
 Pass	Should be known: '(overflow-inline)'
 Pass	Should be known: '(overflow-inline: none)'
 Pass	Should be known: '(overflow-inline: scroll)'
 Pass	Should be parseable: 'overflow-inline'
-Fail	Should be unknown: 'overflow-inline'
+Pass	Should be unknown: 'overflow-inline'
 Pass	Should be parseable: '(overflow-inline: ?)'
 Pass	Should be unknown: '(overflow-inline: ?)'
 Pass	Should be parseable: '(overflow-inline: 10px)'
@@ -20,7 +19,7 @@ Pass	Should be known: '(overflow-block: none)'
 Pass	Should be known: '(overflow-block: scroll)'
 Pass	Should be known: '(overflow-block: paged)'
 Pass	Should be parseable: 'overflow-block'
-Fail	Should be unknown: 'overflow-block'
+Pass	Should be unknown: 'overflow-block'
 Pass	Should be parseable: '(overflow-block: ?)'
 Pass	Should be unknown: '(overflow-block: ?)'
 Pass	Should be parseable: '(overflow-block: 10px)'
