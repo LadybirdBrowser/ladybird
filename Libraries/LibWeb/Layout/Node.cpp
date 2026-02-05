@@ -1481,15 +1481,17 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
         ancestor->m_needs_layout_update = true;
     }
 
-    // Reset intrinsic size caches for ancestors up to abspos boundary.
+    // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
     // Absolutely positioned elements don't contribute to ancestor intrinsic sizes,
     // so changes inside an abspos box don't require resetting ancestor caches.
+    // SVG root elements have intrinsic sizes determined solely by their own attributes
+    // (width, height, viewBox), not by their children, so the same logic applies.
     for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
         auto* box = as_if<Box>(ancestor);
         if (!box)
             continue;
         box->reset_cached_intrinsic_sizes();
-        if (box->is_absolutely_positioned())
+        if (box->is_absolutely_positioned() || box->is_svg_svg_box())
             break;
     }
 }

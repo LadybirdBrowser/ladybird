@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .flex-container {
+        display: flex;
+        width: 300px;
+    }
+    svg {
+        display: block;
+        flex-shrink: 0;
+    }
+    .sibling {
+        flex: 1;
+        height: 100px;
+    }
+</style>
+
+<!-- Test 1: foreignObject content change should not affect SVG or flex layout -->
+<div class="flex-container" id="test1">
+    <svg width="100" height="100" id="test1-svg">
+        <foreignObject width="100" height="100">
+            <div id="test1-fo-content" style="width: 20px; height: 20px;"></div>
+        </foreignObject>
+    </svg>
+    <div class="sibling" id="test1-sibling"></div>
+</div>
+
+<!-- Test 2: SVG child element change should not affect SVG or flex layout -->
+<div class="flex-container" id="test2">
+    <svg width="100" height="100" id="test2-svg">
+        <rect id="test2-rect" width="40" height="40" fill="green" />
+    </svg>
+    <div class="sibling" id="test2-sibling"></div>
+</div>
+
+<!-- Test 3: SVG width attribute change SHOULD update flex layout -->
+<div class="flex-container" id="test3">
+    <svg width="100" height="100" id="test3-svg">
+        <rect width="100%" height="100%" fill="green" />
+    </svg>
+    <div class="sibling" id="test3-sibling"></div>
+</div>
+
+<!-- Test 4: Nested SVG, inner content change should not affect outer layout -->
+<div class="flex-container" id="test4">
+    <svg width="120" height="120" id="test4-svg">
+        <svg x="10" y="10" width="100" height="100">
+            <rect id="test4-rect" width="40" height="40" fill="green" />
+        </svg>
+    </svg>
+    <div class="sibling" id="test4-sibling"></div>
+</div>
+
+<script>
+    asyncTest(done => {
+        // Force initial layout
+        document.body.offsetWidth;
+
+        function rect(id) {
+            const r = document.getElementById(id).getBoundingClientRect();
+            return { width: r.width, height: r.height, x: r.x };
+        }
+
+        // Capture initial flex layout dimensions
+        const t1SvgBefore = rect("test1-svg");
+        const t1SiblingBefore = rect("test1-sibling");
+        const t2SvgBefore = rect("test2-svg");
+        const t2SiblingBefore = rect("test2-sibling");
+        const t3SiblingBefore = rect("test3-sibling");
+        const t4SvgBefore = rect("test4-svg");
+        const t4SiblingBefore = rect("test4-sibling");
+
+        // Mutate content inside SVGs
+        document.getElementById("test1-fo-content").style.width = "80px";
+        document.getElementById("test1-fo-content").style.height = "80px";
+        document.getElementById("test2-rect").setAttribute("width", "90");
+        document.getElementById("test2-rect").setAttribute("height", "90");
+        document.getElementById("test3-svg").setAttribute("width", "200");
+        document.getElementById("test4-rect").setAttribute("width", "80");
+        document.getElementById("test4-rect").setAttribute("height", "80");
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // Test 1: foreignObject content change — SVG and sibling layout unchanged
+                const t1SvgAfter = rect("test1-svg");
+                const t1SiblingAfter = rect("test1-sibling");
+                println(`Test 1 - foreignObject content change in flex:`);
+                println(`  SVG width unchanged: ${t1SvgAfter.width === t1SvgBefore.width}`);
+                println(`  SVG height unchanged: ${t1SvgAfter.height === t1SvgBefore.height}`);
+                println(`  Sibling width unchanged: ${t1SiblingAfter.width === t1SiblingBefore.width}`);
+                println(`  Sibling x unchanged: ${t1SiblingAfter.x === t1SiblingBefore.x}`);
+
+                // Test 2: SVG child rect change — SVG and sibling layout unchanged
+                const t2SvgAfter = rect("test2-svg");
+                const t2SiblingAfter = rect("test2-sibling");
+                println(`Test 2 - SVG child element change in flex:`);
+                println(`  SVG width unchanged: ${t2SvgAfter.width === t2SvgBefore.width}`);
+                println(`  SVG height unchanged: ${t2SvgAfter.height === t2SvgBefore.height}`);
+                println(`  Sibling width unchanged: ${t2SiblingAfter.width === t2SiblingBefore.width}`);
+                println(`  Sibling x unchanged: ${t2SiblingAfter.x === t2SiblingBefore.x}`);
+
+                // Test 3: SVG root width attribute change — layout SHOULD update
+                const t3SvgAfter = rect("test3-svg");
+                const t3SiblingAfter = rect("test3-sibling");
+                println(`Test 3 - SVG root width attribute change in flex:`);
+                println(`  SVG width changed to 200: ${t3SvgAfter.width === 200}`);
+                println(`  Sibling width decreased: ${t3SiblingAfter.width < t3SiblingBefore.width}`);
+
+                // Test 4: Nested SVG inner content change — outer SVG and sibling unchanged
+                const t4SvgAfter = rect("test4-svg");
+                const t4SiblingAfter = rect("test4-sibling");
+                println(`Test 4 - Nested SVG inner content change in flex:`);
+                println(`  Outer SVG width unchanged: ${t4SvgAfter.width === t4SvgBefore.width}`);
+                println(`  Outer SVG height unchanged: ${t4SvgAfter.height === t4SvgBefore.height}`);
+                println(`  Sibling width unchanged: ${t4SiblingAfter.width === t4SiblingBefore.width}`);
+                println(`  Sibling x unchanged: ${t4SiblingAfter.x === t4SiblingBefore.x}`);
+
+                done();
+            });
+        });
+    });
+</script>
