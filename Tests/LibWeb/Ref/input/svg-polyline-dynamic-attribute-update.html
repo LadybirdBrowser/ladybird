@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-polyline-dynamic-attribute-update-ref.html">
+<svg width="200" height="200">
+    <polyline id="polyline" points="0,0 10,10" stroke="black" stroke-width="2" fill="none"/>
+</svg>
+<script>
+window.onload = () => {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("polyline").setAttribute("points", "10,10 100,190 190,10");
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+};
+</script>
+</html>
