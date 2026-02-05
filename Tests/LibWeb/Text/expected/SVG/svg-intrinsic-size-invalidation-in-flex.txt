@@ -1,0 +1,18 @@
+Test 1 - foreignObject content change in flex:
+  SVG width unchanged: true
+  SVG height unchanged: true
+  Sibling width unchanged: true
+  Sibling x unchanged: true
+Test 2 - SVG child element change in flex:
+  SVG width unchanged: true
+  SVG height unchanged: true
+  Sibling width unchanged: true
+  Sibling x unchanged: true
+Test 3 - SVG root width attribute change in flex:
+  SVG width changed to 200: true
+  Sibling width decreased: true
+Test 4 - Nested SVG inner content change in flex:
+  Outer SVG width unchanged: true
+  Outer SVG height unchanged: true
+  Sibling width unchanged: true
+  Sibling x unchanged: true

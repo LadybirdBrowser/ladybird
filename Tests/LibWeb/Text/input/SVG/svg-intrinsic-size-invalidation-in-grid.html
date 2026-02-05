@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .grid-container {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        width: 300px;
+    }
+    svg {
+        display: block;
+    }
+    .sibling {
+        height: 100px;
+    }
+</style>
+
+<!-- Test 1: foreignObject content change should not affect grid layout -->
+<div class="grid-container" id="test1">
+    <svg width="100" height="100" id="test1-svg">
+        <foreignObject width="100" height="100">
+            <div id="test1-fo-content" style="width: 20px; height: 20px;"></div>
+        </foreignObject>
+    </svg>
+    <div class="sibling" id="test1-sibling"></div>
+</div>
+
+<!-- Test 2: SVG root width change SHOULD update grid column sizing -->
+<div class="grid-container" id="test2">
+    <svg width="100" height="100" id="test2-svg">
+        <rect width="100%" height="100%" fill="green" />
+    </svg>
+    <div class="sibling" id="test2-sibling"></div>
+</div>
+
+<!-- Test 3: foreignObject with absolutely positioned child change -->
+<div class="grid-container" id="test3">
+    <svg width="100" height="100" id="test3-svg">
+        <foreignObject width="100" height="100">
+            <div style="position: relative;">
+                <div id="test3-abspos" style="position: absolute; width: 20px; height: 20px;"></div>
+            </div>
+        </foreignObject>
+    </svg>
+    <div class="sibling" id="test3-sibling"></div>
+</div>
+
+<script>
+    asyncTest(done => {
+        document.body.offsetWidth;
+
+        function rect(id) {
+            const r = document.getElementById(id).getBoundingClientRect();
+            return { width: r.width, height: r.height, x: r.x };
+        }
+
+        const t1SvgBefore = rect("test1-svg");
+        const t1SiblingBefore = rect("test1-sibling");
+        const t2SiblingBefore = rect("test2-sibling");
+        const t3SvgBefore = rect("test3-svg");
+        const t3SiblingBefore = rect("test3-sibling");
+
+        // Mutate
+        document.getElementById("test1-fo-content").style.width = "90px";
+        document.getElementById("test1-fo-content").style.height = "90px";
+        document.getElementById("test2-svg").setAttribute("width", "150");
+        document.getElementById("test3-abspos").style.width = "80px";
+        document.getElementById("test3-abspos").style.height = "80px";
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // Test 1: foreignObject content change — grid layout unchanged
+                const t1SvgAfter = rect("test1-svg");
+                const t1SiblingAfter = rect("test1-sibling");
+                println(`Test 1 - foreignObject content change in grid:`);
+                println(`  SVG width unchanged: ${t1SvgAfter.width === t1SvgBefore.width}`);
+                println(`  SVG height unchanged: ${t1SvgAfter.height === t1SvgBefore.height}`);
+                println(`  Sibling width unchanged: ${t1SiblingAfter.width === t1SiblingBefore.width}`);
+
+                // Test 2: SVG root width change — grid layout SHOULD update
+                const t2SvgAfter = rect("test2-svg");
+                const t2SiblingAfter = rect("test2-sibling");
+                println(`Test 2 - SVG root width attribute change in grid:`);
+                println(`  SVG width changed to 150: ${t2SvgAfter.width === 150}`);
+                println(`  Sibling width decreased: ${t2SiblingAfter.width < t2SiblingBefore.width}`);
+
+                // Test 3: abspos child inside foreignObject — grid layout unchanged
+                const t3SvgAfter = rect("test3-svg");
+                const t3SiblingAfter = rect("test3-sibling");
+                println(`Test 3 - abspos inside foreignObject in grid:`);
+                println(`  SVG width unchanged: ${t3SvgAfter.width === t3SvgBefore.width}`);
+                println(`  SVG height unchanged: ${t3SvgAfter.height === t3SvgBefore.height}`);
+                println(`  Sibling width unchanged: ${t3SiblingAfter.width === t3SiblingBefore.width}`);
+
+                done();
+            });
+        });
+    });
+</script>

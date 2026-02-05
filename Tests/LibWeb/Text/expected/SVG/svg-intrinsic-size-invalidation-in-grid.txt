@@ -1,0 +1,11 @@
+Test 1 - foreignObject content change in grid:
+  SVG width unchanged: true
+  SVG height unchanged: true
+  Sibling width unchanged: true
+Test 2 - SVG root width attribute change in grid:
+  SVG width changed to 150: true
+  Sibling width decreased: true
+Test 3 - abspos inside foreignObject in grid:
+  SVG width unchanged: true
+  SVG height unchanged: true
+  Sibling width unchanged: true
