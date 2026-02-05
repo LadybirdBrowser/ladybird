@@ -241,11 +241,12 @@ void LayoutState::commit(Box& root)
 
     HashTable<Layout::InlineNode*> inline_nodes;
 
-    root.document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
-        node.clear_paintable();
-        if (node.layout_node() && is<InlineNode>(node.layout_node())) {
+    root.for_each_in_inclusive_subtree([&](Node& node) {
+        if (auto* dom_node = node.dom_node())
+            dom_node->clear_paintable();
+        if (is<InlineNode>(node) && node.dom_node()) {
             // Inline nodes might have a continuation chain; add all inline nodes that are part of it.
-            for (GC::Ptr inline_node = static_cast<NodeWithStyleAndBoxModelMetrics*>(node.layout_node());
+            for (GC::Ptr inline_node = static_cast<NodeWithStyleAndBoxModelMetrics*>(&node);
                 inline_node; inline_node = inline_node->continuation_of_node()) {
                 if (is<InlineNode>(*inline_node))
                     inline_nodes.set(static_cast<InlineNode*>(inline_node.ptr()));
