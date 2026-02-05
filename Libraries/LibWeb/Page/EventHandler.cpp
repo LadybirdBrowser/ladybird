@@ -13,6 +13,7 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/EditingHostManager.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
@@ -363,6 +364,71 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
     (void)selection->set_base_and_extent(*anchor_node, anchor_offset, *focus_node, focus_offset);
 }
 
+void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position)
+{
+    if (m_selection_mode == SelectionMode::None)
+        return;
+
+    auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
+    if (!hit.has_value() || !hit->paintable->dom_node())
+        return;
+
+    auto& document = *m_navigable->active_document();
+    auto& hit_dom_node = *hit->paintable->dom_node();
+    size_t focus_index = hit->index_in_node;
+    GC::Ptr<DOM::Node> anchor_node;
+    Optional<size_t> anchor_offset;
+
+    // In word selection mode, extend selection by whole words.
+    if (m_selection_mode == SelectionMode::Word && m_selection_origin && is<DOM::Text>(hit_dom_node)) {
+        auto& segmenter = as<DOM::Text>(hit_dom_node).word_segmenter();
+
+        auto word_start = segmenter.previous_boundary(focus_index, Unicode::Segmenter::Inclusive::Yes).value_or(0);
+        auto word_end = segmenter.next_boundary(focus_index).value_or(hit_dom_node.length());
+
+        // Determine cursor position relative to anchor.
+        auto position = m_selection_origin->compare_point(hit_dom_node, focus_index);
+        if (!position.is_error()) {
+            if (position.value() < 0) {
+                // Cursor is before anchor: select from anchor end to current word start.
+                anchor_node = m_selection_origin->end_container();
+                anchor_offset = m_selection_origin->end_offset();
+                focus_index = word_start;
+            } else if (position.value() > 0) {
+                // Cursor is after anchor: select from anchor start to current word end.
+                anchor_node = m_selection_origin->start_container();
+                anchor_offset = m_selection_origin->start_offset();
+                focus_index = word_end;
+            } else {
+                // Cursor is within anchor: keep original word selected.
+                anchor_node = m_selection_origin->start_container();
+                anchor_offset = m_selection_origin->start_offset();
+                focus_index = m_selection_origin->end_offset();
+            }
+        }
+    }
+
+    if (m_mouse_selection_target) {
+        if (anchor_offset.has_value())
+            m_mouse_selection_target->set_selection_anchor(anchor_node ? *anchor_node : hit_dom_node, anchor_offset.value());
+        m_mouse_selection_target->set_selection_focus(hit_dom_node, focus_index);
+    } else {
+        if (auto selection = document.get_selection()) {
+            auto selection_anchor_node = anchor_node ? anchor_node : selection->anchor_node();
+            if (selection_anchor_node) {
+                if (&selection_anchor_node->root() == &hit_dom_node.root()) {
+                    auto selection_anchor_offset = anchor_offset.has_value() ? anchor_offset.value() : selection->anchor_offset();
+                    set_user_selection(*selection_anchor_node, selection_anchor_offset, hit_dom_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
+                }
+            } else {
+                set_user_selection(hit_dom_node, focus_index, hit_dom_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
+            }
+
+            document.set_needs_display();
+        }
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#run-light-dismiss-activities
 static void light_dismiss_activities(UIEvents::PointerEvent const& event, GC::Ptr<DOM::Node> const target)
 {
@@ -614,7 +680,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
 
 after_node_use:
     if (button == UIEvents::MouseButton::Primary) {
-        m_in_mouse_selection = false;
+        m_selection_mode = SelectionMode::None;
+        m_selection_origin = {};
         m_mouse_selection_target = nullptr;
     }
     return handled_event;
@@ -748,7 +815,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     size_t index = cursor_hit->index_in_node;
     if (InputEventsTarget* active_target = document->active_input_events_target(dom_node)) {
-        m_in_mouse_selection = true;
+        m_selection_mode = SelectionMode::Character;
         m_mouse_selection_target = active_target;
 
         if (modifiers & UIEvents::KeyModifier::Mod_Shift)
@@ -756,7 +823,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         else
             active_target->set_selection_anchor(*dom_node, index);
     } else if (!focus_candidate) {
-        m_in_mouse_selection = true;
+        m_selection_mode = SelectionMode::Character;
         m_mouse_selection_target = nullptr;
 
         if (auto selection = document->get_selection()) {
@@ -907,27 +974,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
                 return EventResult::Accepted;
         }
 
-        if (m_in_mouse_selection) {
-            auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
-            if (m_mouse_selection_target) {
-                if (hit.has_value() && hit->paintable->dom_node())
-                    m_mouse_selection_target->set_selection_focus(*hit->paintable->dom_node(), hit->index_in_node);
-            } else {
-                if (start_index.has_value() && hit.has_value() && hit->dom_node()) {
-                    if (auto selection = document.get_selection()) {
-                        auto anchor_node = selection->anchor_node();
-                        if (anchor_node) {
-                            if (&anchor_node->root() == &hit->dom_node()->root())
-                                set_user_selection(*anchor_node, selection->anchor_offset(), *hit->paintable->dom_node(), hit->index_in_node, selection, hit->paintable->layout_node().user_select_used_value());
-                        } else {
-                            set_user_selection(*hit->paintable->dom_node(), hit->index_in_node, *hit->paintable->dom_node(), hit->index_in_node, selection, hit->paintable->layout_node().user_select_used_value());
-                        }
-                    }
-
-                    document.set_needs_display();
-                }
-            }
-        }
+        update_mouse_selection(visual_viewport_position);
     }
 
     return EventResult::Handled;
@@ -1056,10 +1103,15 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
                 next_boundary = segmenter.next_boundary(result->index_in_node).value_or(hit_dom_node.length());
             }
 
+            m_selection_mode = SelectionMode::Word;
+            m_selection_origin = DOM::Range::create(hit_dom_node, previous_boundary, hit_dom_node, next_boundary);
+
             if (auto* target = document.active_input_events_target(&hit_dom_node)) {
+                m_mouse_selection_target = target;
                 target->set_selection_anchor(hit_dom_node, previous_boundary);
                 target->set_selection_focus(hit_dom_node, next_boundary);
             } else if (auto selection = node->document().get_selection()) {
+                m_mouse_selection_target = nullptr;
                 set_user_selection(hit_dom_node, previous_boundary, hit_dom_node, next_boundary, selection, hit_paintable.layout_node().user_select_used_value());
             }
         }
@@ -1675,7 +1727,7 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
         m_element_resize_in_progress->visit_edges(visitor);
     if (m_mouse_selection_target)
         visitor.visit(m_mouse_selection_target->as_cell());
-
+    visitor.visit(m_selection_origin);
     visitor.visit(m_navigable);
 }
 
