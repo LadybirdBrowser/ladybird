@@ -7,6 +7,7 @@
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGPolylineElementPrototype.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGPolylineElement.h>
@@ -30,8 +31,11 @@ void SVGPolylineElement::attribute_changed(FlyString const& name, Optional<Strin
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == SVG::AttributeNames::points)
+    if (name == SVG::AttributeNames::points) {
         m_points = AttributeParser::parse_points(value.value_or(String {}));
+        if (layout_node())
+            layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+    }
 }
 
 Gfx::Path SVGPolylineElement::get_path(CSSPixelSize)
