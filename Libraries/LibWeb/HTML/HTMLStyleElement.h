@@ -7,12 +7,14 @@
 
 #pragma once
 
-#include <LibWeb/DOM/StyleElementUtils.h>
+#include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::HTML {
 
-class HTMLStyleElement final : public HTMLElement {
+class HTMLStyleElement final
+    : public HTMLElement
+    , public DOM::StyleElementBase {
     WEB_PLATFORM_OBJECT(HTMLStyleElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLStyleElement);
 
@@ -27,9 +29,6 @@ public:
     bool disabled();
     void set_disabled(bool disabled);
 
-    CSS::CSSStyleSheet* sheet();
-    CSS::CSSStyleSheet const* sheet() const;
-
     virtual bool contributes_a_script_blocking_style_sheet() const final;
 
 private:
@@ -38,10 +37,11 @@ private:
     // ^DOM::Node
     virtual bool is_html_style_element() const override { return true; }
 
+    // ^DOM::StyleElementBase
+    virtual Element& as_element() override { return *this; }
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
-
-    DOM::StyleElementUtils m_style_element_utils;
 };
 
 }
