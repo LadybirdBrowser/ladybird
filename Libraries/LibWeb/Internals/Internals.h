@@ -19,6 +19,18 @@ class WEB_API Internals final : public InternalsBase {
     GC_DECLARE_ALLOCATOR(Internals);
 
 public:
+    // Same as Internals.idl
+    static constexpr unsigned short MOD_NONE = 0;
+    static constexpr unsigned short MOD_ALT = 1;
+    static constexpr unsigned short MOD_CTRL = 2;
+    static constexpr unsigned short MOD_SHIFT = 4;
+    static constexpr unsigned short MOD_SUPER = 8;
+    static constexpr unsigned short MOD_KEYPAD = 16;
+
+    static constexpr unsigned short BUTTON_LEFT = 0;
+    static constexpr unsigned short BUTTON_MIDDLE = 1;
+    static constexpr unsigned short BUTTON_RIGHT = 2;
+
     virtual ~Internals() override;
 
     void signal_test_is_done(String const& text);
@@ -36,11 +48,14 @@ public:
     void paste(HTML::HTMLElement& target, Utf16String const& text);
     void commit_text();
 
-    void click(double x, double y);
-    void doubleclick(double x, double y);
-    void middle_click(double x, double y);
-    void mouse_down(double x, double y);
-    void move_pointer_to(double x, double y);
+    // Low-level mouse primitives
+    void mouse_down(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
+    void mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
+    void mouse_move(double x, double y, WebIDL::UnsignedShort modifiers);
+
+    // High-level mouse conveniences
+    void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
+    void click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void wheel(double x, double y, double delta_x, double delta_y);
     void pinch(double x, double y, double scale_delta);
 
@@ -94,8 +109,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    void click(double x, double y, UIEvents::MouseButton);
-    void mouse_down(double x, double y, UIEvents::MouseButton);
+    UIEvents::MouseButton button_from_unsigned_short(WebIDL::UnsignedShort button);
 
     Vector<GC::Ref<InternalGamepad>> m_gamepads;
 };

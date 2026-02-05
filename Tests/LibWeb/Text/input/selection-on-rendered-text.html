@@ -3,7 +3,7 @@
 <p id="text">Lorem     ipsum dolor sit amet</p>
 <script>
     test(() => {
-        internals.doubleclick(85, 20);
+        internals.click(85, 20, 2);
 
         const selection = document.getSelection().getRangeAt(0);
         // FIXME: This should output 6-15 instead of 10-15

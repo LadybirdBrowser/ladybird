@@ -9,11 +9,11 @@
 <script>
     test(() => {
         // hover
-        internals.movePointerTo(10, 10);
+        internals.mouseMove(10, 10);
         println("hovered text-shadow: " + getComputedStyle(document.querySelector("span")).textShadow);
 
         // unhover
-        internals.movePointerTo(0, 0);
+        internals.mouseMove(0, 0);
         println("unhovered text-shadow: " + getComputedStyle(document.querySelector("span")).textShadow);
     });
 </script>

@@ -256,51 +256,59 @@ void Internals::commit_text()
     page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false);
 }
 
-void Internals::click(double x, double y)
+UIEvents::MouseButton Internals::button_from_unsigned_short(WebIDL::UnsignedShort button)
 {
-    click(x, y, UIEvents::MouseButton::Primary);
+    switch (button) {
+    case BUTTON_MIDDLE:
+        return UIEvents::MouseButton::Middle;
+    case BUTTON_RIGHT:
+        return UIEvents::MouseButton::Secondary;
+    default:
+        return UIEvents::MouseButton::Primary;
+    }
 }
 
-void Internals::doubleclick(double x, double y)
-{
-    auto& page = this->page();
-
-    auto position = page.css_to_device_point({ x, y });
-    page.handle_doubleclick(position, position, UIEvents::MouseButton::Primary, 0, 0);
-}
-
-void Internals::middle_click(double x, double y)
-{
-    click(x, y, UIEvents::MouseButton::Middle);
-}
-
-void Internals::click(double x, double y, UIEvents::MouseButton button)
-{
-    auto& page = this->page();
-
-    auto position = page.css_to_device_point({ x, y });
-    page.handle_mousedown(position, position, button, 0, 0);
-    page.handle_mouseup(position, position, button, 0, 0);
-}
-
-void Internals::mouse_down(double x, double y)
-{
-    mouse_down(x, y, UIEvents::MouseButton::Primary);
-}
-
-void Internals::mouse_down(double x, double y, UIEvents::MouseButton button)
+void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
 {
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mousedown(position, position, button, 0, 0);
+    page.handle_mousedown(position, position, button_from_unsigned_short(button), 0, modifiers);
 }
 
-void Internals::move_pointer_to(double x, double y)
+void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
 {
     auto& page = this->page();
-
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mousemove(position, position, 0, 0);
+    page.handle_mouseup(position, position, button_from_unsigned_short(button), 0, modifiers);
+}
+
+void Internals::mouse_move(double x, double y, WebIDL::UnsignedShort modifiers)
+{
+    auto& page = this->page();
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_mousemove(position, position, 0, modifiers);
+}
+
+void Internals::click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
+{
+    click_and_hold(x, y, click_count, button, modifiers);
+    mouse_up(x, y, button, modifiers);
+}
+
+void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
+{
+    auto& page = this->page();
+    auto position = page.css_to_device_point({ x, y });
+    auto mouse_button = button_from_unsigned_short(button);
+
+    switch (click_count) {
+    case 2:
+        page.handle_doubleclick(position, position, mouse_button, 0, modifiers);
+        break;
+    default:
+        page.handle_mousedown(position, position, mouse_button, 0, modifiers);
+        break;
+    }
 }
 
 void Internals::wheel(double x, double y, double delta_x, double delta_y)
