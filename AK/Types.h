@@ -64,7 +64,7 @@ struct __MakeSigned<long long> {
 };
 template<>
 struct __MakeSigned<unsigned char> {
-    using Type = char;
+    using Type = signed char;
 };
 template<>
 struct __MakeSigned<unsigned short> {
@@ -84,7 +84,7 @@ struct __MakeSigned<unsigned long long> {
 };
 template<>
 struct __MakeSigned<char> {
-    using Type = char;
+    using Type = signed char;
 };
 
 template<typename T>
