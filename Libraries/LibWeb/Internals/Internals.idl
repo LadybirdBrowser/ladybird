@@ -58,6 +58,7 @@ interface Internals {
     unsigned short getEchoServerPort();
 
     undefined setBrowserZoom(double factor);
+    undefined setDevicePixelRatio(double ratio);
 
     readonly attribute boolean headless;
 

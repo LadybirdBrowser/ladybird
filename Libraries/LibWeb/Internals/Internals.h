@@ -69,6 +69,7 @@ public:
     static void set_echo_server_port(u16 port);
 
     void set_browser_zoom(double factor);
+    void set_device_pixel_ratio(double ratio);
 
     bool headless();
 

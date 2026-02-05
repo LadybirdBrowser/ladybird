@@ -172,6 +172,8 @@ public:
     void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
 
+    Painting::BackingStoreManager& backing_store_manager() { return *m_backing_store_manager; }
+
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
     [[nodiscard]] bool has_a_rendering_opportunity() const;
 

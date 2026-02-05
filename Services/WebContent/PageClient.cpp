@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWebView/SiteIsolation.h>
@@ -207,6 +208,23 @@ void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
     page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size));
 }
 
+void PageClient::set_device_pixel_ratio(double device_pixel_ratio)
+{
+    if (m_device_pixel_ratio == device_pixel_ratio)
+        return;
+
+    m_device_pixel_ratio = device_pixel_ratio;
+
+    auto traversable = page().top_level_traversable();
+    traversable->backing_store_manager()
+        .resize_backing_stores_if_needed(Web::Painting::BackingStoreManager::WindowResizingInProgress::No);
+
+    if (auto document = traversable->active_document()) {
+        document->set_needs_media_query_evaluation();
+        document->set_needs_display(Web::InvalidateDisplayList::Yes);
+    }
+}
+
 void PageClient::set_maximum_frames_per_second(u64 maximum_frames_per_second)
 {
     m_maximum_frames_per_second = maximum_frames_per_second;
@@ -370,6 +388,11 @@ void PageClient::page_did_set_browser_zoom(double factor)
     event_loop.spin_until(GC::create_function(event_loop.heap(), [this, traversable]() {
         return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
     }));
+}
+
+void PageClient::page_did_set_device_pixel_ratio_for_testing(double ratio)
+{
+    set_device_pixel_ratio(ratio);
 }
 
 void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position)

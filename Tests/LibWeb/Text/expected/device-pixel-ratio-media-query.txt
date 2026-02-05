@@ -1,0 +1,5 @@
+Initial matches (at 1x): false
+Change event 1: matches = true
+PASS: Media query matched after DPI changed to 2x
+Change event 2: matches = false
+PASS: Media query unmatched after DPI changed back to 1x
