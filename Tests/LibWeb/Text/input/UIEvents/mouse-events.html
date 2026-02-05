@@ -69,7 +69,7 @@ const clickOnOuterBox = (button) => {
             internals.click(80, 80);
         } else if (button == 1) {
             document.body.onauxclick = () => { resolve(); };
-            internals.middleClick(80, 80);
+            internals.click(80, 80, 1, internals.BUTTON_MIDDLE);
         } else {
             println(`Unimplemented button click: ${button}`);
             reject();
@@ -79,11 +79,11 @@ const clickOnOuterBox = (button) => {
 
 asyncTest(async done => {
     // First move the mouse outside #outer to populate the MouseEvent.relatedTarget property
-    internals.movePointerTo(150, 150);
+    internals.mouseMove(150, 150);
     println("> move pointer over #inner");
-    internals.movePointerTo(10, 10);
+    internals.mouseMove(10, 10);
     println("> move pointer over #outer");
-    internals.movePointerTo(60, 60);
+    internals.mouseMove(60, 60);
     println("> click #outer");
     await clickOnOuterBox(0);
     println("> auxclick #outer");

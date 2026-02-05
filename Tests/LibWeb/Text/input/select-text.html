@@ -9,7 +9,7 @@
 <script>
     test(() => {
         // Select word "Lorem" by dispatching double click event
-        internals.doubleclick(20, 20);
+        internals.click(20, 20, 2);
 
         // Should be equal to "Lorem"
         println(window.getSelection());

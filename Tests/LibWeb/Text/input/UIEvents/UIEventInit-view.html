@@ -12,15 +12,15 @@
     asyncTest(async done => {
         let events = [
             { name: "click", trigger: (x, y) => internals.click(x, y) },
-            { name: "dblclick", trigger: (x, y) => internals.doubleclick(x, y) },
+            { name: "dblclick", trigger: (x, y) => internals.click(x, y, 2) },
             { name: "mousedown", trigger: (x, y) => internals.click(x, y) },
             { name: "pointerdown", trigger: (x, y) => internals.click(x, y) },
             { name: "mouseup", trigger: (x, y) => internals.click(x, y) },
             { name: "pointerup", trigger: (x, y) => internals.click(x, y) },
-            { name: "mousemove", trigger: (x, y) => internals.movePointerTo(x, y) },
-            { name: "pointermove", trigger: (x, y) => internals.movePointerTo(x, y) },
-            { name: "mouseover", trigger: (x, y) => internals.movePointerTo(x, y) },
-            { name: "mouseout", trigger: (x, y) => { internals.movePointerTo(x, y); internals.movePointerTo(x + 100, y + 100); } },
+            { name: "mousemove", trigger: (x, y) => internals.mouseMove(x, y) },
+            { name: "pointermove", trigger: (x, y) => internals.mouseMove(x, y) },
+            { name: "mouseover", trigger: (x, y) => internals.mouseMove(x, y) },
+            { name: "mouseout", trigger: (x, y) => { internals.mouseMove(x, y); internals.mouseMove(x + 100, y + 100); } },
             { name: "wheel", trigger: (x, y) => internals.wheel(x, y, 1, 0) },
         ];
 

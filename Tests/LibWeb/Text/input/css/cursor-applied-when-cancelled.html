@@ -16,18 +16,18 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        internals.movePointerTo(0, 0);
+        internals.mouseMove(0, 0);
         println(internals.currentCursor());
 
-        internals.movePointerTo(100, 100);
+        internals.mouseMove(100, 100);
         println(internals.currentCursor());
 
         foo.addEventListener("mousemove", e => e.preventDefault());
 
-        internals.movePointerTo(0, 0);
+        internals.mouseMove(0, 0);
         println(internals.currentCursor());
 
-        internals.movePointerTo(100, 100);
+        internals.mouseMove(100, 100);
         println(internals.currentCursor());
     });
 </script>
