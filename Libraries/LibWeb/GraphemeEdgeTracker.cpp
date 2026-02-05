@@ -14,14 +14,14 @@ namespace Web {
 // FIXME: Using newline characters to determine line breaks is insufficient. If a line is wrapped due space constraints,
 //        we want to consider each segment of the wrapped line as its own line in the algorithms below.
 
-static constexpr size_t find_line_start(Utf16View const& view, size_t offset)
+size_t find_line_start(Utf16View const& view, size_t offset)
 {
     while (offset != 0 && view.code_unit_at(offset - 1) != '\n')
         --offset;
     return offset;
 }
 
-static constexpr size_t find_line_end(Utf16View const& view, size_t offset)
+size_t find_line_end(Utf16View const& view, size_t offset)
 {
     auto length = view.length_in_code_units();
     while (offset < length && view.code_unit_at(offset) != '\n')
