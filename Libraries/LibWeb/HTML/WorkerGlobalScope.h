@@ -125,7 +125,7 @@ protected:
     GC::Ptr<MessagePort> m_internal_port;
 
 private:
-    virtual bool is_window_or_worker_global_scope_mixin() const final { return true; }
+    virtual bool is_universal_global_scope_mixin() const final { return true; }
 
     GC::Ptr<WorkerLocation> m_location;
     GC::Ptr<WorkerNavigator> m_navigator;

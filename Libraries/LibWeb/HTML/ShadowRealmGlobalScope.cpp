@@ -24,10 +24,6 @@ GC::Ref<ShadowRealmGlobalScope> ShadowRealmGlobalScope::create(JS::Realm& realm)
     return realm.create<ShadowRealmGlobalScope>(realm);
 }
 
-void ShadowRealmGlobalScope::initialize(JS::Realm&)
-{
-}
-
 void ShadowRealmGlobalScope::initialize_web_interfaces()
 {
     auto& realm = this->realm();
