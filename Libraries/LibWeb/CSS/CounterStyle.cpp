@@ -10,6 +10,20 @@
 
 namespace Web::CSS {
 
+// https://drafts.csswg.org/css-counter-styles-3/#decimal
+CounterStyle CounterStyle::decimal()
+{
+    return CounterStyle::create(
+        "decimal"_fly_string,
+        GenericCounterStyleAlgorithm { CounterStyleSystem::Numeric, { "0"_fly_string, "1"_fly_string, "2"_fly_string, "3"_fly_string, "4"_fly_string, "5"_fly_string, "6"_fly_string, "7"_fly_string, "8"_fly_string, "9"_fly_string } },
+        CounterStyleNegativeSign { .prefix = "-"_fly_string, .suffix = ""_fly_string },
+        ""_fly_string,
+        ". "_fly_string,
+        { { NumericLimits<i64>::min(), NumericLimits<i64>::max() } },
+        {},
+        CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
+}
+
 CounterStyle CounterStyle::from_counter_style_definition(CounterStyleDefinition const& definition, HashMap<FlyString, CounterStyle> const& registered_counter_styles)
 {
     return definition.algorithm().visit(
@@ -203,6 +217,120 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
 
             VERIFY_NOT_REACHED();
         });
+}
+
+// https://drafts.csswg.org/css-counter-styles-3/#counter-style-negative
+bool CounterStyle::uses_a_negative_sign() const
+{
+    // Not all system values use a negative sign. In particular, a counter style uses a negative sign if its system
+    // value is symbolic, alphabetic, numeric, additive, or extends if the extended counter style itself uses a negative
+    // sign.
+    // NB: We have resolved extends to the underlying algorithm before calling this
+    return m_algorithm.visit(
+        [&](AdditiveCounterStyleAlgorithm const&) -> bool {
+            return true;
+        },
+        [&](FixedCounterStyleAlgorithm const&) -> bool {
+            return false;
+        },
+        [&](GenericCounterStyleAlgorithm const& generic_system) -> bool {
+            switch (generic_system.type) {
+            case CounterStyleSystem::Cyclic:
+                return false;
+            case CounterStyleSystem::Symbolic:
+            case CounterStyleSystem::Alphabetic:
+            case CounterStyleSystem::Numeric:
+                return true;
+            case CounterStyleSystem::Additive:
+                // NB: This is handled by AdditiveCounterStyleAlgorithm.
+                VERIFY_NOT_REACHED();
+            }
+
+            VERIFY_NOT_REACHED();
+        });
+}
+
+// https://drafts.csswg.org/css-counter-styles-3/#generate-a-counter
+static String generate_a_counter_representation_impl(Optional<CounterStyle const&> const& counter_style, HashMap<FlyString, CounterStyle> const& registered_counter_styles, i32 value, HashTable<FlyString>& fallback_history)
+{
+    // When asked to generate a counter representation using a particular counter style for a particular
+    // counter value, follow these steps:
+
+    // 1. If the counter style is unknown, exit this algorithm and instead generate a counter representation using the
+    //    decimal style and the same counter value.
+    if (!counter_style.has_value())
+        return generate_a_counter_representation_impl(CounterStyle::decimal(), registered_counter_styles, value, fallback_history);
+
+    auto const generate_a_counter_representation_using_fallback = [&]() {
+        VERIFY(counter_style->name() != "decimal"_fly_string);
+
+        auto const& fallback_name = counter_style->fallback().value();
+        auto const& fallback = registered_counter_styles.get(fallback_name);
+
+        // https://drafts.csswg.org/css-counter-styles-3/#counter-style-fallback
+        // If the value of the fallback descriptor isn’t the name of any defined counter style, the used value of the
+        // fallback descriptor is decimal instead. Similarly, while following fallbacks to find a counter style that
+        // can render the given counter value, if a loop in the specified fallbacks is detected, the decimal style must
+        // be used instead.
+        if (!fallback.has_value() || fallback_history.contains(fallback_name))
+            return generate_a_counter_representation_impl(CounterStyle::decimal(), registered_counter_styles, value, fallback_history);
+
+        fallback_history.set(counter_style->name());
+
+        return generate_a_counter_representation_impl(fallback, registered_counter_styles, value, fallback_history);
+    };
+
+    // 2. If the counter value is outside the range of the counter style, exit this algorithm and instead generate a
+    //    counter representation using the counter style’s fallback style and the same counter value.
+    if (!any_of(counter_style->range(), [&](auto const& entry) { return value >= entry.start && value <= entry.end; }))
+        return generate_a_counter_representation_using_fallback();
+
+    auto value_is_negative_and_uses_negative_sign = value < 0 && counter_style->uses_a_negative_sign();
+
+    // 3. Using the counter value and the counter algorithm for the counter style, generate an initial representation
+    //    for the counter value. If the counter value is negative and the counter style uses a negative sign, instead
+    //    generate an initial representation using the absolute value of the counter value.
+    auto maybe_representation = counter_style->generate_an_initial_representation_for_the_counter_value(value_is_negative_and_uses_negative_sign ? AK::clamp_to<i32>(-static_cast<i64>(value)) : value);
+
+    // AD-HOC: Algorithms are sometimes unable to produce a representation and require us to use the fallback - we
+    //         represent this by returning an empty Optional.
+    if (!maybe_representation.has_value())
+        return generate_a_counter_representation_using_fallback();
+
+    auto representation = maybe_representation.value();
+
+    // 4. Prepend symbols to the representation as specified in the pad descriptor.
+    {
+        // https://drafts.csswg.org/css-counter-styles-3/#counter-style-pad
+        // Let difference be the provided <integer> minus the number of grapheme clusters in the initial representation
+        // for the counter value.
+        // FIXME: We should be counting grapheme clusters here.
+        auto difference = counter_style->pad().minimum_length - static_cast<i32>(representation.length_in_code_units());
+
+        // If the counter value is negative and the counter style uses a negative sign, further reduce difference by
+        // the number of grapheme clusters in the counter style’s negative descriptor’s <symbol>(s).
+        // FIXME: We should be counting grapheme clusters here.
+        if (value_is_negative_and_uses_negative_sign)
+            difference -= counter_style->negative_sign().prefix.to_string().length_in_code_units() + counter_style->negative_sign().suffix.to_string().length_in_code_units();
+
+        // If difference is greater than zero, prepend difference copies of the specified <symbol> to the representation.
+        if (difference > 0)
+            representation = MUST(String::formatted("{}{}", MUST(String::repeated(counter_style->pad().symbol.to_string(), difference)), representation));
+    }
+
+    // 5. If the counter value is negative and the counter style uses a negative sign, wrap the representation in the
+    //    counter style’s negative sign as specified in the negative descriptor.
+    if (value_is_negative_and_uses_negative_sign)
+        representation = MUST(String::formatted("{}{}{}", counter_style->negative_sign().prefix, representation, counter_style->negative_sign().suffix));
+
+    // 6. Return the representation.
+    return representation;
+}
+
+String generate_a_counter_representation(Optional<CounterStyle const&> const& counter_style, HashMap<FlyString, CounterStyle> const& registered_counter_styles, i32 value)
+{
+    HashTable<FlyString> fallback_history;
+    return generate_a_counter_representation_impl(counter_style, registered_counter_styles, value, fallback_history);
 }
 
 }

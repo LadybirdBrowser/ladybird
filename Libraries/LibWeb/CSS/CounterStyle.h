@@ -15,6 +15,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-counter-styles-3/#counter-styles
 class CounterStyle {
 public:
+    static CounterStyle decimal();
     static CounterStyle from_counter_style_definition(CounterStyleDefinition const&, HashMap<FlyString, CounterStyle> const&);
 
     static CounterStyle create(FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, FlyString prefix, FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<FlyString> fallback, CounterStylePad pad)
@@ -35,6 +36,7 @@ public:
     CounterStylePad const& pad() const { return m_pad; }
 
     Optional<String> generate_an_initial_representation_for_the_counter_value(i32 value) const;
+    bool uses_a_negative_sign() const;
 
     virtual ~CounterStyle() = default;
 
@@ -79,5 +81,7 @@ private:
     // AD-HOC: We store the `pad` descriptor here as well to have everything in one place
     CounterStylePad m_pad;
 };
+
+String generate_a_counter_representation(Optional<CounterStyle const&> const& counter_style, HashMap<FlyString, CounterStyle> const& registered_counter_styles, i32 value);
 
 }
