@@ -24,19 +24,21 @@ static Optional<UnixDateTime> parse_http_date(Optional<ByteString const&> date)
     return {};
 }
 
-u64 compute_maximum_disk_cache_size(u64 free_bytes)
+u64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache_size)
 {
-    static constexpr u64 MAXIMUM_DISK_CACHE_SIZE = 5 * GiB;
+    auto cache_size = [&]() {
+        if (free_bytes <= 100 * MiB)
+            return free_bytes * 8 / 10; // Up to 80 MiB
+        if (free_bytes <= 800 * MiB)
+            return free_bytes * 6 / 10; // Up to 480 MiB
+        if (free_bytes <= 2 * GiB)
+            return free_bytes * 4 / 10; // Up to 820 MiB
+        if (free_bytes <= 10 * GiB)
+            return free_bytes * 2 / 10; // Up to 2 GiB
+        return limit_maximum_disk_cache_size;
+    }();
 
-    if (free_bytes <= 100 * MiB)
-        return free_bytes * 8 / 10; // Up to 80 MiB
-    if (free_bytes <= 800 * MiB)
-        return free_bytes * 6 / 10; // Up to 480 MiB
-    if (free_bytes <= 2 * GiB)
-        return free_bytes * 4 / 10; // Up to 820 MiB
-    if (free_bytes <= 10 * GiB)
-        return free_bytes * 2 / 10; // Up to 2 GiB
-    return MAXIMUM_DISK_CACHE_SIZE;
+    return min(cache_size, limit_maximum_disk_cache_size);
 }
 
 u64 compute_maximum_disk_cache_entry_size(u64 maximum_disk_cache_size)

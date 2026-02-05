@@ -1,10 +1,17 @@
 import { getByteFormatter } from "../../utils.js";
+
 const byteFormatter = getByteFormatter(unit => {
     return {
         unitDisplay: unit === "byte" ? "long" : "short",
         maximumFractionDigits: 1,
     };
 });
+
+const browsingDataSettings = document.querySelector("#browsing-data-settings");
+const browsingDataSettingsClose = document.querySelector("#browsing-data-settings-close");
+const browsingDataSettingsDialog = document.querySelector("#browsing-data-settings-dialog");
+const browsingDataSettingsMaxDiskCacheSize = document.querySelector("#browsing-data-settings-max-disk-cache-size");
+const browsingDataSettingsMaxDiskCacheUnit = document.querySelector("#browsing-data-settings-max-disk-cache-unit");
 
 const clearBrowsingData = document.querySelector("#clear-browsing-data");
 const clearBrowsingDataCachedFiles = document.querySelector("#clear-browsing-data-cached-files");
@@ -16,10 +23,30 @@ const clearBrowsingDataSiteData = document.querySelector("#clear-browsing-data-s
 const clearBrowsingDataSiteDataSize = document.querySelector("#clear-browsing-data-site-data-size");
 const clearBrowsingDataTimeRange = document.querySelector("#clear-browsing-data-time-range");
 const clearBrowsingDataTotalSize = document.querySelector("#clear-browsing-data-total-size");
+
 const globalPrivacyControlToggle = document.querySelector("#global-privacy-control-toggle");
 
+const MiB = 1024 * 1024;
+const GiB = MiB * 1024;
+
+let BROWSING_DATA = {};
+
 function loadSettings(settings) {
+    BROWSING_DATA = settings.browsingData || {};
+
     globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
+
+    if (browsingDataSettingsDialog.open) {
+        showBrowsingDataSettings();
+    }
+}
+
+function formatDiskCacheSize(bytes) {
+    if (bytes >= GiB && bytes % GiB == 0) {
+        return { value: bytes / GiB, unit: "GiB" };
+    }
+
+    return { value: bytes / MiB, unit: "MiB" };
 }
 
 function computeTimeRange() {
@@ -39,6 +66,59 @@ function computeTimeRange() {
             return now;
     }
 }
+
+function saveBrowsingDataSettings() {
+    browsingDataSettingsMaxDiskCacheSize.classList.remove("success");
+    browsingDataSettingsMaxDiskCacheSize.classList.remove("error");
+
+    if (
+        browsingDataSettingsMaxDiskCacheSize.value.length === 0 ||
+        !browsingDataSettingsMaxDiskCacheSize.checkValidity()
+    ) {
+        browsingDataSettingsMaxDiskCacheSize.classList.add("error");
+        return;
+    }
+
+    BROWSING_DATA.maxDiskCacheSize =
+        browsingDataSettingsMaxDiskCacheUnit.value === "MiB"
+            ? browsingDataSettingsMaxDiskCacheSize.value * MiB
+            : browsingDataSettingsMaxDiskCacheSize.value * GiB;
+
+    ladybird.sendMessage("setBrowsingDataSettings", BROWSING_DATA);
+    browsingDataSettingsMaxDiskCacheSize.classList.add("success");
+
+    setTimeout(() => {
+        browsingDataSettingsMaxDiskCacheSize.classList.remove("success");
+    }, 1000);
+}
+
+function showBrowsingDataSettings() {
+    const maxDiskCacheSize = BROWSING_DATA.maxDiskCacheSize || 5 * GiB;
+
+    const { value, unit } = formatDiskCacheSize(maxDiskCacheSize);
+    browsingDataSettingsMaxDiskCacheSize.value = value;
+    browsingDataSettingsMaxDiskCacheUnit.value = unit;
+
+    if (!browsingDataSettingsDialog.open) {
+        setTimeout(() => browsingDataSettingsMaxDiskCacheSize.focus());
+        browsingDataSettingsDialog.showModal();
+    }
+}
+
+browsingDataSettings.addEventListener("click", () => {
+    showBrowsingDataSettings();
+});
+
+browsingDataSettingsClose.addEventListener("click", () => {
+    browsingDataSettingsDialog.close();
+});
+
+browsingDataSettingsMaxDiskCacheSize.addEventListener("change", () => {
+    saveBrowsingDataSettings();
+});
+browsingDataSettingsMaxDiskCacheUnit.addEventListener("change", () => {
+    saveBrowsingDataSettings();
+});
 
 function estimateBrowsingDataSizes() {
     const since = computeTimeRange();

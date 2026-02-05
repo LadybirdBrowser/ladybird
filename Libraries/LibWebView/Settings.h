@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
+#include <LibRequests/BrowsingDataSettings.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
@@ -41,6 +42,7 @@ public:
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
+    virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
     virtual void dns_settings_changed() { }
 };
@@ -79,6 +81,10 @@ public:
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
 
+    static Requests::BrowsingDataSettings parse_browsing_data_settings(JsonValue const&);
+    Requests::BrowsingDataSettings const& browsing_data_settings() const { return m_browsing_data_settings; }
+    void set_browsing_data_settings(Requests::BrowsingDataSettings);
+
     GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
     void set_global_privacy_control(GlobalPrivacyControl);
 
@@ -105,6 +111,7 @@ private:
     Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
+    Requests::BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };

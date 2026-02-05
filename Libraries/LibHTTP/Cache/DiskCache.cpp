@@ -237,6 +237,11 @@ void DiskCache::remove_entries_exceeding_cache_limit()
     });
 }
 
+void DiskCache::set_maximum_disk_cache_size(u64 maximum_disk_cache_size)
+{
+    m_index.set_maximum_disk_cache_size(maximum_disk_cache_size);
+}
+
 Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime since)
 {
     return m_index.estimate_cache_size_accessed_since(since);

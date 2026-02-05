@@ -311,4 +311,13 @@ Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime
     return sizes;
 }
 
+void CacheIndex::set_maximum_disk_cache_size(u64 maximum_disk_cache_size)
+{
+    if (maximum_disk_cache_size == m_limits.maximum_disk_cache_size)
+        return;
+
+    m_limits.maximum_disk_cache_size = compute_maximum_disk_cache_size(m_limits.free_disk_space, maximum_disk_cache_size);
+    m_limits.maximum_disk_cache_entry_size = compute_maximum_disk_cache_entry_size(m_limits.maximum_disk_cache_size);
+}
+
 }
