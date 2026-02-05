@@ -24,6 +24,12 @@ public:
     [[nodiscard]] GC::Ptr<CSS::StyleSheetList> style_sheet_list() { return m_style_sheet_list; }
     [[nodiscard]] GC::Ptr<CSS::StyleSheetList const> style_sheet_list() const { return m_style_sheet_list; }
 
+    enum class AnyFailed : u8 {
+        No,
+        Yes,
+    };
+    void finished_loading_critical_subresources(AnyFailed);
+
     void visit_style_element_edges(JS::Cell::Visitor&);
 
     virtual Element& as_element() = 0;

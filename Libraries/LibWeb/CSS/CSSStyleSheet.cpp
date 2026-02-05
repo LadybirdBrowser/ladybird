@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019-2022, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2022-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2022-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024-2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -130,6 +131,8 @@ void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_import_rules);
     visitor.visit(m_owning_documents_or_shadow_roots);
     visitor.visit(m_associated_font_loaders);
+    for (auto& subresource : m_critical_subresources)
+        subresource.visit_edges(visitor);
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule
@@ -471,6 +474,58 @@ bool CSSStyleSheet::has_associated_font_loader(FontLoader& font_loader) const
     return false;
 }
 
+void CSSStyleSheet::add_critical_subresource(Subresource& subresource)
+{
+    m_critical_subresources.append(subresource);
+}
+
+void CSSStyleSheet::remove_critical_subresource(Subresource& subresource)
+{
+    m_critical_subresources.remove_first_matching([&](auto const& it) { return &it == &subresource; });
+    check_if_loading_completed();
+}
+
+CSSStyleSheet::LoadingState CSSStyleSheet::loading_state() const
+{
+    bool any_loading = false;
+    bool any_errors = false;
+
+    for (auto const& subresource : m_critical_subresources) {
+        switch (subresource.loading_state()) {
+        case LoadingState::Unloaded:
+        case LoadingState::Loading:
+            any_loading = true;
+            break;
+        case LoadingState::Loaded:
+            break;
+        case LoadingState::Error:
+            any_errors = true;
+            break;
+        }
+    }
+
+    if (any_loading)
+        return LoadingState::Loading;
+
+    if (any_errors)
+        return LoadingState::Error;
+
+    return LoadingState::Loaded;
+}
+
+void CSSStyleSheet::check_if_loading_completed()
+{
+    auto state = loading_state();
+    if (state == LoadingState::Loaded || state == LoadingState::Error) {
+        // We're finished loading, so propagate that to our owner.
+        if (auto* style_element = as_if<DOM::StyleElementBase>(owner_node())) {
+            style_element->finished_loading_critical_subresources(state == LoadingState::Error ? DOM::StyleElementBase::AnyFailed::Yes : DOM::StyleElementBase::AnyFailed::No);
+        } else if (auto* import_rule = as_if<CSSImportRule>(owner_rule().ptr())) {
+            import_rule->set_loading_state(state);
+        }
+    }
+}
+
 Parser::ParsingParams CSSStyleSheet::make_parsing_params() const
 {
     Parser::ParsingParams parsing_params;
@@ -481,6 +536,30 @@ Parser::ParsingParams CSSStyleSheet::make_parsing_params() const
 
     parsing_params.declared_namespaces = declared_namespaces();
     return parsing_params;
+}
+
+StringView CSSStyleSheet::loading_state_name(LoadingState loading_state)
+{
+    switch (loading_state) {
+    case LoadingState::Unloaded:
+        return "Unloaded"sv;
+    case LoadingState::Loading:
+        return "Loading"sv;
+    case LoadingState::Loaded:
+        return "Loaded"sv;
+    case LoadingState::Error:
+        return "Error"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void CSSStyleSheet::Subresource::set_loading_state(LoadingState loading_state)
+{
+    m_loading_state = loading_state;
+    if (loading_state == LoadingState::Loaded || loading_state == LoadingState::Error) {
+        if (auto style_sheet = parent_style_sheet_for_subresource())
+            style_sheet->check_if_loading_completed();
+    }
 }
 
 }

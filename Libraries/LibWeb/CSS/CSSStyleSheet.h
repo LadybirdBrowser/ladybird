@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2019-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -34,6 +35,28 @@ class WEB_API CSSStyleSheet final : public StyleSheet {
     GC_DECLARE_ALLOCATOR(CSSStyleSheet);
 
 public:
+    enum class LoadingState : u8 {
+        Unloaded,
+        Loading,
+        Loaded,
+        Error,
+    };
+    static StringView loading_state_name(LoadingState);
+
+    class Subresource {
+    public:
+        virtual ~Subresource() = default;
+
+        virtual GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() = 0;
+        LoadingState loading_state() const { return m_loading_state; }
+        virtual void visit_edges(Cell::Visitor&) = 0;
+
+        void set_loading_state(LoadingState);
+
+    private:
+        LoadingState m_loading_state { LoadingState::Unloaded };
+    };
+
     [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<CSSStyleSheetInit> const& options = {});
 
@@ -98,6 +121,11 @@ public:
     }
     bool has_associated_font_loader(FontLoader& font_loader) const;
 
+    void add_critical_subresource(Subresource&);
+    void remove_critical_subresource(Subresource&);
+    LoadingState loading_state() const;
+    void check_if_loading_completed();
+
 private:
     CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
 
@@ -128,6 +156,8 @@ private:
     Optional<bool> m_did_match;
 
     Vector<GC::Ptr<FontLoader const>> m_associated_font_loaders;
+
+    Vector<Subresource&> m_critical_subresources;
 };
 
 }
