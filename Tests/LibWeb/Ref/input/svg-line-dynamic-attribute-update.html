@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-line-dynamic-attribute-update-ref.html">
+<svg width="200" height="200">
+    <line id="line" x1="0" y1="0" x2="10" y2="10" stroke="black" stroke-width="2"/>
+</svg>
+<script>
+window.onload = () => {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const line = document.getElementById("line");
+            line.setAttribute("x1", "10");
+            line.setAttribute("y1", "10");
+            line.setAttribute("x2", "190");
+            line.setAttribute("y2", "190");
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+};
+</script>
+</html>
