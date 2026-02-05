@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const mql = window.matchMedia("(resolution: 2dppx)");
+        println(`Initial matches (at 1x): ${mql.matches}`);
+
+        let changeCount = 0;
+
+        mql.addEventListener("change", (event) => {
+            changeCount++;
+            println(`Change event ${changeCount}: matches = ${event.matches}`);
+
+            if (changeCount === 1) {
+                // First change: 1x -> 2x, should now match.
+                if (event.matches) {
+                    println("PASS: Media query matched after DPI changed to 2x");
+                } else {
+                    println("FAIL: Media query should match at 2x DPI");
+                }
+                internals.setDevicePixelRatio(1);
+            } else if (changeCount === 2) {
+                // Second change: 2x -> 1x, should no longer match.
+                if (!event.matches) {
+                    println("PASS: Media query unmatched after DPI changed back to 1x");
+                } else {
+                    println("FAIL: Media query should not match at 1x DPI");
+                }
+                done();
+            }
+        });
+
+        // Change to 2x DPI - this should trigger the first change event.
+        internals.setDevicePixelRatio(2);
+    });
+</script>

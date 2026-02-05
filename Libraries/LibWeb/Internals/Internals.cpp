@@ -437,6 +437,11 @@ void Internals::set_browser_zoom(double factor)
     page().client().page_did_set_browser_zoom(factor);
 }
 
+void Internals::set_device_pixel_ratio(double ratio)
+{
+    page().client().page_did_set_device_pixel_ratio_for_testing(ratio);
+}
+
 bool Internals::headless()
 {
     return page().client().is_headless();

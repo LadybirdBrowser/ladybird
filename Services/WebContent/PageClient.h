@@ -58,7 +58,7 @@ public:
         m_all_screen_rects = rects;
         m_main_screen_index = main_screen_index;
     }
-    void set_device_pixel_ratio(double device_pixel_ratio) { m_device_pixel_ratio = device_pixel_ratio; }
+    void set_device_pixel_ratio(double device_pixel_ratio);
     void set_zoom_level(double zoom_level) { m_zoom_level = zoom_level; }
     void set_maximum_frames_per_second(u64 maximum_frames_per_second);
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
@@ -182,6 +182,7 @@ private:
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;
     virtual void page_did_receive_test_variant_metadata(JsonValue) override;
     virtual void page_did_set_browser_zoom(double factor) override;
+    virtual void page_did_set_device_pixel_ratio_for_testing(double ratio) override;
     virtual void page_did_change_theme_color(Gfx::Color color) override;
     virtual void page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;

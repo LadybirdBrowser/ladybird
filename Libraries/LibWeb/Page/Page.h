@@ -417,6 +417,7 @@ public:
     virtual void page_did_receive_test_variant_metadata(JsonValue) { }
 
     virtual void page_did_set_browser_zoom([[maybe_unused]] double factor) { }
+    virtual void page_did_set_device_pixel_ratio_for_testing([[maybe_unused]] double ratio) { }
 
     virtual void page_did_change_theme_color(Gfx::Color) { }
 
