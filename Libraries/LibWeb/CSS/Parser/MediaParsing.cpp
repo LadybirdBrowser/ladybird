@@ -151,11 +151,18 @@ OwnPtr<BooleanExpression> Parser::parse_media_condition(TokenStream<ComponentVal
     });
 }
 
-// `<media-feature>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-feature
-OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& tokens)
+// `<media-feature>`, https://drafts.csswg.org/mediaqueries-5/#typedef-media-feature
+OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& outer_tokens)
 {
-    // `[ <mf-plain> | <mf-boolean> | <mf-range> ]`
-    tokens.discard_whitespace();
+    // `<media-feature> = ( [ <mf-plain> | <mf-boolean> | <mf-range> ] )`
+    outer_tokens.discard_whitespace();
+
+    if (!(outer_tokens.next_token().is_block() && outer_tokens.next_token().block().is_paren()))
+        return nullptr;
+
+    auto transaction = outer_tokens.begin_transaction();
+    auto& block = outer_tokens.consume_a_token().block();
+    TokenStream inner_tokens { block.value };
 
     // `<mf-name> = <ident>`
     struct MediaFeatureName {
@@ -377,14 +384,29 @@ OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& to
         return {};
     };
 
-    if (auto maybe_mf_boolean = parse_mf_boolean(tokens))
+    if (auto maybe_mf_boolean = parse_mf_boolean(inner_tokens)) {
+        inner_tokens.discard_whitespace();
+        if (inner_tokens.has_next_token())
+            return nullptr;
+        transaction.commit();
         return maybe_mf_boolean.release_nonnull();
+    }
 
-    if (auto maybe_mf_plain = parse_mf_plain(tokens))
+    if (auto maybe_mf_plain = parse_mf_plain(inner_tokens)) {
+        inner_tokens.discard_whitespace();
+        if (inner_tokens.has_next_token())
+            return nullptr;
+        transaction.commit();
         return maybe_mf_plain.release_nonnull();
+    }
 
-    if (auto maybe_mf_range = parse_mf_range(tokens))
+    if (auto maybe_mf_range = parse_mf_range(inner_tokens)) {
+        inner_tokens.discard_whitespace();
+        if (inner_tokens.has_next_token())
+            return nullptr;
+        transaction.commit();
         return maybe_mf_range.release_nonnull();
+    }
 
     return {};
 }

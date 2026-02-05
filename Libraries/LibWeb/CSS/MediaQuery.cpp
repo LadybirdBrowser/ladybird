@@ -74,21 +74,23 @@ String MediaFeature::to_string() const
 
     switch (m_type) {
     case Type::IsTrue:
-        return MUST(String::from_utf8(string_from_media_feature_id(m_id)));
+        return MUST(String::formatted("({})", string_from_media_feature_id(m_id)));
     case Type::ExactValue:
-        return MUST(String::formatted("{}: {}", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
+        return MUST(String::formatted("({}: {})", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
     case Type::MinValue:
-        return MUST(String::formatted("min-{}: {}", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
+        return MUST(String::formatted("(min-{}: {})", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
     case Type::MaxValue:
-        return MUST(String::formatted("max-{}: {}", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
+        return MUST(String::formatted("(max-{}: {})", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
     case Type::Range: {
         auto& range = this->range();
         StringBuilder builder;
+        builder.append('(');
         if (range.left_comparison.has_value())
             builder.appendff("{} {} ", range.left_value->to_string(SerializationMode::Normal), comparison_string(*range.left_comparison));
         builder.append(string_from_media_feature_id(m_id));
         if (range.right_comparison.has_value())
             builder.appendff(" {} {}", comparison_string(*range.right_comparison), range.right_value->to_string(SerializationMode::Normal));
+        builder.append(')');
 
         return builder.to_string_without_validation();
     }
