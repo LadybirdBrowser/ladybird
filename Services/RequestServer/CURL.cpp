@@ -7,6 +7,8 @@
 
 #include <AK/Enumerate.h>
 #include <RequestServer/CURL.h>
+#include <array>
+#include <utility>
 
 namespace RequestServer {
 
@@ -27,34 +29,6 @@ ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringVi
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Resolve list: {}", resolve_opt_builder.string_view());
     return resolve_opt_builder.to_byte_string();
-}
-
-Requests::NetworkError curl_code_to_network_error(int code)
-{
-    switch (code) {
-    case CURLE_COULDNT_RESOLVE_HOST:
-        return Requests::NetworkError::UnableToResolveHost;
-    case CURLE_COULDNT_RESOLVE_PROXY:
-        return Requests::NetworkError::UnableToResolveProxy;
-    case CURLE_COULDNT_CONNECT:
-        return Requests::NetworkError::UnableToConnect;
-    case CURLE_OPERATION_TIMEDOUT:
-        return Requests::NetworkError::TimeoutReached;
-    case CURLE_TOO_MANY_REDIRECTS:
-        return Requests::NetworkError::TooManyRedirects;
-    case CURLE_SSL_CONNECT_ERROR:
-        return Requests::NetworkError::SSLHandshakeFailed;
-    case CURLE_PEER_FAILED_VERIFICATION:
-        return Requests::NetworkError::SSLVerificationFailed;
-    case CURLE_URL_MALFORMAT:
-        return Requests::NetworkError::MalformedUrl;
-    case CURLE_PARTIAL_FILE:
-        return Requests::NetworkError::IncompleteContent;
-    case CURLE_BAD_CONTENT_ENCODING:
-        return Requests::NetworkError::InvalidContentEncoding;
-    default:
-        return Requests::NetworkError::Unknown;
-    }
 }
 
 }
