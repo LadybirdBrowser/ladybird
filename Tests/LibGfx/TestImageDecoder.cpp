@@ -226,6 +226,32 @@ TEST_CASE(test_gif_empty_lzw_data)
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(1, 1));
 }
 
+TEST_CASE(test_gif_linkedin_terminatorlet)
+{
+    Array<u8, 42> gif_data {
+        0x47, 0x49, 0x46, 0x38, 0x39, 0x61,
+        0x01, 0x00, 0x01, 0x00,
+        0x80, 0x00, 0x00,
+        0x00, 0x00, 0x00,
+        0xff, 0xff, 0xff,
+        0x21, 0xf9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00,
+        0x2c,
+        0x00, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x01, 0x00,
+        0x00,
+        0x02, 0x01, 0x44,
+        0x00,
+        0x3b,
+    };
+
+    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(gif_data));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(gif_data));
+
+    EXPECT_EQ(plugin_decoder->frame_count(), 1u);
+    auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
+    EXPECT_EQ(frame.image->size(), Gfx::IntSize(1, 1));
+}
+
 TEST_CASE(test_not_ico)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/buggie.png"sv)));

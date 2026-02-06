@@ -15,6 +15,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 
 namespace Web::DOMURL {
 
@@ -120,10 +121,23 @@ void DOMURL::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(JS::VM& vm, FileAPI::BlobURLEntry::Object object)
+WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(JS::VM& vm, JS::Value object)
 {
+    Optional<FileAPI::BlobURLEntry::Object> blob_url_entry;
+
+    if (object.is_object()) {
+        auto& value = object.as_object();
+        if (is<FileAPI::Blob>(value))
+            blob_url_entry = FileAPI::BlobURLEntry::Object { GC::make_root(static_cast<FileAPI::Blob&>(value)) };
+        else if (is<MediaSourceExtensions::MediaSource>(value))
+            blob_url_entry = FileAPI::BlobURLEntry::Object { GC::make_root(static_cast<MediaSourceExtensions::MediaSource&>(value)) };
+    }
+
+    if (!blob_url_entry.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "No union types matched"sv };
+
     // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
-    return TRY_OR_THROW_OOM(vm, FileAPI::add_entry_to_blob_url_store(object));
+    return TRY_OR_THROW_OOM(vm, FileAPI::add_entry_to_blob_url_store(*blob_url_entry));
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL

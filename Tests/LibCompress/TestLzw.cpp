@@ -31,3 +31,15 @@ TEST_CASE(roundtrip_lzw_little_endian_long)
     constexpr auto input = "WellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,g"sv;
     EXPECT(TRY_OR_FAIL(test_roundtrip_string(input)));
 }
+
+TEST_CASE(truncated_lzw_little_endian_tolerant_mode)
+{
+    Array<u8, 1> input { 0x44 };
+
+    auto strict_result = Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(input, 2);
+    EXPECT(strict_result.is_error());
+
+    auto tolerant_result = TRY_OR_FAIL(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(input, 2, 0, true));
+    EXPECT_EQ(tolerant_result.size(), 1u);
+    EXPECT_EQ(tolerant_result[0], 0u);
+}

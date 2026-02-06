@@ -97,7 +97,7 @@ public:
     {
     }
 
-    static ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes bytes, u8 initial_code_size, i32 offset_for_size_change = 0)
+    static ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes bytes, u8 initial_code_size, i32 offset_for_size_change = 0, bool allow_truncated_stream = false)
     {
         auto memory_stream = make<FixedMemoryStream>(bytes);
         auto lzw_stream = make<InputStream>(MaybeOwned<Stream>(move(memory_stream)));
@@ -109,7 +109,16 @@ public:
         u16 const end_of_data_code = lzw_decompressor.add_control_code();
 
         while (true) {
-            auto const code = TRY(lzw_decompressor.next_code());
+            auto code_or_error = lzw_decompressor.next_code();
+            if (code_or_error.is_error()) {
+                if (allow_truncated_stream
+                    && code_or_error.error().kind() == Error::Kind::StringLiteral
+                    && code_or_error.error().string_literal() == "Reached end-of-stream without collecting the required number of bits"sv) {
+                    break;
+                }
+                return code_or_error.release_error();
+            }
+            auto const code = code_or_error.release_value();
 
             if (code == clear_code) {
                 lzw_decompressor.reset();
