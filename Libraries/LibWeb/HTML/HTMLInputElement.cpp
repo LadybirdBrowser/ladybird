@@ -806,6 +806,8 @@ static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_visible()
                 width: 100%;
                 height: 1lh;
                 align-items: center;
+                overflow: auto;
+                scrollbar-width: none;
                 text-overflow: clip;
                 white-space: nowrap;
             )~~~"sv);
@@ -1143,6 +1145,8 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 width: 100%;
                 height: 1lh;
                 align-items: center;
+                overflow: auto;
+                scrollbar-width: none;
                 text-overflow: clip;
                 white-space: nowrap;
             )~~~"sv);

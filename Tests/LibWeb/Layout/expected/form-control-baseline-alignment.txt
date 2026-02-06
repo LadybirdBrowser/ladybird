@@ -1,16 +1,16 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 88 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 72 0+0+8] children: inline
-      frag 0 from TextInputBox start: 0, length: 0, rect: [9,29 200x20] baseline: 15.796875
+      frag 0 from TextInputBox start: 0, length: 0, rect: [9,25 200x20] baseline: 20
       frag 1 from TextAreaBox start: 0, length: 0, rect: [243.1875,11 160x30] baseline: 36
       frag 2 from TextInputBox start: 0, length: 0, rect: [437.375,29 200x20] baseline: 15.796875
       frag 3 from TextNode start: 0, length: 1, rect: [638.375,30 8x18] baseline: 13.796875
           " "
       frag 4 from TextAreaBox start: 0, length: 0, rect: [11,47 160x30] baseline: 36
-      TextInputBox <input> at [9,29] inline-block [0+1+0 200 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
-        Box <div> at [11,30] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [11,30] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 0, rect: [11,30 0x18] baseline: 13.796875
+      TextInputBox <input> at [9,25] inline-block [0+1+0 200 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
+        Box <div> at [11,26] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [11,26] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [11,26 0x18] baseline: 13.796875
             TextNode <#text> (not painted)
       InlineNode <span> at [210,30] [0+0+0 30.1875 0+0+0] [0+0+0 18 0+0+0]
         frag 0 from TextNode start: 0, length: 3, rect: [210,30 30.1875x18] baseline: 13.796875
@@ -53,9 +53,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x88]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x72]
-      PaintableWithLines (TextInputBox<INPUT>) [8,28 202x22]
-        PaintableBox (Box<DIV>) [9,29 200x20]
-          PaintableWithLines (BlockContainer<DIV>) [11,30 196x18]
+      PaintableWithLines (TextInputBox<INPUT>) [8,24 202x22]
+        PaintableBox (Box<DIV>) [9,25 200x20]
+          PaintableWithLines (BlockContainer<DIV>) [11,26 196x18]
             TextPaintable (TextNode<#text>)
       PaintableWithLines (InlineNode<SPAN>) [210,30 30.1875x18]
         TextPaintable (TextNode<#text>)
