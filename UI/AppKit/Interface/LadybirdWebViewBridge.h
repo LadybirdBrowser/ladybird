@@ -41,6 +41,7 @@ public:
     struct Paintable {
         Gfx::Bitmap const& bitmap;
         Gfx::IntSize bitmap_size;
+        void* iosurface_ref { nullptr };
     };
     Optional<Paintable> paintable();
 
