@@ -127,6 +127,7 @@ public:
     // ^FormAssociatedTextControlElement
     virtual void did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data) override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
+    virtual GC::Ptr<DOM::Element> text_control_scroll_container() override { return this; }
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Asuffering-from-being-missing
     virtual bool suffering_from_being_missing() const override;

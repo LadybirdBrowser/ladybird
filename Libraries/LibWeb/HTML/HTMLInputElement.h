@@ -236,6 +236,7 @@ public:
     // ^FormAssociatedTextControlElement
     virtual void did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data) override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
+    virtual GC::Ptr<DOM::Element> text_control_scroll_container() override { return m_inner_text_element; }
 
     // https://html.spec.whatwg.org/multipage/input.html#has-a-periodic-domain/
     bool has_periodic_domain() const { return type_state() == HTMLInputElement::TypeAttributeState::Time; }

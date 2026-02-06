@@ -242,6 +242,8 @@ public:
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() = 0;
     virtual GC::Ptr<DOM::Text const> form_associated_element_to_text_node() const { return const_cast<FormAssociatedTextControlElement&>(*this).form_associated_element_to_text_node(); }
 
+    virtual GC::Ptr<DOM::Element> text_control_scroll_container() = 0;
+
     virtual void handle_insert(FlyString const& input_type, Utf16String const&) override;
     virtual void handle_delete(FlyString const& input_type) override;
     virtual void select_all() override;
@@ -266,6 +268,7 @@ private:
     virtual GC::Ref<JS::Cell> as_cell() override;
 
     void collapse_selection_to_offset(size_t);
+    void scroll_cursor_into_view();
     void selection_was_changed();
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection

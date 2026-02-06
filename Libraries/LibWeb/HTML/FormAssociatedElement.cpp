@@ -24,9 +24,11 @@
 #include <LibWeb/HTML/HTMLLegendElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 
@@ -915,6 +917,22 @@ void FormAssociatedTextControlElement::collapse_selection_to_offset(size_t posit
     m_selection_end = position;
 }
 
+void FormAssociatedTextControlElement::scroll_cursor_into_view()
+{
+    auto& element = form_associated_element_to_html_element();
+    element.document().update_layout(DOM::UpdateLayoutReason::ScrollFocusIntoView);
+
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+
+    auto* paintable = text_node->paintable();
+    if (!paintable)
+        return;
+
+    paintable->scroll_ancestor_to_offset_into_view(m_selection_end);
+}
+
 void FormAssociatedTextControlElement::selection_was_changed()
 {
     auto& element = form_associated_element_to_html_element();
@@ -940,6 +958,11 @@ void FormAssociatedTextControlElement::selection_was_changed()
         text_paintable->set_selection_state(Painting::Paintable::SelectionState::StartAndEnd);
     }
     text_paintable->set_needs_display();
+
+    // AD-HOC: Skip scroll-into-view during mouse selection, since the user controls the viewport.
+    auto navigable = element.document().cached_navigable();
+    if (!(navigable && navigable->event_handler().is_handling_mouse_selection()))
+        scroll_cursor_into_view();
 }
 
 void FormAssociatedTextControlElement::select_all()
