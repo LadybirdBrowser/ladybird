@@ -134,6 +134,8 @@ public:
 
     CSSPixelPoint box_type_agnostic_position() const;
 
+    void scroll_ancestor_to_offset_into_view(size_t offset);
+
     enum class SelectionState : u8 {
         None,        // No selection
         Start,       // Selection starts in this Node
