@@ -98,9 +98,4 @@ ErrorOr<void> Application::launch_test_fixtures()
     return {};
 }
 
-bool Application::should_capture_web_content_output() const
-{
-    return verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT;
-}
-
 }
