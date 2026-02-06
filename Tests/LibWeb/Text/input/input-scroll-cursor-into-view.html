@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    input {
+        font-size: 16px;
+        width: 100px;
+        padding: 2px;
+        border: 1px solid;
+    }
+</style>
+<input value="foobarbazloremipsum foobarbazloremipsum" />
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const input = document.querySelector("input");
+        input.offsetWidth;
+        input.focus();
+
+        // Click near the left edge before scrolling.
+        const rect = input.getBoundingClientRect();
+        const x = rect.left + 5;
+        const y = rect.top + rect.height / 2;
+        internals.click(x, y);
+        println(`before: ${input.selectionStart}`);
+
+        // Move cursor to the end, which should scroll the input.
+        input.setSelectionRange(39, 39);
+        input.offsetWidth;
+
+        // Click in the same spot after scrolling.
+        internals.click(x, y);
+        println(`after: ${input.selectionStart}`);
+    });
+</script>

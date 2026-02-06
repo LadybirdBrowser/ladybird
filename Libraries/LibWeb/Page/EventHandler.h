@@ -55,6 +55,15 @@ public:
 
     Unicode::Segmenter& word_segmenter();
 
+    enum class SelectionMode : u8 {
+        None,
+        Character,
+        Word,
+        Paragraph,
+    };
+
+    bool is_handling_mouse_selection() const { return m_selection_mode != SelectionMode::None; }
+
 private:
     EventResult focus_next_element();
     EventResult focus_previous_element();
@@ -83,13 +92,6 @@ private:
     void handle_gamepad_disconnected(SDL_JoystickID);
 
     GC::Ref<HTML::Navigable> m_navigable;
-
-    enum class SelectionMode : u8 {
-        None,
-        Character,
-        Word,
-        Paragraph,
-    };
 
     SelectionMode m_selection_mode { SelectionMode::None };
     InputEventsTarget* m_mouse_selection_target { nullptr };
