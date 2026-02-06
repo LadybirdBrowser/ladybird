@@ -56,7 +56,7 @@ using WireGraphBuildResult = Web::WebAudio::Render::WireGraphBuildResult;
 
 class SessionScriptProcessorHost;
 
-struct RenderScratch {
+struct RenderState {
     // Render-loop scratch buffers (render-thread owned). Preallocated in ensure_started().
     Vector<float> interleaved;
     Vector<ReadonlySpan<f32>> planar_spans;
@@ -71,8 +71,7 @@ struct RenderScratch {
     // Frames written to the output ring (i.e. at output device sample rate).
     u64 frames_written { 0 };
 
-    // Output resampling state (context sample rate -> device sample rate), used when the
-    // WebAudio graph runs at a different rate than the output device.
+    // Output resampling state, used when graph runs at a different rate than the output device.
     bool resampler_initialized { false };
     u32 resampler_last_context_sample_rate { 0 };
     u32 resampler_last_device_sample_rate { 0 };
@@ -119,7 +118,7 @@ struct WorkletState {
     Atomic<bool> registration_task_scheduled { false };
 };
 
-struct Streams {
+struct StreamState {
     struct Analyser {
         u32 fft_size { 0 };
         Core::SharedBufferStream stream;
@@ -179,14 +178,35 @@ public:
 private:
     friend class SessionScriptProcessorHost;
 
+    struct ThreadLoopState;
+
+    enum class OutputWriteMode : u8 {
+        WriteToRing,
+        DropAndPace,
+        SleepAndContinue,
+    };
+
     void ensure_started();
+    void stop();
     void apply_render_graph(WireGraphBuildResult graph);
     void ensure_worklet_host();
     void notify_worklet_processor_error_from_render_thread(Web::WebAudio::NodeID);
     void flush_worklet_processor_errors();
     void notify_worklet_processor_registered_from_render_thread(String const& name, Vector<Web::WebAudio::AudioParamDescriptor> const& descriptors, u64 generation);
     void flush_worklet_processor_registrations();
-    void stop();
+    void ensure_render_thread_scratch_initialized();
+    void maybe_swap_graph(ThreadLoopState&, u64 generation);
+    void maybe_log_script_processor_never_ran(ThreadLoopState&);
+    OutputWriteMode decide_output_write_mode(ThreadLoopState&, size_t available_to_write_bytes, size_t queued_bytes, size_t quantum_bytes);
+    void prepare_output_buffers(size_t device_channel_count, size_t quantum_frames);
+    void pump_worklet_host(bool is_suspended, bool current_graph_has_audio_worklet);
+    void render_graph_quantum(ThreadLoopState&, bool is_suspended);
+    void publish_analyser_snapshots(ThreadLoopState const&) const;
+    void publish_dynamics_compressor_snapshots(ThreadLoopState const&) const;
+    void update_timing_page_and_notify(u64 applied_suspend_state);
+    void update_and_maybe_log_output_levels(ThreadLoopState&);
+    void commit_or_drop_output_and_pace(ThreadLoopState&, bool drop_output_write);
+    void pace_when_suspended(ThreadLoopState&, bool is_suspended);
 
     intptr_t render_thread_main();
 
@@ -201,6 +221,8 @@ private:
     Atomic<bool> m_should_stop { false };
 
     WorkletState m_worklet;
+    StreamState m_streams;
+    RenderState m_scratch;
 
     Threading::Mutex m_graph_mutex;
     struct PreparedGraph;
@@ -211,13 +233,7 @@ private:
 
     Atomic<u64> m_script_processor_processed_blocks { 0 };
     Atomic<u64> m_script_processor_timeout_blocks { 0 };
-
-    Streams m_streams;
-
     OwnPtr<SessionScriptProcessorHost> m_script_processor_host;
-
-    RenderScratch m_scratch;
-
     Optional<Core::SharedSingleProducerCircularBuffer> m_ring;
 
     // Requested suspend state from the control process (encoded with encode_webaudio_suspend_state()).

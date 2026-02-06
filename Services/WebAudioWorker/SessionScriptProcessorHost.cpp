@@ -48,7 +48,7 @@ bool SessionScriptProcessorHost::process_script_processor(
     u32 expected_input_channel_count = 0;
     u32 expected_output_channel_count = 0;
 
-    Streams::ScriptProcessorStreamMap* index = m_session.m_streams.script_processor_streams.load(AK::MemoryOrder::memory_order_acquire);
+    StreamState::ScriptProcessorStreamMap* index = m_session.m_streams.script_processor_streams.load(AK::MemoryOrder::memory_order_acquire);
     if (!index) {
         if (Web::WebAudio::should_log_script_processor_bridge())
             dbgln("client_cid={}: ScriptProcessor missing stream index session={} node={}", m_session.m_client_id, m_session.m_session_id, node_id.value());

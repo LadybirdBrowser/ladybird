@@ -1,6 +1,7 @@
 set(WEBAUDIOWORKER_SOURCES
-    WebAudioConnection.cpp
+    SessionResampler.cpp
     SessionScriptProcessorHost.cpp
+    WebAudioConnection.cpp
     WebAudioSession.cpp
     WebAudioWorkerConnection.cpp
 )

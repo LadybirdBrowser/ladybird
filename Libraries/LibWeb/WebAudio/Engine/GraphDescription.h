@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/HashMap.h>
+#include <AK/QuickSort.h>
 #include <AK/Types.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
@@ -83,6 +84,36 @@ struct GraphDescription {
     Vector<GraphConnection> connections;
     Vector<GraphParamConnection> param_connections;
     Vector<GraphParamAutomation> param_automations;
+
+    void normalize()
+    {
+        AK::quick_sort(connections, [](auto const& a, auto const& b) {
+            if (a.destination != b.destination)
+                return a.destination < b.destination;
+            if (a.destination_input_index != b.destination_input_index)
+                return a.destination_input_index < b.destination_input_index;
+            if (a.source != b.source)
+                return a.source < b.source;
+            return a.source_output_index < b.source_output_index;
+        });
+
+        AK::quick_sort(param_connections, [](auto const& a, auto const& b) {
+            if (a.destination != b.destination)
+                return a.destination < b.destination;
+            if (a.destination_param_index != b.destination_param_index)
+                return a.destination_param_index < b.destination_param_index;
+            if (a.source != b.source)
+                return a.source < b.source;
+            return a.source_output_index < b.source_output_index;
+        });
+
+        // This doesn't change semantics, but makes "no change" comparisons stable.
+        AK::quick_sort(param_automations, [](auto const& a, auto const& b) {
+            if (a.destination != b.destination)
+                return a.destination < b.destination;
+            return a.destination_param_index < b.destination_param_index;
+        });
+    }
 };
 
 }

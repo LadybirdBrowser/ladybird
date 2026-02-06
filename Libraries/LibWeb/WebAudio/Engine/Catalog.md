@@ -57,6 +57,3 @@
 
 - WebAudioSession.cpp/h
   - The WebAudioWorker process's session coordinator: graph swapping, stream binding application, worklet host wiring, and timing page writes.
-
-- Worklet/RealtimeAudioWorkletProcessorHost.cpp
-  - Realtime AudioWorklet host used by the render thread to evaluate modules and run processor process() synchronously.
