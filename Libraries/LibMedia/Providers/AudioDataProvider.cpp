@@ -311,6 +311,8 @@ void AudioDataProvider::ThreadData::resolve_seek(u32 seek_id)
 
 bool AudioDataProvider::ThreadData::handle_seek()
 {
+    VERIFY(m_decoder);
+
     auto seek_id = m_seek_id.load();
     if (m_last_processed_seek_id == seek_id)
         return false;
@@ -415,6 +417,8 @@ bool AudioDataProvider::ThreadData::handle_seek()
 
 void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 {
+    VERIFY(m_decoder);
+
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
         {
             auto locker = take_lock();
