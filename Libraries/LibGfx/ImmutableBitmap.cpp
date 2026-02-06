@@ -68,6 +68,14 @@ IntSize ImmutableBitmap::size() const
     return { width(), height() };
 }
 
+ExifOrientation ImmutableBitmap::get_exif_orientation() const
+{
+    if (auto const bitmap = m_impl->bitmap)
+        return bitmap->exif_orientation();
+
+    return ExifOrientation::Default;
+}
+
 AlphaType ImmutableBitmap::alpha_type() const
 {
     // We assume premultiplied alpha type for opaque surfaces since that is Skia's preferred alpha type and the
