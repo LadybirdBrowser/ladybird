@@ -299,6 +299,7 @@ void VideoDataProvider::ThreadData::resolve_seek(u32 seek_id, AK::Duration const
 
 bool VideoDataProvider::ThreadData::handle_seek()
 {
+    VERIFY(m_decoder);
 
     auto seek_id = m_seek_id.load();
     if (m_last_processed_seek_id == seek_id)
@@ -453,6 +454,8 @@ bool VideoDataProvider::ThreadData::handle_seek()
 
 void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
 {
+    VERIFY(m_decoder);
+
     // FIXME: Check if the PlaybackManager's current time is ahead of the next keyframe, and seek to it if so.
     //        Demuxers currently can't report the next keyframe in a convenient way, so that will need implementing
     //        before this functionality can exist.
