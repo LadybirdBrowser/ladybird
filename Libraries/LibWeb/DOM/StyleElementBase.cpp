@@ -99,8 +99,10 @@ void StyleElementBase::update_a_style_block()
         nullptr);
 
     // 7. If element contributes a script-blocking style sheet, append element to its node document's script-blocking style sheet set.
-    if (style_element.contributes_a_script_blocking_style_sheet())
+    if (style_element.contributes_a_script_blocking_style_sheet()) {
+        m_document_load_event_delayer.emplace(style_element.document());
         style_element.document().script_blocking_style_sheet_set().set(style_element);
+    }
 
     // FIXME: 8. If element's media attribute's value matches the environment and element is potentially render-blocking, then block rendering on element.
 
@@ -146,6 +148,7 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
         // 4. Unblock rendering on element.
         element.unblock_rendering();
     });
+    m_document_load_event_delayer.clear();
 }
 
 // https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
