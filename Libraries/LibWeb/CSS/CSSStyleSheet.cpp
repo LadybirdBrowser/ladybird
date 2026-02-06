@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/StyleElementBase.h>
+#include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -520,6 +521,8 @@ void CSSStyleSheet::check_if_loading_completed()
         // We're finished loading, so propagate that to our owner.
         if (auto* style_element = as_if<DOM::StyleElementBase>(owner_node())) {
             style_element->finished_loading_critical_subresources(state == LoadingState::Error ? DOM::StyleElementBase::AnyFailed::Yes : DOM::StyleElementBase::AnyFailed::No);
+        } else if (auto* link_element = as_if<HTML::HTMLLinkElement>(owner_node())) {
+            link_element->finished_loading_critical_style_subresources(state == LoadingState::Error ? HTML::HTMLLinkElement::AnyFailed::Yes : HTML::HTMLLinkElement::AnyFailed::No);
         } else if (auto* import_rule = as_if<CSSImportRule>(owner_rule().ptr())) {
             import_rule->set_loading_state(state);
         }
