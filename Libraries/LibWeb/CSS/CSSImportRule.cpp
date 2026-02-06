@@ -137,9 +137,6 @@ void CSSImportRule::fetch()
     if (m_supports && !m_supports->matches())
         return;
 
-    // FIXME: Figure out the "correct" way to delay the load event.
-    m_document_load_event_delayer.emplace(*m_document);
-
     // AD-HOC: Track pending import rules to block rendering until they are done.
     m_document->add_pending_css_import_rule({}, *this);
     set_loading_state(CSSStyleSheet::LoadingState::Loading);
@@ -164,7 +161,6 @@ void CSSImportRule::fetch()
                         strong_this->set_loading_state(sheet_loading_state);
                     }
                 }
-                strong_this->m_document_load_event_delayer.clear();
             };
 
             // 1. If byteStream is not a byte stream, return.
@@ -285,9 +281,6 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Document URL: {}\n", url().to_string());
-
-    dump_indent(builder, indent_levels + 1);
-    builder.appendff("Has document load delayer: {}\n", m_document_load_event_delayer.has_value());
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Loading state: {}\n", CSSStyleSheet::loading_state_name(loading_state()));

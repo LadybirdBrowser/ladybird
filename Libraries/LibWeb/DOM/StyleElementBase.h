@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -39,6 +40,8 @@ private:
     GC::Ptr<CSS::CSSStyleSheet> m_associated_css_style_sheet;
 
     GC::Ptr<CSS::StyleSheetList> m_style_sheet_list;
+
+    Optional<DocumentLoadEventDelayer> m_document_load_event_delayer;
 };
 
 }

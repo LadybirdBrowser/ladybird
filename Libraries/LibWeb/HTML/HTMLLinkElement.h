@@ -48,6 +48,12 @@ public:
 
     GC::Ptr<CSS::CSSStyleSheet> sheet() const;
 
+    enum class AnyFailed : u8 {
+        No,
+        Yes,
+    };
+    void finished_loading_critical_style_subresources(AnyFailed);
+
 private:
     // https://html.spec.whatwg.org/multipage/semantics.html#link-processing-options
     struct LinkProcessingOptions final : public JS::Cell {
