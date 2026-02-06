@@ -30,6 +30,7 @@
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -1479,6 +1480,21 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
         if (ancestor->m_needs_layout_update)
             break;
         ancestor->m_needs_layout_update = true;
+        if (auto* svg_box = as_if<SVGSVGBox>(ancestor)) {
+            // Absolutely positioned elements are laid out by the formatting context (FC) of their
+            // containing block, not by the FC of their parent. When an abspos element lives inside
+            // an SVG subtree (e.g. inside <foreignObject>) but its containing block is an ancestor
+            // outside that subtree, partial SVG relayout cannot lay it out: only the SVGFormattingContext
+            // runs, while the containing block's FC (which is responsible for the abspos) does not.
+            // In this case we must not stop propagation here — letting needs_layout_update reach the
+            // layout root ensures update_layout() takes the full layout path instead.
+            if (is_absolutely_positioned()) {
+                if (auto cb = containing_block(); cb && !svg_box->is_inclusive_ancestor_of(*cb))
+                    continue;
+            }
+            document().mark_svg_root_as_needing_relayout(*svg_box);
+            break;
+        }
     }
 
     // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
