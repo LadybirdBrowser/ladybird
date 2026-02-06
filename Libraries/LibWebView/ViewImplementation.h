@@ -300,6 +300,9 @@ protected:
         i32 id { -1 };
         Web::DevicePixelSize last_painted_size;
         RefPtr<Gfx::Bitmap const> bitmap;
+#ifdef AK_OS_MACOS
+        void* iosurface_ref { nullptr };
+#endif
     };
 
     struct ClientState {

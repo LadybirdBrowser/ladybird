@@ -94,10 +94,12 @@ Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 {
     Gfx::Bitmap const* bitmap = nullptr;
     Gfx::IntSize bitmap_size;
+    void* iosurface_ref = nullptr;
 
     if (m_client_state.has_usable_bitmap) {
         bitmap = m_client_state.front_bitmap.bitmap.ptr();
         bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
+        iosurface_ref = m_client_state.front_bitmap.iosurface_ref;
     } else {
         bitmap = m_backup_bitmap.ptr();
         bitmap_size = m_backup_bitmap_size.to_type<int>();
@@ -105,7 +107,7 @@ Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 
     if (!bitmap)
         return {};
-    return Paintable { *bitmap, bitmap_size };
+    return Paintable { *bitmap, bitmap_size, iosurface_ref };
 }
 
 void WebViewBridge::update_zoom()
