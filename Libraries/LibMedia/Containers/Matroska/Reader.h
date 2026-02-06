@@ -87,6 +87,9 @@ private:
 };
 
 class MEDIA_API SampleIterator {
+    AK_MAKE_DEFAULT_MOVABLE(SampleIterator);
+    AK_MAKE_DEFAULT_COPYABLE(SampleIterator);
+
 public:
     ~SampleIterator();
 
