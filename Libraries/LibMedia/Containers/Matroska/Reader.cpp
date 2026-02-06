@@ -1177,6 +1177,10 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(m_position));
 
+    // Remove the last timestamp from this iterator so that if we encounter an error, especially EOS,
+    // we will always seek the sample iterator, ensuring that we will decode the last block again.
+    m_last_timestamp = {};
+
     Optional<Block> block;
 
     while (true) {
