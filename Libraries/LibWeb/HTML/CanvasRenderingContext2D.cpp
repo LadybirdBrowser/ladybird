@@ -179,6 +179,13 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     //    to the source image and the destination rectangle must be clipped in the same proportion.
     auto clipped_source = source_rect.intersected(bitmap->rect().to_type<float>());
     auto clipped_destination = destination_rect;
+
+    if (bitmap->bitmap()) {
+        auto const exif_orientation = bitmap->get_exif_orientation();
+        auto const oriented_size = Gfx::exif_oriented_size(destination_rect.size(), exif_orientation);
+        destination_rect.set_size(oriented_size);
+    }
+
     if (clipped_source != source_rect) {
         clipped_destination.set_width(clipped_destination.width() * (clipped_source.width() / source_rect.width()));
         clipped_destination.set_height(clipped_destination.height() * (clipped_source.height() / source_rect.height()));
