@@ -30,6 +30,7 @@
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -1479,6 +1480,10 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
         if (ancestor->m_needs_layout_update)
             break;
         ancestor->m_needs_layout_update = true;
+        if (auto* svg_box = as_if<SVGSVGBox>(ancestor)) {
+            document().mark_svg_root_as_needing_relayout(*svg_box);
+            break;
+        }
     }
 
     // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
