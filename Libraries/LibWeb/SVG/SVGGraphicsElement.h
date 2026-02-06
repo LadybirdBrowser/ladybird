@@ -90,7 +90,7 @@ protected:
     Gfx::AffineTransform m_transform = {};
 
     template<typename T>
-    GC::Ptr<T> try_resolve_url_to(CSS::URL const& url) const
+    GC::Ptr<T> try_resolve_url_to(CSS::CSSURL const& url) const
     {
         // FIXME: Complete and use the entire URL, not just the fragment.
         Optional<FlyString> fragment;

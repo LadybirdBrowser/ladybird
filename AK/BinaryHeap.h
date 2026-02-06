@@ -129,7 +129,7 @@ public:
         nodes.ensure_capacity(size);
         for (size_t i = 0; i < size; i++)
             nodes.unchecked_append({ keys[i], values[i] });
-        m_heap = decltype(m_heap) { move(nodes) };
+        m_heap = HeapType { move(nodes) };
     }
 
     [[nodiscard]] size_t size() const { return m_heap.size(); }
@@ -166,11 +166,19 @@ private:
         V value;
     };
 
-    IntrusiveBinaryHeap<
-        Node,
-        decltype([](Node const& a, Node const& b) { return a.key < b.key; }),
-        decltype([](Node&, size_t) {})>
-        m_heap;
+    struct Comparator {
+        bool operator()(Node const& a, Node const& b) const
+        {
+            return a.key < b.key;
+        }
+    };
+
+    struct IndexSetter {
+        void operator()(Node&, size_t) const { }
+    };
+
+    using HeapType = IntrusiveBinaryHeap<Node, Comparator, IndexSetter, inline_capacity>;
+    HeapType m_heap;
 };
 
 }

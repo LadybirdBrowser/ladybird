@@ -1192,6 +1192,22 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
+set_target_properties(LibWeb PROPERTIES
+    UNITY_BUILD ON
+    UNITY_BUILD_UNIQUE_ID "LIBWEB_UNITY_ID"
+    UNITY_BUILD_BATCH_SIZE 16
+)
+
+# TODO: Clean these up
+set_source_files_properties(
+    Bindings/CryptoPrototype.cpp Bindings/SubtleCryptoPrototype.cpp # using Web::Crypto; breaking namespace resolution
+    Layout/FlexFormattingContext.cpp # gap_to_px
+    Layout/TreeBuilder.cpp # weird CTAD failure
+    # only these define GL_EXT_PROTOTYPES so a previous include of glext headers without that causes the function protoypes to not have been defined
+    WebGL/WebGLRenderingContextImpl.cpp WebGL/WebGL2RenderingContextImpl.cpp WebGL/WebGL2RenderingContextOverloads.cpp
+    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
+)
+
 find_package(LibXml2 REQUIRED)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)

@@ -399,7 +399,7 @@ class TransformationStyleValue;
 class TreeCountingFunctionStyleValue;
 class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
-class URL;
+class CSSURL;
 class URLStyleValue;
 class ViewFunctionStyleValue;
 class VisualViewport;

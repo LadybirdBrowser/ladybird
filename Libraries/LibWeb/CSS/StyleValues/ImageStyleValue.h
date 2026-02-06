@@ -37,7 +37,7 @@ public:
         ImageStyleValue& m_image_style_value;
     };
 
-    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&);
+    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(CSSURL const&);
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
 
@@ -65,7 +65,7 @@ public:
 private:
     friend class Client;
 
-    ImageStyleValue(URL const&);
+    ImageStyleValue(CSSURL const&);
 
     void register_client(Client&);
     void unregister_client(Client&);
@@ -79,7 +79,7 @@ private:
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     GC::Ptr<CSSStyleSheet> m_style_sheet;
 
-    URL m_url;
+    CSSURL m_url;
     GC::Weak<DOM::Document> m_document;
 
     size_t m_current_frame_index { 0 };

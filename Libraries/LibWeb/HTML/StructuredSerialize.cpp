@@ -102,7 +102,7 @@ enum class ValueTag : u8 {
     // TODO: Define many more types
 };
 
-enum ErrorType {
+enum class ErrorType {
     Error,
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     ClassName,
@@ -117,7 +117,7 @@ static ErrorType error_name_to_type(StringView name)
         return ErrorType::ClassName;
     JS_ENUMERATE_NATIVE_ERRORS
 #undef __JS_ENUMERATE
-    return Error;
+    return ErrorType::Error;
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal

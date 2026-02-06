@@ -43,20 +43,20 @@ private:
 };
 
 // https://drafts.csswg.org/css-values-4/#urls
-class WEB_API URL {
+class WEB_API CSSURL {
 public:
     enum class Type : u8 {
         Url,
         Src,
     };
 
-    URL(String url, Type = Type::Url, Vector<RequestURLModifier> = {});
+    CSSURL(String url, Type = Type::Url, Vector<RequestURLModifier> = {});
 
     String const& url() const { return m_url; }
     Vector<RequestURLModifier> const& request_url_modifiers() const { return m_request_url_modifiers; }
 
     String to_string() const;
-    bool operator==(URL const&) const;
+    bool operator==(CSSURL const&) const;
 
 private:
     Type m_type;
@@ -67,8 +67,8 @@ private:
 }
 
 template<>
-struct AK::Formatter<Web::CSS::URL> : AK::Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::URL const& value)
+struct AK::Formatter<Web::CSS::CSSURL> : AK::Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSURL const& value)
     {
         return Formatter<StringView>::format(builder, value.to_string());
     }

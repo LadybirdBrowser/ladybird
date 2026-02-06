@@ -61,8 +61,8 @@ static Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const&
 
     // 2. Return the result of the URL parser steps with urlValue’s url and base.
     auto url_string = url_value.visit(
-        [](::URL::URL const& url) { return url.to_string(); },
-        [](CSS::URL const& url) { return url.url(); });
+        [](URL::URL const& url) { return url.to_string(); },
+        [](CSS::CSSURL const& url) { return url.url(); });
     return DOMURL::parse(url_string, base_url);
 }
 
@@ -97,7 +97,7 @@ static GC::Ptr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(Style
         request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
 
     // 5. Apply any URL request modifier steps that apply to this request.
-    if (auto const* css_url = url_value.get_pointer<CSS::URL>())
+    if (auto const* css_url = url_value.get_pointer<CSS::CSSURL>())
         apply_request_modifiers_from_url_value(*css_url, request);
 
     // 6. If req’s mode is "cors", and sheet is not null, then set req’s referrer to the style resource base URL given cssRuleOrDeclaration. [CSSOM]
@@ -179,7 +179,7 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
 }
 
 // https://drafts.csswg.org/css-values-5/#apply-request-modifiers-from-url-value
-void apply_request_modifiers_from_url_value(URL const& url, GC::Ref<Fetch::Infrastructure::Request> request)
+void apply_request_modifiers_from_url_value(CSSURL const& url, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     // To apply request modifiers from URL value given a request req and a <url> url, call the URL request modifier
     // steps for url’s <request-url-modifier>s in sequence given req.

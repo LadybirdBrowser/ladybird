@@ -41,7 +41,7 @@ ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const&
 
     if (algorithm == "sha256"sv) {
         // 1. Let result be the result of applying algorithm to bytes.
-        auto result = Crypto::Hash::SHA256::hash(bytes);
+        auto result = ::Crypto::Hash::SHA256::hash(bytes);
 
         // 2. Return the result of base64 encoding result.
         return encode_base64(result.bytes());
@@ -49,7 +49,7 @@ ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const&
 
     if (algorithm == "sha384"sv) {
         // 1. Let result be the result of applying algorithm to bytes.
-        auto result = Crypto::Hash::SHA384::hash(bytes);
+        auto result = ::Crypto::Hash::SHA384::hash(bytes);
 
         // 2. Return the result of base64 encoding result.
         return encode_base64(result.bytes());
@@ -57,7 +57,7 @@ ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const&
 
     if (algorithm == "sha512"sv) {
         // 1. Let result be the result of applying algorithm to bytes.
-        auto result = Crypto::Hash::SHA512::hash(bytes);
+        auto result = ::Crypto::Hash::SHA512::hash(bytes);
 
         // 2. Return the result of base64 encoding result.
         return encode_base64(result.bytes());

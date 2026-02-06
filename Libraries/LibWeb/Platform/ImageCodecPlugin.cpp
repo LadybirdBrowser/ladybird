@@ -9,20 +9,26 @@
 
 namespace Web::Platform {
 
+namespace {
+namespace LIBWEB_UNITY_ID {
+
 static ImageCodecPlugin* s_the;
+
+}
+}
 
 ImageCodecPlugin::~ImageCodecPlugin() = default;
 
 ImageCodecPlugin& ImageCodecPlugin::the()
 {
-    VERIFY(s_the);
-    return *s_the;
+    VERIFY(LIBWEB_UNITY_ID::s_the);
+    return *LIBWEB_UNITY_ID::s_the;
 }
 
 void ImageCodecPlugin::install(ImageCodecPlugin& plugin)
 {
-    VERIFY(!s_the);
-    s_the = &plugin;
+    VERIFY(!LIBWEB_UNITY_ID::s_the);
+    LIBWEB_UNITY_ID::s_the = &plugin;
 }
 
 }

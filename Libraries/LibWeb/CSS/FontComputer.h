@@ -56,7 +56,7 @@ class FontLoader final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontLoader);
 
 public:
-    FontLoader(FontComputer&, RuleOrDeclaration, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
+    FontLoader(FontComputer&, RuleOrDeclaration, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<CSSURL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
     virtual ~FontLoader();
 
@@ -79,7 +79,7 @@ private:
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
     RefPtr<Gfx::Typeface const> m_typeface;
-    Vector<URL> m_urls;
+    Vector<CSSURL> m_urls;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> m_on_load;
 };

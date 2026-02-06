@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibWeb/DOM/Document.h>
@@ -23,13 +24,6 @@ static constexpr auto control_box_color = Gfx::Color::from_bgrx(0x26'26'26);
 static constexpr auto control_highlight_color = Gfx::Color::from_bgrx(0x1d'99'f3);
 
 GC_DEFINE_ALLOCATOR(VideoPaintable);
-
-static constexpr Gfx::Color control_button_color(bool is_hovered)
-{
-    if (!is_hovered)
-        return Color::White;
-    return control_highlight_color;
-}
 
 GC::Ref<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
 {
@@ -207,6 +201,9 @@ void VideoPaintable::paint_placeholder_video_controls(DisplayListRecordingContex
     } };
 
     auto playback_button_is_hovered = mouse_position.has_value() && control_box_rect.contains(*mouse_position);
+    auto control_button_color = [](bool is_hovered) -> Gfx::Color {    if (!is_hovered)
+        return Color::White;
+    return control_highlight_color; };
     auto playback_button_color = control_button_color(playback_button_is_hovered);
 
     context.display_list_recorder().fill_ellipse(control_box_rect.to_type<int>(), control_box_color);

@@ -102,7 +102,7 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
 
                 color.amount.serialize(builder, mode);
             },
-            [&](CSS::URL const& url) {
+            [&](CSS::CSSURL const& url) {
                 builder.append(url.to_string());
             });
         builder.append(')');
@@ -113,7 +113,7 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
 bool FilterValueListStyleValue::contains_url() const
 {
     for (auto const& filter_value : m_filter_value_list) {
-        if (filter_value.has<URL>())
+        if (filter_value.has<CSSURL>())
             return true;
     }
     return false;
@@ -214,7 +214,7 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolut
 
                 absolutized_filter_values.append(color);
             },
-            [&](CSS::URL const& url) {
+            [&](CSS::CSSURL const& url) {
                 absolutized_filter_values.append(url);
             });
     }
