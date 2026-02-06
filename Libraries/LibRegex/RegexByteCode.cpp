@@ -1770,13 +1770,15 @@ ALWAYS_INLINE ExecutionResult OpCode_JumpNonEmpty<ByteCode>::execute(MatchInput 
     return ExecutionResult::Continue;
 }
 
-template class OpCode_Compare<ByteCode>;
-template class OpCode<ByteCode>;
 template class CompareInternals<ByteCode, true>;
 template class CompareInternals<ByteCode, false>;
-template class OpCode_Compare<FlatByteCode>;
-template class OpCode<FlatByteCode>;
 template class CompareInternals<FlatByteCode, true>;
 template class CompareInternals<FlatByteCode, false>;
+
+#define __ENUMERATE_OPCODE(opcode)            \
+    template class OpCode_##opcode<ByteCode>; \
+    template class OpCode_##opcode<FlatByteCode>;
+ENUMERATE_OPCODES
+#undef __ENUMERATE_OPCODE
 
 }

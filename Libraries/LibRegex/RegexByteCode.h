@@ -166,8 +166,9 @@ struct CompareTypeAndValuePair {
 };
 
 REGEX_API extern u32 s_next_string_table_serial;
+
 template<typename StringType>
-struct REGEX_API StringTable {
+struct StringTable {
     StringTable()
         : m_serial(s_next_string_table_serial++)
     {
@@ -922,7 +923,7 @@ StringView character_class_name(CharClass ch_class);
 StringView fork_if_condition_name(ForkIfCondition condition);
 
 template<typename ByteCode>
-class REGEX_API OpCode {
+class OpCode {
 public:
     OpCode() = default;
     virtual ~OpCode() = default;
@@ -960,7 +961,7 @@ protected:
 };
 
 template<typename ByteCode>
-class OpCode_SaveModifiers final : public OpCode<ByteCode> {
+class REGEX_API OpCode_SaveModifiers final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -975,7 +976,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_RestoreModifiers final : public OpCode<ByteCode> {
+class REGEX_API OpCode_RestoreModifiers final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -989,7 +990,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_Exit final : public OpCode<ByteCode> {
+class REGEX_API OpCode_Exit final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1003,7 +1004,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_FailForks final : public OpCode<ByteCode> {
+class REGEX_API OpCode_FailForks final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1017,7 +1018,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_PopSaved final : public OpCode<ByteCode> {
+class REGEX_API OpCode_PopSaved final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1031,7 +1032,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_Save final : public OpCode<ByteCode> {
+class REGEX_API OpCode_Save final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1045,7 +1046,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_Restore final : public OpCode<ByteCode> {
+class REGEX_API OpCode_Restore final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1059,7 +1060,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_GoBack final : public OpCode<ByteCode> {
+class REGEX_API OpCode_GoBack final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1074,7 +1075,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_SetStepBack final : public OpCode<ByteCode> {
+class REGEX_API OpCode_SetStepBack final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1089,7 +1090,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_IncStepBack final : public OpCode<ByteCode> {
+class REGEX_API OpCode_IncStepBack final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1103,7 +1104,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_CheckStepBack final : public OpCode<ByteCode> {
+class REGEX_API OpCode_CheckStepBack final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1117,7 +1118,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_CheckSavedPosition final : public OpCode<ByteCode> {
+class REGEX_API OpCode_CheckSavedPosition final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1131,7 +1132,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_Jump final : public OpCode<ByteCode> {
+class REGEX_API OpCode_Jump final : public OpCode<ByteCode> {
 
 public:
     using OpCode<ByteCode>::argument;
@@ -1150,7 +1151,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_ForkJump : public OpCode<ByteCode> {
+class REGEX_API OpCode_ForkJump : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1168,7 +1169,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_ForkReplaceJump final : public OpCode_ForkJump<ByteCode> {
+class REGEX_API OpCode_ForkReplaceJump final : public OpCode_ForkJump<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1182,7 +1183,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_ForkStay : public OpCode<ByteCode> {
+class REGEX_API OpCode_ForkStay : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1200,7 +1201,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_ForkReplaceStay final : public OpCode_ForkStay<ByteCode> {
+class REGEX_API OpCode_ForkReplaceStay final : public OpCode_ForkStay<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1214,7 +1215,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_CheckBegin final : public OpCode<ByteCode> {
+class REGEX_API OpCode_CheckBegin final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1228,7 +1229,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_CheckEnd final : public OpCode<ByteCode> {
+class REGEX_API OpCode_CheckEnd final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1242,7 +1243,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_CheckBoundary final : public OpCode<ByteCode> {
+class REGEX_API OpCode_CheckBoundary final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1258,7 +1259,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_ClearCaptureGroup final : public OpCode<ByteCode> {
+class REGEX_API OpCode_ClearCaptureGroup final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1273,7 +1274,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_FailIfEmpty final : public OpCode<ByteCode> {
+class REGEX_API OpCode_FailIfEmpty final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1288,7 +1289,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_SaveLeftCaptureGroup final : public OpCode<ByteCode> {
+class REGEX_API OpCode_SaveLeftCaptureGroup final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1303,7 +1304,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_SaveRightCaptureGroup final : public OpCode<ByteCode> {
+class REGEX_API OpCode_SaveRightCaptureGroup final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1318,7 +1319,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_SaveRightNamedCaptureGroup final : public OpCode<ByteCode> {
+class REGEX_API OpCode_SaveRightNamedCaptureGroup final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1415,7 +1416,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_Repeat : public OpCode<ByteCode> {
+class REGEX_API OpCode_Repeat : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1442,7 +1443,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_ResetRepeat : public OpCode<ByteCode> {
+class REGEX_API OpCode_ResetRepeat : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1461,7 +1462,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_Checkpoint final : public OpCode<ByteCode> {
+class REGEX_API OpCode_Checkpoint final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1476,7 +1477,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_JumpNonEmpty final : public OpCode<ByteCode> {
+class REGEX_API OpCode_JumpNonEmpty final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
@@ -1499,7 +1500,7 @@ public:
 };
 
 template<typename ByteCode>
-class OpCode_ForkIf final : public OpCode<ByteCode> {
+class REGEX_API OpCode_ForkIf final : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
