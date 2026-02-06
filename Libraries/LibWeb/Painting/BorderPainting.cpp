@@ -65,34 +65,37 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     auto border_style = border_data.line_style;
 
     auto paint_double_border = [&](float proportional_line_thickness, CSS::LineStyle outer_style, CSS::LineStyle inner_style) {
+        // AD-HOC: We clamp the individual borders to 1px thick if they're less so that they don't disappear entirely.
+        //         This matches other browsers and is allowable per the spec, where the thickness is implementation-defined.
+
         // FIXME: Converting to floats and back is awkward, can we somehow do all this processing using CSSPixels?
         auto modified_borders_data = borders_data;
-        modified_borders_data.top.width = static_cast<float>(modified_borders_data.top.width.value()) * proportional_line_thickness;
-        modified_borders_data.right.width = static_cast<float>(modified_borders_data.right.width.value()) * proportional_line_thickness;
-        modified_borders_data.bottom.width = static_cast<float>(modified_borders_data.bottom.width.value()) * proportional_line_thickness;
-        modified_borders_data.left.width = static_cast<float>(modified_borders_data.left.width.value()) * proportional_line_thickness;
+        modified_borders_data.top.width = max(1, static_cast<float>(modified_borders_data.top.width.value()) * proportional_line_thickness);
+        modified_borders_data.right.width = max(1, static_cast<float>(modified_borders_data.right.width.value()) * proportional_line_thickness);
+        modified_borders_data.bottom.width = max(1, static_cast<float>(modified_borders_data.bottom.width.value()) * proportional_line_thickness);
+        modified_borders_data.left.width = max(1, static_cast<float>(modified_borders_data.left.width.value()) * proportional_line_thickness);
 
         auto modified_rect = rect;
 
         // Outer border
         switch (edge) {
         case BorderEdge::Top:
-            modified_rect.set_height(static_cast<float>(rect.height().value()) * proportional_line_thickness);
+            modified_rect.set_height(max(1, static_cast<float>(rect.height().value()) * proportional_line_thickness));
             break;
         case BorderEdge::Right:
-            modified_rect.set_width(static_cast<float>(rect.width().value()) * proportional_line_thickness);
+            modified_rect.set_width(max(1, static_cast<float>(rect.width().value()) * proportional_line_thickness));
             modified_rect.set_right_without_resize(rect.right());
             break;
         case BorderEdge::Bottom:
-            modified_rect.set_height(static_cast<float>(rect.height().value()) * proportional_line_thickness);
+            modified_rect.set_height(max(1, static_cast<float>(rect.height().value()) * proportional_line_thickness));
             modified_rect.set_bottom_without_resize(rect.bottom());
             break;
         case BorderEdge::Left:
-            modified_rect.set_width(static_cast<float>(rect.width().value()) * proportional_line_thickness);
+            modified_rect.set_width(max(1, static_cast<float>(rect.width().value()) * proportional_line_thickness));
             break;
         }
         modified_borders_data.for_edge(edge).line_style = outer_style;
-        paint_border(painter, edge, modified_rect, radius, opposite_radius, modified_borders_data, path, last);
+        paint_border(painter, edge, modified_rect, radius, opposite_radius, modified_borders_data, path, true);
 
         // Inner border, with smaller rect and radii
         CornerRadius modified_radius = radius;
@@ -165,7 +168,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         }
 
         modified_borders_data.for_edge(edge).line_style = inner_style;
-        paint_border(painter, edge, modified_rect, modified_radius, modified_opposite_radius, modified_borders_data, path, last);
+        paint_border(painter, edge, modified_rect, modified_radius, modified_opposite_radius, modified_borders_data, path, true);
     };
 
     auto gfx_line_style = Gfx::LineStyle::Solid;
