@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+div {
+    overflow: auto;
+    width: 200px;
+    height: 100px;
+    font-size: 16px;
+}
+</style>
+<div id="vertical">line1<br>line2<br>line3<br>line4<br>line5<br>line6<br>line7<br>line8<br>line9<br>line10</div>
+<div id="horizontal" style="white-space: nowrap">lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    document.body.offsetWidth; // force layout
+
+    const sel = window.getSelection();
+
+    // Vertical: set selection focus to end of content.
+    const lastTextV = vertical.lastChild;
+    sel.setBaseAndExtent(lastTextV, 0, lastTextV, lastTextV.length);
+    println(`vertical scrollTop: ${vertical.scrollTop}`);
+
+    // Horizontal: set selection focus to end of content.
+    const textH = horizontal.firstChild;
+    sel.setBaseAndExtent(textH, 0, textH, textH.length);
+    println(`horizontal scrollLeft: ${horizontal.scrollLeft}`);
+});
+</script>
