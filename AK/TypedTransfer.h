@@ -72,6 +72,8 @@ public:
 
     static void relocate(T* destination, T* source, size_t count)
     {
+        VERIFY(source + count <= destination || destination + count <= source);
+
         if (count == 0)
             return;
 
