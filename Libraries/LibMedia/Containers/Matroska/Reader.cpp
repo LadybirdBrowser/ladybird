@@ -1099,8 +1099,14 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
 
     while (true) {
         SampleIterator rewind_iterator = iterator;
-        auto block = TRY(iterator.next_block());
+        auto block_result = iterator.next_block();
+        if (block_result.is_error()) {
+            if (block_result.error().category() == DecoderErrorCategory::EndOfStream)
+                break;
+            return block_result.release_error();
+        }
 
+        auto block = block_result.release_value();
         if (block.timestamp() > timestamp)
             break;
 
