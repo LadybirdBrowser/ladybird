@@ -30,7 +30,8 @@ DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(N
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("Audio Decoder"sv, [thread_data]() -> int {
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
-            thread_data->handle_suspension();
+            if (thread_data->handle_suspension())
+                continue;
             thread_data->handle_seek();
             thread_data->push_data_and_decode_a_block();
         }

@@ -28,8 +28,9 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("Video Decoder"sv, [thread_data]() -> int {
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
+            if (thread_data->handle_suspension())
+                continue;
             thread_data->handle_seek();
-            thread_data->handle_suspension();
             thread_data->push_data_and_decode_some_frames();
         }
         return 0;
