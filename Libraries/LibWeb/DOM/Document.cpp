@@ -156,6 +156,8 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
+#include <LibWeb/Layout/SVGFormattingContext.h>
+#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
@@ -608,6 +610,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
         visitor.visit(pending_scroll_event.event_target);
     for (auto& resize_observer : m_resize_observers)
         visitor.visit(resize_observer);
+
+    visitor.visit(m_svg_roots_needing_relayout);
 
     visitor.visit(m_shared_resource_requests);
 
@@ -1318,6 +1322,63 @@ void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
     tear_down_layout_tree();
 }
 
+void Document::mark_svg_root_as_needing_relayout(Layout::SVGSVGBox& svg_root)
+{
+    m_svg_roots_needing_relayout.set(svg_root);
+}
+
+static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
+{
+    Layout::LayoutState layout_state;
+    layout_state.set_subtree_root(svg_root);
+
+    // Pre-populate the svg_root itself.
+    if (auto const* paintable = svg_root.paintable_box())
+        layout_state.populate_from_paintable(svg_root, *paintable);
+
+    // Pre-populate ancestors outside the subtree:
+    // - SVGGraphicsBox ancestors (up to outer SVG) for get_parent_svg_transform()
+    // - Abspos boxes inside the subtree whose layout is managed by ancestor formatting contexts (not re-laid-out
+    //   during SVG relayout, so their existing paintable state must be preserved)
+    bool found_outer_svg = false;
+    for (auto* ancestor = svg_root.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (!found_outer_svg) {
+            if (auto const* svg_graphics_ancestor = as_if<Layout::SVGGraphicsBox>(*ancestor)) {
+                if (auto const* paintable = svg_graphics_ancestor->paintable_box())
+                    layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
+            }
+            if (is<Layout::SVGSVGBox>(*ancestor))
+                found_outer_svg = true;
+        }
+
+        if (auto const* box = as_if<Layout::Box>(*ancestor)) {
+            // Pre-populate abspos boxes that are inside the SVG subtree but whose containing block is outside it.
+            // These boxes are laid out by ancestor formatting contexts (not during SVG relayout), so we must preserve
+            // their existing paintable state to prevent commit() from destroying their paintables.
+            for (auto const& abspos_child : box->contained_abspos_children()) {
+                if (svg_root.is_inclusive_ancestor_of(abspos_child) && is<Layout::Box>(*abspos_child)) {
+                    auto const& abspos_box = static_cast<Layout::Box const&>(*abspos_child);
+                    if (auto const* abspos_paintable = abspos_box.paintable_box())
+                        layout_state.populate_from_paintable(abspos_box, *abspos_paintable);
+                }
+            }
+        }
+    }
+
+    auto const& svg_state = layout_state.get(svg_root);
+    auto content_width = svg_state.content_width();
+    auto content_height = svg_state.content_height();
+
+    Layout::SVGFormattingContext svg_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
+    svg_context.run(Layout::AvailableSpace(Layout::AvailableSize::make_definite(content_width), Layout::AvailableSize::make_definite(content_height)));
+    layout_state.commit(svg_root);
+
+    svg_root.for_each_in_inclusive_subtree([](auto& node) {
+        node.reset_needs_layout_update();
+        return TraversalDecision::Continue;
+    });
+}
+
 static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
     // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
@@ -1392,12 +1453,27 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     update_style();
 
-    if (m_layout_root && !m_layout_root->needs_layout_update())
+    auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
+
+    if (m_layout_root && !m_layout_root->needs_layout_update() && svg_roots_to_relayout.is_empty())
         return;
 
     // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
     if (m_created_for_appropriate_template_contents)
         return;
+
+    // Partial SVG relayout
+    if (m_layout_root && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update() && !needs_layout_tree_update() && !child_needs_layout_tree_update() && !needs_full_layout_tree_update()) {
+        for (auto const& svg_root : svg_roots_to_relayout)
+            relayout_svg_root(*svg_root);
+
+        invalidate_display_list();
+        set_needs_to_resolve_paint_only_properties();
+        set_needs_accumulated_visual_contexts_update(true);
+        update_paint_and_hit_testing_properties_if_needed();
+        m_document->set_needs_display();
+        return;
+    }
 
     // Clear text blocks cache so we rebuild them on the next find action.
     if (m_layout_root)

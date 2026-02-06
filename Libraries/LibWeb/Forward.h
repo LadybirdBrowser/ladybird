@@ -899,6 +899,7 @@ class NodeWithStyle;
 class NodeWithStyleAndBoxModelMetrics;
 class RadioButton;
 class ReplacedBox;
+class SVGSVGBox;
 class TableWrapper;
 class TextNode;
 class TreeBuilder;

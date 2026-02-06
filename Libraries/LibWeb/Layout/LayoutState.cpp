@@ -26,29 +26,41 @@ LayoutState::~LayoutState()
 
 LayoutState::UsedValues& LayoutState::get_mutable(NodeWithStyle const& node)
 {
+    return ensure_used_values_for(node);
+}
+
+LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
+{
+    return const_cast<LayoutState*>(this)->ensure_used_values_for(node);
+}
+
+LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle const& node, Painting::PaintableBox const& paintable)
+{
+    VERIFY(m_subtree_root);
+    auto new_used_values = adopt_own(*new UsedValues);
+    auto* new_used_values_ptr = new_used_values.ptr();
+    // NOTE: We skip set_node() here since it performs size resolution that requires a containing block,
+    //       and materialize_from_paintable() overwrites all computed sizes immediately after.
+    new_used_values->m_node = &node;
+    new_used_values_ptr->materialize_from_paintable(paintable);
+    used_values_per_layout_node.set(node, move(new_used_values));
+    return *new_used_values_ptr;
+}
+
+LayoutState::UsedValues& LayoutState::ensure_used_values_for(NodeWithStyle const& node)
+{
     if (auto* used_values = used_values_per_layout_node.get(node).value_or(nullptr))
         return *used_values;
 
-    auto const* containing_block_used_values = node.is_viewport() ? nullptr : &get(*node.containing_block());
+    // During subtree layout, all nodes outside the subtree must be pre-populated before running the formatting context
+    VERIFY(!m_subtree_root || m_subtree_root == &node || m_subtree_root->is_inclusive_ancestor_of(node));
+
+    auto const* containing_block_used_values = (node.is_viewport() || m_subtree_root == &node) ? nullptr : &get(*node.containing_block());
 
     auto new_used_values = adopt_own(*new UsedValues);
     auto* new_used_values_ptr = new_used_values.ptr();
     new_used_values->set_node(node, containing_block_used_values);
     used_values_per_layout_node.set(node, move(new_used_values));
-    return *new_used_values_ptr;
-}
-
-LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
-{
-    if (auto const* used_values = used_values_per_layout_node.get(node).value_or(nullptr))
-        return *used_values;
-
-    auto const* containing_block_used_values = node.is_viewport() ? nullptr : &get(*node.containing_block());
-
-    auto new_used_values = adopt_own(*new UsedValues);
-    auto* new_used_values_ptr = new_used_values.ptr();
-    new_used_values->set_node(node, containing_block_used_values);
-    const_cast<LayoutState*>(this)->used_values_per_layout_node.set(node, move(new_used_values));
     return *new_used_values_ptr;
 }
 
@@ -216,6 +228,15 @@ static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable =
 
 void LayoutState::commit(Box& root)
 {
+    Painting::Paintable* parent_paintable = nullptr;
+    if (!root.is_viewport()) {
+        if (auto* existing = as_if<Painting::PaintableBox>(root.first_paintable())) {
+            parent_paintable = existing->parent();
+            if (parent_paintable)
+                parent_paintable->remove_child(*existing);
+        }
+    }
+
     // Cache existing paintables before clearing.
     GC::RootHashMap<Node const*, GC::Ref<Painting::PaintableBox>> paintable_cache(root.document().heap());
     root.for_each_in_inclusive_subtree([&](Node& node) {
@@ -397,7 +418,7 @@ void LayoutState::commit(Box& root)
     for (auto* text_node : text_nodes)
         text_node->add_paintable(text_node->create_paintable());
 
-    build_paint_tree(root);
+    build_paint_tree(root, parent_paintable);
 
     resolve_relative_positions();
 
@@ -633,6 +654,41 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, UsedValues con
         if (has_definite_max_height)
             m_content_height = clamp_to_max_dimension_value(min(max_height, m_content_height));
     }
+}
+
+void LayoutState::UsedValues::materialize_from_paintable(Painting::PaintableBox const& paintable)
+{
+    auto const& box_model = paintable.box_model();
+
+    set_content_width(paintable.content_width());
+    set_content_height(paintable.content_height());
+    m_has_definite_width = true;
+    m_has_definite_height = true;
+
+    offset = paintable.offset();
+
+    margin_left = box_model.margin.left;
+    margin_right = box_model.margin.right;
+    margin_top = box_model.margin.top;
+    margin_bottom = box_model.margin.bottom;
+
+    padding_left = box_model.padding.left;
+    padding_right = box_model.padding.right;
+    padding_top = box_model.padding.top;
+    padding_bottom = box_model.padding.bottom;
+
+    border_left = box_model.border.left;
+    border_right = box_model.border.right;
+    border_top = box_model.border.top;
+    border_bottom = box_model.border.bottom;
+
+    inset_left = box_model.inset.left;
+    inset_right = box_model.inset.right;
+    inset_top = box_model.inset.top;
+    inset_bottom = box_model.inset.bottom;
+
+    if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable))
+        m_computed_svg_transforms = svg_graphics_paintable->computed_transforms();
 }
 
 void LayoutState::UsedValues::set_content_width(CSSPixels width)
