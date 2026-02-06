@@ -394,6 +394,9 @@ Optional<CSSPixelRect> PaintableBox::absolute_scrollbar_rect(ScrollDirection dir
     if (!could_be_scrolled_by_wheel_event(direction))
         return {};
 
+    if (computed_values().scrollbar_width() == CSS::ScrollbarWidth::None)
+        return {};
+
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     bool adjusting_for_resizer = has_resizer();
 
