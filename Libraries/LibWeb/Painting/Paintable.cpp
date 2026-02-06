@@ -388,4 +388,36 @@ Paintable::SelectionStyle Paintable::selection_style() const
     return default_style;
 }
 
+void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
+{
+    // Walk up to find the containing PaintableWithLines.
+    GC::Ptr<PaintableWithLines const> paintable_with_lines;
+    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
+        paintable_with_lines = as_if<PaintableWithLines>(*ancestor);
+        if (paintable_with_lines)
+            break;
+    }
+    if (!paintable_with_lines)
+        return;
+
+    // Find the fragment containing the offset and compute a cursor rect.
+    for (auto const& fragment : paintable_with_lines->fragments()) {
+        if (&fragment.paintable() != this)
+            continue;
+        if (offset < fragment.start_offset() || offset > fragment.start_offset() + fragment.length_in_code_units())
+            continue;
+
+        auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
+
+        // Walk up the containing block chain to find the nearest scrollable ancestor.
+        for (auto* ancestor = containing_block(); ancestor; ancestor = ancestor->containing_block()) {
+            if (ancestor->has_scrollable_overflow()) {
+                ancestor->scroll_into_view(cursor_rect);
+                break;
+            }
+        }
+        return;
+    }
+}
+
 }

@@ -194,6 +194,28 @@ PaintableBox::ScrollHandled PaintableBox::scroll_by(int delta_x, int delta_y)
     return set_scroll_offset(scroll_offset().translated(delta_x, delta_y));
 }
 
+void PaintableBox::scroll_into_view(CSSPixelRect rect)
+{
+    auto scrollport = absolute_padding_box_rect();
+    auto current_offset = scroll_offset();
+
+    // Both rect and scrollport are in layout coordinate space (not scroll-adjusted).
+    auto content_rect = rect.translated(-scrollport.x(), -scrollport.y());
+    auto new_offset = current_offset;
+
+    if (content_rect.right() > current_offset.x() + scrollport.width())
+        new_offset.set_x(content_rect.right() - scrollport.width());
+    else if (content_rect.left() < current_offset.x())
+        new_offset.set_x(content_rect.left());
+
+    if (content_rect.bottom() > current_offset.y() + scrollport.height())
+        new_offset.set_y(content_rect.bottom() - scrollport.height());
+    else if (content_rect.top() < current_offset.y())
+        new_offset.set_y(content_rect.top());
+
+    set_scroll_offset(new_offset);
+}
+
 void PaintableBox::set_offset(CSSPixelPoint offset)
 {
     m_offset = offset;
