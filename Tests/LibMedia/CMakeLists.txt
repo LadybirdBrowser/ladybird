@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestCICP.cpp
     TestH264Decode.cpp
     TestIncrementallyPopulatedStream.cpp
+    TestMatroskaDemuxer.cpp
     TestParseMatroska.cpp
     TestPlaybackStream.cpp
     TestVorbisDecode.cpp
