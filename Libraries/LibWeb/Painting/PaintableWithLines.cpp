@@ -126,7 +126,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (hit_test_fragments(position, local_position.value(), type, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
-    if (!stacking_context() && is_visible && (!layout_node().is_anonymous() || is_positioned())
+    if (!stacking_context() && (!layout_node().is_anonymous() || is_positioned())
         && absolute_border_box_rect().contains(local_position.value())) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
