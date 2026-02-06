@@ -96,7 +96,7 @@ ErrorOr<StatementID> Database::prepare_statement(StringView statement)
     return statement_id;
 }
 
-void Database::execute_statement(StatementID statement_id, OnResult on_result)
+void Database::execute_statement_internal(StatementID statement_id, OnResult on_result)
 {
     auto* statement = prepared_statement(statement_id);
 
@@ -118,6 +118,12 @@ void Database::execute_statement(StatementID statement_id, OnResult on_result)
             return;
         }
     }
+}
+
+int Database::bound_parameter_count(StatementID statement_id)
+{
+    auto* statement = prepared_statement(statement_id);
+    return sqlite3_bind_parameter_count(statement);
 }
 
 template<typename ValueType>
