@@ -226,10 +226,17 @@ static void setup_output_capture_for_view(TestWebView& view)
         view_capture->stdout_notifier->on_activation = [fd, &capture = *view_capture]() {
             char buffer[4096];
             auto nread = read(fd, buffer, sizeof(buffer));
-            if (nread > 0)
-                capture.stdout_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
-            else
+
+            if (nread > 0) {
+                StringView message { buffer, static_cast<size_t>(nread) };
+
+                if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
+                    (void)Core::System::write(STDOUT_FILENO, message.bytes());
+
+                capture.stdout_buffer.append(message);
+            } else {
                 capture.stdout_notifier->set_enabled(false);
+            }
         };
     }
 
@@ -239,10 +246,17 @@ static void setup_output_capture_for_view(TestWebView& view)
         view_capture->stderr_notifier->on_activation = [fd, &capture = *view_capture]() {
             char buffer[4096];
             auto nread = read(fd, buffer, sizeof(buffer));
-            if (nread > 0)
-                capture.stderr_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
-            else
+
+            if (nread > 0) {
+                StringView message { buffer, static_cast<size_t>(nread) };
+
+                if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
+                    (void)Core::System::write(STDERR_FILENO, message.bytes());
+
+                capture.stderr_buffer.append(message);
+            } else {
                 capture.stderr_notifier->set_enabled(false);
+            }
         };
     }
 
@@ -252,8 +266,6 @@ static void setup_output_capture_for_view(TestWebView& view)
 static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& capture)
 {
     auto& app = Application::the();
-    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-        return {};
 
     // Create the directory structure for this test's output
     auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
