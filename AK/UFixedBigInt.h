@@ -440,7 +440,7 @@ public:
     constexpr auto& operator/=(T const& other) { return *this = *this / other; }
     constexpr auto& operator/=(IntegerWrapper const& other) { return *this = *this / other; }
 
-    template<Unsigned U>
+    template<UFixedInt U>
     constexpr auto& operator%=(U const& other) { return *this = *this % other; }
     constexpr auto& operator%=(IntegerWrapper const& other) { return *this = *this % other; }
 
@@ -502,11 +502,6 @@ int operator<=>(IntegerWrapper const& a, NotBuiltInUFixedInt auto const& b) { re
 }
 
 using Detail::UFixedBigInt;
-
-template<size_t bit_size>
-constexpr inline bool IsUnsigned<UFixedBigInt<bit_size>> = true;
-template<size_t bit_size>
-constexpr inline bool IsSigned<UFixedBigInt<bit_size>> = false;
 
 template<size_t bit_size>
 struct NumericLimits<UFixedBigInt<bit_size>> {
