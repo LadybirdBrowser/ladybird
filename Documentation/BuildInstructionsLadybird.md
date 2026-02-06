@@ -73,7 +73,7 @@ sudo apt install libpulse-dev
 ### Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed autoconf-archive base-devel ccache cmake curl git libgl nasm ninja python qt6-base qt6-tools ttf-liberation tar unzip zip
+sudo pacman -S --needed autoconf-archive base-devel ccache cmake curl git less libgl nasm ninja python qt6-base qt6-tools ttf-liberation tar unzip zip
 ```
 
 Optionally, install the PulseAudio headers for audio playback support:
