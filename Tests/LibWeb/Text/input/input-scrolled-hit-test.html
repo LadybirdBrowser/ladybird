@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    input {
+        font-size: 16px;
+        width: 100px;
+        padding: 2px;
+        border: 1px solid;
+    }
+</style>
+<input value="foobarbazloremipsum foobarbazloremipsum" />
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const input = document.querySelector("input");
+        input.offsetWidth;
+        input.focus();
+
+        // Scroll the inner text element to the right.
+        const innerText = internals.getShadowRoot(input).querySelector("div > div");
+        innerText.scrollLeft = 100;
+
+        // Click near the left edge of the input.
+        const rect = input.getBoundingClientRect();
+        internals.click(rect.left + 5, rect.top + rect.height / 2);
+
+        println(input.selectionStart);
+    });
+</script>

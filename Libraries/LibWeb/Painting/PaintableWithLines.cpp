@@ -123,8 +123,16 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!local_position.has_value())
         return TraversalDecision::Continue;
 
-    if (hit_test_fragments(position, local_position.value(), type, callback) == TraversalDecision::Break)
-        return TraversalDecision::Break;
+    // Fragments are descendants of this element, so use the descendants' visual context to account for this element's
+    // own scroll offset during fragment hit testing.
+    auto avc_for_descendants = accumulated_visual_context_for_descendants();
+    auto local_position_for_fragments = avc_for_descendants
+        ? avc_for_descendants->transform_point_for_hit_test(position, scroll_state)
+        : local_position;
+    if (local_position_for_fragments.has_value()) {
+        if (hit_test_fragments(position, local_position_for_fragments.value(), type, callback) == TraversalDecision::Break)
+            return TraversalDecision::Break;
+    }
 
     if (!stacking_context() && (!layout_node().is_anonymous() || is_positioned())
         && absolute_border_box_rect().contains(local_position.value())) {
