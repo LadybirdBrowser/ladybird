@@ -485,7 +485,7 @@ void LayoutState::commit(Box& root)
         // (scrollable overflow rect become smaller), the scroll offset would be out of bounds.
         auto& paintable_box = const_cast<Painting::PaintableBox&>(*box->paintable_box());
         if (!paintable_box.scroll_offset().is_zero())
-            (void)paintable_box.set_scroll_offset(paintable_box.scroll_offset());
+            paintable_box.set_scroll_offset(paintable_box.scroll_offset());
     }
 
     for (auto& it : used_values_per_layout_node) {

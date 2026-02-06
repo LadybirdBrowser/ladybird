@@ -2073,7 +2073,7 @@ void Element::set_scroll_left(double x)
     // FIXME: Implement this in terms of calling "scroll the element".
     auto scroll_offset = paintable_box()->scroll_offset();
     scroll_offset.set_x(CSSPixels::nearest_value_for(x));
-    (void)paintable_box()->set_scroll_offset(scroll_offset);
+    paintable_box()->set_scroll_offset(scroll_offset);
 }
 
 void Element::set_scroll_top(double y)
@@ -2130,7 +2130,7 @@ void Element::set_scroll_top(double y)
     // FIXME: Implement this in terms of calling "scroll the element".
     auto scroll_offset = paintable_box()->scroll_offset();
     scroll_offset.set_y(CSSPixels::nearest_value_for(y));
-    (void)paintable_box()->set_scroll_offset(scroll_offset);
+    paintable_box()->set_scroll_offset(scroll_offset);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollwidth
@@ -3392,7 +3392,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
     auto scroll_offset = paintable_box()->scroll_offset();
     scroll_offset.set_x(CSSPixels::nearest_value_for(x));
     scroll_offset.set_y(CSSPixels::nearest_value_for(y));
-    (void)paintable_box()->set_scroll_offset(scroll_offset);
+    paintable_box()->set_scroll_offset(scroll_offset);
     auto scroll_promise = WebIDL::create_resolved_promise(realm(), JS::js_undefined());
 
     // 12. Return scrollPromise.

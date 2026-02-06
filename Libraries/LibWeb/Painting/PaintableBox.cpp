@@ -894,7 +894,7 @@ void PaintableBox::scroll_to_mouse_position(CSSPixelPoint position, ChromeMetric
     if (is_viewport_paintable())
         document().navigable()->perform_scroll_of_viewport_scrolling_box(new_scroll_offset);
     else
-        (void)set_scroll_offset(new_scroll_offset);
+        set_scroll_offset(new_scroll_offset);
 }
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
