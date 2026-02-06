@@ -185,7 +185,7 @@ void CacheIndex::update_last_access_time(u64 cache_key, u64 vary_key)
 
     auto now = UnixDateTime::now();
 
-    m_database->execute_statement(m_statements.update_last_access_time, {}, now, cache_key);
+    m_database->execute_statement(m_statements.update_last_access_time, {}, now, cache_key, vary_key);
     entry->last_access_time = now;
 }
 
