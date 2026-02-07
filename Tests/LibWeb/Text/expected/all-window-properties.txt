@@ -485,6 +485,7 @@ Symbol
 SyntaxError
 Text
 TextDecoder
+TextDecoderStream
 TextEncoder
 TextEncoderStream
 TextEvent
