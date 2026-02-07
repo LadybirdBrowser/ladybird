@@ -350,6 +350,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
 
         SelectorEngine::MatchContext context {
             .style_sheet_for_rule = *rule_to_run.sheet,
+            .rule_shadow_root = rule_root,
             .subject = abstract_element.element(),
             .collect_per_element_selector_involvement_metadata = true,
             .has_result_cache = m_has_result_cache.ptr(),
