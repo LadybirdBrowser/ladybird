@@ -4488,8 +4488,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
             if (attribute.extended_attributes.contains("Replaceable"sv)) {
                 attribute_generator.append(R"~~~(
     // 1. Perform ? CreateDataPropertyOrThrow(jsValue, id, V).
-    JS::PropertyDescriptor descriptor { .value = value, .writable = true };
-    TRY(impl->internal_define_own_property("@attribute.name@"_utf16_fly_string, descriptor));
+    TRY(impl->create_data_property_or_throw("@attribute.name@"_utf16_fly_string, value));
 
     // 2. Return undefined.
     return JS::js_undefined();

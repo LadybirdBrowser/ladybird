@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	window.self setter throws TypeError if called on non-configurable accessor property
+Pass	window.parent setter throws TypeError if called on non-configurable accessor property
+Pass	window.origin setter throws TypeError if called on non-configurable accessor property
+Pass	window.innerWidth setter throws TypeError if called on non-configurable accessor property
+Pass	window.screen setter throws TypeError if called on non-configurable non-writable data property
+Pass	window.length setter throws TypeError if called on non-configurable non-writable data property
+Pass	window.event setter throws TypeError if called on non-configurable non-writable data property
+Pass	window.outerHeight setter throws TypeError if called on non-configurable non-writable data property
