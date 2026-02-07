@@ -1288,6 +1288,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             continue;
         }
 
+        auto definition_kind = property->is_method()
+            ? Bytecode::FunctionDefinitionKind::MethodDefinition
+            : Bytecode::FunctionDefinitionKind::FunctionExpression;
+
         if (is<StringLiteral>(property->key())) {
             auto& string_literal = static_cast<StringLiteral const&>(property->key());
 
@@ -1302,7 +1306,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                     identifier = Utf16String::formatted("set {}", identifier);
 
                 auto name = generator.intern_identifier(identifier);
-                value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name, {}, property->is_method()));
+                value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name, {}, definition_kind));
             }
 
             auto property_key_table_index = generator.intern_property_key(string_literal.value());
@@ -1315,7 +1319,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             }
         } else {
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
-            auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), {}, {}, property->is_method()));
+            auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), {}, {}, definition_kind));
 
             generator.emit_put_by_value(object, property_name, value, property_kind, {});
         }
@@ -1420,7 +1424,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::gen
     }
 
     auto new_function = choose_dst(generator, preferred_dst);
-    generator.emit_new_function(new_function, *this, lhs_name, is_method);
+    auto definition_kind = is_method
+        ? Bytecode::FunctionDefinitionKind::MethodDefinition
+        : Bytecode::FunctionDefinitionKind::FunctionExpression;
+
+    generator.emit_new_function(new_function, *this, lhs_name, definition_kind);
 
     if (has_name) {
         generator.emit<Bytecode::Op::InitializeLexicalBinding>(*name_identifier, new_function);

@@ -2192,6 +2192,9 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
             if (function_kind == FunctionKind::Async || function_kind == FunctionKind::AsyncGenerator)
                 parse_options |= FunctionNodeParseOptions::IsAsyncFunction;
             auto function = parse_function_node<FunctionExpression>(parse_options, function_start);
+            // This is an object method/getter/setter, thus, a MethodDefinition (e.g. new ({ m() {} }).m throws TypeError).
+            // These are not constructors and must not have [[Construct]].
+            function->set_is_method(true);
             properties.append(create_ast_node<ObjectProperty>({ m_source_code, rule_start.position(), position() }, *property_key, function, property_type, true));
         } else if (function_kind == FunctionKind::Async) {
             // If we previously parsed an `async` keyword, then a function must follow.
@@ -2214,7 +2217,12 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
                 property_type = ObjectProperty::Type::ProtoSetter;
 
             auto rhs_expression = parse_expression(2);
-            properties.append(create_ast_node<ObjectProperty>({ m_source_code, rule_start.position(), position() }, *property_key, move(rhs_expression), property_type, false));
+
+            // Even if RHS is a FunctionExpression (i.e.: { b: function() {} }),
+            // this is a PropertyDefinition "PropertyName : AssignmentExpression",
+            // not a MethodDefinition. So, it stays a normal, constructible function.
+            bool is_method = false;
+            properties.append(create_ast_node<ObjectProperty>({ m_source_code, rule_start.position(), position() }, *property_key, move(rhs_expression), property_type, is_method));
         } else if (property_key && property_value) {
             if (m_state.strict_mode && is<StringLiteral>(*property_key)) {
                 auto& string_literal = static_cast<StringLiteral const&>(*property_key);
