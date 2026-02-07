@@ -1,4 +1,5 @@
 set(SOURCES
+    BrowsingDataSettings.cpp
     CacheSizes.cpp
     NetworkError.h
     Request.cpp

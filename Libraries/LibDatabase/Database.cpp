@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -57,12 +57,12 @@ static constexpr StringView sql_error(int error_code)
 ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, StringView name)
 {
     TRY(Core::Directory::create(directory, Core::Directory::CreateDirectories::Yes));
-    auto database_file = ByteString::formatted("{}/{}.db", directory, name);
+    LexicalPath database_path { ByteString::formatted("{}/{}.db", directory, name) };
 
     sqlite3* m_database { nullptr };
-    SQL_TRY(sqlite3_open(database_file.characters(), &m_database));
+    SQL_TRY(sqlite3_open(database_path.string().characters(), &m_database));
 
-    auto database = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) Database(m_database)));
+    auto database = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) Database(move(database_path), m_database)));
 
     // Enable the WAL and set the synchronous pragma to normal by default for performance.
     TRY(database->set_journal_mode_pragma(JournalMode::WriteAheadLog));
@@ -71,8 +71,9 @@ ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, S
     return database;
 }
 
-Database::Database(sqlite3* database)
-    : m_database(database)
+Database::Database(LexicalPath database_path, sqlite3* database)
+    : m_database_path(move(database_path))
+    , m_database(database)
 {
     VERIFY(m_database);
 }

@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibRequests/BrowsingDataSettings.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestClientEndpoint.h>
@@ -37,6 +38,8 @@ private:
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
     virtual Messages::RequestServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
+
+    virtual void set_browsing_data_settings(Requests::BrowsingDataSettings browsing_data_settings) override;
 
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString) override;
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;

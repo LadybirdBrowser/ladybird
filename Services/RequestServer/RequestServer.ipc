@@ -1,6 +1,7 @@
 #include <LibCore/Proxy.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Header.h>
+#include <LibRequests/BrowsingDataSettings.h>
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
 
@@ -9,6 +10,8 @@ endpoint RequestServer
     init_transport(int peer_pid) => (int peer_pid)
     connect_new_client() => (IPC::File client_socket)
     connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
+
+    set_browsing_data_settings(Requests::BrowsingDataSettings browsing_data_settings) =|
 
     // use_tls: enable DNS over TLS
     set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) =|
