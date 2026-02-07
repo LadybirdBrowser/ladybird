@@ -41,6 +41,7 @@ set(SOURCES
     ImageFormats/WebPWriter.cpp
     ImageFormats/WebPWriterLossless.cpp
     ImmutableBitmap.cpp
+    ImageOrientation.cpp
     PaintStyle.cpp
     Painter.cpp
     PainterSkia.cpp

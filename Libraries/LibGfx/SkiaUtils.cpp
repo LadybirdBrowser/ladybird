@@ -15,6 +15,21 @@
 
 namespace Gfx {
 
+SkMatrix to_skia_matrix(AffineTransform const& affine_transform)
+{
+    SkScalar affine[6];
+    affine[0] = affine_transform.a();
+    affine[1] = affine_transform.b();
+    affine[2] = affine_transform.c();
+    affine[3] = affine_transform.d();
+    affine[4] = affine_transform.e();
+    affine[5] = affine_transform.f();
+
+    SkMatrix matrix;
+    matrix.setAffine(affine);
+    return matrix;
+}
+
 SkPath to_skia_path(Path const& path)
 {
     return static_cast<PathImplSkia const&>(path.impl()).sk_path();

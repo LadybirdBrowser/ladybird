@@ -14,6 +14,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/YUVData.h>
 
@@ -73,6 +74,8 @@ public:
 
     // Returns nullptr for YUV-backed bitmaps
     RefPtr<Bitmap const> bitmap() const;
+
+    [[nodiscard]] ExifOrientation get_exif_orientation() const;
 
 private:
     friend class YUVData;
