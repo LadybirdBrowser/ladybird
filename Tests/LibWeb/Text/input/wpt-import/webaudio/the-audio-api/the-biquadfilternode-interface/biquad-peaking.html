@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      biquad-peaking.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/biquad-filters.js"></script>
+    <script src="../../../webaudio/resources/biquad-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {label: 'test', description: 'Biquad peaking filter'},
+          function(task, should) {
+
+            window.jsTestIsAsync = true;
+
+            // Create offline audio context.
+            let context = new OfflineAudioContext(
+                2, sampleRate * renderLengthSeconds, sampleRate);
+
+            // The filters we want to test.
+            let filterParameters = [
+              {cutoff: 0, q: 10, gain: 10},
+              {cutoff: 1, q: 10, gain: 10},
+              {cutoff: .5, q: 0, gain: 10},
+              {cutoff: 0.25, q: 10, gain: 10},
+            ];
+
+            createTestAndRun(context, 'peaking', {
+              should: should,
+              threshold: 5.8234e-8,
+              filterParameters: filterParameters
+            }).then(task.done.bind(task));
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

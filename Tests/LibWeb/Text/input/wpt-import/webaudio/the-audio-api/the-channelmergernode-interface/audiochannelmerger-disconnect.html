@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      ChannelMergerNode: Asynchronous disconnect() correctly silences the
+      output
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const renderQuantum = 128;
+      const numberOfChannels = 2;
+      const sampleRate = 44100;
+      const renderDuration = 0.5;
+      const disconnectTime = 0.5 * renderDuration;
+
+      // Task: Check if the merger outputs a silent channel when an input is
+      // disconnected.
+      promise_test(async () => {
+        const context = new OfflineAudioContext(
+            numberOfChannels, renderDuration * sampleRate, sampleRate);
+        const merger = new ChannelMergerNode(context, {numberOfInputs: 6});
+        const source1 = new ConstantSourceNode(context, {offset: 1.0});
+        const source2 = new ConstantSourceNode(context, {offset: 1.0});
+
+        // Connect the sources to the first two inputs of the merger.
+        // The merger should produce 6 channel output.
+        source1.connect(merger, 0, 0);
+        source2.connect(merger, 0, 1);
+        merger.connect(context.destination);
+        source1.start();
+        source2.start();
+
+        // Schedule the disconnection of |source2| at the half of render
+        // duration.
+        context.suspend(disconnectTime).then(() => {
+          source2.disconnect();
+          context.resume();
+        });
+
+        const resultBuffer = await context.startRendering();
+        // The entire first channel of the output should be 1.
+        assert_constant_value(
+            resultBuffer.getChannelData(0), 1, 'Channel #0 should be 1.');
+
+        // Calculate the first zero index in the second channel.
+        const channel1 = resultBuffer.getChannelData(1);
+        let disconnectIndex = disconnectTime * sampleRate;
+        disconnectIndex = renderQuantum *
+            Math.floor((disconnectIndex + renderQuantum - 1) / renderQuantum);
+
+        const firstZeroIndex =
+            channel1.findIndex(element => element === 0);
+
+        // The second channel should contain 1, and 0 after the
+        // disconnection.
+        assert_constant_value(channel1.subarray(0, disconnectIndex), 1,
+            'Channel #1 before disconnect');
+        assert_constant_value(channel1.subarray(disconnectIndex), 0,
+            'Channel #1 after disconnect');
+
+        assert_equals(firstZeroIndex, disconnectIndex,
+            'The index of first zero in the channel #1');
+      }, 'Asynchronous disconnect() correctly silences the output');
+    </script>
+  </body>
+</html>

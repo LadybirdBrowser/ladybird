@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../include.js"></script>
+  <script>
+    'use strict';
+
+    function assert(condition, message) {
+      if (!condition)
+        throw new Error(message);
+    }
+
+    function assertEquals(actual, expected, message) {
+      if (actual !== expected)
+        throw new Error(`${message} (expected ${expected}, got ${actual})`);
+    }
+
+    function assertTrue(condition, message) {
+      assert(!!condition, message);
+    }
+
+    function assertThrowsIndexSizeError(fn, message) {
+      let threw = false;
+      try {
+        fn();
+      } catch (e) {
+        threw = true;
+        // Our WebIDL IndexSizeError maps to DOMException("IndexSizeError").
+        assert(e && e.name === 'IndexSizeError', `${message} (wrong exception: ${e && e.name})`);
+      }
+      assert(threw, `${message} (did not throw)`);
+    }
+
+    function testNode() {
+      const context = new OfflineAudioContext(1, 128, 44100);
+      const buffer = context.createBuffer(1, 2048, context.sampleRate);
+      for (let i = 0; i < 2048; ++i) {
+        buffer.getChannelData(0)[i] = Math.sin(
+          440 * 2 * Math.PI * i / context.sampleRate
+        );
+      }
+
+      const destination = context.destination;
+      const source = context.createBufferSource();
+      const analyser = context.createAnalyser();
+
+      source.buffer = buffer;
+      source.connect(analyser);
+      analyser.connect(destination);
+
+      assertEquals(analyser.channelCount, 2, 'analyser node has 2 input channels by default');
+      assertEquals(analyser.channelCountMode, 'max', 'Correct channelCountMode for the analyser node');
+      assertEquals(analyser.channelInterpretation, 'speakers', 'Correct channelCountInterpretation for the analyser node');
+
+      assertEquals(analyser.fftSize, 2048, 'Correct default value for fftSize');
+      assertEquals(analyser.frequencyBinCount, 1024, 'Correct default value for frequencyBinCount');
+
+      assertThrowsIndexSizeError(() => { analyser.fftSize = -2024; }, 'fftSize = -2024 throws');
+      assertThrowsIndexSizeError(() => { analyser.fftSize = 0; }, 'fftSize = 0 throws');
+      assertThrowsIndexSizeError(() => { analyser.fftSize = 8; }, 'fftSize = 8 throws');
+      assertThrowsIndexSizeError(() => { analyser.fftSize = 1025; }, 'fftSize = 1025 throws');
+      assertThrowsIndexSizeError(() => { analyser.fftSize = 65536; }, 'fftSize = 65536 throws');
+
+      analyser.fftSize = 1024;
+      assertEquals(analyser.frequencyBinCount, 512, 'Correct new value for frequencyBinCount');
+
+      assertEquals(analyser.minDecibels, -100, 'Correct default value for minDecibels');
+      assertEquals(analyser.maxDecibels, -30, 'Correct default value for maxDecibels');
+
+      assertThrowsIndexSizeError(() => { analyser.minDecibels = -30; }, 'minDecibels = -30 throws');
+      assertThrowsIndexSizeError(() => { analyser.maxDecibels = -100; }, 'maxDecibels = -100 throws');
+
+      assertTrue(
+        Math.abs(analyser.smoothingTimeConstant - 0.8) < 0.001,
+        'Correct default value for smoothingTimeConstant'
+      );
+      assertThrowsIndexSizeError(() => { analyser.smoothingTimeConstant = -0.1; }, 'smoothingTimeConstant = -0.1 throws');
+      assertThrowsIndexSizeError(() => { analyser.smoothingTimeConstant = 1.1; }, 'smoothingTimeConstant = 1.1 throws');
+      analyser.smoothingTimeConstant = 0;
+      analyser.smoothingTimeConstant = 1;
+    }
+
+    function testConstructor() {
+      const context = new OfflineAudioContext(1, 128, 44100);
+
+      let analyser = new AnalyserNode(context);
+      assertEquals(analyser.channelCount, 2, 'analyser node has 2 input channels by default');
+      assertEquals(analyser.channelCountMode, 'max', 'Correct channelCountMode for the analyser node');
+      assertEquals(analyser.channelInterpretation, 'speakers', 'Correct channelCountInterpretation for the analyser node');
+
+      assertEquals(analyser.fftSize, 2048, 'Correct default value for fftSize');
+      assertEquals(analyser.frequencyBinCount, 1024, 'Correct default value for frequencyBinCount');
+      assertEquals(analyser.minDecibels, -100, 'Correct default value for minDecibels');
+      assertEquals(analyser.maxDecibels, -30, 'Correct default value for maxDecibels');
+      assertTrue(
+        Math.abs(analyser.smoothingTimeConstant - 0.8) < 0.001,
+        'Correct default value for smoothingTimeConstant'
+      );
+
+      assertThrowsIndexSizeError(() => { analyser = new AnalyserNode(context, { fftSize: 8193 }); }, 'new AnalyserNode({fftSize: 8193}) throws');
+      
+      analyser = new AnalyserNode(context, { fftSize: 1024 });
+      assertEquals(analyser.frequencyBinCount, 512, 'Correct new value for frequencyBinCount');
+
+      assertThrowsIndexSizeError(() => { analyser = new AnalyserNode(context, { minDecibels: -29 }); }, 'new AnalyserNode({minDecibels: -29}) throws');
+      assertThrowsIndexSizeError(() => { analyser = new AnalyserNode(context, { maxDecibels: -101 }); }, 'new AnalyserNode({maxDecibels: -101}) throws');
+
+      assertThrowsIndexSizeError(() => { analyser = new AnalyserNode(context, { smoothingTimeConstant: -0.1 }); }, 'new AnalyserNode({smoothingTimeConstant: -0.1}) throws');
+      assertThrowsIndexSizeError(() => { analyser = new AnalyserNode(context, { smoothingTimeConstant: -1.1 }); }, 'new AnalyserNode({smoothingTimeConstant: -1.1}) throws');
+      analyser = new AnalyserNode(context, { smoothingTimeConstant: 0 });
+      analyser = new AnalyserNode(context, { smoothingTimeConstant: 1 });
+    }
+
+    test(() => {
+      testConstructor();
+      testNode();
+      println('passed');
+    });
+  </script>
+</head>
+</body>
+</html>

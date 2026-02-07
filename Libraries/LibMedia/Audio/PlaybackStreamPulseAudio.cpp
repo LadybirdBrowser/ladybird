@@ -48,6 +48,9 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputSt
         // start at 100% volume instead.
         TRY_OR_EXIT_THREAD(internal_state->stream()->set_volume(1.0));
 
+        // PulseAudio can also retain mute state per sink-input. Make sure we start unmuted.
+        TRY_OR_EXIT_THREAD(internal_state->stream()->set_muted(false));
+
         internal_state->thread_loop();
         return 0;
     }));

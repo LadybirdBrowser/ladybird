@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test the construction of AudioWorkletNode with real-time context
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const processorUrl = 'processors/channel-count-processor.js';
+
+      const waitForMessageFromPort = (port) => {
+        return new Promise(resolve => {
+          port.onmessage = e => resolve(e.data);
+        });
+      };
+
+      promise_test(async t => {
+        const context = new AudioContext();
+
+        await context.audioWorklet.addModule(processorUrl);
+
+        {
+          const buffer = new AudioBuffer({
+            numberOfChannels: 17,
+            length: 1,
+            sampleRate: context.sampleRate,
+          });
+
+          const source = new AudioBufferSourceNode(context, { buffer });
+
+          const node = new AudioWorkletNode(context, 'channel-count', {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+          });
+
+          const promiseMessage = waitForMessageFromPort(node.port);
+
+          source.connect(node).connect(context.destination);
+          source.start();
+
+          const { outputChannel } = await promiseMessage;
+          assert_equals(
+              outputChannel,
+              17,
+              'Output channel count should follow upstream (17).');
+
+        }
+
+        {
+          const node = new AudioWorkletNode(context, 'channel-count', {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+            outputChannelCount: [2],
+          });
+
+          const promiseMessage = waitForMessageFromPort(node.port);
+
+          node.connect(context.destination);
+
+          const { outputChannel } = await promiseMessage;
+          assert_equals(
+              outputChannel,
+              2,
+              'Explicit outputChannelCount [2] must be honored.');
+        }
+      }, `AudioWorkletNode channel count: dynamic propagation and `+
+          `honoring outputChannelCount (single serialized test).`);
+    </script>
+  </body>
+</html>

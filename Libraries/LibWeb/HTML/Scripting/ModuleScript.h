@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Script.h>
@@ -45,6 +46,9 @@ public:
     JS::SourceTextModule const* record() const { return m_record.ptr(); }
     JS::SourceTextModule* record() { return m_record.ptr(); }
 
+    // Best-effort source retention for mirroring modules into other VMs.
+    ByteString const& source_text() const { return m_source_text; }
+
 protected:
     JavaScriptModuleScript(URL::URL base_url, ByteString filename, JS::Realm&);
 
@@ -53,6 +57,8 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     GC::Ptr<JS::SourceTextModule> m_record;
+
+    ByteString m_source_text;
 
     size_t m_fetch_internal_request_count { 0 };
     size_t m_completed_fetch_internal_request_count { 0 };

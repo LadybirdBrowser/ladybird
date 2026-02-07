@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebAudio: Oscillator</title>
+  <link rel="stylesheet" href="webaudio.css" />
+</head>
+
+<body>
+  <header>
+    <div class="wrap">
+      <h1>LibWeb webaudio</h1>
+      <p class="sub">
+        Featuring OscillatorNode, GainNode, and AnalyserNode.
+      </p>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <section class="panel">
+        <div class="hd">
+          <div class="pill">
+            <span id="stateDot" class="dot"></span><span id="stateText">uninitialized</span>
+          </div>
+          <div class="btnrow">
+            <button id="btnInit" class="primary">Init AudioContext</button>
+            <button id="btnResume">Resume</button>
+            <button id="btnSuspend">Suspend</button>
+            <button id="btnClose" class="danger">Close</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="btnrow">
+            <button id="btnStart" class="primary">Start oscillator</button>
+            <button id="btnStop" class="danger">Stop oscillator</button>
+          </div>
+
+          <div class="row">
+            <label for="type">Type</label>
+            <select id="type">
+              <option value="sine" selected>sine</option>
+              <option value="square">square</option>
+              <option value="sawtooth">sawtooth</option>
+              <option value="triangle">triangle</option>
+            </select>
+            <div class="hint">(engine may currently render sine only)</div>
+          </div>
+
+          <div class="row">
+            <label for="freq">Frequency (Hz)</label>
+            <input id="freq" type="range" min="20" max="2000" value="440" step="1" />
+            <input id="freqN" type="number" min="0" max="24000" value="440" step="1" />
+          </div>
+
+          <div class="row">
+            <label for="detune">Detune (cents)</label>
+            <input id="detune" type="range" min="-1200" max="1200" value="0" step="1" />
+            <input id="detuneN" type="number" min="-12000" max="12000" value="0" step="1" />
+          </div>
+
+          <div class="row">
+            <label for="gain">Gain</label>
+            <!-- Use integer slider values to avoid float/step parsing bugs in range inputs. -->
+            <input id="gain" type="range" min="0" max="300" value="50" step="5" />
+            <input id="gainN" type="number" min="0" max="0.30" value="0.05" step="0.005" />
+          </div>
+
+          <div class="row">
+            <label for="scope">Scope</label>
+            <div>
+              <label style="display: flex; gap: 10px; align-items: center">
+                <input id="scope" type="checkbox" checked />
+                enable oscilloscope (AnalyserNode)
+              </label>
+            </div>
+            <div class="hint">draws time-domain waveform</div>
+          </div>
+
+          <div class="status" id="status"></div>
+
+          <div class="note">
+            If you hear nothing, check the log for output-device errors. This page keeps gain low
+            to avoid clipping.
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="hd">
+          <div>Oscilloscope</div>
+          <div class="pill"><span class="dot" id="scopeDot"></span><span id="scopeText">idle</span></div>
+        </div>
+        <div class="bd">
+          <canvas id="canvas" width="1000" height="360"></canvas>
+          <div class="panel" style="box-shadow: none; background: rgba(0, 0, 0, 0.12)">
+            <div class="bd">
+              <div class="hint">Log</div>
+              <div class="logbox"><pre id="log"></pre></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="webaudio.js"></script>
+  <script>
+    (() => {
+      const {
+        $,
+        createDefaultLogger,
+        createPillController,
+        parseNumber,
+        clampNumber,
+        syncRangeAndNumber,
+        createTimeDomainOscilloscope,
+        setupAudioContextControls,
+      } = window.WebAudio;
+
+      /** @type {AudioContext|null} */
+      let ctx = null;
+      /** @type {OscillatorNode|null} */
+      let osc = null;
+      /** @type {GainNode|null} */
+      let gainNode = null;
+      /** @type {AnalyserNode|null} */
+      let analyser = null;
+      /** @type {GainNode|null} */
+      let scopeMute = null;
+      let statusTimer = 0;
+
+      const el = {
+        btnStart: $("btnStart"),
+        btnStop: $("btnStop"),
+
+        type: /** @type {HTMLSelectElement} */ ($("type")),
+        freq: /** @type {HTMLInputElement} */ ($("freq")),
+        freqN: /** @type {HTMLInputElement} */ ($("freqN")),
+        detune: /** @type {HTMLInputElement} */ ($("detune")),
+        detuneN: /** @type {HTMLInputElement} */ ($("detuneN")),
+        gain: /** @type {HTMLInputElement} */ ($("gain")),
+        gainN: /** @type {HTMLInputElement} */ ($("gainN")),
+        scope: /** @type {HTMLInputElement} */ ($("scope")),
+
+        status: $("status"),
+        canvas: /** @type {HTMLCanvasElement} */ ($("canvas")),
+        scopeDot: $("scopeDot"),
+        scopeText: $("scopeText"),
+      };
+
+      const log = createDefaultLogger();
+      const setScopePill = createPillController({ dot: el.scopeDot, text: el.scopeText });
+
+      // Re-wire oscilloscope helpers now that we have real pill/logger.
+      const scopeRenderer = createTimeDomainOscilloscope({
+        canvas: el.canvas,
+        log,
+        setPill: setScopePill,
+      });
+
+      const audio = setupAudioContextControls({
+        log,
+        onContextChanged: newCtx => {
+          ctx = newCtx;
+          if (ctx) startStatusLoop();
+          updateButtons();
+        },
+        onAfterResume: () => {
+          startScopeLoop();
+          updateButtons();
+        },
+        onBeforeClose: async () => {
+          await stopOscillator();
+        },
+        onAfterClose: () => {
+          gainNode = null;
+          analyser = null;
+          scopeMute = null;
+
+          scopeRenderer.stop();
+          clearInterval(statusTimer);
+
+          setScopePill("idle", null);
+          updateButtons();
+        },
+      });
+
+      function updateButtons() {
+        const hasCtx = !!ctx;
+        const hasOsc = !!osc;
+
+        el.btnStart.disabled = !hasCtx || hasOsc;
+        el.btnStop.disabled = !hasCtx || !hasOsc;
+      }
+
+
+      function gainFromUI() {
+        const fromNumber = Number(el.gainN.value);
+        if (Number.isFinite(fromNumber)) return clampNumber(fromNumber, 0, 0.3);
+        const milli = Number(el.gain.value);
+        if (Number.isFinite(milli)) return clampNumber(milli / 1000, 0, 0.3);
+        return 0.05;
+      }
+
+      function applyParams() {
+        if (!ctx) return;
+
+        const freq = parseNumber(el.freqN, 440);
+        const detune = parseNumber(el.detuneN, 0);
+        const gain = gainFromUI();
+        const type = el.type.value;
+
+        if (osc) {
+          try {
+            osc.type = type;
+          } catch (e) {
+            log(`osc.type set failed: ${e}`);
+          }
+          // For this interactive page we prefer immediate value changes over automation scheduling.
+          // This avoids unbounded growth of automation event lists while iterating quickly.
+          try {
+            osc.frequency.value = freq;
+          } catch (e) {
+            log(`osc.frequency.value set failed: ${e}`);
+          }
+          try {
+            osc.detune.value = detune;
+          } catch (e) {
+            log(`osc.detune.value set failed: ${e}`);
+          }
+        }
+        if (gainNode) {
+          try {
+            gainNode.gain.value = gain;
+          } catch (e) {
+            log(`gain.gain.value set failed: ${e}`);
+          }
+        }
+      }
+
+      syncRangeAndNumber(el.freq, el.freqN, applyParams);
+      syncRangeAndNumber(el.detune, el.detuneN, applyParams);
+      // Gain uses a special mapping: range value is milli-gain (0..300 => gain 0..0.300), displayed as float.
+      el.gain.addEventListener("input", () => {
+        const milli = Number(el.gain.value);
+        if (Number.isFinite(milli)) el.gainN.value = (milli / 1000).toFixed(3);
+        applyParams();
+      });
+      el.gainN.addEventListener("input", () => {
+        const g = gainFromUI();
+        el.gain.value = String(Math.round(g * 1000));
+        applyParams();
+      });
+      el.type.addEventListener("change", applyParams);
+
+      function ensureNodes() {
+        if (!ctx) throw new Error("AudioContext not initialized");
+
+        if (!gainNode) gainNode = ctx.createGain();
+
+        // Keep a muted sink node around so the analyser can be part of the render graph
+        // without affecting the audible output.
+        if (!scopeMute) {
+          scopeMute = ctx.createGain();
+          scopeMute.gain.value = 0.0;
+          scopeMute.connect(ctx.destination);
+        }
+
+        if (el.scope.checked) {
+          if (!analyser) {
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.0;
+          }
+        }
+      }
+
+      function connectGraph() {
+        if (!ctx || !osc || !gainNode || !scopeMute) return;
+
+        // Keep the audible chain stable.
+        try {
+          osc.connect(gainNode);
+        } catch (e) { }
+        try {
+          gainNode.connect(ctx.destination);
+        } catch (e) { }
+
+        // Update the analyser tap. Route analyser output into a muted GainNode so it
+        // doesn't affect audible output but stays reachable from the destination.
+        if (el.scope.checked && analyser) {
+          try {
+            gainNode.disconnect(analyser);
+          } catch (e) { }
+          try {
+            analyser.disconnect(scopeMute);
+          } catch (e) { }
+          try {
+            gainNode.connect(analyser);
+          } catch (e) { }
+          try {
+            analyser.connect(scopeMute);
+          } catch (e) { }
+        } else if (analyser) {
+          try {
+            gainNode.disconnect(analyser);
+          } catch (e) { }
+          try {
+            analyser.disconnect(scopeMute);
+          } catch (e) { }
+        }
+      }
+
+      function startScopeLoop() {
+        scopeRenderer.start({ analyser: analyser, enabled: !!ctx && !!analyser && el.scope.checked });
+      }
+
+      function startStatusLoop() {
+        clearInterval(statusTimer);
+
+        statusTimer = setInterval(() => {
+          const hasCtx = !!ctx;
+          const hasOsc = !!osc;
+
+          const state = hasCtx ? ctx.state : "uninitialized";
+          const sampleRate = hasCtx ? ctx.sampleRate : 0;
+          const t = hasCtx ? ctx.currentTime : 0;
+
+          const lines = [];
+          lines.push(`ctx.state=${state}`);
+          if (hasCtx) {
+            lines.push(`ctx.sampleRate=${sampleRate}`);
+            lines.push(`ctx.currentTime=${t.toFixed(6)}`);
+          }
+          lines.push(`osc=${hasOsc ? "active" : "none"}`);
+          lines.push(`freq=${el.freqN.value}`);
+          lines.push(`detune=${el.detuneN.value}`);
+          lines.push(`gainN=${el.gainN.value}`);
+          lines.push(`gainSliderMilli=${el.gain.value}`);
+          lines.push(`gainComputed=${gainFromUI().toFixed(6)}`);
+          lines.push(`type=${el.type.value}`);
+
+          el.status.textContent = lines.join("\n");
+          updateButtons();
+        }, 80);
+      }
+
+      async function startOscillator() {
+        if (!ctx) return;
+
+        if (osc) return;
+
+        try {
+          ensureNodes();
+          osc = ctx.createOscillator();
+
+          try {
+            gainNode.gain.value = gainFromUI();
+          } catch (e) {
+            log(`gain.gain.value set failed: ${e}`);
+          }
+
+          connectGraph();
+          applyParams();
+
+          osc.start();
+          log("osc.start() ok");
+
+          if (ctx.state !== "running") await audio.resume();
+
+          startScopeLoop();
+          updateButtons();
+        } catch (e) {
+          log(`Start oscillator failed: ${e}`);
+          osc = null;
+          throw e;
+        }
+      }
+
+      async function stopOscillator() {
+        if (!ctx) return;
+
+        if (!osc) return;
+
+        try {
+          osc.stop();
+          log("osc.stop() ok");
+        } catch (e) {
+          log(`osc.stop() threw: ${e}`);
+        }
+
+        try {
+          osc.disconnect();
+        } catch (e) { }
+        osc = null;
+
+        try {
+          gainNode && gainNode.disconnect();
+        } catch (e) { }
+        try {
+          analyser && analyser.disconnect();
+        } catch (e) { }
+
+        startScopeLoop();
+        updateButtons();
+      }
+
+      el.btnStart.addEventListener("click", async () => {
+        await audio.initAndResume();
+        await startOscillator();
+      });
+
+      el.btnStop.addEventListener("click", async () => {
+        await stopOscillator();
+      });
+
+      el.scope.addEventListener("change", () => {
+        if (!ctx) {
+          startScopeLoop();
+          return;
+        }
+
+        try {
+          ensureNodes();
+          if (osc) connectGraph();
+        } catch (e) {
+          log(`Scope toggle error: ${e}`);
+        }
+
+        startScopeLoop();
+      });
+
+      updateButtons();
+      setScopePill("idle", null);
+    })();
+  </script>
+</body>
+</html>

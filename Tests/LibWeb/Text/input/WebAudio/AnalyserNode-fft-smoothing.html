@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="utf-8">
+  <title>AnalyserNode FFT/smoothing smoke test</title>
+  <script src="../include.js"></script>
+</head>
+
+<body>
+  <script>
+    'use strict';
+
+    function blackmanWindowValue(n, N) {
+      const a = 0.16;
+      const a0 = 0.5 * (1 - a);
+      const a1 = 0.5;
+      const a2 = 0.5 * a;
+      const denom = N;
+      return a0 - (a1 * Math.cos(2 * Math.PI * n / denom)) + (a2 * Math.cos(4 * Math.PI * n / denom));
+    }
+
+    function approxEqual(a, b, eps) {
+      return Math.abs(a - b) <= eps;
+    }
+
+    function assert(condition, message) {
+      if (!condition)
+        throw new Error(message);
+    }
+
+    promiseTest(async () => {
+      const sampleRate = 44100;
+      const quantumSize = 128;
+      const fftSize = 32;
+      const impulseIndex = fftSize / 2;
+
+      function makeImpulseBuffer(context, lengthInFrames) {
+        const buffer = context.createBuffer(1, lengthInFrames, sampleRate);
+        const data = buffer.getChannelData(0);
+
+        // Place the impulse in the last fftSize frames of the first render quantum,
+        // at impulseIndex within the analyser's fftSize window.
+        const impulseFrame = (quantumSize - fftSize) + impulseIndex;
+        assert(impulseFrame >= 0 && impulseFrame < data.length, 'impulse frame must be in-range');
+        data[impulseFrame] = 1;
+
+        return buffer;
+      }
+
+      // 1) FFT + Blackman + dB yields a flat spectrum for a single windowed impulse.
+      {
+        const context = new OfflineAudioContext(1, quantumSize, sampleRate);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = fftSize;
+        analyser.smoothingTimeConstant = 0;
+
+        const source = context.createBufferSource();
+        source.buffer = makeImpulseBuffer(context, quantumSize);
+        source.connect(analyser);
+        analyser.connect(context.destination);
+        source.start();
+
+        await context.startRendering();
+
+        const bins = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(bins);
+
+        const w = blackmanWindowValue(impulseIndex, fftSize);
+        assert(w > 0, 'window value must be > 0 at the chosen index');
+        // Our AnalyserNode implementation normalizes FFT magnitudes by fftSize.
+        // This keeps magnitudes consistent across different fftSize values.
+        const expected = 20 * Math.log10(w / fftSize);
+
+        for (let i = 0; i < bins.length; ++i) {
+          assert(Number.isFinite(bins[i]), `bin ${i} should be finite`);
+          assert(approxEqual(bins[i], expected, 1e-3), `bin ${i} expected ~${expected}, got ${bins[i]}`);
+        }
+      }
+
+      // 2) Smoothing affects the next render quantum, and repeated queries are cached.
+      // We compare the output after one quantum (impulse) to the output after two quanta
+      // (impulse then silence). With smoothingTimeConstant=0.5, the second result is
+      // expected to be down by -20*log10(2) relative to the first.
+      let binsA;
+      {
+        const context = new OfflineAudioContext(1, quantumSize, sampleRate);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = fftSize;
+        analyser.smoothingTimeConstant = 0.5;
+
+        const source = context.createBufferSource();
+        source.buffer = makeImpulseBuffer(context, quantumSize);
+        source.connect(analyser);
+        analyser.connect(context.destination);
+        source.start();
+
+        await context.startRendering();
+
+        binsA = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(binsA);
+
+        const binsARepeat = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(binsARepeat);
+        for (let i = 0; i < binsA.length; ++i)
+          assert(approxEqual(binsARepeat[i], binsA[i], 1e-7), `bin ${i} expected cached repeat match, got ${binsARepeat[i]} vs ${binsA[i]}`);
+      }
+
+      {
+        const context = new OfflineAudioContext(1, 2 * quantumSize, sampleRate);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = fftSize;
+        analyser.smoothingTimeConstant = 0.5;
+
+        const source = context.createBufferSource();
+        source.buffer = makeImpulseBuffer(context, 2 * quantumSize);
+        source.connect(analyser);
+        analyser.connect(context.destination);
+        source.start();
+
+        await context.startRendering();
+
+        const binsB = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(binsB);
+
+        const expectedDelta = -20 * Math.log10(2);
+        for (let i = 0; i < binsA.length; ++i) {
+          assert(approxEqual(binsB[i] - binsA[i], expectedDelta, 1e-2), `bin ${i} expected delta ~${expectedDelta}, got ${binsB[i] - binsA[i]}`);
+        }
+      }
+
+      println('passed');
+    });
+  </script>
+</body>

@@ -10,6 +10,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/CopyOnWrite.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -210,7 +211,11 @@ URL create_with_data(StringView mime_type, StringView payload, bool is_base64 = 
 bool is_public_suffix(StringView host);
 Optional<String> get_registrable_domain(StringView host);
 
-inline URL about_blank() { return URL::about("blank"_string); }
+inline URL const& about_blank()
+{
+    static NeverDestroyed<URL> url(URL::about("blank"_string));
+    return url.get();
+}
 inline URL about_srcdoc() { return URL::about("srcdoc"_string); }
 
 inline URL about_error() { return URL::about("error"_string); }

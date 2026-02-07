@@ -1,0 +1,23 @@
+<!doctype html>
+<title>Test use of 'process' getter for AudioWorkletProcessor callback</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+const do_test = async (node_name) => {
+  const context = new AudioContext();
+  const filePath = `processors/${node_name}-processor.js`;
+  await context.audioWorklet.addModule(filePath);
+  const node = new AudioWorkletNode(context, node_name);
+  const event = await new Promise((resolve) => {
+    node.port.onmessage = resolve;
+  });
+  assert_equals(event.data.message, "done");
+};
+
+// Includes testing for https://github.com/WebAudio/web-audio-api/pull/2104
+promise_test(async () => do_test('process-getter-test-prototype'),
+             "'process' getter on prototype");
+
+promise_test(async () => do_test('process-getter-test-instance'),
+             "'process' getter on instance");
+</script>

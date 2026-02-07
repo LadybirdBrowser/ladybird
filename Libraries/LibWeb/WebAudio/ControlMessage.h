@@ -21,9 +21,21 @@ struct StopSource {
     double when { 0.0 };
 };
 
-// FIXME: add more message types
+// These are low-frequency, discrete control events. High-frequency AudioParam automation is
+// handled with RenderGraph updates (separate from this queue).
+
+struct SuspendContext {
+    u64 generation { 0 };
+};
+
+struct ResumeContext {
+    u64 generation { 0 };
+};
+
+struct CloseContext {
+};
 
 // https://webaudio.github.io/web-audio-api/#control-message
-using ControlMessage = Variant<StartSource, StopSource>;
+using ControlMessage = Variant<StartSource, StopSource, SuspendContext, ResumeContext, CloseContext>;
 
 }

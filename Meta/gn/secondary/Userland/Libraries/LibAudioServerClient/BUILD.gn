@@ -1,0 +1,42 @@
+import("//Meta/gn/build/compiled_action.gni")
+
+compiled_action("AudioServerClientEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/AudioServer/AudioServerClient.ipc" ]
+  outputs = [ "$root_gen_dir/AudioServer/AudioServerClientEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("AudioServerServerEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/AudioServer/AudioServerServer.ipc" ]
+  outputs = [ "$root_gen_dir/AudioServer/AudioServerServerEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+shared_library("LibAudioServerClient") {
+  output_name = "audioserverclient"
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+    "//Userland/",
+  ]
+  deps = [
+    ":AudioServerClientEndpoint",
+    ":AudioServerServerEndpoint",
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibIPC",
+  ]
+  sources = [ "Client.cpp" ]
+  sources += get_target_outputs(":AudioServerClientEndpoint") +
+             get_target_outputs(":AudioServerServerEndpoint")
+}

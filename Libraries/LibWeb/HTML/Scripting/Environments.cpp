@@ -183,8 +183,12 @@ void clean_up_after_running_script(JS::Realm const& realm)
     vm.pop_execution_context();
 
     // 3. If the JavaScript execution context stack is now empty, perform a microtask checkpoint. (If this runs scripts, these algorithms will be invoked reentrantly.)
-    if (vm.execution_context_stack().is_empty())
-        main_thread_event_loop().perform_a_microtask_checkpoint();
+    if (vm.execution_context_stack().is_empty()) {
+        auto* agent = dynamic_cast<HTML::Agent*>(vm.agent());
+        VERIFY(agent);
+        VERIFY(agent->event_loop);
+        agent->event_loop->perform_a_microtask_checkpoint();
+    }
 }
 
 static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm)
@@ -206,10 +210,15 @@ void prepare_to_run_callback(JS::Realm& realm)
 {
     auto& vm = realm.global_object().vm();
 
+    auto* agent = dynamic_cast<HTML::Agent*>(vm.agent());
+    VERIFY(agent);
+    VERIFY(agent->event_loop);
+    auto& event_loop = *agent->event_loop;
+
     // 1. Push realm onto the backup incumbent settings object stack.
     // NOTE: The spec doesn't say which event loop's stack to put this on. However, all the examples of the incumbent settings object use iframes and cross browsing context communication to demonstrate the concept.
     //       This means that it must rely on some global state that can be accessed by all browsing contexts, which is the main thread event loop.
-    HTML::main_thread_event_loop().push_onto_backup_incumbent_realm_stack(realm);
+    event_loop.push_onto_backup_incumbent_realm_stack(realm);
 
     // 2. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);
@@ -270,6 +279,11 @@ void clean_up_after_running_callback(JS::Realm const& realm)
 {
     auto& vm = realm.global_object().vm();
 
+    auto* agent = dynamic_cast<HTML::Agent*>(vm.agent());
+    VERIFY(agent);
+    VERIFY(agent->event_loop);
+    auto& event_loop = *agent->event_loop;
+
     // 1. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);
 
@@ -279,7 +293,6 @@ void clean_up_after_running_callback(JS::Realm const& realm)
     }
 
     // 3. Assert: the topmost entry of the backup incumbent realm stack is realm.
-    auto& event_loop = HTML::main_thread_event_loop();
     VERIFY(&event_loop.top_of_backup_incumbent_realm_stack() == &realm);
 
     // 4. Remove realm from the backup incumbent realm stack.
@@ -376,10 +389,12 @@ ModuleMap& module_map_of_realm(JS::Realm& realm)
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-realm
 // https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#concept-incumbent-realm
-JS::Realm& incumbent_realm()
+JS::Realm& incumbent_realm(JS::VM& vm)
 {
-    auto& event_loop = HTML::main_thread_event_loop();
-    auto& vm = event_loop.vm();
+    auto* agent = dynamic_cast<HTML::Agent*>(vm.agent());
+    VERIFY(agent);
+    VERIFY(agent->event_loop);
+    auto& event_loop = *agent->event_loop;
 
     // 1. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);
@@ -397,6 +412,12 @@ JS::Realm& incumbent_realm()
 
     // 3. Return context's Realm component.
     return *context->realm;
+}
+
+JS::Realm& incumbent_realm()
+{
+    auto& event_loop = HTML::main_thread_event_loop();
+    return incumbent_realm(event_loop.vm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#incumbent-settings-object

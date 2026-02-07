@@ -21,7 +21,7 @@ namespace IPC {
 
 class SendQueue : public AtomicRefCounted<SendQueue> {
 public:
-    void enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds);
+    void enqueue_message(Vector<u8> bytes, Vector<int> fds);
     struct BytesAndFds {
         Vector<u8> bytes;
         Vector<int> fds;
@@ -55,7 +55,7 @@ public:
 
     void post_message(Vector<u8> const&, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const&);
 
-    enum class ShouldShutdown {
+    enum class ShouldShutdown : u8 {
         No,
         Yes,
     };
@@ -71,7 +71,7 @@ public:
     ErrorOr<IPC::File> clone_for_transfer();
 
 private:
-    enum class TransferState {
+    enum class TransferState : u8 {
         Continue,
         SocketClosed,
     };
@@ -79,7 +79,7 @@ private:
 
     static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
 
-    enum class IOThreadState {
+    enum class IOThreadState : u8 {
         Running,
         SendPendingMessagesAndStop,
         Stopped,
@@ -88,6 +88,7 @@ private:
     void stop_io_thread(IOThreadState desired_state);
     void wake_io_thread();
     void read_incoming_messages();
+    void notify_read_available();
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
 

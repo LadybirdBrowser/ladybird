@@ -625,16 +625,14 @@
             let tabs = [];
 
             if (test.mode === 'Layout' || test.mode === 'Text') {
-                tabs.push({ id: 'diff', label: 'Diff', file: `${test.name}.diff.html`, type: 'diff' });
-                tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
-                tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
+                if (test.hasDiff) tabs.push({ id: 'diff', label: 'Diff', file: `${test.name}.diff.html`, type: 'diff' });
+                if (test.hasExpected) tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
+                if (test.hasActual) tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
             } else if (test.mode === 'Ref') {
                 tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, type: 'imageDiff' });
             }
-
-            if (test.hasStdout) tabs.push({ id: 'stdout', label: 'stdout', file: `${test.name}.stdout.txt`, type: 'text' });
-            if (test.hasStderr) tabs.push({ id: 'stderr', label: 'stderr', file: `${test.name}.stderr.txt`, type: 'text' });
-
+            if (test.hasLogging)
+                tabs.push({ id: 'logging', label: 'Logs', file: `${test.name}.logging.txt`, type: 'text' });
             const bar = tabs.map((t, i) =>
                 `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="showTab('${test.name.replace(/[^a-zA-Z0-9]/g, '-')}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, this)">${t.label}</button>`
             ).join('');

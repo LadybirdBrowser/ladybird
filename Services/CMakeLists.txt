@@ -1,5 +1,7 @@
 add_subdirectory(ImageDecoder)
+add_subdirectory(AudioServer)
 add_subdirectory(RequestServer)
+add_subdirectory(WebAudioWorker)
 add_subdirectory(WebContent)
 add_subdirectory(WebDriver)
 add_subdirectory(WebWorker)

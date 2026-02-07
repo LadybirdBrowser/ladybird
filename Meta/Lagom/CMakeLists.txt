@@ -211,6 +211,12 @@ endif()
 # Lagom Libraries
 # FIXME: Move these calls to the relevant client library CMakeLists
 # Note that the Services themselves are only built if ENABLE_GUI_TARGETS, from top level.
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/AudioServer/AudioServerClient.ipc Services/AudioServer/AudioServerClientEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/AudioServer/AudioServerServer.ipc Services/AudioServer/AudioServerServerEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebAudioWorker/WebAudioClient.ipc Services/AudioServer/WebAudioClientEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebAudioWorker/WebAudioServer.ipc Services/AudioServer/WebAudioServerEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebAudioWorker/WebAudioWorkerClient.ipc Services/WebAudioWorker/WebAudioWorkerClientEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebAudioWorker/WebAudioWorkerServer.ipc Services/WebAudioWorker/WebAudioWorkerServerEndpoint.h)
 compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
 compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
 compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)

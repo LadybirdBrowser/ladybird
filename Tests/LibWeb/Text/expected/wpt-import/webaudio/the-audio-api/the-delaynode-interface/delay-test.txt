@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "test0"
+Pass	Audit report
+Pass	> [test0] Test delay of 3 frames
+Pass	  Creating ConstantSourceNode(context) and DelayNode(context) did not throw an exception.
+Pass	  Setting delayTime to 3 frames did not throw an exception.
+Pass	  output[0:2] contains only the constant 0.
+Pass	  output[3:127] contains only the constant 1.
+Pass	< [test0] All assertions passed. (total 4 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

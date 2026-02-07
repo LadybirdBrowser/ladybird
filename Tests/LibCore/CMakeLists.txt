@@ -5,6 +5,8 @@ set(TEST_SOURCES
     TestLibCoreMappedFile.cpp
     TestLibCoreMimeType.cpp
     TestLibCorePromise.cpp
+    TestLibCoreSharedBufferStream.cpp
+    TestLibCoreSharedSingleProducerCircularBuffer.cpp
     TestLibCoreSharedSingleProducerCircularQueue.cpp
     TestLibCoreStream.cpp
 )
@@ -29,6 +31,7 @@ if(NOT WIN32)
 endif()
 
 target_link_libraries(TestLibCoreSharedSingleProducerCircularQueue PRIVATE LibThreading)
+target_link_libraries(TestLibCoreSharedSingleProducerCircularBuffer PRIVATE LibThreading)
 
 if(ENABLE_SWIFT)
     find_package(SwiftTesting REQUIRED)
