@@ -32,12 +32,6 @@ void RequestClient::die()
     m_pending_cache_size_estimations.clear();
 }
 
-void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel cache_level)
-{
-    auto request_id = m_next_request_id++;
-    async_ensure_connection(request_id, url, cache_level);
-}
-
 RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, Core::ProxyData const& proxy_data)
 {
     auto request_id = m_next_request_id++;
@@ -49,23 +43,17 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     return request;
 }
 
-void RequestClient::request_started(u64 request_id, IPC::File response_file)
-{
-    auto request = m_requests.get(request_id);
-    if (!request.has_value()) {
-        warnln("Received response for non-existent request {}", request_id);
-        return;
-    }
-
-    auto response_fd = response_file.take_fd();
-    request.value()->set_request_fd({}, response_fd);
-}
-
 bool RequestClient::stop_request(Badge<Request>, Request& request)
 {
     if (!m_requests.contains(request.id()))
         return false;
     return IPCProxy::stop_request(request.id());
+}
+
+void RequestClient::ensure_connection(URL::URL const& url, RequestServer::CacheLevel cache_level)
+{
+    auto request_id = m_next_request_id++;
+    async_ensure_connection(request_id, url, cache_level);
 }
 
 bool RequestClient::set_certificate(Badge<Request>, Request& request, ByteString certificate, ByteString key)
@@ -93,30 +81,38 @@ void RequestClient::estimated_cache_size(u64 cache_size_estimation_id, CacheSize
         (*promise)->resolve(sizes);
 }
 
+void RequestClient::request_started(u64 request_id, IPC::File response_file)
+{
+    auto request = m_requests.get(request_id);
+    if (!request.has_value()) {
+        warnln("Received response for non-existent request {}", request_id);
+        return;
+    }
+
+    auto response_fd = response_file.take_fd();
+    request.value()->set_request_fd({}, response_fd);
+}
+
 void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimingInfo timing_info, Optional<NetworkError> network_error)
 {
-    RefPtr<Request> request;
-    if ((request = m_requests.get(request_id).value_or(nullptr))) {
+    if (RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr)) {
         request->did_finish({}, total_size, timing_info, network_error);
+        m_requests.remove(request_id);
     }
-    m_requests.remove(request_id);
 }
 
 void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase)
 {
-    auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
-    if (!request) {
+    if (auto request = m_requests.get(request_id); request.has_value())
+        (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase);
+    else
         warnln("Received headers for non-existent request {}", request_id);
-        return;
-    }
-    request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase);
 }
 
 void RequestClient::certificate_requested(u64 request_id)
 {
-    if (auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr))) {
-        request->did_request_certificates({});
-    }
+    if (auto request = m_requests.get(request_id); request.has_value())
+        (*request)->did_request_certificates({});
 }
 
 RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers)
@@ -130,54 +126,47 @@ RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, ByteStri
 
 void RequestClient::websocket_connected(u64 websocket_id)
 {
-    auto maybe_connection = m_websockets.get(websocket_id);
-    if (maybe_connection.has_value())
-        maybe_connection.value()->did_open({});
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+        (*connection)->did_open({});
 }
 
 void RequestClient::websocket_received(u64 websocket_id, bool is_text, ByteBuffer data)
 {
-    auto maybe_connection = m_websockets.get(websocket_id);
-    if (maybe_connection.has_value())
-        maybe_connection.value()->did_receive({}, move(data), is_text);
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+        (*connection)->did_receive({}, move(data), is_text);
 }
 
 void RequestClient::websocket_errored(u64 websocket_id, i32 message)
 {
-    auto maybe_connection = m_websockets.get(websocket_id);
-    if (maybe_connection.has_value())
-        maybe_connection.value()->did_error({}, message);
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+        (*connection)->did_error({}, message);
 }
 
 void RequestClient::websocket_closed(u64 websocket_id, u16 code, ByteString reason, bool clean)
 {
-    auto maybe_connection = m_websockets.get(websocket_id);
-    if (maybe_connection.has_value())
-        maybe_connection.value()->did_close({}, code, move(reason), clean);
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+        (*connection)->did_close({}, code, move(reason), clean);
 }
 
 void RequestClient::websocket_ready_state_changed(u64 websocket_id, u32 ready_state)
 {
-    auto maybe_connection = m_websockets.get(websocket_id);
-    if (maybe_connection.has_value()) {
-        VERIFY(ready_state <= static_cast<u32>(WebSocket::ReadyState::Closed));
-        maybe_connection.value()->set_ready_state(static_cast<WebSocket::ReadyState>(ready_state));
-    }
+    VERIFY(ready_state <= static_cast<u32>(WebSocket::ReadyState::Closed));
+
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+        (*connection)->set_ready_state(static_cast<WebSocket::ReadyState>(ready_state));
 }
 
 void RequestClient::websocket_subprotocol(u64 websocket_id, ByteString subprotocol)
 {
-    auto maybe_connection = m_websockets.get(websocket_id);
-    if (maybe_connection.has_value()) {
-        maybe_connection.value()->set_subprotocol_in_use(move(subprotocol));
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value()) {
+        (*connection)->set_subprotocol_in_use(move(subprotocol));
     }
 }
 
 void RequestClient::websocket_certificate_requested(u64 websocket_id)
 {
-    auto maybe_connection = m_websockets.get(websocket_id);
-    if (maybe_connection.has_value())
-        maybe_connection.value()->did_request_certificates({});
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+        (*connection)->did_request_certificates({});
 }
 
 }

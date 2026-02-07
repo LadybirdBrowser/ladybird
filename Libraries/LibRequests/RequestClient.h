@@ -33,13 +33,12 @@ public:
     virtual ~RequestClient() override;
 
     RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, Core::ProxyData const& = {});
+    bool stop_request(Badge<Request>, Request&);
+    void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
+
+    bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
     RefPtr<WebSocket> websocket_connect(URL::URL const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
-
-    void ensure_connection(URL::URL const&, ::RequestServer::CacheLevel);
-
-    bool stop_request(Badge<Request>, Request&);
-    bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
     NonnullRefPtr<Core::Promise<CacheSizes>> estimate_cache_size_accessed_since(UnixDateTime since);
 
@@ -50,8 +49,9 @@ private:
 
     virtual void request_started(u64 request_id, IPC::File) override;
     virtual void request_finished(u64 request_id, u64, RequestTimingInfo, Optional<NetworkError>) override;
-    virtual void certificate_requested(u64 request_id) override;
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>) override;
+
+    virtual void certificate_requested(u64 request_id) override;
 
     virtual void websocket_connected(u64 websocket_id) override;
     virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
