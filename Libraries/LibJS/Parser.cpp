@@ -2435,14 +2435,6 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
 
     check_for_invalid_object_property(expression);
 
-    if (is<CallExpression>(*expression) && m_state.current_scope_pusher) {
-        auto& callee = static_ptr_cast<CallExpression const>(expression)->callee();
-        if (is<Identifier>(callee) && static_cast<Identifier const&>(callee).string() == "eval"sv) {
-            m_state.current_scope_pusher->set_contains_direct_call_to_eval();
-            m_state.current_scope_pusher->set_uses_this();
-        }
-    }
-
     if (match(TokenType::Comma) && min_precedence <= 1) {
         Vector<NonnullRefPtr<Expression const>> expressions;
         expressions.append(expression);
@@ -2782,7 +2774,17 @@ NonnullRefPtr<Expression const> Parser::parse_call_expression(NonnullRefPtr<Expr
     if (is<SuperExpression>(*lhs))
         return create_ast_node<SuperCall>({ m_source_code, rule_start.position(), position() }, move(arguments));
 
-    return CallExpression::create({ m_source_code, rule_start.position(), position() }, move(lhs), arguments.span(), InvocationStyleEnum::Parenthesized, InsideParenthesesEnum::NotInsideParentheses);
+    auto call_expression = CallExpression::create({ m_source_code, rule_start.position(), position() }, move(lhs), arguments.span(), InvocationStyleEnum::Parenthesized, InsideParenthesesEnum::NotInsideParentheses);
+
+    if (m_state.current_scope_pusher) {
+        auto& callee = call_expression->callee();
+        if (is<Identifier>(callee) && static_cast<Identifier const&>(callee).string() == "eval"sv) {
+            m_state.current_scope_pusher->set_contains_direct_call_to_eval();
+            m_state.current_scope_pusher->set_uses_this();
+        }
+    }
+
+    return call_expression;
 }
 
 NonnullRefPtr<NewExpression const> Parser::parse_new_expression()
