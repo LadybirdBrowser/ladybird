@@ -36,10 +36,11 @@ NonnullOwnPtr<Request> Request::fetch(
     ByteString method,
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
+    HTTP::Cookie::IncludeCredentials include_credentials,
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, Type::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, Type::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
     request->process();
 
     return request;
@@ -77,10 +78,11 @@ NonnullOwnPtr<Request> Request::revalidate(
     ByteString method,
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
+    HTTP::Cookie::IncludeCredentials include_credentials,
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, Type::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, Type::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
     request->process();
 
     return request;
@@ -98,6 +100,7 @@ Request::Request(
     ByteString method,
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
+    HTTP::Cookie::IncludeCredentials include_credentials,
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
     : m_request_id(request_id)
@@ -111,6 +114,7 @@ Request::Request(
     , m_method(move(method))
     , m_request_headers(move(request_headers))
     , m_request_body(move(request_body))
+    , m_include_credentials(include_credentials)
     , m_alt_svc_cache_path(move(alt_svc_cache_path))
     , m_proxy_data(proxy_data)
     , m_response_headers(HTTP::HeaderList::create())
@@ -162,6 +166,16 @@ void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
     // FIXME: We may want a timer to limit how long we are waiting for a request before proceeding with a network
     //        request that skips the disk cache.
     transition_to_state(State::Init);
+}
+
+void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie)
+{
+    if (!cookie.is_empty()) {
+        auto header = HTTP::Header::isomorphic_encode("Cookie"sv, cookie);
+        m_request_headers->append(move(header));
+    }
+
+    transition_to_state(State::Fetch);
 }
 
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
@@ -216,6 +230,9 @@ void Request::process()
     case State::DNSLookup:
         handle_dns_lookup_state();
         break;
+    case State::RetrieveCookie:
+        handle_retrieve_cookie_state();
+        break;
     case State::Connect:
         handle_connect_state();
         break;
@@ -255,7 +272,7 @@ void Request::handle_initial_state()
 
                     if (m_cache_entry_reader.has_value()) {
                         if (m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::StaleWhileRevalidate)
-                            m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_proxy_data);
+                            m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials, m_proxy_data);
 
                         if (is_revalidation_request())
                             transition_to_state(State::DNSLookup);
@@ -430,11 +447,26 @@ void Request::handle_dns_lookup_state()
                 transition_to_state(State::Error);
             } else if (m_type == Type::Fetch || m_type == Type::BackgroundRevalidation) {
                 m_dns_result = move(dns_result);
-                transition_to_state(State::Fetch);
+                transition_to_state(State::RetrieveCookie);
             } else {
                 transition_to_state(State::Complete);
             }
         });
+}
+
+void Request::handle_retrieve_cookie_state()
+{
+    if (m_include_credentials == HTTP::Cookie::IncludeCredentials::No) {
+        transition_to_state(State::Fetch);
+        return;
+    }
+
+    if (auto connection = ConnectionFromClient::primary_connection(); connection.has_value()) {
+        connection->async_retrieve_http_cookie(m_client.client_id(), m_request_id, m_url);
+    } else {
+        m_network_error = Requests::NetworkError::RequestServerDied;
+        transition_to_state(State::Error);
+    }
 }
 
 void Request::handle_connect_state()

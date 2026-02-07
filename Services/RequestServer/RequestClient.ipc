@@ -10,6 +10,8 @@ endpoint RequestClient
     request_finished(u64 request_id, u64 total_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
     headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase) =|
 
+    retrieve_http_cookie(int client_id, u64 request_id, URL::URL url) =|
+
     // Websocket API
     // FIXME: See if this can be merged with the regular APIs
     websocket_connected(u64 websocket_id) =|

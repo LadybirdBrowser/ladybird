@@ -8,10 +8,8 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
-#include <LibTextCodec/Encoder.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/CookieJar.h>
 #include <LibWebView/FileDownloader.h>
 
 namespace WebView {
@@ -33,7 +31,6 @@ void FileDownloader::download_file(URL::URL const& url, LexicalPath destination)
     // FIXME: What other request headers should be set? Perhaps we want to use exactly the same request headers used to
     //        originally fetch the image in WebContent.
     auto request_headers = HTTP::HeaderList::create();
-    request_headers->set({ "Cookie"sv, TextCodec::isomorphic_encode(Application::cookie_jar().get_cookie(url, HTTP::Cookie::Source::Http)) });
     request_headers->set({ "User-Agent"sv, Web::default_user_agent });
 
     auto request = Application::request_server_client().start_request("GET"sv, url, *request_headers);

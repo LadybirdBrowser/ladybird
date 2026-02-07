@@ -32,12 +32,12 @@ void RequestClient::die()
     m_pending_cache_size_estimations.clear();
 }
 
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, Core::ProxyData const& proxy_data)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData const& proxy_data)
 {
     auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
 
-    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, proxy_data);
+    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data);
     auto request = Request::create_from_id({}, *this, request_id);
     m_requests.set(request_id, request);
     return request;
@@ -107,6 +107,16 @@ void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header
         (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase);
     else
         warnln("Received headers for non-existent request {}", request_id);
+}
+
+void RequestClient::retrieve_http_cookie(int client_id, u64 request_id, URL::URL url)
+{
+    String cookie;
+
+    if (on_retrieve_http_cookie)
+        cookie = on_retrieve_http_cookie(url);
+
+    async_retrieved_http_cookie(client_id, request_id, cookie);
 }
 
 void RequestClient::certificate_requested(u64 request_id)

@@ -112,6 +112,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     RequestServer::ConnectionFromClient::set_connections(connections);
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>());
+    client->mark_as_primary_connection();
 
     return event_loop.exec();
 }

@@ -14,7 +14,6 @@
 #include <AK/ScopeGuard.h>
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibHTTP/Cache/Utilities.h>
-#include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibRequests/Request.h>
@@ -1724,20 +1723,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         if (include_credentials == HTTP::Cookie::IncludeCredentials::Yes) {
             // 1. If the user agent is not configured to block cookies for httpRequest (see section 7 of [COOKIES]),
             //    then:
-            if (true) {
-                // 1. Let cookies be the result of running the "cookie-string" algorithm (see section 5.4 of [COOKIES])
-                //    with the user agent’s cookie store and httpRequest’s current URL.
-                auto cookies = ([&] {
-                    auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm));
-                    return page.client().page_did_request_cookie(http_request->current_url(), HTTP::Cookie::Source::Http).cookie;
-                })();
-
-                // 2. If cookies is not the empty string, then append (`Cookie`, cookies) to httpRequest’s header list.
-                if (!cookies.is_empty()) {
-                    auto header = HTTP::Header::isomorphic_encode("Cookie"sv, cookies);
-                    http_request->header_list()->append(move(header));
-                }
-            }
+            //     1. Let cookies be the result of running the "cookie-string" algorithm (see section 5.4 of [COOKIES])
+            //        with the user agent’s cookie store and httpRequest’s current URL.
+            //     2. If cookies is not the empty string, then append (`Cookie`, cookies) to httpRequest’s header list.
+            // NB: HTTP cookies are attached by RequestServer.
 
             // 2. If httpRequest’s header list does not contain `Authorization`, then:
             if (!http_request->header_list()->contains("Authorization"sv)) {
@@ -2053,7 +2042,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_page(page);
     load_request.set_method(request->method());
     load_request.set_cache_mode(request->cache_mode());
-    load_request.set_store_set_cookie_headers(include_credentials == HTTP::Cookie::IncludeCredentials::Yes);
+    load_request.set_include_credentials(include_credentials);
     load_request.set_initiator_type(request->initiator_type());
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {

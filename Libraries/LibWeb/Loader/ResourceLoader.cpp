@@ -471,7 +471,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return nullptr;
     }
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), proxy);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;
@@ -501,7 +501,7 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
     if (!request.page())
         return;
 
-    if (request.store_set_cookie_headers()) {
+    if (request.include_credentials() == HTTP::Cookie::IncludeCredentials::Yes) {
         // From https://fetch.spec.whatwg.org/#concept-http-network-fetch:
         // 15. If includeCredentials is true, then the user agent should parse and store response
         //     `Set-Cookie` headers given request and response.
