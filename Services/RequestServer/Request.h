@@ -15,6 +15,7 @@
 #include <LibDNS/Resolver.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/CacheRequest.h>
+#include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -40,6 +41,7 @@ public:
         ByteString method,
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
+        HTTP::Cookie::IncludeCredentials include_credentials,
         ByteString alt_svc_cache_path,
         Core::ProxyData proxy_data);
 
@@ -61,6 +63,7 @@ public:
         ByteString method,
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
+        HTTP::Cookie::IncludeCredentials include_credentials,
         ByteString alt_svc_cache_path,
         Core::ProxyData proxy_data);
 
@@ -74,8 +77,10 @@ public:
 
     u64 request_id() const { return m_request_id; }
     Type type() const { return m_type; }
+    URL::URL const& url() const { return m_url; }
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
+    void notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
 private:
@@ -86,6 +91,7 @@ private:
         FailedCacheOnly,   // An only-if-cached request failed to find a cache entry.
         ServeSubstitution, // Serve content from a local file substitution.
         DNSLookup,         // Resolve the URL's host.
+        RetrieveCookie,    // Retrieve cookies from the UI process.
         Connect,           // Issue a network request to connect to the URL.
         Fetch,             // Issue a network request to fetch the URL.
         Complete,          // Finalize the request with the client.
@@ -107,6 +113,8 @@ private:
             return "ServeSubstitution"sv;
         case State::DNSLookup:
             return "DNSLookup"sv;
+        case State::RetrieveCookie:
+            return "RetrieveCookie"sv;
         case State::Connect:
             return "Connect"sv;
         case State::Fetch:
@@ -131,6 +139,7 @@ private:
         ByteString method,
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
+        HTTP::Cookie::IncludeCredentials include_credentials,
         ByteString alt_svc_cache_path,
         Core::ProxyData proxy_data);
 
@@ -149,6 +158,7 @@ private:
     void handle_failed_cache_only_state();
     void handle_serve_substitution_state();
     void handle_dns_lookup_state();
+    void handle_retrieve_cookie_state();
     void handle_connect_state();
     void handle_fetch_state();
     void handle_complete_state();
@@ -191,6 +201,8 @@ private:
     UnixDateTime m_request_start_time { UnixDateTime::now() };
     NonnullRefPtr<HTTP::HeaderList> m_request_headers;
     ByteBuffer m_request_body;
+
+    HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
 
     ByteString m_alt_svc_cache_path;
     Core::ProxyData m_proxy_data;

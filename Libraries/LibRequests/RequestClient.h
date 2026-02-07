@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <LibHTTP/Cache/CacheMode.h>
+#include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibRequests/CacheSizes.h>
@@ -32,7 +33,7 @@ public:
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestClient() override;
 
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, Core::ProxyData const& = {});
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData const& = {});
     bool stop_request(Badge<Request>, Request&);
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
 
@@ -42,6 +43,7 @@ public:
 
     NonnullRefPtr<Core::Promise<CacheSizes>> estimate_cache_size_accessed_since(UnixDateTime since);
 
+    Function<String(URL::URL const&)> on_retrieve_http_cookie;
     Function<void()> on_request_server_died;
 
 private:
@@ -50,6 +52,8 @@ private:
     virtual void request_started(u64 request_id, IPC::File) override;
     virtual void request_finished(u64 request_id, u64, RequestTimingInfo, Optional<NetworkError>) override;
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>) override;
+
+    virtual void retrieve_http_cookie(int client_id, u64 request_id, URL::URL url) override;
 
     virtual void certificate_requested(u64 request_id) override;
 
