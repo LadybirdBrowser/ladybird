@@ -26,9 +26,8 @@ endif()
 
 if (LAGOM_USE_LINKER)
     # FIXME: Move to only setting CMAKE_LINKER_TYPE once we drop support for CMake < 3.29
-    # NOTE: We can't use CMAKE_SYSTEM_NAME because it's not set before the first project call
-    # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/27037
-    if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.29 AND NOT CMAKE_HOST_SYSTEM_NAME MATCHES "FreeBSD")
+    # NOTE: CMAKE_LINKER_TYPE doesn't work on BSDs on CMake < 4.2
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.29 AND NOT BSD)
         string(TOUPPER ${LAGOM_USE_LINKER} linker_type)
         set(CMAKE_LINKER_TYPE ${linker_type})
     else()

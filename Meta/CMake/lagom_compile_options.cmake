@@ -74,8 +74,8 @@ endif()
 if (NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
     # NOTE: Assume ELF
     # NOTE: --no-undefined is not compatible with clang sanitizer runtimes
-    # NOTE: FreeBSD doesn't export all symbols from LibC so we can't use --no-undefined
-    if ((CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND (ENABLE_ADDRESS_SANITIZER OR ENABLE_MEMORY_SANITIZER OR ENABLE_UNDEFINED_SANITIZER OR ENABLE_LAGOM_COVERAGE_COLLECTION)) OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+    # NOTE: Some BSDs don't export all symbols from LibC so we can't use --no-undefined
+    if ((CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND (ENABLE_ADDRESS_SANITIZER OR ENABLE_MEMORY_SANITIZER OR ENABLE_UNDEFINED_SANITIZER OR ENABLE_LAGOM_COVERAGE_COLLECTION)) OR BSD)
         add_link_options(LINKER:--allow-shlib-undefined)
         add_link_options(LINKER:-z,undefs)
     else()
