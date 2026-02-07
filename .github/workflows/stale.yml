@@ -16,7 +16,7 @@ jobs:
       pull-requests: write
     steps:
       # replace `uses:` below with upstream actions/stale when https://github.com/actions/stale/issues/1136 is fixed
-      - uses: itchyny/actions-stale@0980a21d84c23bd4d8c62b0958f47f25822286f2
+      - uses: itchyny/actions-stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e  # v9
         with:
           operations-per-run: 500
 
