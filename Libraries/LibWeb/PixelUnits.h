@@ -467,6 +467,14 @@ constexpr Web::CSSPixels square_distance_between(Web::CSSPixelPoint const& a, We
     return delta_x * delta_x + delta_y * delta_y;
 }
 
+constexpr Web::CSSPixelPoint constrained(Web::CSSPixelPoint const& point, Web::CSSPixelRect const& rect)
+{
+    return {
+        clamp(point.x(), rect.left(), rect.right() - 1),
+        clamp(point.y(), rect.top(), rect.bottom() - 1),
+    };
+}
+
 template<>
 template<>
 [[nodiscard]] ALWAYS_INLINE Web::CSSPixelRect Web::CSSPixelRect::to_rounded<Web::CSSPixels>() const

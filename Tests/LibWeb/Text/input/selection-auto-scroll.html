@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+div {
+    overflow: auto;
+    width: 200px;
+    height: 100px;
+    font-size: 16px;
+}
+</style>
+<div id="vertical">line1<br>line2<br>line3<br>line4<br>line5<br>line6<br>line7<br>line8<br>line9<br>line10</div>
+<script src="include.js"></script>
+<script>
+asyncTest(async (done) => {
+    document.body.offsetWidth; // force layout
+
+    println(`before: ${vertical.scrollTop}`);
+
+    const rect = vertical.getBoundingClientRect();
+    internals.mouseDown(rect.x + 10, rect.y + 10);
+    internals.mouseMove(rect.x + 10, rect.y + rect.height + 50);
+
+    await timeout(1000);
+
+    println(`after: ${vertical.scrollTop}`);
+
+    internals.mouseUp(rect.x + 10, rect.y + rect.height + 50);
+    done();
+});
+</script>
