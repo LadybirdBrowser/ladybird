@@ -12,6 +12,7 @@
 #include <AK/ReverseIterator.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Traits.h>
+#include <AK/TypedTransfer.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
 
@@ -578,6 +579,31 @@ private:
     bool should_grow() const { return ((m_size + 1) * 100) >= (m_capacity * grow_at_load_factor_percent); }
     static constexpr size_t size_in_bytes(size_t capacity) { return sizeof(BucketType) * capacity; }
 
+    static void relocate_bucket(BucketType* dst, BucketType* src)
+    {
+        dst->state = src->state;
+        dst->hash = src->hash;
+        if constexpr (IsOrdered) {
+            dst->previous = exchange(src->previous, nullptr);
+            dst->next = exchange(src->next, nullptr);
+        }
+        TypedTransfer<T>::relocate(dst->slot(), src->slot(), 1);
+    }
+
+    static void swap_buckets(BucketType* a, BucketType* b)
+    {
+        swap(a->state, b->state);
+        swap(a->hash, b->hash);
+        if constexpr (IsOrdered) {
+            swap(a->previous, b->previous);
+            swap(a->next, b->next);
+        }
+        alignas(T) u8 tmp[sizeof(T)];
+        TypedTransfer<T>::relocate(reinterpret_cast<T*>(tmp), a->slot(), 1);
+        TypedTransfer<T>::relocate(a->slot(), b->slot(), 1);
+        TypedTransfer<T>::relocate(b->slot(), reinterpret_cast<T*>(tmp), 1);
+    }
+
     BucketType* end_bucket()
     {
         if constexpr (IsOrdered)
@@ -745,7 +771,8 @@ private:
             auto target_probe_length = used_bucket_probe_length(*bucket);
             if (probe_length > target_probe_length) {
                 // Copy out bucket
-                BucketType bucket_to_move = move(*bucket);
+                BucketType bucket_to_move {};
+                relocate_bucket(&bucket_to_move, bucket);
                 update_collection_for_swapped_buckets(bucket, &bucket_to_move);
 
                 // Write new bucket
@@ -766,7 +793,7 @@ private:
                     ++probe_length;
 
                     if (bucket->state == BucketState::Free) {
-                        *bucket = move(bucket_to_move);
+                        relocate_bucket(bucket, &bucket_to_move);
                         bucket->state = bucket_state_for_probe_length(probe_length);
                         update_collection_for_swapped_buckets(&bucket_to_move, bucket);
                         break;
@@ -774,7 +801,7 @@ private:
 
                     target_probe_length = used_bucket_probe_length(*bucket);
                     if (probe_length > target_probe_length) {
-                        swap(bucket_to_move, *bucket);
+                        swap_buckets(&bucket_to_move, bucket);
                         bucket->state = bucket_state_for_probe_length(probe_length);
                         probe_length = target_probe_length;
                         update_collection_for_swapped_buckets(&bucket_to_move, bucket);
@@ -865,11 +892,7 @@ private:
                 break;
 
             auto* shift_to_bucket = &m_buckets[shift_to_index];
-            *shift_to_bucket = move(*shift_from_bucket);
-            if constexpr (IsOrdered) {
-                shift_from_bucket->previous = nullptr;
-                shift_from_bucket->next = nullptr;
-            }
+            relocate_bucket(shift_to_bucket, shift_from_bucket);
             shift_to_bucket->state = bucket_state_for_probe_length(shift_from_probe_length - 1);
             update_bucket_neighbors(shift_to_bucket);
 

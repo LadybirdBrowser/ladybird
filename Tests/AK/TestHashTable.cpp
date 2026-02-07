@@ -537,3 +537,76 @@ TEST_CASE(values)
     EXPECT_EQ(values[1], 30);
     EXPECT_EQ(values[2], 20);
 }
+
+struct AddressTrackingType {
+    int value;
+
+    explicit AddressTrackingType(int v)
+        : value(v)
+    {
+        s_live_instances.set(this);
+    }
+
+    AddressTrackingType(AddressTrackingType&& other)
+        : value(other.value)
+    {
+        s_live_instances.set(this);
+    }
+
+    ~AddressTrackingType() { s_live_instances.remove(this); }
+
+    AddressTrackingType& operator=(AddressTrackingType&& other)
+    {
+        if (this != &other)
+            value = other.value;
+        return *this;
+    }
+
+    AddressTrackingType(AddressTrackingType const&) = delete;
+    AddressTrackingType& operator=(AddressTrackingType const&) = delete;
+
+    bool operator==(AddressTrackingType const& other) const { return value == other.value; }
+
+    static HashTable<AddressTrackingType const*> s_live_instances;
+};
+
+HashTable<AddressTrackingType const*> AddressTrackingType::s_live_instances;
+
+static_assert(!IsTriviallyRelocatable<AddressTrackingType>);
+
+namespace AK {
+
+template<>
+struct Traits<AddressTrackingType> : public DefaultTraits<AddressTrackingType> {
+    static unsigned hash(AddressTrackingType const&) { return 0; }
+};
+
+}
+
+TEST_CASE(non_trivially_relocatable_bucket_relocation)
+{
+    HashTable<AddressTrackingType> table;
+
+    for (int i = 0; i < 50; ++i)
+        table.set(AddressTrackingType(i));
+
+    for (int i = 0; i < 50; i += 3)
+        table.remove(AddressTrackingType(i));
+
+    for (auto& entry : table)
+        EXPECT(AddressTrackingType::s_live_instances.contains(&entry));
+}
+
+TEST_CASE(non_trivially_relocatable_bucket_relocation_ordered)
+{
+    OrderedHashTable<AddressTrackingType> table;
+
+    for (int i = 0; i < 50; ++i)
+        table.set(AddressTrackingType(i));
+
+    for (int i = 0; i < 50; i += 3)
+        table.remove(AddressTrackingType(i));
+
+    for (auto& entry : table)
+        EXPECT(AddressTrackingType::s_live_instances.contains(&entry));
+}
