@@ -52,7 +52,16 @@ public:
 
     GC::Ref<AudioDestinationNode> destination() const { return *m_destination; }
     float sample_rate() const { return m_sample_rate; }
-    double current_time() const { return m_current_time; }
+    // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-currenttime
+    // [from-spec] currentTime MUST be read atomically on the control thread.
+    // We store [[current frame]] atomically and derive currentTime from it.
+    double current_time() const
+    {
+        auto frame = m_current_frame.load(AK::MemoryOrder::memory_order_acquire);
+        if (m_sample_rate <= 0)
+            return 0.0;
+        return static_cast<double>(frame) / static_cast<double>(m_sample_rate);
+    }
     GC::Ref<AudioListener> listener() const { return m_listener; }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
 
@@ -95,6 +104,8 @@ public:
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
+    void set_current_frame(u64 frame) { m_current_frame.store(frame, AK::MemoryOrder::memory_order_release); }
+
     void queue_a_media_element_task(GC::Ref<GC::Function<void()>>);
 
     virtual void initialize(JS::Realm&) override;
@@ -112,7 +123,7 @@ private:
     u64 m_next_node_id { 0 };
 
     float m_sample_rate { 0 };
-    double m_current_time { 0 };
+    Atomic<u64> m_current_frame { 0 };
 
     GC::Ref<AudioListener> m_listener;
 
