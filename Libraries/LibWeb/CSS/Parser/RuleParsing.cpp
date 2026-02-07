@@ -867,7 +867,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     // https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style-name
     // When used here, to define a counter style, it also cannot be any of the non-overridable counter-style names
     // FIXME: We should allow these in the UA stylesheet in order to initially define them.
-    if (CSSCounterStyleRule::matches_non_overridable_counter_style_name(name.value())) {
+    if (CSSCounterStyleRule::matches_non_overridable_counter_style_name(name.value()) && m_is_ua_style_sheet != IsUAStyleSheet::Yes) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@counter-style"_fly_string,
             .prelude = prelude_stream.dump_string(),
