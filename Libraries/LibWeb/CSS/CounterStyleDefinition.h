@@ -69,6 +69,7 @@ public:
     FlyString const& name() const { return m_name; }
 
     Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> const& algorithm() const { return m_algorithm; }
+    void set_algorithm(Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> algorithm) { m_algorithm = move(algorithm); }
 
     Optional<CounterStyleNegativeSign> const& negative_sign() const { return m_negative_sign; }
 

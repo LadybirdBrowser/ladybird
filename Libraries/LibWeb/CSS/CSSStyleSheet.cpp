@@ -9,6 +9,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CSSStyleSheetPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -319,6 +320,14 @@ void CSSStyleSheet::for_each_effective_keyframes_at_rule(Function<void(CSSKeyfra
     for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
         if (rule.type() == CSSRule::Type::Keyframes)
             callback(static_cast<CSSKeyframesRule const&>(rule));
+    });
+}
+
+void CSSStyleSheet::for_each_counter_style_at_rule(Function<void(CSSCounterStyleRule const&)> const& callback) const
+{
+    for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+        if (rule.type() == CSSRule::Type::CounterStyle)
+            callback(static_cast<CSSCounterStyleRule const&>(rule));
     });
 }
 

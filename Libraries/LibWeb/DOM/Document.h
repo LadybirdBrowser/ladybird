@@ -1042,6 +1042,7 @@ private:
     void run_csp_initialization() const;
 
     void build_registered_properties_cache();
+    void build_counter_style_cache();
 
     void ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url = {});
 
@@ -1398,6 +1399,8 @@ private:
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<FlyString, CSS::CustomPropertyRegistration> m_registered_property_set;
     HashMap<FlyString, CSS::CustomPropertyRegistration> m_cached_registered_properties_from_css_property_rules;
+
+    HashMap<FlyString, CSS::CounterStyle> m_registered_counter_styles;
 
     CSS::StyleScope m_style_scope;
 
