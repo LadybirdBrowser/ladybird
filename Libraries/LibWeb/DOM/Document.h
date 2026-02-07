@@ -18,7 +18,6 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibCore/SharedVersion.h>
-#include <LibHTTP/Cookie/Cookie.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
@@ -221,8 +220,8 @@ public:
 
     GC::Ptr<Selection::Selection> get_selection() const;
 
-    WebIDL::ExceptionOr<String> cookie(HTTP::Cookie::Source = HTTP::Cookie::Source::NonHttp);
-    WebIDL::ExceptionOr<void> set_cookie(StringView, HTTP::Cookie::Source = HTTP::Cookie::Source::NonHttp);
+    WebIDL::ExceptionOr<String> cookie();
+    WebIDL::ExceptionOr<void> set_cookie(StringView);
     bool is_cookie_averse() const;
     void enable_cookies_on_file_domains(Badge<Internals::Internals>) { m_enable_cookies_on_file_domains = true; }
 
