@@ -9,7 +9,6 @@
 #include <LibWeb/Bindings/SVGCircleElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGCircleElement.h>
@@ -27,6 +26,19 @@ void SVGCircleElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGCircleElement);
     Base::initialize(realm);
+}
+
+void SVGCircleElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    if (name == SVG::AttributeNames::cx) {
+        m_center_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
+    } else if (name == SVG::AttributeNames::cy) {
+        m_center_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
+    } else if (name == SVG::AttributeNames::r) {
+        m_radius = AttributeParser::parse_number_percentage(value.value_or(String {}));
+    }
 }
 
 bool SVGCircleElement::is_presentational_hint(FlyString const& name) const
@@ -67,17 +79,11 @@ static CSSPixels normalized_diagonal_length(CSSPixelSize viewport_size)
 
 Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
 {
-    auto node = layout_node();
-    if (!node) {
-        dbgln("FIXME: Null layout node in SVGCircleElement::get_path");
-        return {};
-    }
-
-    auto cx = float(node->computed_values().cx().to_px(*node, viewport_size.width()));
-    auto cy = float(node->computed_values().cy().to_px(*node, viewport_size.height()));
+    auto cx = m_center_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
+    auto cy = m_center_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
     // Percentages refer to the normalized diagonal of the current SVG viewport
     // (see Units: https://svgwg.org/svg2-draft/coords.html#Units)
-    auto r = float(node->computed_values().r().to_px(*node, normalized_diagonal_length(viewport_size)));
+    auto r = m_radius.value_or(NumberPercentage::create_number(0)).resolve_relative_to(normalized_diagonal_length(viewport_size).to_float());
 
     // A zero radius disables rendering.
     if (r == 0)
