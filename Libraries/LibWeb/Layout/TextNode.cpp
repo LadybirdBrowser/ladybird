@@ -308,7 +308,9 @@ Utf16String const& TextNode::text_for_rendering() const
 void TextNode::compute_text_for_rendering()
 {
     if (dom_node().is_password_input()) {
-        m_text_for_rendering = Utf16String::repeated(u'●', dom_node().data().length_in_code_points());
+        auto const& font_list = computed_values().font_list();
+        auto mask_char = font_list.password_mask_character();
+        m_text_for_rendering = Utf16String::repeated(mask_char, dom_node().data().length_in_code_points());
         return;
     }
 

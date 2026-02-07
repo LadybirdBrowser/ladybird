@@ -75,4 +75,25 @@ bool FontCascadeList::equals(FontCascadeList const& other) const
     return true;
 }
 
+u32 FontCascadeList::password_mask_character() const
+{
+    return m_cached_password_mask_character.ensure([&] {
+        // Check for available masking characters in order of preference:
+        // Preferred: U+25CF BLACK CIRCLE (●)
+        // Fallback 1: U+2022 BULLET (•) - this has wider support
+        // Fallback 2: U+002A ASTERISK (*) - available in all fonts
+        constexpr u32 black_circle = 0x25CF;
+        constexpr u32 bullet = 0x2022;
+        constexpr u32 asterisk = '*';
+
+        if (!font_for_code_point(black_circle).contains_glyph(black_circle)) {
+            if (font_for_code_point(bullet).contains_glyph(bullet))
+                return bullet;
+            return asterisk;
+        }
+
+        return black_circle;
+    });
+}
+
 }
