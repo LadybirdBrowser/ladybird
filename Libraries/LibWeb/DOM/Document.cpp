@@ -182,6 +182,8 @@
 #include <LibWeb/UIEvents/FocusEvent.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
+#include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -1961,6 +1963,21 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
 
     m_hovered_node = node;
 
+    // https://w3c.github.io/pointerevents/#the-pointerout-event
+    if (old_hovered_node && old_hovered_node != m_hovered_node) {
+        UIEvents::PointerEventInit pointer_event_init {};
+        pointer_event_init.bubbles = true;
+        pointer_event_init.cancelable = true;
+        pointer_event_init.composed = true;
+        pointer_event_init.related_target = m_hovered_node;
+        pointer_event_init.is_primary = true;
+        pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
+        if (auto navigable = this->navigable())
+            pointer_event_init.view = navigable->active_window_proxy();
+        auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerout, pointer_event_init);
+        old_hovered_node->dispatch_event(event);
+    }
+
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
         UIEvents::MouseEventInit mouse_event_init {};
@@ -1974,15 +1991,43 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
         old_hovered_node->dispatch_event(event);
     }
 
+    // https://w3c.github.io/pointerevents/#the-pointerleave-event
+    if (old_hovered_node && (!m_hovered_node || !m_hovered_node->is_descendant_of(*old_hovered_node))) {
+        for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent()) {
+            // FIXME: Populate the event with mouse coordinates, etc.
+            UIEvents::PointerEventInit pointer_event_init {};
+            pointer_event_init.related_target = m_hovered_node;
+            pointer_event_init.is_primary = true;
+            pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
+            if (auto navigable = this->navigable())
+                pointer_event_init.view = navigable->active_window_proxy();
+            target->dispatch_event(UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerleave, pointer_event_init));
+        }
+    }
+
     // https://w3c.github.io/uievents/#mouseleave
     if (old_hovered_node && (!m_hovered_node || !m_hovered_node->is_descendant_of(*old_hovered_node))) {
-        // FIXME: Check if we need to dispatch these events in a specific order.
         for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent()) {
             // FIXME: Populate the event with mouse coordinates, etc.
             UIEvents::MouseEventInit mouse_event_init {};
             mouse_event_init.related_target = m_hovered_node;
             target->dispatch_event(UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseleave, mouse_event_init));
         }
+    }
+
+    // https://w3c.github.io/pointerevents/#the-pointerover-event
+    if (m_hovered_node && m_hovered_node != old_hovered_node) {
+        UIEvents::PointerEventInit pointer_event_init {};
+        pointer_event_init.bubbles = true;
+        pointer_event_init.cancelable = true;
+        pointer_event_init.composed = true;
+        pointer_event_init.related_target = old_hovered_node;
+        pointer_event_init.is_primary = true;
+        pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
+        if (auto navigable = this->navigable())
+            pointer_event_init.view = navigable->active_window_proxy();
+        auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerover, pointer_event_init);
+        m_hovered_node->dispatch_event(event);
     }
 
     // https://w3c.github.io/uievents/#mouseover
@@ -1998,11 +2043,24 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
         m_hovered_node->dispatch_event(event);
     }
 
+    // https://w3c.github.io/pointerevents/#the-pointerenter-event
     // https://w3c.github.io/uievents/#mouseenter
+    // Enter events are dispatched from ancestor to descendant.
+    // Leave events are dispatched in the opposite order.
     if (m_hovered_node && (!old_hovered_node || !m_hovered_node->is_ancestor_of(*old_hovered_node))) {
-        // FIXME: Check if we need to dispatch these events in a specific order.
-        for (auto target = m_hovered_node; target && target.ptr() != common_ancestor; target = target->parent()) {
-            // FIXME: Populate the event with mouse coordinates, etc.
+        Vector<GC::Ref<Node>> entered_ancestors;
+        for (auto target = m_hovered_node; target && target.ptr() != common_ancestor; target = target->parent())
+            entered_ancestors.append(*target);
+
+        for (auto target : entered_ancestors.in_reverse()) {
+            // FIXME: Populate the events with mouse coordinates, etc.
+            UIEvents::PointerEventInit pointer_event_init {};
+            pointer_event_init.related_target = old_hovered_node;
+            pointer_event_init.is_primary = true;
+            pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
+            if (auto navigable = this->navigable())
+                pointer_event_init.view = navigable->active_window_proxy();
+            target->dispatch_event(UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerenter, pointer_event_init));
             UIEvents::MouseEventInit mouse_event_init {};
             mouse_event_init.related_target = old_hovered_node;
             target->dispatch_event(UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseenter, mouse_event_init));
