@@ -7,6 +7,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
+#include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -105,4 +106,35 @@ TEST_CASE(video_provider_start_suspend_then_exit)
         provider->suspend();
         MUST(Core::System::sleep_ms(1));
     }
+}
+
+TEST_CASE(audio_provider_underspecified_5_1_channel_map)
+{
+    Core::EventLoop loop;
+
+    auto stream = load_test_file("WAV/tone_44100_5_1_underspecified.wav"sv);
+    auto demuxer = create_demuxer(stream);
+    auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
+    VERIFY(track.has_value());
+
+    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+
+    provider->start();
+
+    auto time_limit = AK::Duration::from_seconds(1);
+    auto start_time = MonotonicTime::now_coarse();
+
+    while (true) {
+        auto block = provider->retrieve_block();
+        if (!block.is_empty()) {
+            EXPECT_EQ(block.channel_count(), 6);
+            EXPECT_EQ(block.sample_specification().channel_map(), Audio::ChannelMap::surround_5_1());
+            return;
+        }
+        if (MonotonicTime::now_coarse() - start_time >= time_limit)
+            break;
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+
+    FAIL("Decoding timed out.");
 }
