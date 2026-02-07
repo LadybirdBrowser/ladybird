@@ -833,6 +833,36 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
             return EventResult::Dropped;
 
         m_mousedown_target = node.ptr();
+
+        // Find and store the nearest scrollable container for keyboard scroll events.
+        // Exclude viewport paintable since viewport scrolling should use Window::scroll_by().
+        m_keyboard_scroll_container = nullptr;
+        m_keyboard_scroll_container_parent = nullptr;
+        if (auto* paintable_box = as_if<Painting::PaintableBox>(layout_node->first_paintable())) {
+            // Check if the element itself is scrollable (but not the viewport)
+            Painting::PaintableBox const* scrollable_container = nullptr;
+            if (!paintable_box->is_viewport_paintable() && paintable_box->could_be_scrolled_by_wheel_event()) {
+                m_keyboard_scroll_container = node.ptr();
+                scrollable_container = paintable_box;
+            } else if (auto* scrollable_ancestor = paintable_box->nearest_scrollable_ancestor()) {
+                // Find the nearest scrollable ancestor (excluding viewport)
+                if (!scrollable_ancestor->is_viewport_paintable()) {
+                    if (auto ancestor_node = scrollable_ancestor->dom_node())
+                        m_keyboard_scroll_container = const_cast<DOM::Node*>(ancestor_node.ptr());
+                    scrollable_container = scrollable_ancestor;
+                }
+            }
+            // Also store the parent scrollable container as fallback (excluding viewport)
+            if (scrollable_container) {
+                if (auto* parent_scrollable = scrollable_container->nearest_scrollable_ancestor()) {
+                    if (!parent_scrollable->is_viewport_paintable()) {
+                        if (auto parent_node = parent_scrollable->dom_node())
+                            m_keyboard_scroll_container_parent = const_cast<DOM::Node*>(parent_node.ptr());
+                    }
+                }
+            }
+        }
+
         auto page_offset = compute_mouse_event_page_offset(viewport_position);
         auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
         auto scroll_offset = document->navigable()->viewport_scroll_offset();
@@ -1693,6 +1723,38 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto arrow_key_scroll_distance = 100;
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
 
+    // Find the scrollable element to target based on the last clicked scrollable container.
+    // This implements the behavior where keyboard scrolling targets the scrollable
+    // container that was clicked. Viewport scrolling is handled via Window::scroll_by().
+    Painting::PaintableBox* scroll_target = nullptr;
+
+    // Helper lambda to get paintable box from a node if it's still scrollable (excluding viewport)
+    auto get_scrollable_paintable = [](GC::Ptr<DOM::Node> const& node) -> Painting::PaintableBox* {
+        if (!node || !node->is_connected())
+            return nullptr;
+        if (auto* layout_node = node->layout_node()) {
+            if (auto* paintable = layout_node->first_paintable()) {
+                if (auto* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
+                    if (!paintable_box->is_viewport_paintable() && paintable_box->could_be_scrolled_by_wheel_event())
+                        return paintable_box;
+                }
+            }
+        }
+        return nullptr;
+    };
+
+    // Try primary scrollable container first, then fall back to parent
+    scroll_target = get_scrollable_paintable(m_keyboard_scroll_container) ?: get_scrollable_paintable(m_keyboard_scroll_container_parent);
+
+    // Helper lambda to scroll either the target element or the window
+    auto scroll_by = [&](CSSPixels delta_x, CSSPixels delta_y) {
+        if (scroll_target) {
+            (void)scroll_target->scroll_by(delta_x.to_int(), delta_y.to_int());
+        } else {
+            document->window()->scroll_by(delta_x.to_double(), delta_y.to_double());
+        }
+    };
+
     switch (key) {
     case UIEvents::KeyCode::Key_Up:
     case UIEvents::KeyCode::Key_Down:
@@ -1704,7 +1766,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             else
                 document->window()->scroll_by(0, INT64_MAX);
         } else {
-            document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
+            // We use your change here: calling scroll_by() directly
+            scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
         }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
@@ -1718,19 +1781,35 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (modifiers)
             document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
         else
-            document->window()->scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+            scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+        return EventResult::Handled;
+    case UIEvents::KeyCode::Key_Space:
+        // Space scrolls down by a page, Shift+Space scrolls up
+        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Shift)
+            break;
+        scroll_by(0, modifiers & UIEvents::KeyModifier::Mod_Shift ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
         if (modifiers != UIEvents::KeyModifier::Mod_None)
             break;
-        document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
+        scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Home:
-        document->scroll_to_the_beginning_of_the_document();
+        if (scroll_target)
+            (void)scroll_target->set_scroll_offset({ 0, 0 });
+        else
+            document->scroll_to_the_beginning_of_the_document();
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_End:
-        document->window()->scroll_by(0, INT64_MAX);
+        if (scroll_target) {
+            auto overflow_rect = scroll_target->scrollable_overflow_rect();
+            if (overflow_rect.has_value())
+                (void)scroll_target->set_scroll_offset({ 0, overflow_rect->height() });
+
+        } else {
+            document->window()->scroll_by(0, INT64_MAX);
+        }
         return EventResult::Handled;
     default:
         break;
@@ -1881,8 +1960,12 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     m_drag_and_drop_event_handler->visit_edges(visitor);
     visitor.visit(m_mouse_event_tracking_paintable);
+    visitor.visit(m_keyboard_scroll_container);
+    visitor.visit(m_keyboard_scroll_container_parent);
+
     if (m_element_resize_in_progress)
         m_element_resize_in_progress->visit_edges(visitor);
+
     if (m_mouse_selection_target)
         visitor.visit(m_mouse_selection_target->as_cell());
     visitor.visit(m_selection_origin);
