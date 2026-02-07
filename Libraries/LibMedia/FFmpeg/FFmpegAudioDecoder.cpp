@@ -140,7 +140,9 @@ requires(IsSigned<T>)
 static float float_sample_from_frame_data(u8** data, size_t plane, size_t index)
 {
     auto* pointer = reinterpret_cast<T*>(data[plane]);
-    return pointer[index] / static_cast<float>(NumericLimits<T>::max());
+    if (IsSame<T, i16>)
+        return pointer[index] / 32768.0f;                                // PCM 16 bit is normalized with 32768
+    return pointer[index] / static_cast<float>(NumericLimits<T>::max()); // (short max is 32767)
 }
 
 template<typename T>
