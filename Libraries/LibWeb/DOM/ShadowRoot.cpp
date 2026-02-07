@@ -207,7 +207,7 @@ void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& 
     }
 }
 
-void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     for (auto& style_sheet : style_sheets().sheets()) {
         if (!style_sheet->disabled())

@@ -461,12 +461,12 @@ RuleCache const& StyleScope::get_pseudo_class_rule_cache(PseudoClass pseudo_clas
     return *m_pseudo_class_rule_cache[to_underlying(pseudo_class)];
 }
 
-void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node)) {
-        shadow_root->for_each_active_css_style_sheet(move(callback));
+        shadow_root->for_each_active_css_style_sheet(callback);
     } else {
-        m_node->document().for_each_active_css_style_sheet(move(callback));
+        m_node->document().for_each_active_css_style_sheet(callback);
     }
 }
 
