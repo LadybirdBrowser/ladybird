@@ -4,11 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibWeb/Bindings/HTMLLabelElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
+#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 
 namespace Web::HTML {
 
@@ -33,7 +39,7 @@ bool HTMLLabelElement::has_activation_behavior() const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#the-label-element:activation-behaviour
-void HTMLLabelElement::activation_behavior(DOM::Event const&)
+void HTMLLabelElement::activation_behavior(DOM::Event const& event)
 {
     // The label element's exact default presentation and behavior, in particular what its activation behavior might be,
     // if anything, should match the platform's label behavior. The activation behavior of a label element for events
@@ -41,11 +47,71 @@ void HTMLLabelElement::activation_behavior(DOM::Event const&)
     // descendants, must be to do nothing.
 
     // AD-HOC: Click and focus the control, matching typical platform behavior.
+    //         This matches the behavior of HTMLElement::click(), but the original event properties are preserved.
+    if (m_click_in_progress)
+        return;
+
     auto control_element = control();
     if (!control_element)
         return;
 
-    control_element->click();
+    if (auto* form_control = as_if<FormAssociatedElement>(*control_element)) {
+        if (!form_control->enabled())
+            return;
+    }
+
+    {
+        m_click_in_progress = true;
+        ScopeGuard guard { [this] { m_click_in_progress = false; } };
+
+        auto const& mouse_event = as<UIEvents::MouseEvent>(event);
+        UIEvents::PointerEventInit init {};
+        init.view = mouse_event.view();
+        init.screen_x = mouse_event.screen_x();
+        init.screen_y = mouse_event.screen_y();
+        init.client_x = mouse_event.client_x();
+        init.client_y = mouse_event.client_y();
+        init.button = mouse_event.button();
+        init.buttons = mouse_event.buttons();
+        init.ctrl_key = mouse_event.ctrl_key();
+        init.shift_key = mouse_event.shift_key();
+        init.alt_key = mouse_event.alt_key();
+        init.meta_key = mouse_event.meta_key();
+        init.detail = mouse_event.detail();
+
+        if (auto const* pointer_event = as_if<UIEvents::PointerEvent>(event)) {
+            init.pointer_id = pointer_event->pointer_id();
+            init.pointer_type = pointer_event->pointer_type();
+            init.is_primary = pointer_event->is_primary();
+            init.width = pointer_event->width();
+            init.height = pointer_event->height();
+            init.pressure = pointer_event->pressure();
+            init.tangential_pressure = pointer_event->tangential_pressure();
+            init.tilt_x = pointer_event->tilt_x();
+            init.tilt_y = pointer_event->tilt_y();
+            init.twist = pointer_event->twist();
+            init.altitude_angle = pointer_event->altitude_angle();
+            init.azimuth_angle = pointer_event->azimuth_angle();
+        }
+
+        // Recompute offsetX/offsetY relative to the control element, since the original values are relative to the label.
+        double offset_x = 0;
+        double offset_y = 0;
+        if (auto const* paintable = control_element->paintable(); paintable && document().navigable()) {
+            auto scroll_offset = document().navigable()->viewport_scroll_offset();
+            auto page_position = CSSPixelPoint { CSSPixels(mouse_event.client_x()) + scroll_offset.x(), CSSPixels(mouse_event.client_y()) + scroll_offset.y() };
+            auto box_position = paintable->box_type_agnostic_position();
+            offset_x = AK::round((page_position.x() - box_position.x()).to_double());
+            offset_y = AK::round((page_position.y() - box_position.y()).to_double());
+        }
+
+        auto click_event = UIEvents::PointerEvent::create(realm(), HTML::EventNames::click, init, mouse_event.page_x(), mouse_event.page_y(), offset_x, offset_y);
+        click_event->set_bubbles(true);
+        click_event->set_cancelable(true);
+        click_event->set_composed(true);
+        click_event->set_is_trusted(event.is_trusted());
+        control_element->dispatch_event(click_event);
+    }
 
     if (control_element->is_focusable())
         HTML::run_focusing_steps(control_element);

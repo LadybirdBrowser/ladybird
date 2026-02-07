@@ -1,0 +1,5 @@
+target: input
+clientX preserved from label event: true
+clientY preserved from label event: true
+offsetX relative to input: true
+offsetY relative to input: true

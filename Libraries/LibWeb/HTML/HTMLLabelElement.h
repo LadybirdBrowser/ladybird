@@ -29,6 +29,8 @@ private:
 
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
+
+    bool m_click_in_progress { false };
 };
 
 }
