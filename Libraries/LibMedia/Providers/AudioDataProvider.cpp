@@ -30,7 +30,8 @@ DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(N
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("Audio Decoder"sv, [thread_data]() -> int {
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
-            thread_data->handle_suspension();
+            if (thread_data->handle_suspension())
+                continue;
             thread_data->handle_seek();
             thread_data->push_data_and_decode_a_block();
         }
@@ -311,6 +312,8 @@ void AudioDataProvider::ThreadData::resolve_seek(u32 seek_id)
 
 bool AudioDataProvider::ThreadData::handle_seek()
 {
+    VERIFY(m_decoder);
+
     auto seek_id = m_seek_id.load();
     if (m_last_processed_seek_id == seek_id)
         return false;
@@ -415,6 +418,8 @@ bool AudioDataProvider::ThreadData::handle_seek()
 
 void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 {
+    VERIFY(m_decoder);
+
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
         {
             auto locker = take_lock();

@@ -3,6 +3,7 @@ include(audio)
 set(TEST_SOURCES
     TestAudioDataProvider.cpp
     TestCICP.cpp
+    TestDataProviders.cpp
     TestH264Decode.cpp
     TestIncrementallyPopulatedStream.cpp
     TestMatroskaDemuxer.cpp
