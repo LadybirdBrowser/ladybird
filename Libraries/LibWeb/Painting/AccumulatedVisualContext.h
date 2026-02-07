@@ -77,7 +77,11 @@ struct EffectsData {
     }
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData>;
+struct InverseViewportScrollData {
+    size_t scroll_frame_id;
+};
+
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, InverseViewportScrollData>;
 
 class AccumulatedVisualContext : public AtomicRefCounted<AccumulatedVisualContext> {
 public:

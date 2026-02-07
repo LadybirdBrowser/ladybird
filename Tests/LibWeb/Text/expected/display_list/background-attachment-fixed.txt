@@ -1,0 +1,11 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] inverse_viewport_scroll(frame_id=0)
+
+DisplayList:
+SaveLayer@0
+  Save@1
+    PaintLinearGradient@2 rect=[0,0 800x600]
+  Restore@1
+Restore@0
+

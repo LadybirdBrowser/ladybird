@@ -163,10 +163,18 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
         auto image_rect = layer.image_rect;
         auto background_positioning_area = layer.background_positioning_area;
 
+        auto original_context = display_list_recorder.accumulated_visual_context();
+        ScopeGuard restore_context = [&] {
+            display_list_recorder.set_accumulated_visual_context(original_context);
+        };
+
         switch (layer.attachment) {
-        case CSS::BackgroundAttachment::Fixed:
-            background_positioning_area.set_location(paintable_box.layout_node().root().navigable()->viewport_scroll_offset());
+        case CSS::BackgroundAttachment::Fixed: {
+            if (auto fixed_context = paintable_box.fixed_background_visual_context())
+                display_list_recorder.set_accumulated_visual_context(fixed_context);
+            background_positioning_area.set_location({ 0, 0 });
             break;
+        }
         case CSS::BackgroundAttachment::Local:
             if (!paintable_box.is_viewport_paintable()) {
                 auto scroll_offset = paintable_box.scroll_offset();
