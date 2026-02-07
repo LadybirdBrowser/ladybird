@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
  *
@@ -66,15 +66,20 @@ void CSSImportRule::visit_edges(Cell::Visitor& visitor)
 
 void CSSImportRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
 {
+    if (m_parent_style_sheet)
+        m_parent_style_sheet->remove_critical_subresource(*this);
+
     Base::set_parent_style_sheet(parent_style_sheet);
+
+    if (m_parent_style_sheet)
+        m_parent_style_sheet->add_critical_subresource(*this);
 
     if (m_style_sheet && parent_style_sheet) {
         for (auto owning_document_or_shadow_root : parent_style_sheet->owning_documents_or_shadow_roots())
             m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
     }
 
-    // Crude detection of whether we're already fetching.
-    if (m_style_sheet || m_document_load_event_delayer.has_value())
+    if (loading_state() != CSSStyleSheet::LoadingState::Unloaded)
         return;
 
     // Only try to fetch if we now have a parent
@@ -129,15 +134,12 @@ void CSSImportRule::fetch()
     auto& parent_style_sheet = *this->parent_style_sheet();
 
     // 2. If rule has a <supports-condition>, and that condition is not true, return.
-    if (m_supports && !m_supports->matches()) {
+    if (m_supports && !m_supports->matches())
         return;
-    }
-
-    // FIXME: Figure out the "correct" way to delay the load event.
-    m_document_load_event_delayer.emplace(*m_document);
 
     // AD-HOC: Track pending import rules to block rendering until they are done.
     m_document->add_pending_css_import_rule({}, *this);
+    set_loading_state(CSSStyleSheet::LoadingState::Loading);
 
     // 3. Fetch a style resource from rule’s URL, with ruleOrDeclaration rule, destination "style", CORS mode "no-cors", and
     //    processResponse being the following steps given response response and byte stream, null or failure byteStream:
@@ -152,13 +154,22 @@ void CSSImportRule::fetch()
             // AD-HOC: Stop delaying the load event.
             ScopeGuard guard = [strong_this, document] {
                 document->remove_pending_css_import_rule({}, strong_this);
-                strong_this->m_document_load_event_delayer.clear();
+                if (strong_this->loading_state() != CSSStyleSheet::LoadingState::Error) {
+                    // If we have no critical subresources, or they're loaded already, we can report that immediately.
+                    auto sheet_loading_state = strong_this->m_style_sheet->loading_state();
+                    if (sheet_loading_state == CSSStyleSheet::LoadingState::Loaded || sheet_loading_state == CSSStyleSheet::LoadingState::Error) {
+                        strong_this->set_loading_state(sheet_loading_state);
+                    }
+                }
             };
 
             // 1. If byteStream is not a byte stream, return.
             auto byte_stream = maybe_byte_stream.template get_pointer<ByteBuffer>();
-            if (!byte_stream)
+            if (!byte_stream) {
+                // AD-HOC: This means the fetch failed, so we should report this as a load failure.
+                strong_this->set_loading_state(CSSStyleSheet::LoadingState::Error);
                 return;
+            }
 
             // FIXME: 2. If parentStylesheet is in quirks mode and response is CORS-same-origin, let content type be "text/css".
             //           Otherwise, let content type be the Content Type metadata of response.
@@ -272,7 +283,7 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("Document URL: {}\n", url().to_string());
 
     dump_indent(builder, indent_levels + 1);
-    builder.appendff("Has document load delayer: {}\n", m_document_load_event_delayer.has_value());
+    builder.appendff("Loading state: {}\n", CSSStyleSheet::loading_state_name(loading_state()));
 
     if (m_layer.has_value()) {
         dump_indent(builder, indent_levels + 1);

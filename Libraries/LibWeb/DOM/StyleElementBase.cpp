@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Preston Taylor <PrestonLeeTaylor@proton.me>
  * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +12,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOM/StyleElementUtils.h>
+#include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::DOM {
@@ -26,8 +27,10 @@ namespace Web::DOM {
 // The element is not on the stack of open elements of an HTML parser or XML parser, and it becomes connected or disconnected.
 //
 // https://html.spec.whatwg.org/multipage/semantics.html#update-a-style-block
-void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
+void StyleElementBase::update_a_style_block()
 {
+    auto& style_element = as_element();
+
     // OPTIMIZATION: Skip parsing CSS if we're in the middle of parsing a HTML fragment.
     //               The style block will be parsed upon insertion into a proper document.
     if (style_element.document().is_temporary_document_for_fragment_parsing())
@@ -94,45 +97,73 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
         nullptr);
 
     // 7. If element contributes a script-blocking style sheet, append element to its node document's script-blocking style sheet set.
-    if (style_element.contributes_a_script_blocking_style_sheet())
+    if (style_element.contributes_a_script_blocking_style_sheet()) {
+        m_document_load_event_delayer.emplace(style_element.document());
         style_element.document().script_blocking_style_sheet_set().set(style_element);
+    }
 
     // FIXME: 8. If element's media attribute's value matches the environment and element is potentially render-blocking, then block rendering on element.
 
-    // https://html.spec.whatwg.org/multipage/semantics.html#the-style-element:critical-subresources
-    auto attempts_to_fetch_subresources_finished = [](GC::Ptr<CSS::CSSStyleSheet> style_sheet) {
-        // 1. Let element be the style element associated with the style sheet in question.
-        auto& element = *style_sheet->owner_node();
-        // 2. Let success be true.
-        auto success = true;
-        // FIXME: 3. If the attempts to obtain any of the style sheet's critical subresources failed for any reason
-        // (e.g., DNS error, HTTP 404 response, a connection being prematurely closed, unsupported Content-Type), set success to false.
-        // Note: that content-specific errors, e.g., CSS parse errors or PNG decoding errors, do not affect success.
-        // 4. Queue an element task on the networking task source given element and the following steps:
-        element.queue_an_element_task(HTML::Task::Source::UserInteraction, [&element, success] {
-            // 1. If success is true, fire an event named load at element.
-            // AD-HOC: these should call fire an event this is not implemented anywhere so we dispatch ourself
-            if (success)
-                element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::load));
-            // 2. Otherwise, fire an event named error at element.
-            else
-                element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::error));
-            // 3. If element contributes a script-blocking style sheet:
-            if (element.contributes_a_script_blocking_style_sheet()) {
-                // 1. Assert: element's node document's script-blocking style sheet set contains element.
-                VERIFY(element.document().script_blocking_style_sheet_set().contains(element));
-                // 2. Remove element from its node document's script-blocking style sheet set.
-                element.document().script_blocking_style_sheet_set().remove(element);
-            }
-            // 4. Unblock rendering on element.
-            element.unblock_rendering();
-        });
-    };
-    // FIXME: The element must delay the load event of the element's node document until all the attempts to obtain the style sheet's critical subresources, if any, are complete.
-    attempts_to_fetch_subresources_finished(m_associated_css_style_sheet);
+    // AD-HOC: Check if we have already loaded the sheet's resources.
+    auto loading_state = m_associated_css_style_sheet->loading_state();
+    if (loading_state == CSS::CSSStyleSheet::LoadingState::Loaded || loading_state == CSS::CSSStyleSheet::LoadingState::Error) {
+        finished_loading_critical_subresources(loading_state == CSS::CSSStyleSheet::LoadingState::Error ? AnyFailed::Yes : AnyFailed::No);
+    }
 }
 
-void StyleElementUtils::visit_edges(JS::Cell::Visitor& visitor)
+// https://html.spec.whatwg.org/multipage/semantics.html#the-style-element:critical-subresources
+void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_failed)
+{
+    // 1. Let element be the style element associated with the style sheet in question.
+    auto& element = as_element();
+
+    // 2. Let success be true.
+    auto success = true;
+
+    // 3. If the attempts to obtain any of the style sheet's critical subresources failed for any reason
+    //    (e.g., DNS error, HTTP 404 response, a connection being prematurely closed, unsupported Content-Type),
+    //    set success to false.
+    //    Note that content-specific errors, e.g., CSS parse errors or PNG decoding errors, do not affect success.
+    if (any_failed == AnyFailed::Yes)
+        success = false;
+
+    // 4. Queue an element task on the networking task source given element and the following steps:
+    element.queue_an_element_task(HTML::Task::Source::UserInteraction, [&element, success] {
+        // 1. If success is true, fire an event named load at element.
+        // AD-HOC: these should call fire an event this is not implemented anywhere so we dispatch it ourselves
+        if (success)
+            element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::load));
+        // 2. Otherwise, fire an event named error at element.
+        else
+            element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::error));
+        // 3. If element contributes a script-blocking style sheet:
+        if (element.contributes_a_script_blocking_style_sheet()) {
+            // 1. Assert: element's node document's script-blocking style sheet set contains element.
+            VERIFY(element.document().script_blocking_style_sheet_set().contains(element));
+            // 2. Remove element from its node document's script-blocking style sheet set.
+            element.document().script_blocking_style_sheet_set().remove(element);
+        }
+        // 4. Unblock rendering on element.
+        element.unblock_rendering();
+    });
+    m_document_load_event_delayer.clear();
+}
+
+// https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
+CSS::CSSStyleSheet* StyleElementBase::sheet()
+{
+    // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
+    return m_associated_css_style_sheet;
+}
+
+// https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
+CSS::CSSStyleSheet const* StyleElementBase::sheet() const
+{
+    // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
+    return m_associated_css_style_sheet;
+}
+
+void StyleElementBase::visit_style_element_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_associated_css_style_sheet);
     visitor.visit(m_style_sheet_list);

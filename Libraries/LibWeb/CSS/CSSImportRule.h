@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -11,21 +11,21 @@
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/URL.h>
-#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
 class WEB_API CSSImportRule final
-    : public CSSRule {
+    : public CSSRule
+    , public CSSStyleSheet::Subresource {
     WEB_PLATFORM_OBJECT(CSSImportRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
     [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, RefPtr<Supports>, GC::Ref<MediaList>);
 
-    virtual ~CSSImportRule();
+    virtual ~CSSImportRule() override;
 
     URL const& url() const { return m_url; }
     String href() const { return m_url.url(); }
@@ -52,6 +52,8 @@ private:
 
     virtual void set_parent_style_sheet(CSSStyleSheet*) override;
 
+    virtual GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() override { return m_parent_style_sheet; }
+
     virtual String serialized() const override;
 
     void fetch();
@@ -64,7 +66,6 @@ private:
     RefPtr<Supports> m_supports;
     GC::Ref<MediaList> m_media;
     GC::Ptr<CSSStyleSheet> m_style_sheet;
-    Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 };
 
 template<>
