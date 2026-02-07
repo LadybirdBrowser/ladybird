@@ -70,6 +70,24 @@ public:
         return true;
     }
 
+    static void relocate(T* destination, T* source, size_t count)
+    {
+        VERIFY(source + count <= destination || destination + count <= source);
+
+        if (count == 0)
+            return;
+
+        if constexpr (IsTriviallyRelocatable<T>) {
+            __builtin_memcpy(destination, source, count * sizeof(T));
+            return;
+        }
+
+        for (size_t i = 0; i < count; ++i) {
+            new (&destination[i]) T(AK::move(source[i]));
+            source[i].~T();
+        }
+    }
+
     static void delete_(T* ptr, size_t count)
     {
         if (count == 0)
