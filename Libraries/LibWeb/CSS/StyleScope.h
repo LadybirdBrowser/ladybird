@@ -88,8 +88,7 @@ public:
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
 
-    template<typename Callback>
-    void for_each_stylesheet(CascadeOrigin, Callback) const;
+    void for_each_stylesheet(CascadeOrigin, Function<void(CSS::CSSStyleSheet&)> const&) const;
 
     void make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&);
 

@@ -177,8 +177,7 @@ static CSSStyleSheet& svg_stylesheet()
     return *sheet;
 }
 
-template<typename Callback>
-void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Callback callback) const
+void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     if (cascade_origin == CascadeOrigin::UserAgent) {
         callback(default_stylesheet());
