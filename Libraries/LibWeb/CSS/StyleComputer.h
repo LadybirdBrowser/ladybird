@@ -122,7 +122,6 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&) const;
 
     void compute_property_values(ComputedProperties&, Optional<DOM::AbstractElement>) const;
-    void compute_font(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void process_animation_definitions(ComputedProperties const& computed_properties, DOM::AbstractElement& abstract_element) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
@@ -133,13 +132,14 @@ public:
     static NonnullRefPtr<StyleValue const> compute_animation_name(NonnullRefPtr<StyleValue const> const& absolutized_value);
     static NonnullRefPtr<StyleValue const> compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& absolutized_value, double device_pixels_per_css_pixel);
     static NonnullRefPtr<StyleValue const> compute_corner_shape(NonnullRefPtr<StyleValue const> const& absolutized_value);
-    static NonnullRefPtr<StyleValue const> compute_font_feature_tag_value_list(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const&);
-    static NonnullRefPtr<StyleValue const> compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, ComputationContext const&);
-    static NonnullRefPtr<StyleValue const> compute_font_style(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const&);
-    static NonnullRefPtr<StyleValue const> compute_font_weight(NonnullRefPtr<StyleValue const> const& specified_value, double inherited_font_weight, ComputationContext const&);
-    static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const&);
-    static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const&);
-    static NonnullRefPtr<StyleValue const> compute_math_depth(NonnullRefPtr<StyleValue const> const& specified_value, int inherited_math_depth, MathStyle inherited_math_style, ComputationContext const&);
+    static NonnullRefPtr<StyleValue const> compute_font_feature_tag_value_list(NonnullRefPtr<StyleValue const> const& absolutized_value, ComputationContext const&);
+    static NonnullRefPtr<StyleValue const> compute_math_depth(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent);
+    static NonnullRefPtr<StyleValue const> compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent);
+    static NonnullRefPtr<StyleValue const> compute_font_style(NonnullRefPtr<StyleValue const> const& absolutized_value);
+    static NonnullRefPtr<StyleValue const> compute_font_weight(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent);
+    static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value);
+    static NonnullRefPtr<StyleValue const> compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& absolutized_value, ComputationContext const&);
+    static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size);
     static NonnullRefPtr<StyleValue const> compute_opacity(NonnullRefPtr<StyleValue const> const& absolutized_value);
     static NonnullRefPtr<StyleValue const> compute_position_area(NonnullRefPtr<StyleValue const> const& absolutized_value);
 
@@ -192,6 +192,17 @@ private:
 
     Length::FontMetrics m_default_font_metrics;
     Length::FontMetrics m_root_element_font_metrics;
+
+    Optional<ComputationContext> m_cached_font_computation_context;
+    Optional<ComputationContext> m_cached_line_height_computation_context;
+    Optional<ComputationContext> m_cached_generic_computation_context;
+    ComputationContext const& get_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
+    void clear_computation_context_caches() const
+    {
+        const_cast<StyleComputer*>(this)->m_cached_font_computation_context = {};
+        const_cast<StyleComputer*>(this)->m_cached_line_height_computation_context = {};
+        const_cast<StyleComputer*>(this)->m_cached_generic_computation_context = {};
+    }
 
     CSSPixelRect m_viewport_rect;
 

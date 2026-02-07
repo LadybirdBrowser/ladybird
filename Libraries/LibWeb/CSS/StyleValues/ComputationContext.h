@@ -16,6 +16,12 @@ struct ComputationContext {
     Length::ResolutionContext length_resolution_context;
     Optional<DOM::AbstractElement> abstract_element {};
     Optional<PreferredColorScheme> color_scheme {};
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        if (abstract_element.has_value())
+            abstract_element->visit(visitor);
+    }
 };
 
 }
