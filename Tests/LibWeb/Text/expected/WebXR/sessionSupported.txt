@@ -1,1 +1,0 @@
-PASS: Inline sessions are supported.

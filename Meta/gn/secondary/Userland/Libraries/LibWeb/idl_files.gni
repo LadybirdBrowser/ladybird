@@ -269,6 +269,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/IndexedDB/IDBRequest.idl",
   "//Userland/Libraries/LibWeb/Internals/InternalAnimationTimeline.idl",
   "//Userland/Libraries/LibWeb/Internals/Internals.idl",
+  "//Userland/Libraries/LibWeb/Internals/XRTest.idl",
   "//Userland/Libraries/LibWeb/IntersectionObserver/IntersectionObserver.idl",
   "//Userland/Libraries/LibWeb/IntersectionObserver/IntersectionObserverEntry.idl",
   "//Userland/Libraries/LibWeb/MathML/MathMLElement.idl",
