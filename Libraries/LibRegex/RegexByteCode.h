@@ -39,6 +39,7 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(SaveLeftCaptureGroup)       \
     __ENUMERATE_OPCODE(SaveRightCaptureGroup)      \
     __ENUMERATE_OPCODE(SaveRightNamedCaptureGroup) \
+    __ENUMERATE_OPCODE(SaveStaticCaptureGroup)     \
     __ENUMERATE_OPCODE(RSeekTo)                    \
     __ENUMERATE_OPCODE(CheckBegin)                 \
     __ENUMERATE_OPCODE(CheckEnd)                   \
@@ -392,7 +393,7 @@ public:
         if (is_empty())
             Base::append({});
         auto& last = Base::last_chunk();
-        last.ensure_capacity(value.size());
+        last.ensure_capacity(last.size() + value.size());
         for (auto v : value)
             last.unchecked_append(v);
     }
@@ -1337,6 +1338,23 @@ public:
     {
         return ByteString::formatted("name_id={}, id={}", argument(0), id());
     }
+};
+
+template<typename ByteCode>
+class OpCode_SaveStaticCaptureGroup final : public OpCode<ByteCode> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::SaveStaticCaptureGroup; }
+    ALWAYS_INLINE size_t size() const override { return 4; }
+    ALWAYS_INLINE size_t id() const { return argument(0); }
+    ALWAYS_INLINE size_t offset() const { return argument(1); }
+    ALWAYS_INLINE size_t length() const { return argument(2); }
+    ByteString arguments_string() const override { return ByteString::formatted("id={}, offset=-{}, length={}", id(), offset(), length()); }
 };
 
 template<typename ByteCode>
