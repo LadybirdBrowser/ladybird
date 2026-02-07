@@ -365,6 +365,12 @@ ALWAYS_INLINE U round_to(double value)
     return static_cast<U>(res);
 }
 
+template<Integral I>
+ALWAYS_INLINE I round_to(long double value)
+{
+    return static_cast<I>(__builtin_llrintl(value));
+}
+
 #else
 template<Integral I, FloatingPoint P>
 ALWAYS_INLINE I round_to(P value)
