@@ -20,6 +20,17 @@ Map::Map(Object& prototype)
 {
 }
 
+GC::Ref<Map> Map::copy() const
+{
+    auto& vm = this->vm();
+    auto& realm = *vm.current_realm();
+    auto result = Map::create(realm);
+    result->m_next_insertion_id = m_next_insertion_id;
+    result->m_keys = m_keys;
+    result->m_entries = m_entries;
+    return *result;
+}
+
 // 24.1.3.1 Map.prototype.clear ( ), https://tc39.es/ecma262/#sec-map.prototype.clear
 void Map::map_clear()
 {
