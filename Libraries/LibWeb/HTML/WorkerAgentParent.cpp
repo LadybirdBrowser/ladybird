@@ -64,7 +64,7 @@ void WorkerAgentParent::initialize(JS::Realm& realm)
 void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
 {
     // NOTE: As long as WorkerAgentParent is alive, realm and m_worker_ipc will be alive.
-    m_worker_ipc->on_request_cookie = [realm = GC::RawRef { realm }](URL::URL const& url, Cookie::Source source) {
+    m_worker_ipc->on_request_cookie = [realm = GC::RawRef { realm }](URL::URL const& url, HTTP::Cookie::Source source) {
         auto& client = Bindings::principal_host_defined_page(realm).client();
         return client.page_did_request_cookie(url, source);
     };

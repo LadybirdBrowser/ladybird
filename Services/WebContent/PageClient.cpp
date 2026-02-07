@@ -12,11 +12,11 @@
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSImportRule.h>
-#include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -536,22 +536,22 @@ void PageClient::page_did_receive_document_cookie_version_index(Web::UniqueNodeI
         document->set_cookie_version_index(document_index);
 }
 
-Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies_webdriver(URL::URL const& url)
+Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_webdriver(URL::URL const& url)
 {
     return client().did_request_all_cookies_webdriver(url);
 }
 
-Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies_cookiestore(URL::URL const& url)
+Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_cookiestore(URL::URL const& url)
 {
     return client().did_request_all_cookies_cookiestore(url);
 }
 
-Optional<Web::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL const& url, String const& name)
+Optional<HTTP::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL const& url, String const& name)
 {
     return client().did_request_named_cookie(url, name);
 }
 
-Web::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
+HTTP::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const& url, HTTP::Cookie::Source source)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(m_id, url, source);
     if (!response) {
@@ -561,7 +561,7 @@ Web::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const&
     return response->take_cookie();
 }
 
-void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)
+void PageClient::page_did_set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& cookie, HTTP::Cookie::Source source)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(url, cookie, source);
     if (!response) {
@@ -570,7 +570,7 @@ void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCoo
     }
 }
 
-void PageClient::page_did_update_cookie(Web::Cookie::Cookie const& cookie)
+void PageClient::page_did_update_cookie(HTTP::Cookie::Cookie const& cookie)
 {
     client().async_did_update_cookie(cookie);
 

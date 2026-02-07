@@ -168,15 +168,6 @@ struct SerializedDirective;
 
 }
 
-namespace Web::Cookie {
-
-struct Cookie;
-struct ParsedCookie;
-
-enum class Source;
-
-}
-
 namespace Web::CookieStore {
 
 class CookieChangeEvent;

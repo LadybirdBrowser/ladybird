@@ -1369,7 +1369,7 @@ void ConnectionFromClient::set_document_cookie_version_index(u64 page_id, i64 do
         page->page().client().page_did_receive_document_cookie_version_index(document_id, document_index);
 }
 
-void ConnectionFromClient::cookies_changed(u64 page_id, Vector<Web::Cookie::Cookie> cookies)
+void ConnectionFromClient::cookies_changed(u64 page_id, Vector<HTTP::Cookie::Cookie> cookies)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         auto window = page->page().top_level_traversable()->active_window();

@@ -9,12 +9,12 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <LibHTTP/Cookie/Cookie.h>
+#include <LibHTTP/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Forward.h>
-#include <LibWeb/Cookie/Cookie.h>
-#include <LibWeb/Export.h>
 
-namespace Web::Cookie {
+namespace HTTP::Cookie {
 
 struct ParsedCookie {
     String name;
@@ -29,7 +29,7 @@ struct ParsedCookie {
 };
 
 Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
-WEB_API bool cookie_contains_invalid_control_character(StringView);
+bool cookie_contains_invalid_control_character(StringView);
 
 constexpr inline AK::Duration maximum_cookie_age = AK::Duration::from_seconds(400LL * 24 * 60 * 60);
 
@@ -38,9 +38,9 @@ constexpr inline AK::Duration maximum_cookie_age = AK::Duration::from_seconds(40
 namespace IPC {
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Cookie::ParsedCookie const&);
+ErrorOr<void> encode(Encoder&, HTTP::Cookie::ParsedCookie const&);
 
 template<>
-WEB_API ErrorOr<Web::Cookie::ParsedCookie> decode(Decoder&);
+ErrorOr<HTTP::Cookie::ParsedCookie> decode(Decoder&);
 
 }
