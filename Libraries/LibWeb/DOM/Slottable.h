@@ -23,6 +23,8 @@ class WEB_API SlottableMixin {
 public:
     virtual ~SlottableMixin();
 
+    virtual Node& slottable_as_node() = 0;
+
     FlyString const& slottable_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
     void set_slottable_name(FlyString name) { m_name = move(name); }
 
