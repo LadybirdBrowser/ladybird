@@ -21,6 +21,7 @@
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
+#include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -3261,7 +3262,7 @@ void Document::completely_finish_loading()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
-WebIDL::ExceptionOr<String> Document::cookie(HTTP::Cookie::Source source)
+WebIDL::ExceptionOr<String> Document::cookie()
 {
     // On getting, if the document is a cookie-averse Document object, then the user agent must return the empty string.
     if (is_cookie_averse())
@@ -3278,7 +3279,7 @@ WebIDL::ExceptionOr<String> Document::cookie(HTTP::Cookie::Source source)
             return m_cookie;
     }
 
-    auto [cookie_version, cookie] = page().client().page_did_request_cookie(m_url, source);
+    auto [cookie_version, cookie] = page().client().page_did_request_cookie(m_url, HTTP::Cookie::Source::NonHttp);
 
     if (cookie_version.has_value()) {
         m_cookie_version = *cookie_version;
@@ -3289,7 +3290,7 @@ WebIDL::ExceptionOr<String> Document::cookie(HTTP::Cookie::Source source)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
-WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, HTTP::Cookie::Source source)
+WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string)
 {
     // On setting, if the document is a cookie-averse Document object, then the user agent must do nothing.
     if (is_cookie_averse())
@@ -3302,7 +3303,7 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, HTTP::C
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
     if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string); cookie.has_value())
-        page().client().page_did_set_cookie(m_url, cookie.value(), source);
+        page().client().page_did_set_cookie(m_url, cookie.value(), HTTP::Cookie::Source::NonHttp);
 
     return {};
 }
