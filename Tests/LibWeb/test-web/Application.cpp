@@ -16,7 +16,11 @@ namespace TestWeb {
 Application::Application(Optional<ByteString> ladybird_binary_path)
     : WebView::Application(move(ladybird_binary_path))
     , test_concurrency(Core::System::hardware_concurrency())
+#if defined(AK_OS_WINDOWS)
+    , python_executable_path("python")
+#else
     , python_executable_path("python3")
+#endif
 {
     if (auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); ladybird_source_dir.has_value())
         test_root_path = LexicalPath::join(*ladybird_source_dir, "Tests"sv, "LibWeb"sv).string();

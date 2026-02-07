@@ -56,17 +56,26 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     ByteBuffer command_line = TRY(builder.to_byte_buffer());
 
     STARTUPINFO startup_info = {};
+
+    if (auto const& use_std_handles_info = options.use_std_handles_startup_info; use_std_handles_info.has_value()) {
+        startup_info.cb = sizeof(STARTUPINFO);
+        startup_info.hStdError = use_std_handles_info->stderr_handle;
+        startup_info.hStdOutput = use_std_handles_info->stdout_handle;
+        startup_info.hStdInput = use_std_handles_info->stdin_handle;
+        startup_info.dwFlags |= STARTF_USESTDHANDLES;
+    }
+
     PROCESS_INFORMATION process_info = {};
 
     BOOL result = CreateProcess(
         NULL,
         (char*)command_line.data(),
-        NULL, // process security attributes
-        NULL, // primary thread security attributes
-        TRUE, // handles are inherited
-        0,    // creation flags
-        NULL, // use parent's environment
-        NULL, // working directory
+        NULL,                                                            // process security attributes
+        NULL,                                                            // primary thread security attributes
+        TRUE,                                                            // handles are inherited
+        options.create_new_process_group ? CREATE_NEW_PROCESS_GROUP : 0, // creation flags
+        NULL,                                                            // use parent's environment
+        NULL,                                                            // working directory
         &startup_info,
         &process_info);
 
