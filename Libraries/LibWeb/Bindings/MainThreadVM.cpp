@@ -463,9 +463,9 @@ void initialize_main_thread_vm(AgentType type)
             // FIXME: Why do we need to check requested modules is empty here?
             if (auto const& requested_modules = referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules(); !requested_modules.is_empty() && module_request == requested_modules.first()) {
                 // 1. For each ModuleRequest record requested of referrer.[[RequestedModules]]:
-                for (auto const& module_request : referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules()) {
-                    // 1. If moduleRequest.[[Attributes]] contains a Record entry such that entry.[[Key]] is not "type", then:
-                    for (auto const& attribute : module_request.attributes) {
+                for (auto const& requested : referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules()) {
+                    // 1. If requested.[[Attributes]] contains a Record entry such that entry.[[Key]] is not "type", then:
+                    for (auto const& attribute : requested.attributes) {
                         if (attribute.key == "type"sv)
                             continue;
 
@@ -484,47 +484,47 @@ void initialize_main_thread_vm(AgentType type)
                         // 4. Return.
                         return;
                     }
-                }
 
-                // 2. Resolve a module specifier given referencingScript and moduleRequest.[[Specifier]], catching any
-                //    exceptions. If they throw an exception, let resolutionError be the thrown exception.
-                auto maybe_exception = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier.view().to_utf8_but_should_be_ported_to_utf16());
+                    // 2. Resolve a module specifier given referencingScript and requested.[[Specifier]], catching any
+                    //    exceptions. If they throw an exception, let resolutionError be the thrown exception.
+                    auto maybe_exception = HTML::resolve_module_specifier(referencing_script, requested.module_specifier.view().to_utf8_but_should_be_ported_to_utf16());
 
-                // 3. If the previous step threw an exception, then:
-                if (maybe_exception.is_exception()) {
-                    // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
-                    if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
-                        load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
-                        load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, maybe_exception.exception()).release_value();
+                    // 3. If the previous step threw an exception, then:
+                    if (maybe_exception.is_exception()) {
+                        // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
+                        if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
+                            load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
+                            load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, maybe_exception.exception()).release_value();
+                        }
+
+                        // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
+                        auto completion = exception_to_throw_completion(main_thread_vm(), maybe_exception.exception());
+                        JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+
+                        // 3. Return.
+                        return;
                     }
 
-                    // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
-                    auto completion = exception_to_throw_completion(main_thread_vm(), maybe_exception.exception());
-                    JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+                    // 4. Let moduleType be the result of running the module type from module request steps given requested.
+                    auto module_type = HTML::module_type_from_module_request(requested);
 
-                    // 3. Return.
-                    return;
-                }
+                    // 5. If the result of running the module type allowed steps given moduleType and moduleMapRealm is false, then:
+                    if (!HTML::module_type_allowed(*module_map_realm, module_type)) {
+                        // 1. Let error be a new TypeError exception.
+                        auto error = JS::TypeError::create(*module_map_realm, MUST(String::formatted("Module type '{}' is not supported", module_type)));
 
-                // 4. Let moduleType be the result of running the module type from module request steps given moduleRequest.
-                auto module_type = HTML::module_type_from_module_request(module_request);
+                        // 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
+                        if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
+                            load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
+                            load_state_as_fetch_context->error_to_rethrow = error;
+                        }
 
-                // 5. If the result of running the module type allowed steps given moduleType and moduleMapRealm is false, then:
-                if (!HTML::module_type_allowed(*module_map_realm, module_type)) {
-                    // 1. Let error be a new TypeError exception.
-                    auto error = JS::TypeError::create(*module_map_realm, MUST(String::formatted("Module type '{}' is not supported", module_type)));
+                        // 3. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(error)).
+                        JS::finish_loading_imported_module(referrer, module_request, payload, JS::throw_completion(error));
 
-                    // 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
-                    if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
-                        load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
-                        load_state_as_fetch_context->error_to_rethrow = error;
+                        // 4. Return
+                        return;
                     }
-
-                    // 3. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(error)).
-                    JS::finish_loading_imported_module(referrer, module_request, payload, JS::throw_completion(error));
-
-                    // 4. Return
-                    return;
                 }
 
                 // NOTE: This step is essentially validating all of the requested module specifiers and type attributes
