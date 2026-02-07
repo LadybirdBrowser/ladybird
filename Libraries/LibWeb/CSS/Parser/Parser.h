@@ -92,14 +92,21 @@ enum class ParsingMode {
     SVGPresentationAttribute, // See https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
 };
 
+enum class IsUAStyleSheet {
+    Yes,
+    No,
+};
+
 struct ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(JS::Realm&, IsUAStyleSheet);
     explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
 
     GC::Ptr<JS::Realm> realm;
     GC::Ptr<DOM::Document const> document;
     ParsingMode mode { ParsingMode::Normal };
+    IsUAStyleSheet is_ua_style_sheet { IsUAStyleSheet::No };
 
     Vector<ValueParsingContext> value_context;
     Vector<RuleContext> rule_context;
@@ -599,6 +606,7 @@ private:
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
+    IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
 
     Vector<Token> m_tokens;
     TokenStream<Token> m_token_stream;
