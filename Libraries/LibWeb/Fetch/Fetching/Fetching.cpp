@@ -1528,7 +1528,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
     // 7. Let the revalidatingFlag be unset.
 
-    auto include_credentials = IncludeCredentials::No;
+    auto include_credentials = HTTP::Cookie::IncludeCredentials::No;
 
     // 8. Run these steps, but abort when fetchParams is canceled:
     // NOTE: There's an 'if aborted' check after this anyway, so not doing this is fine and only incurs a small delay.
@@ -1572,15 +1572,15 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
             // is true; otherwise false.
         ) {
-            include_credentials = IncludeCredentials::Yes;
+            include_credentials = HTTP::Cookie::IncludeCredentials::Yes;
         } else {
-            include_credentials = IncludeCredentials::No;
+            include_credentials = HTTP::Cookie::IncludeCredentials::No;
         }
 
         // 4. If Cross-Origin-Embedder-Policy allows credentials with request returns false, then set
         //    includeCredentials to false.
         if (!request->cross_origin_embedder_policy_allows_credentials())
-            include_credentials = IncludeCredentials::No;
+            include_credentials = HTTP::Cookie::IncludeCredentials::No;
 
         // 5. Let contentLength be httpRequest’s body’s length, if httpRequest’s body is non-null; otherwise null.
         auto content_length = http_request->body().has<GC::Ref<Infrastructure::Body>>()
@@ -1721,7 +1721,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             http_request->header_list()->append({ "Sec-GPC"sv, "1"sv });
 
         // 21. If includeCredentials is true, then:
-        if (include_credentials == IncludeCredentials::Yes) {
+        if (include_credentials == HTTP::Cookie::IncludeCredentials::Yes) {
             // 1. If the user agent is not configured to block cookies for httpRequest (see section 7 of [COOKIES]),
             //    then:
             if (true) {
@@ -1878,7 +1878,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             response->set_range_requested(true);
 
         // 13. Set response’s request-includes-credentials to includeCredentials.
-        response->set_request_includes_credentials(include_credentials == IncludeCredentials::Yes);
+        response->set_request_includes_credentials(include_credentials == HTTP::Cookie::IncludeCredentials::Yes);
 
         auto inner_pending_response = PendingResponse::create(vm, request, *response);
 
@@ -1886,7 +1886,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         //     and request’s traversable for user prompts is a traversable navigable:
         if (response->status() == 401
             && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
-            && include_credentials == IncludeCredentials::Yes
+            && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
             && request->traversable_for_user_prompts().has<GC::Ptr<HTML::TraversableNavigable>>()
             // AD-HOC: Require at least one WWW-Authenticate header to be set before automatically retrying an authenticated
             //         request (see rule 1 below). See: https://github.com/whatwg/fetch/issues/1766
@@ -2030,7 +2030,7 @@ static void log_response(auto const& status_code, auto const& headers, auto cons
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // Drop-in replacement for 'HTTP-network fetch', but obviously non-standard :^)
 // It also handles file:// URLs since those can also go through ResourceLoader.
-GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IncludeCredentials include_credentials, IsNewConnectionFetch is_new_connection_fetch, RefPtr<HTTP::MemoryCache> http_cache)
+GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, HTTP::Cookie::IncludeCredentials include_credentials, IsNewConnectionFetch is_new_connection_fetch, RefPtr<HTTP::MemoryCache> http_cache)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'non-standard HTTP-network fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -2053,7 +2053,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_page(page);
     load_request.set_method(request->method());
     load_request.set_cache_mode(request->cache_mode());
-    load_request.set_store_set_cookie_headers(include_credentials == IncludeCredentials::Yes);
+    load_request.set_store_set_cookie_headers(include_credentials == HTTP::Cookie::IncludeCredentials::Yes);
     load_request.set_initiator_type(request->initiator_type());
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
