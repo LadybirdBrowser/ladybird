@@ -256,9 +256,11 @@ void InlineFormattingContext::generate_line_boxes()
     LineBuilder line_builder(*this, m_state, m_containing_block_used_values, direction, writing_mode);
 
     // NOTE: When we ignore collapsible whitespace chunks at the start of a line,
-    //       we have to remember how much start margin that chunk had in the inline
-    //       axis, so that we can add it to the first non-whitespace chunk.
+    //       we have to remember how much start margin, border and padding that chunk had
+    //       in the inline axis, so that we can add it to the first non-whitespace chunk.
     CSSPixels leading_margin_from_collapsible_whitespace = 0;
+    CSSPixels leading_border_from_collapsible_whitespace = 0;
+    CSSPixels leading_padding_from_collapsible_whitespace = 0;
 
     Vector<Box const*> absolute_boxes;
 
@@ -276,11 +278,17 @@ void InlineFormattingContext::generate_line_boxes()
                     line_builder.break_if_needed(next_width);
             }
             leading_margin_from_collapsible_whitespace += item.margin_start;
+            leading_border_from_collapsible_whitespace += item.border_start;
+            leading_padding_from_collapsible_whitespace += item.padding_start;
             continue;
         }
 
         item.margin_start += leading_margin_from_collapsible_whitespace;
         leading_margin_from_collapsible_whitespace = 0;
+        item.border_start += leading_border_from_collapsible_whitespace;
+        leading_border_from_collapsible_whitespace = 0;
+        item.padding_start += leading_padding_from_collapsible_whitespace;
+        leading_padding_from_collapsible_whitespace = 0;
 
         switch (item.type) {
         case InlineLevelIterator::Item::Type::ForcedBreak: {
