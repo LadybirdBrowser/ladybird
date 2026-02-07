@@ -10,7 +10,9 @@
 
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
+#include <LibWeb/HTML/Canvas/CanvasImageSource.h>
+
+#pragma once
 
 namespace Web::HTML {
 
