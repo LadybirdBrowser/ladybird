@@ -16,6 +16,7 @@ Audio
 AudioBuffer
 AudioBufferSourceNode
 AudioContext
+AudioData
 AudioDestinationNode
 AudioListener
 AudioNode
