@@ -109,6 +109,7 @@ enum class StyleInvalidationReason {
     X(KeyframeEffect)                                 \
     X(LayoutTreeUpdate)                               \
     X(NavigableSetViewportSize)                       \
+    X(SVGGraphicsElementTransformChange)              \
     X(SVGImageElementFetchTheDocument)                \
     X(SVGImageFilterFetch)                            \
     X(StyleChange)
@@ -133,7 +134,6 @@ enum class SetNeedsLayoutReason {
     X(NodeRemove)                                         \
     X(NodeSetTextContent)                                 \
     X(None)                                               \
-    X(SVGGraphicsElementTransformChange)                  \
     X(SVGViewBoxChange)                                   \
     X(StyleChange)
 
