@@ -25,6 +25,6 @@ interface URL {
 
     USVString toJSON();
 
-    static Utf16DOMString createObjectURL((Blob or MediaSource) obj);
+    static Utf16DOMString createObjectURL(any obj);
     static undefined revokeObjectURL(DOMString url);
 };

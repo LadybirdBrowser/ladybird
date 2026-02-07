@@ -77,6 +77,11 @@ Trustworthiness is_url_potentially_trustworthy(URL::URL const& url)
     if (url.scheme() == "data"sv)
         return Trustworthiness::PotentiallyTrustworthy;
 
+    // 2.5. Treat browser extension schemes as authenticated contexts.
+    // This avoids routing extension-probe fetches through the mixed-content "Request was blocked" path.
+    if (url.scheme().is_one_of("chrome-extension"sv, "moz-extension"sv, "safari-web-extension"sv))
+        return Trustworthiness::PotentiallyTrustworthy;
+
     // 3. Return the result of executing § 3.1 Is origin potentially trustworthy? on url’s origin.
     return is_origin_potentially_trustworthy(url.origin());
 }

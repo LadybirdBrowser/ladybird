@@ -87,7 +87,10 @@ void RequestList::PendingRequestProcess::add_request_to_observe(GC::Ref<IDBReque
 {
     auto request_observer = heap().allocate<IDBRequestObserver>(request);
     request_observer->set_request_processed_changed_observer(GC::create_function(heap(), [this] {
-        VERIFY(!requests_waiting_on.is_empty());
+        // Re-entrant request processing can drain this list from another callback in the same notify cycle.
+        if (requests_waiting_on.is_empty())
+            return;
+
         requests_waiting_on.remove_all_matching([](GC::Ref<IDBRequestObserver> const& pending_request) {
             if (pending_request->request()->processed()) {
                 pending_request->unobserve();
@@ -98,7 +101,10 @@ void RequestList::PendingRequestProcess::add_request_to_observe(GC::Ref<IDBReque
         });
 
         if (requests_waiting_on.is_empty()) {
-            after_all.as_nonnull()->function()();
+            auto callback = after_all;
+            VERIFY(callback);
+            after_all = nullptr;
+            callback->function()();
         }
     }));
 

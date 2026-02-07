@@ -269,9 +269,25 @@ ByteBuffer Violation::obtain_the_deprecated_serialization(JS::Realm& realm) cons
 // https://w3c.github.io/webappsec-csp/#report-violation
 void Violation::report_a_violation(JS::Realm& realm)
 {
+    auto blocked_uri = obtain_the_blocked_uri_of_resource();
+
+    // AD-HOC: Some sites aggressively probe extension schemes (e.g. chrome-extension://...),
+    // which can generate a very high volume of identical CSP violations and degrade responsiveness.
+    // Keep reporting a small prefix and suppress the rest.
+    if (blocked_uri.is_one_of("chrome-extension"sv, "moz-extension"sv, "safari-web-extension"sv)) {
+        static size_t s_extension_scheme_violation_reports = 0;
+        static constexpr size_t s_extension_scheme_violation_report_limit = 8;
+        if (s_extension_scheme_violation_reports >= s_extension_scheme_violation_report_limit)
+            return;
+        ++s_extension_scheme_violation_reports;
+        if (s_extension_scheme_violation_reports == s_extension_scheme_violation_report_limit) {
+            dbgln("Content Security Policy: suppressing further repeated extension-scheme violation reports");
+        }
+    }
+
     dbgln("Content Security Policy violation{}: Refusing access to resource '{}' because it does not appear in the '{}' directive.",
         disposition() == Policy::Disposition::Report ? " (report only)"sv : ""sv,
-        obtain_the_blocked_uri_of_resource(),
+        blocked_uri,
         m_effective_directive);
 
     // 1. Let global be violation’s global object.

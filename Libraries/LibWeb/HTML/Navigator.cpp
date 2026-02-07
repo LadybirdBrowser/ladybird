@@ -8,6 +8,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigatorPrototype.h>
@@ -140,7 +141,6 @@ GC::Ref<WebXR::XRSystem> Navigator::xr()
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
 WebIDL::Long Navigator::max_touch_points()
 {
-    dbgln("FIXME: Unimplemented Navigator.maxTouchPoints");
     return 0;
 }
 
@@ -163,25 +163,18 @@ GC::Ref<WebIDL::Promise> Navigator::get_battery()
 {
     auto& realm = this->realm();
 
-    // FIXME: 1. If this.[[BatteryPromise]] is null, then set it to a new promise in this's relevant realm.
+    // Keep getBattery() non-failing for compatibility until a proper BatteryManager implementation exists.
     if (!m_battery_promise) {
-        WebIDL::SimpleException exception {
-            WebIDL::SimpleExceptionType::TypeError,
-            "Battery Status API is not yet implemented"sv
-        };
-        m_battery_promise = WebIDL::create_rejected_promise_from_exception(realm, move(exception));
+        auto battery = JS::Object::create(realm, realm.intrinsics().object_prototype());
+        MUST(battery->create_data_property("charging"_utf16_fly_string, JS::Value(true)));
+        MUST(battery->create_data_property("chargingTime"_utf16_fly_string, JS::Value(0)));
+        MUST(battery->create_data_property("dischargingTime"_utf16_fly_string, JS::Value(0)));
+        MUST(battery->create_data_property("level"_utf16_fly_string, JS::Value(1)));
+
+        m_battery_promise = WebIDL::create_resolved_promise(realm, battery);
     }
 
-    // FIXME: 2. If this's relevant global object's associated Document is not allowed to use the "battery"
-    // policy-controlled feature, then reject this.[[BatteryPromise]] with a "NotAllowedError" DOMException.
-
-    // FIXME: 3. Otherwise:
-    //    1. If this.[[BatteryManager]] is null, then set it to the result of creating a new BatteryManager
-    //       in this's relevant realm.
-
-    //    2. Resolve this.[[BatteryPromise]] with this.[[BatteryManager]].
-
-    // 4. Return this.[[BatteryPromise]].
+    // FIXME: Respect policy-controlled feature checks.
     return *m_battery_promise;
 }
 

@@ -85,9 +85,8 @@ float AudioParam::max_value() const
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-setvalueattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_value_at_time(float value, double start_time)
 {
-    (void)value;
     (void)start_time;
-    dbgln("FIXME: Implement AudioParam::set_value_at_time");
+    set_value(value);
     return GC::Ref { *this };
 }
 

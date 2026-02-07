@@ -28,7 +28,7 @@ public:
 
     virtual ~DOMURL() override;
 
-    static WebIDL::ExceptionOr<Utf16String> create_object_url(JS::VM&, FileAPI::BlobURLEntry::Object object);
+    static WebIDL::ExceptionOr<Utf16String> create_object_url(JS::VM&, JS::Value object);
     static void revoke_object_url(JS::VM&, StringView url);
 
     static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});

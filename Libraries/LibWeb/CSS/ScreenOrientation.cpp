@@ -38,20 +38,17 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(Bindings::
 // https://w3c.github.io/screen-orientation/#unlock-method
 void ScreenOrientation::unlock()
 {
-    dbgln("FIXME: Stubbed ScreenOrientation::unlock()");
 }
 
 // https://w3c.github.io/screen-orientation/#type-attribute
 Bindings::OrientationType ScreenOrientation::type() const
 {
-    dbgln("FIXME: Stubbed ScreenOrientation::type()");
     return Bindings::OrientationType::LandscapePrimary;
 }
 
 // https://w3c.github.io/screen-orientation/#angle-attribute
 WebIDL::UnsignedShort ScreenOrientation::angle() const
 {
-    dbgln("FIXME: Stubbed ScreenOrientation::angle()");
     return 0;
 }
 

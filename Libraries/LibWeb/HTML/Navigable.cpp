@@ -639,7 +639,7 @@ GC::Ptr<Navigable> Navigable::find_a_navigable_by_target_name(StringView name)
 
         // 3. For each navigable of the inclusive descendant navigables of documentToSearch:
         for (auto const& navigable : document_to_search->inclusive_descendant_navigables()) {
-            // 1. If currentNavigable's active browsing context is not familiar with navigable's active browsing context, then continue.
+            // 1. If currentTopLevelBrowsingContext is not familiar with navigable's active browsing context, then continue.
             if (!active_browsing_context()->is_familiar_with(*navigable->active_browsing_context()))
                 continue;
 
@@ -1362,12 +1362,13 @@ static void finalize_session_history_entry(
 
         // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
         if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
-            && (!received_navigation_params.has<Navigable::NullOrError>() && received_navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
-            // 1. Assert: navigationParams's request is not null.
-            VERIFY(received_navigation_params.has<GC::Ref<NavigationParams>>() && received_navigation_params.get<GC::Ref<NavigationParams>>()->request);
-
-            // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
-            entry->document_state()->set_request_referrer(received_navigation_params.get<GC::Ref<NavigationParams>>()->request->referrer());
+            && (!received_navigation_params.has<Navigable::NullOrError>() && received_navigation_params.has<GC::Ref<NavigationParams>>())) {
+            // NOTE: The spec asserts that navigationParams's request is not null, but for srcdoc navigations
+            //       the request is null per the spec's own "create navigation params from a srcdoc resource" algorithm.
+            if (auto request = received_navigation_params.get<GC::Ref<NavigationParams>>()->request) {
+                // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
+                entry->document_state()->set_request_referrer(request->referrer());
+            }
         }
     }
 
@@ -2315,7 +2316,11 @@ bool Navigable::allowed_by_sandboxing_to_navigate(Navigable const& target, Sourc
         if (has_flag(source_snapshot_params.sandboxing_flags, SandboxingFlagSet::SandboxedNavigation))
             return false;
 
-        // 3. Return true.
+        // 3. If sourceSnapshotParams's sandboxing flags's sandboxed top-level navigation without user activation browsing context flag is set, then return false.
+        if (has_flag(source_snapshot_params.sandboxing_flags, SandboxingFlagSet::SandboxedTopLevelNavigationWithoutUserActivation))
+            return false;
+
+        // 4. Return true.
         return true;
     }
 
@@ -2399,8 +2404,11 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
             history_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
         }
 
-        // 4. Set targetStep to traversable's current session history step.
-        target_step = traversable->current_session_history_step();
+        // 4. Set targetStep to entryToReplace's step.
+        if (entry_to_replace->step().has<int>())
+            target_step = entry_to_replace->step().get<int>();
+        else
+            target_step = traversable->current_session_history_step();
     }
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
