@@ -19,6 +19,7 @@ class RootImpl;
 class Heap;
 class HeapBlock;
 class NanBoxedValue;
+class Timer;
 class WeakContainer;
 class WeakImpl;
 

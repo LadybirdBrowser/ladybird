@@ -102,6 +102,10 @@
 #    cmakedefine01 HEAP_DEBUG
 #endif
 
+#ifndef INCREMENTAL_SWEEP_DEBUG
+#    cmakedefine01 INCREMENTAL_SWEEP_DEBUG
+#endif
+
 #ifndef HIGHLIGHT_FOCUSED_FRAME_DEBUG
 #    cmakedefine01 HIGHLIGHT_FOCUSED_FRAME_DEBUG
 #endif

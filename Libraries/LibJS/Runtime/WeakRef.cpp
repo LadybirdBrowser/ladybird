@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/HeapBlock.h>
 #include <LibJS/Runtime/WeakRef.h>
 
 namespace JS {
@@ -38,7 +39,13 @@ WeakRef::WeakRef(Symbol& value, Object& prototype)
 
 void WeakRef::remove_dead_cells(Badge<GC::Heap>)
 {
-    if (m_value.visit([](Cell* cell) -> bool { return cell->state() == Cell::State::Live; }, [](Empty) -> bool { return true; }))
+    auto is_alive = m_value.visit(
+        [this](Cell* cell) -> bool {
+            auto* block = GC::HeapBlock::from_cell(cell);
+            return heap().is_live_heap_block(block) && cell->state() == Cell::State::Live;
+        },
+        [](Empty) -> bool { return true; });
+    if (is_alive)
         return;
 
     m_value = Empty {};

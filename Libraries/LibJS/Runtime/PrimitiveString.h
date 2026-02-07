@@ -86,6 +86,8 @@ private:
     explicit PrimitiveString(String);
 
     void resolve_rope_if_needed(EncodingPreference) const;
+
+    virtual void finalize() override;
 };
 
 class RopeString final : public PrimitiveString {

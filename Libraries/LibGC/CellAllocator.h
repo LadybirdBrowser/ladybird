@@ -57,22 +57,31 @@ public:
     void block_did_become_empty(Badge<Heap>, HeapBlock&);
     void block_did_become_usable(Badge<Heap>, HeapBlock&);
 
+    bool has_blocks_pending_sweep() const { return !m_blocks_pending_sweep.is_empty(); }
+
     IntrusiveListNode<CellAllocator> m_list_node;
     using List = IntrusiveList<&CellAllocator::m_list_node>;
+
+    IntrusiveListNode<CellAllocator> m_sweep_list_node;
+    using SweepList = IntrusiveList<&CellAllocator::m_sweep_list_node>;
 
     BlockAllocator& block_allocator() { return m_block_allocator; }
     FlatPtr min_block_address() const { return m_min_block_address; }
     FlatPtr max_block_address() const { return m_max_block_address; }
 
 private:
+    friend class Heap;
+
     StringView m_class_name;
     size_t const m_cell_size;
 
     BlockAllocator m_block_allocator;
 
     using BlockList = IntrusiveList<&HeapBlock::m_list_node>;
+    using SweepBlockList = IntrusiveList<&HeapBlock::m_sweep_list_node>;
     BlockList m_full_blocks;
     BlockList m_usable_blocks;
+    SweepBlockList m_blocks_pending_sweep;
     FlatPtr m_min_block_address { explode_byte(0xff) };
     FlatPtr m_max_block_address { 0 };
     bool m_overrides_must_survive_garbage_collection { false };

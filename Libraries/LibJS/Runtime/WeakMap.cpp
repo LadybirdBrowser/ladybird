@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/HeapBlock.h>
 #include <LibJS/Runtime/WeakMap.h>
 
 namespace JS {
@@ -23,8 +24,9 @@ WeakMap::WeakMap(Object& prototype)
 
 void WeakMap::remove_dead_cells(Badge<GC::Heap>)
 {
-    m_values.remove_all_matching([](Cell* key, Value) {
-        return key->state() != Cell::State::Live;
+    m_values.remove_all_matching([this](Cell* key, Value) {
+        auto* block = GC::HeapBlock::from_cell(key);
+        return !heap().is_live_heap_block(block) || key->state() != Cell::State::Live;
     });
 }
 
