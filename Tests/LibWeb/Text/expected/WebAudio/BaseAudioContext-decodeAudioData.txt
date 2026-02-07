@@ -1,0 +1,12 @@
+channels: 1
+length: 8
+sampleRate: 8000
+channel0.length: 8
+sample[0]: -1.000031
+sample[1]: -0.500015
+sample[2]: 0.000000
+sample[3]: 0.500015
+sample[4]: 1.000000
+sample[5]: 0.250008
+sample[6]: -0.250008
+sample[7]: 0.000031

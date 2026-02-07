@@ -1041,6 +1041,7 @@ set(SOURCES
     WebAudio/AudioNode.cpp
     WebAudio/AudioParam.cpp
     WebAudio/AudioScheduledSourceNode.cpp
+    WebAudio/BackgroundAudioDecoder.cpp
     WebAudio/BaseAudioContext.cpp
     WebAudio/BiquadFilterNode.cpp
     WebAudio/ChannelMergerNode.cpp
