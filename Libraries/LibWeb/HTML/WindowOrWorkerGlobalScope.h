@@ -119,7 +119,7 @@ private:
         No,
     };
     i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
-    void run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat);
+    void run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key);
 
     GC::Ref<WebIDL::Promise> create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const;
 
@@ -130,6 +130,9 @@ private:
 
     IDAllocator m_timer_id_allocator;
     HashMap<int, GC::Ref<Timer>> m_timers;
+
+    // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-nesting-level
+    HashMap<i32, u32> m_timer_nesting_levels;
 
     // https://www.w3.org/TR/performance-timeline/#performance-timeline
     // Each global object has:

@@ -519,6 +519,7 @@ void WindowOrWorkerGlobalScopeMixin::clear_timeout(i32 id)
     if (auto timer = m_timers.get(id); timer.has_value())
         timer.value()->stop();
     m_timers.remove(id);
+    m_timer_nesting_levels.remove(id);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-clearinterval
@@ -527,6 +528,7 @@ void WindowOrWorkerGlobalScopeMixin::clear_interval(i32 id)
     if (auto timer = m_timers.get(id); timer.has_value())
         timer.value()->stop();
     m_timers.remove(id);
+    m_timer_nesting_levels.remove(id);
 }
 
 void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
@@ -534,6 +536,7 @@ void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
     for (auto& it : m_timers)
         it.value->stop();
     m_timers.clear();
+    m_timer_nesting_levels.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
@@ -545,13 +548,19 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 2. If previousId was given, let id be previousId; otherwise, let id be an implementation-defined integer that is greater than zero and does not already exist in global's map of setTimeout and setInterval IDs.
     auto id = previous_id.has_value() ? previous_id.value() : m_timer_id_allocator.allocate();
 
-    // FIXME: 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm, then let nesting level be the task's timer nesting level. Otherwise, let nesting level be 0.
+    // 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm,
+    //    then let nesting level be the task's timer nesting level. Otherwise, let nesting level be 0.
+    u32 nesting_level = 0;
+    if (previous_id.has_value())
+        nesting_level = m_timer_nesting_levels.get(previous_id.value()).value_or(0);
 
     // 4. If timeout is less than 0, then set timeout to 0.
     if (timeout < 0)
         timeout = 0;
 
-    // FIXME: 5. If nesting level is greater than 5, and timeout is less than 4, then set timeout to 4.
+    // 5. If nesting level is greater than 5, and timeout is less than 4, then set timeout to 4.
+    if (nesting_level > 5 && timeout < 4)
+        timeout = 4;
 
     // 6. Let realm be global's relevant realm.
     auto& realm = relevant_realm(this_impl());
@@ -655,12 +664,16 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         // 10. Otherwise, remove global's map of active timers[id].
         case Repeat::No:
             m_timers.remove(id);
+            m_timer_nesting_levels.remove(id);
             break;
         }
     }));
 
-    // FIXME: 10. Increment nesting level by one.
-    // FIXME: 11. Set task's timer nesting level to nesting level.
+    // 10. Increment nesting level by one.
+    nesting_level++;
+
+    // 11. Set task's timer nesting level to nesting level.
+    m_timer_nesting_levels.set(id, nesting_level);
 
     // 12. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
     Function<void()> completion_step = [this, task = move(task)]() mutable {
@@ -673,7 +686,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 13. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
     //     timeout, and completionStep.
     //     FIXME: run_steps_after_a_timeout() needs to be updated to return a unique internal value that can be used here.
-    run_steps_after_a_timeout_impl(timeout, move(completion_step), id, repeat);
+    run_steps_after_a_timeout_impl(timeout, move(completion_step), id);
 
     // FIXME: 14. Set global's map of setTimeout and setInterval IDs[id] to uniqueHandle.
 
@@ -1075,10 +1088,10 @@ WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets WindowOrWorkerGlobalScopeM
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#run-steps-after-a-timeout
 void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step)
 {
-    return run_steps_after_a_timeout_impl(timeout, move(completion_step), {}, Repeat::No);
+    run_steps_after_a_timeout_impl(timeout, move(completion_step), {});
 }
 
-void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat)
+void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key)
 {
     // 1. Assert: if timerKey is given, then the caller of this algorithm is the timer initialization steps. (Other specifications must not pass timerKey.)
     // Note: This is enforced by the caller.
@@ -1090,6 +1103,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
         if (result.has_value()) {
             existing_timer = result.value().ptr();
             existing_timer->set_callback(move(completion_step));
+            existing_timer->set_interval(timeout);
         }
     } else {
         // 2. If timerKey is not given, then set it to a new unique non-numeric value.
@@ -1097,7 +1111,11 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     }
 
     // FIXME: 3. Let startTime be the current high resolution time given global.
-    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(this_impl(), timeout, move(completion_step), timer_key.value(), repeat == Repeat::Yes ? Timer::Repeating::Yes : Timer::Repeating::No);
+
+    // NB: We always use single-shot timers. For repeating timers, the task callback will call
+    // run_timer_initialization_steps again to re-arm the timer. This ensures the timer only fires after the previous
+    // task has been processed, which is necessary for the timer nesting level throttling.
+    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(this_impl(), timeout, move(completion_step), timer_key.value(), Timer::Repeating::No);
 
     // FIXME: 4. Set global's map of active timers[timerKey] to startTime plus milliseconds.
     m_timers.set(timer_key.value(), timer);
