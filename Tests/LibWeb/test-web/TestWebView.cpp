@@ -47,7 +47,14 @@ NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screen
 
 void TestWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
 {
-    VERIFY(m_pending_screenshot);
+    if (!m_pending_screenshot) {
+        static bool warned_about_stray_screenshot = false;
+        if (!warned_about_stray_screenshot) {
+            warned_about_stray_screenshot = true;
+            warnln("Ignoring screenshot response with no pending request");
+        }
+        return;
+    }
 
     auto pending_screenshot = move(m_pending_screenshot);
     pending_screenshot->resolve(screenshot.bitmap());
@@ -59,7 +66,7 @@ void TestWebView::on_test_complete(TestCompletion completion)
     m_pending_dialog = Web::Page::PendingDialog::None;
     m_pending_prompt_text.clear();
 
-    m_test_promise->resolve(move(completion));
+    m_test_promise->resolve(completion);
 }
 
 }
