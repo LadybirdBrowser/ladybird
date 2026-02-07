@@ -42,7 +42,7 @@ WEB_API GC::Ref<Promise> invoke_promise_callback(CallbackType& callback, Optiona
 JS::Completion construct(CallbackType& callable, ReadonlySpan<JS::Value> args);
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-integerpart
-double integer_part(double n);
+long double integer_part(long double n);
 
 enum class EnforceRange {
     Yes,

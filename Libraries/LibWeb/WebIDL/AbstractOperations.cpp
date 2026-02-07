@@ -440,7 +440,7 @@ JS::Completion construct(CallbackType& callable, ReadonlySpan<JS::Value> args)
 }
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-integerpart
-double integer_part(double n)
+long double integer_part(long double n)
 {
     // 1. Let r be floor(abs(n)).
     auto r = floor(abs(n));
@@ -457,8 +457,8 @@ double integer_part(double n)
 template<Integral T>
 JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRange enforce_range, Clamp clamp)
 {
-    double upper_bound = 0;
-    double lower_bound = 0;
+    long double upper_bound = 0;
+    long double lower_bound = 0;
 
     // 1. If bitLength is 64, then:
     if constexpr (sizeof(T) == 8) {
@@ -487,7 +487,7 @@ JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRang
     }
 
     // 4. Let x be ? ToNumber(V).
-    auto x = TRY(value.to_number(vm)).as_double();
+    long double x = TRY(value.to_number(vm)).as_double();
 
     // 5. If x is −0, then set x to +0.
     if (x == -0.)
@@ -528,7 +528,7 @@ JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRang
     x = integer_part(x);
 
     // 10. Set x to x modulo 2^bitLength.
-    auto constexpr two_pow_bitlength = NumericLimits<MakeUnsigned<T>>::max() + 1.0;
+    auto constexpr two_pow_bitlength = NumericLimits<MakeUnsigned<T>>::max() + 1.0L;
     x = JS::modulo(x, two_pow_bitlength);
 
     // 11. If signedness is "signed" and x ≥ 2^(bitLength − 1), then return x − 2^(bitLength).
