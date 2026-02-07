@@ -13,6 +13,7 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/EditingHostManager.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
@@ -30,6 +31,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
 #include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -37,6 +39,7 @@
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -415,6 +418,14 @@ void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position
     if (m_selection_mode == SelectionMode::None)
         return;
 
+    auto clamped_position = m_auto_scroll_handler
+        ? m_auto_scroll_handler->process(visual_viewport_position)
+        : visual_viewport_position;
+    apply_mouse_selection(clamped_position);
+}
+
+void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
+{
     auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
     if (!hit.has_value() || !hit->paintable->dom_node())
         return;
@@ -766,6 +777,8 @@ after_node_use:
         m_selection_mode = SelectionMode::None;
         m_selection_origin = {};
         m_mouse_selection_target = nullptr;
+
+        m_auto_scroll_handler = nullptr;
     }
     return handled_event;
 }
@@ -917,6 +930,12 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
                 set_user_selection(*dom_node, index, *dom_node, index, selection, user_select);
         }
     }
+
+    if (m_selection_mode != SelectionMode::None) {
+        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*cursor_hit->paintable))
+            m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
+    }
+
     return EventResult::Handled;
 }
 
@@ -1197,6 +1216,9 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
                 m_mouse_selection_target = nullptr;
                 set_user_selection(hit_dom_node, previous_boundary, hit_dom_node, next_boundary, selection, hit_paintable.layout_node().user_select_used_value());
             }
+
+            if (auto container = AutoScrollHandler::find_scrollable_ancestor(*result->paintable))
+                m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
         }
     }
 
@@ -1272,6 +1294,9 @@ EventResult EventHandler::handle_tripleclick(CSSPixelPoint visual_viewport_posit
                 if (auto selection = document.get_selection())
                     (void)selection->set_base_and_extent(*m_selection_origin->start_container(), m_selection_origin->start_offset(), *m_selection_origin->end_container(), m_selection_origin->end_offset());
             }
+
+            if (auto container = AutoScrollHandler::find_scrollable_ancestor(*hit->paintable))
+                m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
         }
     }
 
@@ -1887,6 +1912,8 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
         visitor.visit(m_mouse_selection_target->as_cell());
     visitor.visit(m_selection_origin);
     visitor.visit(m_navigable);
+    if (m_auto_scroll_handler)
+        m_auto_scroll_handler->visit_edges(visitor);
 }
 
 Unicode::Segmenter& EventHandler::word_segmenter()

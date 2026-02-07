@@ -17,6 +17,7 @@
 
 namespace Web {
 
+class AutoScrollHandler;
 class CSSPixels;
 class DisplayListRecordingContext;
 class DragAndDropEventHandler;

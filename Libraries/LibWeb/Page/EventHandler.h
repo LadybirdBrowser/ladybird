@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,9 +9,8 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/WeakPtr.h>
+#include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibUnicode/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -25,6 +25,8 @@
 namespace Web {
 
 class WEB_API EventHandler {
+    friend class AutoScrollHandler;
+
 public:
     explicit EventHandler(Badge<HTML::Navigable>, HTML::Navigable&);
     ~EventHandler();
@@ -81,6 +83,7 @@ private:
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
     void update_mouse_selection(CSSPixelPoint visual_viewport_position);
+    void apply_mouse_selection(CSSPixelPoint visual_viewport_position);
 
     GC::Ptr<Painting::PaintableBox> paint_root();
     GC::Ptr<Painting::PaintableBox const> paint_root() const;
@@ -107,6 +110,8 @@ private:
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
 
     OwnPtr<Unicode::Segmenter> m_word_segmenter;
+
+    OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
 };
 
 }

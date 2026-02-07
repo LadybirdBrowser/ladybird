@@ -21,7 +21,7 @@ public:
 
     virtual ~Selection() override;
 
-    enum class Direction {
+    enum class Direction : u8 {
         Forwards,
         Backwards,
         Directionless,
