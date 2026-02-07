@@ -21,7 +21,7 @@ constexpr T exp2(T exponent)
 template<Integral T>
 constexpr T log2(T x)
 {
-    return x ? (8 * sizeof(T) - 1) - count_leading_zeroes(static_cast<MakeUnsigned<T>>(x)) : 0;
+    return x ? ((8 * sizeof(T)) - 1) - count_leading_zeroes(static_cast<MakeUnsigned<T>>(x)) : 0;
 }
 
 template<Integral T>

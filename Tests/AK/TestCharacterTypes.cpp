@@ -14,7 +14,7 @@
 
 using namespace Test::Randomized;
 
-void compare_bool_output_over(u32 range, auto& old_function, auto& new_function)
+static void compare_bool_output_over(u32 range, auto& old_function, auto& new_function)
 {
     bool result1 = false;
     bool result2 = false;
@@ -25,7 +25,7 @@ void compare_bool_output_over(u32 range, auto& old_function, auto& new_function)
     }
 }
 
-void compare_value_output_over(u32 range, auto& old_function, auto& new_function)
+static void compare_value_output_over(u32 range, auto& old_function, auto& new_function)
 {
     i64 result1 = 0;
     i64 result2 = 0;
@@ -36,7 +36,7 @@ void compare_value_output_over(u32 range, auto& old_function, auto& new_function
     }
 }
 
-void randomized_compare_bool_output_over(u32 range, auto& old_function, auto& new_function)
+static void randomized_compare_bool_output_over(u32 range, auto& old_function, auto& new_function)
 {
     // NOTE: randomized tests also run multiple times (100 by default). This means we'll try 10k random numbers times each time the test suite is run.
     for (u32 n = 0; n < 100; ++n) {
@@ -49,7 +49,7 @@ void randomized_compare_bool_output_over(u32 range, auto& old_function, auto& ne
     }
 }
 
-void randomized_compare_value_output_over(u32 range, auto& old_function, auto& new_function)
+static void randomized_compare_value_output_over(u32 range, auto& old_function, auto& new_function)
 {
     // NOTE: randomized tests also run multiple times (100 by default). This means we'll try 10k random numbers times each time the test suite is run.
     for (u32 n = 0; n < 100; ++n) {

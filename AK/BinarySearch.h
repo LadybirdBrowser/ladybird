@@ -41,7 +41,7 @@ constexpr auto binary_search(
     size_t low = 0;
     size_t high = haystack.size() - 1;
     while (low <= high) {
-        size_t middle = low + (high - low) / 2;
+        size_t middle = low + ((high - low) / 2);
 
         int comparison = comparator(needle, haystack[middle]);
 

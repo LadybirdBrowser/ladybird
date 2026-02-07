@@ -36,11 +36,11 @@ TEST_CASE(insert)
 TEST_CASE(insert_before)
 {
     IntrusiveTestList list;
-    auto two = new IntrusiveTestItem();
+    auto* two = new IntrusiveTestItem();
     list.append(*two);
-    auto zero = new IntrusiveTestItem();
+    auto* zero = new IntrusiveTestItem();
     list.append(*zero);
-    auto one = new IntrusiveTestItem();
+    auto* one = new IntrusiveTestItem();
     list.insert_before(*zero, *one);
 
     EXPECT_EQ(list.first(), two);
@@ -54,7 +54,7 @@ TEST_CASE(insert_before)
     EXPECT(two->m_list_node.is_in_list());
     EXPECT_EQ(list.size_slow(), 3u);
 
-    while (auto elem = list.take_first()) {
+    while (auto* elem = list.take_first()) {
         delete elem;
     }
 }
@@ -81,7 +81,7 @@ TEST_CASE(enumeration)
     }
     EXPECT_EQ(expected_size, reverse_actual_size);
 
-    while (auto elem = list.take_first()) {
+    while (auto* elem = list.take_first()) {
         delete elem;
     }
 }

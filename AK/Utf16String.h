@@ -321,7 +321,7 @@ private:
 
 template<>
 struct Formatter<Utf16String> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder&, Utf16String const&);
+    static ErrorOr<void> format(FormatBuilder&, Utf16String const&);
 };
 
 template<>

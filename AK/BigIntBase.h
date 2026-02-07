@@ -81,7 +81,7 @@ template<typename T, typename WordType = NativeWord>
 concept IntegerReadonlyStorage = IntegerStorage<T, WordType const>;
 
 struct NullAllocator {
-    NativeWord* allocate(size_t) { VERIFY_NOT_REACHED(); }
+    static NativeWord* allocate(size_t) { VERIFY_NOT_REACHED(); }
 };
 
 template<typename Word, bool is_signed_>
@@ -165,7 +165,7 @@ struct IntegerWrapper {
     }
 };
 
-constexpr inline auto get_storage_of(IntegerWrapper value) { return value.m_data; }
+constexpr auto get_storage_of(IntegerWrapper value) { return value.m_data; }
 
 template<BuiltInUFixedInt T>
 constexpr StaticStorage<false, bit_width<T>> get_storage_of(T value)
@@ -190,7 +190,8 @@ ALWAYS_INLINE constexpr WordType add_words(WordType word1, WordType word2, bool&
 {
     if (!is_constant_evaluated()) {
 #if __has_builtin(__builtin_addc)
-        WordType ncarry, output;
+        WordType ncarry;
+        WordType output;
         if constexpr (SameAs<WordType, unsigned int>)
             output = __builtin_addc(word1, word2, carry, reinterpret_cast<unsigned int*>(&ncarry));
         else if constexpr (SameAs<WordType, unsigned long>)
@@ -232,7 +233,8 @@ ALWAYS_INLINE constexpr WordType sub_words(WordType word1, WordType word2, bool&
 {
     if (!is_constant_evaluated()) {
 #if __has_builtin(__builtin_subc)
-        WordType ncarry, output;
+        WordType ncarry;
+        WordType output;
         if constexpr (SameAs<WordType, unsigned int>)
             output = __builtin_subc(word1, word2, carry, reinterpret_cast<unsigned int*>(&ncarry));
         else if constexpr (SameAs<WordType, unsigned long>)
@@ -303,7 +305,8 @@ struct StorageOperations {
     static constexpr void copy(IntegerReadonlyStorage<WordType> auto const& operand, IntegerStorage<WordType> auto&& result, size_t offset = 0)
     {
         auto fill = extend_sign<WordType>(operand.is_negative());
-        size_t size1 = operand.size(), size = result.size();
+        size_t size1 = operand.size();
+        size_t size = result.size();
 
         for (size_t i = 0; i < size; ++i)
             result[i] = i + offset < size1 ? operand[i + offset] : fill;
@@ -319,8 +322,10 @@ struct StorageOperations {
     // `is_for_inequality' is a hint to compiler that we do not need to differentiate between < and >.
     static constexpr int compare(IntegerReadonlyStorage<WordType> auto const& operand1, IntegerReadonlyStorage<WordType> auto const& operand2, bool is_for_inequality)
     {
-        bool sign1 = operand1.is_negative(), sign2 = operand2.is_negative();
-        size_t size1 = operand1.size(), size2 = operand2.size();
+        bool sign1 = operand1.is_negative();
+        bool sign2 = operand2.is_negative();
+        size_t size1 = operand1.size();
+        size_t size2 = operand2.size();
 
         if (sign1 != sign2) {
             if (sign1)
@@ -348,7 +353,8 @@ struct StorageOperations {
         //        -fsanitize=address. I have not reported this.
         //        Reduced testcase: https://godbolt.org/z/TE3MbfhnE
         for (size_t i = (size1 > size2 ? size2 : size1); i--;) {
-            auto word1 = operand1[i], word2 = operand2[i];
+            auto word1 = operand1[i];
+            auto word2 = operand2[i];
 
             if (is_for_inequality) {
                 if (word1 != word2)
@@ -376,7 +382,9 @@ struct StorageOperations {
     template<Bitwise operation>
     static constexpr void compute_bitwise(IntegerReadonlyStorage<WordType> auto const& operand1, IntegerReadonlyStorage<WordType> auto const& operand2, IntegerStorage<WordType> auto&& result)
     {
-        size_t size1 = operand1.size(), size2 = operand2.size(), size = result.size();
+        size_t size1 = operand1.size();
+        size_t size2 = operand2.size();
+        size_t size = result.size();
 
         for (size_t i = 0; i < size; ++i) {
             auto word1 = i < size1 ? operand1[i] : 0;
@@ -424,7 +432,8 @@ struct StorageOperations {
     static constexpr void shift_left(IntegerReadonlyStorage<WordType> auto const& operand, size_t shift, IntegerStorage<WordType> auto&& result)
     {
         size_t size = operand.size();
-        size_t offset = shift / word_size, remainder = shift % word_size;
+        size_t offset = shift / word_size;
+        size_t remainder = shift % word_size;
 
         if (shift % word_size == 0) {
             for (size_t i = size; i-- > offset;)
@@ -443,7 +452,8 @@ struct StorageOperations {
     static constexpr void shift_right(IntegerReadonlyStorage<WordType> auto const& operand, size_t shift, IntegerStorage<WordType> auto&& result)
     {
         size_t size = operand.size();
-        size_t offset = shift / word_size, remainder = shift % word_size;
+        size_t offset = shift / word_size;
+        size_t remainder = shift % word_size;
 
         if (shift % word_size == 0) {
             for (size_t i = 0; i < size - offset; ++i)
@@ -471,9 +481,13 @@ struct StorageOperations {
     template<bool subtract>
     static constexpr int add(IntegerReadonlyStorage<WordType> auto const& operand1, IntegerReadonlyStorage<WordType> auto const& operand2, IntegerStorage<WordType> auto&& result, bool carry = false)
     {
-        bool sign1 = operand1.is_negative(), sign2 = operand2.is_negative();
-        auto fill1 = extend_sign<WordType>(sign1), fill2 = extend_sign<WordType>(sign2);
-        size_t size1 = operand1.size(), size2 = operand2.size(), size = result.size();
+        bool sign1 = operand1.is_negative();
+        bool sign2 = operand2.is_negative();
+        auto fill1 = extend_sign<WordType>(sign1);
+        auto fill2 = extend_sign<WordType>(sign2);
+        size_t size1 = operand1.size();
+        size_t size2 = operand2.size();
+        size_t size = result.size();
 
         for (size_t i = 0; i < size; ++i) {
             auto word1 = i < size1 ? operand1[i] : fill1;
@@ -529,8 +543,11 @@ struct StorageOperations {
     template<IntegerReadonlyStorage<WordType> Operand1, IntegerReadonlyStorage<WordType> Operand2>
     static constexpr void baseline_mul(Operand1 const& operand1, Operand2 const& operand2, IntegerStorage<WordType> auto&& __restrict__ result, auto&& buffer)
     {
-        bool sign1 = operand1.is_negative(), sign2 = operand2.is_negative();
-        size_t size1 = operand1.size(), size2 = operand2.size(), size = result.size();
+        bool sign1 = operand1.is_negative();
+        bool sign2 = operand2.is_negative();
+        size_t size1 = operand1.size();
+        size_t size2 = operand2.size();
+        size_t size = result.size();
 
         if (size1 == 1 && size2 == 1) {
             // We do not want to compete with the cleverness of the compiler of multiplying NativeWords.
@@ -556,7 +573,8 @@ struct StorageOperations {
         // Now size1 >= size2
 
         // Normalize signs
-        auto data1 = operand1.data(), data2 = operand2.data();
+        auto data1 = operand1.data();
+        auto data2 = operand2.data();
         if (size2 < size) {
             if (sign1) {
                 auto inverted = buffer.allocate(size1);

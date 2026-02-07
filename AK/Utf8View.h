@@ -92,7 +92,7 @@ public:
     size_t byte_length() const { return m_string.length(); }
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units() const { return byte_length(); }
 
-    size_t code_point_offset_of(size_t code_unit_offset) const;
+    size_t code_point_offset_of(size_t byte_offset) const;
 
     [[nodiscard]] size_t byte_offset_of(Utf8CodePointIterator const& it) const
     {

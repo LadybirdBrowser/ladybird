@@ -155,7 +155,7 @@ int OptionParser::handle_short_option()
 Optional<OptionParser::Option const&> OptionParser::lookup_long_option(StringView arg) const
 {
     for (size_t index = 0; index < m_long_options.size(); index++) {
-        auto& option = m_long_options[index];
+        auto const& option = m_long_options[index];
 
         if (!arg.starts_with(option.name))
             continue;

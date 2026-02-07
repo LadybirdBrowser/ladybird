@@ -26,7 +26,8 @@ struct timeval {
 #else
 #    include <sys/time.h>
 #endif
-#include <time.h>
+
+#include <cstddef>
 
 namespace AK {
 
@@ -63,7 +64,7 @@ constexpr int day_of_year(int year, unsigned month, int day)
 {
     if (is_constant_evaluated())
         VERIFY(month >= 1 && month <= 12); // Note that this prevents bad constexpr months, but never actually prints anything.
-    else if (!(month >= 1 && month <= 12))
+    else if (month < 1 || month > 12)
         return 0;
 
     constexpr Array seek_table = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
@@ -97,7 +98,7 @@ constexpr i64 floor_div_by(i64 dividend)
 {
     static_assert(divisor > 1);
     int is_negative = dividend < 0;
-    return (dividend + is_negative) / divisor - is_negative;
+    return ((dividend + is_negative) / divisor) - is_negative;
 }
 
 // Counts how many integers n are in the interval [begin, end) with n % positive_mod == 0.
@@ -112,7 +113,9 @@ constexpr i64 mod_zeros_in_range(i64 begin, i64 end)
 
 constexpr i64 years_to_days_since_epoch(int year)
 {
-    int begin_year, end_year, leap_sign;
+    int begin_year;
+    int end_year;
+    int leap_sign;
     if (year < 1970) {
         begin_year = year;
         end_year = 1970;
@@ -130,7 +133,7 @@ constexpr i64 years_to_days_since_epoch(int year)
     extra_leap_days += Detail::mod_zeros_in_range<4>(begin_year, end_year);
     extra_leap_days -= Detail::mod_zeros_in_range<100>(begin_year, end_year);
     extra_leap_days += Detail::mod_zeros_in_range<400>(begin_year, end_year);
-    return days + extra_leap_days * leap_sign;
+    return days + (extra_leap_days * leap_sign);
 }
 
 constexpr i64 days_since_epoch(int year, int month, int day)
@@ -302,8 +305,7 @@ public:
         if (new_secs.has_overflow()) {
             if (other_secs > 0)
                 return Duration::max();
-            else
-                return Duration::min();
+            return Duration::min();
         }
 
         return Duration { new_secs.value(), new_nsecs };
@@ -431,8 +433,8 @@ public:
         // so we must choose seconds here, and not milliseconds.
         i64 seconds_since_epoch = days * seconds_per_day;
 
-        seconds_since_epoch += hour * seconds_per_hour;
-        seconds_since_epoch += minute * seconds_per_minute;
+        seconds_since_epoch += static_cast<i64>(hour * seconds_per_hour);
+        seconds_since_epoch += static_cast<i64>(minute * seconds_per_minute);
         seconds_since_epoch += second;
         return from_seconds_since_epoch(seconds_since_epoch) + Duration::from_milliseconds(millisecond);
     }
@@ -665,7 +667,7 @@ constexpr Duration operator""_sec(unsigned long long seconds) { return Duration:
 
 template<>
 struct Formatter<UnixDateTime> : StandardFormatter {
-    ErrorOr<void> format(FormatBuilder& builder, UnixDateTime const& value)
+    static ErrorOr<void> format(FormatBuilder& builder, UnixDateTime const& value)
     {
         auto result_time = value.to_timespec().tv_sec;
         struct tm tm;

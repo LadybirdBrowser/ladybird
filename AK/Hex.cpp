@@ -24,7 +24,7 @@ ErrorOr<ByteBuffer> decode_hex(StringView input)
         if (c1 >= 16)
             return Error::from_string_literal("Hex string contains invalid digit");
 
-        auto const c2 = decode_hex_digit(input[i * 2 + 1]);
+        auto const c2 = decode_hex_digit(input[(i * 2) + 1]);
         if (c2 >= 16)
             return Error::from_string_literal("Hex string contains invalid digit");
 

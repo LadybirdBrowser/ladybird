@@ -44,7 +44,7 @@ TEST_CASE(array_doubles)
 {
     Array<double, 3> array { 1.1, 9.9, 33.33 };
 
-    EXPECT_EQ(binary_search(array, 1.1), &array[0]);
+    EXPECT_EQ(binary_search(array, 1.1), array.data());
     EXPECT_EQ(binary_search(array, 33.33), &array[2]);
     EXPECT_EQ(binary_search(array, 9.9), &array[1]);
 }
@@ -83,9 +83,9 @@ TEST_CASE(not_found)
     ints.append(2);
     ints.append(3);
 
-    auto test1 = binary_search(ints, -1);
-    auto test2 = binary_search(ints, 0);
-    auto test3 = binary_search(ints, 4);
+    auto* test1 = binary_search(ints, -1);
+    auto* test2 = binary_search(ints, 0);
+    auto* test3 = binary_search(ints, 4);
     EXPECT_EQ(test1, nullptr);
     EXPECT_EQ(test2, nullptr);
     EXPECT_EQ(test3, nullptr);
@@ -95,7 +95,7 @@ TEST_CASE(no_elements)
 {
     Vector<int> ints;
 
-    auto test1 = binary_search(ints, 1);
+    auto* test1 = binary_search(ints, 1);
     EXPECT_EQ(test1, nullptr);
 }
 
@@ -126,7 +126,7 @@ RANDOMIZED_TEST_CASE(finds_number_that_is_present)
     GEN(i, Gen::number_u64(0, vec.size() - 1));
     AK::quick_sort(vec);
     u64 n = vec[i];
-    auto ptr = binary_search(vec, n);
+    auto* ptr = binary_search(vec, n);
     EXPECT_NE(ptr, nullptr);
     EXPECT_EQ(*ptr, n);
 }

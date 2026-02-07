@@ -89,7 +89,7 @@ struct TestSizeCalculationPolicy {
 
     void decrease_size(auto const&) { ++calls_to_decrease; }
 
-    void reset() { ++calls_to_reset; }
+    static void reset() { ++calls_to_reset; }
 
     size_t size(auto const*) const
     {

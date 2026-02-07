@@ -47,7 +47,7 @@ TEST_CASE(load_form)
     EXPECT(widgets.has_value());
 
     widgets->for_each([&](JsonValue const& widget_value) {
-        auto& widget_object = widget_value.as_object();
+        auto const& widget_object = widget_value.as_object();
         auto widget_class = widget_object.get_string("class"sv).value();
         widget_object.for_each_member([&]([[maybe_unused]] auto& property_name, [[maybe_unused]] JsonValue const& property_value) {
         });
@@ -122,7 +122,7 @@ TEST_CASE(json_64_bit_value)
     EXPECT(big_json_value.is_integer<u64>());
     EXPECT_EQ(big_json_value.as_integer<u64>(), big_value);
 
-    JsonValue big_json_value_copy = big_json_value;
+    JsonValue const& big_json_value_copy = big_json_value;
     EXPECT(big_json_value.equals(big_json_value_copy));
 }
 
@@ -530,7 +530,7 @@ TEST_CASE(json_array_serialized)
 {
     auto raw_json = R"(["Hello",2,3.14,4,"World"])"sv;
     auto json_value = MUST(JsonValue::from_string(raw_json));
-    auto array = json_value.as_array();
+    auto const& array = json_value.as_array();
     auto const& serialized_json = array.serialized();
     EXPECT_EQ(serialized_json, raw_json);
 }
@@ -539,7 +539,7 @@ TEST_CASE(json_array_serialize)
 {
     auto raw_json = R"(["Hello",2,3.14,4,"World"])"sv;
     auto json_value = MUST(JsonValue::from_string(raw_json));
-    auto array = json_value.as_array();
+    auto const& array = json_value.as_array();
     StringBuilder builder {};
     array.serialize(builder);
     EXPECT_EQ(builder.string_view(), raw_json);
@@ -549,7 +549,7 @@ TEST_CASE(json_array_values)
 {
     auto raw_json = "[1, 2, 3, 4]"sv;
     auto json_value = MUST(JsonValue::from_string(raw_json));
-    auto array = json_value.as_array();
+    auto const& array = json_value.as_array();
     auto const& values = array.values();
     EXPECT_EQ(values.size(), size_t { 4 });
 
@@ -560,7 +560,7 @@ TEST_CASE(json_array_values)
 TEST_CASE(json_value_as_integer)
 {
     // is_integer() should validate based on the value, not the underlying type.
-    JsonValue value_int { static_cast<int>(42) };
+    JsonValue value_int { 42 };
     JsonValue value_unsigned { static_cast<unsigned>(42) };
     JsonValue value_long { static_cast<long>(42) };
     JsonValue value_long_unsigned { static_cast<long unsigned>(42) };

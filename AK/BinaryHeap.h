@@ -101,9 +101,9 @@ private:
 
     void heapify_down(size_t i)
     {
-        while (i * 2 + 1 < size()) {
-            size_t min_child = i * 2 + 1;
-            size_t other_child = i * 2 + 2;
+        while ((i * 2) + 1 < size()) {
+            size_t min_child = (i * 2) + 1;
+            size_t other_child = (i * 2) + 2;
             if (other_child < size() && compare_indices(other_child, min_child))
                 min_child = other_child;
             if (compare_indices(i, min_child))
@@ -137,7 +137,7 @@ public:
 
     void insert(K key, V value)
     {
-        m_heap.insert({ key, value });
+        m_heap.insert({ key, move(value) });
     }
 
     V pop_min()

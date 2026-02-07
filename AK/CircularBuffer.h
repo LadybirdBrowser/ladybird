@@ -26,7 +26,7 @@ public:
 
     size_t write(ReadonlyBytes bytes);
     Bytes read(Bytes bytes);
-    ErrorOr<void> discard(size_t discarded_bytes);
+    ErrorOr<void> discard(size_t discarding_size);
     ErrorOr<size_t> fill_from_stream(Stream&);
     ErrorOr<size_t> flush_to_stream(Stream&);
 
@@ -54,7 +54,7 @@ protected:
     [[nodiscard]] ReadonlyBytes next_read_span(size_t offset = 0) const;
     [[nodiscard]] ReadonlyBytes next_seekback_span(size_t distance) const;
 
-    ByteBuffer m_buffer {};
+    ByteBuffer m_buffer;
 
     size_t m_reading_head {};
     size_t m_used_space {};

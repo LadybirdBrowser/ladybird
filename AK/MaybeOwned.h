@@ -42,16 +42,14 @@ public:
     {
         if (m_handle.template has<T*>())
             return m_handle.template get<T*>();
-        else
-            return m_handle.template get<NonnullOwnPtr<T>>();
+        return m_handle.template get<NonnullOwnPtr<T>>();
     }
 
     T const* ptr() const
     {
         if (m_handle.template has<T*>())
             return m_handle.template get<T*>();
-        else
-            return m_handle.template get<NonnullOwnPtr<T>>();
+        return m_handle.template get<NonnullOwnPtr<T>>();
     }
 
     T* operator->() { return ptr(); }
@@ -74,8 +72,7 @@ private:
     {
         if (variant.template has<U*>())
             return variant.template get<U*>();
-        else
-            return static_cast<NonnullOwnPtr<T>&&>(move(variant.template get<NonnullOwnPtr<U>>()));
+        return static_cast<NonnullOwnPtr<T>&&>(move(variant.template get<NonnullOwnPtr<U>>()));
     }
 
     Handle<T> m_handle;
