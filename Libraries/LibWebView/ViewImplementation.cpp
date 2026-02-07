@@ -260,7 +260,7 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     client().async_set_preferred_motion(page_id(), motion);
 }
 
-void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<Web::Cookie::Cookie> cookies)
+void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> cookies)
 {
     for (auto const& domain : changed_domains) {
         if (auto document_index = m_document_cookie_version_indices.get(domain); document_index.has_value())
@@ -287,7 +287,7 @@ ErrorOr<Core::SharedVersionIndex> ViewImplementation::ensure_document_cookie_ver
 
 Optional<Core::SharedVersion> ViewImplementation::document_cookie_version(URL::URL const& url) const
 {
-    auto domain = Web::Cookie::canonicalize_domain(url);
+    auto domain = HTTP::Cookie::canonicalize_domain(url);
     if (!domain.has_value())
         return {};
 

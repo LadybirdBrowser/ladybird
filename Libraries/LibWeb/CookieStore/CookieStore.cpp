@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibHTTP/Cookie/Cookie.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CookieStorePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/CookieStore/CookieChangeEvent.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -43,7 +44,7 @@ void CookieStore::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://cookiestore.spec.whatwg.org/#create-a-cookielistitem
-static CookieListItem create_a_cookie_list_item(Cookie::Cookie const& cookie)
+static CookieListItem create_a_cookie_list_item(HTTP::Cookie::Cookie const& cookie)
 {
     // 1. Let name be the result of running UTF-8 decode without BOM on cookie’s name.
     // 2. Let value be the result of running UTF-8 decode without BOM on cookie’s value.
@@ -419,7 +420,7 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
     auto const& host = url.host();
 
     // 11. Let attributes be a new list.
-    Cookie::ParsedCookie parsed_cookie {};
+    HTTP::Cookie::ParsedCookie parsed_cookie {};
     parsed_cookie.name = move(name);
     parsed_cookie.value = move(value);
 
@@ -461,7 +462,7 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
         // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.1
         // 3. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days in the future or sooner, see
         //    Section 5.5).
-        auto cookie_age_limit = UnixDateTime::now() + Cookie::maximum_cookie_age;
+        auto cookie_age_limit = UnixDateTime::now() + HTTP::Cookie::maximum_cookie_age;
 
         // 4. If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit
         //    in seconds.
@@ -499,17 +500,17 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
     // -> "none"
     case Bindings::CookieSameSite::None:
         // Append `SameSite`/`None` to attributes.
-        parsed_cookie.same_site_attribute = Cookie::SameSite::None;
+        parsed_cookie.same_site_attribute = HTTP::Cookie::SameSite::None;
         break;
     // -> "strict"
     case Bindings::CookieSameSite::Strict:
         // Append `SameSite`/`Strict` to attributes.
-        parsed_cookie.same_site_attribute = Cookie::SameSite::Strict;
+        parsed_cookie.same_site_attribute = HTTP::Cookie::SameSite::Strict;
         break;
     // -> "lax"
     case Bindings::CookieSameSite::Lax:
         // Append `SameSite`/`Lax` to attributes.
-        parsed_cookie.same_site_attribute = Cookie::SameSite::Lax;
+        parsed_cookie.same_site_attribute = HTTP::Cookie::SameSite::Lax;
         break;
     }
 
@@ -519,7 +520,7 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
     // 23. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
     //     request-uri, encodedName as cookie-name, encodedValue as cookie-value, and attributes as cookie-attribute-list.
     //     For the purposes of the steps, the newly-created cookie was received from a "non-HTTP" API.
-    client.page_did_set_cookie(url, parsed_cookie, Cookie::Source::NonHttp);
+    client.page_did_set_cookie(url, parsed_cookie, HTTP::Cookie::Source::NonHttp);
 
     // 24. Return success.
     return true;
@@ -742,12 +743,12 @@ struct CookieChange {
         Deleted,
     };
 
-    Cookie::Cookie cookie;
+    HTTP::Cookie::Cookie cookie;
     Type type;
 };
 
 // https://cookiestore.spec.whatwg.org/#observable-changes
-static Vector<CookieChange> observable_changes(Vector<Cookie::Cookie> changes)
+static Vector<CookieChange> observable_changes(Vector<HTTP::Cookie::Cookie> changes)
 {
     // The observable changes for url are the set of cookie changes to cookies in a cookie store which meet the
     // requirements in step 1 of Cookies § Retrieval Algorithm’s steps to compute the "cookie-string from a given
@@ -808,7 +809,7 @@ static PreparedLists prepare_lists(Vector<CookieChange> const& changes)
 }
 
 // https://cookiestore.spec.whatwg.org/#process-cookie-changes
-void CookieStore::process_cookie_changes(Vector<Cookie::Cookie> all_changes)
+void CookieStore::process_cookie_changes(Vector<HTTP::Cookie::Cookie> all_changes)
 {
     auto& realm = this->realm();
 

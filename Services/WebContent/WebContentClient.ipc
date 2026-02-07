@@ -2,14 +2,14 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibHTTP/Cookie/Cookie.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
-#include <LibWeb/Cookie/Cookie.h>
-#include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/ActivateTab.h>
@@ -77,12 +77,12 @@ endpoint WebContentClient
     did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon) =|
 
     did_request_document_cookie_version_index(u64 page_id, i64 document_id, String domain) =|
-    did_request_all_cookies_webdriver(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)
-    did_request_all_cookies_cookiestore(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)
-    did_request_named_cookie(URL::URL url, String name) => (Optional<Web::Cookie::Cookie> cookie)
-    did_request_cookie(u64 page_id, URL::URL url, Web::Cookie::Source source) => (Web::Cookie::VersionedCookie cookie)
-    did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source) => ()
-    did_update_cookie(Web::Cookie::Cookie cookie) =|
+    did_request_all_cookies_webdriver(URL::URL url) => (Vector<HTTP::Cookie::Cookie> cookies)
+    did_request_all_cookies_cookiestore(URL::URL url) => (Vector<HTTP::Cookie::Cookie> cookies)
+    did_request_named_cookie(URL::URL url, String name) => (Optional<HTTP::Cookie::Cookie> cookie)
+    did_request_cookie(u64 page_id, URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
+    did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source) => ()
+    did_update_cookie(HTTP::Cookie::Cookie cookie) =|
     did_expire_cookies_with_time_offset(AK::Duration offset) =|
 
     did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => (Optional<String> value)

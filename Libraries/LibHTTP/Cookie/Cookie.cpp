@@ -7,11 +7,12 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
+#include <LibHTTP/Cookie/Cookie.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/Cookie/Cookie.h>
+#include <LibURL/URL.h>
 
-namespace Web::Cookie {
+namespace HTTP::Cookie {
 
 static String time_to_string(UnixDateTime const& time)
 {
@@ -150,7 +151,7 @@ String default_path(URL::URL const& url)
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
-bool cookie_matches_url(Web::Cookie::Cookie const& cookie, URL::URL const& url, String const& retrieval_host_canonical, Optional<Web::Cookie::Source> source)
+bool cookie_matches_url(Cookie const& cookie, URL::URL const& url, String const& retrieval_host_canonical, Optional<Source> source)
 {
     // * Either:
     //     - The cookie's host-only-flag is true and retrieval-host-canonical is identical to the cookie's domain.
@@ -159,14 +160,14 @@ bool cookie_matches_url(Web::Cookie::Cookie const& cookie, URL::URL const& url, 
     //     - The cookie's host-only-flag is false and retrieval-host-canonical domain-matches (see Section 5.1.3)
     //       the cookie's domain.
     //     - The cookie's domain is not a public suffix, for user agents configured to reject "public suffixes".
-    bool is_not_host_only_and_domain_matches = (!cookie.host_only && Web::Cookie::domain_matches(retrieval_host_canonical, cookie.domain))
+    bool is_not_host_only_and_domain_matches = (!cookie.host_only && domain_matches(retrieval_host_canonical, cookie.domain))
         && !URL::is_public_suffix(cookie.domain);
 
     if (!is_host_only_and_has_identical_domain && !is_not_host_only_and_domain_matches)
         return false;
 
     // * The retrieval's URI's path path-matches the cookie's path.
-    if (!Web::Cookie::path_matches(url.serialize_path(), cookie.path))
+    if (!path_matches(url.serialize_path(), cookie.path))
         return false;
 
     // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as
@@ -175,7 +176,7 @@ bool cookie_matches_url(Web::Cookie::Cookie const& cookie, URL::URL const& url, 
         return false;
 
     // * If the cookie's http-only-flag is true, then exclude the cookie if the retrieval's type is "non-HTTP".
-    if (cookie.http_only && (source != Web::Cookie::Source::Http))
+    if (cookie.http_only && (source != Source::Http))
         return false;
 
     // FIXME: * If the cookie's same-site-flag is not "None" and the retrieval's same-site status is "cross-site", then
@@ -192,7 +193,7 @@ bool cookie_matches_url(Web::Cookie::Cookie const& cookie, URL::URL const& url, 
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::Cookie::Cookie const& cookie)
+ErrorOr<void> IPC::encode(Encoder& encoder, HTTP::Cookie::Cookie const& cookie)
 {
     TRY(encoder.encode(cookie.name));
     TRY(encoder.encode(cookie.value));
@@ -211,7 +212,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::Cookie::Cookie const& cookie)
 }
 
 template<>
-ErrorOr<Web::Cookie::Cookie> IPC::decode(Decoder& decoder)
+ErrorOr<HTTP::Cookie::Cookie> IPC::decode(Decoder& decoder)
 {
     auto name = TRY(decoder.decode<String>());
     auto value = TRY(decoder.decode<String>());
@@ -224,13 +225,13 @@ ErrorOr<Web::Cookie::Cookie> IPC::decode(Decoder& decoder)
     auto last_access_time = TRY(decoder.decode<UnixDateTime>());
     auto persistent = TRY(decoder.decode<bool>());
     auto secure = TRY(decoder.decode<bool>());
-    auto same_site = TRY(decoder.decode<Web::Cookie::SameSite>());
+    auto same_site = TRY(decoder.decode<HTTP::Cookie::SameSite>());
 
-    return Web::Cookie::Cookie { move(name), move(value), same_site, creation_time, last_access_time, expiry_time, move(domain), move(path), secure, http_only, host_only, persistent };
+    return HTTP::Cookie::Cookie { move(name), move(value), same_site, creation_time, last_access_time, expiry_time, move(domain), move(path), secure, http_only, host_only, persistent };
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::Cookie::VersionedCookie const& cookie)
+ErrorOr<void> IPC::encode(Encoder& encoder, HTTP::Cookie::VersionedCookie const& cookie)
 {
     TRY(encoder.encode(cookie.cookie_version));
     TRY(encoder.encode(cookie.cookie));
@@ -239,10 +240,10 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::Cookie::VersionedCookie const& 
 }
 
 template<>
-ErrorOr<Web::Cookie::VersionedCookie> IPC::decode(Decoder& decoder)
+ErrorOr<HTTP::Cookie::VersionedCookie> IPC::decode(Decoder& decoder)
 {
     auto cookie_version = TRY(decoder.decode<Optional<Core::SharedVersion>>());
     auto cookie = TRY(decoder.decode<String>());
 
-    return Web::Cookie::VersionedCookie { cookie_version, move(cookie) };
+    return HTTP::Cookie::VersionedCookie { cookie_version, move(cookie) };
 }

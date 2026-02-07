@@ -76,7 +76,7 @@ static bool is_simple_type(ByteString const& type)
     // Small types that it makes sense just to pass by value.
     if (type.starts_with("ReadonlySpan<"sv) && type.ends_with(">"sv))
         return true;
-    return type.is_one_of("AK::CaseSensitivity", "AK::Duration", "Gfx::Color", "ReadonlyBytes", "StringView", "Web::DevicePixels", "Gfx::IntPoint", "Gfx::FloatPoint", "Web::DevicePixelPoint", "Gfx::IntSize", "Gfx::FloatSize", "Web::DevicePixelSize", "Web::DevicePixelRect", "Core::File::OpenMode", "Web::Cookie::Source", "Web::EventResult", "Web::HTML::AllowMultipleFiles", "Web::HTML::AudioPlayState", "Web::HTML::HistoryHandlingBehavior", "Web::HTML::VisibilityState", "WebView::PageInfoType");
+    return type.is_one_of("AK::CaseSensitivity", "AK::Duration", "Gfx::Color", "ReadonlyBytes", "StringView", "Web::DevicePixels", "Gfx::IntPoint", "Gfx::FloatPoint", "Web::DevicePixelPoint", "Gfx::IntSize", "Gfx::FloatSize", "Web::DevicePixelSize", "Web::DevicePixelRect", "Core::File::OpenMode", "HTTP::Cookie::Source", "Web::EventResult", "Web::HTML::AllowMultipleFiles", "Web::HTML::AudioPlayState", "Web::HTML::HistoryHandlingBehavior", "Web::HTML::VisibilityState", "WebView::PageInfoType");
 }
 
 static bool is_primitive_or_simple_type(ByteString const& type)

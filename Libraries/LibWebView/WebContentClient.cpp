@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
@@ -560,12 +560,12 @@ Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_
     return Application::cookie_jar().get_named_cookie(url, name);
 }
 
-Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL url, Web::Cookie::Source source)
+Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL url, HTTP::Cookie::Source source)
 {
-    Web::Cookie::VersionedCookie cookie;
+    HTTP::Cookie::VersionedCookie cookie;
     cookie.cookie = Application::cookie_jar().get_cookie(url, source);
 
-    if (source == Web::Cookie::Source::NonHttp) {
+    if (source == HTTP::Cookie::Source::NonHttp) {
         if (auto view = view_for_page_id(page_id); view.has_value())
             cookie.cookie_version = view->document_cookie_version(url);
     }
@@ -573,12 +573,12 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
     return cookie;
 }
 
-void WebContentClient::did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source)
+void WebContentClient::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
 {
     Application::cookie_jar().set_cookie(url, cookie, source);
 }
 
-void WebContentClient::did_update_cookie(Web::Cookie::Cookie cookie)
+void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
 {
     Application::cookie_jar().update_cookie(cookie);
 }

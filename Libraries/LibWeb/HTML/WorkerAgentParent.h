@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibURL/URL.h>
 #include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/Bindings/RequestPrototype.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>

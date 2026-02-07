@@ -21,6 +21,7 @@
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -58,7 +59,6 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
-#include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
@@ -3261,7 +3261,7 @@ void Document::completely_finish_loading()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
-WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
+WebIDL::ExceptionOr<String> Document::cookie(HTTP::Cookie::Source source)
 {
     // On getting, if the document is a cookie-averse Document object, then the user agent must return the empty string.
     if (is_cookie_averse())
@@ -3289,7 +3289,7 @@ WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
-WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, Cookie::Source source)
+WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, HTTP::Cookie::Source source)
 {
     // On setting, if the document is a cookie-averse Document object, then the user agent must do nothing.
     if (is_cookie_averse())
@@ -3301,7 +3301,7 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, Cookie:
 
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
-    if (auto cookie = Cookie::parse_cookie(url(), cookie_string); cookie.has_value())
+    if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string); cookie.has_value())
         page().client().page_did_set_cookie(m_url, cookie.value(), source);
 
     return {};
@@ -7248,13 +7248,13 @@ void Document::build_registered_properties_cache()
 
 void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url)
 {
-    auto new_domain = Cookie::canonicalize_domain(new_url);
+    auto new_domain = HTTP::Cookie::canonicalize_domain(new_url);
     if (!new_domain.has_value()) {
         m_cookie_version_index = {};
         return;
     }
 
-    if (m_cookie_version_index.has_value() && *new_domain == Cookie::canonicalize_domain(old_url))
+    if (m_cookie_version_index.has_value() && *new_domain == HTTP::Cookie::canonicalize_domain(old_url))
         return;
 
     page().client().page_did_request_document_cookie_version_index(unique_id(), *new_domain);

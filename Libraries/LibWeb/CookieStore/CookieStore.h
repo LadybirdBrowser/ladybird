@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibHTTP/Forward.h>
 #include <LibWeb/Bindings/CookieStorePrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
@@ -67,7 +68,7 @@ public:
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();
 
-    void process_cookie_changes(Vector<Cookie::Cookie>);
+    void process_cookie_changes(Vector<HTTP::Cookie::Cookie>);
 
 private:
     CookieStore(JS::Realm&, PageClient&);

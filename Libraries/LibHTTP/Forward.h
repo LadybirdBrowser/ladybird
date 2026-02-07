@@ -22,3 +22,14 @@ class MemoryCache;
 struct Header;
 
 }
+
+namespace HTTP::Cookie {
+
+struct Cookie;
+struct ParsedCookie;
+struct VersionedCookie;
+
+enum class SameSite;
+enum class Source;
+
+}
