@@ -28,6 +28,8 @@ public:
     // ^Node
     virtual FlyString node_name() const override { return "#text"_fly_string; }
 
+    virtual Node& slottable_as_node() override { return *this; }
+
     Optional<size_t> max_length() const { return m_max_length; }
     void set_max_length(Optional<size_t> max_length) { m_max_length = move(max_length); }
 

@@ -125,6 +125,8 @@ public:
 
     virtual bool is_dom_element() const final { return true; }
 
+    virtual Node& slottable_as_node() override { return *this; }
+
     FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
     FlyString const& html_uppercased_qualified_name() const;
 
