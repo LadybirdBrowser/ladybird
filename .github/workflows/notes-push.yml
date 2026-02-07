@@ -6,6 +6,9 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}
+
 jobs:
   build:
     if: github.repository == 'LadybirdBrowser/ladybird'
@@ -16,8 +19,10 @@ jobs:
           fetch-depth: 0
       - uses: fregante/setup-git-user@v2
       - run: |
+          set -e
+
           git fetch origin "refs/notes/*:refs/notes/*"
           curl -fsSLO https://github.com/gh-tui-tools/git-gloss/raw/refs/heads/main/git-gloss && bash ./git-gloss
-          git push origin "refs/notes/*" || true
+          git push origin "refs/notes/*"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
