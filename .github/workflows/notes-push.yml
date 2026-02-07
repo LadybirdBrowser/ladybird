@@ -17,7 +17,8 @@ jobs:
       - uses: fregante/setup-git-user@v2
       - run: |
           git fetch origin "refs/notes/*:refs/notes/*"
-          curl -fsSLO https://github.com/gh-tui-tools/git-gloss/raw/refs/heads/main/git-gloss && bash ./git-gloss
+          curl -fsSLO https://github.com/gh-tui-tools/git-gloss/raw/refs/heads/main/git-gloss
+          bash ./git-gloss
           git push origin "refs/notes/*" || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
