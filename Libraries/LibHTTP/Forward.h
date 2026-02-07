@@ -31,6 +31,7 @@ struct Cookie;
 struct ParsedCookie;
 struct VersionedCookie;
 
+enum class IncludeCredentials : u8;
 enum class SameSite : u8;
 enum class Source : u8;
 
