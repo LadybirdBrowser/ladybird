@@ -1,0 +1,3 @@
+Light theme - dark-icon (hidden) inherited color: rgb(0, 0, 0)
+Dark theme - dark-icon (visible) inherited color: rgb(255, 255, 255)
+PASS: Inherited color correctly updated for previously hidden element
