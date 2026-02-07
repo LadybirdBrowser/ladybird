@@ -28,6 +28,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
+#include <LibWeb/StorageAPI/StorageEndpoint.h>
 
 namespace Web {
 
@@ -111,6 +112,117 @@ static void store_response_cookies(Page& page, URL::URL const& url, ByteString c
     if (!cookie.has_value())
         return;
     page.client().page_did_set_cookie(url, cookie.value(), Cookie::Source::Http);
+}
+
+// https://w3c.github.io/webappsec-clear-site-data/#parsing
+// 4.1 Parsing
+static Vector<String> parse_clear_site_data_header(HTTP::HeaderList const& response_headers)
+{
+    // 1. "Let types be an empty list."
+    Vector<String> types;
+
+    // FIXME: 2. "Let header be the result of extracting header list values given Clear-Site-Data and response's header list."
+    // https://fetch.spec.whatwg.org/#extract-header-list-values
+    //
+    // The Fetch spec's "extract header list values" algorithm is already implemented in
+    // LibWeb/Fetch/Infrastructure/HTTP/Headers.cpp:extract_header_list_values(), but it operates on
+    // Fetch::Infrastructure::HeaderList while we have HTTP::HeaderMap here in the network layer.
+    // Implementing a conversion is beyond the scope of this PR (Clear-Site-Data WPT test implementation).
+    Vector<String> extracted_values;
+    for (auto const& [header_name, header_value] : response_headers.headers()) {
+        if (header_name.equals_ignoring_ascii_case("Clear-Site-Data"sv)) {
+
+            auto tokens = header_value.split_view(',');
+            for (auto token : tokens) {
+                token = token.trim_whitespace();
+
+                if (token.length() < 2 || token[0] != '"' || token[token.length() - 1] != '"') {
+                    // Malformed token - per Fetch spec, any extraction failure means
+                    // the entire "extract header list values" operation returns failure.
+                    // Return empty list to indicate failure.
+                    dbgln_if(WEB_FETCH_DEBUG, "Clear-Site-Data: Malformed header value (missing quotes): {}", token);
+                    return types;
+                }
+
+                auto value = token.substring_view(1, token.length() - 2);
+                extracted_values.append(MUST(String::from_utf8(value)));
+            }
+        }
+    }
+
+    // 3. "If header is null or failure, return an empty list."
+    if (extracted_values.is_empty())
+        return types;
+
+    // 4. "For each type in header, execute the first matching statement, if any, switching on type:"
+    for (auto const& value : extracted_values) {
+        if (value == "cache"sv) {
+            types.append("cache"_string);
+            types.append("clientHints"_string);
+        } else if (value == "cookies"sv) {
+            types.append("cookies"_string);
+            types.append("clientHints"_string);
+        } else if (value == "storage"sv) {
+            types.append("storage"_string);
+        } else if (value == "clientHints"sv) {
+            types.append("clientHints"_string);
+        } else if (value == "executionContexts"sv) {
+            types.append("executionContexts"_string);
+        } else if (value == "*"sv) {
+            types.append("cache"_string);
+            types.append("cookies"_string);
+            types.append("storage"_string);
+            types.append("executionContexts"_string);
+            types.append("clientHints"_string);
+        }
+    }
+
+    // 5. "Return types."
+    return types;
+}
+
+// https://w3c.github.io/webappsec-clear-site-data/#clear-response
+// 4.2 Clear data for response
+static void handle_clear_site_data(Page& page, URL::URL const& url, HTTP::HeaderList const& response_headers)
+{
+    // 1. "If response's url is not an a priori authenticated URL, then break."
+    // An a priori authenticated URL is one that is considered secure (e.g., HTTPS).
+    if (url.scheme() != "https"sv) {
+        dbgln_if(WEB_FETCH_DEBUG, "Clear-Site-Data: Ignoring header on non-HTTPS URL: {}", url.serialize());
+        return;
+    }
+
+    // 2. "Let types be the result of parsing response's Clear-Site-Data header."
+    auto types = parse_clear_site_data_header(response_headers);
+    if (types.is_empty())
+        return;
+
+    // 3. "Let origin be response's url's origin."
+    auto origin = url.origin();
+
+    // FIXME: 4. "Let browsing contexts be the result of preparing to clear data for origin and types."
+
+    // 5. "For each type in types: Execute the first matching statement, if any, switching on type:
+    for (auto const& type : types) {
+        if (type == "cache"sv) {
+            // FIXME: 4.2.3 Clear cache for origin - no cache clearing API available yet.
+        } else if (type == "cookies"sv) {
+            // 4.2.4 Clear cookies for origin
+            page.client().page_did_clear_cookies_for_registered_domain(origin);
+        } else if (type == "storage"sv) {
+            // 4.2.5 Clear DOM-accessible storage for origin
+            auto storage_key = url.origin().serialize();
+            page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::LocalStorage, storage_key);
+            page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::SessionStorage, storage_key);
+            page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::IndexedDB, storage_key);
+            page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::ServiceWorkerRegistrations, storage_key);
+            page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::Caches, storage_key);
+        } else if (type == "clientHints"sv) {
+            // FIXME: 4.2 Clear client hints for origin (Empty Accept-CH cache) - no Accept-CH cache clearing API available yet.
+        }
+    }
+
+    // FIXME: 6. "If types contains executionContexts, then Reload browsing contexts."
 }
 
 static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
@@ -501,10 +613,27 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
         // From https://fetch.spec.whatwg.org/#concept-http-network-fetch:
         // 15. If includeCredentials is true, then the user agent should parse and store response
         //     `Set-Cookie` headers given request and response.
-        for (auto const& [header, value] : response_headers) {
+        bool found_clear_site_data = false;
+        for (auto const& [header, value] : response_headers.headers()) {
             if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
                 store_response_cookies(*request.page(), request.url().value(), value);
             }
+            if (header.equals_ignoring_ascii_case("Clear-Site-Data"sv)) {
+                found_clear_site_data = true;
+            }
+        }
+
+        // From https://w3c.github.io/webappsec-clear-site-data/#fetch-integration (Section 3.2):
+        // "If credentials flag is set, and response's header list contains a header named Clear-Site-Data,
+        // then execute 4.2 Clear data for response on response.
+        // Note: This happens after Set-Cookie headers are processed."
+        if (found_clear_site_data) {
+            // FIXME: Clear-Site-Data spec 3.2: "If the Clear-Site-Data header is present in an HTTP
+            // response received from the network, then data MUST be cleared before rendering the response to the user."
+            // Clear-Site-Data spec 5.2: "It is imperative that the Clear-Site-Data header is only respected
+            // on responses fetched over network, and not those served by a service worker."
+            // We need to check if this response came from the network (not from a service worker) before processing.
+            handle_clear_site_data(*request.page(), request.url().value(), response_headers);
         }
     }
 }

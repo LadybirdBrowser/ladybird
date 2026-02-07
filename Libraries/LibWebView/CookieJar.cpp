@@ -487,6 +487,46 @@ void CookieJar::expire_cookies_accessed_since(UnixDateTime since)
     m_transient_storage.expire_and_purge_cookies_accessed_since(since);
 }
 
+// https://w3c.github.io/webappsec-clear-site-data/#clear-cookies
+// 4.2.4 Clear cookies for origin
+void CookieJar::clear_cookies_for_registered_domain(URL::Origin const& origin)
+{
+    // 1. Let registered be the registered domain of origin's host.
+    auto registered = URL::get_registrable_domain(origin.host().serialize());
+    if (!registered.has_value())
+        return;
+
+    // 2. Let cookie list be the set of cookies from the cookie store
+    //    whose domain attribute is a domain-match with registered.
+    Vector<Web::Cookie::Cookie> cookie_list;
+    m_transient_storage.for_each_cookie([&](Web::Cookie::Cookie const& cookie) {
+        if (Web::Cookie::domain_matches(registered.value(), cookie.domain)) {
+            cookie_list.append(cookie);
+        }
+    });
+
+    // 3. For each cookie in cookie list: Remove cookie from the cookie store.
+    for (auto const& cookie : cookie_list) {
+        CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
+        // Remove by marking as expired and purging
+        if (auto existing_cookie = m_transient_storage.get_cookie(key); existing_cookie.has_value()) {
+            auto expired_cookie = existing_cookie.value();
+            expired_cookie.expiry_time = UnixDateTime::earliest();
+            m_transient_storage.set_cookie(key, move(expired_cookie));
+        }
+    }
+    m_transient_storage.purge_expired_cookies();
+
+    // FIXME: 4. If the user agent supports other forms of cookie-like storage,
+    //           these MUST also be cleared for origins whose host's registered domain is registered.
+
+    // FIXME: 5. Clear any Channel IDs and bound tokens associated with origins
+    //           whose host's registered domain is registered.
+
+    // FIXME: 6. Clear authentication entries and proxy-authentication entries
+    //           associated with origins whose host's registered domain is registered.
+}
+
 Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTime since) const
 {
     return m_transient_storage.estimate_storage_size_accessed_since(since);
