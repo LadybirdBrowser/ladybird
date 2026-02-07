@@ -9,29 +9,29 @@ interface Notification : EventTarget {
     // FIXME: static readonly attribute NotificationPermission permission;
     // FIXME: [Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
 
-    // FIXME: static readonly attribute unsigned long maxActions;
+    static readonly attribute unsigned long maxActions;
 
     [FIXME] attribute EventHandler onclick;
     [FIXME] attribute EventHandler onshow;
     [FIXME] attribute EventHandler onerror;
     [FIXME] attribute EventHandler onclose;
 
-    [FIXME] readonly attribute DOMString title;
-    [FIXME] readonly attribute NotificationDirection dir;
-    [FIXME] readonly attribute DOMString lang;
-    [FIXME] readonly attribute DOMString body;
-    [FIXME] readonly attribute USVString navigate;
-    [FIXME] readonly attribute DOMString tag;
-    [FIXME] readonly attribute USVString image;
-    [FIXME] readonly attribute USVString icon;
-    [FIXME] readonly attribute USVString badge;
+    readonly attribute Utf16DOMString title;
+    readonly attribute NotificationDirection dir;
+    readonly attribute Utf16DOMString lang;
+    readonly attribute Utf16DOMString body;
+    readonly attribute USVString navigate;
+    readonly attribute Utf16DOMString tag;
+    readonly attribute USVString image;
+    readonly attribute USVString icon;
+    readonly attribute USVString badge;
     // FIXME: [SameObject] readonly attribute FrozenArray<unsigned long> vibrate;
-    [FIXME] readonly attribute EpochTimeStamp timestamp;
-    [FIXME] readonly attribute boolean renotify;
-    [FIXME] readonly attribute boolean? silent;
-    [FIXME] readonly attribute boolean requireInteraction;
-    // FIXME: [SameObject] readonly attribute any data;
-    // FIXME: [SameObject] readonly attribute FrozenArray<NotificationAction> actions;
+    readonly attribute EpochTimeStamp timestamp;
+    readonly attribute boolean renotify;
+    readonly attribute boolean? silent;
+    readonly attribute boolean requireInteraction;
+    [SameObject] readonly attribute any data;
+    [SameObject] readonly attribute FrozenArray<NotificationAction> actions;
 
     [FIXME] undefined close();
 };
