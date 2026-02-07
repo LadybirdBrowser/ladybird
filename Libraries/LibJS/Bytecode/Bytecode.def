@@ -62,6 +62,11 @@ op ToString < Instruction
     m_value: Operand
 endop
 
+op ToNumber < Instruction
+    m_dst: Operand
+    m_value: Operand
+endop
+
 op BitwiseXor < Instruction
     m_dst: Operand
     m_lhs: Operand

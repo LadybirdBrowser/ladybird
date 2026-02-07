@@ -406,6 +406,15 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
                 }
             }
 
+            if (instruction.type() == Instruction::Type::Mov) {
+                auto& mov = static_cast<Bytecode::Op::Mov&>(instruction);
+
+                if (mov.dst() == mov.src()) {
+                    ++it;
+                    continue;
+                }
+            }
+
             // OPTIMIZATION: For `JumpIf` where one of the targets is the very next block,
             //               we can emit a `JumpTrue` or `JumpFalse` (to the other block) instead.
             if (instruction.type() == Instruction::Type::JumpIf) {

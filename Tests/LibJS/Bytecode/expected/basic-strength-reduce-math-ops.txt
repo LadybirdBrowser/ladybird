@@ -1,0 +1,109 @@
+JS bytecode executable ""
+[   0]    0: GetGlobal dst:reg6, identifier:console
+[  10]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  28]       GetGlobal dst:reg9, identifier:multiply_by_one
+[  38]       Call dst:reg8, callee:reg9, this_value:Undefined, multiply_by_one, arguments:[Int32(123)]
+[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  88]       GetGlobal dst:reg6, identifier:console
+[  98]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[  b0]       GetGlobal dst:reg10, identifier:multiply_by_one_alt
+[  c0]       Call dst:reg9, callee:reg10, this_value:Undefined, multiply_by_one_alt, arguments:[Int32(123)]
+[  e8]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 110]       GetGlobal dst:reg8, identifier:console
+[ 120]       GetById dst:reg6, base:reg8, property:log, base_identifier:console
+[ 138]       GetGlobal dst:reg10, identifier:multiply_by_negative_one
+[ 148]       Call dst:reg9, callee:reg10, this_value:Undefined, multiply_by_negative_one, arguments:[Int32(123)]
+[ 170]       Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+[ 198]       GetGlobal dst:reg6, identifier:console
+[ 1a8]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[ 1c0]       GetGlobal dst:reg10, identifier:multiply_by_negative_one_alt
+[ 1d0]       Call dst:reg9, callee:reg10, this_value:Undefined, multiply_by_negative_one_alt, arguments:[Int32(123)]
+[ 1f8]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 220]       GetGlobal dst:reg8, identifier:console
+[ 230]       GetById dst:reg6, base:reg8, property:log, base_identifier:console
+[ 248]       GetGlobal dst:reg10, identifier:divide_by_one
+[ 258]       Call dst:reg9, callee:reg10, this_value:Undefined, divide_by_one, arguments:[Int32(123)]
+[ 280]       Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+[ 2a8]       GetGlobal dst:reg6, identifier:console
+[ 2b8]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[ 2d0]       GetGlobal dst:reg10, identifier:divide_by_negative_one
+[ 2e0]       Call dst:reg9, callee:reg10, this_value:Undefined, divide_by_negative_one, arguments:[Int32(123)]
+[ 308]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 330]       GetGlobal dst:reg8, identifier:console
+[ 340]       GetById dst:reg6, base:reg8, property:log, base_identifier:console
+[ 358]       GetGlobal dst:reg10, identifier:square
+[ 368]       Call dst:reg9, callee:reg10, this_value:Undefined, square, arguments:[Int32(10)]
+[ 390]       Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+[ 3b8]       GetGlobal dst:reg6, identifier:console
+[ 3c8]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[ 3e0]       GetGlobal dst:reg10, identifier:square_func
+[ 3f0]       Call dst:reg9, callee:reg10, this_value:Undefined, square_func, arguments:[Int32(10)]
+[ 418]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 440]       GetGlobal dst:reg8, identifier:console
+[ 450]       GetById dst:reg6, base:reg8, property:log, base_identifier:console
+[ 468]       GetGlobal dst:reg10, identifier:power_of_one
+[ 478]       Call dst:reg9, callee:reg10, this_value:Undefined, power_of_one, arguments:[Int32(10)]
+[ 4a0]       Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+[ 4c8]       GetGlobal dst:reg6, identifier:console
+[ 4d8]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[ 4f0]       GetGlobal dst:reg10, identifier:power_of_zero
+[ 500]       Call dst:reg9, callee:reg10, this_value:Undefined, power_of_zero, arguments:[Int32(10)]
+[ 528]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 550]       End value:reg7
+
+JS bytecode executable "multiply_by_one"
+[   0]    0: ToNumber dst:reg5, value:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "multiply_by_one_alt"
+[   0]    0: ToNumber dst:reg5, value:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "multiply_by_negative_one"
+[   0]    0: UnaryMinus dst:reg5, src:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "multiply_by_negative_one_alt"
+[   0]    0: UnaryMinus dst:reg5, src:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "divide_by_one"
+[   0]    0: ToNumber dst:reg5, value:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "divide_by_negative_one"
+[   0]    0: UnaryMinus dst:reg5, src:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "square"
+[   0]    0: Mul dst:reg5, lhs:arg0, rhs:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "square_func"
+[   0]    0: GetGlobal dst:reg6, identifier:f
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, f
+[  30]       Mul dst:reg6, lhs:reg5, rhs:reg5
+[  40]       Return value:reg6
+
+JS bytecode executable "f"
+[   0]    0: Return value:Int32(2)
+
+JS bytecode executable "power_of_one"
+[   0]    0: ToNumber dst:reg5, value:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "power_of_zero"
+[   0]    0: ToNumber dst:reg5, value:arg0
+[  10]       Mov dst:reg5, src:Int32(1)
+[  20]       Return value:reg5
+
+123
+123
+-123
+-123
+123
+-123
+100
+4
+10
+1
