@@ -97,13 +97,33 @@ static String generate_a_counter_representation(StyleValue const& counter_style,
     return MUST(String::formatted("{}", value));
 }
 
-String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
+String CounterStyleValue::resolve(DOM::AbstractElement const& element_reference, bool& return_element_needs_reversed_counters_fixup) const
 {
+    return_element_needs_reversed_counters_fixup = false;
+
     // "If no counter named <counter-name> exists on an element where counter() or counters() is used,
     // one is first instantiated with a starting value of 0."
     auto& counters_set = element_reference.ensure_counters_set();
     if (!counters_set.last_counter_with_name(m_properties.counter_name).has_value())
         counters_set.instantiate_a_counter(m_properties.counter_name, element_reference, false, 0);
+
+    auto generate_counter_string = [&](Counter const& counter) {
+        if (counter.originating_element.has_non_empty_counters_set()) {
+            auto const& originating_counter = counter.originating_element.counters_set()->last_counter_with_name(counter.name);
+
+            if (originating_counter.has_value() && originating_counter->reversed && originating_counter->value.has_value()) {
+                auto const& originating_counter_value = originating_counter->value->value();
+
+                return_element_needs_reversed_counters_fixup = return_element_needs_reversed_counters_fixup || !counter.is_explicitly_set_reversed_counter;
+
+                if (!counter.is_explicitly_set_reversed_counter)
+                    // Reversed counters that have not been explicitly set have the value of the originating_counter added to their value.
+                    return generate_a_counter_representation(m_properties.counter_style, counter.value.value_or(0).value() + originating_counter_value);
+            }
+        }
+
+        return generate_a_counter_representation(m_properties.counter_style, counter.value.value_or(0).value());
+    };
 
     // counter( <counter-name>, <counter-style>? )
     // "Represents the value of the innermost counter in the element’s CSS counters set named <counter-name>
@@ -111,8 +131,11 @@ String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
     if (m_properties.function == CounterFunction::Counter) {
         // NOTE: This should always be present because of the handling of a missing counter above.
         auto& counter = counters_set.last_counter_with_name(m_properties.counter_name).value();
-        return generate_a_counter_representation(m_properties.counter_style, counter.value.value_or(0).value());
+
+        return generate_counter_string(counter);
     }
+
+    VERIFY(m_properties.function == CounterFunction::Counters);
 
     // counters( <counter-name>, <string>, <counter-style>? )
     // "Represents the values of all the counters in the element’s CSS counters set named <counter-name>
@@ -124,11 +147,13 @@ String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
         if (counter.name != m_properties.counter_name)
             continue;
 
-        auto counter_string = generate_a_counter_representation(m_properties.counter_style, counter.value.value_or(0).value());
+        auto counter_string = generate_counter_string(counter);
+
         if (!stb.is_empty())
             stb.append(m_properties.join_string);
         stb.append(counter_string);
     }
+
     return stb.to_string_without_validation();
 }
 

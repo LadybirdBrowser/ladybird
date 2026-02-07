@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/reversed-counter-remove-reset-ref.html" />
+<style>
+.Rev { counter-reset: reversed(item); }
+.Inc {
+    counter-increment: item;
+}
+li {
+    list-style-type:none;
+}
+li::before { content: counter(item) ': ';}
+
+</style>
+</html>
+
+<ol id="ol" class="Rev">
+    <li class="Inc">One
+    <li class="Inc">Two
+    <li class="Inc">Three
+</ol>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('ol').classList.remove('Rev');
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>

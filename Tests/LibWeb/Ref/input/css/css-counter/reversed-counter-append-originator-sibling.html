@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/reversed-counter-append-originator-sibling-ref.html" />
+<style>
+.Rev { counter-reset: reversed(item); }
+.Inc {
+    counter-increment: item -1;
+}
+li {
+    list-style-type:none;
+}
+li::before { content: counter(item) ': ';}
+
+</style>
+</html>
+
+<div id="parent">
+    <div class="Rev" id="none">None</div>
+    <li class="Inc" id="two">Two
+</div>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const parent = document.getElementById('parent');
+
+        const append = document.createElement('li');
+        append.innerHTML = 'One';
+        append.classList.add('Inc');
+        parent.appendChild(append);
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>

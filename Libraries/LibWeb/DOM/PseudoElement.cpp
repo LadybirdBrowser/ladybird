@@ -25,7 +25,7 @@ void PseudoElement::visit_edges(JS::Cell::Visitor& visitor)
         m_counters_set->visit_edges(visitor);
 }
 
-Optional<CSS::CountersSet const&> PseudoElement::counters_set() const
+Optional<CSS::CountersSet&> PseudoElement::counters_set() const
 {
     if (!m_counters_set)
         return {};

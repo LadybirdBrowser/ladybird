@@ -26,6 +26,8 @@ struct Counter {
     DOM::AbstractElement originating_element; // "creator"
     bool reversed { false };
     Optional<CounterValue> value;
+
+    bool is_explicitly_set_reversed_counter { false }; // Ad-hoc: after `counter-set`, a reversed counter behaves as if it was not reversed.
 };
 
 // https://drafts.csswg.org/css-lists-3/#css-counters-set
@@ -34,15 +36,16 @@ public:
     CountersSet() = default;
     ~CountersSet() = default;
 
-    Counter& instantiate_a_counter(FlyString name, DOM::AbstractElement const&, bool reversed, Optional<CounterValue>);
-    void set_a_counter(FlyString name, DOM::AbstractElement const&, CounterValue value);
-    void increment_a_counter(FlyString name, DOM::AbstractElement const&, CounterValue amount);
+    Counter& instantiate_a_counter(FlyString const& name, DOM::AbstractElement const&, bool reversed, Optional<CounterValue>);
+    void set_a_counter(FlyString const& name, DOM::AbstractElement const&, CounterValue value);
+    void increment_a_counter(FlyString const& name, DOM::AbstractElement const&, CounterValue amount);
     void append_copy(Counter const&);
 
     Optional<Counter&> last_counter_with_name(FlyString const& name);
     Optional<Counter&> counter_with_same_name_and_creator(FlyString const& name, DOM::AbstractElement const&);
 
     Vector<Counter> const& counters() const { return m_counters; }
+    Vector<Counter>& counters() { return m_counters; }
     bool is_empty() const { return m_counters.is_empty(); }
 
     void visit_edges(GC::Cell::Visitor&);
