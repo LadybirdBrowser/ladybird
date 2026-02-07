@@ -140,7 +140,8 @@ requires(IsSigned<T>)
 static float float_sample_from_frame_data(u8** data, size_t plane, size_t index)
 {
     auto* pointer = reinterpret_cast<T*>(data[plane]);
-    return pointer[index] / static_cast<float>(NumericLimits<T>::max());
+    constexpr float full_scale = NumericLimits<MakeUnsigned<T>>::max() / 2;
+    return static_cast<float>(pointer[index]) / static_cast<float>(full_scale);
 }
 
 template<typename T>

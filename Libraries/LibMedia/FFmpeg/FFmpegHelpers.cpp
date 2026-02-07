@@ -42,7 +42,16 @@ ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(AVChannelLayout cons
             return Audio::ChannelMap::mono();
         if (layout.nb_channels == 2)
             return Audio::ChannelMap::stereo();
-        return Error::from_string_literal("Unspecified channel order was neither mono nor stereo");
+        if (layout.nb_channels == 4)
+            return Audio::ChannelMap::quadrophonic();
+        if (layout.nb_channels == 6)
+            return Audio::ChannelMap::surround_5_1();
+        if (layout.nb_channels == 8)
+            return Audio::ChannelMap::surround_7_1();
+
+        for (int i = 0; i < layout.nb_channels; ++i)
+            channels[i] = Audio::Channel::Unknown;
+        return Audio::ChannelMap(channels);
     }
 
 #define AV_CHANNEL_TO_AUDIO_CHANNEL(audio_channel, av_channel) \

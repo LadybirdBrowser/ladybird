@@ -58,3 +58,13 @@ TEST_CASE(stereo_44khz)
 {
     decode_audio("WAV/tone_44100_stereo.wav"sv, 44100, 2, 220500);
 }
+
+TEST_CASE(stereo_8khz_24bit)
+{
+    decode_audio("WAV/voices_8000_stereo_int24.wav"sv, 8000, 2, 23493);
+}
+
+TEST_CASE(underspecified_5_1_44khz)
+{
+    decode_audio("WAV/tone_44100_5_1_underspecified.wav"sv, 44100, 6, 44100, Audio::ChannelMap::surround_5_1());
+}
