@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteReader.h>
+#include <AK/Endian.h>
 #include <AK/Format.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/Resource.h>
@@ -15,6 +17,20 @@ namespace Gfx {
 
 PathFontProvider::PathFontProvider() = default;
 PathFontProvider::~PathFontProvider() = default;
+
+// https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
+static u32 number_of_fonts_in_ttc(ReadonlyBytes bytes)
+{
+    // TTC Header:
+    //   0-3: ttcTag ('ttcf')
+    //   4-7: majorVersion, minorVersion
+    //   8-11: numFonts (big-endian u32)
+    if (bytes.size() < 12)
+        return 1;
+    if (bytes.slice(0, 4) != "ttcf"sv.bytes())
+        return 1;
+    return AK::convert_between_host_and_big_endian(ByteReader::load32(bytes.offset(8)));
+}
 
 void PathFontProvider::load_all_fonts_from_uri(StringView uri)
 {
@@ -32,12 +48,15 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
         auto uri = resource.uri();
         auto path = LexicalPath(uri.bytes_as_string_view());
         if (path.has_extension(".ttf"sv) || path.has_extension(".ttc"sv) || path.has_extension(".otf"sv)) {
-            if (auto font_or_error = Typeface::try_load_from_resource(resource); !font_or_error.is_error()) {
-                auto font = font_or_error.release_value();
-                auto& family = m_typeface_by_family.ensure(font->family(), [] {
-                    return Vector<NonnullRefPtr<Typeface>> {};
-                });
-                family.append(font);
+            auto font_count = number_of_fonts_in_ttc(resource.data());
+            for (u32 ttc_index = 0; ttc_index < font_count; ++ttc_index) {
+                if (auto font_or_error = Typeface::try_load_from_resource(resource, ttc_index); !font_or_error.is_error()) {
+                    auto font = font_or_error.release_value();
+                    auto& family = m_typeface_by_family.ensure(font->family(), [] {
+                        return Vector<NonnullRefPtr<Typeface>> {};
+                    });
+                    family.append(font);
+                }
             }
         } else if (path.has_extension(".woff"sv)) {
             if (auto font_or_error = WOFF::try_load_from_resource(resource); !font_or_error.is_error()) {

@@ -68,10 +68,18 @@ static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
     }
 }
 
-ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, int ttc_index)
+ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
 {
     auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
-    auto skia_typeface = font_manager().makeFromData(data, ttc_index);
+
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
+    // TrueType Collection files bundle multiple fonts (often different weights of the same
+    // family). We use SkFontArguments to specify which font to load from the collection.
+    SkFontArguments font_args;
+    font_args.setCollectionIndex(static_cast<int>(ttc_index));
+
+    auto stream = std::make_unique<SkMemoryStream>(data);
+    auto skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
 
     if (!skia_typeface) {
         return Error::from_string_literal("Failed to load typeface from buffer");
@@ -90,8 +98,9 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     if (!skia_typeface)
         return RefPtr<TypefaceSkia> {};
 
-    int ttc_index = 0;
-    auto stream = skia_typeface->openStream(&ttc_index);
+    int skia_ttc_index = 0;
+    auto stream = skia_typeface->openStream(&skia_ttc_index);
+    auto ttc_index = static_cast<u32>(skia_ttc_index);
 
     if (stream && stream->getMemoryBase()) {
         auto buffer = TRY(ByteBuffer::copy({ static_cast<u8 const*>(stream->getMemoryBase()),
@@ -118,6 +127,23 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     return result;
 }
 
+Optional<FlyString> TypefaceSkia::resolve_generic_family(StringView family_name, u16 weight, u8 slope)
+{
+    SkFontStyle style(weight, SkFontStyle::kNormal_Width, slope_to_skia_slant(slope));
+    auto skia_typeface = font_manager().matchFamilyStyle(
+        ByteString(family_name).characters(), style);
+
+    if (!skia_typeface)
+        return {};
+
+    SkString resolved_family;
+    skia_typeface->getFamilyName(&resolved_family);
+    auto result_or_error = FlyString::from_utf8(StringView { resolved_family.c_str(), resolved_family.size() });
+    if (result_or_error.is_error())
+        return {};
+    return result_or_error.release_value();
+}
+
 RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariationAxis> const& axes) const
 {
     if (axes.is_empty())
@@ -135,7 +161,7 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
     variation_pos.coordinateCount = static_cast<int>(coords.size());
     font_args.setVariationDesignPosition(variation_pos);
 
-    font_args.setCollectionIndex(m_ttc_index);
+    font_args.setCollectionIndex(static_cast<int>(m_ttc_index));
 
     auto data = SkData::MakeWithoutCopy(m_buffer.data(), m_buffer.size());
     auto stream = std::make_unique<SkMemoryStream>(data);
@@ -144,7 +170,7 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
     if (!skia_typeface)
         return {};
 
-    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, static_cast<int>(m_ttc_index) });
+    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, m_ttc_index });
 }
 
 SkTypeface const* TypefaceSkia::sk_typeface() const
@@ -152,7 +178,7 @@ SkTypeface const* TypefaceSkia::sk_typeface() const
     return impl().skia_typeface.get();
 }
 
-TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, int ttc_index)
+TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, u32 ttc_index)
     : m_impl(move(impl))
     , m_buffer(buffer)
     , m_ttc_index(ttc_index)
