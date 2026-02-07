@@ -33,6 +33,7 @@ public:
 private:
     explicit Application();
 
+    virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 
@@ -52,6 +53,7 @@ private:
 
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };
+    bool m_file_scheme_urls_have_tuple_origins { false };
 };
 
 }

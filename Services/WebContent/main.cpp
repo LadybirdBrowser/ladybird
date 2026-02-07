@@ -103,6 +103,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_scrollbar_painting = false;
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
+    bool file_origins_are_tuple_origins = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Browser process command line", "command-line", 0, "command_line");
@@ -126,6 +127,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
+    args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
 
     args_parser.parse(arguments);
 
@@ -137,6 +139,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = Unicode::set_current_time_zone(default_time_zone); result.is_error())
             dbgln("Failed to set default time zone: {}", result.error());
     }
+
+    if (file_origins_are_tuple_origins)
+        URL::set_file_scheme_urls_have_tuple_origins();
 
     auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
     if (force_fontconfig) {

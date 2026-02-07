@@ -40,6 +40,8 @@ public:
 
     bool dump_gc_graph { false };
 
+    bool file_scheme_urls_have_opaque_origins { false };
+
     bool test_dry_run { false };
     bool rebaseline { false };
     bool shuffle { false };
