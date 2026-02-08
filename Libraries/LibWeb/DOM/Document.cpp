@@ -1601,8 +1601,8 @@ void Document::update_style()
 {
     // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
     // viewport to change which will can affect media query evaluation and the value of the `vw` unit.
-    if (navigable()->container() && &navigable()->container()->document() != this)
-        navigable()->container()->document().update_layout(UpdateLayoutReason::ChildDocumentStyleUpdate);
+    if (auto navigable = this->navigable(); navigable && navigable->container() && &navigable->container()->document() != this)
+        navigable->container()->document().update_layout(UpdateLayoutReason::ChildDocumentStyleUpdate);
 
     if (!browsing_context())
         return;
@@ -3146,7 +3146,8 @@ bool Document::is_completely_loaded() const
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
-    if (!navigable())
+    auto navigable = this->navigable();
+    if (!navigable)
         return;
 
     ScopeGuard notify_observers = [this] {
@@ -3166,10 +3167,10 @@ void Document::completely_finish_loading()
         m_active_refresh_timer->start();
 
     // 3. Let container be document's browsing context's container.
-    if (!navigable()->container())
+    if (!navigable->container())
         return;
 
-    auto container = GC::make_root(navigable()->container());
+    auto container = GC::make_root(navigable->container());
 
     // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
     if (container && is<HTML::HTMLIFrameElement>(*container)) {
@@ -3341,11 +3342,12 @@ bool Document::has_a_style_sheet_that_is_blocking_scripts() const
         return true;
 
     // 2. If document's node navigable is null, then return false.
-    if (!navigable())
+    auto navigable = this->navigable();
+    if (!navigable)
         return false;
 
     // 3. Let containerDocument be document's node navigable's container document.
-    auto container_document = navigable()->container_document();
+    auto container_document = navigable->container_document();
 
     // 4. If containerDocument is non-null and containerDocument's script-blocking style sheet set is not empty, then return true.
     if (container_document && !container_document->m_script_blocking_style_sheet_set.is_empty())
@@ -4740,8 +4742,9 @@ void Document::make_active()
     }
 
     // 3. Set document's visibility state to document's node navigable's traversable navigable's system visibility state.
-    if (navigable()) {
-        m_visibility_state = navigable()->traversable_navigable()->system_visibility_state();
+    auto navigable = this->navigable();
+    if (navigable) {
+        m_visibility_state = navigable->traversable_navigable()->system_visibility_state();
     }
 
     // TODO: 4. Queue a new VisibilityStateEntry whose visibility state is document's visibility state and whose timestamp is zero.
@@ -4750,7 +4753,7 @@ void Document::make_active()
     HTML::relevant_settings_object(window).execution_ready = true;
 
     if (m_needs_to_call_page_did_load) {
-        navigable()->traversable_navigable()->page().client().page_did_finish_loading(url());
+        navigable->traversable_navigable()->page().client().page_did_finish_loading(url());
         m_needs_to_call_page_did_load = false;
     }
 
@@ -6643,17 +6646,16 @@ void Document::set_needs_display(CSSPixelRect const&, InvalidateDisplayList shou
     // FIXME: Ignore updates outside the visible viewport rect.
     //        This requires accounting for fixed-position elements in the input rect, which we don't do yet.
 
+    auto navigable = this->navigable();
+
     // OPTIMIZATION: Ignore set_needs_display() inside navigable containers (i.e frames) with visibility: hidden.
-    if (auto navigable = this->navigable()) {
-        if (navigable->has_inclusive_ancestor_with_visibility_hidden())
-            return;
-    }
+    if (navigable && navigable->has_inclusive_ancestor_with_visibility_hidden())
+        return;
 
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
         invalidate_display_list();
     }
 
-    auto navigable = this->navigable();
     if (!navigable)
         return;
 
