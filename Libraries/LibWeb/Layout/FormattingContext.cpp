@@ -886,6 +886,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
     box_state.margin_right = margin_right.to_px_or_zero(box);
 }
 
+// https://drafts.csswg.org/css2/#abs-replaced-width
 void FormattingContext::compute_width_for_absolutely_positioned_replaced_element(Box const& box, AvailableSpace const& available_space)
 {
     // 10.3.8 Absolutely positioned, replaced elements
