@@ -775,7 +775,6 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
 
         if (super_reference.referenced_name.has_value()) {
             // 5. Let propertyKey be ? ToPropertyKey(propertyNameValue).
-            // FIXME: This does ToPropertyKey out of order, which is observable by Symbol.toPrimitive!
             emit_get_by_value_with_this(dst, *super_reference.base, *super_reference.referenced_name, *super_reference.this_value);
         } else {
             // 3. Let propertyKey be StringValue of IdentifierName.
@@ -848,7 +847,6 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
             // 4. Return the Reference Record { [[Base]]: baseValue, [[ReferencedName]]: propertyKey, [[Strict]]: strict, [[ThisValue]]: actualThis }.
             if (super_reference.referenced_name.has_value()) {
                 // 5. Let propertyKey be ? ToPropertyKey(propertyNameValue).
-                // FIXME: This does ToPropertyKey out of order, which is observable by Symbol.toPrimitive!
                 emit_put_by_value_with_this(*super_reference.base, *super_reference.referenced_name, *super_reference.this_value, value, PutKind::Normal);
             } else {
                 // 3. Let propertyKey be StringValue of IdentifierName.
