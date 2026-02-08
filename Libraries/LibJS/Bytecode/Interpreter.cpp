@@ -1556,7 +1556,17 @@ ThrowCompletionOr<void> Mul::execute_impl(Bytecode::Interpreter& interpreter) co
     if (lhs.is_number() && rhs.is_number()) [[likely]] {
         if (lhs.is_int32() && rhs.is_int32()) {
             if (!Checked<i32>::multiplication_would_overflow(lhs.as_i32(), rhs.as_i32())) [[likely]] {
-                interpreter.set(m_dst, Value(lhs.as_i32() * rhs.as_i32()));
+                auto lhs_i32 = lhs.as_i32();
+                auto rhs_i32 = rhs.as_i32();
+                auto result = lhs_i32 * rhs_i32;
+                if (result != 0) [[likely]] {
+                    interpreter.set(m_dst, Value(result));
+                    return {};
+                }
+                // NB: When the mathematical result is zero, the sign depends on the operand
+                // signs. We can determine it directly here instead of widening to double.
+                auto is_negative_zero = (lhs_i32 < 0) != (rhs_i32 < 0);
+                interpreter.set(m_dst, is_negative_zero ? Value(-0.0) : Value(0));
                 return {};
             }
             auto result = static_cast<i64>(lhs.as_i32()) * static_cast<i64>(rhs.as_i32());
