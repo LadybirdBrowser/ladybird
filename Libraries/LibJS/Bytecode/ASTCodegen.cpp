@@ -1314,6 +1314,16 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             }
         } else {
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
+
+            // ComputedPropertyName evaluation calls ToPropertyKey, which includes ToPrimitive(hint: string).
+            // This must happen before the value expression is evaluated per the spec for
+            // PropertyDefinitionEvaluation (PropertyDefinition : PropertyName : AssignmentExpression):
+            //   1. Let propKey be ? Evaluation of PropertyName.
+            //   [then] 5/6. Evaluate the AssignmentExpression.
+            // ToPrimitive is the only step in ToPropertyKey with user-observable side effects.
+            // After this, the ToPrimitive inside put_by_value's to_property_key is a no-op.
+            generator.emit<Bytecode::Op::ToPrimitiveWithStringHint>(property_name, property_name);
+
             auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), {}, {}, property->is_method()));
 
             generator.emit_put_by_value(object, property_name, value, property_kind, {});
