@@ -1037,10 +1037,8 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
 
     auto private_environment = interpreter.running_execution_context().private_environment;
 
+    // NB: SetFunctionName and MakeConstructor are performed by ECMAScriptFunctionObject::initialize().
     auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment);
-
-    // FIXME: 6. Perform SetFunctionName(closure, name).
-    // FIXME: 7. Perform MakeConstructor(closure).
 
     if (has_own_name)
         MUST(environment->initialize_binding(interpreter.vm(), own_name, closure, Environment::InitializeBindingHint::Normal));
