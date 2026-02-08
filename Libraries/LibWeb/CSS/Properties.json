@@ -2084,6 +2084,9 @@
     ],
     "percentages-resolve-to": "length",
     "longhands": [
+      "grid-auto-flow",
+      "grid-auto-rows",
+      "grid-auto-columns",
       "grid-template-areas",
       "grid-template-rows",
       "grid-template-columns"
