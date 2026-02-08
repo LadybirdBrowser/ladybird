@@ -10,6 +10,7 @@
 #include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/DisplayList.h>

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
