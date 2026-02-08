@@ -303,6 +303,22 @@ private:
     Vector<FieldType> m_fields;
 };
 
+// https://webassembly.github.io/spec/core/bikeshed/#composite-types%E2%91%A0
+class ArrayType {
+public:
+    ArrayType(FieldType type)
+        : m_type(type)
+    {
+    }
+
+    auto& type() const { return m_type; }
+
+    static ParseResult<ArrayType> parse(ConstrainedStream& stream);
+
+private:
+    FieldType m_type;
+};
+
 // https://webassembly.github.io/memory64/core/bikeshed/#address-type%E2%91%A0
 enum class AddressType : u8 {
     I32,
@@ -805,7 +821,7 @@ class TypeSection {
 public:
     class Type {
     private:
-        using TypeDesc = Variant<FunctionType, StructType>;
+        using TypeDesc = Variant<FunctionType, StructType, ArrayType>;
 
     public:
         Type(TypeDesc type)
@@ -826,7 +842,8 @@ public:
         {
             return m_description.visit(
                 [](FunctionType const&) -> ByteString { return "function type"; },
-                [](StructType const&) -> ByteString { return "struct type"; });
+                [](StructType const&) -> ByteString { return "struct type"; },
+                [](ArrayType const&) -> ByteString { return "array type"; });
         }
 
         static ParseResult<Type> parse(ConstrainedStream& stream);
