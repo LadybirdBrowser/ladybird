@@ -5395,9 +5395,8 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
             return nullptr;
 
         auto grid_auto_rows = parse_grid_auto_track_sizes(tokens);
-        if (!grid_auto_rows) {
-            grid_auto_rows = GridTrackSizeListStyleValue::create({});
-        }
+        if (grid_auto_rows->as_grid_track_size_list().grid_track_size_list().is_empty())
+            grid_auto_rows = property_initial_value(PropertyID::GridAutoRows);
 
         tokens.discard_whitespace();
         if (!tokens.has_next_token() || !tokens.next_token().is_delim('/'))
@@ -5435,9 +5434,8 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
             return nullptr;
 
         auto grid_auto_columns = parse_grid_auto_track_sizes(tokens);
-        if (!grid_auto_columns) {
-            grid_auto_columns = GridTrackSizeListStyleValue::create({});
-        }
+        if (grid_auto_columns->as_grid_track_size_list().grid_track_size_list().is_empty())
+            grid_auto_columns = property_initial_value(PropertyID::GridAutoColumns);
 
         transaction.commit();
         return ShorthandStyleValue::create(PropertyID::Grid,
