@@ -313,6 +313,7 @@ ErrorOr<void, ValidationError> Validator::validate(TagSection const& section)
 
 ErrorOr<void, ValidationError> Validator::validate(TableType const& type)
 {
+    TRY(validate(type.element_type()));
     Optional<u64> bound = type.limits().address_type() == AddressType::I64 ? Optional<u64> {} : (1ull << 32) - 1;
     return validate(type.limits(), bound);
 }
@@ -337,6 +338,33 @@ ErrorOr<void, ValidationError> Validator::validate(Wasm::TagType const& tag_type
     if (!func.results().is_empty())
         return Errors::invalid("TagType"sv);
     return {};
+}
+
+ErrorOr<void, ValidationError> Validator::validate(ValueType const& type)
+{
+    if (type.is_typeuse()) {
+        TRY(validate(type.unsafe_typeindex()));
+    }
+
+    return {};
+}
+
+ErrorOr<void, ValidationError> Validator::validate(FunctionType const& type)
+{
+    for (auto param : type.parameters()) {
+        TRY(validate(param));
+    }
+
+    for (auto param : type.results()) {
+        TRY(validate(param));
+    }
+
+    return {};
+}
+
+ErrorOr<void, ValidationError> Validator::validate(GlobalType const& type)
+{
+    return validate(type.type());
 }
 
 ErrorOr<FunctionType, ValidationError> Validator::validate(BlockType const& type)

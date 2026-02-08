@@ -334,6 +334,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                         [](Wasm::Reference::Exception const&) -> JS::Value { return JS::js_undefined(); },
                         [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
                 }
+                case Wasm::ValueType::TypeUseReference:
                 case Wasm::ValueType::UnsupportedHeapReference:
                     return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
                 }
@@ -422,6 +423,12 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             else
                 return vm.throw_completion<JS::TypeError>("Exception references are not supported"sv);
             break;
+        case Wasm::ValueType::Kind::TypeUseReference:
+            if (argument.is_null())
+                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::TypeUseReference, param.unsafe_typeindex()) } }));
+            else
+                return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
+            break;
         case Wasm::ValueType::Kind::UnsupportedHeapReference:
             return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
         }
@@ -459,6 +466,8 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         case Wasm::ValueType::ExternReference:
             return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::Value(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
         case Wasm::ValueType::ExceptionReference:
+            return JS::js_null();
+        case Wasm::ValueType::TypeUseReference:
             return JS::js_null();
         case Wasm::ValueType::UnsupportedHeapReference:
             return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);

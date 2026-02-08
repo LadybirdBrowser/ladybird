@@ -234,6 +234,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
             case Wasm::ValueType::FunctionReference:
             case Wasm::ValueType::ExternReference:
             case Wasm::ValueType::ExceptionReference:
+            case Wasm::ValueType::TypeUseReference:
             case Wasm::ValueType::UnsupportedHeapReference:
                 VERIFY_NOT_REACHED();
             }
@@ -343,7 +344,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             }
             auto fn_name = lexer.consume_until(is_any_of("(=:"sv));
             struct Arg {
-                Wasm::ValueType::Kind type;
+                Wasm::ValueType type;
                 StringView name;
             };
             Vector<Arg> formal_params;
@@ -354,24 +355,24 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         warnln("Invalid JS export argument name in '{}'", str);
                         return false;
                     }
-                    auto type = Wasm::ValueType::I32;
+                    auto type_kind = Wasm::ValueType::I32;
                     if (lexer.consume_specific(':')) {
                         if (lexer.consume_specific("i32"sv)) {
-                            type = Wasm::ValueType::I32;
+                            type_kind = Wasm::ValueType::I32;
                         } else if (lexer.consume_specific("i64"sv)) {
-                            type = Wasm::ValueType::I64;
+                            type_kind = Wasm::ValueType::I64;
                         } else if (lexer.consume_specific("f32"sv)) {
-                            type = Wasm::ValueType::F32;
+                            type_kind = Wasm::ValueType::F32;
                         } else if (lexer.consume_specific("f64"sv)) {
-                            type = Wasm::ValueType::F64;
+                            type_kind = Wasm::ValueType::F64;
                         } else if (lexer.consume_specific("v128"sv)) {
-                            type = Wasm::ValueType::V128;
+                            type_kind = Wasm::ValueType::V128;
                         } else {
                             warnln("Invalid JS export argument type in '{}'", str);
                             return false;
                         }
                     }
-                    formal_params.append(Arg { type, name });
+                    formal_params.append(Arg { Wasm::ValueType(type_kind), name });
                     lexer.consume_specific(',');
                 }
             }
@@ -451,7 +452,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                             return Wasm::Trap { ByteString("Not enough arguments") };
                         }
                         auto& arg = args[i];
-                        switch (type) {
+                        switch (type.kind()) {
                         case Wasm::ValueType::I32:
                             js_args.append(JS::Value(arg.to<u32>()));
                             break;
@@ -471,7 +472,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                             break;
                         }
                         default:
-                            warnln("Unsupported argument type '{}' for JS export function '{}'", Wasm::ValueType::kind_name(type), name);
+                            warnln("Unsupported argument type '{}' for JS export function '{}'", type.kind_name(), name);
                             return Wasm::Trap { ByteString("Unsupported argument type") };
                         }
                     }
@@ -864,7 +865,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 } else if (param == values_to_push.last().type) {
                     values.append(values_to_push.take_last().value);
                 } else {
-                    warnln("Type mismatch in argument: expected {}, but got {}", Wasm::ValueType::kind_name(param.kind()), Wasm::ValueType::kind_name(values_to_push.last().type.kind()));
+                    warnln("Type mismatch in argument: expected {}, but got {}", param.kind_name(), values_to_push.last().type.kind_name());
                     return 1;
                 }
             }

@@ -770,7 +770,7 @@ void Printer::print(Wasm::FieldType const& type)
 void Printer::print(Wasm::ValueType const& type)
 {
     print_indent();
-    print("(type {})\n", ValueType::kind_name(type.kind()));
+    print("(type {})\n", type.kind_name());
 }
 
 void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
@@ -800,6 +800,9 @@ void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
                 [](Wasm::Reference::Null const&) { return ByteString("null"); },
                 [](Wasm::Reference::Exception const&) { return ByteString("exception"); },
                 [](auto const& ref) { return ByteString::number(ref.address.value()); }));
+        break;
+    case ValueType::TypeUseReference:
+        print("unsupported-type-use-ref({})", type.unsafe_typeindex());
         break;
     case ValueType::UnsupportedHeapReference:
         print("unsupported-heap-ref");
