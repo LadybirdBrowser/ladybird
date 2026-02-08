@@ -475,6 +475,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(BitwiseOr);
             HANDLE_INSTRUCTION(ToInt32);
             HANDLE_INSTRUCTION(ToString);
+            HANDLE_INSTRUCTION(ToPrimitiveWithStringHint);
             HANDLE_INSTRUCTION(BitwiseXor);
             HANDLE_INSTRUCTION(Call);
             HANDLE_INSTRUCTION(CallBuiltin);
@@ -1694,6 +1695,13 @@ ThrowCompletionOr<void> ToString::execute_impl(Bytecode::Interpreter& interprete
 {
     auto& vm = interpreter.vm();
     interpreter.set(m_dst, Value { TRY(interpreter.get(m_value).to_primitive_string(vm)) });
+    return {};
+}
+
+ThrowCompletionOr<void> ToPrimitiveWithStringHint::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    interpreter.set(m_dst, TRY(interpreter.get(m_value).to_primitive(vm, Value::PreferredType::String)));
     return {};
 }
 

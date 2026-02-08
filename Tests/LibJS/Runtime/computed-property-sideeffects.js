@@ -29,28 +29,30 @@ test("Exceptions thrown by computed properties are caught", () => {
     var i = 0;
     var j = 0;
     var k = 0;
+    // ToPropertyKey of the computed key happens before the value expression is evaluated,
+    // so when toString() throws, the value expression (i++) should NOT have executed.
     expect(() => {
         return { first: k++, [throwingToString]: i++, second: j++ };
     }).toThrow(calledToStringError);
-    expect(i).toBe(1);
+    expect(i).toBe(0);
     expect(j).toBe(0);
     expect(k).toBe(1);
     expect(() => {
         return { first: k++, [throwingValueOf]: i++, second: j++ };
     }).toThrow(calledValueOfError);
-    expect(i).toBe(2);
+    expect(i).toBe(0);
     expect(j).toBe(0);
     expect(k).toBe(2);
     expect(() => {
         return { first: k++, [throwingToStringAccessor]: i++, second: j++ };
     }).toThrow(calledToStringAccessorError);
-    expect(i).toBe(3);
+    expect(i).toBe(0);
     expect(j).toBe(0);
     expect(k).toBe(3);
     expect(() => {
         return { first: k++, [throwingValueOfAccessor]: i++, second: j++ };
     }).toThrow(calledValueOfAccessorError);
-    expect(i).toBe(4);
+    expect(i).toBe(0);
     expect(j).toBe(0);
     expect(k).toBe(4);
 });
