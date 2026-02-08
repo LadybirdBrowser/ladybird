@@ -18,11 +18,11 @@
 
 namespace Web::Cookie {
 
-static void parse_attributes(URL::URL const&, ParsedCookie& parsed_cookie, StringView unparsed_attributes);
-static void process_attribute(URL::URL const&, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value);
+static ErrorOr<void> parse_attributes(URL::URL const&, ParsedCookie& parsed_cookie, StringView unparsed_attributes);
+static ErrorOr<void> process_attribute(URL::URL const&, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value);
 static void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
-static void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
+static ErrorOr<void> on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_path_attribute(URL::URL const&, ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_secure_attribute(ParsedCookie& parsed_cookie);
 static void on_http_only_attribute(ParsedCookie& parsed_cookie);
@@ -98,16 +98,18 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
     // 6. The cookie-name is the name string, and the cookie-value is the value string.
     ParsedCookie parsed_cookie { MUST(String::from_utf8(name)), MUST(String::from_utf8(value)) };
 
-    parse_attributes(url, parsed_cookie, unparsed_attributes);
+    if (parse_attributes(url, parsed_cookie, unparsed_attributes).is_error())
+        return {};
+
     return parsed_cookie;
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6-8
-void parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringView unparsed_attributes)
+ErrorOr<void> parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringView unparsed_attributes)
 {
     // 1. If the unparsed-attributes string is empty, skip the rest of these steps.
     if (unparsed_attributes.is_empty())
-        return;
+        return {};
 
     // 2. Discard the first character of the unparsed-attributes (which will be a %x3B (";") character).
     unparsed_attributes = unparsed_attributes.substring_view(1);
@@ -154,27 +156,25 @@ void parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringVi
 
     // 6. If the attribute-value is longer than 1024 octets, ignore the cookie-av string and return to Step 1 of this
     //    algorithm.
-    if (attribute_value.length() > 1024) {
-        parse_attributes(url, parsed_cookie, unparsed_attributes);
-        return;
-    }
+    if (attribute_value.length() > 1024)
+        return parse_attributes(url, parsed_cookie, unparsed_attributes);
 
     // 7. Process the attribute-name and attribute-value according to the requirements in the following subsections.
     //    (Notice that attributes with unrecognized attribute-names are ignored.)
-    process_attribute(url, parsed_cookie, attribute_name, attribute_value);
+    TRY(process_attribute(url, parsed_cookie, attribute_name, attribute_value));
 
     // 8. Return to Step 1 of this algorithm.
-    parse_attributes(url, parsed_cookie, unparsed_attributes);
+    return parse_attributes(url, parsed_cookie, unparsed_attributes);
 }
 
-void process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value)
+ErrorOr<void> process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value)
 {
     if (attribute_name.equals_ignoring_ascii_case("Expires"sv)) {
         on_expires_attribute(parsed_cookie, attribute_value);
     } else if (attribute_name.equals_ignoring_ascii_case("Max-Age"sv)) {
         on_max_age_attribute(parsed_cookie, attribute_value);
     } else if (attribute_name.equals_ignoring_ascii_case("Domain"sv)) {
-        on_domain_attribute(parsed_cookie, attribute_value);
+        TRY(on_domain_attribute(parsed_cookie, attribute_value));
     } else if (attribute_name.equals_ignoring_ascii_case("Path"sv)) {
         on_path_attribute(url, parsed_cookie, attribute_value);
     } else if (attribute_name.equals_ignoring_ascii_case("Secure"sv)) {
@@ -184,6 +184,8 @@ void process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringV
     } else if (attribute_name.equals_ignoring_ascii_case("SameSite"sv)) {
         on_same_site_attribute(parsed_cookie, attribute_value);
     }
+
+    return {};
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.1
@@ -258,8 +260,14 @@ void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.3
-void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
+ErrorOr<void> on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
 {
+    // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-4.1.1-9
+    // The domain-value is a subdomain as defined by Section 3.5 of [RFC1034], and as enhanced by Section 2.1 of [RFC1123].
+    // Thus, domain-value is a string of [USASCII] characters, such as an "A-label" as defined in Section 2.3.2.1 of [RFC5890].
+    if (!attribute_value.is_ascii())
+        return Error::from_string_literal("Domain must be a string of ASCII characters");
+
     // 1. Let cookie-domain be the attribute-value.
     auto cookie_domain = attribute_value;
 
@@ -273,6 +281,8 @@ void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value
     // 4. Append an attribute to the cookie-attribute-list with an attribute-name of Domain and an attribute-value of
     //    cookie-domain.
     parsed_cookie.domain = move(lowercase_cookie_domain);
+
+    return {};
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.4
