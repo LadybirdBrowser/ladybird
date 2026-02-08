@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Painting/FieldSetPaintable.h>
