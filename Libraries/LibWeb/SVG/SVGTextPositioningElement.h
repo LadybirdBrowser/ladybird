@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
 namespace Web::SVG {

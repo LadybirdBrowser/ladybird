@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>

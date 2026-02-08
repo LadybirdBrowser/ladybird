@@ -6,8 +6,10 @@
  */
 
 #include <LibWeb/Bindings/SVGScriptElementPrototype.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/MimeSniff/MimeType.h>
