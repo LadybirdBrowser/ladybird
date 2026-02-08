@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/BlockContainer.h>
 
 namespace Web::Layout {
@@ -31,7 +30,7 @@ public:
     Vector<TextBlock> const& text_blocks();
     void invalidate_text_blocks_cache() { m_text_blocks.clear(); }
 
-    DOM::Document const& dom_node() const { return static_cast<DOM::Document const&>(*Node::dom_node()); }
+    DOM::Document const& dom_node() const;
 
     virtual void visit_edges(Visitor&) override;
 

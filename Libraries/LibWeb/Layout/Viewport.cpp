@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -22,6 +23,11 @@ Viewport::Viewport(DOM::Document& document, GC::Ref<CSS::ComputedProperties> sty
 }
 
 Viewport::~Viewport() = default;
+
+DOM::Document const& Viewport::dom_node() const
+{
+    return static_cast<DOM::Document const&>(*Node::dom_node());
+}
 
 GC::Ptr<Painting::Paintable> Viewport::create_paintable() const
 {

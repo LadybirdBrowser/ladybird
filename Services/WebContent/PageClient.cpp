@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/CharacterData.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NodeList.h>

@@ -7,6 +7,7 @@
 
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
