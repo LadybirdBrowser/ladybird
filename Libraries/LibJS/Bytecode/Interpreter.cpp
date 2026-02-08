@@ -941,7 +941,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation)) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset);
             if (value.is_accessor())
-                return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
+                return TRY(call(vm, value.as_accessor().getter(), &binding_object));
             return value;
         }
 
@@ -986,7 +986,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
     if (TRY(binding_object.has_property(identifier))) [[likely]] {
         CacheableGetPropertyMetadata cacheable_metadata;
-        auto value = TRY(binding_object.internal_get(identifier, js_undefined(), &cacheable_metadata));
+        auto value = TRY(binding_object.internal_get(identifier, &binding_object, &cacheable_metadata));
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
             cache.entries[0].shape = shape;
             cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
