@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const runTest = id => {
+        return new Promise(resolve => {
+            window.onmessage = e => {
+                let target = window.open("", `test-${id}`);
+
+                println(`${id}: Target matches source: ${target === e.source}`);
+                e.source.close();
+
+                resolve();
+            };
+
+            window.open("../../data/window-opener-post-message.html", `test-${id}`);
+        });
+    };
+
+    asyncTest(async done => {
+        await runTest(1);
+        await runTest(2);
+        done();
+    });
+</script>
