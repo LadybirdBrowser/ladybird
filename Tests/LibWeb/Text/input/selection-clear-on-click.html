@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div style="font-size:20px">SelectMe</div>
+<script>
+    test(() => {
+        // Select text by double-clicking
+        internals.click(20, 20, 2);
+        println(`"${window.getSelection()}"`);
+
+        // Now try deselecting on mousedown.
+        internals.mouseDown(100, 100);
+        println(`"${window.getSelection()}"`);
+    });
+</script>

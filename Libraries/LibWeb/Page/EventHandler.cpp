@@ -886,8 +886,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Handled;
 
     auto dom_node = cursor_hit->paintable->dom_node();
-    if (!dom_node)
+    if (!dom_node) {
+        m_navigable->page().clear_selection();
         return EventResult::Handled;
+    }
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
     // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting
