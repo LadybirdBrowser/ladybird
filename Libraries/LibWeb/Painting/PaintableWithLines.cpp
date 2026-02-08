@@ -168,12 +168,16 @@ TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position,
                 return common_ancestor;
             }();
 
+            // If we reached this point, the position is not within the fragment. However, the fragment start or end might be
+            // the place to place the cursor, so long as it does not have user-select: none.
+            if (fragment.layout_node().user_select_used_value() == CSS::UserSelect::None)
+                continue;
+
             auto const* fragment_dom_node = fragment.layout_node().dom_node();
             if (common_ancestor_parent && fragment_dom_node && common_ancestor_parent->is_ancestor_of(*fragment_dom_node)) {
-                // If we reached this point, the position is not within the fragment. However, the fragment start or end might be
-                // the place to place the cursor. To determine the best place, we first find the closest fragment horizontally to
-                // the cursor. If we could not find one, then find for the closest vertically above the cursor.
-                // If we knew the direction of selection, we would look above if selecting upward.
+                // To determine the best place, we first find the closest fragment horizontally to the cursor. If we could not
+                // find one, then find for the closest vertically above the cursor. If we knew the direction of selection, we
+                // would look above if selecting upward.
                 if (fragment_absolute_rect.bottom() - 1 <= local_position.y()) { // fully below the fragment
                     HitTestResult hit_test_result {
                         .paintable = const_cast<Paintable&>(fragment.paintable()),
