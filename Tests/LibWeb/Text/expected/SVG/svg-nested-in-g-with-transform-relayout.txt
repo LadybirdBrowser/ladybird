@@ -1,0 +1,15 @@
+Before SVG relayout:
+  rect x: 18
+  rect y: 18
+  rect width: 30
+  rect height: 30
+After SVG relayout:
+  rect x: 23
+  rect y: 23
+  rect width: 30
+  rect height: 30
+Rect preserved after SVG relayout:
+  width unchanged: true
+  height unchanged: true
+  x moved by 5: 5
+  y moved by 5: 5

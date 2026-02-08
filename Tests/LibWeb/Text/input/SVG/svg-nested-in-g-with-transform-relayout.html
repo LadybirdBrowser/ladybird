@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="100" height="100">
+    <g transform="translate(10, 10)">
+        <svg id="inner" width="50" height="50">
+            <rect id="target" width="30" height="30" fill="blue"/>
+        </svg>
+    </g>
+</svg>
+<script>
+    asyncTest(done => {
+        // Force initial layout
+        document.body.offsetWidth;
+        const rectBefore = document.getElementById("target").getBoundingClientRect();
+
+        // Trigger partial SVG relayout on the inner SVG by changing an SVG transform attribute
+        document.getElementById("target").setAttribute("transform", "translate(5,5)");
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const rectAfter = document.getElementById("target").getBoundingClientRect();
+
+                println(`Before SVG relayout:`);
+                println(`  rect x: ${rectBefore.x}`);
+                println(`  rect y: ${rectBefore.y}`);
+                println(`  rect width: ${rectBefore.width}`);
+                println(`  rect height: ${rectBefore.height}`);
+                println(`After SVG relayout:`);
+                println(`  rect x: ${rectAfter.x}`);
+                println(`  rect y: ${rectAfter.y}`);
+                println(`  rect width: ${rectAfter.width}`);
+                println(`  rect height: ${rectAfter.height}`);
+                println(`Rect preserved after SVG relayout:`);
+                println(`  width unchanged: ${rectAfter.width === rectBefore.width}`);
+                println(`  height unchanged: ${rectAfter.height === rectBefore.height}`);
+                println(`  x moved by 5: ${rectAfter.x - rectBefore.x}`);
+                println(`  y moved by 5: ${rectAfter.y - rectBefore.y}`);
+
+                done();
+            });
+        });
+    });
+</script>
