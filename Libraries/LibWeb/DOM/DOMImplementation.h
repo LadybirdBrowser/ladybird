@@ -9,7 +9,6 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/DOM/Document.h>
 
 namespace Web::DOM {
 
