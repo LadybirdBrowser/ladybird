@@ -75,7 +75,7 @@ public:
     ErrorOr<void, ValidationError> validate(TagSection const&);
     ErrorOr<void, ValidationError> validate(FunctionSection const&) { return {}; }
     ErrorOr<void, ValidationError> validate(DataCountSection const&) { return {}; }
-    ErrorOr<void, ValidationError> validate(TypeSection const&) { return {}; }
+    ErrorOr<void, ValidationError> validate(TypeSection const&);
     ErrorOr<void, ValidationError> validate(CustomSection const&) { return {}; }
 
     ErrorOr<void, ValidationError> validate(TypeIndex index) const
@@ -303,11 +303,13 @@ public:
     ErrorOr<void, ValidationError> validate(Limits const&, Optional<u64> bound); // n <= bound && m? <= bound
     ErrorOr<FunctionType, ValidationError> validate(BlockType const&);
     ErrorOr<void, ValidationError> validate(FunctionType const&);
+    ErrorOr<void, ValidationError> validate(StructType const&);
     ErrorOr<void, ValidationError> validate(TableType const&);
     ErrorOr<void, ValidationError> validate(MemoryType const&);
     ErrorOr<void, ValidationError> validate(GlobalType const&);
     ErrorOr<void, ValidationError> validate(TagType const&);
     ErrorOr<void, ValidationError> validate(ValueType const&);
+    ErrorOr<void, ValidationError> validate(TypeSection::Type const&);
 
     // Proposal 'memory64'
     ErrorOr<void, ValidationError> take_memory_address(Stack& stack, MemoryType const& memory, Instruction::MemoryArgument const& arg)
