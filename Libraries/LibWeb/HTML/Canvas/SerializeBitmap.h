@@ -8,7 +8,6 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/DOM/Document.h>
 
 namespace Web::HTML {
 
