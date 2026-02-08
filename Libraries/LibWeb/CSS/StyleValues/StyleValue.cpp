@@ -83,6 +83,7 @@
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ViewFunctionStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Node.h>
 

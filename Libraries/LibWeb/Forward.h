@@ -502,6 +502,7 @@ class TreeWalker;
 class XMLDocument;
 
 enum class QuirksMode;
+enum class SetNeedsLayoutReason;
 
 struct AddEventListenerOptions;
 struct EventListenerOptions;

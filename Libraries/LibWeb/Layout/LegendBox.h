@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/BlockContainer.h>
 
 namespace Web::Layout {

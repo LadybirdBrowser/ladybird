@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ResizeObserverEntryPrototype.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 

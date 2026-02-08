@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Page/ElementResizeAction.h>

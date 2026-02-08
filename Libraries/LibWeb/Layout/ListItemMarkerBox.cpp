@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Painting/MarkerPaintable.h>
 
