@@ -2657,6 +2657,25 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
             return TagAndThisValue { .tag = base_and_value.value, .this_value = base_and_value.base };
         }
 
+        if (is<Identifier>(*m_tag)) {
+            auto& identifier = static_cast<Identifier const&>(*m_tag);
+            if (identifier.is_local() || identifier.is_global()) {
+                // Keep the normal Identifier path so local/global tags preserve
+                // TDZ behavior; only non-local identifiers need with-aware
+                // callee/this extraction.
+                auto tag = TRY(m_tag->generate_bytecode(generator)).value();
+                return TagAndThisValue { .tag = tag, .this_value = generator.add_constant(js_undefined()) };
+            }
+
+            auto tag = generator.allocate_register();
+            auto this_value = generator.allocate_register();
+            generator.emit<Bytecode::Op::GetCalleeAndThisFromEnvironment>(
+                tag,
+                this_value,
+                generator.intern_identifier(identifier.string()));
+            return TagAndThisValue { .tag = tag, .this_value = this_value };
+        }
+
         auto tag = TRY(m_tag->generate_bytecode(generator)).value();
         return TagAndThisValue { .tag = tag, .this_value = generator.add_constant(js_undefined()) };
     }());
