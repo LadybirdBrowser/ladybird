@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
