@@ -99,6 +99,45 @@ static ParseResult<ByteString> parse_name(ConstrainedStream& stream)
     return string;
 }
 
+static ParseResult<ValueType> parse_reference_type(Stream& stream, u8 tag)
+{
+    switch (tag) {
+    case Constants::function_reference_tag:
+        return ValueType(ValueType::FunctionReference);
+    case Constants::extern_reference_tag:
+        return ValueType(ValueType::ExternReference);
+    case Constants::array_reference_tag:
+    case Constants::struct_reference_tag:
+    case Constants::i31_reference_tag:
+    case Constants::eq_reference_tag:
+    case Constants::any_reference_tag:
+    case Constants::none_reference_tag:
+    case Constants::noextern_reference_tag:
+    case Constants::nofunc_reference_tag:
+    case Constants::noexn_heap_reference_tag:
+        // FIXME: Implement these when we support wasm-gc properly.
+        return ValueType(ValueType::UnsupportedHeapReference);
+    case Constants::nullable_reference_tag_tag:
+    case Constants::non_nullable_reference_tag_tag: {
+        tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+        return parse_reference_type(stream, tag);
+    }
+    default: {
+        ReconsumableStream new_stream { stream };
+        new_stream.unread({ &tag, 1 });
+
+        // FIXME: should be an i33. Right now, we're missing a potential last bit at
+        // the end. See https://webassembly.github.io/spec/core/bikeshed/#heap-types%E2%91%A6
+        i32 type_index = TRY_READ(new_stream, LEB128<i32>, ParseError::ExpectedIndex);
+        if (type_index < 0) {
+            return with_eof_check(stream, ParseError::InvalidIndex);
+        }
+
+        return ValueType(ValueType::TypeUseReference, TypeIndex(type_index));
+    }
+    }
+}
+
 ParseResult<ValueType> ValueType::parse(Stream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("ValueType"sv);
@@ -115,28 +154,8 @@ ParseResult<ValueType> ValueType::parse(Stream& stream)
         return ValueType(F64);
     case Constants::v128_tag:
         return ValueType(V128);
-    case Constants::function_reference_tag:
-        return ValueType(FunctionReference);
-    case Constants::extern_reference_tag:
-        return ValueType(ExternReference);
-    case Constants::array_reference_tag:
-    case Constants::struct_reference_tag:
-    case Constants::i31_reference_tag:
-    case Constants::eq_reference_tag:
-    case Constants::any_reference_tag:
-    case Constants::none_reference_tag:
-    case Constants::noextern_reference_tag:
-    case Constants::nofunc_reference_tag:
-    case Constants::noexn_heap_reference_tag:
-        // FIXME: Implement these when we support wasm-gc properly.
-        return ValueType(UnsupportedHeapReference);
-    case Constants::nullable_reference_tag_tag:
-    case Constants::non_nullable_reference_tag_tag:
-        tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
-        (void)tag;
-        return ValueType(UnsupportedHeapReference);
     default:
-        return ParseError::InvalidTag;
+        return parse_reference_type(stream, tag);
     }
 }
 
@@ -253,25 +272,14 @@ ParseResult<BlockType> BlockType::parse(ConstrainedStream& stream)
     if (kind == Constants::empty_block_tag)
         return BlockType {};
 
-    {
-        FixedMemoryStream value_stream { ReadonlyBytes { &kind, 1 } };
-        if (auto value_type = ValueType::parse(value_stream); !value_type.is_error())
-            return BlockType { value_type.release_value() };
+    ReconsumableStream value_stream { stream };
+    value_stream.unread({ &kind, 1 });
+    auto value_type = TRY(ValueType::parse(value_stream));
+    if (value_type.is_typeuse()) {
+        return BlockType { value_type.unsafe_typeindex() };
     }
 
-    ReconsumableStream new_stream { stream };
-    new_stream.unread({ &kind, 1 });
-
-    // FIXME: should be an i33. Right now, we're missing a potential last bit at
-    // the end. See https://webassembly.github.io/spec/core/binary/instructions.html#binary-blocktype
-    i32 index_value = TRY_READ(new_stream, LEB128<i32>, ParseError::ExpectedIndex);
-
-    if (index_value < 0) {
-        dbgln("Invalid type index {}", index_value);
-        return with_eof_check(stream, ParseError::InvalidIndex);
-    }
-
-    return BlockType { TypeIndex(index_value) };
+    return BlockType { value_type };
 }
 
 ParseResult<Catch> Catch::parse(ConstrainedStream& stream)

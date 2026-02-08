@@ -690,6 +690,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
         return Wasm::Value(Wasm::ValueType { Wasm::ValueType::Kind::ExceptionReference });
     case Wasm::ValueType::V128:
         return vm.throw_completion<JS::TypeError>("Cannot convert a vector value to a javascript value"sv);
+    case Wasm::ValueType::TypeUseReference:
     case Wasm::ValueType::UnsupportedHeapReference:
         return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
     }
@@ -710,6 +711,8 @@ Wasm::Value default_webassembly_value(JS::VM& vm, Wasm::ValueType type)
     case Wasm::ValueType::ExternReference:
         return MUST(to_webassembly_value(vm, JS::js_undefined(), type));
     case Wasm::ValueType::ExceptionReference:
+        return Wasm::Value(type);
+    case Wasm::ValueType::TypeUseReference:
         return Wasm::Value(type);
     case Wasm::ValueType::UnsupportedHeapReference:
         return Wasm::Value(type);
@@ -758,6 +761,7 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
     }
     case Wasm::ValueType::V128:
     case Wasm::ValueType::ExceptionReference:
+    case Wasm::ValueType::TypeUseReference:
     case Wasm::ValueType::UnsupportedHeapReference:
         VERIFY_NOT_REACHED();
     }

@@ -130,6 +130,9 @@ module try_table.2
 module try_table.5
 module type-canon.0
 module type-canon.1
+module type-equivalence.0
+module type-equivalence.1
+module type-equivalence.13
 module type-equivalence.14
 module type-equivalence.15
 module type-equivalence.16
@@ -139,6 +142,7 @@ module type-equivalence.19
 module type-equivalence.2
 module type-equivalence.20
 module type-equivalence.21
+module type-equivalence.3
 module type-equivalence.4
 module type-equivalence.5
 module type-equivalence.7
