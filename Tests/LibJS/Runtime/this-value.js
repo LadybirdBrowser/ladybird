@@ -410,6 +410,156 @@ describe("with statements", () => {
     });
 });
 
+describe("non-Reference calls get globalThis in sloppy mode", () => {
+    // Per EvaluateCall step 2b, when the callee is not a Reference Record,
+    // thisValue is set to undefined. OrdinaryCallBindThis then coerces
+    // undefined to the global object in sloppy mode.
+
+    function getThis() {
+        return this;
+    }
+
+    test("comma expression", () => {
+        expect((0, getThis)()).toBe(globalObject);
+    });
+
+    test("conditional expression (true branch)", () => {
+        expect((true ? getThis : null)()).toBe(globalObject);
+    });
+
+    test("conditional expression (false branch)", () => {
+        expect((false ? null : getThis)()).toBe(globalObject);
+    });
+
+    test("logical OR expression", () => {
+        expect((false || getThis)()).toBe(globalObject);
+    });
+
+    test("logical AND expression", () => {
+        expect((true && getThis)()).toBe(globalObject);
+    });
+
+    test("nullish coalescing expression", () => {
+        expect((null ?? getThis)()).toBe(globalObject);
+    });
+
+    test("assignment expression", () => {
+        var f;
+        expect((f = getThis)()).toBe(globalObject);
+    });
+
+    test("parenthesized function expression", () => {
+        expect(
+            (function () {
+                return this;
+            })()
+        ).toBe(globalObject);
+    });
+
+    test("sequence of comma operators", () => {
+        expect((0, 1, 2, getThis)()).toBe(globalObject);
+    });
+
+    test("function returned from another call", () => {
+        function returnGetThis() {
+            return getThis;
+        }
+        expect(returnGetThis()()).toBe(globalObject);
+    });
+
+    test("function from array element access", () => {
+        // NB: Array element access IS a Reference, so this should give the array as `this`.
+        // This test is here to contrast with non-Reference patterns.
+        var arr = [getThis];
+        expect(arr[0]()).toBe(arr);
+    });
+
+    test("function from object property access", () => {
+        // NB: Property access IS a Reference, so this should give the object as `this`.
+        var obj = { fn: getThis };
+        expect(obj.fn()).toBe(obj);
+    });
+
+    test("immediately-invoked function expression", () => {
+        var result = (function () {
+            return this;
+        })();
+        expect(result).toBe(globalObject);
+    });
+
+    test("nested non-Reference calls", () => {
+        function outer() {
+            return (0,
+            function () {
+                return this;
+            })();
+        }
+        expect(outer()).toBe(globalObject);
+    });
+
+    test("method extraction via comma loses this binding", () => {
+        var obj = {
+            fn: function () {
+                return this;
+            },
+        };
+        // Direct call: this === obj
+        expect(obj.fn()).toBe(obj);
+        // Comma expression strips the Reference: this === globalObject
+        expect((0, obj.fn)()).toBe(globalObject);
+    });
+
+    test("logical assignment does not affect this", () => {
+        var f = null;
+        expect((f ??= getThis)()).toBe(globalObject);
+
+        var g = undefined;
+        expect((g ||= getThis)()).toBe(globalObject);
+
+        var h = getThis;
+        expect((h &&= getThis)()).toBe(globalObject);
+    });
+});
+
+describe("non-Reference calls get undefined this in strict mode", () => {
+    "use strict";
+
+    function getThis() {
+        return this;
+    }
+
+    test("comma expression", () => {
+        expect((0, getThis)()).toBeUndefined();
+    });
+
+    test("conditional expression", () => {
+        expect((true ? getThis : null)()).toBeUndefined();
+    });
+
+    test("logical OR expression", () => {
+        expect((false || getThis)()).toBeUndefined();
+    });
+
+    test("logical AND expression", () => {
+        expect((true && getThis)()).toBeUndefined();
+    });
+
+    test("nullish coalescing expression", () => {
+        expect((null ?? getThis)()).toBeUndefined();
+    });
+
+    test("assignment expression", () => {
+        var f;
+        expect((f = getThis)()).toBeUndefined();
+    });
+
+    test("method extraction via comma", () => {
+        var obj = { fn: getThis };
+        expect(obj.fn()).toBe(obj);
+        expect((0, obj.fn)()).toBeUndefined();
+    });
+});
+
 describe("in non strict mode primitive this values are converted to objects", () => {
     const array = [true, false];
 

@@ -1894,7 +1894,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
                 generator.intern_identifier(identifier.string()));
         }
     } else {
-        // FIXME: this = global object in sloppy mode.
+        // NB: For non-Reference calls, EvaluateCall sets thisValue to undefined.
+        //     OrdinaryCallBindThis coerces undefined to the global object in sloppy mode at runtime.
         original_callee = TRY(m_callee->generate_bytecode(generator)).value();
     }
 
