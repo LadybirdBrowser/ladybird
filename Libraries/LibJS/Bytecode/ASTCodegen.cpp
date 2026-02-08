@@ -1806,7 +1806,6 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
         // 4. Return the Reference Record { [[Base]]: baseValue, [[ReferencedName]]: propertyKey, [[Strict]]: strict, [[ThisValue]]: actualThis }.
         if (computed_property.has_value()) {
             // 5. Let propertyKey be ? ToPropertyKey(propertyNameValue).
-            // FIXME: This does ToPropertyKey out of order, which is observable by Symbol.toPrimitive!
             generator.emit_get_by_value_with_this(value, super_base, *computed_property, this_value);
         } else {
             // 3. Let propertyKey be StringValue of IdentifierName.
