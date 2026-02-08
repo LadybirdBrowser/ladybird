@@ -1461,7 +1461,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
                 auto copy = generator.allocate_register();
                 generator.emit_with_extra_operand_slots<Bytecode::Op::CopyObjectExcludingProperties>(
                     excluded_property_names.size(), copy, object, excluded_property_names);
-                (void)TRY(generator.emit_store_to_reference(alias.get<NonnullRefPtr<MemberExpression const>>(), object));
+                (void)TRY(generator.emit_store_to_reference(alias.get<NonnullRefPtr<MemberExpression const>>(), copy));
                 return {};
             }
             VERIFY_NOT_REACHED();
