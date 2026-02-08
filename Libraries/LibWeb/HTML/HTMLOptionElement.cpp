@@ -9,6 +9,8 @@
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/HTMLOptionElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLDataListElement.h>

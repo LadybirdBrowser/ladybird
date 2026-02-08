@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/HTMLOrSVGElement.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 

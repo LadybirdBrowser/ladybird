@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/SVGGraphicsElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -74,6 +75,27 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintCo
     if (!layout_node())
         return {};
     return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().stroke());
+}
+
+GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
+{
+    // FIXME: Complete and use the entire URL, not just the fragment.
+    Optional<FlyString> fragment;
+    if (auto fragment_offset = url.url().find_byte_offset('#'); fragment_offset.has_value()) {
+        fragment = MUST(url.url().substring_from_byte_offset_with_shared_superstring(fragment_offset.value() + 1));
+    }
+    if (!fragment.has_value())
+        return {};
+    if (auto element = document().get_element_by_id(*fragment))
+        return element;
+
+    auto containing_shadow = containing_shadow_root();
+    if (containing_shadow) {
+        if (auto element = containing_shadow->get_element_by_id(*fragment))
+            return element;
+    }
+
+    return {};
 }
 
 GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
