@@ -941,7 +941,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation)) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset);
             if (value.is_accessor())
-                return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
+                return TRY(call(vm, value.as_accessor().getter(), &binding_object));
             return value;
         }
 
@@ -986,7 +986,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
     if (TRY(binding_object.has_property(identifier))) [[likely]] {
         CacheableGetPropertyMetadata cacheable_metadata;
-        auto value = TRY(binding_object.internal_get(identifier, js_undefined(), &cacheable_metadata));
+        auto value = TRY(binding_object.internal_get(identifier, &binding_object, &cacheable_metadata));
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
             cache.entries[0].shape = shape;
             cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
@@ -1037,10 +1037,8 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
 
     auto private_environment = interpreter.running_execution_context().private_environment;
 
+    // NB: SetFunctionName and MakeConstructor are performed by ECMAScriptFunctionObject::initialize().
     auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment);
-
-    // FIXME: 6. Perform SetFunctionName(closure, name).
-    // FIXME: 7. Perform MakeConstructor(closure).
 
     if (has_own_name)
         MUST(environment->initialize_binding(interpreter.vm(), own_name, closure, Environment::InitializeBindingHint::Normal));
@@ -1556,7 +1554,17 @@ ThrowCompletionOr<void> Mul::execute_impl(Bytecode::Interpreter& interpreter) co
     if (lhs.is_number() && rhs.is_number()) [[likely]] {
         if (lhs.is_int32() && rhs.is_int32()) {
             if (!Checked<i32>::multiplication_would_overflow(lhs.as_i32(), rhs.as_i32())) [[likely]] {
-                interpreter.set(m_dst, Value(lhs.as_i32() * rhs.as_i32()));
+                auto lhs_i32 = lhs.as_i32();
+                auto rhs_i32 = rhs.as_i32();
+                auto result = lhs_i32 * rhs_i32;
+                if (result != 0) [[likely]] {
+                    interpreter.set(m_dst, Value(result));
+                    return {};
+                }
+                // NB: When the mathematical result is zero, the sign depends on the operand
+                // signs. We can determine it directly here instead of widening to double.
+                auto is_negative_zero = (lhs_i32 < 0) != (rhs_i32 < 0);
+                interpreter.set(m_dst, is_negative_zero ? Value(-0.0) : Value(0));
                 return {};
             }
             auto result = static_cast<i64>(lhs.as_i32()) * static_cast<i64>(rhs.as_i32());

@@ -688,12 +688,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     (void)TRY(lhs->generate_bytecode(generator));
                 }
 
-                // FIXME: c. If IsAnonymousFunctionDefinition(AssignmentExpression) and IsIdentifierRef of LeftHandSideExpression are both true, then
-                //           i. Let rval be ? NamedEvaluation of AssignmentExpression with argument lref.[[ReferencedName]].
-
+                // c. If IsAnonymousFunctionDefinition(AssignmentExpression) and IsIdentifierRef of LeftHandSideExpression are both true, then
+                //    i. Let rval be ? NamedEvaluation of AssignmentExpression with argument lref.[[ReferencedName]].
                 // d. Else,
-                // i. Let rref be the result of evaluating AssignmentExpression.
-                // ii. Let rval be ? GetValue(rref).
+                //    i. Let rref be the result of evaluating AssignmentExpression.
+                //    ii. Let rval be ? GetValue(rref).
                 auto rval = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
                     if (lhs->is_identifier()) {
                         return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs).string())));
@@ -1895,7 +1894,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
                 generator.intern_identifier(identifier.string()));
         }
     } else {
-        // FIXME: this = global object in sloppy mode.
+        // NB: For non-Reference calls, EvaluateCall sets thisValue to undefined.
+        //     OrdinaryCallBindThis coerces undefined to the global object in sloppy mode at runtime.
         original_callee = TRY(m_callee->generate_bytecode(generator)).value();
     }
 
