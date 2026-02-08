@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        position: relative;
+        width: 200px;
+        height: 200px;
+    }
+    .abspos {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 25%;
+        height: 25%;
+        background: green;
+    }
+</style>
+<div class="container">
+    <svg width="100" height="100">
+        <rect id="target" width="50" height="50" fill="blue"/>
+        <foreignObject width="100" height="100">
+            <div class="abspos" id="abspos"></div>
+        </foreignObject>
+    </svg>
+</div>
+<script>
+    asyncTest(done => {
+        // Force initial layout and capture "before" values without any DOM changes
+        // (println modifies the DOM, which would cause full relayout instead of partial SVG relayout)
+        document.body.offsetWidth;
+        const absposBefore = document.getElementById("abspos").getBoundingClientRect();
+
+        // Trigger partial SVG relayout by changing an SVG attribute
+        document.getElementById("target").setAttribute("transform", "translate(10,10)");
+
+        // Wait for layout to happen, then check values
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const absposAfter = document.getElementById("abspos").getBoundingClientRect();
+
+                // Now it's safe to print (layout checks are done)
+                println(`Before SVG relayout:`);
+                println(`  abspos width: ${absposBefore.width}`);
+                println(`  abspos height: ${absposBefore.height}`);
+                println(`  abspos x: ${absposBefore.x}`);
+                println(`  abspos y: ${absposBefore.y}`);
+                println(`After SVG relayout:`);
+                println(`  abspos width: ${absposAfter.width}`);
+                println(`  abspos height: ${absposAfter.height}`);
+                println(`  abspos x: ${absposAfter.x}`);
+                println(`  abspos y: ${absposAfter.y}`);
+                println(`Abspos preserved after SVG relayout:`);
+                println(`  width unchanged: ${absposAfter.width === absposBefore.width}`);
+                println(`  height unchanged: ${absposAfter.height === absposBefore.height}`);
+                println(`  x unchanged: ${absposAfter.x === absposBefore.x}`);
+                println(`  y unchanged: ${absposAfter.y === absposBefore.y}`);
+
+                done();
+            });
+        });
+    });
+</script>
