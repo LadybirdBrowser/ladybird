@@ -980,6 +980,8 @@ public:
     Optional<CSS::CustomPropertyRegistration const&> get_registered_custom_property(FlyString const& name) const;
     NonnullRefPtr<CSS::StyleValue const> custom_property_initial_value(FlyString const& name) const;
 
+    HashMap<FlyString, CSS::CounterStyle> const& registered_counter_styles() const { return m_registered_counter_styles; }
+
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
 
