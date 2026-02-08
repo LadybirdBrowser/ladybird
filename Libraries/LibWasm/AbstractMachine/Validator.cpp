@@ -43,6 +43,9 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
                         },
                         [&](StructType const& struct_) {
                             m_context.structs.append(struct_);
+                        },
+                        [&](ArrayType const& array) {
+                            m_context.arrays.append(array);
                         });
                 } else {
                     return Errors::invalid("TypeIndex"sv);
@@ -362,8 +365,9 @@ ErrorOr<void, ValidationError> Validator::validate(ValueType const& type)
 ErrorOr<void, ValidationError> Validator::validate(TypeSection::Type const& type)
 {
     return type.description().visit(
-        [&](FunctionType const& function) -> ErrorOr<void, ValidationError> { return validate(function); },
-        [&](StructType const& struct_) -> ErrorOr<void, ValidationError> { return validate(struct_); });
+        [&](FunctionType const& function) { return validate(function); },
+        [&](StructType const& struct_) { return validate(struct_); },
+        [&](ArrayType const& array) { return validate(array); });
 }
 
 ErrorOr<void, ValidationError> Validator::validate(FunctionType const& type)
@@ -386,6 +390,11 @@ ErrorOr<void, ValidationError> Validator::validate(StructType const& type)
     }
 
     return {};
+}
+
+ErrorOr<void, ValidationError> Validator::validate(ArrayType const& array)
+{
+    return validate(array.type().type());
 }
 
 ErrorOr<void, ValidationError> Validator::validate(GlobalType const& type)

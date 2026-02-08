@@ -732,7 +732,8 @@ void Printer::print(Wasm::TypeSection::Type const& type)
 {
     type.description().visit(
         [&](Wasm::FunctionType const& func) { print(func); },
-        [&](Wasm::StructType const& struct_) { print(struct_); });
+        [&](Wasm::StructType const& struct_) { print(struct_); },
+        [&](Wasm::ArrayType const& array) { print(array); });
 }
 
 void Printer::print(Wasm::StructType const& struct_)
@@ -750,6 +751,18 @@ void Printer::print(Wasm::StructType const& struct_)
         }
         print_indent();
         print(")\n");
+    }
+    print_indent();
+    print(")\n");
+}
+
+void Printer::print(Wasm::ArrayType const& array)
+{
+    print_indent();
+    print("(type array \n");
+    {
+        TemporaryChange change { m_indent, m_indent + 1 };
+        print(array.type());
     }
     print_indent();
     print(")\n");

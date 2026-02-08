@@ -61,6 +61,7 @@ struct WASM_API Printer {
     void print(Wasm::TypeSection const&);
     void print(Wasm::TypeSection::Type const&);
     void print(Wasm::StructType const&);
+    void print(Wasm::ArrayType const&);
     void print(Wasm::FieldType const&);
     void print(Wasm::ValueType const&);
     void print(Wasm::TagType const&);

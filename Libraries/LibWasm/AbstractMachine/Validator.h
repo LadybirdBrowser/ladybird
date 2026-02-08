@@ -25,6 +25,7 @@ struct Context {
     COWVector<TypeSection::Type> types;
     COWVector<FunctionType> functions;
     COWVector<StructType> structs;
+    COWVector<ArrayType> arrays;
     COWVector<TableType> tables;
     COWVector<MemoryType> memories;
     COWVector<GlobalType> globals;
@@ -304,6 +305,7 @@ public:
     ErrorOr<FunctionType, ValidationError> validate(BlockType const&);
     ErrorOr<void, ValidationError> validate(FunctionType const&);
     ErrorOr<void, ValidationError> validate(StructType const&);
+    ErrorOr<void, ValidationError> validate(ArrayType const&);
     ErrorOr<void, ValidationError> validate(TableType const&);
     ErrorOr<void, ValidationError> validate(MemoryType const&);
     ErrorOr<void, ValidationError> validate(GlobalType const&);

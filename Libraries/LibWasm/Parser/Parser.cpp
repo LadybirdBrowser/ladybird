@@ -198,6 +198,15 @@ ParseResult<StructType> StructType::parse(ConstrainedStream& stream)
     return StructType { fields };
 }
 
+ParseResult<ArrayType> ArrayType::parse(ConstrainedStream& stream)
+{
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("ArrayType"sv);
+
+    auto type = TRY(FieldType::parse(stream));
+
+    return ArrayType { type };
+}
+
 ParseResult<Limits> Limits::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Limits"sv);
@@ -1026,6 +1035,8 @@ ParseResult<TypeSection::Type> TypeSection::Type::parse(ConstrainedStream& strea
         return Type { TRY(FunctionType::parse(stream)) };
     case Constants::struct_tag:
         return Type { TRY(StructType::parse(stream)) };
+    case Constants::array_tag:
+        return Type { TRY(ArrayType::parse(stream)) };
     default:
         return ParseError::InvalidTag;
     }

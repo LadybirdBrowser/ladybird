@@ -35,6 +35,7 @@ static constexpr auto non_nullable_reference_tag_tag = 0x64;
 
 // Composite
 static constexpr auto struct_tag = 0x5f;
+static constexpr auto array_tag = 0x5e;
 
 // Function
 static constexpr auto function_signature_tag = 0x60;
