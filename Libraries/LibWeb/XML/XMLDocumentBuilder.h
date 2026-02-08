@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/DOM/Comment.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
