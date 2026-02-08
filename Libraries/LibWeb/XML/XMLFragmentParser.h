@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
