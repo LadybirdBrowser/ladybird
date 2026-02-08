@@ -1,1 +1,1 @@
-grid: var(--foo) var(--baz) var(--bar);
+grid-template: var(--foo) var(--baz) var(--bar);
