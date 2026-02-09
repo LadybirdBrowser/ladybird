@@ -27,7 +27,7 @@ JS bytecode executable "basicTryFinally"
 [  e8]    7: Throw src:reg6
 
 Exception handlers:
-    from   98 to   c0 handler    0 finalizer   10
+    from   98 to   c0 handler   10
 
 JS bytecode executable "breakThroughFinally"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -57,7 +57,7 @@ JS bytecode executable "breakThroughFinally"
 [ 178]   14: Throw src:reg6
 
 Exception handlers:
-    from   f0 to  138 handler    0 finalizer   58
+    from   f0 to  138 handler   58
 
 JS bytecode executable "nestedTryFinallyWithBreak"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -100,9 +100,9 @@ JS bytecode executable "nestedTryFinallyWithBreak"
 [ 240]   20: Throw src:reg6
 
 Exception handlers:
-    from   c8 to  158 handler    0 finalizer   40
-    from  158 to  188 handler    0 finalizer   d0
-    from  188 to  200 handler    0 finalizer   40
+    from   c8 to  158 handler   40
+    from  158 to  188 handler   d0
+    from  188 to  200 handler   40
 
 "finally"
 0
