@@ -1,0 +1,44 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:with_eval
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, with_eval
+[  38]       GetGlobal dst:reg7, identifier:outer_eval
+[  48]       Call dst:reg6, callee:reg7, this_value:Undefined, outer_eval
+[  68]       End value:reg6
+
+JS bytecode executable "with_eval"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateArguments is_immutable:false
+[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1
+[  28]       CreateVariable identifier:x, is_immutable:false, is_global:false, is_strict:false
+[  38]       InitializeLexicalBinding identifier:x, src:Int32(1)
+[  50]       GetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, identifier:eval
+[  68]       CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
+[  90]       GetBinding dst:reg6, identifier:x
+[  a8]       Return value:reg6
+
+JS bytecode executable "eval"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "outer_eval"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateArguments is_immutable:false
+[  18]       CreateVariable identifier:inner, is_immutable:false, is_global:false, is_strict:false
+[  28]       InitializeVariableBinding identifier:inner, src:Undefined
+[  40]       NewFunction dst:reg5
+[  58]       SetVariableBinding identifier:inner, src:reg5
+[  70]       GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:eval
+[  88]       CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
+[  b0]       GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:inner
+[  c8]       Call dst:reg5, callee:reg6, this_value:reg7, inner
+[  e8]       Return value:reg5
+
+JS bytecode executable "eval"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "inner"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:y~0, src:Int32(2)
+[  18]       Return value:y~0

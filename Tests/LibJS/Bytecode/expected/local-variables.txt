@@ -1,0 +1,26 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:simple_let
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, simple_let
+[  38]       GetGlobal dst:reg7, identifier:simple_const
+[  48]       Call dst:reg6, callee:reg7, this_value:Undefined, simple_const
+[  68]       GetGlobal dst:reg7, identifier:multiple_locals
+[  78]       Call dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
+[  98]       End value:reg5
+
+JS bytecode executable "simple_let"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:x~0, src:Int32(1)
+[  18]       Return value:x~0
+
+JS bytecode executable "simple_const"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:y~0, src:Int32(2)
+[  18]       Return value:y~0
+
+JS bytecode executable "multiple_locals"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:a~0, src:Int32(1)
+[  18]       Mov dst:b~1, src:Int32(2)
+[  28]       Add dst:reg5, lhs:a~0, rhs:b~1
+[  38]       Return value:reg5
