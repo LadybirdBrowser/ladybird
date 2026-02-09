@@ -223,17 +223,35 @@ ScopePusher::~ScopePusher()
 {
     VERIFY(is_top_level() || m_parent_scope);
 
-    if (m_parent_scope && !m_function_parameters) {
-        m_parent_scope->m_contains_access_to_arguments_object_in_non_strict_mode |= m_contains_access_to_arguments_object_in_non_strict_mode;
-        m_parent_scope->m_contains_direct_call_to_eval |= m_contains_direct_call_to_eval;
-        m_parent_scope->m_contains_await_expression |= m_contains_await_expression;
-    }
+    propagate_flags_to_parent();
 
     if (!m_node) {
         m_parser.m_state.current_scope_pusher = m_parent_scope;
         return;
     }
 
+    propagate_eval_poisoning();
+    resolve_identifiers();
+    hoist_functions();
+
+    if (m_type == ScopeType::Function && m_function_parameters)
+        build_function_scope_data();
+
+    VERIFY(m_parser.m_state.current_scope_pusher == this);
+    m_parser.m_state.current_scope_pusher = m_parent_scope;
+}
+
+void ScopePusher::propagate_flags_to_parent()
+{
+    if (m_parent_scope && !m_function_parameters) {
+        m_parent_scope->m_contains_access_to_arguments_object_in_non_strict_mode |= m_contains_access_to_arguments_object_in_non_strict_mode;
+        m_parent_scope->m_contains_direct_call_to_eval |= m_contains_direct_call_to_eval;
+        m_parent_scope->m_contains_await_expression |= m_contains_await_expression;
+    }
+}
+
+void ScopePusher::propagate_eval_poisoning()
+{
     if (m_parent_scope && (m_contains_direct_call_to_eval || m_screwed_by_eval_in_scope_chain)) {
         m_parent_scope->m_screwed_by_eval_in_scope_chain = true;
     }
@@ -244,7 +262,10 @@ ScopePusher::~ScopePusher()
     if (m_parent_scope && m_eval_in_current_function && m_type != ScopeType::Function) {
         m_parent_scope->m_eval_in_current_function = true;
     }
+}
 
+void ScopePusher::resolve_identifiers()
+{
     for (auto& it : m_identifier_groups) {
         auto const& identifier_group_name = it.key;
         auto& identifier_group = it.value;
@@ -386,7 +407,10 @@ ScopePusher::~ScopePusher()
             }
         }
     }
+}
 
+void ScopePusher::hoist_functions()
+{
     for (size_t i = 0; i < m_functions_to_hoist.size(); i++) {
         auto const& function_declaration = m_functions_to_hoist[i];
         if (has_variable_with_flags(function_declaration->name(), ScopeVariable::IsLexical | ScopeVariable::IsForbiddenVar))
@@ -398,68 +422,65 @@ ScopePusher::~ScopePusher()
                 m_parent_scope->m_functions_to_hoist.append(move(m_functions_to_hoist[i]));
         }
     }
+}
 
-    // Build FunctionScopeData for function scopes to cache information needed by SharedFunctionInstanceData.
-    if (m_type == ScopeType::Function && m_function_parameters) {
-        auto data = make<FunctionScopeData>();
+void ScopePusher::build_function_scope_data()
+{
+    auto data = make<FunctionScopeData>();
 
-        // Extract functions_to_initialize from var-scoped function declarations (in reverse order, deduplicated).
-        // This matches what for_each_var_function_declaration_in_reverse_order does.
-        HashTable<Utf16FlyString> seen_function_names;
-        for (ssize_t i = m_node->var_declaration_count() - 1; i >= 0; i--) {
-            auto const& declaration = m_node->var_declarations()[i];
-            if (is<FunctionDeclaration>(declaration)) {
-                auto& function_decl = static_cast<FunctionDeclaration const&>(*declaration);
-                if (seen_function_names.set(function_decl.name()) == AK::HashSetResult::InsertedNewEntry)
-                    data->functions_to_initialize.append(static_ptr_cast<FunctionDeclaration const>(declaration));
-            }
+    // Extract functions_to_initialize from var-scoped function declarations (in reverse order, deduplicated).
+    // This matches what for_each_var_function_declaration_in_reverse_order does.
+    HashTable<Utf16FlyString> seen_function_names;
+    for (ssize_t i = m_node->var_declaration_count() - 1; i >= 0; i--) {
+        auto const& declaration = m_node->var_declarations()[i];
+        if (is<FunctionDeclaration>(declaration)) {
+            auto& function_decl = static_cast<FunctionDeclaration const&>(*declaration);
+            if (seen_function_names.set(function_decl.name()) == AK::HashSetResult::InsertedNewEntry)
+                data->functions_to_initialize.append(static_ptr_cast<FunctionDeclaration const>(declaration));
         }
-
-        // Check if "arguments" is a function name.
-        data->has_function_named_arguments = seen_function_names.contains("arguments"_utf16_fly_string);
-
-        // Check if "arguments" is a parameter name.
-        data->has_argument_parameter = has_variable_with_flags("arguments"_utf16_fly_string, ScopeVariable::IsForbiddenLexical);
-
-        // Check if "arguments" is lexically declared.
-        MUST(m_node->for_each_lexically_declared_identifier([&](auto const& identifier) {
-            if (identifier.string() == "arguments"_utf16_fly_string)
-                data->has_lexically_declared_arguments = true;
-        }));
-
-        // Extract vars_to_initialize from variables with the IsVar flag.
-        // Also count non-local vars for environment size pre-computation.
-        for (auto& [name, var] : m_variables) {
-            if (!(var.flags & ScopeVariable::IsVar))
-                continue;
-
-            bool is_parameter = var.flags & ScopeVariable::IsForbiddenLexical;
-            bool is_non_local = !var.var_identifier->is_local();
-
-            data->vars_to_initialize.append({
-                .identifier = *var.var_identifier,
-                .is_parameter = is_parameter,
-                .is_function_name = seen_function_names.contains(name),
-            });
-
-            // Store var name for AnnexB checks.
-            data->var_names.set(name);
-
-            // Count non-local vars for environment size calculation.
-            // Note: vars named "arguments" may be skipped at runtime if arguments object is needed,
-            // but we count them here and adjust at runtime.
-            if (is_non_local) {
-                data->non_local_var_count_for_parameter_expressions++;
-                if (!is_parameter)
-                    data->non_local_var_count++;
-            }
-        }
-
-        m_node->set_function_scope_data(move(data));
     }
 
-    VERIFY(m_parser.m_state.current_scope_pusher == this);
-    m_parser.m_state.current_scope_pusher = m_parent_scope;
+    // Check if "arguments" is a function name.
+    data->has_function_named_arguments = seen_function_names.contains("arguments"_utf16_fly_string);
+
+    // Check if "arguments" is a parameter name.
+    data->has_argument_parameter = has_variable_with_flags("arguments"_utf16_fly_string, ScopeVariable::IsForbiddenLexical);
+
+    // Check if "arguments" is lexically declared.
+    MUST(m_node->for_each_lexically_declared_identifier([&](auto const& identifier) {
+        if (identifier.string() == "arguments"_utf16_fly_string)
+            data->has_lexically_declared_arguments = true;
+    }));
+
+    // Extract vars_to_initialize from variables with the IsVar flag.
+    // Also count non-local vars for environment size pre-computation.
+    for (auto& [name, var] : m_variables) {
+        if (!(var.flags & ScopeVariable::IsVar))
+            continue;
+
+        bool is_parameter = var.flags & ScopeVariable::IsForbiddenLexical;
+        bool is_non_local = !var.var_identifier->is_local();
+
+        data->vars_to_initialize.append({
+            .identifier = *var.var_identifier,
+            .is_parameter = is_parameter,
+            .is_function_name = seen_function_names.contains(name),
+        });
+
+        // Store var name for AnnexB checks.
+        data->var_names.set(name);
+
+        // Count non-local vars for environment size calculation.
+        // Note: vars named "arguments" may be skipped at runtime if arguments object is needed,
+        // but we count them here and adjust at runtime.
+        if (is_non_local) {
+            data->non_local_var_count_for_parameter_expressions++;
+            if (!is_parameter)
+                data->non_local_var_count++;
+        }
+    }
+
+    m_node->set_function_scope_data(move(data));
 }
 
 void ScopePusher::register_identifier(NonnullRefPtr<Identifier> id, Optional<DeclarationKind> declaration_kind)

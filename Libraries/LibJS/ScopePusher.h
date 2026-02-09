@@ -119,6 +119,12 @@ private:
 
     bool is_top_level() { return m_scope_level != ScopeLevel::NotTopLevel; }
 
+    void propagate_flags_to_parent();
+    void propagate_eval_poisoning();
+    void resolve_identifiers();
+    void hoist_functions();
+    void build_function_scope_data();
+
     void throw_identifier_declared(Utf16FlyString const& name, NonnullRefPtr<Declaration const> const& declaration);
 
     bool has_variable_with_flags(Utf16FlyString const& name, u16 flags) const
