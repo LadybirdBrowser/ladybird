@@ -301,7 +301,6 @@ private:
         bool previous_token_was_period { false };
         Vector<ParserError> errors;
 
-        HashMap<Utf16FlyString, Optional<Position>> labels_in_scope;
         HashTable<Utf16FlyString>* referenced_private_names { nullptr };
 
         bool strict_mode { false };
@@ -333,6 +332,7 @@ private:
     Vector<Position> m_rule_starts;
     ParserState m_state;
     Vector<ParserState> m_saved_state;
+    HashMap<Utf16FlyString, Optional<Position>> m_labels_in_scope;
     HashMap<size_t, TokenMemoization> m_token_memoizations;
     Program::Type m_program_type;
     ScopeCollector m_scope_collector;
