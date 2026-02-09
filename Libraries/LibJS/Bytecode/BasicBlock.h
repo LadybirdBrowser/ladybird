@@ -17,7 +17,6 @@ namespace JS::Bytecode {
 
 struct UnwindInfo {
     GC::Ptr<Executable const> executable;
-    bool handler_called { false };
 };
 
 class BasicBlock {

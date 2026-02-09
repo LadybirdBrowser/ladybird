@@ -669,7 +669,6 @@ void Interpreter::catch_exception(Operand dst)
     reg(Register::exception()) = js_special_empty_value();
     auto& context = running_execution_context().rare_data()->unwind_contexts.last();
     VERIFY(context.executable == &current_executable());
-    context.handler_called = true;
 }
 
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, Utf16FlyString const& name)
