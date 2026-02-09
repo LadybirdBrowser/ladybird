@@ -45,6 +45,8 @@ public:
 
     void clear();
 
+    ErrorOr<void> try_resize(size_t new_capacity);
+
 protected:
     CircularBuffer(ByteBuffer);
 
