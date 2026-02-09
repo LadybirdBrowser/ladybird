@@ -16,14 +16,14 @@
 
 namespace HTTP::Cookie {
 
-enum class SameSite {
+enum class SameSite : u8 {
     Default,
     None,
     Strict,
-    Lax
+    Lax,
 };
 
-enum class Source {
+enum class Source : u8 {
     NonHttp,
     Http,
 };

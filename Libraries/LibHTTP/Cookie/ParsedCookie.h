@@ -31,7 +31,7 @@ struct ParsedCookie {
 Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
 bool cookie_contains_invalid_control_character(StringView);
 
-constexpr inline AK::Duration maximum_cookie_age = AK::Duration::from_seconds(400LL * 24 * 60 * 60);
+constexpr inline auto MAXIMUM_COOKIE_AGE = AK::Duration::from_seconds(400LL * 24 * 60 * 60);
 
 }
 

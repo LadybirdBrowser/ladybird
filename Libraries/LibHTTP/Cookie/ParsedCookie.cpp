@@ -13,7 +13,6 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibURL/URL.h>
-#include <ctype.h>
 
 namespace HTTP::Cookie {
 
@@ -168,21 +167,20 @@ ErrorOr<void> parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie,
 
 ErrorOr<void> process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value)
 {
-    if (attribute_name.equals_ignoring_ascii_case("Expires"sv)) {
+    if (attribute_name.equals_ignoring_ascii_case("Expires"sv))
         on_expires_attribute(parsed_cookie, attribute_value);
-    } else if (attribute_name.equals_ignoring_ascii_case("Max-Age"sv)) {
+    else if (attribute_name.equals_ignoring_ascii_case("Max-Age"sv))
         on_max_age_attribute(parsed_cookie, attribute_value);
-    } else if (attribute_name.equals_ignoring_ascii_case("Domain"sv)) {
+    else if (attribute_name.equals_ignoring_ascii_case("Domain"sv))
         TRY(on_domain_attribute(parsed_cookie, attribute_value));
-    } else if (attribute_name.equals_ignoring_ascii_case("Path"sv)) {
+    else if (attribute_name.equals_ignoring_ascii_case("Path"sv))
         on_path_attribute(url, parsed_cookie, attribute_value);
-    } else if (attribute_name.equals_ignoring_ascii_case("Secure"sv)) {
+    else if (attribute_name.equals_ignoring_ascii_case("Secure"sv))
         on_secure_attribute(parsed_cookie);
-    } else if (attribute_name.equals_ignoring_ascii_case("HttpOnly"sv)) {
+    else if (attribute_name.equals_ignoring_ascii_case("HttpOnly"sv))
         on_http_only_attribute(parsed_cookie);
-    } else if (attribute_name.equals_ignoring_ascii_case("SameSite"sv)) {
+    else if (attribute_name.equals_ignoring_ascii_case("SameSite"sv))
         on_same_site_attribute(parsed_cookie, attribute_value);
-    }
 
     return {};
 }
@@ -199,7 +197,7 @@ void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
 
     // 3. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days in the future or sooner, see
     //    Section 5.5).
-    auto cookie_age_limit = UnixDateTime::now() + maximum_cookie_age;
+    auto cookie_age_limit = UnixDateTime::now() + MAXIMUM_COOKIE_AGE;
 
     // 4. If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit
     //    in seconds.
@@ -241,7 +239,7 @@ void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
     }
 
     // 5. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days or less, see Section 5.5).
-    auto cookie_age_limit = maximum_cookie_age;
+    auto cookie_age_limit = MAXIMUM_COOKIE_AGE;
 
     // 6. Set delta-seconds to the smaller of its present value and cookie-age-limit.
     if (*delta_seconds > cookie_age_limit.to_seconds())
@@ -343,7 +341,7 @@ Optional<UnixDateTime> parse_date_time(StringView date_string)
     unsigned year = 0;
 
     auto to_uint = [](StringView token, unsigned& result) {
-        if (!all_of(token, isdigit))
+        if (!all_of(token, is_ascii_digit))
             return false;
 
         if (auto converted = token.to_number<unsigned>(); converted.has_value()) {
