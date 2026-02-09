@@ -23,7 +23,7 @@ NonnullRefPtr<IncrementallyPopulatedStream> IncrementallyPopulatedStream::create
 {
     auto stream = create_empty();
     stream->add_chunk_at(0, data);
-    stream->reached_end_of_body();
+    stream->close();
     VERIFY(stream->size() == data.size());
     return stream;
 }
@@ -94,7 +94,7 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     m_state_changed.broadcast();
 }
 
-void IncrementallyPopulatedStream::reached_end_of_body()
+void IncrementallyPopulatedStream::close()
 {
     Threading::MutexLocker locker { m_mutex };
     m_expected_size = m_last_chunk_end;

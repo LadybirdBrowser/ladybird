@@ -143,7 +143,7 @@ TEST_CASE(add_chunks_incrementally)
     stream->add_chunk_at(0, data.bytes().trim(50));
 
     stream->add_chunk_at(50, data.bytes().slice(50));
-    stream->reached_end_of_body();
+    stream->close();
 
     EXPECT(stream->expected_size().has_value());
     EXPECT_EQ(stream->expected_size().value(), data_size);
