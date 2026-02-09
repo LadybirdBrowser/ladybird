@@ -296,7 +296,6 @@ public:
     enum class BlockBoundaryType {
         Break,
         Continue,
-        Unwind,
         ReturnToFinally,
         LeaveFinally,
         LeaveLexicalEnvironment,
@@ -310,10 +309,6 @@ public:
             auto boundary = m_boundaries[i - 1];
             using enum BlockBoundaryType;
             switch (boundary) {
-            case Unwind:
-                if constexpr (IsSame<OpType, Bytecode::Op::Throw>)
-                    return;
-                break;
             case LeaveLexicalEnvironment:
                 --environment_stack_offset;
                 emit<Bytecode::Op::SetLexicalEnvironment>(m_lexical_environment_register_stack[environment_stack_offset - 1]);
@@ -432,7 +427,7 @@ private:
 
     [[nodiscard]] bool has_outer_finally_before_target(JumpType, size_t boundary_index) const;
     void register_jump_in_finally_context(Label target);
-    void emit_trampoline_through_finally(JumpType, size_t& boundary_index);
+    void emit_trampoline_through_finally(JumpType);
 
     Generator(VM&, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, BuiltinAbstractOperationsEnabled);
     ~Generator() = default;

@@ -1119,7 +1119,7 @@ void Generator::register_jump_in_finally_context(Label target)
 // "trampoline" block that the inner finally dispatches to, which then continues
 // unwinding through the next outer finally. Each trampoline is registered as a
 // jump target in the inner finally's dispatch chain.
-void Generator::emit_trampoline_through_finally(JumpType type, size_t& boundary_index)
+void Generator::emit_trampoline_through_finally(JumpType type)
 {
     VERIFY(m_current_finally_context);
     auto block_name = MUST(String::formatted("{}.{}", current_block().name(), type == JumpType::Break ? "break"sv : "continue"sv));
@@ -1128,9 +1128,6 @@ void Generator::emit_trampoline_through_finally(JumpType type, size_t& boundary_
     switch_to_basic_block(trampoline_block);
     m_current_unwind_context = m_current_unwind_context->previous();
     m_current_finally_context = m_current_finally_context->parent;
-    // Skip the paired Unwind boundary since the finally body already handles LeaveUnwindContext.
-    if (boundary_index > 1 && m_boundaries[boundary_index - 2] == BlockBoundaryType::Unwind)
-        --boundary_index;
 }
 
 void Generator::generate_scoped_jump(JumpType type)
@@ -1154,10 +1151,6 @@ void Generator::generate_scoped_jump(JumpType type)
                 return;
             }
             break;
-        case Unwind:
-            VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
-            m_current_unwind_context = m_current_unwind_context->previous();
-            break;
         case LeaveLexicalEnvironment:
             --environment_stack_offset;
             emit<Bytecode::Op::SetLexicalEnvironment>(m_lexical_environment_register_stack[environment_stack_offset - 1]);
@@ -1169,7 +1162,7 @@ void Generator::generate_scoped_jump(JumpType type)
                 register_jump_in_finally_context(target);
                 return;
             }
-            emit_trampoline_through_finally(type, i);
+            emit_trampoline_through_finally(type);
             break;
         }
         case LeaveFinally:
@@ -1191,10 +1184,7 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
     for (auto const& jumpable_scope : jumpable_scopes.in_reverse()) {
         for (; current_boundary > 0; --current_boundary) {
             auto boundary = m_boundaries[current_boundary - 1];
-            if (boundary == BlockBoundaryType::Unwind) {
-                VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
-                m_current_unwind_context = m_current_unwind_context->previous();
-            } else if (boundary == BlockBoundaryType::LeaveLexicalEnvironment) {
+            if (boundary == BlockBoundaryType::LeaveLexicalEnvironment) {
                 --environment_stack_offset;
                 emit<Bytecode::Op::SetLexicalEnvironment>(m_lexical_environment_register_stack[environment_stack_offset - 1]);
             } else if (boundary == BlockBoundaryType::ReturnToFinally) {
@@ -1203,7 +1193,7 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
                     register_jump_in_finally_context(jumpable_scope.bytecode_target);
                     return;
                 }
-                emit_trampoline_through_finally(type, current_boundary);
+                emit_trampoline_through_finally(type);
             } else if ((type == JumpType::Continue && boundary == BlockBoundaryType::Continue) || (type == JumpType::Break && boundary == BlockBoundaryType::Break)) {
                 // Make sure we don't process this boundary twice if the current jumpable scope doesn't contain the target label.
                 --current_boundary;
