@@ -270,12 +270,6 @@ op EnterObjectEnvironment < Instruction
     m_object: Operand
 endop
 
-op EnterUnwindContext < Instruction
-    @terminator
-    @nothrow
-    m_entry_point: Label
-endop
-
 op Exp < Instruction
     m_dst: Operand
     m_lhs: Operand
