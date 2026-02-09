@@ -8,6 +8,11 @@ function arguments_as_param(arguments) {
     return arguments;
 }
 
+// `arguments` as the second parameter gets [argument:1].
+function arguments_as_second_param(x, arguments) {
+    return x + arguments;
+}
+
 // `arguments` in an arrow function refers to the enclosing function.
 function arrow_arguments() {
     let f = () => arguments[0];
