@@ -980,12 +980,12 @@ void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
         box->parent()->remove_child(*box);
 }
 
-static bool is_table_track(CSS::Display display)
+bool TreeBuilder::is_table_track(CSS::Display display)
 {
     return display.is_table_row() || display.is_table_column();
 }
 
-static bool is_table_track_group(CSS::Display display)
+bool TreeBuilder::is_table_track_group(CSS::Display display)
 {
     // Unless explicitly mentioned otherwise, mentions of table-row-groups in this spec also encompass the specialized
     // table-header-groups and table-footer-groups.
@@ -995,44 +995,44 @@ static bool is_table_track_group(CSS::Display display)
         || display.is_table_column_group();
 }
 
-static bool is_proper_table_child(Node const& node)
+bool TreeBuilder::is_proper_table_child(Node const& node)
 {
     auto const display = node.display();
     return is_table_track_group(display) || is_table_track(display) || display.is_table_caption();
 }
 
-static bool is_not_proper_table_child(Node const& node)
+bool TreeBuilder::is_not_proper_table_child(Node const& node)
 {
     if (!node.has_style())
         return true;
     return !is_proper_table_child(node);
 }
 
-static bool is_not_table_row(Node const& node)
+bool TreeBuilder::is_not_table_row(Node const& node)
 {
     if (!node.has_style())
         return true;
     return !TableGrid::is_table_row(node);
 }
 
-static bool is_table_column(Node const& node)
+bool TreeBuilder::is_table_column(Node const& node)
 {
     return node.display().is_table_column();
 }
 
-static bool is_table_cell(Node const& node)
+bool TreeBuilder::is_table_cell(Node const& node)
 {
     return node.display().is_table_cell();
 }
 
-static bool is_not_table_cell(Node const& node)
+bool TreeBuilder::is_not_table_cell(Node const& node)
 {
     if (!node.has_style())
         return true;
     return !is_table_cell(node);
 }
 
-static bool is_table_row_group_column_group_or_caption(Node const& node)
+bool TreeBuilder::is_table_row_group_column_group_or_caption(Node const& node)
 {
     auto const display = node.display();
     return is_table_track_group(display) || display.is_table_caption();
