@@ -846,7 +846,9 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
     if (match(TokenType::Extends)) {
         consume();
-        auto [expression, should_continue_parsing] = parse_primary_expression();
+        auto primary = parse_primary_expression();
+        auto expression = move(primary.result);
+        auto should_continue_parsing = primary.should_continue_parsing_as_expression;
 
         // Basically a (much) simplified parse_secondary_expression().
         for (;;) {
@@ -1252,7 +1254,7 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
         consume_and_allow_division();
         return { create_ast_node<NullLiteral>({ m_source_code, rule_start.position(), position() }) };
     case TokenType::CurlyOpen:
-        return { parse_object_expression() };
+        return parse_object_expression();
     case TokenType::Async: {
         auto lookahead_token = next_token();
         // No valid async function (arrow or not) can have a line terminator after the async since asi would kick in.
@@ -1487,7 +1489,7 @@ NonnullRefPtr<Expression const> Parser::parse_property_key()
     }
 }
 
-NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
+Parser::PrimaryExpressionParseResult Parser::parse_object_expression()
 {
     auto rule_start = push_start();
     consume(TokenType::CurlyOpen);
@@ -1633,16 +1635,18 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
 
     consume(TokenType::CurlyClose);
 
-    if (invalid_object_literal_property_range.has_value()) {
-        size_t object_expression_offset = rule_start.position().offset;
-        VERIFY(!m_state.invalid_property_range_in_object_expression.contains(object_expression_offset));
-        m_state.invalid_property_range_in_object_expression.set(object_expression_offset, invalid_object_literal_property_range->start);
-    }
+    Optional<Position> invalid_property_range;
+    if (invalid_object_literal_property_range.has_value())
+        invalid_property_range = invalid_object_literal_property_range->start;
 
     properties.shrink_to_fit();
-    return create_ast_node<ObjectExpression>(
-        { m_source_code, rule_start.position(), position() },
-        move(properties));
+    return {
+        create_ast_node<ObjectExpression>(
+            { m_source_code, rule_start.position(), position() },
+            move(properties)),
+        true,
+        move(invalid_property_range),
+    };
 }
 
 NonnullRefPtr<ArrayExpression const> Parser::parse_array_expression()
@@ -1778,12 +1782,12 @@ NonnullRefPtr<TemplateLiteral const> Parser::parse_template_literal(bool is_tagg
 NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Associativity associativity, ForbiddenTokens forbidden)
 {
     auto rule_start = push_start();
-    auto [expression, should_continue_parsing] = parse_primary_expression();
+    auto primary = parse_primary_expression();
+    auto expression = move(primary.result);
+    auto should_continue_parsing = primary.should_continue_parsing_as_expression;
     auto check_for_invalid_object_property = [&](auto& expression) {
-        if (is<ObjectExpression>(*expression)) {
-            if (auto start_offset = m_state.invalid_property_range_in_object_expression.get(expression->start_offset()); start_offset.has_value())
-                syntax_error("Invalid property in object literal"_string, start_offset.value());
-        }
+        if (is<ObjectExpression>(*expression) && primary.invalid_object_property_range.has_value())
+            syntax_error("Invalid property in object literal"_string, primary.invalid_object_property_range.value());
     };
     if (is<Identifier>(*expression) && scope_collector().has_current_scope()) {
         auto identifier_instance = static_ptr_cast<Identifier const>(expression);
