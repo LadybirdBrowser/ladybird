@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 141 tests
 
-139 Pass
-2 Fail
+141 Pass
 Pass	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid
 Pass	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid-template-areas
 Pass	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid
@@ -120,12 +119,12 @@ Pass	e.style.cssText = grid-template: auto / auto; should set grid-template-area
 Pass	e.style.cssText = grid-template: auto / auto; should set grid-template-columns
 Pass	e.style.cssText = grid-template: auto / auto; should set grid-template-rows
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] / auto 1fr auto should set grid
-Fail	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] / auto 1fr auto should set grid-template
+Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] / auto 1fr auto should set grid-template
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] / auto 1fr auto should set grid-template-areas
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] / auto 1fr auto should set grid-template-columns
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] / auto 1fr auto should set grid-template-rows
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] "c  c  c" "d  d  d" / auto should set grid
-Fail	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] "c  c  c" "d  d  d" / auto should set grid-template
+Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] "c  c  c" "d  d  d" / auto should set grid-template
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] "c  c  c" "d  d  d" / auto should set grid-template-areas
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] "c  c  c" "d  d  d" / auto should set grid-template-columns
 Pass	e.style.cssText = grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] "c  c  c" "d  d  d" / auto should set grid-template-rows

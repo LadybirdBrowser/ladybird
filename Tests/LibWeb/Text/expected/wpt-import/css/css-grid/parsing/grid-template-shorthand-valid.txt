@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 40 tests
 
-39 Pass
-1 Fail
+40 Pass
 Pass	e.style['grid-template'] = "none" should set the property value
 Pass	e.style['grid-template'] = "none / none" should set the property value
 Pass	e.style['grid-template'] = "auto / auto" should set the property value
@@ -39,7 +38,7 @@ Pass	e.style['grid-template'] = "\"a\" [a] [a] \"b\" 10px" should set the proper
 Pass	e.style['grid-template'] = "\"a\" [a] [] \"b\" 10px" should set the property value
 Pass	e.style['grid-template'] = "\"a\" 10px [a] \"b\" [a]" should set the property value
 Pass	e.style['grid-template'] = "\"a\" [a] \"b\" [a]" should set the property value
-Fail	e.style['grid-template'] = "[a] \"a\" [a] \"b\" [a]" should set the property value
+Pass	e.style['grid-template'] = "[a] \"a\" [a] \"b\" [a]" should set the property value
 Pass	e.style['grid-template'] = "\"a\" \"a\" [a] \"b\" [a]" should set the property value
 Pass	e.style['grid-template'] = "\"a\" [a] \"b\" [a] / 0" should set the property value
 Pass	e.style['grid-template'] = "\"a\" \"a\" [a] [a] \"b\" / auto" should set the property value
