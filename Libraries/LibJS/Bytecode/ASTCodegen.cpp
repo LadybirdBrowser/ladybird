@@ -2855,13 +2855,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         //   Catch completion_value
         //   SetLexicalEnvironment (restore to try entry)
         //   Mov completion_type, 1 (Throw)
-        //   LeaveUnwindContext
         //   Jump finally_body
         generator.switch_to_basic_block(exception_preamble_block);
         generator.emit<Bytecode::Op::Catch>(completion_value);
         generator.emit<Bytecode::Op::SetLexicalEnvironment>(*lexical_environment_at_entry);
         generator.emit_mov(completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::THROW)));
-        generator.emit<Bytecode::Op::LeaveUnwindContext>();
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { finally_body_block });
 
         // Set up unwind context with exception_preamble as finalizer.
@@ -2876,10 +2874,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         auto caught_value = generator.allocate_register();
         generator.emit<Bytecode::Op::Catch>(caught_value);
         generator.emit<Bytecode::Op::SetLexicalEnvironment>(*lexical_environment_at_entry);
-
-        if (!m_finalizer) {
-            generator.emit<Bytecode::Op::LeaveUnwindContext>();
-        }
 
         // OPTIMIZATION: We avoid creating a lexical environment if the catch clause has no parameter.
         bool did_create_variable_scope_for_catch_clause = false;
@@ -2938,7 +2932,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
             if (m_finalizer) {
                 // Normal exit from catch → set completion_type=Normal, jump to finally.
                 generator.emit_mov(finally_context->completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::NORMAL)));
-                generator.emit<Bytecode::Op::LeaveUnwindContext>();
                 generator.emit<Bytecode::Op::Jump>(finally_context->finally_body);
             } else {
                 VERIFY(!next_block);
@@ -2980,16 +2973,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         }
 
         if (m_finalizer) {
-            // Normal exit from try → set completion_type=Normal, leave unwind, jump to finally.
+            // Normal exit from try → set completion_type=Normal, jump to finally.
             generator.emit_mov(finally_context->completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::NORMAL)));
-            generator.emit<Bytecode::Op::LeaveUnwindContext>();
             generator.emit<Bytecode::Op::Jump>(finally_context->finally_body);
         } else {
             VERIFY(unwind_context.has_value());
             unwind_context.clear();
             if (!next_block)
                 next_block = &generator.make_block();
-            generator.emit<Bytecode::Op::LeaveUnwindContext>();
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *next_block });
         }
     }

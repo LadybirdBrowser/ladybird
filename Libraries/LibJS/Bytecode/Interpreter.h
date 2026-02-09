@@ -64,7 +64,6 @@ public:
         reg(Register::exception()) = js_special_empty_value();
     }
 
-    void leave_unwind_context();
     void catch_exception(Operand dst);
 
     Executable& current_executable() { return *m_running_execution_context->executable; }

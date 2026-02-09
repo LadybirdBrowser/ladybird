@@ -617,10 +617,6 @@ op LeavePrivateEnvironment < Instruction
     @nothrow
 endop
 
-op LeaveUnwindContext < Instruction
-    @nothrow
-endop
-
 op LeftShift < Instruction
     m_dst: Operand
     m_lhs: Operand
