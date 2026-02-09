@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
@@ -32,9 +33,9 @@ constexpr u8 IPC_FILE_TAG = 0xA5;
 
 GC_DEFINE_ALLOCATOR(MessagePort);
 
-static HashTable<GC::RawPtr<MessagePort>>& all_message_ports()
+static GC::WeakHashSet<MessagePort>& all_message_ports()
 {
-    static HashTable<GC::RawPtr<MessagePort>> ports;
+    static GC::WeakHashSet<MessagePort> ports;
     return ports;
 }
 
@@ -46,15 +47,16 @@ GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm)
 MessagePort::MessagePort(JS::Realm& realm)
     : DOM::EventTarget(realm)
 {
-    all_message_ports().set(this);
+    all_message_ports().set(*this);
 }
 
 MessagePort::~MessagePort() = default;
 
 void MessagePort::for_each_message_port(Function<void(MessagePort&)> callback)
 {
-    for (auto port : all_message_ports())
-        callback(*port);
+    auto ports = all_message_ports();
+    for (auto& port : ports)
+        callback(port);
 }
 
 void MessagePort::initialize(JS::Realm& realm)
@@ -66,7 +68,7 @@ void MessagePort::initialize(JS::Realm& realm)
 void MessagePort::finalize()
 {
     Base::finalize();
-    all_message_ports().remove(this);
+    all_message_ports().remove(*this);
     disentangle();
 }
 
