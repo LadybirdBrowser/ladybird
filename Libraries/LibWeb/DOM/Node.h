@@ -112,6 +112,7 @@ enum class StyleInvalidationReason {
     X(SVGGraphicsElementTransformChange)              \
     X(SVGImageElementFetchTheDocument)                \
     X(SVGImageFilterFetch)                            \
+    X(SVGViewBoxChange)                               \
     X(StyleChange)
 
 enum class SetNeedsLayoutReason {
@@ -134,7 +135,6 @@ enum class SetNeedsLayoutReason {
     X(NodeRemove)                                         \
     X(NodeSetTextContent)                                 \
     X(None)                                               \
-    X(SVGViewBoxChange)                                   \
     X(StyleChange)
 
 enum class SetNeedsLayoutTreeUpdateReason {
