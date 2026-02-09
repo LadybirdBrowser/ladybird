@@ -183,6 +183,14 @@ TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position,
                     };
                     if (callback(hit_test_result) == TraversalDecision::Break)
                         return TraversalDecision::Break;
+                } else if (local_position.y() < fragment_absolute_rect.top()) { // fully above the fragment
+                    HitTestResult hit_test_result {
+                        .paintable = const_cast<Paintable&>(fragment.paintable()),
+                        .index_in_node = fragment.start_offset(),
+                        .vertical_distance = fragment_absolute_rect.top() - local_position.y(),
+                    };
+                    if (callback(hit_test_result) == TraversalDecision::Break)
+                        return TraversalDecision::Break;
                 } else if (fragment_absolute_rect.top() <= local_position.y()) { // vertically within the fragment
                     if (local_position.x() < fragment_absolute_rect.left()) {
                         HitTestResult hit_test_result {
