@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Types.h>
+
 namespace HTTP {
 
 class CacheEntry;
@@ -29,7 +31,7 @@ struct Cookie;
 struct ParsedCookie;
 struct VersionedCookie;
 
-enum class SameSite;
-enum class Source;
+enum class SameSite : u8;
+enum class Source : u8;
 
 }

@@ -462,7 +462,7 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
         // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.1
         // 3. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days in the future or sooner, see
         //    Section 5.5).
-        auto cookie_age_limit = UnixDateTime::now() + HTTP::Cookie::maximum_cookie_age;
+        auto cookie_age_limit = UnixDateTime::now() + HTTP::Cookie::MAXIMUM_COOKIE_AGE;
 
         // 4. If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit
         //    in seconds.
