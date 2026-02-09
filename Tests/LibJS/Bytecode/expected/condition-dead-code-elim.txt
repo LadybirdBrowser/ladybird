@@ -129,4 +129,3 @@ JS bytecode executable "for_true"
 [  e8]       End value:Undefined
 [  f0]    9: Jump target:@b8
 [  f8]   10: Jump target:@b0
-

@@ -60,4 +60,3 @@ JS bytecode executable "literal"
 JS bytecode executable "empty"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Return value:String("")
-

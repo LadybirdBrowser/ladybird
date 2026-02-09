@@ -39,7 +39,7 @@ JS bytecode executable "continueThroughFinally"
 [ 148]   14: Throw src:reg6
 
 Exception handlers:
-    from   b0 to  108 handler    0 finalizer   68
+    from   b0 to  108 handler   68
 
 JS bytecode executable "breakThroughFinally"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -68,7 +68,7 @@ JS bytecode executable "breakThroughFinally"
 [ 148]   14: Throw src:reg6
 
 Exception handlers:
-    from   b0 to  108 handler    0 finalizer   68
+    from   b0 to  108 handler   68
 
 32
 301

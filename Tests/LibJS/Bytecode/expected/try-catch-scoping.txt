@@ -24,7 +24,7 @@ JS bytecode executable "tryCatchWithBlocks"
 [  d8]       Throw src:y~0
 
 Exception handlers:
-    from   c8 to   e0 handler   20 finalizer    0
+    from   c8 to   e0 handler   20
 
 JS bytecode executable "tryCatchFinallyWithBlocks"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -56,8 +56,8 @@ JS bytecode executable "tryCatchFinallyWithBlocks"
 [ 1a0]    8: Throw src:reg6
 
 Exception handlers:
-    from   c8 to  160 handler    0 finalizer   20
-    from  160 to  178 handler   c8 finalizer   20
+    from   c8 to  160 handler   20
+    from  160 to  178 handler   c8
 
 6
 2

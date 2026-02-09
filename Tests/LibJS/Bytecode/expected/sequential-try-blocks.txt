@@ -27,7 +27,7 @@ JS bytecode executable "sequentialTryCatch"
 [  b8]       Throw src:Int32(2)
 
 Exception handlers:
-    from   58 to   70 handler   20 finalizer    0
-    from   a8 to   c0 handler   70 finalizer    0
+    from   58 to   70 handler   20
+    from   a8 to   c0 handler   70
 
 "abcd"
