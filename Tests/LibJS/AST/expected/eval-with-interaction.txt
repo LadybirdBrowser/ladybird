@@ -1,0 +1,71 @@
+Program (script) @2:1
+├─ FunctionDeclaration "eval_in_with" [direct-eval] [uses-this] [might-need-arguments] @2:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" @2:23
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ VariableDeclaration (let) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "a" (let) @3:9
+│        │     └─ NumericLiteral 1 @3:13
+│        └─ WithStatement @4:5
+│           ├─ object
+│           │  └─ Identifier "obj" @4:11
+│           └─ body
+│              └─ BlockStatement @4:16
+│                 ├─ ExpressionStatement @5:9
+│                 │  └─ CallExpression @5:13
+│                 │     ├─ Identifier "eval" [in-eval-scope] @5:9
+│                 │     └─ StringLiteral "" @5:16
+│                 └─ ExpressionStatement @6:9
+│                    └─ Identifier "a" (let) [in-eval-scope] @6:9
+├─ FunctionDeclaration "with_after_eval" [direct-eval] [uses-this] [might-need-arguments] @11:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" @11:26
+│  └─ body
+│     └─ FunctionBody @12:5
+│        ├─ VariableDeclaration (let) @12:5
+│        │  └─ VariableDeclarator @12:5
+│        │     ├─ Identifier "b" (let) @12:9
+│        │     └─ NumericLiteral 1 @12:13
+│        ├─ ExpressionStatement @13:5
+│        │  └─ CallExpression @13:9
+│        │     ├─ Identifier "eval" [in-eval-scope] @13:5
+│        │     └─ StringLiteral "" @13:12
+│        └─ WithStatement @14:5
+│           ├─ object
+│           │  └─ Identifier "obj" @14:11
+│           └─ body
+│              └─ BlockStatement @14:16
+│                 └─ ExpressionStatement @15:9
+│                    └─ Identifier "b" (let) @15:9
+└─ FunctionDeclaration "branched_poison" [direct-eval] [uses-this] [might-need-arguments] @20:1
+   ├─ parameters
+   │  ├─ Identifier "flag" @20:26
+   │  └─ Identifier "obj" @20:26
+   └─ body
+      └─ FunctionBody @21:5
+         ├─ VariableDeclaration (let) @21:5
+         │  └─ VariableDeclarator @21:5
+         │     ├─ Identifier "c" (let) @21:9
+         │     └─ NumericLiteral 1 @21:13
+         ├─ IfStatement @22:5
+         │  ├─ test
+         │  │  └─ Identifier "flag" @22:9
+         │  ├─ consequent
+         │  │  └─ BlockStatement @22:15
+         │  │     └─ ExpressionStatement @23:9
+         │  │        └─ CallExpression @23:13
+         │  │           ├─ Identifier "eval" [in-eval-scope] @23:9
+         │  │           └─ StringLiteral "" @23:16
+         │  └─ alternate
+         │     └─ BlockStatement @24:12
+         │        └─ WithStatement @25:9
+         │           ├─ object
+         │           │  └─ Identifier "obj" @25:15
+         │           └─ body
+         │              └─ BlockStatement @25:20
+         │                 └─ ExpressionStatement @26:13
+         │                    └─ Identifier "c" (let) @26:13
+         └─ ReturnStatement @29:5
+            └─ Identifier "c" (let) @29:12

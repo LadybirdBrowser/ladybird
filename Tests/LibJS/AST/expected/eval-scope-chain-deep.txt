@@ -1,0 +1,69 @@
+Program (script) @6:1
+├─ FunctionDeclaration "clean_outer" [uses-this] @6:1
+│  └─ body
+│     └─ FunctionBody @7:5
+│        ├─ VariableDeclaration (let) @7:5
+│        │  └─ VariableDeclarator @7:5
+│        │     ├─ Identifier "a" (let) @7:9
+│        │     └─ NumericLiteral 1 @7:13
+│        ├─ FunctionDeclaration "middle" [direct-eval] [uses-this] [might-need-arguments] @8:5
+│        │  └─ body
+│        │     └─ FunctionBody @9:9
+│        │        ├─ VariableDeclaration (let) @9:9
+│        │        │  └─ VariableDeclarator @9:9
+│        │        │     ├─ Identifier "b" (let) @9:13
+│        │        │     └─ NumericLiteral 2 @9:17
+│        │        ├─ ExpressionStatement @10:9
+│        │        │  └─ CallExpression @10:13
+│        │        │     ├─ Identifier "eval" [in-eval-scope] @10:9
+│        │        │     └─ StringLiteral "" @10:16
+│        │        ├─ FunctionDeclaration "inner" @11:9
+│        │        │  └─ body
+│        │        │     └─ FunctionBody @12:13
+│        │        │        ├─ VariableDeclaration (let) @12:13
+│        │        │        │  └─ VariableDeclarator @12:13
+│        │        │        │     ├─ Identifier "c" [variable:0] (let) @12:17
+│        │        │        │     └─ NumericLiteral 3 @12:21
+│        │        │        └─ ReturnStatement @13:13
+│        │        │           └─ BinaryExpression (+) @13:26
+│        │        │              ├─ BinaryExpression (+) @13:22
+│        │        │              │  ├─ Identifier "a" (let) [in-eval-scope] @13:20
+│        │        │              │  └─ Identifier "b" (let) @13:24
+│        │        │              └─ Identifier "c" [variable:0] (let) @13:28
+│        │        └─ ReturnStatement @15:9
+│        │           └─ CallExpression @15:21
+│        │              └─ Identifier "inner" @15:16
+│        └─ ReturnStatement @17:5
+│           └─ CallExpression @17:18
+│              └─ Identifier "middle" @17:12
+└─ FunctionDeclaration "eval_at_top" [direct-eval] [uses-this] [might-need-arguments] @21:1
+   └─ body
+      └─ FunctionBody @22:5
+         ├─ VariableDeclaration (let) @22:5
+         │  └─ VariableDeclarator @22:5
+         │     ├─ Identifier "x" (let) @22:9
+         │     └─ NumericLiteral 1 @22:13
+         ├─ ExpressionStatement @23:5
+         │  └─ CallExpression @23:9
+         │     ├─ Identifier "eval" [in-eval-scope] @23:5
+         │     └─ StringLiteral "" @23:12
+         ├─ FunctionDeclaration "level1" @24:5
+         │  └─ body
+         │     └─ FunctionBody @25:9
+         │        ├─ VariableDeclaration (let) @25:9
+         │        │  └─ VariableDeclarator @25:9
+         │        │     ├─ Identifier "y" (let) @25:13
+         │        │     └─ NumericLiteral 2 @25:17
+         │        ├─ FunctionDeclaration "level2" @26:9
+         │        │  └─ body
+         │        │     └─ FunctionBody @27:13
+         │        │        └─ ReturnStatement @27:13
+         │        │           └─ BinaryExpression (+) @27:22
+         │        │              ├─ Identifier "x" (let) @27:20
+         │        │              └─ Identifier "y" (let) @27:24
+         │        └─ ReturnStatement @29:9
+         │           └─ CallExpression @29:22
+         │              └─ Identifier "level2" [variable:0] @29:16
+         └─ ReturnStatement @31:5
+            └─ CallExpression @31:18
+               └─ Identifier "level1" @31:12

@@ -1,0 +1,49 @@
+Program (script) @1:1
+├─ VariableDeclaration (const) @1:1
+│  └─ VariableDeclarator @1:1
+│     ├─ Identifier "anon" [global] (const) @1:7
+│     └─ FunctionExpression "" @1:14
+│        └─ body
+│           └─ FunctionBody @2:5
+│              ├─ VariableDeclaration (let) @2:5
+│              │  └─ VariableDeclarator @2:5
+│              │     ├─ Identifier "x" [variable:0] (let) @2:9
+│              │     └─ NumericLiteral 1 @2:13
+│              └─ ReturnStatement @3:5
+│                 └─ Identifier "x" [variable:0] (let) @3:12
+├─ VariableDeclaration (const) @6:1
+│  └─ VariableDeclarator @6:1
+│     ├─ Identifier "named" [global] (const) @6:7
+│     └─ FunctionExpression "myFunc" @6:15
+│        └─ body
+│           └─ FunctionBody @7:5
+│              └─ ReturnStatement @7:5
+│                 └─ Identifier "myFunc" [in-eval-scope] @7:12
+└─ VariableDeclaration (const) @10:1
+   └─ VariableDeclarator @10:1
+      ├─ Identifier "recursive" [global] (const) @10:7
+      └─ FunctionExpression "fib" @10:19
+         ├─ parameters
+         │  └─ Identifier "n" [argument:0] @10:32
+         └─ body
+            └─ FunctionBody @11:5
+               ├─ IfStatement @11:5
+               │  ├─ test
+               │  │  └─ BinaryExpression (<=) @11:11
+               │  │     ├─ Identifier "n" [argument:0] @11:9
+               │  │     └─ NumericLiteral 1 @11:14
+               │  └─ consequent
+               │     └─ ReturnStatement @11:17
+               │        └─ Identifier "n" [argument:0] @11:24
+               └─ ReturnStatement @12:5
+                  └─ BinaryExpression (+) @12:23
+                     ├─ CallExpression @12:15
+                     │  ├─ Identifier "fib" [in-eval-scope] @12:12
+                     │  └─ BinaryExpression (-) @12:18
+                     │     ├─ Identifier "n" [argument:0] @12:16
+                     │     └─ NumericLiteral 1 @12:20
+                     └─ CallExpression @12:28
+                        ├─ Identifier "fib" [in-eval-scope] @12:25
+                        └─ BinaryExpression (-) @12:31
+                           ├─ Identifier "n" [argument:0] @12:29
+                           └─ NumericLiteral 2 @12:33

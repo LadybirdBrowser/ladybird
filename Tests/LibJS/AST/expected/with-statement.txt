@@ -1,0 +1,53 @@
+Program (script) @1:1
+├─ FunctionDeclaration "with_basic" @1:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @1:21
+│  └─ body
+│     └─ FunctionBody @2:5
+│        └─ WithStatement @2:5
+│           ├─ object
+│           │  └─ Identifier "obj" [argument:0] @2:11
+│           └─ body
+│              └─ BlockStatement @2:16
+│                 └─ ReturnStatement @3:9
+│                    └─ Identifier "x" @3:16
+├─ FunctionDeclaration "with_and_local" @7:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @7:25
+│  └─ body
+│     └─ FunctionBody @8:5
+│        ├─ VariableDeclaration (let) @8:5
+│        │  └─ VariableDeclarator @8:5
+│        │     ├─ Identifier "y" (let) @8:9
+│        │     └─ NumericLiteral 1 @8:13
+│        └─ WithStatement @9:5
+│           ├─ object
+│           │  └─ Identifier "obj" [argument:0] @9:11
+│           └─ body
+│              └─ BlockStatement @9:16
+│                 └─ ReturnStatement @10:9
+│                    └─ BinaryExpression (+) @10:18
+│                       ├─ Identifier "x" @10:16
+│                       └─ Identifier "y" (let) @10:20
+└─ FunctionDeclaration "with_nested_function" @14:1
+   ├─ parameters
+   │  └─ Identifier "obj" [argument:0] @14:31
+   └─ body
+      └─ FunctionBody @15:5
+         └─ WithStatement @15:5
+            ├─ object
+            │  └─ Identifier "obj" [argument:0] @15:11
+            └─ body
+               └─ BlockStatement @15:16
+                  ├─ FunctionDeclaration "inner" @16:9
+                  │  └─ body
+                  │     └─ FunctionBody @17:13
+                  │        ├─ VariableDeclaration (let) @17:13
+                  │        │  └─ VariableDeclarator @17:13
+                  │        │     ├─ Identifier "z" [variable:0] (let) @17:17
+                  │        │     └─ NumericLiteral 2 @17:21
+                  │        └─ ReturnStatement @18:13
+                  │           └─ Identifier "z" [variable:0] (let) @18:20
+                  └─ ReturnStatement @20:9
+                     └─ CallExpression @20:21
+                        └─ Identifier "inner" @20:16

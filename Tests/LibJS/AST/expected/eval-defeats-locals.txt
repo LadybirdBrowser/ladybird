@@ -1,0 +1,50 @@
+Program (script) @3:1
+├─ FunctionDeclaration "outer" [direct-eval] [uses-this] [might-need-arguments] @3:1
+│  └─ body
+│     └─ FunctionBody @4:5
+│        ├─ VariableDeclaration (let) @4:5
+│        │  └─ VariableDeclarator @4:5
+│        │     ├─ Identifier "a" (let) @4:9
+│        │     └─ NumericLiteral 1 @4:13
+│        ├─ VariableDeclaration (let) @5:5
+│        │  └─ VariableDeclarator @5:5
+│        │     ├─ Identifier "b" (let) @5:9
+│        │     └─ NumericLiteral 2 @5:13
+│        ├─ ExpressionStatement @6:5
+│        │  └─ CallExpression @6:9
+│        │     ├─ Identifier "eval" [in-eval-scope] @6:5
+│        │     └─ StringLiteral "" @6:12
+│        └─ ReturnStatement @7:5
+│           └─ BinaryExpression (+) @7:14
+│              ├─ Identifier "a" (let) @7:12
+│              └─ Identifier "b" (let) @7:16
+├─ FunctionDeclaration "block_eval" [direct-eval] [uses-this] [might-need-arguments] @11:1
+│  └─ body
+│     └─ FunctionBody @12:5
+│        ├─ VariableDeclaration (let) @12:5
+│        │  └─ VariableDeclarator @12:5
+│        │     ├─ Identifier "x" (let) @12:9
+│        │     └─ NumericLiteral 1 @12:13
+│        ├─ BlockStatement @13:5
+│        │  └─ ExpressionStatement @14:9
+│        │     └─ CallExpression @14:13
+│        │        ├─ Identifier "eval" [in-eval-scope] @14:9
+│        │        └─ StringLiteral "" @14:16
+│        └─ ReturnStatement @16:5
+│           └─ Identifier "x" (let) @16:12
+└─ FunctionDeclaration "outer_safe" [uses-this] @20:1
+   └─ body
+      └─ FunctionBody @21:5
+         ├─ VariableDeclaration (let) @21:5
+         │  └─ VariableDeclarator @21:5
+         │     ├─ Identifier "clean" (let) @21:9
+         │     └─ NumericLiteral 1 @21:17
+         ├─ FunctionDeclaration "inner" [direct-eval] [uses-this] [might-need-arguments] @22:5
+         │  └─ body
+         │     └─ FunctionBody @23:9
+         │        └─ ExpressionStatement @23:9
+         │           └─ CallExpression @23:13
+         │              ├─ Identifier "eval" [in-eval-scope] @23:9
+         │              └─ StringLiteral "" @23:16
+         └─ ReturnStatement @25:5
+            └─ Identifier "clean" (let) @25:12

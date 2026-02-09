@@ -1,0 +1,78 @@
+Program (script) @1:1
+├─ FunctionDeclaration "try_catch" @1:1
+│  └─ body
+│     └─ FunctionBody @2:5
+│        ├─ VariableDeclaration (let) @2:5
+│        │  └─ VariableDeclarator @2:5
+│        │     ├─ Identifier "x" [variable:2] (let) @2:9
+│        │     └─ NumericLiteral 1 @2:13
+│        └─ TryStatement @3:5
+│           ├─ block
+│           │  └─ BlockStatement @3:9
+│           │     ├─ VariableDeclaration (let) @4:9
+│           │     │  └─ VariableDeclarator @4:9
+│           │     │     ├─ Identifier "y" [variable:0] (let) @4:13
+│           │     │     └─ NumericLiteral 2 @4:17
+│           │     └─ ReturnStatement @5:9
+│           │        └─ BinaryExpression (+) @5:18
+│           │           ├─ Identifier "x" [variable:2] (let) @5:16
+│           │           └─ Identifier "y" [variable:0] (let) @5:20
+│           └─ handler
+│              └─ CatchClause @6:7
+│                 ├─ parameter
+│                 │  └─ Identifier "e" [variable:1] @6:14
+│                 └─ BlockStatement @6:17
+│                    └─ ReturnStatement @7:9
+│                       └─ Identifier "e" [variable:1] @7:16
+├─ FunctionDeclaration "catch_parameter" @11:1
+│  └─ body
+│     └─ FunctionBody @12:5
+│        └─ TryStatement @12:5
+│           ├─ block
+│           │  └─ BlockStatement @12:9
+│           │     └─ ThrowStatement @13:9
+│           │        └─ NumericLiteral 1 @13:15
+│           └─ handler
+│              └─ CatchClause @14:7
+│                 ├─ parameter
+│                 │  └─ Identifier "err" [variable:1] @14:14
+│                 └─ BlockStatement @14:19
+│                    ├─ VariableDeclaration (let) @15:9
+│                    │  └─ VariableDeclarator @15:9
+│                    │     ├─ Identifier "msg" [variable:0] (let) @15:13
+│                    │     └─ Identifier "err" [variable:1] @15:19
+│                    └─ ReturnStatement @16:9
+│                       └─ Identifier "msg" [variable:0] (let) @16:16
+└─ FunctionDeclaration "try_catch_finally" @20:1
+   └─ body
+      └─ FunctionBody @21:5
+         ├─ VariableDeclaration (let) @21:5
+         │  └─ VariableDeclarator @21:5
+         │     ├─ Identifier "result" [variable:1] (let) @21:9
+         │     └─ NumericLiteral 0 @21:18
+         ├─ TryStatement @22:5
+         │  ├─ block
+         │  │  └─ BlockStatement @22:9
+         │  │     └─ ExpressionStatement @23:9
+         │  │        └─ AssignmentExpression (=) @23:16
+         │  │           ├─ Identifier "result" [variable:1] (let) @23:9
+         │  │           └─ NumericLiteral 1 @23:18
+         │  ├─ handler
+         │  │  └─ CatchClause @24:7
+         │  │     ├─ parameter
+         │  │     │  └─ Identifier "e" [variable:0] @24:14
+         │  │     └─ BlockStatement @24:17
+         │  │        └─ ExpressionStatement @25:9
+         │  │           └─ AssignmentExpression (=) @25:16
+         │  │              ├─ Identifier "result" [variable:1] (let) @25:9
+         │  │              └─ NumericLiteral 2 @25:18
+         │  └─ finalizer
+         │     └─ BlockStatement @26:15
+         │        └─ ExpressionStatement @27:9
+         │           └─ AssignmentExpression (=) @27:16
+         │              ├─ Identifier "result" [variable:1] (let) @27:9
+         │              └─ BinaryExpression (+) @27:25
+         │                 ├─ Identifier "result" [variable:1] (let) @27:18
+         │                 └─ NumericLiteral 10 @27:27
+         └─ ReturnStatement @29:5
+            └─ Identifier "result" [variable:1] (let) @29:12

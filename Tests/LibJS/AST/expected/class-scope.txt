@@ -1,0 +1,90 @@
+Program (script) @2:1
+├─ VariableDeclaration (var) @2:1
+│  └─ VariableDeclarator @2:1
+│     ├─ Identifier "C" [global] (var) @2:5
+│     └─ ClassExpression "MyClass" @2:9
+│        ├─ constructor
+│        │  └─ FunctionExpression "MyClass" [strict] [uses-this] [uses-this-from-environment] @2:9
+│        │     └─ body
+│        │        └─ BlockStatement @2:9
+│        └─ elements
+│           └─ ClassMethod @2:9
+│              ├─ StringLiteral "method" @2:9
+│              └─ FunctionExpression "" [strict] @3:5
+│                 └─ body
+│                    └─ FunctionBody @4:9
+│                       └─ ReturnStatement @4:9
+│                          └─ Identifier "MyClass" @4:16
+├─ FunctionDeclaration "uses_class" @9:1
+│  └─ body
+│     └─ FunctionBody @10:5
+│        ├─ ClassDeclaration @10:5
+│        │  └─ ClassExpression "Foo" @10:5
+│        │     ├─ constructor
+│        │     │  └─ FunctionExpression "Foo" [strict] [uses-this] [uses-this-from-environment] @10:5
+│        │     │     └─ body
+│        │     │        └─ BlockStatement @10:5
+│        │     └─ elements
+│        │        └─ ClassMethod @10:5
+│        │           ├─ StringLiteral "method" @10:5
+│        │           └─ FunctionExpression "" [strict] @11:9
+│        │              └─ body
+│        │                 └─ FunctionBody @12:13
+│        │                    └─ ReturnStatement @12:13
+│        │                       └─ NewExpression @12:20
+│        │                          └─ Identifier "Foo" @12:24
+│        └─ ReturnStatement @15:5
+│           └─ NewExpression @15:12
+│              └─ Identifier "Foo" [variable:0] @15:16
+├─ FunctionDeclaration "computed_key" @19:1
+│  └─ body
+│     └─ FunctionBody @20:5
+│        ├─ VariableDeclaration (let) @20:5
+│        │  └─ VariableDeclarator @20:5
+│        │     ├─ Identifier "key" [variable:1] (let) @20:9
+│        │     └─ StringLiteral "hello" @20:22
+│        ├─ ClassDeclaration @21:5
+│        │  └─ ClassExpression "Bar" @21:5
+│        │     ├─ constructor
+│        │     │  └─ FunctionExpression "Bar" [strict] [uses-this] [uses-this-from-environment] @21:5
+│        │     │     └─ body
+│        │     │        └─ BlockStatement @21:5
+│        │     └─ elements
+│        │        └─ ClassMethod @21:5
+│        │           ├─ Identifier "key" [variable:1] (let) @22:10
+│        │           └─ FunctionExpression "" [strict] @22:9
+│        │              └─ body
+│        │                 └─ FunctionBody @23:13
+│        │                    └─ ReturnStatement @23:13
+│        │                       └─ NumericLiteral 1 @23:20
+│        └─ ReturnStatement @26:5
+│           └─ NewExpression @26:12
+│              └─ Identifier "Bar" [variable:0] @26:16
+└─ FunctionDeclaration "static_members" @30:1
+   └─ body
+      └─ FunctionBody @31:5
+         ├─ ClassDeclaration @31:5
+         │  └─ ClassExpression "Baz" @31:5
+         │     ├─ constructor
+         │     │  └─ FunctionExpression "Baz" [strict] [uses-this] [uses-this-from-environment] @31:5
+         │     │     └─ body
+         │     │        └─ BlockStatement @31:5
+         │     └─ elements
+         │        ├─ ClassField static @31:5
+         │        │  ├─ StringLiteral "x" @31:5
+         │        │  └─ initializer
+         │        │     └─ NumericLiteral 1 @32:20
+         │        └─ ClassMethod static @31:5
+         │           ├─ StringLiteral "method" @31:5
+         │           └─ FunctionExpression "" [strict] @33:16
+         │              └─ body
+         │                 └─ FunctionBody @34:13
+         │                    └─ ReturnStatement @34:13
+         │                       └─ MemberExpression @34:23
+         │                          ├─ Identifier "Baz" @34:20
+         │                          └─ Identifier "x" @34:23
+         └─ ReturnStatement @37:5
+            └─ CallExpression @37:22
+               └─ MemberExpression @37:15
+                  ├─ Identifier "Baz" [variable:0] @37:12
+                  └─ Identifier "method" @37:15

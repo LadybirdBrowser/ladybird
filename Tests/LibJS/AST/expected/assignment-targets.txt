@@ -1,0 +1,89 @@
+Program (script) @3:1
+├─ VariableDeclaration (var) @3:1
+│  └─ VariableDeclarator @3:1
+│     ├─ Identifier "g" [global] (var) @3:5
+│     └─ NumericLiteral 1 @3:9
+├─ FunctionDeclaration "assign_local" @5:1
+│  └─ body
+│     └─ FunctionBody @6:5
+│        ├─ VariableDeclaration (let) @6:5
+│        │  └─ VariableDeclarator @6:5
+│        │     ├─ Identifier "x" [variable:0] (let) @6:9
+│        │     └─ NumericLiteral 1 @6:13
+│        ├─ ExpressionStatement @7:5
+│        │  └─ AssignmentExpression (=) @7:7
+│        │     ├─ Identifier "x" [variable:0] (let) @7:5
+│        │     └─ NumericLiteral 2 @7:9
+│        ├─ ExpressionStatement @8:5
+│        │  └─ AssignmentExpression (+=) @8:7
+│        │     ├─ Identifier "x" [variable:0] (let) @8:5
+│        │     └─ NumericLiteral 3 @8:10
+│        └─ ReturnStatement @9:5
+│           └─ Identifier "x" [variable:0] (let) @9:12
+├─ FunctionDeclaration "assign_global" @12:1
+│  └─ body
+│     └─ FunctionBody @13:5
+│        ├─ ExpressionStatement @13:5
+│        │  └─ AssignmentExpression (=) @13:7
+│        │     ├─ Identifier "g" [global] (var) @13:5
+│        │     └─ NumericLiteral 2 @13:9
+│        ├─ ExpressionStatement @14:5
+│        │  └─ AssignmentExpression (+=) @14:7
+│        │     ├─ Identifier "g" [global] (var) @14:5
+│        │     └─ NumericLiteral 3 @14:10
+│        └─ ReturnStatement @15:5
+│           └─ Identifier "g" [global] (var) @15:12
+├─ FunctionDeclaration "destruct_assign" @19:1
+│  └─ body
+│     └─ FunctionBody @20:5
+│        ├─ VariableDeclaration (let) @20:5
+│        │  ├─ VariableDeclarator @20:5
+│        │  │  └─ Identifier "a" [variable:0] (let) @20:9
+│        │  └─ VariableDeclarator @20:5
+│        │     └─ Identifier "b" [variable:1] (let) @20:12
+│        ├─ ExpressionStatement @21:5
+│        │  └─ AssignmentExpression (=) @21:12
+│        │     ├─ BindingPattern (array)
+│        │     │  ├─ entry
+│        │     │  │  └─ alias
+│        │     │  │     └─ Identifier "a" [variable:0] (let) @21:7
+│        │     │  └─ entry
+│        │     │     └─ alias
+│        │     │        └─ Identifier "b" [variable:1] (let) @21:10
+│        │     └─ ArrayExpression @21:14
+│        │        ├─ NumericLiteral 1 @21:15
+│        │        └─ NumericLiteral 2 @21:18
+│        └─ ReturnStatement @22:5
+│           └─ BinaryExpression (+) @22:14
+│              ├─ Identifier "a" [variable:0] (let) @22:12
+│              └─ Identifier "b" [variable:1] (let) @22:16
+├─ FunctionDeclaration "assign_undeclared" @26:1
+│  └─ body
+│     └─ FunctionBody @27:5
+│        ├─ ExpressionStatement @27:5
+│        │  └─ AssignmentExpression (=) @27:16
+│        │     ├─ Identifier "undeclared" [global] @27:5
+│        │     └─ NumericLiteral 1 @27:18
+│        └─ ReturnStatement @28:5
+│           └─ Identifier "undeclared" [global] @28:12
+└─ FunctionDeclaration "update_targets" @32:1
+   └─ body
+      └─ FunctionBody @33:5
+         ├─ VariableDeclaration (let) @33:5
+         │  └─ VariableDeclarator @33:5
+         │     ├─ Identifier "x" [variable:0] (let) @33:9
+         │     └─ NumericLiteral 0 @33:13
+         ├─ ExpressionStatement @34:5
+         │  └─ UpdateExpression (++, postfix) @34:6
+         │     └─ Identifier "x" [variable:0] (let) @34:5
+         ├─ ExpressionStatement @35:5
+         │  └─ UpdateExpression (++, prefix) @35:5
+         │     └─ Identifier "x" [variable:0] (let) @35:7
+         ├─ ExpressionStatement @36:5
+         │  └─ UpdateExpression (--, postfix) @36:6
+         │     └─ Identifier "x" [variable:0] (let) @36:5
+         ├─ ExpressionStatement @37:5
+         │  └─ UpdateExpression (--, prefix) @37:5
+         │     └─ Identifier "x" [variable:0] (let) @37:7
+         └─ ReturnStatement @38:5
+            └─ Identifier "x" [variable:0] (let) @38:12

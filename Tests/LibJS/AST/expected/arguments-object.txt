@@ -1,0 +1,53 @@
+Program (script) @2:1
+├─ FunctionDeclaration "uses_arguments" [might-need-arguments] @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        └─ ReturnStatement @3:5
+│           └─ MemberExpression [computed] @3:21
+│              ├─ Identifier "arguments" [variable:0] @3:12
+│              └─ NumericLiteral 0 @3:22
+├─ FunctionDeclaration "arguments_as_param" [might-need-arguments] @7:1
+│  ├─ parameters
+│  │  └─ Identifier "arguments" @7:29
+│  └─ body
+│     └─ FunctionBody @8:5
+│        └─ ReturnStatement @8:5
+│           └─ Identifier "arguments" @8:12
+├─ FunctionDeclaration "arrow_arguments" [might-need-arguments] @12:1
+│  └─ body
+│     └─ FunctionBody @13:5
+│        ├─ VariableDeclaration (let) @13:5
+│        │  └─ VariableDeclarator @13:5
+│        │     ├─ Identifier "f" [variable:0] (let) @13:9
+│        │     └─ FunctionExpression "" [arrow] @13:13
+│        │        └─ body
+│        │           └─ FunctionBody @13:13
+│        │              └─ ReturnStatement @13:13
+│        │                 └─ MemberExpression [computed] @13:28
+│        │                    ├─ Identifier "arguments" @13:19
+│        │                    └─ NumericLiteral 0 @13:29
+│        └─ ReturnStatement @14:5
+│           └─ CallExpression @14:13
+│              └─ Identifier "f" [variable:0] (let) @14:12
+├─ FunctionDeclaration "destructured_with_arguments" [might-need-arguments] @18:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     └─ entry
+│  │        └─ name
+│  │           └─ Identifier "x" @18:38
+│  └─ body
+│     └─ FunctionBody @19:5
+│        └─ ReturnStatement @19:5
+│           └─ MemberExpression [computed] @19:21
+│              ├─ Identifier "arguments" [variable:0] @19:12
+│              └─ NumericLiteral 0 @19:22
+└─ FunctionDeclaration "rest_and_arguments" [might-need-arguments] @23:1
+   ├─ parameters
+   │  └─ rest
+   │     └─ Identifier "args" @23:29
+   └─ body
+      └─ FunctionBody @24:5
+         └─ ReturnStatement @24:5
+            └─ MemberExpression @24:21
+               ├─ Identifier "arguments" [variable:0] @24:12
+               └─ Identifier "length" @24:21

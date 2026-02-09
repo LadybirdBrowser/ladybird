@@ -1,0 +1,33 @@
+Program (script) @1:1
+└─ FunctionDeclaration "switch_basic" @1:1
+   ├─ parameters
+   │  └─ Identifier "x" [argument:0] @1:23
+   └─ body
+      └─ FunctionBody @2:5
+         └─ SwitchStatement @2:5
+            ├─ discriminant
+            │  └─ Identifier "x" [argument:0] @2:13
+            ├─ SwitchCase @3:9
+            │  ├─ test
+            │  │  └─ NumericLiteral 1 @3:14
+            │  └─ consequent
+            │        ├─ VariableDeclaration (let) @4:13
+            │        │  └─ VariableDeclarator @4:13
+            │        │     ├─ Identifier "a" [variable:0] (let) @4:17
+            │        │     └─ NumericLiteral 10 @4:21
+            │        └─ ReturnStatement @5:13
+            │           └─ Identifier "a" [variable:0] (let) @5:20
+            ├─ SwitchCase @6:9
+            │  ├─ test
+            │  │  └─ NumericLiteral 2 @6:14
+            │  └─ consequent
+            │        ├─ VariableDeclaration (let) @7:13
+            │        │  └─ VariableDeclarator @7:13
+            │        │     ├─ Identifier "b" [variable:1] (let) @7:17
+            │        │     └─ NumericLiteral 20 @7:21
+            │        └─ ReturnStatement @8:13
+            │           └─ Identifier "b" [variable:1] (let) @8:20
+            └─ SwitchCase (default) @9:9
+               └─ consequent
+                     └─ ReturnStatement @10:13
+                        └─ NumericLiteral 0 @10:20

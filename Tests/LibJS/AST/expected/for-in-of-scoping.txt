@@ -1,0 +1,95 @@
+Program (script) @2:1
+├─ FunctionDeclaration "for_in_let" @2:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @2:21
+│  └─ body
+│     └─ FunctionBody @3:5
+│        └─ ForInStatement @3:18
+│           ├─ lhs
+│           │  └─ VariableDeclaration (let) @3:10
+│           │     └─ VariableDeclarator @3:10
+│           │        └─ Identifier "key" [variable:0] (let) @3:14
+│           ├─ rhs
+│           │  └─ Identifier "obj" [argument:0] @3:21
+│           └─ body
+│              └─ BlockStatement @3:26
+│                 └─ ExpressionStatement @4:9
+│                    └─ Identifier "key" [variable:0] (let) @4:9
+├─ FunctionDeclaration "for_of_let" @9:1
+│  ├─ parameters
+│  │  └─ Identifier "arr" [argument:0] @9:21
+│  └─ body
+│     └─ FunctionBody @10:5
+│        └─ ForOfStatement @10:19
+│           ├─ lhs
+│           │  └─ VariableDeclaration (let) @10:10
+│           │     └─ VariableDeclarator @10:10
+│           │        └─ Identifier "item" [variable:0] (let) @10:14
+│           ├─ rhs
+│           │  └─ Identifier "arr" [argument:0] @10:22
+│           └─ body
+│              └─ BlockStatement @10:27
+│                 └─ ExpressionStatement @11:9
+│                    └─ Identifier "item" [variable:0] (let) @11:9
+├─ FunctionDeclaration "for_in_var" @16:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @16:21
+│  └─ body
+│     └─ FunctionBody @17:5
+│        ├─ ForInStatement @17:18
+│        │  ├─ lhs
+│        │  │  └─ VariableDeclaration (var) @17:10
+│        │  │     └─ VariableDeclarator @17:10
+│        │  │        └─ Identifier "key" [variable:0] (var) @17:14
+│        │  ├─ rhs
+│        │  │  └─ Identifier "obj" [argument:0] @17:21
+│        │  └─ body
+│        │     └─ BlockStatement @17:26
+│        │        └─ ExpressionStatement @18:9
+│        │           └─ Identifier "key" [variable:0] (var) @18:9
+│        └─ ReturnStatement @20:5
+│           └─ Identifier "key" [variable:0] (var) @20:12
+├─ FunctionDeclaration "for_of_destruct" @24:1
+│  ├─ parameters
+│  │  └─ Identifier "pairs" [argument:0] @24:26
+│  └─ body
+│     └─ FunctionBody @25:5
+│        └─ ForOfStatement @25:21
+│           ├─ lhs
+│           │  └─ VariableDeclaration (let) @25:10
+│           │     └─ VariableDeclarator @25:10
+│           │        └─ BindingPattern (array)
+│           │           ├─ entry
+│           │           │  └─ alias
+│           │           │     └─ Identifier "a" [variable:0] @25:14
+│           │           └─ entry
+│           │              └─ alias
+│           │                 └─ Identifier "b" [variable:1] @25:14
+│           ├─ rhs
+│           │  └─ Identifier "pairs" [argument:0] @25:24
+│           └─ body
+│              └─ BlockStatement @25:31
+│                 └─ ExpressionStatement @26:9
+│                    └─ BinaryExpression (+) @26:11
+│                       ├─ Identifier "a" [variable:0] @26:9
+│                       └─ Identifier "b" [variable:1] @26:13
+└─ FunctionDeclaration "for_in_eval" [direct-eval] [uses-this] [might-need-arguments] @31:1
+   ├─ parameters
+   │  └─ Identifier "obj" @31:22
+   └─ body
+      └─ FunctionBody @32:5
+         └─ ForInStatement @32:18
+            ├─ lhs
+            │  └─ VariableDeclaration (let) @32:10
+            │     └─ VariableDeclarator @32:10
+            │        └─ Identifier "key" (let) @32:14
+            ├─ rhs
+            │  └─ Identifier "obj" [in-eval-scope] @32:21
+            └─ body
+               └─ BlockStatement @32:26
+                  ├─ ExpressionStatement @33:9
+                  │  └─ CallExpression @33:13
+                  │     ├─ Identifier "eval" [in-eval-scope] @33:9
+                  │     └─ StringLiteral "" @33:16
+                  └─ ExpressionStatement @34:9
+                     └─ Identifier "key" (let) [in-eval-scope] @34:9

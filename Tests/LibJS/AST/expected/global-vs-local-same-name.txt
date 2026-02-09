@@ -1,0 +1,48 @@
+Program (script) @2:1
+├─ VariableDeclaration (var) @2:1
+│  └─ VariableDeclarator @2:1
+│     ├─ Identifier "x" [global] (var) @2:5
+│     └─ NumericLiteral 1 @2:9
+├─ FunctionDeclaration "reads_global" @4:1
+│  └─ body
+│     └─ FunctionBody @5:5
+│        └─ ReturnStatement @5:5
+│           └─ Identifier "x" [global] (var) @5:12
+├─ FunctionDeclaration "shadows_with_param" @8:1
+│  ├─ parameters
+│  │  └─ Identifier "x" [argument:0] @8:29
+│  └─ body
+│     └─ FunctionBody @9:5
+│        └─ ReturnStatement @9:5
+│           └─ Identifier "x" [argument:0] @9:12
+├─ FunctionDeclaration "shadows_with_var" @12:1
+│  └─ body
+│     └─ FunctionBody @13:5
+│        ├─ VariableDeclaration (var) @13:5
+│        │  └─ VariableDeclarator @13:5
+│        │     ├─ Identifier "x" [variable:0] (var) @13:9
+│        │     └─ NumericLiteral 2 @13:13
+│        └─ ReturnStatement @14:5
+│           └─ Identifier "x" [variable:0] (var) @14:12
+├─ FunctionDeclaration "shadows_with_let" @17:1
+│  └─ body
+│     └─ FunctionBody @18:5
+│        ├─ VariableDeclaration (let) @18:5
+│        │  └─ VariableDeclarator @18:5
+│        │     ├─ Identifier "x" [variable:0] (let) @18:9
+│        │     └─ NumericLiteral 3 @18:13
+│        └─ ReturnStatement @19:5
+│           └─ Identifier "x" [variable:0] (let) @19:12
+└─ FunctionDeclaration "outer" @23:1
+   ├─ parameters
+   │  └─ Identifier "x" @23:16
+   └─ body
+      └─ FunctionBody @24:5
+         ├─ FunctionDeclaration "inner" @24:5
+         │  └─ body
+         │     └─ FunctionBody @25:9
+         │        └─ ReturnStatement @25:9
+         │           └─ Identifier "x" @25:16
+         └─ ReturnStatement @27:5
+            └─ CallExpression @27:17
+               └─ Identifier "inner" [variable:0] @27:12

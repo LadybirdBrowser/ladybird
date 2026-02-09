@@ -1,0 +1,67 @@
+Program (script) @2:1
+├─ FunctionDeclaration* "counter" @2:1
+│  ├─ parameters
+│  │  └─ Identifier "start" [argument:0] @2:19
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ VariableDeclaration (let) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "i" [variable:0] (let) @3:9
+│        │     └─ Identifier "start" [argument:0] @3:13
+│        └─ WhileStatement @4:5
+│           ├─ test
+│           │  └─ BooleanLiteral true @4:12
+│           └─ body
+│              └─ BlockStatement @4:18
+│                 ├─ ExpressionStatement @5:9
+│                 │  └─ YieldExpression @5:9
+│                 │     └─ Identifier "i" [variable:0] (let) @5:15
+│                 └─ ExpressionStatement @6:9
+│                    └─ AssignmentExpression (=) @6:11
+│                       ├─ Identifier "i" [variable:0] (let) @6:9
+│                       └─ BinaryExpression (+) @6:15
+│                          ├─ Identifier "i" [variable:0] (let) @6:13
+│                          └─ NumericLiteral 1 @6:17
+├─ FunctionDeclaration async "fetch_data" @11:1
+│  ├─ parameters
+│  │  └─ Identifier "url" [argument:0] @11:27
+│  └─ body
+│     └─ FunctionBody @12:5
+│        ├─ VariableDeclaration (let) @12:5
+│        │  └─ VariableDeclarator @12:5
+│        │     ├─ Identifier "result" [variable:0] (let) @12:9
+│        │     └─ AwaitExpression @12:18
+│        │        └─ Identifier "url" [argument:0] @12:24
+│        └─ ReturnStatement @13:5
+│           └─ Identifier "result" [variable:0] (let) @13:12
+├─ FunctionDeclaration async* "stream" @17:1
+│  ├─ parameters
+│  │  └─ Identifier "items" [argument:0] @17:24
+│  └─ body
+│     └─ FunctionBody @18:5
+│        └─ ForOfStatement @18:19
+│           ├─ lhs
+│           │  └─ VariableDeclaration (let) @18:10
+│           │     └─ VariableDeclarator @18:10
+│           │        └─ Identifier "item" [variable:0] (let) @18:14
+│           ├─ rhs
+│           │  └─ Identifier "items" [argument:0] @18:22
+│           └─ body
+│              └─ BlockStatement @18:29
+│                 └─ ExpressionStatement @19:9
+│                    └─ YieldExpression @19:9
+│                       └─ Identifier "item" [variable:0] (let) @19:15
+└─ FunctionDeclaration* "gen_with_eval" [direct-eval] [uses-this] [might-need-arguments] @24:1
+   └─ body
+      └─ FunctionBody @25:5
+         ├─ VariableDeclaration (let) @25:5
+         │  └─ VariableDeclarator @25:5
+         │     ├─ Identifier "x" (let) @25:9
+         │     └─ NumericLiteral 1 @25:13
+         ├─ ExpressionStatement @26:5
+         │  └─ CallExpression @26:9
+         │     ├─ Identifier "eval" [in-eval-scope] @26:5
+         │     └─ StringLiteral "" @26:12
+         └─ ExpressionStatement @27:5
+            └─ YieldExpression @27:5
+               └─ Identifier "x" (let) @27:11

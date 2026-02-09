@@ -1,0 +1,85 @@
+Program (script) @2:1
+├─ FunctionDeclaration "outer" @2:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @2:16
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ VariableDeclaration (let) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "x" (let) @3:9
+│        │     └─ NumericLiteral 1 @3:13
+│        └─ WithStatement @4:5
+│           ├─ object
+│           │  └─ Identifier "obj" [argument:0] @4:11
+│           └─ body
+│              └─ BlockStatement @4:16
+│                 ├─ FunctionDeclaration "inner" @5:9
+│                 │  └─ body
+│                 │     └─ FunctionBody @6:13
+│                 │        └─ ReturnStatement @6:13
+│                 │           └─ Identifier "x" (let) @6:20
+│                 └─ ExpressionStatement @8:9
+│                    └─ CallExpression @8:14
+│                       └─ Identifier "inner" @8:9
+├─ FunctionDeclaration "sibling_test" @13:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @13:23
+│  └─ body
+│     └─ FunctionBody @14:5
+│        ├─ FunctionDeclaration "clean" @14:5
+│        │  └─ body
+│        │     └─ FunctionBody @15:9
+│        │        ├─ VariableDeclaration (let) @15:9
+│        │        │  └─ VariableDeclarator @15:9
+│        │        │     ├─ Identifier "y" [variable:0] (let) @15:13
+│        │        │     └─ NumericLiteral 1 @15:17
+│        │        └─ ReturnStatement @16:9
+│        │           └─ Identifier "y" [variable:0] (let) @16:16
+│        └─ WithStatement @18:5
+│           ├─ object
+│           │  └─ Identifier "obj" [argument:0] @18:11
+│           └─ body
+│              └─ BlockStatement @18:16
+│                 └─ ExpressionStatement @19:9
+│                    └─ CallExpression @19:14
+│                       └─ Identifier "clean" @19:9
+├─ FunctionDeclaration "double_with" @24:1
+│  ├─ parameters
+│  │  ├─ Identifier "a" [argument:0] @24:22
+│  │  └─ Identifier "b" @24:22
+│  └─ body
+│     └─ FunctionBody @25:5
+│        └─ WithStatement @25:5
+│           ├─ object
+│           │  └─ Identifier "a" [argument:0] @25:11
+│           └─ body
+│              └─ BlockStatement @25:14
+│                 └─ WithStatement @26:9
+│                    ├─ object
+│                    │  └─ Identifier "b" @26:15
+│                    └─ body
+│                       └─ BlockStatement @26:18
+│                          └─ ExpressionStatement @27:13
+│                             └─ Identifier "x" @27:13
+└─ FunctionDeclaration "with_arrow" @33:1
+   ├─ parameters
+   │  └─ Identifier "obj" [argument:0] @33:21
+   └─ body
+      └─ FunctionBody @34:5
+         ├─ VariableDeclaration (let) @34:5
+         │  └─ VariableDeclarator @34:5
+         │     ├─ Identifier "z" (let) @34:9
+         │     └─ NumericLiteral 1 @34:13
+         └─ WithStatement @35:5
+            ├─ object
+            │  └─ Identifier "obj" [argument:0] @35:11
+            └─ body
+               └─ BlockStatement @35:16
+                  └─ VariableDeclaration (let) @36:9
+                     └─ VariableDeclarator @36:9
+                        ├─ Identifier "f" [variable:0] (let) @36:13
+                        └─ FunctionExpression "" [arrow] @36:17
+                           └─ body
+                              └─ FunctionBody @36:17
+                                 └─ ReturnStatement @36:17
+                                    └─ Identifier "z" (let) @36:23

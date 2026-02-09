@@ -1,0 +1,72 @@
+Program (script) @2:1
+├─ FunctionDeclaration "shadow_let" @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ VariableDeclaration (let) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "x" [variable:2] (let) @3:9
+│        │     └─ NumericLiteral 1 @3:13
+│        ├─ BlockStatement @4:5
+│        │  ├─ VariableDeclaration (let) @5:9
+│        │  │  └─ VariableDeclarator @5:9
+│        │  │     ├─ Identifier "x" [variable:1] (let) @5:13
+│        │  │     └─ NumericLiteral 2 @5:17
+│        │  ├─ BlockStatement @6:9
+│        │  │  ├─ VariableDeclaration (let) @7:13
+│        │  │  │  └─ VariableDeclarator @7:13
+│        │  │  │     ├─ Identifier "x" [variable:0] (let) @7:17
+│        │  │  │     └─ NumericLiteral 3 @7:21
+│        │  │  └─ ExpressionStatement @8:13
+│        │  │     └─ Identifier "x" [variable:0] (let) @8:13
+│        │  └─ ExpressionStatement @10:9
+│        │     └─ Identifier "x" [variable:1] (let) @10:9
+│        └─ ExpressionStatement @12:5
+│           └─ Identifier "x" [variable:2] (let) @12:5
+├─ FunctionDeclaration "var_and_let" @16:1
+│  └─ body
+│     └─ FunctionBody @17:5
+│        ├─ VariableDeclaration (var) @17:5
+│        │  └─ VariableDeclarator @17:5
+│        │     ├─ Identifier "x" [variable:1] (var) @17:9
+│        │     └─ NumericLiteral 1 @17:13
+│        ├─ BlockStatement @18:5
+│        │  ├─ VariableDeclaration (let) @19:9
+│        │  │  └─ VariableDeclarator @19:9
+│        │  │     ├─ Identifier "x" [variable:0] (let) @19:13
+│        │  │     └─ NumericLiteral 2 @19:17
+│        │  └─ ExpressionStatement @20:9
+│        │     └─ Identifier "x" [variable:0] (let) @20:9
+│        └─ ExpressionStatement @22:5
+│           └─ Identifier "x" [variable:1] (var) @22:5
+├─ VariableDeclaration (var) @26:1
+│  └─ VariableDeclarator @26:1
+│     ├─ Identifier "globalName" [global] (var) @26:5
+│     └─ NumericLiteral 1 @26:18
+├─ FunctionDeclaration "param_shadows_global" @27:1
+│  ├─ parameters
+│  │  └─ Identifier "globalName" [argument:0] @27:31
+│  └─ body
+│     └─ FunctionBody @28:5
+│        └─ ReturnStatement @28:5
+│           └─ Identifier "globalName" [argument:0] @28:12
+└─ FunctionDeclaration "catch_shadow" @32:1
+   └─ body
+      └─ FunctionBody @33:5
+         ├─ VariableDeclaration (let) @33:5
+         │  └─ VariableDeclarator @33:5
+         │     ├─ Identifier "e" [variable:1] (let) @33:9
+         │     └─ StringLiteral "outer" @33:20
+         ├─ TryStatement @34:5
+         │  ├─ block
+         │  │  └─ BlockStatement @34:9
+         │  │     └─ ThrowStatement @35:9
+         │  │        └─ StringLiteral "inner" @35:22
+         │  └─ handler
+         │     └─ CatchClause @36:7
+         │        ├─ parameter
+         │        │  └─ Identifier "e" [variable:0] @36:14
+         │        └─ BlockStatement @36:17
+         │           └─ ExpressionStatement @37:9
+         │              └─ Identifier "e" [variable:0] @37:9
+         └─ ExpressionStatement @39:5
+            └─ Identifier "e" [variable:1] (let) @39:5

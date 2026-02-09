@@ -1,0 +1,117 @@
+Program (script) @3:1
+├─ FunctionDeclaration "outer" @3:1
+│  └─ body
+│     └─ FunctionBody @4:5
+│        ├─ VariableDeclaration (let) @4:5
+│        │  └─ VariableDeclarator @4:5
+│        │     ├─ Identifier "captured" (let) @4:9
+│        │     └─ NumericLiteral 1 @4:20
+│        ├─ VariableDeclaration (let) @5:5
+│        │  └─ VariableDeclarator @5:5
+│        │     ├─ Identifier "not_captured" [variable:0] (let) @5:9
+│        │     └─ NumericLiteral 2 @5:24
+│        ├─ FunctionDeclaration "inner" @6:5
+│        │  └─ body
+│        │     └─ FunctionBody @7:9
+│        │        └─ ReturnStatement @7:9
+│        │           └─ Identifier "captured" (let) @7:16
+│        └─ ReturnStatement @9:5
+│           └─ BinaryExpression (+) @9:20
+│              ├─ CallExpression @9:17
+│              │  └─ Identifier "inner" [variable:1] @9:12
+│              └─ Identifier "not_captured" [variable:0] (let) @9:22
+├─ FunctionDeclaration "level0" @13:1
+│  └─ body
+│     └─ FunctionBody @14:5
+│        ├─ VariableDeclaration (let) @14:5
+│        │  └─ VariableDeclarator @14:5
+│        │     ├─ Identifier "a" (let) @14:9
+│        │     └─ NumericLiteral 1 @14:13
+│        ├─ FunctionDeclaration "level1" @15:5
+│        │  └─ body
+│        │     └─ FunctionBody @16:9
+│        │        ├─ VariableDeclaration (let) @16:9
+│        │        │  └─ VariableDeclarator @16:9
+│        │        │     ├─ Identifier "b" (let) @16:13
+│        │        │     └─ NumericLiteral 2 @16:17
+│        │        ├─ FunctionDeclaration "level2" @17:9
+│        │        │  └─ body
+│        │        │     └─ FunctionBody @18:13
+│        │        │        └─ ReturnStatement @18:13
+│        │        │           └─ BinaryExpression (+) @18:22
+│        │        │              ├─ Identifier "a" (let) @18:20
+│        │        │              └─ Identifier "b" (let) @18:24
+│        │        └─ ReturnStatement @20:9
+│        │           └─ CallExpression @20:22
+│        │              └─ Identifier "level2" [variable:0] @20:16
+│        └─ ReturnStatement @22:5
+│           └─ CallExpression @22:18
+│              └─ Identifier "level1" [variable:0] @22:12
+├─ FunctionDeclaration "loop_closure_var" @27:1
+│  └─ body
+│     └─ FunctionBody @28:5
+│        ├─ VariableDeclaration (var) @28:5
+│        │  └─ VariableDeclarator @28:5
+│        │     ├─ Identifier "fns" [variable:0] (var) @28:9
+│        │     └─ ArrayExpression @28:15
+│        ├─ ForStatement @29:5
+│        │  ├─ init
+│        │  │  └─ VariableDeclaration (var) @29:10
+│        │  │     └─ VariableDeclarator @29:10
+│        │  │        ├─ Identifier "i" (var) @29:14
+│        │  │        └─ NumericLiteral 0 @29:18
+│        │  ├─ test
+│        │  │  └─ BinaryExpression (<) @29:23
+│        │  │     ├─ Identifier "i" (var) @29:21
+│        │  │     └─ NumericLiteral 3 @29:25
+│        │  ├─ update
+│        │  │  └─ UpdateExpression (++, postfix) @29:29
+│        │  │     └─ Identifier "i" (var) @29:28
+│        │  └─ body
+│        │     └─ BlockStatement @29:33
+│        │        └─ ExpressionStatement @30:9
+│        │           └─ CallExpression @30:17
+│        │              ├─ MemberExpression @30:12
+│        │              │  ├─ Identifier "fns" [variable:0] (var) @30:9
+│        │              │  └─ Identifier "push" @30:12
+│        │              └─ FunctionExpression "" @30:18
+│        │                 └─ body
+│        │                    └─ FunctionBody @31:13
+│        │                       └─ ReturnStatement @31:13
+│        │                          └─ Identifier "i" (var) @31:20
+│        └─ ReturnStatement @34:5
+│           └─ Identifier "fns" [variable:0] (var) @34:12
+└─ FunctionDeclaration "loop_closure_let" @37:1
+   └─ body
+      └─ FunctionBody @38:5
+         ├─ VariableDeclaration (var) @38:5
+         │  └─ VariableDeclarator @38:5
+         │     ├─ Identifier "fns" [variable:0] (var) @38:9
+         │     └─ ArrayExpression @38:15
+         ├─ ForStatement @39:5
+         │  ├─ init
+         │  │  └─ VariableDeclaration (let) @39:10
+         │  │     └─ VariableDeclarator @39:10
+         │  │        ├─ Identifier "i" (let) @39:14
+         │  │        └─ NumericLiteral 0 @39:18
+         │  ├─ test
+         │  │  └─ BinaryExpression (<) @39:23
+         │  │     ├─ Identifier "i" (let) @39:21
+         │  │     └─ NumericLiteral 3 @39:25
+         │  ├─ update
+         │  │  └─ UpdateExpression (++, postfix) @39:29
+         │  │     └─ Identifier "i" (let) @39:28
+         │  └─ body
+         │     └─ BlockStatement @39:33
+         │        └─ ExpressionStatement @40:9
+         │           └─ CallExpression @40:17
+         │              ├─ MemberExpression @40:12
+         │              │  ├─ Identifier "fns" [variable:0] (var) @40:9
+         │              │  └─ Identifier "push" @40:12
+         │              └─ FunctionExpression "" @40:18
+         │                 └─ body
+         │                    └─ FunctionBody @41:13
+         │                       └─ ReturnStatement @41:13
+         │                          └─ Identifier "i" (let) @41:20
+         └─ ReturnStatement @44:5
+            └─ Identifier "fns" [variable:0] (var) @44:12

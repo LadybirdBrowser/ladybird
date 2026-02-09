@@ -1,0 +1,85 @@
+Program (script) @3:1
+├─ FunctionDeclaration "outer" [uses-this] [uses-this-from-environment] [might-need-arguments] @3:1
+│  └─ body
+│     └─ FunctionBody @4:5
+│        ├─ VariableDeclaration (let) @4:5
+│        │  └─ VariableDeclarator @4:5
+│        │     ├─ Identifier "x" (let) @4:9
+│        │     └─ NumericLiteral 1 @4:13
+│        ├─ VariableDeclaration (let) @5:5
+│        │  └─ VariableDeclarator @5:5
+│        │     ├─ Identifier "f" (let) @5:9
+│        │     └─ FunctionExpression "" [arrow] [direct-eval] [uses-this] [uses-this-from-environment] @5:13
+│        │        └─ body
+│        │           └─ FunctionBody @6:9
+│        │              ├─ ExpressionStatement @6:9
+│        │              │  └─ CallExpression @6:13
+│        │              │     ├─ Identifier "eval" [in-eval-scope] @6:9
+│        │              │     └─ StringLiteral "" @6:16
+│        │              └─ ReturnStatement @7:9
+│        │                 └─ Identifier "x" (let) [in-eval-scope] @7:16
+│        └─ ReturnStatement @9:5
+│           └─ CallExpression @9:13
+│              └─ Identifier "f" (let) @9:12
+├─ FunctionDeclaration "deep_arrow" [uses-this] [uses-this-from-environment] [might-need-arguments] @13:1
+│  └─ body
+│     └─ FunctionBody @14:5
+│        ├─ VariableDeclaration (let) @14:5
+│        │  └─ VariableDeclarator @14:5
+│        │     ├─ Identifier "a" (let) @14:9
+│        │     └─ NumericLiteral 1 @14:13
+│        ├─ VariableDeclaration (let) @15:5
+│        │  └─ VariableDeclarator @15:5
+│        │     ├─ Identifier "f" (let) @15:9
+│        │     └─ FunctionExpression "" [arrow] [uses-this] [uses-this-from-environment] @15:13
+│        │        └─ body
+│        │           └─ FunctionBody @16:9
+│        │              ├─ VariableDeclaration (let) @16:9
+│        │              │  └─ VariableDeclarator @16:9
+│        │              │     ├─ Identifier "b" (let) @16:13
+│        │              │     └─ NumericLiteral 2 @16:17
+│        │              ├─ VariableDeclaration (let) @17:9
+│        │              │  └─ VariableDeclarator @17:9
+│        │              │     ├─ Identifier "g" (let) @17:13
+│        │              │     └─ FunctionExpression "" [arrow] [direct-eval] [uses-this] [uses-this-from-environment] @17:17
+│        │              │        └─ body
+│        │              │           └─ FunctionBody @18:13
+│        │              │              ├─ ExpressionStatement @18:13
+│        │              │              │  └─ CallExpression @18:17
+│        │              │              │     ├─ Identifier "eval" [in-eval-scope] @18:13
+│        │              │              │     └─ StringLiteral "" @18:20
+│        │              │              └─ ReturnStatement @19:13
+│        │              │                 └─ BinaryExpression (+) @19:22
+│        │              │                    ├─ Identifier "a" (let) [in-eval-scope] @19:20
+│        │              │                    └─ Identifier "b" (let) [in-eval-scope] @19:24
+│        │              └─ ReturnStatement @21:9
+│        │                 └─ CallExpression @21:17
+│        │                    └─ Identifier "g" (let) @21:16
+│        └─ ReturnStatement @23:5
+│           └─ CallExpression @23:13
+│              └─ Identifier "f" (let) @23:12
+└─ FunctionDeclaration "sibling" [uses-this] [uses-this-from-environment] [might-need-arguments] @27:1
+   └─ body
+      └─ FunctionBody @28:5
+         ├─ VariableDeclaration (let) @28:5
+         │  └─ VariableDeclarator @28:5
+         │     ├─ Identifier "s" (let) @28:9
+         │     └─ NumericLiteral 1 @28:13
+         ├─ VariableDeclaration (let) @29:5
+         │  └─ VariableDeclarator @29:5
+         │     ├─ Identifier "poison" (let) @29:9
+         │     └─ FunctionExpression "" [arrow] [direct-eval] [uses-this-from-environment] @29:18
+         │        └─ body
+         │           └─ FunctionBody @29:18
+         │              └─ ReturnStatement @29:18
+         │                 └─ CallExpression @29:28
+         │                    ├─ Identifier "eval" [in-eval-scope] @29:24
+         │                    └─ StringLiteral "" @29:31
+         ├─ FunctionDeclaration "clean" @30:5
+         │  └─ body
+         │     └─ FunctionBody @31:9
+         │        └─ ReturnStatement @31:9
+         │           └─ Identifier "s" (let) @31:16
+         └─ ReturnStatement @33:5
+            └─ CallExpression @33:17
+               └─ Identifier "clean" @33:12

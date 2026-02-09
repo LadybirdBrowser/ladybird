@@ -1,0 +1,28 @@
+Program (script) @1:1
+├─ FunctionDeclaration "foo" @1:1
+│  ├─ parameters
+│  │  ├─ Identifier "a" [argument:0] @1:14
+│  │  └─ Identifier "b" [argument:1] @1:14
+│  └─ body
+│     └─ FunctionBody @2:5
+│        ├─ VariableDeclaration (let) @2:5
+│        │  └─ VariableDeclarator @2:5
+│        │     ├─ Identifier "c" [variable:0] (let) @2:9
+│        │     └─ BinaryExpression (+) @2:15
+│        │        ├─ Identifier "a" [argument:0] @2:13
+│        │        └─ Identifier "b" [argument:1] @2:17
+│        └─ ReturnStatement @3:5
+│           └─ Identifier "c" [variable:0] (let) @3:12
+├─ VariableDeclaration (var) @6:1
+│  └─ VariableDeclarator @6:1
+│     ├─ Identifier "x" [global] (var) @6:5
+│     └─ CallExpression @6:12
+│        ├─ Identifier "foo" [global] @6:9
+│        ├─ NumericLiteral 1 @6:13
+│        └─ NumericLiteral 2 @6:16
+└─ ExpressionStatement @7:1
+   └─ CallExpression @7:12
+      ├─ MemberExpression @7:8
+      │  ├─ Identifier "console" [global] @7:1
+      │  └─ Identifier "log" @7:8
+      └─ Identifier "x" [global] (var) @7:13

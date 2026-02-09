@@ -1,0 +1,61 @@
+Program (script) @1:1
+├─ FunctionDeclaration "control" @1:1
+│  ├─ parameters
+│  │  └─ Identifier "x" [argument:0] @1:18
+│  └─ body
+│     └─ FunctionBody @2:5
+│        └─ IfStatement @2:5
+│           ├─ test
+│           │  └─ BinaryExpression (>) @2:11
+│           │     ├─ Identifier "x" [argument:0] @2:9
+│           │     └─ NumericLiteral 0 @2:13
+│           ├─ consequent
+│           │  └─ BlockStatement @2:16
+│           │     └─ ReturnStatement @3:9
+│           │        └─ Identifier "x" [argument:0] @3:16
+│           └─ alternate
+│              └─ BlockStatement @4:12
+│                 └─ ReturnStatement @5:9
+│                    └─ UnaryExpression (-) @5:16
+│                       └─ Identifier "x" [argument:0] @5:17
+└─ FunctionDeclaration "loops" @9:1
+   ├─ parameters
+   │  └─ Identifier "n" [argument:0] @9:16
+   └─ body
+      └─ FunctionBody @10:5
+         ├─ VariableDeclaration (let) @10:5
+         │  └─ VariableDeclarator @10:5
+         │     ├─ Identifier "sum" [variable:1] (let) @10:9
+         │     └─ NumericLiteral 0 @10:15
+         ├─ ForStatement @11:5
+         │  ├─ init
+         │  │  └─ VariableDeclaration (let) @11:10
+         │  │     └─ VariableDeclarator @11:10
+         │  │        ├─ Identifier "i" [variable:0] (let) @11:14
+         │  │        └─ NumericLiteral 0 @11:18
+         │  ├─ test
+         │  │  └─ BinaryExpression (<) @11:23
+         │  │     ├─ Identifier "i" [variable:0] (let) @11:21
+         │  │     └─ Identifier "n" [argument:0] @11:25
+         │  ├─ update
+         │  │  └─ UpdateExpression (++, postfix) @11:29
+         │  │     └─ Identifier "i" [variable:0] (let) @11:28
+         │  └─ body
+         │     └─ BlockStatement @11:33
+         │        └─ ExpressionStatement @12:9
+         │           └─ AssignmentExpression (+=) @12:13
+         │              ├─ Identifier "sum" [variable:1] (let) @12:9
+         │              └─ Identifier "i" [variable:0] (let) @12:16
+         ├─ WhileStatement @14:5
+         │  ├─ test
+         │  │  └─ BinaryExpression (>) @14:16
+         │  │     ├─ Identifier "sum" [variable:1] (let) @14:12
+         │  │     └─ NumericLiteral 100 @14:18
+         │  └─ body
+         │     └─ BlockStatement @14:23
+         │        └─ ExpressionStatement @15:9
+         │           └─ AssignmentExpression (-=) @15:13
+         │              ├─ Identifier "sum" [variable:1] (let) @15:9
+         │              └─ NumericLiteral 10 @15:16
+         └─ ReturnStatement @17:5
+            └─ Identifier "sum" [variable:1] (let) @17:12
