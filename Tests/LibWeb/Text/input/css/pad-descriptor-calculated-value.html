@@ -1,0 +1,12 @@
+<!doctype html>
+<style>
+    @counter-style foo {
+        pad: calc(sign(1em - 1px) + 1) "0";
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.styleSheets[0].cssRules[0].cssText);
+    });
+</script>

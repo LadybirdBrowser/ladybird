@@ -2746,8 +2746,7 @@ RefPtr<StyleValue const> Parser::parse_nonnegative_integer_symbol_pair_value(Tok
             if (integer)
                 return nullptr;
 
-            // FIXME: Do we need to support CalculatedStyleValue here?
-            if (!integer_value->is_integer() || integer_value->as_integer().integer() < 0)
+            if (integer_value->is_integer() && integer_value->as_integer().integer() < 0)
                 return nullptr;
 
             integer = integer_value;
@@ -4761,9 +4760,14 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
             },
-            [](DescriptorContext const&) -> Optional<CalculationContext> {
-                // FIXME: If any descriptors have `<*-percentage>` or `<integer>` types, add them here.
-                return CalculationContext {};
+            [](DescriptorContext const& descriptor_context) -> Optional<CalculationContext> {
+                switch (descriptor_context.descriptor) {
+                case DescriptorID::Pad:
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 0, NumericLimits<float>::max() } } } };
+                default:
+                    return CalculationContext {};
+                }
+                // FIXME: Add other descriptors which require special calculation contexts
             },
             [](SpecialContext special_context) -> Optional<CalculationContext> {
                 switch (special_context) {

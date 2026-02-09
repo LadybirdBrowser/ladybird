@@ -1,0 +1,1 @@
+@counter-style foo { pad: calc(1 + sign(1em - 1px)) "0"; }
