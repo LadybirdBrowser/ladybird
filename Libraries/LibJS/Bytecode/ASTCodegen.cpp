@@ -2958,7 +2958,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
     auto& target_block = generator.make_block();
     generator.switch_to_basic_block(saved_block);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { target_block });
-    generator.start_boundary(Bytecode::Generator::BlockBoundaryType::Unwind);
     if (m_finalizer)
         generator.start_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
 
@@ -2987,7 +2986,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
 
     if (m_finalizer)
         generator.end_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
-    generator.end_boundary(Bytecode::Generator::BlockBoundaryType::Unwind);
 
     // Now generate the finally body and after-finally dispatch.
     // We deferred this so that registered_jumps from break/continue in the try body are available.
