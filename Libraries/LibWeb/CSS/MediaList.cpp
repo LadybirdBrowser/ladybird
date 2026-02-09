@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -95,19 +96,27 @@ void MediaList::append_medium(StringView medium)
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
-void MediaList::delete_medium(StringView medium)
+WebIDL::ExceptionOr<void> MediaList::delete_medium(StringView medium)
 {
+    // 1. Let m be the result of parsing the given value.
     auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
+
+    // 2. If m is null, then return.
     if (!m)
-        return;
+        return {};
+
+    // 3. Remove any media query from the collection of media queries for which comparing the media query with m
+    //    returns true. If nothing was removed, then throw a NotFoundError exception.
     bool was_removed = m_media.remove_all_matching([&](auto& existing) -> bool {
         return m->to_string() == existing->to_string();
     });
-    if (was_removed) {
-        if (m_associated_style_sheet)
-            as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium);
-    }
-    // FIXME: If nothing was removed, then throw a NotFoundError exception.
+    if (!was_removed)
+        return WebIDL::NotFoundError::create(realm(), "Media query not found in list"_utf16);
+
+    if (m_associated_style_sheet)
+        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium);
+
+    return {};
 }
 
 bool MediaList::evaluate(DOM::Document const& document)

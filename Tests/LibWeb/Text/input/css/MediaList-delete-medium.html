@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+@media screen, print { body { color: red; } }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let sheet = document.styleSheets[0];
+        let mediaList = sheet.cssRules[0].media;
+
+        println(`Initial: ${mediaList.mediaText}`);
+        println(`Length: ${mediaList.length}`);
+
+        mediaList.deleteMedium("print");
+        println(`After removing print: ${mediaList.mediaText}`);
+        println(`Length: ${mediaList.length}`);
+
+        try {
+            mediaList.deleteMedium("print");
+        } catch (e) {
+            println(`Remove nonexistent throws: ${e.name}`);
+        }
+        println(`Unchanged: ${mediaList.mediaText}`);
+
+        try {
+            mediaList.deleteMedium("not-a-real-type");
+        } catch (e) {
+            println(`Remove unknown throws: ${e.name}`);
+        }
+    });
+</script>
