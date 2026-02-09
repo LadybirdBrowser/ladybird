@@ -122,7 +122,6 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
         auto copy_rare_data = copy->ensure_rare_data();
         copy_rare_data->unwind_contexts = m_rare_data->unwind_contexts;
         copy_rare_data->saved_lexical_environments = m_rare_data->saved_lexical_environments;
-        copy_rare_data->previously_scheduled_jumps = m_rare_data->previously_scheduled_jumps;
     }
     copy->registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_and_arguments_count;
     for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)

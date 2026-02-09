@@ -57,7 +57,6 @@ class JS_API ExecutionContextRareData final : public GC::Cell {
 
 public:
     Vector<Bytecode::UnwindInfo> unwind_contexts;
-    Vector<Optional<size_t>> previously_scheduled_jumps;
     Vector<GC::Ptr<Environment>> saved_lexical_environments;
 
     mutable GC::Ptr<CachedSourceRange> cached_source_range;
@@ -107,7 +106,6 @@ public:
     GC::Ptr<Environment> variable_environment;       // [[VariableEnvironment]]
     GC::Ptr<PrivateEnvironment> private_environment; // [[PrivateEnvironment]]
 
-    Optional<size_t> scheduled_jump;
     GC::Ptr<Object> global_object;
     GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
     Utf16FlyString const* identifier_table { nullptr };

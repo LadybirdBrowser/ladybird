@@ -231,7 +231,6 @@ ThrowCompletionOr<Value> Interpreter::run(SourceTextModule& module)
 Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_counter, Value exception)
 {
     reg(Register::exception()) = exception;
-    m_running_execution_context->scheduled_jump = {};
     auto handlers = current_executable().exception_handlers_for_offset(program_counter);
     if (!handlers.has_value()) {
         return HandleExceptionResponse::ExitFromExecutable;
@@ -398,51 +397,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             goto start;
         }
 
-        handle_ContinuePendingUnwind: {
-            auto& instruction = *reinterpret_cast<Op::ContinuePendingUnwind const*>(&bytecode[program_counter]);
-            if (auto exception = reg(Register::exception()); !exception.is_special_empty_value()) {
-                if (handle_exception(program_counter, exception) == HandleExceptionResponse::ExitFromExecutable)
-                    return;
-                goto start;
-            }
-            if (!saved_return_value().is_special_empty_value()) {
-                do_return(saved_return_value());
-                if (auto handlers = executable.exception_handlers_for_offset(program_counter); handlers.has_value()) {
-                    if (auto finalizer = handlers.value().finalizer_offset; finalizer.has_value()) {
-                        auto& unwind_contexts = running_execution_context.ensure_rare_data()->unwind_contexts;
-                        auto& unwind_context = unwind_contexts.last();
-                        VERIFY(unwind_context.executable == &current_executable());
-                        reg(Register::saved_return_value()) = reg(Register::return_value());
-                        reg(Register::return_value()) = js_undefined();
-                        program_counter = finalizer.value();
-                        // the unwind_context will be pop'ed when entering the finally block
-                        goto start;
-                    }
-                }
-                return;
-            }
-            auto const old_scheduled_jump = running_execution_context.ensure_rare_data()->previously_scheduled_jumps.take_last();
-            if (m_running_execution_context->scheduled_jump.has_value()) {
-                program_counter = m_running_execution_context->scheduled_jump.value();
-                m_running_execution_context->scheduled_jump = {};
-            } else {
-                program_counter = instruction.resume_target().address();
-                // set the scheduled jump to the old value if we continue
-                // where we left it
-                m_running_execution_context->scheduled_jump = old_scheduled_jump;
-            }
-            goto start;
-        }
-
-        handle_ScheduleJump: {
-            auto& instruction = *reinterpret_cast<Op::ScheduleJump const*>(&bytecode[program_counter]);
-            m_running_execution_context->scheduled_jump = instruction.target().address();
-            auto finalizer = executable.exception_handlers_for_offset(program_counter).value().finalizer_offset;
-            VERIFY(finalizer.has_value());
-            program_counter = finalizer.value();
-            goto start;
-        }
-
 #define HANDLE_INSTRUCTION(name)                                                                                            \
     handle_##name:                                                                                                          \
     {                                                                                                                       \
@@ -539,7 +493,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(IteratorNext);
             HANDLE_INSTRUCTION(IteratorNextUnpack);
             HANDLE_INSTRUCTION(IteratorToArray);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveFinally);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveLexicalEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeavePrivateEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveUnwindContext);
@@ -562,7 +515,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewRegExp);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewTypeError);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Not);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(PrepareYield);
             HANDLE_INSTRUCTION(PostfixDecrement);
             HANDLE_INSTRUCTION(PostfixIncrement);
 
@@ -580,7 +532,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(PutPrivateById);
             HANDLE_INSTRUCTION(ResolveSuperBase);
             HANDLE_INSTRUCTION(ResolveThisBinding);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(RestoreScheduledJump);
             HANDLE_INSTRUCTION(RightShift);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetCompletionType);
             HANDLE_INSTRUCTION(SetGlobal);
@@ -705,8 +656,6 @@ void Interpreter::enter_unwind_context()
     running_execution_context().ensure_rare_data()->unwind_contexts.empend(
         current_executable(),
         running_execution_context().lexical_environment);
-    running_execution_context().rare_data()->previously_scheduled_jumps.append(m_running_execution_context->scheduled_jump);
-    m_running_execution_context->scheduled_jump = {};
 }
 
 void Interpreter::leave_unwind_context()
@@ -719,21 +668,9 @@ void Interpreter::catch_exception(Operand dst)
     set(dst, reg(Register::exception()));
     reg(Register::exception()) = js_special_empty_value();
     auto& context = running_execution_context().rare_data()->unwind_contexts.last();
-    VERIFY(!context.handler_called);
     VERIFY(context.executable == &current_executable());
     context.handler_called = true;
     running_execution_context().lexical_environment = context.lexical_environment;
-}
-
-void Interpreter::restore_scheduled_jump()
-{
-    m_running_execution_context->scheduled_jump = running_execution_context().rare_data()->previously_scheduled_jumps.take_last();
-}
-
-void Interpreter::leave_finally()
-{
-    reg(Register::exception()) = js_special_empty_value();
-    m_running_execution_context->scheduled_jump = running_execution_context().rare_data()->previously_scheduled_jumps.take_last();
 }
 
 void Interpreter::enter_object_environment(Object& object)
@@ -2315,16 +2252,6 @@ COLD void Catch::execute_impl(Bytecode::Interpreter& interpreter) const
     interpreter.catch_exception(dst());
 }
 
-void LeaveFinally::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    interpreter.leave_finally();
-}
-
-void RestoreScheduledJump::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    interpreter.restore_scheduled_jump();
-}
-
 ThrowCompletionOr<void> CreateVariable::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto const& name = interpreter.get_identifier(m_identifier);
@@ -3008,12 +2935,6 @@ void Yield::execute_impl(Bytecode::Interpreter& interpreter) const
     auto yielded_value = interpreter.get(m_value).is_special_empty_value() ? js_undefined() : interpreter.get(m_value);
     interpreter.do_return(
         interpreter.do_yield(yielded_value, m_continuation_label));
-}
-
-void PrepareYield::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto value = interpreter.get(m_value).is_special_empty_value() ? js_undefined() : interpreter.get(m_value);
-    interpreter.set(m_dest, interpreter.do_yield(value, {}));
 }
 
 void Await::execute_impl(Bytecode::Interpreter& interpreter) const

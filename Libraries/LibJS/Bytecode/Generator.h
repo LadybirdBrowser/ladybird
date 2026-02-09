@@ -85,6 +85,43 @@ public:
         UnwindContext const* m_previous_context { nullptr };
     };
 
+    // Tracks a break/continue target registered with a FinallyContext.
+    // The after-finally dispatch chain uses the index to route to the target.
+    struct FinallyJump {
+        i32 index;
+        Label target;
+    };
+
+    // Codegen-time state for a try/finally scope. Each finally scope gets two
+    // dedicated registers (completion_type and completion_value) that form an
+    // explicit completion record. Every path into the finally body sets these
+    // before jumping to finally_body:
+    //
+    //   - Normal exit from try/catch: completion_type = NORMAL
+    //   - Exception (via handler table): completion_type = THROW, completion_value = exception
+    //   - Return statement: completion_type = RETURN, completion_value = return value
+    //   - Break/continue: completion_type = FIRST_JUMP_INDEX + n
+    //
+    // After the finally body executes, a dispatch chain of JumpStrictlyEquals
+    // instructions checks completion_type and routes to the right continuation.
+    struct FinallyContext {
+        static constexpr i32 NORMAL = 0;
+        static constexpr i32 THROW = 1;
+        static constexpr i32 RETURN = 2;
+        static constexpr i32 FIRST_JUMP_INDEX = 3;
+
+        ScopedOperand completion_type;
+        ScopedOperand completion_value;
+        Label finally_body;
+        Label exception_preamble;
+        FinallyContext* parent { nullptr };
+        Vector<FinallyJump> registered_jumps;
+        i32 next_jump_index { FIRST_JUMP_INDEX };
+    };
+
+    FinallyContext* current_finally_context() { return m_current_finally_context; }
+    void set_current_finally_context(FinallyContext* context) { m_current_finally_context = context; }
+
     template<typename OpType, typename... Args>
     requires(requires { OpType(declval<Args>()...); })
     void emit(Args&&... args)
@@ -278,16 +315,15 @@ public:
             case Continue:
                 break;
             case ReturnToFinally:
+                // Stop unwinding here; emit_return handles chaining to the finally body.
                 return;
             case LeaveFinally:
-                emit<Bytecode::Op::LeaveFinally>();
                 break;
             };
         }
     }
 
     bool is_in_finalizer() const { return m_boundaries.contains_slow(BlockBoundaryType::LeaveFinally); }
-    bool must_enter_finalizer() const { return m_boundaries.contains_slow(BlockBoundaryType::ReturnToFinally); }
 
     void generate_break();
     void generate_break(FlyString const& break_label);
@@ -300,19 +336,11 @@ public:
     requires(IsOneOf<OpType, Op::Return, Op::Yield>)
     {
         perform_needed_unwinds<OpType>();
-        if (must_enter_finalizer()) {
-            VERIFY(m_current_basic_block->finalizer() != nullptr);
-            // Compare to:
-            // *  Interpreter::do_return
-            // *  Interpreter::run_bytecode::handle_ContinuePendingUnwind
-            // *  Return::execute_impl
-            // *  Yield::execute_impl
-            if constexpr (IsSame<OpType, Op::Yield>)
-                emit<Bytecode::Op::PrepareYield>(Operand(Register::saved_return_value()), value);
-            else
-                emit<Bytecode::Op::Mov>(Operand(Register::saved_return_value()), value);
-            emit<Bytecode::Op::Mov>(Operand(Register::exception()), add_constant(js_special_empty_value()));
-            emit<Bytecode::Op::Jump>(Label { *m_current_basic_block->finalizer() });
+        if (m_current_finally_context) {
+            auto& finally_context = *m_current_finally_context;
+            emit_mov(finally_context.completion_value, value);
+            emit_mov(finally_context.completion_type, add_constant(Value(FinallyContext::RETURN)));
+            emit<Bytecode::Op::Jump>(finally_context.finally_body);
             return;
         }
 
@@ -395,6 +423,10 @@ private:
     void generate_scoped_jump(JumpType);
     void generate_labelled_jump(JumpType, FlyString const& label);
 
+    [[nodiscard]] bool has_outer_finally_before_target(JumpType, size_t boundary_index) const;
+    void register_jump_in_finally_context(Label target);
+    void emit_trampoline_through_finally(JumpType, size_t& boundary_index);
+
     Generator(VM&, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, BuiltinAbstractOperationsEnabled);
     ~Generator() = default;
 
@@ -444,6 +476,7 @@ private:
     Vector<LabelableScope> m_breakable_scopes;
     Vector<BlockBoundaryType> m_boundaries;
     Vector<ScopedOperand> m_home_objects;
+    FinallyContext* m_current_finally_context { nullptr };
 
     HashTable<u32> m_initialized_locals;
     HashTable<u32> m_initialized_arguments;
