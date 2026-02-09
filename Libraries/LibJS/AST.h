@@ -820,7 +820,7 @@ public:
     auto const& body_ptr() const { return m_body; }
     auto const& parameters() const { return m_parameters; }
     i32 function_length() const { return m_function_length; }
-    Vector<LocalVariable> const& local_variables_names() const { return m_local_variables_names; }
+    Vector<LocalVariable> const& local_variables_names() const { return static_cast<ScopeNode const&>(*m_body).local_variables_names(); }
     bool is_strict_mode() const { return m_is_strict_mode; }
     bool might_need_arguments_object() const { return m_parsing_insights.might_need_arguments_object; }
     bool contains_direct_call_to_eval() const { return m_parsing_insights.contains_direct_call_to_eval; }
@@ -837,7 +837,7 @@ public:
     virtual ~FunctionNode();
 
 protected:
-    FunctionNode(RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<LocalVariable> local_variables_names);
+    FunctionNode(RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function);
     void dump(ASTDumpState const& state, ByteString const& class_name, SourceRange const& range) const;
 
     RefPtr<Identifier const> m_name { nullptr };
@@ -852,8 +852,6 @@ private:
     bool m_is_arrow_function : 1 { false };
     FunctionParsingInsights m_parsing_insights;
 
-    Vector<LocalVariable> m_local_variables_names;
-
     mutable GC::Root<SharedFunctionInstanceData> m_shared_data;
 };
 
@@ -863,9 +861,9 @@ class FunctionDeclaration final
 public:
     static bool must_have_name() { return true; }
 
-    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<LocalVariable> local_variables_names)
+    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights)
         : Declaration(move(source_range))
-        , FunctionNode(move(name), source_text, move(body), move(parameters), function_length, kind, is_strict_mode, insights, false, move(local_variables_names))
+        , FunctionNode(move(name), source_text, move(body), move(parameters), function_length, kind, is_strict_mode, insights, false)
     {
     }
 
@@ -892,9 +890,9 @@ class FunctionExpression final
 public:
     static bool must_have_name() { return false; }
 
-    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<LocalVariable> local_variables_names, bool is_arrow_function = false)
+    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, bool is_arrow_function = false)
         : Expression(move(source_range))
-        , FunctionNode(move(name), source_text, move(body), move(parameters), function_length, kind, is_strict_mode, insights, is_arrow_function, move(local_variables_names))
+        , FunctionNode(move(name), source_text, move(body), move(parameters), function_length, kind, is_strict_mode, insights, is_arrow_function)
     {
     }
 
