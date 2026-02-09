@@ -15,12 +15,15 @@ ValueComparingNonnullRefPtr<GridAutoFlowStyleValue const> GridAutoFlowStyleValue
 
 void GridAutoFlowStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    if (m_row)
+    if (m_row && !m_dense)
         builder.append("row"sv);
-    else
+    else if (!m_row)
         builder.append("column"sv);
-    if (m_dense)
-        builder.append(" dense"sv);
+    if (m_dense) {
+        if (!m_row)
+            builder.append(' ');
+        builder.append("dense"sv);
+    }
 }
 
 }
