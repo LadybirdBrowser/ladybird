@@ -264,6 +264,7 @@ set(SOURCES
     Runtime/WeakSetPrototype.cpp
     Runtime/WrapForValidIteratorPrototype.cpp
     Runtime/WrappedFunction.cpp
+    ScopePusher.cpp
     Script.cpp
     SourceCode.cpp
     SourceTextModule.cpp
