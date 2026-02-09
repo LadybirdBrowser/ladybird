@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2026, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
@@ -16,7 +16,6 @@
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(CachedSourceRange);
-GC_DEFINE_ALLOCATOR(ExecutionContextRareData);
 
 class ExecutionContextAllocator {
 public:
@@ -132,7 +131,8 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(variable_environment);
     visitor.visit(lexical_environment);
     visitor.visit(private_environment);
-    visitor.visit(m_rare_data);
+    visitor.visit(cached_source_range);
+    visitor.visit(context_owner);
     visitor.visit(this_value);
     visitor.visit(executable);
     visitor.visit(registers_and_constants_and_locals_and_arguments_span());
@@ -144,21 +144,6 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
         [&](auto& script_or_module) {
             visitor.visit(script_or_module);
         });
-}
-
-void ExecutionContextRareData::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(context_owner);
-    visitor.visit(cached_source_range);
-}
-
-GC::Ref<ExecutionContextRareData> ExecutionContext::ensure_rare_data()
-{
-    if (!m_rare_data) {
-        m_rare_data = GC::Heap::the().allocate<ExecutionContextRareData>();
-    }
-    return *m_rare_data;
 }
 
 }
