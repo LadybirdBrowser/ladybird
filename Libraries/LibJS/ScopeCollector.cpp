@@ -232,7 +232,9 @@ void ScopeCollector::set_function_parameters(NonnullRefPtr<FunctionParameters co
             [&](NonnullRefPtr<BindingPattern const> const& binding_pattern) {
                 // NOTE: Nothing in the callback throws an exception.
                 MUST(binding_pattern->for_each_bound_identifier([&](auto const& identifier) {
-                    m_current->variables.ensure(identifier.string()).flags |= ScopeVariable::IsForbiddenLexical;
+                    register_identifier(fixme_launder_const_through_pointer_cast(identifier));
+                    auto& var = m_current->variables.ensure(identifier.string());
+                    var.flags |= ScopeVariable::IsParameterCandidate | ScopeVariable::IsForbiddenLexical;
                 }));
             });
     }
@@ -447,8 +449,17 @@ void ScopeCollector::resolve_identifiers(ScopeRecord& scope, bool initiated_by_e
 
                 if (is_function_parameter) {
                     auto argument_index = local_scope->function_parameters->get_index_of_parameter_name(identifier_group_name);
-                    for (auto& identifier : identifier_group.identifiers)
-                        identifier->set_argument_index(argument_index.value());
+                    if (argument_index.has_value()) {
+                        for (auto& identifier : identifier_group.identifiers)
+                            identifier->set_argument_index(argument_index.value());
+                    } else {
+                        // Destructured parameter binding: the argument slot holds the
+                        // whole object/array, so the individual binding goes into a
+                        // local variable slot instead.
+                        auto local_variable_index = local_scope->ast_node->add_local_variable(identifier_group_name, LocalVariable::DeclarationKind::Var);
+                        for (auto& identifier : identifier_group.identifiers)
+                            identifier->set_local_variable_index(local_variable_index);
+                    }
                 } else {
                     auto local_variable_index = local_scope->ast_node->add_local_variable(identifier_group_name, *local_variable_declaration_kind);
                     for (auto& identifier : identifier_group.identifiers)
