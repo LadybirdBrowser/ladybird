@@ -1,0 +1,98 @@
+Program (script) @2:1
+├─ FunctionDeclaration "basic_catch" @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        └─ TryStatement @3:5
+│           ├─ block
+│           │  └─ BlockStatement @3:9
+│           │     └─ ThrowStatement @4:9
+│           │        └─ NumericLiteral 1 @4:15
+│           └─ handler
+│              └─ CatchClause @5:7
+│                 ├─ parameter
+│                 │  └─ Identifier "err" [variable:0] @5:14
+│                 └─ BlockStatement @5:19
+│                    └─ ReturnStatement @6:9
+│                       └─ Identifier "err" [variable:0] @6:16
+├─ FunctionDeclaration "catch_destruct" @11:1
+│  └─ body
+│     └─ FunctionBody @12:5
+│        └─ TryStatement @12:5
+│           ├─ block
+│           │  └─ BlockStatement @12:9
+│           │     └─ ThrowStatement @13:9
+│           │        └─ ObjectExpression @13:15
+│           │           ├─ ObjectProperty @13:15
+│           │           │  ├─ StringLiteral "msg" @13:15
+│           │           │  └─ StringLiteral "oops" @13:28
+│           │           └─ ObjectProperty @13:15
+│           │              ├─ StringLiteral "code" @13:15
+│           │              └─ NumericLiteral 42 @13:36
+│           └─ handler
+│              └─ CatchClause @14:7
+│                 ├─ parameter
+│                 │  └─ BindingPattern (object)
+│                 │     ├─ entry
+│                 │     │  └─ name
+│                 │     │     └─ Identifier "msg" [variable:0] @14:14
+│                 │     └─ entry
+│                 │        └─ name
+│                 │           └─ Identifier "code" [variable:1] @14:14
+│                 └─ BlockStatement @14:29
+│                    └─ ReturnStatement @15:9
+│                       └─ BinaryExpression (+) @15:20
+│                          ├─ Identifier "msg" [variable:0] @15:16
+│                          └─ Identifier "code" [variable:1] @15:22
+├─ FunctionDeclaration "catch_shadow" @20:1
+│  └─ body
+│     └─ FunctionBody @21:5
+│        ├─ VariableDeclaration (let) @21:5
+│        │  └─ VariableDeclarator @21:5
+│        │     ├─ Identifier "err" [variable:1] (let) @21:9
+│        │     └─ StringLiteral "outer" @21:22
+│        ├─ TryStatement @22:5
+│        │  ├─ block
+│        │  │  └─ BlockStatement @22:9
+│        │  │     └─ ThrowStatement @23:9
+│        │  │        └─ StringLiteral "inner" @23:22
+│        │  └─ handler
+│        │     └─ CatchClause @24:7
+│        │        ├─ parameter
+│        │        │  └─ Identifier "err" [variable:0] @24:14
+│        │        └─ BlockStatement @24:19
+│        │           └─ ExpressionStatement @25:9
+│        │              └─ Identifier "err" [variable:0] @25:9
+│        └─ ReturnStatement @27:5
+│           └─ Identifier "err" [variable:1] (let) @27:12
+├─ FunctionDeclaration "catch_no_param" @31:1
+│  └─ body
+│     └─ FunctionBody @32:5
+│        └─ TryStatement @32:5
+│           ├─ block
+│           │  └─ BlockStatement @32:9
+│           │     └─ ThrowStatement @33:9
+│           │        └─ NumericLiteral 1 @33:15
+│           └─ handler
+│              └─ CatchClause @34:7
+│                 └─ BlockStatement @34:13
+│                    └─ ReturnStatement @35:9
+│                       └─ NumericLiteral 2 @35:16
+└─ FunctionDeclaration "catch_with_eval" [direct-eval] [uses-this] [might-need-arguments] @40:1
+   └─ body
+      └─ FunctionBody @41:5
+         └─ TryStatement @41:5
+            ├─ block
+            │  └─ BlockStatement @41:9
+            │     └─ ThrowStatement @42:9
+            │        └─ NumericLiteral 1 @42:15
+            └─ handler
+               └─ CatchClause @43:7
+                  ├─ parameter
+                  │  └─ Identifier "err" @43:14
+                  └─ BlockStatement @43:19
+                     ├─ ExpressionStatement @44:9
+                     │  └─ CallExpression @44:13
+                     │     ├─ Identifier "eval" [in-eval-scope] @44:9
+                     │     └─ StringLiteral "" @44:16
+                     └─ ReturnStatement @45:9
+                        └─ Identifier "err" [in-eval-scope] @45:16

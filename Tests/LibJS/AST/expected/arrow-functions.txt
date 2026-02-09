@@ -1,0 +1,51 @@
+Program (script) @1:1
+├─ FunctionDeclaration "uses_arrow" @1:1
+│  └─ body
+│     └─ FunctionBody @2:5
+│        ├─ VariableDeclaration (let) @2:5
+│        │  └─ VariableDeclarator @2:5
+│        │     ├─ Identifier "x" (let) @2:9
+│        │     └─ NumericLiteral 1 @2:13
+│        ├─ VariableDeclaration (const) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "f" [variable:0] (const) @3:11
+│        │     └─ FunctionExpression "" [arrow] @3:15
+│        │        ├─ parameters
+│        │        │  └─ Identifier "y" [argument:0] @3:15
+│        │        └─ body
+│        │           └─ FunctionBody @3:15
+│        │              └─ ReturnStatement @3:15
+│        │                 └─ BinaryExpression (+) @3:22
+│        │                    ├─ Identifier "x" (let) @3:20
+│        │                    └─ Identifier "y" [argument:0] @3:24
+│        └─ ReturnStatement @4:5
+│           └─ CallExpression @4:13
+│              ├─ Identifier "f" [variable:0] (const) @4:12
+│              └─ NumericLiteral 2 @4:14
+├─ FunctionDeclaration "arrow_with_this" [uses-this] [uses-this-from-environment] @7:1
+│  └─ body
+│     └─ FunctionBody @8:5
+│        ├─ VariableDeclaration (const) @8:5
+│        │  └─ VariableDeclarator @8:5
+│        │     ├─ Identifier "f" [variable:0] (const) @8:11
+│        │     └─ FunctionExpression "" [arrow] [uses-this-from-environment] @8:15
+│        │        └─ body
+│        │           └─ FunctionBody @8:15
+│        │              └─ ReturnStatement @8:15
+│        │                 └─ ThisExpression @8:21
+│        └─ ReturnStatement @9:5
+│           └─ CallExpression @9:13
+│              └─ Identifier "f" [variable:0] (const) @9:12
+└─ VariableDeclaration (const) @12:1
+   └─ VariableDeclarator @12:1
+      ├─ Identifier "top_level_arrow" [global] (const) @12:7
+      └─ FunctionExpression "" [arrow] @12:25
+         ├─ parameters
+         │  ├─ Identifier "a" [argument:0] @12:26
+         │  └─ Identifier "b" [argument:1] @12:26
+         └─ body
+            └─ FunctionBody @12:25
+               └─ ReturnStatement @12:25
+                  └─ BinaryExpression (+) @12:37
+                     ├─ Identifier "a" [argument:0] @12:35
+                     └─ Identifier "b" [argument:1] @12:39

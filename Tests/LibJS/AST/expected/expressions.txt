@@ -1,0 +1,44 @@
+Program (script) @1:1
+└─ FunctionDeclaration "expressions" @1:1
+   ├─ parameters
+   │  ├─ Identifier "a" [argument:0] @1:22
+   │  └─ Identifier "b" [argument:1] @1:22
+   └─ body
+      └─ FunctionBody @2:5
+         ├─ VariableDeclaration (let) @2:5
+         │  └─ VariableDeclarator @2:5
+         │     ├─ Identifier "x" [variable:1] (let) @2:9
+         │     └─ BinaryExpression (+) @2:15
+         │        ├─ Identifier "a" [argument:0] @2:13
+         │        └─ BinaryExpression (*) @2:19
+         │           ├─ Identifier "b" [argument:1] @2:17
+         │           └─ NumericLiteral 2 @2:21
+         ├─ VariableDeclaration (let) @3:5
+         │  └─ VariableDeclarator @3:5
+         │     ├─ Identifier "y" [variable:0] (let) @3:9
+         │     └─ BinaryExpression (===) @3:22
+         │        ├─ UnaryExpression (typeof) @3:13
+         │        │  └─ Identifier "a" [argument:0] @3:20
+         │        └─ StringLiteral "number" @3:34
+         ├─ VariableDeclaration (let) @4:5
+         │  └─ VariableDeclarator @4:5
+         │     ├─ Identifier "z" [variable:2] (let) @4:9
+         │     └─ ConditionalExpression @4:19
+         │        ├─ test
+         │        │  └─ BinaryExpression (>) @4:15
+         │        │     ├─ Identifier "a" [argument:0] @4:13
+         │        │     └─ NumericLiteral 0 @4:17
+         │        ├─ consequent
+         │        │  └─ Identifier "a" [argument:0] @4:21
+         │        └─ alternate
+         │           └─ UnaryExpression (-) @4:25
+         │              └─ Identifier "a" [argument:0] @4:26
+         ├─ ExpressionStatement @5:5
+         │  └─ UpdateExpression (++, postfix) @5:6
+         │     └─ Identifier "a" [argument:0] @5:5
+         └─ ReturnStatement @6:5
+            └─ BinaryExpression (+) @6:18
+               ├─ BinaryExpression (+) @6:14
+               │  ├─ Identifier "x" [variable:1] (let) @6:12
+               │  └─ Identifier "y" [variable:0] (let) @6:16
+               └─ Identifier "z" [variable:2] (let) @6:20

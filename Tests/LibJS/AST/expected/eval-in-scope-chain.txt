@@ -1,0 +1,32 @@
+Program (script) @1:1
+└─ FunctionDeclaration "outer" [uses-this] @1:1
+   └─ body
+      └─ FunctionBody @2:5
+         ├─ VariableDeclaration (let) @2:5
+         │  └─ VariableDeclarator @2:5
+         │     ├─ Identifier "x" (let) @2:9
+         │     └─ NumericLiteral 1 @2:13
+         ├─ FunctionDeclaration "middle" [direct-eval] [uses-this] [might-need-arguments] @3:5
+         │  └─ body
+         │     └─ FunctionBody @4:9
+         │        ├─ ExpressionStatement @4:9
+         │        │  └─ CallExpression @4:13
+         │        │     ├─ Identifier "eval" [in-eval-scope] @4:9
+         │        │     └─ StringLiteral "" @4:16
+         │        ├─ FunctionDeclaration "inner" @5:9
+         │        │  └─ body
+         │        │     └─ FunctionBody @6:13
+         │        │        ├─ VariableDeclaration (let) @6:13
+         │        │        │  └─ VariableDeclarator @6:13
+         │        │        │     ├─ Identifier "y" [variable:0] (let) @6:17
+         │        │        │     └─ NumericLiteral 2 @6:21
+         │        │        └─ ReturnStatement @7:13
+         │        │           └─ BinaryExpression (+) @7:22
+         │        │              ├─ Identifier "x" (let) [in-eval-scope] @7:20
+         │        │              └─ Identifier "y" [variable:0] (let) @7:24
+         │        └─ ReturnStatement @9:9
+         │           └─ CallExpression @9:21
+         │              └─ Identifier "inner" @9:16
+         └─ ReturnStatement @11:5
+            └─ CallExpression @11:18
+               └─ Identifier "middle" @11:12

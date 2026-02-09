@@ -1,0 +1,158 @@
+Program (script) @4:1
+├─ VariableDeclaration (let) @4:1
+│  └─ VariableDeclarator @4:1
+│     ├─ Identifier "top_let" [global] (let) @4:5
+│     └─ NumericLiteral 1 @4:15
+├─ VariableDeclaration (const) @5:1
+│  └─ VariableDeclarator @5:1
+│     ├─ Identifier "top_const" [global] (const) @5:7
+│     └─ NumericLiteral 2 @5:19
+├─ VariableDeclaration (var) @6:1
+│  └─ VariableDeclarator @6:1
+│     ├─ Identifier "top_var" [global] (var) @6:5
+│     └─ NumericLiteral 3 @6:15
+├─ FunctionDeclaration "all_binding_types" @8:1
+│  └─ body
+│     └─ FunctionBody @10:5
+│        ├─ VariableDeclaration (let) @10:5
+│        │  └─ VariableDeclarator @10:5
+│        │     ├─ Identifier "a" [variable:1] (let) @10:9
+│        │     └─ NumericLiteral 1 @10:13
+│        ├─ VariableDeclaration (const) @11:5
+│        │  └─ VariableDeclarator @11:5
+│        │     ├─ Identifier "b" [variable:2] (const) @11:11
+│        │     └─ NumericLiteral 2 @11:15
+│        ├─ VariableDeclaration (var) @12:5
+│        │  └─ VariableDeclarator @12:5
+│        │     ├─ Identifier "c" [variable:0] (var) @12:9
+│        │     └─ NumericLiteral 3 @12:13
+│        └─ ReturnStatement @13:5
+│           └─ BinaryExpression (+) @13:18
+│              ├─ BinaryExpression (+) @13:14
+│              │  ├─ Identifier "a" [variable:1] (let) @13:12
+│              │  └─ Identifier "b" [variable:2] (const) @13:16
+│              └─ Identifier "c" [variable:0] (var) @13:20
+├─ FunctionDeclaration "for_binding_forms" @17:1
+│  └─ body
+│     └─ FunctionBody @18:5
+│        ├─ ForStatement @18:5
+│        │  ├─ init
+│        │  │  └─ VariableDeclaration (let) @18:10
+│        │  │     └─ VariableDeclarator @18:10
+│        │  │        ├─ Identifier "i" [variable:0] (let) @18:14
+│        │  │        └─ NumericLiteral 0 @18:18
+│        │  ├─ test
+│        │  │  └─ BinaryExpression (<) @18:23
+│        │  │     ├─ Identifier "i" [variable:0] (let) @18:21
+│        │  │     └─ NumericLiteral 1 @18:25
+│        │  ├─ update
+│        │  │  └─ UpdateExpression (++, postfix) @18:29
+│        │  │     └─ Identifier "i" [variable:0] (let) @18:28
+│        │  └─ body
+│        │     └─ BlockStatement @18:33
+│        ├─ ForOfStatement @19:18
+│        │  ├─ lhs
+│        │  │  └─ VariableDeclaration (const) @19:10
+│        │  │     └─ VariableDeclarator @19:10
+│        │  │        └─ Identifier "x" [variable:1] (const) @19:16
+│        │  ├─ rhs
+│        │  │  └─ ArrayExpression @19:21
+│        │  │     └─ NumericLiteral 1 @19:22
+│        │  └─ body
+│        │     └─ BlockStatement @19:26
+│        │        └─ ExpressionStatement @20:9
+│        │           └─ Identifier "x" [variable:1] (const) @20:9
+│        ├─ ForStatement @22:5
+│        │  ├─ init
+│        │  │  └─ VariableDeclaration (var) @22:10
+│        │  │     └─ VariableDeclarator @22:10
+│        │  │        ├─ Identifier "j" [variable:2] (var) @22:14
+│        │  │        └─ NumericLiteral 0 @22:18
+│        │  ├─ test
+│        │  │  └─ BinaryExpression (<) @22:23
+│        │  │     ├─ Identifier "j" [variable:2] (var) @22:21
+│        │  │     └─ NumericLiteral 1 @22:25
+│        │  ├─ update
+│        │  │  └─ UpdateExpression (++, postfix) @22:29
+│        │  │     └─ Identifier "j" [variable:2] (var) @22:28
+│        │  └─ body
+│        │     └─ BlockStatement @22:33
+│        └─ ExpressionStatement @23:5
+│           └─ Identifier "j" [variable:2] (var) @23:5
+├─ FunctionDeclaration "destructuring_bindings" @27:1
+│  └─ body
+│     └─ FunctionBody @28:5
+│        ├─ VariableDeclaration (let) @28:5
+│        │  └─ VariableDeclarator @28:5
+│        │     ├─ BindingPattern (array)
+│        │     │  ├─ entry
+│        │     │  │  └─ alias
+│        │     │  │     └─ Identifier "a" [variable:2] @28:9
+│        │     │  └─ entry
+│        │     │     └─ alias
+│        │     │        └─ Identifier "b" [variable:3] @28:9
+│        │     └─ ArrayExpression @28:18
+│        │        ├─ NumericLiteral 1 @28:19
+│        │        └─ NumericLiteral 2 @28:22
+│        ├─ VariableDeclaration (const) @29:5
+│        │  └─ VariableDeclarator @29:5
+│        │     ├─ BindingPattern (object)
+│        │     │  ├─ entry
+│        │     │  │  └─ name
+│        │     │  │     └─ Identifier "c" [variable:1] @29:11
+│        │     │  └─ entry
+│        │     │     └─ name
+│        │     │        └─ Identifier "d" [variable:4] @29:11
+│        │     └─ ObjectExpression @29:22
+│        │        ├─ ObjectProperty @29:22
+│        │        │  ├─ StringLiteral "c" @29:22
+│        │        │  └─ NumericLiteral 3 @29:27
+│        │        └─ ObjectProperty @29:22
+│        │           ├─ StringLiteral "d" @29:22
+│        │           └─ NumericLiteral 4 @29:33
+│        ├─ VariableDeclaration (var) @30:5
+│        │  └─ VariableDeclarator @30:5
+│        │     ├─ BindingPattern (array)
+│        │     │  ├─ entry
+│        │     │  │  └─ alias
+│        │     │  │     └─ Identifier "e" [variable:0] @30:9
+│        │     │  └─ entry (rest)
+│        │     │     └─ alias
+│        │     │        └─ Identifier "f" [variable:5] @30:9
+│        │     └─ ArrayExpression @30:21
+│        │        ├─ NumericLiteral 5 @30:22
+│        │        ├─ NumericLiteral 6 @30:25
+│        │        └─ NumericLiteral 7 @30:28
+│        └─ ReturnStatement @31:5
+│           └─ BinaryExpression (+) @31:30
+│              ├─ BinaryExpression (+) @31:26
+│              │  ├─ BinaryExpression (+) @31:22
+│              │  │  ├─ BinaryExpression (+) @31:18
+│              │  │  │  ├─ BinaryExpression (+) @31:14
+│              │  │  │  │  ├─ Identifier "a" [variable:2] @31:12
+│              │  │  │  │  └─ Identifier "b" [variable:3] @31:16
+│              │  │  │  └─ Identifier "c" [variable:1] @31:20
+│              │  │  └─ Identifier "d" [variable:4] @31:24
+│              │  └─ Identifier "e" [variable:0] @31:28
+│              └─ MemberExpression [computed] @31:33
+│                 ├─ Identifier "f" [variable:5] @31:32
+│                 └─ NumericLiteral 0 @31:34
+└─ FunctionDeclaration "multi_declarator" @35:1
+   └─ body
+      └─ FunctionBody @36:5
+         ├─ VariableDeclaration (let) @36:5
+         │  ├─ VariableDeclarator @36:5
+         │  │  ├─ Identifier "x" [variable:1] (let) @36:9
+         │  │  └─ NumericLiteral 1 @36:13
+         │  ├─ VariableDeclarator @36:5
+         │  │  ├─ Identifier "y" [variable:0] (let) @37:9
+         │  │  └─ NumericLiteral 2 @37:13
+         │  └─ VariableDeclarator @36:5
+         │     ├─ Identifier "z" [variable:2] (let) @38:9
+         │     └─ NumericLiteral 3 @38:13
+         └─ ReturnStatement @39:5
+            └─ BinaryExpression (+) @39:18
+               ├─ BinaryExpression (+) @39:14
+               │  ├─ Identifier "x" [variable:1] (let) @39:12
+               │  └─ Identifier "y" [variable:0] (let) @39:16
+               └─ Identifier "z" [variable:2] (let) @39:20

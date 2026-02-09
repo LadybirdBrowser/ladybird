@@ -1,0 +1,52 @@
+Program (script) @2:1
+├─ FunctionDeclaration "uses_hoisted" @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ ExpressionStatement @3:5
+│        │  └─ CallExpression @3:12
+│        │     └─ Identifier "hoisted" [variable:0] @3:5
+│        └─ FunctionDeclaration "hoisted" @4:5
+│           └─ body
+│              └─ FunctionBody @5:9
+│                 └─ ReturnStatement @5:9
+│                    └─ NumericLiteral 1 @5:16
+├─ FunctionDeclaration "block_function" @10:1
+│  └─ body
+│     └─ FunctionBody @11:5
+│        └─ BlockStatement @11:5
+│           ├─ FunctionDeclaration "inner" @12:9
+│           │  └─ body
+│           │     └─ FunctionBody @13:13
+│           │        └─ ReturnStatement @13:13
+│           │           └─ NumericLiteral 1 @13:20
+│           └─ ExpressionStatement @15:9
+│              └─ CallExpression @15:14
+│                 └─ Identifier "inner" @15:9
+├─ FunctionDeclaration "duplicate_decls" @20:1
+│  └─ body
+│     └─ FunctionBody @21:5
+│        ├─ FunctionDeclaration "dup" @21:5
+│        │  └─ body
+│        │     └─ FunctionBody @22:9
+│        │        └─ ReturnStatement @22:9
+│        │           └─ NumericLiteral 1 @22:16
+│        ├─ FunctionDeclaration "dup" @24:5
+│        │  └─ body
+│        │     └─ FunctionBody @25:9
+│        │        └─ ReturnStatement @25:9
+│        │           └─ NumericLiteral 2 @25:16
+│        └─ ReturnStatement @27:5
+│           └─ CallExpression @27:15
+│              └─ Identifier "dup" [variable:0] @27:12
+└─ FunctionDeclaration "func_vs_var" @31:1
+   └─ body
+      └─ FunctionBody @32:5
+         ├─ VariableDeclaration (var) @32:5
+         │  └─ VariableDeclarator @32:5
+         │     ├─ Identifier "x" [variable:0] (var) @32:9
+         │     └─ NumericLiteral 1 @32:13
+         ├─ FunctionDeclaration "x" @33:5
+         │  └─ body
+         │     └─ FunctionBody @33:19
+         └─ ReturnStatement @34:5
+            └─ Identifier "x" [variable:0] (var) @34:12

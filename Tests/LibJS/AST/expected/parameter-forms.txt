@@ -1,0 +1,75 @@
+Program (script) @1:1
+├─ FunctionDeclaration "rest_params" @1:1
+│  ├─ parameters
+│  │  ├─ Identifier "a" [argument:0] @1:22
+│  │  └─ rest
+│  │     └─ Identifier "rest" [argument:1] @1:22
+│  └─ body
+│     └─ FunctionBody @2:5
+│        └─ ReturnStatement @2:5
+│           └─ BinaryExpression (+) @2:14
+│              ├─ Identifier "a" [argument:0] @2:12
+│              └─ MemberExpression @2:20
+│                 ├─ Identifier "rest" [argument:1] @2:16
+│                 └─ Identifier "length" @2:20
+├─ FunctionDeclaration "default_params" @5:1
+│  ├─ parameters
+│  │  ├─ Identifier "a" [argument:0] @5:25
+│  │  └─ Identifier "b" [argument:1] @5:25
+│  │     └─ default
+│  │        └─ NumericLiteral 10 @5:32
+│  └─ body
+│     └─ FunctionBody @6:5
+│        └─ ReturnStatement @6:5
+│           └─ BinaryExpression (+) @6:14
+│              ├─ Identifier "a" [argument:0] @6:12
+│              └─ Identifier "b" [argument:1] @6:16
+├─ FunctionDeclaration "destructured_array" @9:1
+│  ├─ parameters
+│  │  └─ BindingPattern (array)
+│  │     ├─ entry
+│  │     │  └─ alias
+│  │     │     └─ Identifier "x" @9:29
+│  │     └─ entry
+│  │        └─ alias
+│  │           └─ Identifier "y" @9:29
+│  └─ body
+│     └─ FunctionBody @10:5
+│        └─ ReturnStatement @10:5
+│           └─ BinaryExpression (+) @10:14
+│              ├─ Identifier "x" @10:12
+│              └─ Identifier "y" @10:16
+├─ FunctionDeclaration "destructured_object" @13:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     ├─ entry
+│  │     │  └─ name
+│  │     │     └─ Identifier "a" @13:30
+│  │     └─ entry
+│  │        └─ name
+│  │           └─ Identifier "b" @13:30
+│  └─ body
+│     └─ FunctionBody @14:5
+│        └─ ReturnStatement @14:5
+│           └─ BinaryExpression (+) @14:14
+│              ├─ Identifier "a" @14:12
+│              └─ Identifier "b" @14:16
+└─ FunctionDeclaration "mixed" @17:1
+   ├─ parameters
+   │  ├─ Identifier "first" [argument:0] @17:16
+   │  ├─ BindingPattern (object)
+   │  │  └─ entry
+   │  │     └─ name
+   │  │        └─ Identifier "x" @17:23
+   │  └─ rest
+   │     └─ Identifier "rest" [argument:2] @17:16
+   └─ body
+      └─ FunctionBody @18:5
+         └─ ReturnStatement @18:5
+            └─ BinaryExpression (+) @18:22
+               ├─ BinaryExpression (+) @18:18
+               │  ├─ Identifier "first" [argument:0] @18:12
+               │  └─ Identifier "x" @18:20
+               └─ MemberExpression @18:28
+                  ├─ Identifier "rest" [argument:2] @18:24
+                  └─ Identifier "length" @18:28

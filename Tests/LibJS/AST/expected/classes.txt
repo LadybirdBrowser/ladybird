@@ -1,0 +1,47 @@
+Program (script) @1:1
+├─ ClassDeclaration @1:1
+│  └─ ClassExpression "Animal" @1:1
+│     ├─ constructor
+│     │  └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @2:5
+│     │     ├─ parameters
+│     │     │  └─ Identifier "name" [argument:0] @2:17
+│     │     └─ body
+│     │        └─ FunctionBody @3:9
+│     │           └─ ExpressionStatement @3:9
+│     │              └─ AssignmentExpression (=) @3:19
+│     │                 ├─ MemberExpression @3:13
+│     │                 │  ├─ ThisExpression @3:9
+│     │                 │  └─ Identifier "name" @3:13
+│     │                 └─ Identifier "name" [argument:0] @3:21
+│     └─ elements
+│        ├─ ClassMethod @1:1
+│        │  ├─ StringLiteral "speak" @1:1
+│        │  └─ FunctionExpression "" [strict] [uses-this] @6:5
+│        │     └─ body
+│        │        └─ FunctionBody @7:9
+│        │           └─ ReturnStatement @7:9
+│        │              └─ MemberExpression @7:20
+│        │                 ├─ ThisExpression @7:16
+│        │                 └─ Identifier "name" @7:20
+│        └─ ClassMethod (getter) @1:1
+│           ├─ StringLiteral "info" @1:1
+│           └─ FunctionExpression "" [strict] [uses-this] @10:5
+│              └─ body
+│                 └─ FunctionBody @11:9
+│                    └─ ReturnStatement @11:9
+│                       └─ MemberExpression @11:20
+│                          ├─ ThisExpression @11:16
+│                          └─ Identifier "name" @11:20
+└─ ClassDeclaration @15:1
+   └─ ClassExpression "Dog" @15:1
+      ├─ super class
+      │  └─ Identifier "Animal" [global] @15:19
+      └─ constructor
+         └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @16:5
+            ├─ parameters
+            │  └─ Identifier "name" [argument:0] @16:17
+            └─ body
+               └─ FunctionBody @17:9
+                  └─ ExpressionStatement @17:9
+                     └─ SuperCall @17:14
+                        └─ Identifier "name" [argument:0] @17:15

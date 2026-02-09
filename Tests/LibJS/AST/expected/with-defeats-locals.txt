@@ -1,0 +1,73 @@
+Program (script) @3:1
+├─ FunctionDeclaration "basic_with" @3:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @3:21
+│  └─ body
+│     └─ FunctionBody @4:5
+│        ├─ VariableDeclaration (let) @4:5
+│        │  └─ VariableDeclarator @4:5
+│        │     ├─ Identifier "x" (let) @4:9
+│        │     └─ NumericLiteral 1 @4:13
+│        └─ WithStatement @5:5
+│           ├─ object
+│           │  └─ Identifier "obj" [argument:0] @5:11
+│           └─ body
+│              └─ BlockStatement @5:16
+│                 └─ ExpressionStatement @6:9
+│                    └─ Identifier "x" (let) @6:9
+├─ FunctionDeclaration "var_in_with" @11:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @11:22
+│  └─ body
+│     └─ FunctionBody @12:5
+│        ├─ WithStatement @12:5
+│        │  ├─ object
+│        │  │  └─ Identifier "obj" [argument:0] @12:11
+│        │  └─ body
+│        │     └─ BlockStatement @12:16
+│        │        └─ VariableDeclaration (var) @13:9
+│        │           └─ VariableDeclarator @13:9
+│        │              ├─ Identifier "y" (var) @13:13
+│        │              └─ NumericLiteral 2 @13:17
+│        └─ ReturnStatement @15:5
+│           └─ Identifier "y" (var) @15:12
+├─ FunctionDeclaration "nested_in_with" @19:1
+│  ├─ parameters
+│  │  └─ Identifier "obj" [argument:0] @19:25
+│  └─ body
+│     └─ FunctionBody @20:5
+│        ├─ VariableDeclaration (let) @20:5
+│        │  └─ VariableDeclarator @20:5
+│        │     ├─ Identifier "z" (let) @20:9
+│        │     └─ NumericLiteral 10 @20:13
+│        └─ WithStatement @21:5
+│           ├─ object
+│           │  └─ Identifier "obj" [argument:0] @21:11
+│           └─ body
+│              └─ BlockStatement @21:16
+│                 └─ ExpressionStatement @22:9
+│                    └─ FunctionExpression "" @22:10
+│                       └─ body
+│                          └─ FunctionBody @23:13
+│                             └─ ReturnStatement @23:13
+│                                └─ Identifier "z" (let) @23:20
+└─ FunctionDeclaration "with_and_eval" [direct-eval] [uses-this] [might-need-arguments] @29:1
+   ├─ parameters
+   │  └─ Identifier "obj" @29:24
+   └─ body
+      └─ FunctionBody @30:5
+         ├─ VariableDeclaration (let) @30:5
+         │  └─ VariableDeclarator @30:5
+         │     ├─ Identifier "a" (let) @30:9
+         │     └─ NumericLiteral 1 @30:13
+         └─ WithStatement @31:5
+            ├─ object
+            │  └─ Identifier "obj" @31:11
+            └─ body
+               └─ BlockStatement @31:16
+                  ├─ ExpressionStatement @32:9
+                  │  └─ CallExpression @32:13
+                  │     ├─ Identifier "eval" [in-eval-scope] @32:9
+                  │     └─ StringLiteral "" @32:16
+                  └─ ExpressionStatement @33:9
+                     └─ Identifier "a" (let) [in-eval-scope] @33:9

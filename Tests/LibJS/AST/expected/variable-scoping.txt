@@ -1,0 +1,74 @@
+Program (script) @1:1
+├─ FunctionDeclaration "var_hoisting" @1:1
+│  └─ body
+│     └─ FunctionBody @2:5
+│        ├─ ExpressionStatement @2:5
+│        │  └─ AssignmentExpression (=) @2:7
+│        │     ├─ Identifier "x" [variable:0] @2:5
+│        │     └─ NumericLiteral 1 @2:9
+│        ├─ VariableDeclaration (var) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     └─ Identifier "x" [variable:0] @3:9
+│        └─ ReturnStatement @4:5
+│           └─ Identifier "x" [variable:0] @4:12
+├─ FunctionDeclaration "let_in_block" @7:1
+│  └─ body
+│     └─ FunctionBody @8:5
+│        ├─ VariableDeclaration (let) @8:5
+│        │  └─ VariableDeclarator @8:5
+│        │     ├─ Identifier "x" [variable:1] (let) @8:9
+│        │     └─ NumericLiteral 1 @8:13
+│        ├─ BlockStatement @9:5
+│        │  ├─ VariableDeclaration (let) @10:9
+│        │  │  └─ VariableDeclarator @10:9
+│        │  │     ├─ Identifier "x" [variable:0] (let) @10:13
+│        │  │     └─ NumericLiteral 2 @10:17
+│        │  └─ ExpressionStatement @11:9
+│        │     └─ Identifier "x" [variable:0] (let) @11:9
+│        └─ ReturnStatement @13:5
+│           └─ Identifier "x" [variable:1] (let) @13:12
+├─ FunctionDeclaration "const_binding" @16:1
+│  └─ body
+│     └─ FunctionBody @17:5
+│        ├─ VariableDeclaration (const) @17:5
+│        │  └─ VariableDeclarator @17:5
+│        │     ├─ Identifier "x" [variable:1] (const) @17:11
+│        │     └─ NumericLiteral 1 @17:15
+│        ├─ VariableDeclaration (const) @18:5
+│        │  └─ VariableDeclarator @18:5
+│        │     ├─ Identifier "y" [variable:0] (const) @18:11
+│        │     └─ NumericLiteral 2 @18:15
+│        └─ ReturnStatement @19:5
+│           └─ BinaryExpression (+) @19:14
+│              ├─ Identifier "x" [variable:1] (const) @19:12
+│              └─ Identifier "y" [variable:0] (const) @19:16
+└─ FunctionDeclaration "for_let_scoping" @22:1
+   └─ body
+      └─ FunctionBody @23:5
+         ├─ VariableDeclaration (let) @23:5
+         │  └─ VariableDeclarator @23:5
+         │     ├─ Identifier "sum" [variable:1] (let) @23:9
+         │     └─ NumericLiteral 0 @23:15
+         ├─ ForStatement @24:5
+         │  ├─ init
+         │  │  └─ VariableDeclaration (let) @24:10
+         │  │     └─ VariableDeclarator @24:10
+         │  │        ├─ Identifier "i" [variable:0] (let) @24:14
+         │  │        └─ NumericLiteral 0 @24:18
+         │  ├─ test
+         │  │  └─ BinaryExpression (<) @24:23
+         │  │     ├─ Identifier "i" [variable:0] (let) @24:21
+         │  │     └─ NumericLiteral 3 @24:25
+         │  ├─ update
+         │  │  └─ UpdateExpression (++, postfix) @24:29
+         │  │     └─ Identifier "i" [variable:0] (let) @24:28
+         │  └─ body
+         │     └─ BlockStatement @24:33
+         │        └─ ExpressionStatement @25:9
+         │           └─ AssignmentExpression (=) @25:13
+         │              ├─ Identifier "sum" [variable:1] (let) @25:9
+         │              └─ BinaryExpression (+) @25:19
+         │                 ├─ Identifier "sum" [variable:1] (let) @25:15
+         │                 └─ Identifier "i" [variable:0] (let) @25:21
+         └─ ReturnStatement @27:5
+            └─ Identifier "sum" [variable:1] (let) @27:12

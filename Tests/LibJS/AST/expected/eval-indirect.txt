@@ -1,0 +1,78 @@
+Program (script) @2:1
+├─ FunctionDeclaration "indirect_eval" [might-need-arguments] @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ VariableDeclaration (let) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "x" [variable:0] (let) @3:9
+│        │     └─ NumericLiteral 1 @3:13
+│        ├─ ExpressionStatement @4:5
+│        │  └─ CallExpression @4:14
+│        │     ├─ SequenceExpression @4:6
+│        │     │  ├─ NumericLiteral 0 @4:6
+│        │     │  └─ Identifier "eval" [global] @4:9
+│        │     └─ StringLiteral "x" @4:18
+│        └─ ReturnStatement @5:5
+│           └─ Identifier "x" [variable:0] (let) @5:12
+├─ FunctionDeclaration "eval_alias" [might-need-arguments] @9:1
+│  └─ body
+│     └─ FunctionBody @10:5
+│        ├─ VariableDeclaration (let) @10:5
+│        │  └─ VariableDeclarator @10:5
+│        │     ├─ Identifier "x" [variable:1] (let) @10:9
+│        │     └─ NumericLiteral 1 @10:13
+│        ├─ VariableDeclaration (var) @11:5
+│        │  └─ VariableDeclarator @11:5
+│        │     ├─ Identifier "e" [variable:0] (var) @11:9
+│        │     └─ Identifier "eval" [global] @11:13
+│        ├─ ExpressionStatement @12:5
+│        │  └─ CallExpression @12:6
+│        │     ├─ Identifier "e" [variable:0] (var) @12:5
+│        │     └─ StringLiteral "x" @12:10
+│        └─ ReturnStatement @13:5
+│           └─ Identifier "x" [variable:1] (let) @13:12
+├─ FunctionDeclaration "eval_method" @17:1
+│  └─ body
+│     └─ FunctionBody @18:5
+│        ├─ VariableDeclaration (let) @18:5
+│        │  └─ VariableDeclarator @18:5
+│        │     ├─ Identifier "x" [variable:1] (let) @18:9
+│        │     └─ NumericLiteral 1 @18:13
+│        ├─ VariableDeclaration (var) @19:5
+│        │  └─ VariableDeclarator @19:5
+│        │     ├─ Identifier "obj" [variable:0] (var) @19:9
+│        │     └─ ObjectExpression @19:15
+│        │        └─ ObjectProperty @19:15
+│        │           ├─ StringLiteral "eval" @19:15
+│        │           └─ Identifier "eval" [global] @19:15
+│        ├─ ExpressionStatement @20:5
+│        │  └─ CallExpression @20:13
+│        │     ├─ MemberExpression @20:8
+│        │     │  ├─ Identifier "obj" [variable:0] (var) @20:5
+│        │     │  └─ Identifier "eval" @20:8
+│        │     └─ StringLiteral "x" @20:17
+│        └─ ReturnStatement @21:5
+│           └─ Identifier "x" [variable:1] (let) @21:12
+└─ FunctionDeclaration "local_eval_name" [direct-eval] [uses-this] [might-need-arguments] @25:1
+   └─ body
+      └─ FunctionBody @26:5
+         ├─ VariableDeclaration (let) @26:5
+         │  └─ VariableDeclarator @26:5
+         │     ├─ Identifier "x" (let) @26:9
+         │     └─ NumericLiteral 1 @26:13
+         ├─ VariableDeclaration (let) @27:5
+         │  └─ VariableDeclarator @27:5
+         │     ├─ Identifier "eval" (let) @27:9
+         │     └─ FunctionExpression "" [arrow] @27:16
+         │        ├─ parameters
+         │        │  └─ Identifier "s" [argument:0] @27:16
+         │        └─ body
+         │           └─ FunctionBody @27:16
+         │              └─ ReturnStatement @27:16
+         │                 └─ Identifier "s" [argument:0] @27:21
+         ├─ ExpressionStatement @28:5
+         │  └─ CallExpression @28:9
+         │     ├─ Identifier "eval" (let) @28:5
+         │     └─ StringLiteral "x" @28:13
+         └─ ReturnStatement @29:5
+            └─ Identifier "x" (let) @29:12

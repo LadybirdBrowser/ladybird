@@ -1,0 +1,70 @@
+Program (script) @2:1
+├─ FunctionDeclaration "labeled_block" @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ VariableDeclaration (let) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "x" [variable:1] (let) @3:9
+│        │     └─ NumericLiteral 1 @3:13
+│        ├─ LabelledStatement "outer" @4:5
+│        │  └─ BlockStatement @4:12
+│        │     ├─ VariableDeclaration (let) @5:9
+│        │     │  └─ VariableDeclarator @5:9
+│        │     │     ├─ Identifier "y" [variable:0] (let) @5:13
+│        │     │     └─ NumericLiteral 2 @5:17
+│        │     └─ BreakStatement @6:9
+│        └─ ReturnStatement @8:5
+│           └─ Identifier "x" [variable:1] (let) @8:12
+└─ FunctionDeclaration "labeled_loop" @12:1
+   └─ body
+      └─ FunctionBody @13:5
+         ├─ VariableDeclaration (let) @13:5
+         │  └─ VariableDeclarator @13:5
+         │     ├─ Identifier "sum" [variable:2] (let) @13:9
+         │     └─ NumericLiteral 0 @13:15
+         ├─ LabelledStatement "outer" @14:5
+         │  └─ ForStatement @14:12
+         │     ├─ init
+         │     │  └─ VariableDeclaration (let) @14:17
+         │     │     └─ VariableDeclarator @14:17
+         │     │        ├─ Identifier "i" [variable:1] (let) @14:21
+         │     │        └─ NumericLiteral 0 @14:25
+         │     ├─ test
+         │     │  └─ BinaryExpression (<) @14:30
+         │     │     ├─ Identifier "i" [variable:1] (let) @14:28
+         │     │     └─ NumericLiteral 3 @14:32
+         │     ├─ update
+         │     │  └─ UpdateExpression (++, postfix) @14:36
+         │     │     └─ Identifier "i" [variable:1] (let) @14:35
+         │     └─ body
+         │        └─ BlockStatement @14:40
+         │           └─ ForStatement @15:9
+         │              ├─ init
+         │              │  └─ VariableDeclaration (let) @15:14
+         │              │     └─ VariableDeclarator @15:14
+         │              │        ├─ Identifier "j" [variable:0] (let) @15:18
+         │              │        └─ NumericLiteral 0 @15:22
+         │              ├─ test
+         │              │  └─ BinaryExpression (<) @15:27
+         │              │     ├─ Identifier "j" [variable:0] (let) @15:25
+         │              │     └─ NumericLiteral 3 @15:29
+         │              ├─ update
+         │              │  └─ UpdateExpression (++, postfix) @15:33
+         │              │     └─ Identifier "j" [variable:0] (let) @15:32
+         │              └─ body
+         │                 └─ BlockStatement @15:37
+         │                    ├─ IfStatement @16:13
+         │                    │  ├─ test
+         │                    │  │  └─ BinaryExpression (===) @16:19
+         │                    │  │     ├─ Identifier "j" [variable:0] (let) @16:17
+         │                    │  │     └─ NumericLiteral 1 @16:23
+         │                    │  └─ consequent
+         │                    │     └─ ContinueStatement @16:26
+         │                    └─ ExpressionStatement @17:13
+         │                       └─ AssignmentExpression (=) @17:17
+         │                          ├─ Identifier "sum" [variable:2] (let) @17:13
+         │                          └─ BinaryExpression (+) @17:23
+         │                             ├─ Identifier "sum" [variable:2] (let) @17:19
+         │                             └─ Identifier "j" [variable:0] (let) @17:25
+         └─ ReturnStatement @20:5
+            └─ Identifier "sum" [variable:2] (let) @20:12

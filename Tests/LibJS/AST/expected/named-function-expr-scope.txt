@@ -1,0 +1,52 @@
+Program (script) @3:1
+├─ VariableDeclaration (var) @3:1
+│  └─ VariableDeclarator @3:1
+│     ├─ Identifier "f" [global] (var) @3:5
+│     └─ FunctionExpression "myFunc" @3:9
+│        └─ body
+│           └─ FunctionBody @4:5
+│              └─ ReturnStatement @4:5
+│                 └─ Identifier "myFunc" [in-eval-scope] @4:12
+├─ VariableDeclaration (var) @8:1
+│  └─ VariableDeclarator @8:1
+│     ├─ Identifier "g" [global] (var) @8:5
+│     └─ FunctionExpression "gName" @8:9
+│        ├─ parameters
+│        │  └─ Identifier "x" [argument:0] @8:24
+│        └─ body
+│           └─ FunctionBody @9:5
+│              └─ ReturnStatement @9:5
+│                 └─ CallExpression @9:17
+│                    ├─ Identifier "gName" [in-eval-scope] @9:12
+│                    └─ BinaryExpression (-) @9:20
+│                       ├─ Identifier "x" [argument:0] @9:18
+│                       └─ NumericLiteral 1 @9:22
+├─ FunctionDeclaration "outer" @13:1
+│  └─ body
+│     └─ FunctionBody @14:5
+│        ├─ VariableDeclaration (var) @14:5
+│        │  └─ VariableDeclarator @14:5
+│        │     ├─ Identifier "inner" [variable:0] (var) @14:9
+│        │     └─ FunctionExpression "innerName" @14:17
+│        │        └─ body
+│        │           └─ FunctionBody @15:9
+│        │              └─ ReturnStatement @15:9
+│        │                 └─ Identifier "innerName" [in-eval-scope] @15:16
+│        └─ ReturnStatement @17:5
+│           └─ Identifier "inner" [variable:0] (var) @17:12
+└─ FunctionDeclaration "make_counter" @21:1
+   └─ body
+      └─ FunctionBody @22:5
+         ├─ VariableDeclaration (let) @22:5
+         │  └─ VariableDeclarator @22:5
+         │     ├─ Identifier "count" (let) @22:9
+         │     └─ NumericLiteral 0 @22:17
+         └─ ReturnStatement @23:5
+            └─ FunctionExpression "tick" @23:12
+               └─ body
+                  └─ FunctionBody @24:9
+                     ├─ ExpressionStatement @24:9
+                     │  └─ UpdateExpression (++, postfix) @24:14
+                     │     └─ Identifier "count" (let) @24:9
+                     └─ ReturnStatement @25:9
+                        └─ Identifier "tick" [in-eval-scope] @25:16

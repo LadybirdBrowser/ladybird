@@ -1,0 +1,42 @@
+Program (script) @1:1
+└─ FunctionDeclaration "destructure" @1:1
+   └─ body
+      └─ FunctionBody @2:5
+         ├─ VariableDeclaration (let) @2:5
+         │  └─ VariableDeclarator @2:5
+         │     ├─ BindingPattern (array)
+         │     │  ├─ entry
+         │     │  │  └─ alias
+         │     │  │     └─ Identifier "a" [variable:0] @2:9
+         │     │  └─ entry
+         │     │     └─ alias
+         │     │        └─ Identifier "b" [variable:1] @2:9
+         │     └─ ArrayExpression @2:18
+         │        ├─ NumericLiteral 1 @2:19
+         │        └─ NumericLiteral 2 @2:22
+         ├─ VariableDeclaration (let) @3:5
+         │  └─ VariableDeclarator @3:5
+         │     ├─ BindingPattern (object)
+         │     │  ├─ entry
+         │     │  │  └─ name
+         │     │  │     └─ Identifier "x" [variable:2] @3:9
+         │     │  └─ entry
+         │     │     ├─ name
+         │     │     │  └─ Identifier "y" [global] @3:9
+         │     │     └─ alias
+         │     │        └─ Identifier "z" [variable:3] @3:9
+         │     └─ ObjectExpression @3:23
+         │        ├─ ObjectProperty @3:23
+         │        │  ├─ StringLiteral "x" @3:23
+         │        │  └─ NumericLiteral 3 @3:28
+         │        └─ ObjectProperty @3:23
+         │           ├─ StringLiteral "y" @3:23
+         │           └─ NumericLiteral 4 @3:34
+         └─ ReturnStatement @4:5
+            └─ BinaryExpression (+) @4:22
+               ├─ BinaryExpression (+) @4:18
+               │  ├─ BinaryExpression (+) @4:14
+               │  │  ├─ Identifier "a" [variable:0] @4:12
+               │  │  └─ Identifier "b" [variable:1] @4:16
+               │  └─ Identifier "x" [variable:2] @4:20
+               └─ Identifier "z" [variable:3] @4:24
