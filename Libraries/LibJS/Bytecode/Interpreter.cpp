@@ -523,6 +523,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ThrowIfNotObject);
             HANDLE_INSTRUCTION(ThrowIfNullish);
             HANDLE_INSTRUCTION(ThrowIfTDZ);
+            HANDLE_INSTRUCTION(ThrowConstAssignment);
             HANDLE_INSTRUCTION(ToLength);
             HANDLE_INSTRUCTION(ToObject);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(ToBoolean);
@@ -2869,6 +2870,12 @@ ThrowCompletionOr<void> ThrowIfTDZ::execute_impl(Bytecode::Interpreter& interpre
     if (value.is_special_empty_value()) [[unlikely]]
         return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, value);
     return {};
+}
+
+ThrowCompletionOr<void> ThrowConstAssignment::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    return vm.throw_completion<TypeError>(ErrorType::InvalidAssignToConst);
 }
 
 void LeavePrivateEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
