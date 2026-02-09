@@ -72,8 +72,16 @@ public:
     RefPtr<BindingPattern const> parse_binding_pattern(AllowDuplicates is_var_declaration = AllowDuplicates::No, AllowMemberExpressions allow_member_expressions = AllowMemberExpressions::No);
 
     struct PrimaryExpressionParseResult {
+        PrimaryExpressionParseResult(NonnullRefPtr<Expression const> result, bool should_continue_parsing_as_expression = true, Optional<Position> invalid_object_property_range = {})
+            : result(move(result))
+            , should_continue_parsing_as_expression(should_continue_parsing_as_expression)
+            , invalid_object_property_range(move(invalid_object_property_range))
+        {
+        }
+
         NonnullRefPtr<Expression const> result;
         bool should_continue_parsing_as_expression { true };
+        Optional<Position> invalid_object_property_range;
     };
 
     NonnullRefPtr<Declaration const> parse_declaration();
@@ -156,7 +164,7 @@ public:
     PrimaryExpressionParseResult parse_primary_expression();
     NonnullRefPtr<Expression const> parse_unary_prefixed_expression();
     NonnullRefPtr<RegExpLiteral const> parse_regexp_literal();
-    NonnullRefPtr<ObjectExpression const> parse_object_expression();
+    PrimaryExpressionParseResult parse_object_expression();
     NonnullRefPtr<ArrayExpression const> parse_array_expression();
 
     enum class StringLiteralType {
@@ -294,7 +302,6 @@ private:
         Vector<ParserError> errors;
 
         HashMap<Utf16FlyString, Optional<Position>> labels_in_scope;
-        HashMap<size_t, Position> invalid_property_range_in_object_expression;
         HashTable<Utf16FlyString>* referenced_private_names { nullptr };
 
         bool strict_mode { false };
