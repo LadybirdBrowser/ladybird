@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 63 tests
 
-62 Pass
-1 Fail
+63 Pass
 Pass	e.style['grid'] = "none" should set grid-auto-columns
 Pass	e.style['grid'] = "none" should set grid-auto-flow
 Pass	e.style['grid'] = "none" should set grid-auto-rows
@@ -61,7 +60,7 @@ Pass	e.style['grid'] = "10px / auto-flow dense 20px" should set grid-template-co
 Pass	e.style['grid'] = "10px / auto-flow dense 20px" should set grid-template-rows
 Pass	e.style['grid'] = "10px / auto-flow dense 20px" should not set unrelated longhands
 Pass	e.style['grid'] = "auto-flow dense 30px / 40px" should set grid-auto-columns
-Fail	e.style['grid'] = "auto-flow dense 30px / 40px" should set grid-auto-flow
+Pass	e.style['grid'] = "auto-flow dense 30px / 40px" should set grid-auto-flow
 Pass	e.style['grid'] = "auto-flow dense 30px / 40px" should set grid-auto-rows
 Pass	e.style['grid'] = "auto-flow dense 30px / 40px" should set grid-template-areas
 Pass	e.style['grid'] = "auto-flow dense 30px / 40px" should set grid-template-columns

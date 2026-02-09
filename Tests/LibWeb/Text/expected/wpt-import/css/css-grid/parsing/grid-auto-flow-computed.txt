@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-4 Pass
-3 Fail
+7 Pass
 Pass	Property grid-auto-flow value 'row'
 Pass	Property grid-auto-flow value 'column'
-Fail	Property grid-auto-flow value 'row dense'
+Pass	Property grid-auto-flow value 'row dense'
 Pass	Property grid-auto-flow value 'column dense'
-Fail	Property grid-auto-flow value 'dense row'
+Pass	Property grid-auto-flow value 'dense row'
 Pass	Property grid-auto-flow value 'dense column'
-Fail	Property grid-auto-flow value 'dense'
+Pass	Property grid-auto-flow value 'dense'
