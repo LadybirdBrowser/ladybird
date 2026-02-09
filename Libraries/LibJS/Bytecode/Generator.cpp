@@ -301,7 +301,6 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         size_t start_offset;
         size_t end_offset;
         BasicBlock const* handler;
-        BasicBlock const* finalizer;
     };
     Vector<UnlinkedExceptionHandlers> unlinked_exception_handlers;
 
@@ -361,12 +360,11 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
     for (auto& block : generator.m_root_basic_blocks) {
         basic_block_start_offsets.append(bytecode.size());
-        if (block->handler() || block->finalizer()) {
+        if (block->handler()) {
             unlinked_exception_handlers.append({
                 .start_offset = bytecode.size(),
                 .end_offset = 0,
                 .handler = block->handler(),
-                .finalizer = block->finalizer(),
             });
         }
 
@@ -453,7 +451,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
             Op::End end(*undefined_constant);
             bytecode.append(reinterpret_cast<u8 const*>(&end), end.length());
         }
-        if (block->handler() || block->finalizer()) {
+        if (block->handler()) {
             unlinked_exception_handlers.last().end_offset = bytecode.size();
         }
     }
@@ -483,18 +481,17 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     for (auto& unlinked_handler : unlinked_exception_handlers) {
         auto start_offset = unlinked_handler.start_offset;
         auto end_offset = unlinked_handler.end_offset;
-        auto handler_offset = unlinked_handler.handler ? block_offsets.get(unlinked_handler.handler).value() : Optional<size_t> {};
-        auto finalizer_offset = unlinked_handler.finalizer ? block_offsets.get(unlinked_handler.finalizer).value() : Optional<size_t> {};
+        auto handler_offset = block_offsets.get(unlinked_handler.handler).value();
 
         auto maybe_exception_handler_to_merge_with = linked_exception_handlers.find_if([&](Executable::ExceptionHandlers const& exception_handler) {
-            return exception_handler.end_offset == start_offset && exception_handler.handler_offset == handler_offset && exception_handler.finalizer_offset == finalizer_offset;
+            return exception_handler.end_offset == start_offset && exception_handler.handler_offset == handler_offset;
         });
 
         if (!maybe_exception_handler_to_merge_with.is_end()) {
             auto& exception_handler_to_merge_with = *maybe_exception_handler_to_merge_with;
             exception_handler_to_merge_with.end_offset = end_offset;
         } else {
-            linked_exception_handlers.append({ start_offset, end_offset, handler_offset, finalizer_offset });
+            linked_exception_handlers.append({ start_offset, end_offset, handler_offset });
         }
     }
 
@@ -586,9 +583,9 @@ Generator::SourceLocationScope::~SourceLocationScope()
     m_generator.m_current_ast_node = m_previous_node;
 }
 
-Generator::UnwindContext::UnwindContext(Generator& generator, Optional<Label> finalizer)
+Generator::UnwindContext::UnwindContext(Generator& generator, Optional<Label> handler)
     : m_generator(generator)
-    , m_finalizer(finalizer)
+    , m_handler(handler)
     , m_previous_context(m_generator.m_current_unwind_context)
 {
     m_generator.m_current_unwind_context = this;

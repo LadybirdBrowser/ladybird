@@ -235,18 +235,8 @@ Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_
     if (!handlers.has_value()) {
         return HandleExceptionResponse::ExitFromExecutable;
     }
-    auto& handler = handlers->handler_offset;
-    auto& finalizer = handlers->finalizer_offset;
-
-    if (handler.has_value()) {
-        program_counter = handler.value();
-        return HandleExceptionResponse::ContinueInThisExecutable;
-    }
-    if (finalizer.has_value()) {
-        program_counter = finalizer.value();
-        return HandleExceptionResponse::ContinueInThisExecutable;
-    }
-    VERIFY_NOT_REACHED();
+    program_counter = handlers->handler_offset;
+    return HandleExceptionResponse::ContinueInThisExecutable;
 }
 
 void Interpreter::run_bytecode(size_t entry_point)

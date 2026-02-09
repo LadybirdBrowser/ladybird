@@ -42,10 +42,8 @@ public:
     String const& name() const { return m_name; }
 
     void set_handler(BasicBlock const& handler) { m_handler = &handler; }
-    void set_finalizer(BasicBlock const& finalizer) { m_finalizer = &finalizer; }
 
     BasicBlock const* handler() const { return m_handler; }
-    BasicBlock const* finalizer() const { return m_finalizer; }
 
     auto const& source_map() const { return m_source_map; }
     void add_source_map_entry(u32 bytecode_offset, SourceRecord const& source_record) { m_source_map.append({ bytecode_offset, source_record }); }
@@ -62,7 +60,6 @@ private:
     u32 m_index { 0 };
     Vector<u8> m_buffer;
     BasicBlock const* m_handler { nullptr };
-    BasicBlock const* m_finalizer { nullptr };
     String m_name;
     bool m_terminated { false };
     bool m_has_resolved_this { false };
