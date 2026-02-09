@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="width: 100px; height: 50px;">
+    <span>Hello</span>
+</div>
+<script>
+    test(() => {
+        const el = document.getElementById("target");
+        println(internals.dumpLayoutTree(el));
+    });
+</script>

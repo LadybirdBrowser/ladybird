@@ -20,6 +20,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -461,6 +462,19 @@ bool Internals::headless()
 String Internals::dump_display_list()
 {
     return window().associated_document().dump_display_list();
+}
+
+String Internals::dump_layout_tree(GC::Ref<DOM::Node> node)
+{
+    node->document().update_layout(DOM::UpdateLayoutReason::Debugging);
+
+    auto* layout_node = node->layout_node();
+    if (!layout_node)
+        return "(no layout node)"_string;
+
+    StringBuilder builder;
+    Web::dump_tree(builder, *layout_node);
+    return builder.to_string_without_validation();
 }
 
 String Internals::dump_stacking_context_tree()

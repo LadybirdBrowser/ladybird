@@ -70,6 +70,7 @@ interface Internals {
     readonly attribute boolean headless;
 
     DOMString dumpDisplayList();
+    DOMString dumpLayoutTree(Node node);
     DOMString dumpStackingContextTree();
     DOMString dumpGCGraph();
 
