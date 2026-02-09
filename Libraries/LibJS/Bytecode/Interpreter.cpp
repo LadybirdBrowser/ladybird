@@ -238,10 +238,6 @@ Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_
     auto& handler = handlers->handler_offset;
     auto& finalizer = handlers->finalizer_offset;
 
-    auto& unwind_contexts = running_execution_context().ensure_rare_data()->unwind_contexts;
-    auto& unwind_context = unwind_contexts.last();
-    VERIFY(unwind_context.executable == &current_executable());
-
     if (handler.has_value()) {
         program_counter = handler.value();
         return HandleExceptionResponse::ContinueInThisExecutable;
@@ -648,8 +644,6 @@ void Interpreter::catch_exception(Operand dst)
 {
     set(dst, reg(Register::exception()));
     reg(Register::exception()) = js_special_empty_value();
-    auto& context = running_execution_context().rare_data()->unwind_contexts.last();
-    VERIFY(context.executable == &current_executable());
 }
 
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, Utf16FlyString const& name)

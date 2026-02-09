@@ -56,8 +56,6 @@ class JS_API ExecutionContextRareData final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(ExecutionContextRareData);
 
 public:
-    Vector<Bytecode::UnwindInfo> unwind_contexts;
-
     mutable GC::Ptr<CachedSourceRange> cached_source_range;
 
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.

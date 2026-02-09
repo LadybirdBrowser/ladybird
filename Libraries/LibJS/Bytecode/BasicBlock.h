@@ -8,16 +8,11 @@
 
 #include <AK/Badge.h>
 #include <AK/String.h>
-#include <LibGC/Root.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/ScopedOperand.h>
 #include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
-
-struct UnwindInfo {
-    GC::Ptr<Executable const> executable;
-};
 
 class BasicBlock {
     AK_MAKE_NONCOPYABLE(BasicBlock);
