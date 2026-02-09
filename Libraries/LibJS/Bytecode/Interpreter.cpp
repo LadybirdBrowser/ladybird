@@ -555,11 +555,6 @@ void Interpreter::run_bytecode(size_t entry_point)
         handle_Yield: {
             auto& instruction = *reinterpret_cast<Op::Yield const*>(&bytecode[program_counter]);
             instruction.execute_impl(*this);
-            // Note: A `yield` statement will not go through a finally statement,
-            //       hence we need to set a flag to not do so,
-            //       but we generate a Yield Operation in the case of returns in
-            //       generators as well, so we need to check if it will actually
-            //       continue or is a `return` in disguise
             return;
         }
         }
