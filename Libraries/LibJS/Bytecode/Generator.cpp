@@ -1006,6 +1006,10 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
 void Generator::emit_set_variable(JS::Identifier const& identifier, ScopedOperand value, Bytecode::Op::BindingInitializationMode initialization_mode, Bytecode::Op::EnvironmentMode environment_mode)
 {
     if (identifier.is_local()) {
+        if (initialization_mode == Bytecode::Op::BindingInitializationMode::Set && identifier.declaration_kind() == DeclarationKind::Const) {
+            emit<Bytecode::Op::ThrowConstAssignment>();
+            return;
+        }
         auto local_index = identifier.local_index();
         if (value.operand().is_local() && local_index.is_variable() && value.operand().index() == local_index.index) {
             // Moving a local to itself is a no-op.

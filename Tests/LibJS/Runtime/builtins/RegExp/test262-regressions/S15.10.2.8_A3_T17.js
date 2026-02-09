@@ -1,13 +1,13 @@
 // https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/S15.10.2.8_A3_T17.js
 describe("S15.10.2.8_A3_T17", () => {
     test("nested capture groups", () => {
-        const __body = "";
+        let __body = "";
         __body += '<body onXXX="alert(event.type);">\n';
         __body += "<p>Kibology for all<\/p>\n";
         __body += "<p>All for Kibology<\/p>\n";
         __body += "<\/body>";
 
-        const __html = "";
+        let __html = "";
         __html += "<html>\n";
         __html += __body;
         __html += "\n<\/html>";

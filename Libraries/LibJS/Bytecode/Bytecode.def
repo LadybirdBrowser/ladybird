@@ -996,6 +996,9 @@ op ThrowIfTDZ < Instruction
     m_src: Operand
 endop
 
+op ThrowConstAssignment < Instruction
+endop
+
 op ToBoolean < Instruction
     @nothrow
     m_dst: Operand
