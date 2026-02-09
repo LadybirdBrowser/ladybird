@@ -147,12 +147,6 @@ op ConcatString < Instruction
     m_src: Operand
 endop
 
-op ContinuePendingUnwind < Instruction
-    @terminator
-    @nothrow
-    m_resume_target: Label
-endop
-
 op CopyObjectExcludingProperties < Instruction
     m_length: u32
     m_dst: Operand
@@ -618,10 +612,6 @@ op JumpUndefined < Instruction
     m_false_target: Label
 endop
 
-op LeaveFinally < Instruction
-    @nothrow
-endop
-
 op LeaveLexicalEnvironment < Instruction
     @nothrow
 endop
@@ -750,12 +740,6 @@ op Not < Instruction
     @nothrow
     m_dst: Operand
     m_src: Operand
-endop
-
-op PrepareYield < Instruction
-    @nothrow
-    m_dest: Operand
-    m_value: Operand
 endop
 
 op PostfixDecrement < Instruction
@@ -936,10 +920,6 @@ endop
 op ResolveThisBinding < Instruction
 endop
 
-op RestoreScheduledJump < Instruction
-    @nothrow
-endop
-
 op Return < Instruction
     @terminator
     @nothrow
@@ -950,12 +930,6 @@ op RightShift < Instruction
     m_dst: Operand
     m_lhs: Operand
     m_rhs: Operand
-endop
-
-op ScheduleJump < Instruction
-    @terminator
-    @nothrow
-    m_target: Label
 endop
 
 op SetCompletionType < Instruction

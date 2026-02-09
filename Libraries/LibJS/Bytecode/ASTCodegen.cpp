@@ -2788,39 +2788,80 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BreakStatement::generat
     return Optional<ScopedOperand> {};
 }
 
+// Try/finally uses an explicit completion record protocol:
+//
+//   1. Allocate two registers: completion_type and completion_value
+//   2. Every path into the finally body sets these before jumping:
+//      - Normal exit: completion_type = NORMAL
+//      - Exception:   completion_type = THROW, completion_value = exception
+//      - Return:      completion_type = RETURN, completion_value = return value
+//      - Break/continue: completion_type = FIRST_JUMP_INDEX + n
+//   3. After the finally body, a dispatch chain checks completion_type
+//      and routes to the correct continuation (next block, jump target,
+//      return, or rethrow).
+//
+// For exceptions, the handler table points to an "exception preamble" block
+// that catches the exception into completion_value, sets completion_type to
+// THROW, and jumps to the finally body.
+//
+// For nested finally (e.g. break through two finally blocks), trampoline
+// blocks chain through each finally layer, with each inner finally dispatching
+// to a trampoline that sets up the outer finally's completion record.
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto& saved_block = generator.current_block();
 
     Optional<Bytecode::Label> handler_target;
-    Optional<Bytecode::Label> finalizer_target;
     Optional<Bytecode::Generator::UnwindContext> unwind_context;
 
     Bytecode::BasicBlock* next_block { nullptr };
 
     Optional<ScopedOperand> completion;
 
+    Optional<Bytecode::Generator::FinallyContext> finally_context;
+    Bytecode::BasicBlock* finally_body_block_ptr { nullptr };
+
     if (m_finalizer) {
-        // FIXME: See notes in Op.h->ScheduleJump
-        auto& finalizer_block = generator.make_block();
-        generator.switch_to_basic_block(finalizer_block);
+        // Allocate completion record registers.
+        auto completion_type = generator.allocate_register();
+        auto completion_value = generator.allocate_register();
+
+        // Create the exception preamble block (handler table points here for exceptions).
+        auto& exception_preamble_block = generator.make_block();
+
+        // Create the finally body block (all paths converge here).
+        auto& finally_body_block = generator.make_block();
+        finally_body_block_ptr = &finally_body_block;
+
+        // Set up FinallyContext.
+        finally_context.emplace(Bytecode::Generator::FinallyContext {
+            .completion_type = completion_type,
+            .completion_value = completion_value,
+            .finally_body = Bytecode::Label { finally_body_block },
+            .exception_preamble = Bytecode::Label { exception_preamble_block },
+            .parent = generator.current_finally_context(),
+            .registered_jumps = {},
+            .next_jump_index = Bytecode::Generator::FinallyContext::FIRST_JUMP_INDEX,
+        });
+        generator.set_current_finally_context(&*finally_context);
+
+        // Generate exception preamble:
+        //   Catch completion_value
+        //   Mov completion_type, 1 (Throw)
+        //   LeaveUnwindContext
+        //   Jump finally_body
+        generator.switch_to_basic_block(exception_preamble_block);
+        generator.emit<Bytecode::Op::Catch>(completion_value);
+        generator.emit_mov(completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::THROW)));
         generator.emit<Bytecode::Op::LeaveUnwindContext>();
+        generator.emit<Bytecode::Op::Jump>(Bytecode::Label { finally_body_block });
 
-        generator.start_boundary(Bytecode::Generator::BlockBoundaryType::LeaveFinally);
-        (void)TRY(m_finalizer->generate_bytecode(generator));
-        generator.end_boundary(Bytecode::Generator::BlockBoundaryType::LeaveFinally);
-
-        if (!generator.is_current_block_terminated()) {
-            next_block = &generator.make_block();
-            auto next_target = Bytecode::Label { *next_block };
-            generator.emit<Bytecode::Op::ContinuePendingUnwind>(next_target);
-        }
-        finalizer_target = Bytecode::Label { finalizer_block };
-
+        // Set up unwind context with exception_preamble as finalizer.
         generator.start_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
-        unwind_context.emplace(generator, finalizer_target);
+        unwind_context.emplace(generator, Bytecode::Label { exception_preamble_block });
     }
+
     if (m_handler) {
         auto& handler_block = generator.make_block();
         generator.switch_to_basic_block(handler_block);
@@ -2830,7 +2871,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
 
         if (!m_finalizer) {
             generator.emit<Bytecode::Op::LeaveUnwindContext>();
-            generator.emit<Bytecode::Op::RestoreScheduledJump>();
         }
 
         // OPTIMIZATION: We avoid creating a lexical environment if the catch clause has no parameter.
@@ -2888,16 +2928,19 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
 
         if (!generator.is_current_block_terminated()) {
             if (m_finalizer) {
-                generator.emit<Bytecode::Op::Jump>(*finalizer_target);
+                // Normal exit from catch → set completion_type=Normal, jump to finally.
+                generator.emit_mov(finally_context->completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::NORMAL)));
+                generator.emit<Bytecode::Op::LeaveUnwindContext>();
+                generator.emit<Bytecode::Op::Jump>(finally_context->finally_body);
             } else {
                 VERIFY(!next_block);
                 VERIFY(!unwind_context.has_value());
                 next_block = &generator.make_block();
-                auto next_target = Bytecode::Label { *next_block };
-                generator.emit<Bytecode::Op::Jump>(next_target);
+                generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *next_block });
             }
         }
     }
+
     if (m_finalizer)
         generator.end_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
     if (m_handler) {
@@ -2929,7 +2972,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         }
 
         if (m_finalizer) {
-            generator.emit<Bytecode::Op::Jump>(*finalizer_target);
+            // Normal exit from try → set completion_type=Normal, leave unwind, jump to finally.
+            generator.emit_mov(finally_context->completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::NORMAL)));
+            generator.emit<Bytecode::Op::LeaveUnwindContext>();
+            generator.emit<Bytecode::Op::Jump>(finally_context->finally_body);
         } else {
             VERIFY(unwind_context.has_value());
             unwind_context.clear();
@@ -2943,6 +2989,78 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
     if (m_finalizer)
         generator.end_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
     generator.end_boundary(Bytecode::Generator::BlockBoundaryType::Unwind);
+
+    // Now generate the finally body and after-finally dispatch.
+    // We deferred this so that registered_jumps from break/continue in the try body are available.
+    if (m_finalizer && finally_context.has_value()) {
+        generator.set_current_finally_context(finally_context->parent);
+
+        // Clear the unwind context so that blocks created during finally body generation
+        // don't inherit the inner handler/finalizer (the inner unwind context is already
+        // popped at runtime by the time the finally body runs).
+        unwind_context.clear();
+
+        generator.switch_to_basic_block(*finally_body_block_ptr);
+        generator.start_boundary(Bytecode::Generator::BlockBoundaryType::LeaveFinally);
+        (void)TRY(m_finalizer->generate_bytecode(generator));
+        generator.end_boundary(Bytecode::Generator::BlockBoundaryType::LeaveFinally);
+
+        if (!generator.is_current_block_terminated()) {
+            if (!next_block)
+                next_block = &generator.make_block();
+
+            auto const& completion_type = finally_context->completion_type;
+            auto const& completion_value = finally_context->completion_value;
+
+            // After-finally dispatch chain: a series of JumpStrictlyEquals that check
+            // completion_type and route to the right continuation. Order:
+            //   1. NORMAL → fall through to next block
+            //   2. Each registered break/continue target
+            //   3. RETURN → return/yield the completion_value
+            //   4. Default → rethrow completion_value (must be THROW)
+            auto& after_normal_check = generator.make_block();
+            generator.emit<Bytecode::Op::JumpStrictlyEquals>(
+                completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::NORMAL)),
+                Bytecode::Label { *next_block }, Bytecode::Label { after_normal_check });
+
+            generator.switch_to_basic_block(after_normal_check);
+
+            // Registered break/continue jumps (indices 3+)
+            for (auto const& jump : finally_context->registered_jumps) {
+                auto& after_jump_check = generator.make_block();
+                generator.emit<Bytecode::Op::JumpStrictlyEquals>(
+                    completion_type, generator.add_constant(Value(jump.index)),
+                    jump.target, Bytecode::Label { after_jump_check });
+                generator.switch_to_basic_block(after_jump_check);
+            }
+
+            auto& return_block = generator.make_block();
+            auto& rethrow_block = generator.make_block();
+            generator.emit<Bytecode::Op::JumpStrictlyEquals>(
+                completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::RETURN)),
+                Bytecode::Label { return_block }, Bytecode::Label { rethrow_block });
+
+            // Generate return block.
+            generator.switch_to_basic_block(return_block);
+            if (finally_context->parent) {
+                // Nested finally: copy completion record to outer and jump to outer finally body.
+                auto& outer = *finally_context->parent;
+                generator.emit_mov(outer.completion_type, completion_type);
+                generator.emit_mov(outer.completion_value, completion_value);
+                generator.emit<Bytecode::Op::Jump>(outer.finally_body);
+            } else {
+                if (generator.is_in_generator_function()) {
+                    generator.emit<Bytecode::Op::Yield>(OptionalNone {}, completion_value);
+                } else {
+                    generator.emit<Bytecode::Op::Return>(completion_value);
+                }
+            }
+
+            // Default: rethrow the exception.
+            generator.switch_to_basic_block(rethrow_block);
+            generator.emit<Bytecode::Op::Throw>(completion_value);
+        }
+    }
 
     generator.switch_to_basic_block(next_block ? *next_block : saved_block);
     if (generator.must_propagate_completion()) {

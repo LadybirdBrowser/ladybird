@@ -1041,10 +1041,60 @@ Optional<IdentifierTableIndex> Generator::intern_identifier_for_expression(Expre
     return {};
 }
 
+// Scans outward from boundary_index looking for another ReturnToFinally boundary
+// between the current position and the break/continue target. If found, the jump
+// must chain through multiple finally blocks via trampolines rather than jumping
+// directly to the target after a single finally.
+bool Generator::has_outer_finally_before_target(JumpType type, size_t boundary_index) const
+{
+    using enum BlockBoundaryType;
+    for (size_t j = boundary_index - 1; j > 0; --j) {
+        auto inner = m_boundaries[j - 1];
+        if ((type == JumpType::Break && inner == Break) || (type == JumpType::Continue && inner == Continue))
+            return false;
+        if (inner == ReturnToFinally)
+            return true;
+    }
+    return false;
+}
+
+// Register a jump target with the current FinallyContext. Assigns a unique
+// completion_type index, records the target in registered_jumps (so the
+// after-finally dispatch chain can route to it), and emits bytecode to set
+// completion_type and jump to the finally body.
+void Generator::register_jump_in_finally_context(Label target)
+{
+    VERIFY(m_current_finally_context);
+    auto& finally_context = *m_current_finally_context;
+    VERIFY(finally_context.next_jump_index < NumericLimits<i32>::max());
+    auto jump_index = finally_context.next_jump_index++;
+    finally_context.registered_jumps.append({ jump_index, target });
+    emit_mov(finally_context.completion_type, add_constant(Value(jump_index)));
+    emit<Op::Jump>(finally_context.finally_body);
+}
+
+// For break/continue through nested finally blocks: creates an intermediate
+// "trampoline" block that the inner finally dispatches to, which then continues
+// unwinding through the next outer finally. Each trampoline is registered as a
+// jump target in the inner finally's dispatch chain.
+void Generator::emit_trampoline_through_finally(JumpType type, size_t& boundary_index)
+{
+    VERIFY(m_current_finally_context);
+    auto block_name = MUST(String::formatted("{}.{}", current_block().name(), type == JumpType::Break ? "break"sv : "continue"sv));
+    auto& trampoline_block = make_block(block_name);
+    register_jump_in_finally_context(Label { trampoline_block });
+    switch_to_basic_block(trampoline_block);
+    m_current_unwind_context = m_current_unwind_context->previous();
+    m_current_finally_context = m_current_finally_context->parent;
+    // Skip the paired Unwind boundary since the finally body already handles LeaveUnwindContext.
+    if (boundary_index > 1 && m_boundaries[boundary_index - 2] == BlockBoundaryType::Unwind)
+        --boundary_index;
+}
+
 void Generator::generate_scoped_jump(JumpType type)
 {
     TemporaryChange temp { m_current_unwind_context, m_current_unwind_context };
-    bool last_was_finally = false;
+    TemporaryChange finally_temp { m_current_finally_context, m_current_finally_context };
     for (size_t i = m_boundaries.size(); i > 0; --i) {
         auto boundary = m_boundaries[i - 1];
         using enum BlockBoundaryType;
@@ -1062,29 +1112,24 @@ void Generator::generate_scoped_jump(JumpType type)
             }
             break;
         case Unwind:
-            if (!last_was_finally) {
-                VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
-                emit<Bytecode::Op::LeaveUnwindContext>();
-                m_current_unwind_context = m_current_unwind_context->previous();
-            }
-            last_was_finally = false;
+            VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
+            emit<Bytecode::Op::LeaveUnwindContext>();
+            m_current_unwind_context = m_current_unwind_context->previous();
             break;
         case LeaveLexicalEnvironment:
             emit<Bytecode::Op::LeaveLexicalEnvironment>();
             break;
         case ReturnToFinally: {
-            VERIFY(m_current_unwind_context->finalizer().has_value());
-            m_current_unwind_context = m_current_unwind_context->previous();
-            auto jump_type_name = type == JumpType::Break ? "break"sv : "continue"sv;
-            auto block_name = MUST(String::formatted("{}.{}", current_block().name(), jump_type_name));
-            auto& block = make_block(block_name);
-            emit<Op::ScheduleJump>(Label { block });
-            switch_to_basic_block(block);
-            last_was_finally = true;
+            VERIFY(m_current_finally_context);
+            if (!has_outer_finally_before_target(type, i)) {
+                auto target = type == JumpType::Break ? nearest_breakable_scope() : nearest_continuable_scope();
+                register_jump_in_finally_context(target);
+                return;
+            }
+            emit_trampoline_through_finally(type, i);
             break;
         }
         case LeaveFinally:
-            emit<Op::LeaveFinally>();
             break;
         }
     }
@@ -1094,8 +1139,8 @@ void Generator::generate_scoped_jump(JumpType type)
 void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
 {
     TemporaryChange temp { m_current_unwind_context, m_current_unwind_context };
+    TemporaryChange finally_temp { m_current_finally_context, m_current_finally_context };
     size_t current_boundary = m_boundaries.size();
-    bool last_was_finally = false;
 
     auto const& jumpable_scopes = type == JumpType::Continue ? m_continuable_scopes : m_breakable_scopes;
 
@@ -1103,23 +1148,18 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
         for (; current_boundary > 0; --current_boundary) {
             auto boundary = m_boundaries[current_boundary - 1];
             if (boundary == BlockBoundaryType::Unwind) {
-                if (!last_was_finally) {
-                    VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
-                    emit<Bytecode::Op::LeaveUnwindContext>();
-                    m_current_unwind_context = m_current_unwind_context->previous();
-                }
-                last_was_finally = false;
+                VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
+                emit<Bytecode::Op::LeaveUnwindContext>();
+                m_current_unwind_context = m_current_unwind_context->previous();
             } else if (boundary == BlockBoundaryType::LeaveLexicalEnvironment) {
                 emit<Bytecode::Op::LeaveLexicalEnvironment>();
             } else if (boundary == BlockBoundaryType::ReturnToFinally) {
-                VERIFY(m_current_unwind_context->finalizer().has_value());
-                m_current_unwind_context = m_current_unwind_context->previous();
-                auto jump_type_name = type == JumpType::Break ? "break"sv : "continue"sv;
-                auto block_name = MUST(String::formatted("{}.{}", current_block().name(), jump_type_name));
-                auto& block = make_block(block_name);
-                emit<Op::ScheduleJump>(Label { block });
-                switch_to_basic_block(block);
-                last_was_finally = true;
+                VERIFY(m_current_finally_context);
+                if (!has_outer_finally_before_target(type, current_boundary) && jumpable_scope.language_label_set.contains_slow(label)) {
+                    register_jump_in_finally_context(jumpable_scope.bytecode_target);
+                    return;
+                }
+                emit_trampoline_through_finally(type, current_boundary);
             } else if ((type == JumpType::Continue && boundary == BlockBoundaryType::Continue) || (type == JumpType::Break && boundary == BlockBoundaryType::Break)) {
                 // Make sure we don't process this boundary twice if the current jumpable scope doesn't contain the target label.
                 --current_boundary;
