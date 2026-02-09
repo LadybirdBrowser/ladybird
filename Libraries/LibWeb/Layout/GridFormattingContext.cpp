@@ -13,13 +13,6 @@
 
 namespace Web::Layout {
 
-static CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, Layout::Node const& grid_container, CSSPixels reference_value)
-{
-    return gap.visit(
-        [](CSS::NormalGap) { return CSSPixels(0); },
-        [&](auto const& gap) { return gap.to_px(grid_container, reference_value); });
-}
-
 static Alignment to_alignment(CSS::JustifyContent value)
 {
     switch (value) {
@@ -255,7 +248,7 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
 
     auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
     auto const& gap = dimension == GridDimension::Column ? grid_computed_values.column_gap() : grid_computed_values.row_gap();
-    auto gap_px = gap_to_px(gap, grid_container(), available_size.to_px_or_zero());
+    auto gap_px = gap_to_px(gap, available_size.to_px_or_zero());
     auto size_of_repeated_tracks_with_gap = size_of_repeated_tracks + repeat_track_list.size() * gap_px;
     // Otherwise, if the grid container has a definite min size in the relevant axis, the number of repetitions is the
     // smallest possible positive integer that fulfills that minimum requirement
@@ -638,7 +631,7 @@ void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& availabl
     if (m_grid_columns.size() > 0) {
         CSSPixels column_gap_width = 0;
         if (!grid_container().computed_values().column_gap().has<CSS::NormalGap>()) {
-            column_gap_width = gap_to_px(grid_container().computed_values().column_gap(), grid_container(), available_space.width.to_px_or_zero());
+            column_gap_width = gap_to_px(grid_container().computed_values().column_gap(), available_space.width.to_px_or_zero());
         }
 
         m_column_gap_tracks.ensure_capacity(m_grid_columns.size() - 1);
@@ -656,7 +649,7 @@ void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& availabl
     if (!m_grid_rows.is_empty()) {
         CSSPixels row_gap_height = 0;
         if (!grid_container().computed_values().row_gap().has<CSS::NormalGap>()) {
-            row_gap_height = gap_to_px(grid_container().computed_values().row_gap(), grid_container(), available_space.height.to_px_or_zero());
+            row_gap_height = gap_to_px(grid_container().computed_values().row_gap(), available_space.height.to_px_or_zero());
         }
 
         m_row_gap_tracks.ensure_capacity(m_grid_rows.size() - 1);
@@ -1831,7 +1824,7 @@ void GridFormattingContext::resolve_track_spacing(GridDimension dimension)
 
     auto const& computed_gap = is_column_dimension ? grid_container().computed_values().column_gap() : grid_container().computed_values().row_gap();
     auto const& available_size = is_column_dimension ? m_available_space->width.to_px_or_zero() : m_available_space->height.to_px_or_zero();
-    space_between_tracks = max(space_between_tracks, gap_to_px(computed_gap, grid_container(), available_size));
+    space_between_tracks = max(space_between_tracks, gap_to_px(computed_gap, available_size));
 
     auto& gap_tracks = is_column_dimension ? m_column_gap_tracks : m_row_gap_tracks;
     for (auto& track : gap_tracks) {
