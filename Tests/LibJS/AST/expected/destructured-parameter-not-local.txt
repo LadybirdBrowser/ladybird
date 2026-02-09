@@ -1,0 +1,80 @@
+Program (script) @2:1
+├─ FunctionDeclaration "captured_by_closure" @2:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     └─ entry
+│  │        └─ name
+│  │           └─ Identifier "x" @2:30
+│  └─ body
+│     └─ FunctionBody @3:5
+│        └─ ReturnStatement @3:5
+│           └─ FunctionExpression "" @3:12
+│              └─ body
+│                 └─ FunctionBody @4:9
+│                    └─ ReturnStatement @4:9
+│                       └─ Identifier "x" @4:16
+├─ FunctionDeclaration "eval_defeats" [direct-eval] [uses-this] [might-need-arguments] @9:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     ├─ entry
+│  │     │  └─ name
+│  │     │     └─ Identifier "a" @9:23
+│  │     └─ entry
+│  │        └─ name
+│  │           └─ Identifier "b" @9:23
+│  └─ body
+│     └─ FunctionBody @10:5
+│        ├─ ExpressionStatement @10:5
+│        │  └─ CallExpression @10:9
+│        │     ├─ Identifier "eval" [in-eval-scope] @10:5
+│        │     └─ StringLiteral "" @10:12
+│        └─ ReturnStatement @11:5
+│           └─ BinaryExpression (+) @11:14
+│              ├─ Identifier "a" @11:12
+│              └─ Identifier "b" @11:16
+├─ FunctionDeclaration "with_defeats" @15:1
+│  ├─ parameters
+│  │  ├─ BindingPattern (object)
+│  │  │  └─ entry
+│  │  │     └─ name
+│  │  │        └─ Identifier "x" @15:23
+│  │  └─ Identifier "obj" [argument:1] @15:23
+│  └─ body
+│     └─ FunctionBody @16:5
+│        └─ WithStatement @16:5
+│           ├─ object
+│           │  └─ Identifier "obj" [argument:1] @16:11
+│           └─ body
+│              └─ BlockStatement @16:16
+│                 └─ ReturnStatement @17:9
+│                    └─ Identifier "x" @17:16
+├─ FunctionDeclaration "arguments_access" [might-need-arguments] @22:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     └─ entry
+│  │        └─ name
+│  │           └─ Identifier "x" @22:27
+│  └─ body
+│     └─ FunctionBody @23:5
+│        └─ ReturnStatement @23:5
+│           └─ MemberExpression [computed] @23:21
+│              ├─ Identifier "arguments" [variable:0] @23:12
+│              └─ NumericLiteral 0 @23:22
+└─ FunctionDeclaration "mixed_no_defeat" @28:1
+   ├─ parameters
+   │  ├─ Identifier "first" [argument:0] @28:26
+   │  └─ BindingPattern (array)
+   │     ├─ entry
+   │     │  └─ alias
+   │     │     └─ Identifier "a" [variable:0] @28:33
+   │     └─ entry
+   │        └─ alias
+   │           └─ Identifier "b" [variable:1] @28:33
+   └─ body
+      └─ FunctionBody @29:5
+         └─ ReturnStatement @29:5
+            └─ BinaryExpression (+) @29:22
+               ├─ BinaryExpression (+) @29:18
+               │  ├─ Identifier "first" [argument:0] @29:12
+               │  └─ Identifier "a" [variable:0] @29:20
+               └─ Identifier "b" [variable:1] @29:24
