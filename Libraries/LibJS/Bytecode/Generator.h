@@ -313,7 +313,6 @@ public:
             case Unwind:
                 if constexpr (IsSame<OpType, Bytecode::Op::Throw>)
                     return;
-                emit<Bytecode::Op::LeaveUnwindContext>();
                 break;
             case LeaveLexicalEnvironment:
                 --environment_stack_offset;

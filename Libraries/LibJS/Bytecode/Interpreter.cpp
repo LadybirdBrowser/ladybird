@@ -488,7 +488,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(IteratorNextUnpack);
             HANDLE_INSTRUCTION(IteratorToArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeavePrivateEnvironment);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveUnwindContext);
             HANDLE_INSTRUCTION(LeftShift);
             HANDLE_INSTRUCTION(LessThan);
             HANDLE_INSTRUCTION(LessThanEquals);
@@ -643,11 +642,6 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
         return throw_completion(exception);
 
     return reg(Register::return_value());
-}
-
-void Interpreter::leave_unwind_context()
-{
-    running_execution_context().rare_data()->unwind_contexts.take_last();
 }
 
 void Interpreter::catch_exception(Operand dst)
@@ -2902,11 +2896,6 @@ void LeavePrivateEnvironment::execute_impl(Bytecode::Interpreter& interpreter) c
 {
     auto& running_execution_context = interpreter.vm().running_execution_context();
     running_execution_context.private_environment = running_execution_context.private_environment->outer_environment();
-}
-
-void LeaveUnwindContext::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    interpreter.leave_unwind_context();
 }
 
 void Yield::execute_impl(Bytecode::Interpreter& interpreter) const

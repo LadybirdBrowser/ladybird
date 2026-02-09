@@ -1156,7 +1156,6 @@ void Generator::generate_scoped_jump(JumpType type)
             break;
         case Unwind:
             VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
-            emit<Bytecode::Op::LeaveUnwindContext>();
             m_current_unwind_context = m_current_unwind_context->previous();
             break;
         case LeaveLexicalEnvironment:
@@ -1194,7 +1193,6 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
             auto boundary = m_boundaries[current_boundary - 1];
             if (boundary == BlockBoundaryType::Unwind) {
                 VERIFY(m_current_unwind_context && m_current_unwind_context->handler().has_value());
-                emit<Bytecode::Op::LeaveUnwindContext>();
                 m_current_unwind_context = m_current_unwind_context->previous();
             } else if (boundary == BlockBoundaryType::LeaveLexicalEnvironment) {
                 --environment_stack_offset;
