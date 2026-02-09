@@ -2948,7 +2948,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         if (!m_finalizer) {
             auto const* parent_unwind_context = generator.current_unwind_context();
             if (parent_unwind_context)
-                unwind_context.emplace(generator, parent_unwind_context->finalizer());
+                unwind_context.emplace(generator, parent_unwind_context->handler());
             else
                 unwind_context.emplace(generator, OptionalNone());
         }

@@ -81,11 +81,10 @@ void Executable::dump() const
         warnln("");
         warnln("Exception handlers:");
         for (auto& handlers : exception_handlers) {
-            warnln("    from {:4x} to {:4x} handler {:4x} finalizer {:4x}",
+            warnln("    from {:4x} to {:4x} handler {:4x}",
                 handlers.start_offset,
                 handlers.end_offset,
-                handlers.handler_offset.value_or(0),
-                handlers.finalizer_offset.value_or(0));
+                handlers.handler_offset);
         }
     }
 

@@ -140,8 +140,7 @@ public:
     struct ExceptionHandlers {
         size_t start_offset;
         size_t end_offset;
-        Optional<size_t> handler_offset;
-        Optional<size_t> finalizer_offset;
+        size_t handler_offset;
     };
 
     Vector<ExceptionHandlers> exception_handlers;

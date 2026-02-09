@@ -69,18 +69,16 @@ public:
 
     class UnwindContext {
     public:
-        UnwindContext(Generator&, Optional<Label> finalizer);
+        UnwindContext(Generator&, Optional<Label> handler);
 
         UnwindContext const* previous() const { return m_previous_context; }
         void set_handler(Label handler) { m_handler = handler; }
         Optional<Label> handler() const { return m_handler; }
-        Optional<Label> finalizer() const { return m_finalizer; }
 
         ~UnwindContext();
 
     private:
         Generator& m_generator;
-        Optional<Label> m_finalizer;
         Optional<Label> m_handler {};
         UnwindContext const* m_previous_context { nullptr };
     };
@@ -239,8 +237,6 @@ public:
         if (auto const* context = m_current_unwind_context) {
             if (context->handler().has_value())
                 block->set_handler(*m_root_basic_blocks[context->handler().value().basic_block_index()]);
-            if (m_current_unwind_context->finalizer().has_value())
-                block->set_finalizer(*m_root_basic_blocks[context->finalizer().value().basic_block_index()]);
         }
         m_root_basic_blocks.append(move(block));
         return *m_root_basic_blocks.last();
