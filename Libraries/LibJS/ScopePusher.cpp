@@ -36,7 +36,7 @@ ScopePusher ScopePusher::function_scope(Parser& parser, RefPtr<Identifier const>
 {
     ScopePusher scope_pusher(parser, nullptr, ScopeLevel::FunctionTopLevel, ScopeType::Function);
     if (function_name) {
-        scope_pusher.m_bound_names.set(function_name->string());
+        scope_pusher.m_variables.ensure(function_name->string()).flags |= ScopeVariable::IsBound;
     }
     return scope_pusher;
 }
@@ -83,7 +83,7 @@ ScopePusher ScopePusher::class_declaration_scope(Parser& parser, RefPtr<Identifi
 {
     ScopePusher scope_pusher(parser, nullptr, ScopeLevel::NotTopLevel, ScopeType::ClassDeclaration);
     if (class_name) {
-        scope_pusher.m_bound_names.set(class_name->string());
+        scope_pusher.m_variables.ensure(class_name->string()).flags |= ScopeVariable::IsBound;
     }
     return scope_pusher;
 }
@@ -93,14 +93,13 @@ void ScopePusher::add_catch_parameter(RefPtr<BindingPattern const> const& patter
     if (pattern) {
         // NOTE: Nothing in the callback throws an exception.
         MUST(pattern->for_each_bound_identifier([&](auto const& identifier) {
-            m_forbidden_var_names.set(identifier.string());
-            m_bound_names.set(identifier.string());
-            m_catch_parameter_names.set(identifier.string());
+            auto& var = m_variables.ensure(identifier.string());
+            var.flags |= ScopeVariable::IsForbiddenVar | ScopeVariable::IsBound | ScopeVariable::IsCatchParameter;
         }));
     } else if (parameter) {
-        m_var_names.set(parameter->string(), parameter.ptr());
-        m_bound_names.set(parameter->string());
-        m_catch_parameter_names.set(parameter->string());
+        auto& var = m_variables.ensure(parameter->string());
+        var.flags |= ScopeVariable::IsVar | ScopeVariable::IsBound | ScopeVariable::IsCatchParameter;
+        var.var_identifier = parameter.ptr();
     }
 }
 
@@ -110,11 +109,10 @@ void ScopePusher::add_declaration(NonnullRefPtr<Declaration const> declaration)
         // NOTE: Nothing in the callback throws an exception.
         MUST(declaration->for_each_bound_identifier([&](auto const& identifier) {
             auto const& name = identifier.string();
-            if (m_var_names.contains(name) || m_forbidden_lexical_names.contains(name) || m_function_names.contains(name))
+            auto& var = m_variables.ensure(name);
+            if (var.flags & (ScopeVariable::IsVar | ScopeVariable::IsForbiddenLexical | ScopeVariable::IsFunction | ScopeVariable::IsLexical))
                 throw_identifier_declared(name, declaration);
-
-            if (m_lexical_names.set(name) != AK::HashSetResult::InsertedNewEntry)
-                throw_identifier_declared(name, declaration);
+            var.flags |= ScopeVariable::IsLexical;
         }));
 
         m_node->add_lexical_declaration(move(declaration));
@@ -124,12 +122,12 @@ void ScopePusher::add_declaration(NonnullRefPtr<Declaration const> declaration)
             auto const& name = identifier.string();
             ScopePusher* pusher = this;
             while (true) {
-                if (pusher->m_lexical_names.contains(name)
-                    || pusher->m_function_names.contains(name)
-                    || pusher->m_forbidden_var_names.contains(name))
+                auto& var = pusher->m_variables.ensure(name);
+                if (var.flags & (ScopeVariable::IsLexical | ScopeVariable::IsFunction | ScopeVariable::IsForbiddenVar))
                     throw_identifier_declared(name, declaration);
 
-                pusher->m_var_names.set(name, &identifier);
+                var.flags |= ScopeVariable::IsVar;
+                var.var_identifier = &identifier;
                 if (pusher->is_top_level())
                     break;
 
@@ -147,29 +145,33 @@ void ScopePusher::add_declaration(NonnullRefPtr<Declaration const> declaration)
             // Only non-top levels and Module don't var declare the top functions
             // NOTE: Nothing in the callback throws an exception.
             MUST(declaration->for_each_bound_identifier([&](auto const& identifier) {
-                m_var_names.set(identifier.string(), &identifier);
+                auto& var = m_variables.ensure(identifier.string());
+                var.flags |= ScopeVariable::IsVar;
+                var.var_identifier = &identifier;
             }));
             m_node->add_var_scoped_declaration(move(declaration));
         } else {
             VERIFY(is<FunctionDeclaration>(*declaration));
             auto function_declaration = static_ptr_cast<FunctionDeclaration const>(declaration);
             auto function_name = function_declaration->name();
-            if (m_var_names.contains(function_name) || m_lexical_names.contains(function_name))
+            auto& var = m_variables.ensure(function_name);
+            if (var.flags & (ScopeVariable::IsVar | ScopeVariable::IsLexical))
                 throw_identifier_declared(function_name, declaration);
 
             if (function_declaration->kind() != FunctionKind::Normal || m_parser.m_state.strict_mode) {
-                if (m_function_names.contains(function_name))
+                if (var.flags & ScopeVariable::IsFunction)
                     throw_identifier_declared(function_name, declaration);
 
-                m_lexical_names.set(function_name);
+                var.flags |= ScopeVariable::IsLexical;
                 m_node->add_lexical_declaration(move(declaration));
                 return;
             }
 
-            m_function_names.set(function_name, function_declaration);
-            if (!m_lexical_names.contains(function_name))
+            if (!(var.flags & ScopeVariable::IsLexical))
                 m_functions_to_hoist.append(function_declaration);
 
+            var.flags |= ScopeVariable::IsFunction;
+            var.function_declaration = function_declaration;
             m_node->add_lexical_declaration(move(declaration));
         }
     }
@@ -186,7 +188,9 @@ ScopePusher const* ScopePusher::last_function_scope() const
 
 bool ScopePusher::has_declaration(Utf16FlyString const& name) const
 {
-    return m_lexical_names.contains(name) || m_var_names.contains(name) || m_functions_to_hoist.contains([&name](auto& function) { return function->name() == name; });
+    if (has_variable_with_flags(name, ScopeVariable::IsLexical | ScopeVariable::IsVar))
+        return true;
+    return m_functions_to_hoist.contains([&name](auto& function) { return function->name() == name; });
 }
 
 void ScopePusher::set_contains_direct_call_to_eval()
@@ -203,13 +207,13 @@ void ScopePusher::set_function_parameters(NonnullRefPtr<FunctionParameters const
         parameter.binding.visit(
             [&](Identifier const& identifier) {
                 register_identifier(fixme_launder_const_through_pointer_cast(identifier));
-                m_function_parameters_candidates_for_local_variables.set(identifier.string());
-                m_forbidden_lexical_names.set(identifier.string());
+                auto& var = m_variables.ensure(identifier.string());
+                var.flags |= ScopeVariable::IsParameterCandidate | ScopeVariable::IsForbiddenLexical;
             },
             [&](NonnullRefPtr<BindingPattern const> const& binding_pattern) {
                 // NOTE: Nothing in the callback throws an exception.
                 MUST(binding_pattern->for_each_bound_identifier([&](auto const& identifier) {
-                    m_forbidden_lexical_names.set(identifier.string());
+                    m_variables.ensure(identifier.string()).flags |= ScopeVariable::IsForbiddenLexical;
                 }));
             });
     }
@@ -251,12 +255,15 @@ ScopePusher::~ScopePusher()
             }
         }
 
+        auto var_it = m_variables.find(identifier_group_name);
+        u16 var_flags = (var_it != m_variables.end()) ? var_it->value.flags : 0;
+
         Optional<LocalVariable::DeclarationKind> local_variable_declaration_kind;
-        if (is_top_level() && m_var_names.contains(identifier_group_name)) {
+        if (is_top_level() && (var_flags & ScopeVariable::IsVar)) {
             local_variable_declaration_kind = LocalVariable::DeclarationKind::Var;
-        } else if (m_lexical_names.contains(identifier_group_name)) {
+        } else if (var_flags & ScopeVariable::IsLexical) {
             local_variable_declaration_kind = LocalVariable::DeclarationKind::LetOrConst;
-        } else if (m_function_names.contains(identifier_group_name)) {
+        } else if (var_flags & ScopeVariable::IsFunction) {
             local_variable_declaration_kind = LocalVariable::DeclarationKind::Function;
         }
 
@@ -264,7 +271,7 @@ ScopePusher::~ScopePusher()
             local_variable_declaration_kind = LocalVariable::DeclarationKind::ArgumentsObject;
         }
 
-        if (m_type == ScopeType::Catch && m_catch_parameter_names.contains(identifier_group_name)) {
+        if (m_type == ScopeType::Catch && (var_flags & ScopeVariable::IsCatchParameter)) {
             local_variable_declaration_kind = LocalVariable::DeclarationKind::CatchClauseParameter;
         }
 
@@ -272,13 +279,13 @@ ScopePusher::~ScopePusher()
             return function_declaration->name() == identifier_group_name;
         });
 
-        if (m_type == ScopeType::ClassDeclaration && m_bound_names.contains(identifier_group_name)) {
+        if (m_type == ScopeType::ClassDeclaration && (var_flags & ScopeVariable::IsBound)) {
             // NOTE: Currently, the parser cannot recognize that assigning a named function expression creates a scope with a binding for the function name.
             //       As a result, function names are not considered as candidates for optimization in global variable access.
             continue;
         }
 
-        if (m_type == ScopeType::Function && !m_is_function_declaration && m_bound_names.contains(identifier_group_name)) {
+        if (m_type == ScopeType::Function && !m_is_function_declaration && (var_flags & ScopeVariable::IsBound)) {
             // Named function expression: identifiers with this name inside the function may refer
             // to the function's immutable name binding, so they cannot be optimized as globals.
             for (auto& identifier : identifier_group.identifiers)
@@ -292,9 +299,9 @@ ScopePusher::~ScopePusher()
 
         bool is_function_parameter = false;
         if (m_type == ScopeType::Function) {
-            if (!m_contains_access_to_arguments_object_in_non_strict_mode && m_function_parameters_candidates_for_local_variables.contains(identifier_group_name)) {
+            if (!m_contains_access_to_arguments_object_in_non_strict_mode && (var_flags & ScopeVariable::IsParameterCandidate)) {
                 is_function_parameter = true;
-            } else if (m_forbidden_lexical_names.contains(identifier_group_name)) {
+            } else if (var_flags & ScopeVariable::IsForbiddenLexical) {
                 // NOTE: If an identifier is used as a function parameter that cannot be optimized locally or globally, it is simply ignored.
                 continue;
             }
@@ -382,12 +389,12 @@ ScopePusher::~ScopePusher()
 
     for (size_t i = 0; i < m_functions_to_hoist.size(); i++) {
         auto const& function_declaration = m_functions_to_hoist[i];
-        if (m_lexical_names.contains(function_declaration->name()) || m_forbidden_var_names.contains(function_declaration->name()))
+        if (has_variable_with_flags(function_declaration->name(), ScopeVariable::IsLexical | ScopeVariable::IsForbiddenVar))
             continue;
         if (is_top_level()) {
             m_node->add_hoisted_function(move(m_functions_to_hoist[i]));
         } else {
-            if (!m_parent_scope->m_lexical_names.contains(function_declaration->name()) && !m_parent_scope->m_function_names.contains(function_declaration->name()))
+            if (!m_parent_scope->has_variable_with_flags(function_declaration->name(), ScopeVariable::IsLexical | ScopeVariable::IsFunction))
                 m_parent_scope->m_functions_to_hoist.append(move(m_functions_to_hoist[i]));
         }
     }
@@ -412,7 +419,7 @@ ScopePusher::~ScopePusher()
         data->has_function_named_arguments = seen_function_names.contains("arguments"_utf16_fly_string);
 
         // Check if "arguments" is a parameter name.
-        data->has_argument_parameter = m_forbidden_lexical_names.contains("arguments"_utf16_fly_string);
+        data->has_argument_parameter = has_variable_with_flags("arguments"_utf16_fly_string, ScopeVariable::IsForbiddenLexical);
 
         // Check if "arguments" is lexically declared.
         MUST(m_node->for_each_lexically_declared_identifier([&](auto const& identifier) {
@@ -420,14 +427,17 @@ ScopePusher::~ScopePusher()
                 data->has_lexically_declared_arguments = true;
         }));
 
-        // Extract vars_to_initialize from m_var_names values with flags.
+        // Extract vars_to_initialize from variables with the IsVar flag.
         // Also count non-local vars for environment size pre-computation.
-        for (auto& [name, identifier] : m_var_names) {
-            bool is_parameter = m_forbidden_lexical_names.contains(name);
-            bool is_non_local = !identifier->is_local();
+        for (auto& [name, var] : m_variables) {
+            if (!(var.flags & ScopeVariable::IsVar))
+                continue;
+
+            bool is_parameter = var.flags & ScopeVariable::IsForbiddenLexical;
+            bool is_non_local = !var.var_identifier->is_local();
 
             data->vars_to_initialize.append({
-                .identifier = *identifier,
+                .identifier = *var.var_identifier,
                 .is_parameter = is_parameter,
                 .is_function_name = seen_function_names.contains(name),
             });

@@ -20,6 +20,26 @@ namespace JS {
 
 class Parser;
 
+struct ScopeVariable {
+    enum Flag : u16 {
+        None = 0,
+        IsVar = 1 << 0,
+        IsLexical = 1 << 1,
+        IsFunction = 1 << 2,
+        IsCatchParameter = 1 << 3,
+        IsForbiddenLexical = 1 << 4,
+        IsForbiddenVar = 1 << 5,
+        IsBound = 1 << 6,
+        IsParameterCandidate = 1 << 7,
+    };
+
+    u16 flags { 0 };
+    Identifier const* var_identifier { nullptr };
+    RefPtr<FunctionDeclaration const> function_declaration;
+
+    bool has_flag(u16 flag) const { return flags & flag; }
+};
+
 class ScopePusher {
 
     // NOTE: We really only need ModuleTopLevel and NotModuleTopLevel as the only
@@ -101,6 +121,12 @@ private:
 
     void throw_identifier_declared(Utf16FlyString const& name, NonnullRefPtr<Declaration const> const& declaration);
 
+    bool has_variable_with_flags(Utf16FlyString const& name, u16 flags) const
+    {
+        auto it = m_variables.find(name);
+        return it != m_variables.end() && (it->value.flags & flags);
+    }
+
     Parser& m_parser;
     ScopeNode* m_node { nullptr };
     ScopeLevel m_scope_level { ScopeLevel::NotTopLevel };
@@ -109,17 +135,8 @@ private:
     ScopePusher* m_parent_scope { nullptr };
     ScopePusher* m_top_level_scope { nullptr };
 
-    HashTable<Utf16FlyString> m_lexical_names;
-    HashMap<Utf16FlyString, Identifier const*> m_var_names;
-    HashMap<Utf16FlyString, NonnullRefPtr<FunctionDeclaration const>> m_function_names;
-    HashTable<Utf16FlyString> m_catch_parameter_names;
-
-    HashTable<Utf16FlyString> m_forbidden_lexical_names;
-    HashTable<Utf16FlyString> m_forbidden_var_names;
+    HashMap<Utf16FlyString, ScopeVariable> m_variables;
     Vector<NonnullRefPtr<FunctionDeclaration const>> m_functions_to_hoist;
-
-    HashTable<Utf16FlyString> m_bound_names;
-    HashTable<Utf16FlyString> m_function_parameters_candidates_for_local_variables;
 
     struct IdentifierGroup {
         bool captured_by_nested_function { false };
