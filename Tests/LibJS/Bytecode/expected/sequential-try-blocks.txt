@@ -1,0 +1,35 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:console
+[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  30]       GetGlobal dst:reg9, identifier:sequentialTryCatch
+[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
+[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  88]       End value:reg5
+
+JS bytecode executable "sequentialTryCatch"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:result~2, src:String("")
+[  18]       EnterUnwindContext entry_point:@60
+[  20]    1: Catch dst:reg5
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       LeaveUnwindContext
+[  38]       Mov dst:e~0, src:reg5
+[  48]       Add dst:result~2, lhs:result~2, rhs:String("b")
+[  58]    2: EnterUnwindContext entry_point:@b8
+[  60]    3: Add dst:result~2, lhs:result~2, rhs:String("a")
+[  70]       Throw src:Int32(1)
+[  78]    4: Catch dst:reg5
+[  80]       SetLexicalEnvironment environment:reg4
+[  88]       LeaveUnwindContext
+[  90]       Mov dst:e~1, src:reg5
+[  a0]       Add dst:result~2, lhs:result~2, rhs:String("d")
+[  b0]    5: Return value:result~2
+[  b8]    6: Add dst:result~2, lhs:result~2, rhs:String("c")
+[  c8]       Throw src:Int32(2)
+
+Exception handlers:
+    from   60 to   78 handler   20 finalizer    0
+    from   b8 to   d0 handler   78 finalizer    0
+
+"abcd"

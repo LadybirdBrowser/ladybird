@@ -1,0 +1,47 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:console
+[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  30]       GetGlobal dst:reg9, identifier:switchWithBlockDecl
+[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
+[  68]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  90]       GetGlobal dst:reg6, identifier:console
+[  a0]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[  b8]       GetGlobal dst:reg10, identifier:switchWithBlockDecl
+[  c8]       Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
+[  f0]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 118]       End value:reg7
+
+JS bytecode executable "switchWithBlockDecl"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:result~0, src:Undefined
+[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  28]       CreateMutableBinding environment:reg5, identifier:a, can_be_deleted:false
+[  38]       CreateMutableBinding environment:reg5, identifier:b, can_be_deleted:false
+[  48]    1: JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:@80, false_target:@60
+[  60]    2: JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:@c8, false_target:@78
+[  78]    3: Jump target:@108
+[  80]    4: InitializeLexicalBinding identifier:a, src:String("one")
+[  98]       NewFunction dst:reg6, lhs_name:result
+[  b0]       Mov dst:result~0, src:reg6
+[  c0]       Jump target:@108
+[  c8]    5: InitializeLexicalBinding identifier:b, src:String("two")
+[  e0]       NewFunction dst:reg6, lhs_name:result
+[  f8]       Mov dst:result~0, src:reg6
+[ 108]    6: SetLexicalEnvironment environment:reg4
+[ 110]       Mov dst:reg6, src:result~0
+[ 120]       Call dst:reg5, callee:reg6, this_value:Undefined, result
+[ 140]       Return value:reg5
+
+JS bytecode executable "result"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetBinding dst:reg5, identifier:a
+[  20]       Return value:reg5
+
+JS bytecode executable "result"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetBinding dst:reg5, identifier:b
+[  20]       Return value:reg5
+
+"one"
+"two"

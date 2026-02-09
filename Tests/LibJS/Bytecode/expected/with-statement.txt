@@ -1,0 +1,20 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:withBlock
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, withBlock
+[  38]       End value:reg5
+
+JS bytecode executable "withBlock"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:obj~0
+[  18]       InitObjectLiteralProperty object:obj~0, property:x, src:Int32(42), shape_cache_index:0, property_slot:0
+[  30]       CacheObjectShape object:obj~0
+[  40]       EnterObjectEnvironment dst:reg5, object:obj~0
+[  50]       GetBinding dst:reg7, identifier:console
+[  68]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
+[  80]       GetBinding dst:reg9, identifier:x
+[  98]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+[  c0]       SetLexicalEnvironment environment:reg4
+[  c8]       End value:Undefined
+
+42

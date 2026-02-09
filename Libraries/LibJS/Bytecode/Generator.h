@@ -117,6 +117,7 @@ public:
         FinallyContext* parent { nullptr };
         Vector<FinallyJump> registered_jumps;
         i32 next_jump_index { FIRST_JUMP_INDEX };
+        Optional<ScopedOperand> lexical_environment_at_entry;
     };
 
     FinallyContext* current_finally_context() { return m_current_finally_context; }
@@ -210,6 +211,11 @@ public:
 
     CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {}, bool is_method = false);
 
+    void ensure_lexical_environment_register_initialized();
+    [[nodiscard]] ScopedOperand current_lexical_environment_register() const;
+    void push_lexical_environment_register(ScopedOperand const& environment);
+    void pop_lexical_environment_register();
+
     void begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set);
     void end_continuable_scope();
     void begin_breakable_scope(Label breakable_target, Vector<FlyString> const& language_label_set);
@@ -299,6 +305,7 @@ public:
     void perform_needed_unwinds()
     requires(OpType::IsTerminator && !IsSame<OpType, Op::Jump>)
     {
+        auto environment_stack_offset = m_lexical_environment_register_stack.size();
         for (size_t i = m_boundaries.size(); i > 0; --i) {
             auto boundary = m_boundaries[i - 1];
             using enum BlockBoundaryType;
@@ -309,7 +316,8 @@ public:
                 emit<Bytecode::Op::LeaveUnwindContext>();
                 break;
             case LeaveLexicalEnvironment:
-                emit<Bytecode::Op::LeaveLexicalEnvironment>();
+                --environment_stack_offset;
+                emit<Bytecode::Op::SetLexicalEnvironment>(m_lexical_environment_register_stack[environment_stack_offset - 1]);
                 break;
             case Break:
             case Continue:
@@ -476,6 +484,7 @@ private:
     Vector<LabelableScope> m_breakable_scopes;
     Vector<BlockBoundaryType> m_boundaries;
     Vector<ScopedOperand> m_home_objects;
+    Vector<ScopedOperand> m_lexical_environment_register_stack;
     FinallyContext* m_current_finally_context { nullptr };
 
     HashTable<u32> m_initialized_locals;
