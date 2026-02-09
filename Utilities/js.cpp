@@ -196,7 +196,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
 
     auto dump_ast = [&](auto& script_or_module) {
         if (s_dump_ast)
-            script_or_module->parse_node().dump({ .use_color = !s_strip_ansi });
+            script_or_module->parse_node().dump({ .prefix = {}, .use_color = !s_strip_ansi });
     };
 
     auto run_script_or_module = [&](auto& script_or_module) {
