@@ -9,58 +9,55 @@ JS bytecode executable ""
 JS bytecode executable "tryCatchWithBlocks"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:x~3, src:Int32(1)
-[  18]       EnterUnwindContext entry_point:@d0
+[  18]       Jump target:@c8
 [  20]    1: Catch dst:reg5
 [  28]       SetLexicalEnvironment environment:reg4
-[  30]       LeaveUnwindContext
-[  38]       Mov dst:e~2, src:reg5
-[  48]       Mov dst:z~1, src:Int32(3)
-[  58]       GetGlobal dst:reg7, identifier:console
-[  68]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  80]       Add dst:reg9, lhs:x~3, rhs:e~2
-[  90]       Add dst:reg10, lhs:reg9, rhs:z~1
-[  a0]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
-[  c8]    2: End value:Undefined
-[  d0]    3: Mov dst:y~0, src:Int32(2)
-[  e0]       Throw src:y~0
+[  30]       Mov dst:e~2, src:reg5
+[  40]       Mov dst:z~1, src:Int32(3)
+[  50]       GetGlobal dst:reg7, identifier:console
+[  60]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
+[  78]       Add dst:reg9, lhs:x~3, rhs:e~2
+[  88]       Add dst:reg10, lhs:reg9, rhs:z~1
+[  98]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
+[  c0]    2: End value:Undefined
+[  c8]    3: Mov dst:y~0, src:Int32(2)
+[  d8]       Throw src:y~0
 
 Exception handlers:
-    from   d0 to   e8 handler   20 finalizer    0
+    from   c8 to   e0 handler   20 finalizer    0
 
 JS bytecode executable "tryCatchFinallyWithBlocks"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:x~3, src:Int32(1)
-[  18]       EnterUnwindContext entry_point:@170
+[  18]       Jump target:@160
 [  20]    1: Catch dst:reg6
 [  28]       SetLexicalEnvironment environment:reg4
 [  30]       Mov dst:reg5, src:Int32(1)
-[  40]       LeaveUnwindContext
-[  48]    2: Mov dst:z~2, src:Int32(3)
-[  58]       GetGlobal dst:reg8, identifier:console
-[  68]       GetById dst:reg10, base:reg8, property:log, base_identifier:console
-[  80]       Mov dst:reg9, src:z~2
-[  90]       Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
-[  b8]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@188, false_target:@190
-[  d0]    3: Catch dst:reg7
-[  d8]       SetLexicalEnvironment environment:reg4
-[  e0]       Mov dst:e~1, src:reg7
-[  f0]       GetGlobal dst:reg9, identifier:console
-[ 100]       GetById dst:reg10, base:reg9, property:log, base_identifier:console
-[ 118]       Mov dst:reg11, src:e~1
-[ 128]       Call dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
-[ 150]       Mov dst:reg5, src:Int32(0)
-[ 160]       LeaveUnwindContext
-[ 168]       Jump target:@48
-[ 170]    4: Mov dst:y~0, src:Int32(2)
-[ 180]       Throw src:y~0
-[ 188]    5: End value:Undefined
-[ 190]    6: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@1a8, false_target:@1b0
-[ 1a8]    7: Return value:reg6
-[ 1b0]    8: Throw src:reg6
+[  40]    2: Mov dst:z~2, src:Int32(3)
+[  50]       GetGlobal dst:reg8, identifier:console
+[  60]       GetById dst:reg10, base:reg8, property:log, base_identifier:console
+[  78]       Mov dst:reg9, src:z~2
+[  88]       Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
+[  b0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@178, false_target:@180
+[  c8]    3: Catch dst:reg7
+[  d0]       SetLexicalEnvironment environment:reg4
+[  d8]       Mov dst:e~1, src:reg7
+[  e8]       GetGlobal dst:reg9, identifier:console
+[  f8]       GetById dst:reg10, base:reg9, property:log, base_identifier:console
+[ 110]       Mov dst:reg11, src:e~1
+[ 120]       Call dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
+[ 148]       Mov dst:reg5, src:Int32(0)
+[ 158]       Jump target:@40
+[ 160]    4: Mov dst:y~0, src:Int32(2)
+[ 170]       Throw src:y~0
+[ 178]    5: End value:Undefined
+[ 180]    6: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@198, false_target:@1a0
+[ 198]    7: Return value:reg6
+[ 1a0]    8: Throw src:reg6
 
 Exception handlers:
-    from   d0 to  170 handler    0 finalizer   20
-    from  170 to  188 handler   d0 finalizer   20
+    from   c8 to  160 handler    0 finalizer   20
+    from  160 to  178 handler   c8 finalizer   20
 
 6
 2
