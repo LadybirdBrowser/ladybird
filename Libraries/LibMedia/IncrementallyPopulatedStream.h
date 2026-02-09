@@ -40,7 +40,7 @@ public:
 
     void add_chunk_at(u64 offset, ReadonlyBytes);
 
-    void reached_end_of_body();
+    void close();
 
     u64 size();
     void set_expected_size(u64);

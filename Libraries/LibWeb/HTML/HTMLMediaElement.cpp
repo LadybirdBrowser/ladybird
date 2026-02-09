@@ -989,7 +989,7 @@ void HTMLMediaElement::fetch_resource(URL::URL const& url_record, Function<void(
     });
     fetch_data->failure_callback = [&stream = *fetch_data->stream, failure_callback = move(failure_callback)](String error_message) {
         // Ensure that we unblock any reads if we stop the fetch due to some failure.
-        stream.reached_end_of_body();
+        stream.close();
         failure_callback(move(error_message));
     };
 
@@ -1141,7 +1141,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
                 if (fetch_generation != weak_self->m_current_fetch_generation)
                     return;
 
-                fetch_data->stream->reached_end_of_body();
+                fetch_data->stream->close();
                 weak_self->queue_a_media_element_task([&self = *weak_self] {
                     self.process_media_data(FetchingStatus::Complete).release_value_but_fixme_should_propagate_errors();
                 });
