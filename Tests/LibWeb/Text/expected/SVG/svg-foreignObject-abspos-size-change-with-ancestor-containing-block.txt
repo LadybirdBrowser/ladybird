@@ -1,0 +1,9 @@
+Before SVG relayout:
+  abspos width: 50
+  abspos height: 50
+After SVG relayout:
+  abspos width: 100
+  abspos height: 100
+Abspos size correctly updated:
+  width changed to 100: true
+  height changed to 100: true
