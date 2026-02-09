@@ -1,0 +1,91 @@
+Program (script) @1:1
+├─ FunctionDeclaration "array_destructured" @1:1
+│  ├─ parameters
+│  │  └─ BindingPattern (array)
+│  │     ├─ entry
+│  │     │  └─ alias
+│  │     │     └─ Identifier "x" @1:29
+│  │     └─ entry
+│  │        └─ alias
+│  │           └─ Identifier "y" @1:29
+│  └─ body
+│     └─ FunctionBody @2:5
+│        └─ ReturnStatement @2:5
+│           └─ BinaryExpression (+) @2:14
+│              ├─ Identifier "x" @2:12
+│              └─ Identifier "y" @2:16
+├─ FunctionDeclaration "object_destructured" @5:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     ├─ entry
+│  │     │  └─ name
+│  │     │     └─ Identifier "a" @5:30
+│  │     └─ entry
+│  │        └─ name
+│  │           └─ Identifier "b" @5:30
+│  └─ body
+│     └─ FunctionBody @6:5
+│        └─ ReturnStatement @6:5
+│           └─ BinaryExpression (+) @6:14
+│              ├─ Identifier "a" @6:12
+│              └─ Identifier "b" @6:16
+├─ FunctionDeclaration "mixed" @9:1
+│  ├─ parameters
+│  │  ├─ Identifier "first" [argument:0] @9:16
+│  │  ├─ BindingPattern (object)
+│  │  │  └─ entry
+│  │  │     └─ name
+│  │  │        └─ Identifier "x" @9:23
+│  │  └─ rest
+│  │     └─ Identifier "rest" [argument:2] @9:16
+│  └─ body
+│     └─ FunctionBody @10:5
+│        └─ ReturnStatement @10:5
+│           └─ BinaryExpression (+) @10:22
+│              ├─ BinaryExpression (+) @10:18
+│              │  ├─ Identifier "first" [argument:0] @10:12
+│              │  └─ Identifier "x" @10:20
+│              └─ MemberExpression @10:28
+│                 ├─ Identifier "rest" [argument:2] @10:24
+│                 └─ Identifier "length" @10:28
+├─ FunctionDeclaration "nested" @13:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     └─ entry
+│  │        ├─ name
+│  │        │  └─ Identifier "a" [global] @13:17
+│  │        └─ alias
+│  │           └─ BindingPattern (object)
+│  │              └─ entry
+│  │                 └─ name
+│  │                    └─ Identifier "b" @13:22
+│  └─ body
+│     └─ FunctionBody @14:5
+│        └─ ReturnStatement @14:5
+│           └─ Identifier "b" @14:12
+├─ FunctionDeclaration "with_defaults" @17:1
+│  ├─ parameters
+│  │  └─ BindingPattern (object)
+│  │     └─ entry
+│  │        ├─ name
+│  │        │  └─ Identifier "x" @17:24
+│  │        └─ initializer
+│  │           └─ NumericLiteral 10 @17:30
+│  │     └─ default
+│  │        └─ ObjectExpression @17:37
+│  └─ body
+│     └─ FunctionBody @18:5
+│        └─ ReturnStatement @18:5
+│           └─ Identifier "x" @18:12
+└─ FunctionDeclaration "aliased" @21:1
+   ├─ parameters
+   │  └─ BindingPattern (object)
+   │     └─ entry
+   │        ├─ name
+   │        │  └─ Identifier "a" [global] @21:18
+   │        └─ alias
+   │           └─ Identifier "renamed" @21:18
+   └─ body
+      └─ FunctionBody @22:5
+         └─ ReturnStatement @22:5
+            └─ Identifier "renamed" @22:12
