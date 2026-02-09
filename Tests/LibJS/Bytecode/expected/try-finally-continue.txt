@@ -1,0 +1,78 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:console
+[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  30]       GetGlobal dst:reg9, identifier:continueThroughFinally
+[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, continueThroughFinally
+[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  88]       GetGlobal dst:reg6, identifier:console
+[  98]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[  b0]       GetGlobal dst:reg10, identifier:breakThroughFinally
+[  c0]       Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughFinally
+[  e0]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 108]       End value:reg7
+
+JS bytecode executable "continueThroughFinally"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:result~1, src:Int32(0)
+[  18]       Mov dst:i~0, src:Int32(0)
+[  28]       Jump target:@48
+[  30]    1: EnterUnwindContext entry_point:@b8
+[  38]    2: PostfixIncrement dst:reg5, src:i~0
+[  48]    3: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@30, false_target:@60
+[  60]    4: Return value:result~1
+[  68]    5: Catch dst:reg6
+[  70]       SetLexicalEnvironment environment:reg4
+[  78]       Mov dst:reg5, src:Int32(1)
+[  88]       LeaveUnwindContext
+[  90]    6: Add dst:result~1, lhs:result~1, rhs:Int32(10)
+[  a0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@118, false_target:@120
+[  b8]    7: JumpStrictlyEquals lhs:i~0, rhs:Int32(1), true_target:@d0, false_target:@e8
+[  d0]    8: Mov dst:reg5, src:Int32(3)
+[  e0]       Jump target:@90
+[  e8]    9: Add dst:result~1, lhs:result~1, rhs:i~0
+[  f8]       Mov dst:reg5, src:Int32(0)
+[ 108]       LeaveUnwindContext
+[ 110]       Jump target:@90
+[ 118]   10: Jump target:@38
+[ 120]   11: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@38, false_target:@138
+[ 138]   12: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@150, false_target:@158
+[ 150]   13: Return value:reg6
+[ 158]   14: Throw src:reg6
+
+Exception handlers:
+    from   b8 to  118 handler    0 finalizer   68
+
+JS bytecode executable "breakThroughFinally"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:result~1, src:Int32(0)
+[  18]       Mov dst:i~0, src:Int32(0)
+[  28]       Jump target:@48
+[  30]    1: EnterUnwindContext entry_point:@b8
+[  38]    2: PostfixIncrement dst:reg5, src:i~0
+[  48]    3: JumpLessThan lhs:i~0, rhs:Int32(10), true_target:@30, false_target:@60
+[  60]    4: Return value:result~1
+[  68]    5: Catch dst:reg6
+[  70]       SetLexicalEnvironment environment:reg4
+[  78]       Mov dst:reg5, src:Int32(1)
+[  88]       LeaveUnwindContext
+[  90]    6: Add dst:result~1, lhs:result~1, rhs:Int32(100)
+[  a0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@118, false_target:@120
+[  b8]    7: JumpStrictlyEquals lhs:i~0, rhs:Int32(2), true_target:@d0, false_target:@e8
+[  d0]    8: Mov dst:reg5, src:Int32(3)
+[  e0]       Jump target:@90
+[  e8]    9: Add dst:result~1, lhs:result~1, rhs:i~0
+[  f8]       Mov dst:reg5, src:Int32(0)
+[ 108]       LeaveUnwindContext
+[ 110]       Jump target:@90
+[ 118]   10: Jump target:@38
+[ 120]   11: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@60, false_target:@138
+[ 138]   12: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@150, false_target:@158
+[ 150]   13: Return value:reg6
+[ 158]   14: Throw src:reg6
+
+Exception handlers:
+    from   b8 to  118 handler    0 finalizer   68
+
+32
+301

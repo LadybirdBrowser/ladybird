@@ -57,7 +57,6 @@ class JS_API ExecutionContextRareData final : public GC::Cell {
 
 public:
     Vector<Bytecode::UnwindInfo> unwind_contexts;
-    Vector<GC::Ptr<Environment>> saved_lexical_environments;
 
     mutable GC::Ptr<CachedSourceRange> cached_source_range;
 

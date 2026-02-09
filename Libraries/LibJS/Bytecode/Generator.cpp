@@ -44,8 +44,12 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
                 break;
             }
         }
-        if (has_non_local_parameters)
-            emit<Op::CreateLexicalEnvironment>(OptionalNone {}, 0);
+        if (has_non_local_parameters) {
+            auto parent_environment = m_lexical_environment_register_stack.last();
+            auto new_environment = allocate_register();
+            emit<Op::CreateLexicalEnvironment>(new_environment, parent_environment, 0);
+            m_lexical_environment_register_stack.append(new_environment);
+        }
     }
 
     for (auto const& parameter_name : shared_function_instance_data.m_parameter_names) {
@@ -183,7 +187,10 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
     if (!shared_function_instance_data.m_strict) {
         bool can_elide_lexical_environment = !scope_body || !scope_body->has_non_local_lexical_declarations();
         if (!can_elide_lexical_environment) {
-            emit<Op::CreateLexicalEnvironment>(OptionalNone {}, shared_function_instance_data.m_lex_environment_bindings_count);
+            auto parent_environment = m_lexical_environment_register_stack.last();
+            auto new_environment = allocate_register();
+            emit<Op::CreateLexicalEnvironment>(new_environment, parent_environment, shared_function_instance_data.m_lex_environment_bindings_count);
+            m_lexical_environment_register_stack.append(new_environment);
         }
     }
 
@@ -242,6 +249,11 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         // NOTE: This doesn't have to handle received throw/return completions, as GeneratorObject::resume_abrupt
         //       will not enter the generator from the SuspendedStart state and immediately completes the generator.
     }
+
+    // NOTE: We eagerly initialize the saved lexical environment register here,
+    //       before any AST codegen runs, so that GetLexicalEnvironment is emitted
+    //       at the function entry point, dominating all uses.
+    generator.ensure_lexical_environment_register_initialized();
 
     if (shared_function_instance_data)
         TRY(generator.emit_function_declaration_instantiation(*shared_function_instance_data));
@@ -610,8 +622,10 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
     if (!needs_block_declaration_instantiation)
         return false;
 
+    auto parent_environment = m_lexical_environment_register_stack.last();
     auto environment = allocate_register();
-    emit<Bytecode::Op::CreateLexicalEnvironment>(environment, 0);
+    emit<Bytecode::Op::CreateLexicalEnvironment>(environment, parent_environment, 0);
+    m_lexical_environment_register_stack.append(environment);
     start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
 
     MUST(scope_node.for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
@@ -667,17 +681,45 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
 
 void Generator::begin_variable_scope()
 {
+    auto parent_environment = m_lexical_environment_register_stack.last();
+    auto new_environment = allocate_register();
     start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-    emit<Bytecode::Op::CreateLexicalEnvironment>(OptionalNone {}, 0);
+    emit<Bytecode::Op::CreateLexicalEnvironment>(new_environment, parent_environment, 0);
+    m_lexical_environment_register_stack.append(new_environment);
 }
 
 void Generator::end_variable_scope()
 {
     end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
+    m_lexical_environment_register_stack.take_last();
 
-    if (!m_current_basic_block->is_terminated()) {
-        emit<Bytecode::Op::LeaveLexicalEnvironment>();
+    if (!m_current_basic_block->is_terminated())
+        emit<Bytecode::Op::SetLexicalEnvironment>(m_lexical_environment_register_stack.last());
+}
+
+void Generator::ensure_lexical_environment_register_initialized()
+{
+    if (m_lexical_environment_register_stack.is_empty()) {
+        auto environment_register = ScopedOperand { *this, Operand { Register::saved_lexical_environment() } };
+        emit<Op::GetLexicalEnvironment>(environment_register);
+        m_lexical_environment_register_stack.append(environment_register);
     }
+}
+
+ScopedOperand Generator::current_lexical_environment_register() const
+{
+    VERIFY(!m_lexical_environment_register_stack.is_empty());
+    return m_lexical_environment_register_stack.last();
+}
+
+void Generator::push_lexical_environment_register(ScopedOperand const& environment)
+{
+    m_lexical_environment_register_stack.append(environment);
+}
+
+void Generator::pop_lexical_environment_register()
+{
+    m_lexical_environment_register_stack.take_last();
 }
 
 void Generator::begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set)
@@ -1095,6 +1137,7 @@ void Generator::generate_scoped_jump(JumpType type)
 {
     TemporaryChange temp { m_current_unwind_context, m_current_unwind_context };
     TemporaryChange finally_temp { m_current_finally_context, m_current_finally_context };
+    auto environment_stack_offset = m_lexical_environment_register_stack.size();
     for (size_t i = m_boundaries.size(); i > 0; --i) {
         auto boundary = m_boundaries[i - 1];
         using enum BlockBoundaryType;
@@ -1117,7 +1160,8 @@ void Generator::generate_scoped_jump(JumpType type)
             m_current_unwind_context = m_current_unwind_context->previous();
             break;
         case LeaveLexicalEnvironment:
-            emit<Bytecode::Op::LeaveLexicalEnvironment>();
+            --environment_stack_offset;
+            emit<Bytecode::Op::SetLexicalEnvironment>(m_lexical_environment_register_stack[environment_stack_offset - 1]);
             break;
         case ReturnToFinally: {
             VERIFY(m_current_finally_context);
@@ -1141,6 +1185,7 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
     TemporaryChange temp { m_current_unwind_context, m_current_unwind_context };
     TemporaryChange finally_temp { m_current_finally_context, m_current_finally_context };
     size_t current_boundary = m_boundaries.size();
+    auto environment_stack_offset = m_lexical_environment_register_stack.size();
 
     auto const& jumpable_scopes = type == JumpType::Continue ? m_continuable_scopes : m_breakable_scopes;
 
@@ -1152,7 +1197,8 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
                 emit<Bytecode::Op::LeaveUnwindContext>();
                 m_current_unwind_context = m_current_unwind_context->previous();
             } else if (boundary == BlockBoundaryType::LeaveLexicalEnvironment) {
-                emit<Bytecode::Op::LeaveLexicalEnvironment>();
+                --environment_stack_offset;
+                emit<Bytecode::Op::SetLexicalEnvironment>(m_lexical_environment_register_stack[environment_stack_offset - 1]);
             } else if (boundary == BlockBoundaryType::ReturnToFinally) {
                 VERIFY(m_current_finally_context);
                 if (!has_outer_finally_before_target(type, current_boundary) && jumpable_scope.language_label_set.contains_slow(label)) {

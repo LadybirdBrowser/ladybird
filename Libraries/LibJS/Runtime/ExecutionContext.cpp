@@ -121,7 +121,6 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     if (m_rare_data) {
         auto copy_rare_data = copy->ensure_rare_data();
         copy_rare_data->unwind_contexts = m_rare_data->unwind_contexts;
-        copy_rare_data->saved_lexical_environments = m_rare_data->saved_lexical_environments;
     }
     copy->registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_and_arguments_count;
     for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)
@@ -157,9 +156,8 @@ void ExecutionContextRareData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(context_owner);
     visitor.visit(cached_source_range);
     for (auto& context : unwind_contexts) {
-        visitor.visit(context.lexical_environment);
+        visitor.visit(context.executable);
     }
-    visitor.visit(saved_lexical_environments);
 }
 
 GC::Ref<ExecutionContextRareData> ExecutionContext::ensure_rare_data()

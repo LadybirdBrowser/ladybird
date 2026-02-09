@@ -1,106 +1,114 @@
 JS bytecode executable ""
-[   0]    0: GetGlobal dst:reg5, identifier:basicTryFinally
-[  10]       Call dst:reg4, callee:reg5, this_value:Undefined, basicTryFinally
-[  30]       GetGlobal dst:reg6, identifier:breakThroughFinally
-[  40]       Call dst:reg5, callee:reg6, this_value:Undefined, breakThroughFinally
-[  60]       GetGlobal dst:reg6, identifier:nestedTryFinallyWithBreak
-[  70]       Call dst:reg4, callee:reg6, this_value:Undefined, nestedTryFinallyWithBreak
-[  90]       End value:reg4
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:basicTryFinally
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, basicTryFinally
+[  38]       GetGlobal dst:reg7, identifier:breakThroughFinally
+[  48]       Call dst:reg6, callee:reg7, this_value:Undefined, breakThroughFinally
+[  68]       GetGlobal dst:reg7, identifier:nestedTryFinallyWithBreak
+[  78]       Call dst:reg5, callee:reg7, this_value:Undefined, nestedTryFinallyWithBreak
+[  98]       End value:reg5
 
 JS bytecode executable "basicTryFinally"
-[   0]    0: EnterUnwindContext entry_point:@90
-[   8]    1: Catch dst:reg5
-[  10]       Mov dst:reg4, src:Int32(1)
-[  20]       LeaveUnwindContext
-[  28]    2: GetGlobal dst:reg7, identifier:console
-[  38]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  50]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[String("finally")]
-[  78]       JumpStrictlyEquals lhs:reg4, rhs:Int32(0), true_target:@b8, false_target:@c0
-[  90]    3: Mov dst:reg5, src:Int32(1)
-[  a0]       Mov dst:reg4, src:Int32(2)
-[  b0]       Jump target:@28
-[  b8]    4: End value:Undefined
-[  c0]    5: JumpStrictlyEquals lhs:reg4, rhs:Int32(2), true_target:@d8, false_target:@e0
-[  d8]    6: Return value:reg5
-[  e0]    7: Throw src:reg5
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       EnterUnwindContext entry_point:@a0
+[  10]    1: Catch dst:reg6
+[  18]       SetLexicalEnvironment environment:reg4
+[  20]       Mov dst:reg5, src:Int32(1)
+[  30]       LeaveUnwindContext
+[  38]    2: GetGlobal dst:reg8, identifier:console
+[  48]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
+[  60]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("finally")]
+[  88]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@c8, false_target:@d0
+[  a0]    3: Mov dst:reg6, src:Int32(1)
+[  b0]       Mov dst:reg5, src:Int32(2)
+[  c0]       Jump target:@38
+[  c8]    4: End value:Undefined
+[  d0]    5: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@e8, false_target:@f0
+[  e8]    6: Return value:reg6
+[  f0]    7: Throw src:reg6
 
 Exception handlers:
-    from   90 to   b8 handler    0 finalizer    8
+    from   a0 to   c8 handler    0 finalizer   10
 
 JS bytecode executable "breakThroughFinally"
-[   0]    0: Mov dst:i~0, src:Int32(0)
-[  10]       Jump target:@30
-[  18]    1: EnterUnwindContext entry_point:@e8
-[  20]    2: PostfixIncrement dst:reg4, src:i~0
-[  30]    3: JumpLessThan lhs:i~0, rhs:Int32(10), true_target:@18, false_target:@48
-[  48]    4: End value:Undefined
-[  50]    5: Catch dst:reg5
-[  58]       Mov dst:reg4, src:Int32(1)
-[  68]       LeaveUnwindContext
-[  70]    6: GetGlobal dst:reg7, identifier:console
-[  80]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  98]       Mov dst:reg9, src:i~0
-[  a8]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[  d0]       JumpStrictlyEquals lhs:reg4, rhs:Int32(0), true_target:@138, false_target:@140
-[  e8]    7: JumpStrictlyEquals lhs:i~0, rhs:Int32(5), true_target:@100, false_target:@118
-[ 100]    8: Mov dst:reg4, src:Int32(3)
-[ 110]       Jump target:@70
-[ 118]    9: Mov dst:reg4, src:Int32(0)
-[ 128]       LeaveUnwindContext
-[ 130]       Jump target:@70
-[ 138]   10: Jump target:@20
-[ 140]   11: JumpStrictlyEquals lhs:reg4, rhs:Int32(3), true_target:@48, false_target:@158
-[ 158]   12: JumpStrictlyEquals lhs:reg4, rhs:Int32(2), true_target:@170, false_target:@178
-[ 170]   13: Return value:reg5
-[ 178]   14: Throw src:reg5
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:i~0, src:Int32(0)
+[  18]       Jump target:@38
+[  20]    1: EnterUnwindContext entry_point:@f8
+[  28]    2: PostfixIncrement dst:reg5, src:i~0
+[  38]    3: JumpLessThan lhs:i~0, rhs:Int32(10), true_target:@20, false_target:@50
+[  50]    4: End value:Undefined
+[  58]    5: Catch dst:reg6
+[  60]       SetLexicalEnvironment environment:reg4
+[  68]       Mov dst:reg5, src:Int32(1)
+[  78]       LeaveUnwindContext
+[  80]    6: GetGlobal dst:reg8, identifier:console
+[  90]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
+[  a8]       Mov dst:reg10, src:i~0
+[  b8]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[reg10]
+[  e0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@148, false_target:@150
+[  f8]    7: JumpStrictlyEquals lhs:i~0, rhs:Int32(5), true_target:@110, false_target:@128
+[ 110]    8: Mov dst:reg5, src:Int32(3)
+[ 120]       Jump target:@80
+[ 128]    9: Mov dst:reg5, src:Int32(0)
+[ 138]       LeaveUnwindContext
+[ 140]       Jump target:@80
+[ 148]   10: Jump target:@28
+[ 150]   11: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@50, false_target:@168
+[ 168]   12: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@180, false_target:@188
+[ 180]   13: Return value:reg6
+[ 188]   14: Throw src:reg6
 
 Exception handlers:
-    from   e8 to  138 handler    0 finalizer   50
+    from   f8 to  148 handler    0 finalizer   58
 
 JS bytecode executable "nestedTryFinallyWithBreak"
-[   0]    0: Mov dst:i~0, src:Int32(0)
-[  10]    1: EnterUnwindContext entry_point:@c0
-[  18]    2: PostfixIncrement dst:reg4, src:i~0
-[  28]       Jump target:@10
-[  30]    3: End value:Undefined
-[  38]    4: Catch dst:reg5
-[  40]       Mov dst:reg4, src:Int32(1)
-[  50]       LeaveUnwindContext
-[  58]    5: GetGlobal dst:reg7, identifier:console
-[  68]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  80]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[String("outer")]
-[  a8]       JumpStrictlyEquals lhs:reg4, rhs:Int32(0), true_target:@200, false_target:@208
-[  c0]    6: EnterUnwindContext entry_point:@150
-[  c8]    7: Catch dst:reg7
-[  d0]       Mov dst:reg6, src:Int32(1)
-[  e0]       LeaveUnwindContext
-[  e8]    8: GetGlobal dst:reg9, identifier:console
-[  f8]       GetById dst:reg10, base:reg9, property:log, base_identifier:console
-[ 110]       Call dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[String("inner")]
-[ 138]       JumpStrictlyEquals lhs:reg6, rhs:Int32(0), true_target:@180, false_target:@1a0
-[ 150]    9: Mov dst:reg6, src:Int32(3)
-[ 160]       Jump target:@e8
-[ 168]   10: Mov dst:reg4, src:Int32(3)
-[ 178]       Jump target:@58
-[ 180]   11: Mov dst:reg4, src:Int32(0)
-[ 190]       LeaveUnwindContext
-[ 198]       Jump target:@58
-[ 1a0]   12: JumpStrictlyEquals lhs:reg6, rhs:Int32(3), true_target:@168, false_target:@1b8
-[ 1b8]   13: JumpStrictlyEquals lhs:reg6, rhs:Int32(2), true_target:@1d0, false_target:@1f8
-[ 1d0]   14: Mov dst:reg4, src:reg6
-[ 1e0]       Mov dst:reg5, src:reg7
-[ 1f0]       Jump target:@58
-[ 1f8]   15: Throw src:reg7
-[ 200]   16: Jump target:@18
-[ 208]   17: JumpStrictlyEquals lhs:reg4, rhs:Int32(3), true_target:@30, false_target:@220
-[ 220]   18: JumpStrictlyEquals lhs:reg4, rhs:Int32(2), true_target:@238, false_target:@240
-[ 238]   19: Return value:reg5
-[ 240]   20: Throw src:reg5
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:i~0, src:Int32(0)
+[  18]    1: EnterUnwindContext entry_point:@d0
+[  20]    2: PostfixIncrement dst:reg5, src:i~0
+[  30]       Jump target:@18
+[  38]    3: End value:Undefined
+[  40]    4: Catch dst:reg6
+[  48]       SetLexicalEnvironment environment:reg4
+[  50]       Mov dst:reg5, src:Int32(1)
+[  60]       LeaveUnwindContext
+[  68]    5: GetGlobal dst:reg8, identifier:console
+[  78]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
+[  90]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer")]
+[  b8]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@218, false_target:@220
+[  d0]    6: EnterUnwindContext entry_point:@168
+[  d8]    7: Catch dst:reg8
+[  e0]       SetLexicalEnvironment environment:reg4
+[  e8]       Mov dst:reg7, src:Int32(1)
+[  f8]       LeaveUnwindContext
+[ 100]    8: GetGlobal dst:reg10, identifier:console
+[ 110]       GetById dst:reg11, base:reg10, property:log, base_identifier:console
+[ 128]       Call dst:reg9, callee:reg11, this_value:reg10, console.log, arguments:[String("inner")]
+[ 150]       JumpStrictlyEquals lhs:reg7, rhs:Int32(0), true_target:@198, false_target:@1b8
+[ 168]    9: Mov dst:reg7, src:Int32(3)
+[ 178]       Jump target:@100
+[ 180]   10: Mov dst:reg5, src:Int32(3)
+[ 190]       Jump target:@68
+[ 198]   11: Mov dst:reg5, src:Int32(0)
+[ 1a8]       LeaveUnwindContext
+[ 1b0]       Jump target:@68
+[ 1b8]   12: JumpStrictlyEquals lhs:reg7, rhs:Int32(3), true_target:@180, false_target:@1d0
+[ 1d0]   13: JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:@1e8, false_target:@210
+[ 1e8]   14: Mov dst:reg5, src:reg7
+[ 1f8]       Mov dst:reg6, src:reg8
+[ 208]       Jump target:@68
+[ 210]   15: Throw src:reg8
+[ 218]   16: Jump target:@20
+[ 220]   17: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@38, false_target:@238
+[ 238]   18: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@250, false_target:@258
+[ 250]   19: Return value:reg6
+[ 258]   20: Throw src:reg6
 
 Exception handlers:
-    from   c0 to  150 handler    0 finalizer   38
-    from  150 to  180 handler    0 finalizer   c8
-    from  180 to  200 handler    0 finalizer   38
+    from   d0 to  168 handler    0 finalizer   40
+    from  168 to  198 handler    0 finalizer   d8
+    from  198 to  218 handler    0 finalizer   40
 
 "finally"
 0

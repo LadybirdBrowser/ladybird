@@ -1,56 +1,63 @@
 JS bytecode executable ""
-[   0]    0: InitializeLexicalBinding identifier:a, src:String("abcxyz")
-[  18]       InitializeLexicalBinding identifier:b, src:String("abcxyz")
-[  30]       InitializeLexicalBinding identifier:c, src:String("abcxyz")
-[  48]       InitializeLexicalBinding identifier:d, src:String("abcxyz")
-[  60]       InitializeLexicalBinding identifier:e, src:String("abcxyz")
-[  78]       InitializeLexicalBinding identifier:f, src:String("abcxyz")
-[  90]       Mov dst:reg4, src:String("abc")
-[  a0]       ConcatString dst:reg4, src:String("xyz")
-[  b0]       InitializeLexicalBinding identifier:g, src:reg4
-[  c8]       GetGlobal dst:reg5, identifier:prefix
-[  d8]       Call dst:reg4, callee:reg5, this_value:Undefined, prefix, arguments:[String("abc")]
-[ 100]       InitializeLexicalBinding identifier:_prefix, src:reg4
-[ 118]       GetGlobal dst:reg5, identifier:suffix
-[ 128]       Call dst:reg4, callee:reg5, this_value:Undefined, suffix, arguments:[String("abc")]
-[ 150]       InitializeLexicalBinding identifier:_suffix, src:reg4
-[ 168]       GetGlobal dst:reg5, identifier:tostring
-[ 178]       Call dst:reg4, callee:reg5, this_value:Undefined, tostring, arguments:[String("abc")]
-[ 1a0]       InitializeLexicalBinding identifier:_tostring, src:reg4
-[ 1b8]       GetGlobal dst:reg5, identifier:multi
-[ 1c8]       Call dst:reg4, callee:reg5, this_value:Undefined, multi, arguments:[Int32(1), Int32(2), Int32(3)]
-[ 1f8]       InitializeLexicalBinding identifier:_multi, src:reg4
-[ 210]       GetGlobal dst:reg5, identifier:literal
-[ 220]       Call dst:reg4, callee:reg5, this_value:Undefined, literal
-[ 240]       InitializeLexicalBinding identifier:_literal, src:reg4
-[ 258]       GetGlobal dst:reg5, identifier:empty
-[ 268]       Call dst:reg4, callee:reg5, this_value:Undefined, empty
-[ 288]       InitializeLexicalBinding identifier:_empty, src:reg4
-[ 2a0]       End value:Undefined
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       InitializeLexicalBinding identifier:a, src:String("abcxyz")
+[  20]       InitializeLexicalBinding identifier:b, src:String("abcxyz")
+[  38]       InitializeLexicalBinding identifier:c, src:String("abcxyz")
+[  50]       InitializeLexicalBinding identifier:d, src:String("abcxyz")
+[  68]       InitializeLexicalBinding identifier:e, src:String("abcxyz")
+[  80]       InitializeLexicalBinding identifier:f, src:String("abcxyz")
+[  98]       Mov dst:reg5, src:String("abc")
+[  a8]       ConcatString dst:reg5, src:String("xyz")
+[  b8]       InitializeLexicalBinding identifier:g, src:reg5
+[  d0]       GetGlobal dst:reg6, identifier:prefix
+[  e0]       Call dst:reg5, callee:reg6, this_value:Undefined, prefix, arguments:[String("abc")]
+[ 108]       InitializeLexicalBinding identifier:_prefix, src:reg5
+[ 120]       GetGlobal dst:reg6, identifier:suffix
+[ 130]       Call dst:reg5, callee:reg6, this_value:Undefined, suffix, arguments:[String("abc")]
+[ 158]       InitializeLexicalBinding identifier:_suffix, src:reg5
+[ 170]       GetGlobal dst:reg6, identifier:tostring
+[ 180]       Call dst:reg5, callee:reg6, this_value:Undefined, tostring, arguments:[String("abc")]
+[ 1a8]       InitializeLexicalBinding identifier:_tostring, src:reg5
+[ 1c0]       GetGlobal dst:reg6, identifier:multi
+[ 1d0]       Call dst:reg5, callee:reg6, this_value:Undefined, multi, arguments:[Int32(1), Int32(2), Int32(3)]
+[ 200]       InitializeLexicalBinding identifier:_multi, src:reg5
+[ 218]       GetGlobal dst:reg6, identifier:literal
+[ 228]       Call dst:reg5, callee:reg6, this_value:Undefined, literal
+[ 248]       InitializeLexicalBinding identifier:_literal, src:reg5
+[ 260]       GetGlobal dst:reg6, identifier:empty
+[ 270]       Call dst:reg5, callee:reg6, this_value:Undefined, empty
+[ 290]       InitializeLexicalBinding identifier:_empty, src:reg5
+[ 2a8]       End value:Undefined
 
 JS bytecode executable "prefix"
-[   0]    0: Mov dst:reg4, src:String("prefix-")
-[  10]       ConcatString dst:reg4, src:arg0
-[  20]       Return value:reg4
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:String("prefix-")
+[  18]       ConcatString dst:reg5, src:arg0
+[  28]       Return value:reg5
 
 JS bytecode executable "suffix"
-[   0]    0: ToString dst:reg4, value:arg0
-[  10]       ConcatString dst:reg4, src:String("-suffix")
-[  20]       Return value:reg4
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ToString dst:reg5, value:arg0
+[  18]       ConcatString dst:reg5, src:String("-suffix")
+[  28]       Return value:reg5
 
 JS bytecode executable "tostring"
-[   0]    0: ToString dst:reg4, value:arg0
-[  10]       Return value:reg4
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ToString dst:reg5, value:arg0
+[  18]       Return value:reg5
 
 JS bytecode executable "multi"
-[   0]    0: ToString dst:reg4, value:arg0
-[  10]       ConcatString dst:reg4, src:arg1
-[  20]       ConcatString dst:reg4, src:arg2
-[  30]       Return value:reg4
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ToString dst:reg5, value:arg0
+[  18]       ConcatString dst:reg5, src:arg1
+[  28]       ConcatString dst:reg5, src:arg2
+[  38]       Return value:reg5
 
 JS bytecode executable "literal"
-[   0]    0: Return value:String("hello world")
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:String("hello world")
 
 JS bytecode executable "empty"
-[   0]    0: Return value:String("")
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:String("")
 

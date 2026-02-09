@@ -38,7 +38,13 @@ public:
         return Register(return_value_index);
     }
 
-    static constexpr u32 reserved_register_count = 4;
+    static constexpr Register saved_lexical_environment()
+    {
+        constexpr u32 saved_lexical_environment_index = 4;
+        return Register(saved_lexical_environment_index);
+    }
+
+    static constexpr u32 reserved_register_count = 5;
 
     constexpr explicit Register(u32 index)
         : m_index(index)

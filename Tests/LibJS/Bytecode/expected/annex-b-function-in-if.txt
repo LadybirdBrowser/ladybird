@@ -1,0 +1,48 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:console
+[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  30]       GetGlobal dst:reg9, identifier:annexBFunctionInIf
+[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
+[  68]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  90]       GetGlobal dst:reg6, identifier:console
+[  a0]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[  b8]       GetGlobal dst:reg10, identifier:annexBFunctionInIf
+[  c8]       Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
+[  f0]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 118]       End value:reg7
+
+JS bytecode executable "annexBFunctionInIf"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateVariable identifier:inner, is_immutable:false, is_global:false, is_strict:false
+[  18]       InitializeVariableBinding identifier:inner, src:Undefined
+[  30]       JumpFalse condition:arg0, target:@d0
+[  40]    1: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  50]       CreateMutableBinding environment:reg5, identifier:inner, can_be_deleted:false
+[  60]       NewFunction dst:reg6
+[  78]       InitializeLexicalBinding identifier:inner, src:reg6
+[  90]       GetBinding dst:reg6, identifier:inner
+[  a8]       SetVariableBinding identifier:inner, src:reg6
+[  c0]       SetLexicalEnvironment environment:reg4
+[  c8]       Jump target:@158
+[  d0]    2: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  e0]       CreateMutableBinding environment:reg5, identifier:inner, can_be_deleted:false
+[  f0]       NewFunction dst:reg6
+[ 108]       InitializeLexicalBinding identifier:inner, src:reg6
+[ 120]       GetBinding dst:reg6, identifier:inner
+[ 138]       SetVariableBinding identifier:inner, src:reg6
+[ 150]       SetLexicalEnvironment environment:reg4
+[ 158]    3: GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:inner
+[ 170]       Call dst:reg5, callee:reg6, this_value:reg7, inner
+[ 190]       Return value:reg5
+
+JS bytecode executable "inner"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:String("true branch")
+
+JS bytecode executable "inner"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:String("false branch")
+
+"true branch"
+"false branch"

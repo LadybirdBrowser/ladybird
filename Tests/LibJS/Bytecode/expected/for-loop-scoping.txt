@@ -1,0 +1,54 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:console
+[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  30]       GetGlobal dst:reg9, identifier:forLetClosure
+[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, forLetClosure
+[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  88]       End value:reg5
+
+JS bytecode executable "forLetClosure"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewArray dst:fns~0
+[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  28]       CreateVariable identifier:i, is_immutable:false, is_global:false, is_strict:false
+[  38]       InitializeLexicalBinding identifier:i, src:Int32(0)
+[  50]       GetBinding dst:reg6, identifier:i
+[  68]       SetLexicalEnvironment environment:reg4
+[  70]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  80]       CreateVariable identifier:i, is_immutable:false, is_global:false, is_strict:false
+[  90]       InitializeLexicalBinding identifier:i, src:reg6
+[  a8]       Jump target:@1b0
+[  b0]    1: GetById dst:reg7, base:fns~0, property:push, base_identifier:fns
+[  c8]       Mov dst:reg8, src:fns~0
+[  d8]       NewFunction dst:reg9
+[  f0]       Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
+[ 118]       GetBinding dst:reg6, identifier:i
+[ 130]       SetLexicalEnvironment environment:reg4
+[ 138]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[ 148]       CreateVariable identifier:i, is_immutable:false, is_global:false, is_strict:false
+[ 158]       InitializeLexicalBinding identifier:i, src:reg6
+[ 170]    2: GetBinding dst:reg7, identifier:i
+[ 188]       PostfixIncrement dst:reg6, src:reg7
+[ 198]       SetLexicalBinding identifier:i, src:reg7
+[ 1b0]    3: GetBinding dst:reg6, identifier:i
+[ 1c8]       JumpLessThan lhs:reg6, rhs:Int32(3), true_target:@b0, false_target:@1e0
+[ 1e0]    4: SetLexicalEnvironment environment:reg4
+[ 1e8]       GetById dst:reg6, base:fns~0, property:map, base_identifier:fns
+[ 200]       Mov dst:reg7, src:fns~0
+[ 210]       NewFunction dst:reg8
+[ 228]       Call dst:reg5, callee:reg6, this_value:reg7, fns.map, arguments:[reg8]
+[ 250]       Return value:reg5
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ThrowIfTDZ src:arg0
+[  10]       Call dst:reg5, callee:arg0, this_value:Undefined, f
+[  30]       Return value:reg5
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetBinding dst:reg5, identifier:i
+[  20]       Return value:reg5
+
+[ 0, 1, 2 ]

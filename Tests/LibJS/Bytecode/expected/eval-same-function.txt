@@ -1,17 +1,19 @@
 JS bytecode executable ""
-[   0]    0: GetGlobal dst:reg5, identifier:foo
-[  10]       Call dst:reg4, callee:reg5, this_value:Undefined, foo
-[  30]       End value:reg4
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:foo
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, foo
+[  38]       End value:reg5
 
 JS bytecode executable "foo"
-[   0]    0: CreateArguments is_immutable:false
-[  10]       GetCalleeAndThisFromEnvironment callee:reg5, this_value:reg6, identifier:eval
-[  28]       CallDirectEval dst:reg4, callee:reg5, this_value:reg6, eval, arguments:[String("var x = 1")]
-[  50]       GetBinding dst:reg5, identifier:Number
-[  68]       CallConstruct dst:reg4, callee:reg5, Number, arguments:[Int32(42)]
-[  88]       Return value:reg4
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateArguments is_immutable:false
+[  18]       GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:eval
+[  30]       CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
+[  58]       GetBinding dst:reg6, identifier:Number
+[  70]       CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+[  90]       Return value:reg5
 
 JS bytecode executable "eval"
-[   0]    0: SetLexicalBinding identifier:x, src:Int32(1)
-[  18]       End value:Undefined
-
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       SetLexicalBinding identifier:x, src:Int32(1)
+[  20]       End value:Undefined

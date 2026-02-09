@@ -1,0 +1,81 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:console
+[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  30]       GetGlobal dst:reg9, identifier:closureOverBlockScope
+[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, closureOverBlockScope
+[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  88]       GetGlobal dst:reg6, identifier:console
+[  98]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[  b0]       GetGlobal dst:reg10, identifier:breakThroughBlockScopes
+[  c0]       Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughBlockScopes
+[  e0]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+[ 108]       End value:reg7
+
+JS bytecode executable "closureOverBlockScope"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewArray dst:fns~0
+[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  28]       CreateMutableBinding environment:reg5, identifier:x, can_be_deleted:false
+[  38]       InitializeLexicalBinding identifier:x, src:Int32(1)
+[  50]       GetById dst:reg7, base:fns~0, property:push, base_identifier:fns
+[  68]       Mov dst:reg8, src:fns~0
+[  78]       NewFunction dst:reg9
+[  90]       Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
+[  b8]       SetLexicalEnvironment environment:reg4
+[  c0]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  d0]       CreateMutableBinding environment:reg5, identifier:y, can_be_deleted:false
+[  e0]       InitializeLexicalBinding identifier:y, src:Int32(2)
+[  f8]       GetById dst:reg7, base:fns~0, property:push, base_identifier:fns
+[ 110]       Mov dst:reg8, src:fns~0
+[ 120]       NewFunction dst:reg9
+[ 138]       Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
+[ 160]       SetLexicalEnvironment environment:reg4
+[ 168]       GetByValue dst:reg6, base:fns~0, property:Int32(0)
+[ 180]       Mov dst:reg7, src:fns~0
+[ 190]       Call dst:reg5, callee:reg6, this_value:reg7, fns[<computed>]
+[ 1b0]       GetByValue dst:reg7, base:fns~0, property:Int32(1)
+[ 1c8]       Mov dst:reg8, src:fns~0
+[ 1d8]       Call dst:reg6, callee:reg7, this_value:reg8, fns[<computed>]
+[ 1f8]       Add dst:reg7, lhs:reg5, rhs:reg6
+[ 208]       Return value:reg7
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetBinding dst:reg5, identifier:x
+[  20]       Return value:reg5
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetBinding dst:reg5, identifier:y
+[  20]       Return value:reg5
+
+JS bytecode executable "breakThroughBlockScopes"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:result~2, src:Undefined
+[  18]       Mov dst:i~1, src:Int32(0)
+[  28]       Jump target:@c0
+[  30]    1: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  40]       CreateMutableBinding environment:reg5, identifier:x, can_be_deleted:false
+[  50]       InitializeLexicalBinding identifier:x, src:i~1
+[  68]       NewFunction dst:f~0, lhs_name:f
+[  80]       GetBinding dst:reg6, identifier:x
+[  98]       JumpGreaterThan lhs:reg6, rhs:Int32(1), true_target:@110, false_target:@130
+[  b0]    2: PostfixIncrement dst:reg5, src:i~1
+[  c0]    3: JumpLessThan lhs:i~1, rhs:Int32(3), true_target:@30, false_target:@d8
+[  d8]    4: Mov dst:reg7, src:result~2
+[  e8]       Call dst:reg5, callee:reg7, this_value:Undefined, result
+[ 108]       Return value:reg5
+[ 110]    5: Mov dst:result~2, src:f~0
+[ 120]       SetLexicalEnvironment environment:reg4
+[ 128]       Jump target:@d8
+[ 130]    6: SetLexicalEnvironment environment:reg4
+[ 138]       Jump target:@b0
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetBinding dst:reg5, identifier:x
+[  20]       Return value:reg5
+
+3
+2

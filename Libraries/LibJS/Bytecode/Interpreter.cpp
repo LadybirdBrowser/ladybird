@@ -468,6 +468,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetCompletionFields);
             HANDLE_INSTRUCTION(GetGlobal);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetImportMeta);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetLexicalEnvironment);
             HANDLE_INSTRUCTION(GetIterator);
             HANDLE_INSTRUCTION(GetLength);
             HANDLE_INSTRUCTION(GetLengthWithThis);
@@ -493,7 +494,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(IteratorNext);
             HANDLE_INSTRUCTION(IteratorNextUnpack);
             HANDLE_INSTRUCTION(IteratorToArray);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveLexicalEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeavePrivateEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveUnwindContext);
             HANDLE_INSTRUCTION(LeftShift);
@@ -535,6 +535,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(RightShift);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetCompletionType);
             HANDLE_INSTRUCTION(SetGlobal);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetLexicalEnvironment);
             HANDLE_INSTRUCTION(SetLexicalBinding);
             HANDLE_INSTRUCTION(SetVariableBinding);
             HANDLE_INSTRUCTION(StrictlyEquals);
@@ -654,8 +655,7 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
 void Interpreter::enter_unwind_context()
 {
     running_execution_context().ensure_rare_data()->unwind_contexts.empend(
-        current_executable(),
-        running_execution_context().lexical_environment);
+        current_executable());
 }
 
 void Interpreter::leave_unwind_context()
@@ -670,14 +670,6 @@ void Interpreter::catch_exception(Operand dst)
     auto& context = running_execution_context().rare_data()->unwind_contexts.last();
     VERIFY(context.executable == &current_executable());
     context.handler_called = true;
-    running_execution_context().lexical_environment = context.lexical_environment;
-}
-
-void Interpreter::enter_object_environment(Object& object)
-{
-    auto& old_environment = running_execution_context().lexical_environment;
-    running_execution_context().ensure_rare_data()->saved_lexical_environments.append(old_environment);
-    running_execution_context().lexical_environment = new_object_environment(object, true, old_environment);
 }
 
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, Utf16FlyString const& name)
@@ -2211,17 +2203,11 @@ COLD ThrowCompletionOr<void> DeleteVariable::execute_impl(Bytecode::Interpreter&
 
 void CreateLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto make_and_swap_envs = [&](auto& old_environment) {
-        auto declarative_environment = new_declarative_environment(*old_environment).ptr();
-        declarative_environment->ensure_capacity(m_capacity);
-        GC::Ptr<Environment> environment = declarative_environment;
-        swap(old_environment, environment);
-        return environment;
-    };
-    auto& running_execution_context = interpreter.running_execution_context();
-    running_execution_context.ensure_rare_data()->saved_lexical_environments.append(make_and_swap_envs(running_execution_context.lexical_environment));
-    if (m_dst.has_value())
-        interpreter.set(*m_dst, running_execution_context.lexical_environment);
+    auto& parent = as<Environment>(interpreter.get(m_parent).as_cell());
+    auto environment = new_declarative_environment(parent);
+    environment->ensure_capacity(m_capacity);
+    interpreter.set(m_dst, environment);
+    interpreter.running_execution_context().lexical_environment = environment;
 }
 
 void CreatePrivateEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -2243,7 +2229,10 @@ void CreateVariableEnvironment::execute_impl(Bytecode::Interpreter& interpreter)
 COLD ThrowCompletionOr<void> EnterObjectEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto object = TRY(interpreter.get(m_object).to_object(interpreter.vm()));
-    interpreter.enter_object_environment(*object);
+    auto& old_environment = interpreter.running_execution_context().lexical_environment;
+    auto new_environment = new_object_environment(*object, true, old_environment);
+    interpreter.set(m_dst, new_environment);
+    interpreter.running_execution_context().lexical_environment = new_environment;
     return {};
 }
 
@@ -2530,6 +2519,16 @@ void GetNewTarget::execute_impl(Bytecode::Interpreter& interpreter) const
 void GetImportMeta::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     interpreter.set(dst(), interpreter.vm().get_import_meta());
+}
+
+void GetLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    interpreter.set(dst(), interpreter.running_execution_context().lexical_environment);
+}
+
+void SetLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    interpreter.running_execution_context().lexical_environment = &as<Environment>(interpreter.get(m_environment).as_cell());
 }
 
 static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& interpreter, Bytecode::Builtin builtin, ReadonlySpan<Operand> arguments)
@@ -2913,12 +2912,6 @@ ThrowCompletionOr<void> ThrowIfTDZ::execute_impl(Bytecode::Interpreter& interpre
     return {};
 }
 
-void LeaveLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& running_execution_context = interpreter.running_execution_context();
-    running_execution_context.lexical_environment = running_execution_context.rare_data()->saved_lexical_environments.take_last();
-}
-
 void LeavePrivateEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& running_execution_context = interpreter.vm().running_execution_context();
@@ -3111,10 +3104,9 @@ NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interprete
         element_keys.unchecked_append(element_key);
     }
 
-    // NOTE: NewClass expects classEnv to be active lexical environment
     auto& running_execution_context = interpreter.running_execution_context();
-    auto class_environment = running_execution_context.lexical_environment;
-    running_execution_context.lexical_environment = running_execution_context.rare_data()->saved_lexical_environments.take_last();
+    auto class_environment = &as<Environment>(interpreter.get(m_class_environment).as_cell());
+    auto& outer_environment = running_execution_context.lexical_environment;
 
     Optional<Utf16FlyString> binding_name;
     Utf16FlyString class_name;
@@ -3125,7 +3117,7 @@ NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interprete
         binding_name = class_name;
     }
 
-    auto retval = TRY(m_class_expression.create_class_constructor(interpreter.vm(), class_environment, running_execution_context.lexical_environment, super_class, element_keys, binding_name, class_name));
+    auto retval = TRY(m_class_expression.create_class_constructor(interpreter.vm(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
     interpreter.set(dst(), retval);
     return {};
 }
