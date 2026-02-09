@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+@keyframes test {
+    from { opacity: 0; }
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let sheet = document.styleSheets[0];
+        let keyframesRule = sheet.cssRules[0];
+        let keyframeRule = keyframesRule.cssRules[0];
+
+        println(`Initial: ${keyframeRule.keyText}`);
+
+        keyframeRule.keyText = "50%";
+        println(`After 50%: ${keyframeRule.keyText}`);
+
+        keyframeRule.keyText = "to";
+        println(`After to: ${keyframeRule.keyText}`);
+
+        keyframeRule.keyText = "from";
+        println(`After from: ${keyframeRule.keyText}`);
+
+        try {
+            keyframeRule.keyText = "invalid";
+        } catch (e) {
+            println(`Invalid throws: ${e.name}`);
+        }
+        println(`Unchanged after invalid: ${keyframeRule.keyText}`);
+
+        try {
+            keyframeRule.keyText = "150%";
+        } catch (e) {
+            println(`Out of range throws: ${e.name}`);
+        }
+        println(`Unchanged after out-of-range: ${keyframeRule.keyText}`);
+    });
+</script>

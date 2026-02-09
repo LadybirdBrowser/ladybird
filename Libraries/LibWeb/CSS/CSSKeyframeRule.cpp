@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::CSS {
 
@@ -38,6 +39,32 @@ void CSSKeyframeRule::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeyframeRule);
     Base::initialize(realm);
+}
+
+// https://drafts.csswg.org/css-animations/#dom-csskeyframerule-keytext
+WebIDL::ExceptionOr<void> CSSKeyframeRule::set_key_text(String const& key_text)
+{
+    // On setting, if the value does not match the <keyframe-selector> grammar, throw a SyntaxError.
+    auto trimmed = key_text.bytes_as_string_view().trim_whitespace();
+
+    Optional<Percentage> new_key;
+
+    if (trimmed.equals_ignoring_ascii_case("from"sv)) {
+        new_key = Percentage(0);
+    } else if (trimmed.equals_ignoring_ascii_case("to"sv)) {
+        new_key = Percentage(100);
+    } else if (trimmed.ends_with('%')) {
+        auto number_part = trimmed.substring_view(0, trimmed.length() - 1);
+        auto maybe_value = number_part.to_number<double>();
+        if (maybe_value.has_value() && *maybe_value >= 0.0 && *maybe_value <= 100.0)
+            new_key = Percentage(*maybe_value);
+    }
+
+    if (!new_key.has_value())
+        return WebIDL::SyntaxError::create(realm(), "Invalid keyframe selector"_utf16);
+
+    m_key = *new_key;
+    return {};
 }
 
 String CSSKeyframeRule::serialized() const

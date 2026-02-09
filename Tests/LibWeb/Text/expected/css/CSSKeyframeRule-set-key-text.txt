@@ -1,0 +1,8 @@
+Initial: 0%
+After 50%: 50%
+After to: 100%
+After from: 0%
+Invalid throws: SyntaxError
+Unchanged after invalid: 0%
+Out of range throws: SyntaxError
+Unchanged after out-of-range: 0%
