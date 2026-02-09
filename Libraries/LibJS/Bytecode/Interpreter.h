@@ -64,7 +64,6 @@ public:
         reg(Register::exception()) = js_special_empty_value();
     }
 
-    void enter_unwind_context();
     void leave_unwind_context();
     void catch_exception(Operand dst);
 

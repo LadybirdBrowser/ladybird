@@ -390,13 +390,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             goto start;
         }
 
-        handle_EnterUnwindContext: {
-            auto& instruction = *reinterpret_cast<Op::EnterUnwindContext const*>(&bytecode[program_counter]);
-            enter_unwind_context();
-            program_counter = instruction.entry_point().address();
-            goto start;
-        }
-
 #define HANDLE_INSTRUCTION(name)                                                                                            \
     handle_##name:                                                                                                          \
     {                                                                                                                       \
@@ -650,12 +643,6 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
         return throw_completion(exception);
 
     return reg(Register::return_value());
-}
-
-void Interpreter::enter_unwind_context()
-{
-    running_execution_context().ensure_rare_data()->unwind_contexts.empend(
-        current_executable());
 }
 
 void Interpreter::leave_unwind_context()
