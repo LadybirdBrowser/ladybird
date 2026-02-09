@@ -9,3 +9,10 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-bytecode.py" "${CMAKE_BINARY_DIR}/bin/test-js-bytecode"
     DEPENDS "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-bytecode.py"
 )
+
+add_custom_target(test-js-ast ALL DEPENDS js "${CMAKE_BINARY_DIR}/bin/test-js-ast")
+add_custom_command(
+    OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js-ast"
+    COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-ast.py" "${CMAKE_BINARY_DIR}/bin/test-js-ast"
+    DEPENDS "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-ast.py"
+)
