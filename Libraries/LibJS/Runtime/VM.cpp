@@ -799,15 +799,14 @@ static GC::Ptr<CachedSourceRange> get_source_range(ExecutionContext* context)
     if (!context->executable)
         return {};
 
-    if (!context->rare_data()
-        || !context->rare_data()->cached_source_range
-        || context->rare_data()->cached_source_range->program_counter != context->program_counter) {
+    if (!context->cached_source_range
+        || context->cached_source_range->program_counter != context->program_counter) {
         auto unrealized_source_range = context->executable->source_range_at(context->program_counter);
-        context->ensure_rare_data()->cached_source_range = context->executable->heap().allocate<CachedSourceRange>(
+        context->cached_source_range = context->executable->heap().allocate<CachedSourceRange>(
             context->program_counter,
             move(unrealized_source_range));
     }
-    return context->rare_data()->cached_source_range;
+    return context->cached_source_range;
 }
 
 GC::ConservativeVector<StackTraceElement> VM::stack_trace() const
