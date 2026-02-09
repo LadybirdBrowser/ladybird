@@ -8,21 +8,21 @@ Program (script) @2:1
 │              └─ NumericLiteral 0 @3:22
 ├─ FunctionDeclaration "arguments_as_param" [might-need-arguments] @7:1
 │  ├─ parameters
-│  │  └─ Identifier "arguments" @7:29
+│  │  └─ Identifier "arguments" [argument:0] @7:29
 │  └─ body
 │     └─ FunctionBody @8:5
 │        └─ ReturnStatement @8:5
-│           └─ Identifier "arguments" @8:12
+│           └─ Identifier "arguments" [argument:0] @8:12
 ├─ FunctionDeclaration "arguments_as_second_param" [might-need-arguments] @12:1
 │  ├─ parameters
-│  │  ├─ Identifier "x" @12:36
-│  │  └─ Identifier "arguments" @12:36
+│  │  ├─ Identifier "x" [argument:0] @12:36
+│  │  └─ Identifier "arguments" [argument:1] @12:36
 │  └─ body
 │     └─ FunctionBody @13:5
 │        └─ ReturnStatement @13:5
 │           └─ BinaryExpression (+) @13:14
-│              ├─ Identifier "x" @13:12
-│              └─ Identifier "arguments" @13:16
+│              ├─ Identifier "x" [argument:0] @13:12
+│              └─ Identifier "arguments" [argument:1] @13:16
 ├─ FunctionDeclaration "arrow_arguments" [might-need-arguments] @17:1
 │  └─ body
 │     └─ FunctionBody @18:5
