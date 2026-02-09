@@ -574,9 +574,9 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
         if (function_length == -1)
             function_length = parameters->size();
 
-        auto old_labels_in_scope = move(m_state.labels_in_scope);
+        auto old_labels_in_scope = move(m_labels_in_scope);
         ScopeGuard guard([&]() {
-            m_state.labels_in_scope = move(old_labels_in_scope);
+            m_labels_in_scope = move(old_labels_in_scope);
         });
 
         TemporaryChange change(m_state.in_arrow_function_context, true);
@@ -690,7 +690,7 @@ RefPtr<LabelledStatement const> Parser::try_parse_labelled_statement(AllowLabell
         return {};
     }
 
-    if (m_state.labels_in_scope.contains(identifier))
+    if (m_labels_in_scope.contains(identifier))
         syntax_error(MUST(String::formatted("Label '{}' has already been declared", identifier)));
 
     RefPtr<Statement const> labelled_item;
@@ -698,7 +698,7 @@ RefPtr<LabelledStatement const> Parser::try_parse_labelled_statement(AllowLabell
     auto is_iteration_statement = false;
 
     if (match(TokenType::Function)) {
-        m_state.labels_in_scope.set(identifier, {});
+        m_labels_in_scope.set(identifier, {});
         auto function_declaration = parse_function_node<FunctionDeclaration>();
         scope_collector().add_declaration(function_declaration);
         if (function_declaration->kind() == FunctionKind::Generator)
@@ -708,7 +708,7 @@ RefPtr<LabelledStatement const> Parser::try_parse_labelled_statement(AllowLabell
 
         labelled_item = move(function_declaration);
     } else {
-        m_state.labels_in_scope.set(identifier, {});
+        m_labels_in_scope.set(identifier, {});
         labelled_item = parse_statement(allow_function);
         // Extract the innermost statement from a potentially nested chain of LabelledStatements.
         auto statement = labelled_item;
@@ -719,11 +719,11 @@ RefPtr<LabelledStatement const> Parser::try_parse_labelled_statement(AllowLabell
     }
 
     if (!is_iteration_statement) {
-        if (auto entry = m_state.labels_in_scope.find(identifier); entry != m_state.labels_in_scope.end() && entry->value.has_value())
-            syntax_error("labelled continue statement cannot use non iterating statement"_string, m_state.labels_in_scope.get(identifier).value());
+        if (auto entry = m_labels_in_scope.find(identifier); entry != m_labels_in_scope.end() && entry->value.has_value())
+            syntax_error("labelled continue statement cannot use non iterating statement"_string, m_labels_in_scope.get(identifier).value());
     }
 
-    m_state.labels_in_scope.remove(identifier);
+    m_labels_in_scope.remove(identifier);
 
     return create_ast_node<LabelledStatement>({ m_source_code, rule_start.position(), position() }, identifier.view().to_utf8_but_should_be_ported_to_utf16(), labelled_item.release_nonnull());
 }
@@ -2473,9 +2473,9 @@ NonnullRefPtr<FunctionNodeType> Parser::parse_function_node(u16 parse_options, O
 
         TemporaryChange function_context_rollback(m_state.in_function_context, true);
 
-        auto old_labels_in_scope = move(m_state.labels_in_scope);
+        auto old_labels_in_scope = move(m_labels_in_scope);
         ScopeGuard guard([&]() {
-            m_state.labels_in_scope = move(old_labels_in_scope);
+            m_labels_in_scope = move(old_labels_in_scope);
         });
 
         consume(TokenType::CurlyOpen);
@@ -2994,8 +2994,8 @@ NonnullRefPtr<BreakStatement const> Parser::parse_break_statement()
         if (!m_state.current_token().trivia_contains_line_terminator() && match_identifier()) {
             target_label = consume().fly_string_value();
 
-            auto label = m_state.labels_in_scope.find(target_label.value());
-            if (label == m_state.labels_in_scope.end())
+            auto label = m_labels_in_scope.find(target_label.value());
+            if (label == m_labels_in_scope.end())
                 syntax_error(MUST(String::formatted("Label '{}' not found", target_label.value())));
         }
         consume_or_insert_semicolon();
@@ -3025,8 +3025,8 @@ NonnullRefPtr<ContinueStatement const> Parser::parse_continue_statement()
         auto label_position = position();
         target_label = consume().fly_string_value();
 
-        auto label = m_state.labels_in_scope.find(target_label.value());
-        if (label == m_state.labels_in_scope.end())
+        auto label = m_labels_in_scope.find(target_label.value());
+        if (label == m_labels_in_scope.end())
             syntax_error(MUST(String::formatted("Label '{}' not found or invalid", target_label.value())));
         else
             label->value = label_position;
