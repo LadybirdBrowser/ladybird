@@ -68,6 +68,8 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
         set(os freebsd)
     elseif (os_name STREQUAL "OpenBSD")
         set(os openbsd)
+    elseif (os_name STREQUAL "NetBSD")
+        set(os netbsd)
     else()
         message(FATAL_ERROR "Unable to automatically detect os name for vcpkg, please set VCPKG_TARGET_TRIPLET manually")
     endif()
@@ -80,8 +82,8 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
     string(TOLOWER ${triplet_path} triplet_path)
     if (NOT triplet_path STREQUAL "distribution")
         # NOTE: Windows defaults to dynamic linking
-        # NOTE: Dynamic libraries are explicitly disabled on OpenBSD when using vcpkg
-        if (NOT os_name MATCHES "Windows|OpenBSD")
+        # NOTE: Dynamic libraries are explicitly disabled on OpenBSD and NetBSD when using vcpkg
+        if (NOT os_name MATCHES "Windows|(Open|Net)BSD")
             set(full_triplet "${full_triplet}-dynamic")
         endif()
     elseif (os_name MATCHES "Windows")
