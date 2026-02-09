@@ -196,11 +196,6 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
                 effects.filter.dump(builder);
                 has_content = true;
             }
-            if (effects.isolate) {
-                if (has_content)
-                    builder.append(' ');
-                builder.append("isolate"sv);
-            }
             builder.append("]"sv);
         });
 }

@@ -128,8 +128,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
             CSS::PropertyID::ClipPath,
             CSS::PropertyID::Opacity,
             CSS::PropertyID::MixBlendMode,
-            CSS::PropertyID::Filter,
-            CSS::PropertyID::Isolation)) {
+            CSS::PropertyID::Filter)) {
         invalidation.rebuild_accumulated_visual_contexts = true;
     }
 
