@@ -929,6 +929,12 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         resolve_used_height_if_treated_as_auto(box, available_space_for_height_resolution, independent_formatting_context);
     }
 
+    // Now that our children are formatted we place the ListItemBox with the left space we remembered.
+    if (is_list_item_box_without_css_content)
+        // The marker pseudo-element will be created from a ListItemMarkerBox
+        layout_list_item_marker(*li_box, left_space_before_children_formatted);
+    // Otherwise, it will be a dealt with as a generic pseudo-element with the content of the ::marker pseudo-element.
+
     if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed()) {
             m_margin_state.reset();
@@ -942,12 +948,6 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     auto const& block_container_state = m_state.get(block_container);
     compute_inset(box, content_box_rect(block_container_state).size());
-
-    // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-    if (is_list_item_box_without_css_content)
-        // The marker pseudo-element will be created from a ListItemMarkerBox
-        layout_list_item_marker(*li_box, left_space_before_children_formatted);
-    // Otherwise, it will be a dealt with as a generic pseudo-element with the content of the ::marker pseudo-element.
 
     bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
 
