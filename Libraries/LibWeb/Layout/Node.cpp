@@ -704,7 +704,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_text_decoration_style(computed_style.text_decoration_style());
     computed_values.set_text_transform(computed_style.text_transform());
 
-    computed_values.set_list_style_type(computed_style.list_style_type());
+    computed_values.set_list_style_type(computed_style.list_style_type(m_dom_node->document().registered_counter_styles()));
     computed_values.set_list_style_position(computed_style.list_style_position());
     auto const& list_style_image = computed_style.property(CSS::PropertyID::ListStyleImage);
     if (list_style_image.is_abstract_image()) {

@@ -1343,7 +1343,7 @@ TextTransform ComputedProperties::text_transform() const
     return keyword_to_text_transform(value.to_keyword()).release_value();
 }
 
-ListStyleType ComputedProperties::list_style_type() const
+ListStyleType ComputedProperties::list_style_type(HashMap<FlyString, CounterStyle> const& registered_counter_styles) const
 {
     auto const& value = property(PropertyID::ListStyleType);
 
@@ -1353,11 +1353,7 @@ ListStyleType ComputedProperties::list_style_type() const
     if (value.is_string())
         return value.as_string().string_value().to_string();
 
-    if (auto keyword = value.as_counter_style().to_counter_style_name_keyword(); keyword.has_value())
-        return keyword.release_value();
-
-    // FIXME: Support user defined counter styles.
-    return Empty {};
+    return value.as_counter_style().resolve_counter_style(registered_counter_styles);
 }
 
 ListStylePosition ComputedProperties::list_style_position() const

@@ -16,6 +16,7 @@ namespace Web::CSS {
 class CounterStyle {
 public:
     static CounterStyle decimal();
+    static CounterStyle disc();
     static CounterStyle from_counter_style_definition(CounterStyleDefinition const&, HashMap<FlyString, CounterStyle> const&);
 
     static CounterStyle create(FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, FlyString prefix, FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<FlyString> fallback, CounterStylePad pad)

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Painting/MarkerPaintable.h>
@@ -23,51 +24,53 @@ ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType
 
 ListItemMarkerBox::~ListItemMarkerBox() = default;
 
+bool ListItemMarkerBox::counter_style_is_rendered_with_custom_image(Optional<CSS::CounterStyle const&> const& counter_style)
+{
+    // https://drafts.csswg.org/css-counter-styles-3/#simple-symbolic
+    // When used in list-style-type, a UA may instead render these styles using a UA-generated image or a UA-chosen font
+    // instead of rendering the specified character in the element’s own font. If using an image, it must look similar
+    // to the character, and must be sized to attractively fill a 1em by 1em square.
+
+    if (!counter_style.has_value())
+        return false;
+
+    auto const& counter_style_name = counter_style->name();
+
+    return first_is_one_of(counter_style_name, "square"_fly_string, "circle"_fly_string, "disc"_fly_string, "disclosure-closed"_fly_string, "disclosure-open"_fly_string);
+}
+
 Optional<String> ListItemMarkerBox::text() const
 {
+    // https://drafts.csswg.org/css-lists-3/#text-markers
     auto index = m_list_item_element->ordinal_value();
 
     return m_list_style_type.visit(
         [](Empty const&) -> Optional<String> {
+            // none
+            // The element has no marker string.
             return {};
         },
-        [index](CSS::CounterStyleNameKeyword keyword) -> Optional<String> {
-            String text;
-            switch (keyword) {
-            case CSS::CounterStyleNameKeyword::Square:
-            case CSS::CounterStyleNameKeyword::Circle:
-            case CSS::CounterStyleNameKeyword::Disc:
-            case CSS::CounterStyleNameKeyword::DisclosureClosed:
-            case CSS::CounterStyleNameKeyword::DisclosureOpen:
+        [&](Optional<CSS::CounterStyle const&> const& counter_style) -> Optional<String> {
+            // <counter-style>
+            // Specifies the element’s marker string as the value of the list-item counter represented using the
+            // specified <counter-style>. Specifically, the marker string is the result of generating a counter
+            // representation of the list-item counter value using the specified <counter-style>, prefixed by the prefix
+            // of the <counter-style>, and followed by the suffix of the <counter-style>. If the specified
+            // <counter-style> does not exist, decimal is assumed.
+            if (counter_style_is_rendered_with_custom_image(counter_style))
                 return {};
-            case CSS::CounterStyleNameKeyword::Decimal:
-                text = String::number(index);
-                break;
-            case CSS::CounterStyleNameKeyword::DecimalLeadingZero:
-                // This is weird, but in accordance to spec.
-                text = index < 10 ? MUST(String::formatted("0{}", index)) : String::number(index);
-                break;
-            case CSS::CounterStyleNameKeyword::LowerAlpha:
-            case CSS::CounterStyleNameKeyword::LowerLatin:
-                text = String::bijective_base_from(index - 1, String::Case::Lower);
-                break;
-            case CSS::CounterStyleNameKeyword::UpperAlpha:
-            case CSS::CounterStyleNameKeyword::UpperLatin:
-                text = String::bijective_base_from(index - 1, String::Case::Upper);
-                break;
-            case CSS::CounterStyleNameKeyword::LowerGreek:
-                text = String::greek_letter_from(index);
-                break;
-            case CSS::CounterStyleNameKeyword::LowerRoman:
-                text = String::roman_number_from(index, String::Case::Lower);
-                break;
-            case CSS::CounterStyleNameKeyword::UpperRoman:
-                text = String::roman_number_from(index, String::Case::Upper);
-                break;
-            }
-            return MUST(String::formatted("{}. ", text));
+
+            // NB: Fallback to decimal if the counter style does not exist is handled within generate_a_counter_representation()
+            auto counter_representation = CSS::generate_a_counter_representation(counter_style, m_list_item_element->document().registered_counter_styles(), index);
+
+            if (!counter_style.has_value())
+                return MUST(String::formatted("{}. ", counter_representation));
+
+            return MUST(String::formatted("{}{}{}", counter_style->prefix(), counter_representation, counter_style->suffix()));
         },
         [](String const& string) -> Optional<String> {
+            // <string>
+            // The element’s marker string is the specified <string>.
             return string;
         });
 }
@@ -93,14 +96,17 @@ CSSPixels ListItemMarkerBox::relative_size() const
     static constexpr float marker_image_size_factor = 0.35f;
     static constexpr float disclosure_marker_image_size_factor = 0.5f;
 
-    // Scale the marker box relative to the used font's pixel size.
-    switch (m_list_style_type.get<CSS::CounterStyleNameKeyword>()) {
-    case CSS::CounterStyleNameKeyword::DisclosureClosed:
-    case CSS::CounterStyleNameKeyword::DisclosureOpen:
-        return CSSPixels::nearest_value_for(ceilf(font_size * disclosure_marker_image_size_factor));
-    default:
+    auto counter_style = m_list_style_type.get<Optional<CSS::CounterStyle const&>>();
+
+    VERIFY(counter_style.has_value());
+
+    if (counter_style->name() == "square"_fly_string || counter_style->name() == "circle"_fly_string || counter_style->name() == "disc"_fly_string)
         return CSSPixels::nearest_value_for(ceilf(font_size * marker_image_size_factor));
-    }
+
+    if (counter_style->name() == "disclosure-closed"_fly_string || counter_style->name() == "disclosure-open"_fly_string)
+        return CSSPixels::nearest_value_for(ceilf(font_size * disclosure_marker_image_size_factor));
+
+    VERIFY_NOT_REACHED();
 }
 
 void ListItemMarkerBox::visit_edges(Cell::Visitor& visitor)

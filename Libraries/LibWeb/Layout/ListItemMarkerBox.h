@@ -17,6 +17,8 @@ class ListItemMarkerBox final : public Box {
     GC_DECLARE_ALLOCATOR(ListItemMarkerBox);
 
 public:
+    static bool counter_style_is_rendered_with_custom_image(Optional<CSS::CounterStyle const&> const& counter_style);
+
     explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, GC::Ref<DOM::Element>, GC::Ref<CSS::ComputedProperties>);
     virtual ~ListItemMarkerBox() override;
 

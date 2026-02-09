@@ -24,6 +24,20 @@ CounterStyle CounterStyle::decimal()
         CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
 }
 
+// https://drafts.csswg.org/css-counter-styles-3/#disc
+CounterStyle CounterStyle::disc()
+{
+    return CounterStyle::create(
+        "disc"_fly_string,
+        GenericCounterStyleAlgorithm { CounterStyleSystem::Cyclic, { "•"_fly_string } },
+        CounterStyleNegativeSign { .prefix = ""_fly_string, .suffix = " "_fly_string },
+        ""_fly_string,
+        " "_fly_string,
+        { { NumericLimits<i64>::min(), NumericLimits<i64>::max() } },
+        "decimal"_fly_string,
+        CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
+}
+
 CounterStyle CounterStyle::from_counter_style_definition(CounterStyleDefinition const& definition, HashMap<FlyString, CounterStyle> const& registered_counter_styles)
 {
     return definition.algorithm().visit(

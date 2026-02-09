@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Test: invalid counter-style symbols</title>
+<link rel="author" title="Anthony Ramine" href="mailto:n.oxyde@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#typedef-symbol">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-counter-styles/counter-style-at-rule/broken-symbols-ref.html">
+<style type="text/css">
+  @counter-style a {
+    system: alphabetic;
+    symbols: ⓐ inherit;
+  }
+</style>
+<ol style="list-style-type: a"><li>Should have "1." as bullet point.</ol>
