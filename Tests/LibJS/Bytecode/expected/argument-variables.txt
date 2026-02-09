@@ -1,0 +1,16 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:identity
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, identity, arguments:[Int32(1)]
+[  40]       GetGlobal dst:reg7, identifier:swap
+[  50]       Call dst:reg6, callee:reg7, this_value:Undefined, swap, arguments:[Int32(1), Int32(2)]
+[  78]       End value:reg6
+
+JS bytecode executable "identity"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:arg0
+
+JS bytecode executable "swap"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Add dst:reg5, lhs:arg1, rhs:arg0
+[  18]       Return value:reg5

@@ -1,0 +1,10 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       SetGlobal identifier:x, src:Int32(1)
+[  18]       GetGlobal dst:reg6, identifier:console
+[  28]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  40]       GetGlobal dst:reg8, identifier:x
+[  50]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  78]       End value:reg5
+
+1
