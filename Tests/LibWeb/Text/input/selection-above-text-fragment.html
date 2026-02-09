@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+#box {
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+</style>
+<div id="box">Hello world</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    document.body.offsetWidth; // force layout
+
+    const rect = box.getBoundingClientRect();
+    const textNode = box.firstChild;
+
+    // Click within the text, past "Hello ".
+    const startX = rect.x + 20 + 50;
+    const startY = rect.y + 20 + 5;
+    internals.mouseDown(startX, startY);
+
+    // Move into the padding area above the text fragment.
+    internals.mouseMove(rect.x + 5, rect.y + 2);
+    internals.mouseUp(rect.x + 5, rect.y + 2);
+
+    const sel = window.getSelection();
+    println(`focusNode: ${sel.focusNode === textNode ? "text" : sel.focusNode?.nodeName}`);
+    println(`focusOffset: ${sel.focusOffset}`);
+    println(`selected: "${sel.toString()}"`);
+});
+</script>

@@ -1,0 +1,3 @@
+focusNode: text
+focusOffset: 0
+selected: "Hello w"
