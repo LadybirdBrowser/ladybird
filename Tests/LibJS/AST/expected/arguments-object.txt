@@ -13,41 +13,51 @@ Program (script) @2:1
 │     └─ FunctionBody @8:5
 │        └─ ReturnStatement @8:5
 │           └─ Identifier "arguments" @8:12
-├─ FunctionDeclaration "arrow_arguments" [might-need-arguments] @12:1
+├─ FunctionDeclaration "arguments_as_second_param" [might-need-arguments] @12:1
+│  ├─ parameters
+│  │  ├─ Identifier "x" @12:36
+│  │  └─ Identifier "arguments" @12:36
 │  └─ body
 │     └─ FunctionBody @13:5
-│        ├─ VariableDeclaration (let) @13:5
-│        │  └─ VariableDeclarator @13:5
-│        │     ├─ Identifier "f" [variable:0] (let) @13:9
-│        │     └─ FunctionExpression "" [arrow] @13:13
+│        └─ ReturnStatement @13:5
+│           └─ BinaryExpression (+) @13:14
+│              ├─ Identifier "x" @13:12
+│              └─ Identifier "arguments" @13:16
+├─ FunctionDeclaration "arrow_arguments" [might-need-arguments] @17:1
+│  └─ body
+│     └─ FunctionBody @18:5
+│        ├─ VariableDeclaration (let) @18:5
+│        │  └─ VariableDeclarator @18:5
+│        │     ├─ Identifier "f" [variable:0] (let) @18:9
+│        │     └─ FunctionExpression "" [arrow] @18:13
 │        │        └─ body
-│        │           └─ FunctionBody @13:13
-│        │              └─ ReturnStatement @13:13
-│        │                 └─ MemberExpression [computed] @13:28
-│        │                    ├─ Identifier "arguments" @13:19
-│        │                    └─ NumericLiteral 0 @13:29
-│        └─ ReturnStatement @14:5
-│           └─ CallExpression @14:13
-│              └─ Identifier "f" [variable:0] (let) @14:12
-├─ FunctionDeclaration "destructured_with_arguments" [might-need-arguments] @18:1
+│        │           └─ FunctionBody @18:13
+│        │              └─ ReturnStatement @18:13
+│        │                 └─ MemberExpression [computed] @18:28
+│        │                    ├─ Identifier "arguments" @18:19
+│        │                    └─ NumericLiteral 0 @18:29
+│        └─ ReturnStatement @19:5
+│           └─ CallExpression @19:13
+│              └─ Identifier "f" [variable:0] (let) @19:12
+├─ FunctionDeclaration "destructured_with_arguments" [might-need-arguments] @23:1
 │  ├─ parameters
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "x" @18:38
+│  │           └─ Identifier "x" @23:38
 │  └─ body
-│     └─ FunctionBody @19:5
-│        └─ ReturnStatement @19:5
-│           └─ MemberExpression [computed] @19:21
-│              ├─ Identifier "arguments" [variable:0] @19:12
-│              └─ NumericLiteral 0 @19:22
-└─ FunctionDeclaration "rest_and_arguments" [might-need-arguments] @23:1
+│     └─ FunctionBody @24:5
+│        └─ ReturnStatement @24:5
+│           └─ MemberExpression [computed] @24:21
+│              ├─ Identifier "arguments" [variable:0] @24:12
+│              └─ NumericLiteral 0 @24:22
+└─ FunctionDeclaration "rest_and_arguments" [might-need-arguments] @28:1
    ├─ parameters
    │  └─ rest
-   │     └─ Identifier "args" @23:29
+   │     └─ Identifier "args" @28:29
    └─ body
-      └─ FunctionBody @24:5
-         └─ ReturnStatement @24:5
-            └─ MemberExpression @24:21
-               ├─ Identifier "arguments" [variable:0] @24:12
-               └─ Identifier "length" @24:21
+      └─ FunctionBody @29:5
+         └─ ReturnStatement @29:5
+            └─ MemberExpression @29:21
+               ├─ Identifier "arguments" [variable:0] @29:12
+               └─ Identifier "length" @29:21
