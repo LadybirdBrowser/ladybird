@@ -413,7 +413,11 @@ void ScopeCollector::resolve_identifiers(ScopeRecord& scope, bool initiated_by_e
 
         bool is_function_parameter = false;
         if (scope.type == ScopeRecord::ScopeType::Function) {
-            if (!scope.contains_access_to_arguments_object_in_non_strict_mode && (var_flags & ScopeVariable::IsParameterCandidate)) {
+            if ((var_flags & ScopeVariable::IsParameterCandidate)
+                && (!scope.contains_access_to_arguments_object_in_non_strict_mode
+                    || (scope.function_parameters && scope.function_parameters->has_rest_parameter_with_name(identifier_group_name)))) {
+                // Rest parameters don't participate in the sloppy-mode
+                // arguments-parameter linkage, so they can always be optimized.
                 is_function_parameter = true;
             } else if (var_flags & ScopeVariable::IsForbiddenLexical) {
                 continue;

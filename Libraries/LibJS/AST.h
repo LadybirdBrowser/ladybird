@@ -795,6 +795,17 @@ public:
         return {};
     }
 
+    bool has_rest_parameter_with_name(Utf16FlyString const& name) const
+    {
+        for (auto const& parameter : m_parameters) {
+            if (parameter.is_rest && parameter.binding.has<NonnullRefPtr<Identifier const>>()) {
+                if (parameter.binding.get<NonnullRefPtr<Identifier const>>()->string() == name)
+                    return true;
+            }
+        }
+        return false;
+    }
+
 private:
     FunctionParameters(Vector<FunctionParameter> parameters)
         : m_parameters(move(parameters))

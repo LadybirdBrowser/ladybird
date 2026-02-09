@@ -54,7 +54,7 @@ Program (script) @2:1
 └─ FunctionDeclaration "rest_and_arguments" [might-need-arguments] @28:1
    ├─ parameters
    │  └─ rest
-   │     └─ Identifier "args" @28:29
+   │     └─ Identifier "args" [argument:0] @28:29
    └─ body
       └─ FunctionBody @29:5
          └─ ReturnStatement @29:5
