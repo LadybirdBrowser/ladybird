@@ -2,6 +2,7 @@ include(libjs_generators)
 
 set(SOURCES
     AST.cpp
+    ASTDump.cpp
     Bytecode/ASTCodegen.cpp
     Bytecode/BasicBlock.cpp
     Bytecode/Builtins.cpp
