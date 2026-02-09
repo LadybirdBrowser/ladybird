@@ -4674,9 +4674,9 @@ template NonnullRefPtr<FunctionDeclaration> Parser::parse_function_node(u16, Opt
 
 NonnullRefPtr<Identifier const> Parser::create_identifier_and_register_in_current_scope(SourceRange range, Utf16FlyString string, Optional<DeclarationKind> declaration_kind)
 {
-    auto id = create_ast_node<Identifier const>(move(range), move(string));
+    auto id = create_ast_node<Identifier>(move(range), move(string));
     if (scope_collector().has_current_scope())
-        scope_collector().register_identifier(const_cast<Identifier&>(*id), declaration_kind);
+        scope_collector().register_identifier(id, declaration_kind);
     return id;
 }
 
