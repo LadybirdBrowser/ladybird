@@ -1372,8 +1372,8 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
     auto offset_y = round(max(CSSPixels(0), (marker.computed_values().line_height() - marker_height) / 2));
     marker_state.set_content_offset({ offset_x, offset_y });
 
-    if (marker_height > list_item_state.content_height())
-        list_item_state.set_content_height(marker_height);
+    if (marker.computed_values().line_height() > list_item_state.content_height())
+        list_item_state.set_content_height(marker.computed_values().line_height());
 }
 
 BlockFormattingContext::SpaceUsedAndContainingMarginForFloats BlockFormattingContext::space_used_and_containing_margin_for_floats(CSSPixels y) const
