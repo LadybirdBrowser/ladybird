@@ -182,6 +182,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     auto source_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(source_text))));
     // This doesn't need any parse_options, it determines those & the function type based on the tokens that were found.
     auto expr = source_parser.parse_function_node<FunctionExpression>();
+    source_parser.run_scope_analysis();
 
     // 24. If expr is a List of errors, throw a SyntaxError exception.
     if (source_parser.has_errors()) {

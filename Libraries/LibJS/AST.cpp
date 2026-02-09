@@ -429,7 +429,7 @@ ThrowCompletionOr<void> BindingPattern::for_each_bound_identifier(ThrowCompletio
     return {};
 }
 
-FunctionNode::FunctionNode(RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<LocalVariable> local_variables_names)
+FunctionNode::FunctionNode(RefPtr<Identifier const> name, Utf16View source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function)
     : m_name(move(name))
     , m_source_text(move(source_text))
     , m_body(move(body))
@@ -439,7 +439,6 @@ FunctionNode::FunctionNode(RefPtr<Identifier const> name, Utf16View source_text,
     , m_is_strict_mode(is_strict_mode)
     , m_is_arrow_function(is_arrow_function)
     , m_parsing_insights(parsing_insights)
-    , m_local_variables_names(move(local_variables_names))
 {
     if (m_is_arrow_function)
         VERIFY(!parsing_insights.might_need_arguments_object);

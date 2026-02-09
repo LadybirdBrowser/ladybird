@@ -30,7 +30,7 @@ Program (script) @3:1
 │        │              ├─ Identifier "y" (var) @13:13
 │        │              └─ NumericLiteral 2 @13:17
 │        └─ ReturnStatement @15:5
-│           └─ Identifier "y" (var) @15:12
+│           └─ Identifier "y" @15:12
 ├─ FunctionDeclaration "nested_in_with" @19:1
 │  ├─ parameters
 │  │  └─ Identifier "obj" [argument:0] @19:25

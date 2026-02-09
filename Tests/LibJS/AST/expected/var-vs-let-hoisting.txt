@@ -12,7 +12,7 @@ Program (script) @2:1
 │        │        ├─ Identifier "blocked" [variable:0] (let) @5:13
 │        │        └─ NumericLiteral 2 @5:23
 │        └─ ReturnStatement @7:5
-│           └─ Identifier "hoisted" [variable:1] (var) @7:12
+│           └─ Identifier "hoisted" [variable:1] @7:12
 ├─ FunctionDeclaration "for_var" @11:1
 │  └─ body
 │     └─ FunctionBody @12:5
@@ -37,8 +37,8 @@ Program (script) @2:1
 │        │              └─ Identifier "i" [variable:1] (var) @13:21
 │        └─ ReturnStatement @15:5
 │           └─ BinaryExpression (+) @15:14
-│              ├─ Identifier "i" [variable:1] (var) @15:12
-│              └─ Identifier "inner" [variable:0] (var) @15:16
+│              ├─ Identifier "i" [variable:1] @15:12
+│              └─ Identifier "inner" [variable:0] @15:16
 ├─ FunctionDeclaration "for_let" @19:1
 │  └─ body
 │     └─ FunctionBody @20:5
@@ -75,4 +75,4 @@ Program (script) @2:1
          │                 ├─ Identifier "caught" [variable:1] (var) @28:13
          │                 └─ Identifier "e" [variable:0] @28:22
          └─ ReturnStatement @30:5
-            └─ Identifier "caught" [variable:1] (var) @30:12
+            └─ Identifier "caught" [variable:1] @30:12

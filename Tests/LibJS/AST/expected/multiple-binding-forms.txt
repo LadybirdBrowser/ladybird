@@ -78,7 +78,7 @@ Program (script) @4:1
 │        │  └─ body
 │        │     └─ BlockStatement @22:33
 │        └─ ExpressionStatement @23:5
-│           └─ Identifier "j" [variable:2] (var) @23:5
+│           └─ Identifier "j" [variable:2] @23:5
 ├─ FunctionDeclaration "destructuring_bindings" @27:1
 │  └─ body
 │     └─ FunctionBody @28:5
