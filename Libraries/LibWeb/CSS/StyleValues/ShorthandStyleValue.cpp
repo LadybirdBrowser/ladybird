@@ -719,6 +719,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
 
         auto construct_rows_string = [&]() {
             StringBuilder inner_builder;
+            size_t area_index = 0;
             for (size_t i = 0; i < rows.grid_track_size_list().list().size(); ++i) {
                 auto track_size_or_line_names = rows.grid_track_size_list().list()[i];
                 if (auto* line_names = track_size_or_line_names.get_pointer<GridLineNames>()) {
@@ -726,24 +727,25 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                         inner_builder.append(' ');
                     line_names->serialize(inner_builder);
                 }
-                if (areas.grid_template_area().size() > i) {
-                    if (!inner_builder.is_empty())
-                        inner_builder.append(' ');
-                    inner_builder.append("\""sv);
-                    for (size_t y = 0; y < areas.grid_template_area()[i].size(); ++y) {
-                        if (y != 0)
-                            inner_builder.append(' ');
-                        inner_builder.append(areas.grid_template_area()[i][y]);
-                    }
-                    inner_builder.append("\""sv);
-                }
                 if (auto* track_size = track_size_or_line_names.get_pointer<ExplicitGridTrack>()) {
+                    if (area_index < areas.grid_template_area().size()) {
+                        if (!inner_builder.is_empty())
+                            inner_builder.append(' ');
+                        inner_builder.append("\""sv);
+                        for (size_t y = 0; y < areas.grid_template_area()[area_index].size(); ++y) {
+                            if (y != 0)
+                                inner_builder.append(' ');
+                            inner_builder.append(areas.grid_template_area()[area_index][y]);
+                        }
+                        inner_builder.append("\""sv);
+                    }
                     auto track_size_serialization = track_size->to_string(mode);
                     if (track_size_serialization != "auto"sv) {
                         if (!inner_builder.is_empty())
                             inner_builder.append(' ');
                         inner_builder.append(track_size_serialization);
                     }
+                    ++area_index;
                 }
             }
             return MUST(inner_builder.to_string());
