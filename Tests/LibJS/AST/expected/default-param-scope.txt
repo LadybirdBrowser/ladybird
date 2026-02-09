@@ -58,7 +58,7 @@ Program (script) @3:1
    │  └─ BindingPattern (object)
    │     └─ entry
    │        ├─ name
-   │        │  └─ Identifier "x" @23:28
+   │        │  └─ Identifier "x" [variable:0] @23:28
    │        └─ initializer
    │           └─ NumericLiteral 10 @23:34
    │     └─ default
@@ -66,4 +66,4 @@ Program (script) @3:1
    └─ body
       └─ FunctionBody @24:5
          └─ ReturnStatement @24:5
-            └─ Identifier "x" @24:12
+            └─ Identifier "x" [variable:0] @24:12

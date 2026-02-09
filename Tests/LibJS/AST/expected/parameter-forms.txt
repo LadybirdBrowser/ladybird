@@ -29,38 +29,38 @@ Program (script) @1:1
 │  │  └─ BindingPattern (array)
 │  │     ├─ entry
 │  │     │  └─ alias
-│  │     │     └─ Identifier "x" @9:29
+│  │     │     └─ Identifier "x" [variable:1] @9:29
 │  │     └─ entry
 │  │        └─ alias
-│  │           └─ Identifier "y" @9:29
+│  │           └─ Identifier "y" [variable:0] @9:29
 │  └─ body
 │     └─ FunctionBody @10:5
 │        └─ ReturnStatement @10:5
 │           └─ BinaryExpression (+) @10:14
-│              ├─ Identifier "x" @10:12
-│              └─ Identifier "y" @10:16
+│              ├─ Identifier "x" [variable:1] @10:12
+│              └─ Identifier "y" [variable:0] @10:16
 ├─ FunctionDeclaration "destructured_object" @13:1
 │  ├─ parameters
 │  │  └─ BindingPattern (object)
 │  │     ├─ entry
 │  │     │  └─ name
-│  │     │     └─ Identifier "a" @13:30
+│  │     │     └─ Identifier "a" [variable:0] @13:30
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "b" @13:30
+│  │           └─ Identifier "b" [variable:1] @13:30
 │  └─ body
 │     └─ FunctionBody @14:5
 │        └─ ReturnStatement @14:5
 │           └─ BinaryExpression (+) @14:14
-│              ├─ Identifier "a" @14:12
-│              └─ Identifier "b" @14:16
+│              ├─ Identifier "a" [variable:0] @14:12
+│              └─ Identifier "b" [variable:1] @14:16
 └─ FunctionDeclaration "mixed" @17:1
    ├─ parameters
    │  ├─ Identifier "first" [argument:0] @17:16
    │  ├─ BindingPattern (object)
    │  │  └─ entry
    │  │     └─ name
-   │  │        └─ Identifier "x" @17:23
+   │  │        └─ Identifier "x" [variable:0] @17:23
    │  └─ rest
    │     └─ Identifier "rest" [argument:2] @17:16
    └─ body
@@ -69,7 +69,7 @@ Program (script) @1:1
             └─ BinaryExpression (+) @18:22
                ├─ BinaryExpression (+) @18:18
                │  ├─ Identifier "first" [argument:0] @18:12
-               │  └─ Identifier "x" @18:20
+               │  └─ Identifier "x" [variable:0] @18:20
                └─ MemberExpression @18:28
                   ├─ Identifier "rest" [argument:2] @18:24
                   └─ Identifier "length" @18:28
