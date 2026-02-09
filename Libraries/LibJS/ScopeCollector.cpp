@@ -308,7 +308,7 @@ bool ScopeCollector::has_declaration_in_current_function(Utf16FlyString const& n
     auto const* function_scope = m_current->last_function_scope();
     auto const* stop = function_scope ? function_scope->parent : nullptr;
     for (auto const* scope = m_current; scope != stop; scope = scope->parent) {
-        if (scope->has_variable_with_flags(name, ScopeVariable::IsLexical | ScopeVariable::IsVar))
+        if (scope->has_variable_with_flags(name, ScopeVariable::IsLexical | ScopeVariable::IsVar | ScopeVariable::IsParameterCandidate))
             return true;
         if (scope->functions_to_hoist.contains([&name](auto& function) { return function->name() == name; }))
             return true;
