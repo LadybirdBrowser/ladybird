@@ -29,7 +29,7 @@ public:
     size_t length() const { return m_media.size(); }
     Optional<String> item(u32 index) const;
     void append_medium(StringView);
-    void delete_medium(StringView);
+    WebIDL::ExceptionOr<void> delete_medium(StringView);
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
