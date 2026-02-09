@@ -1,0 +1,25 @@
+Program (script) @2:1
+├─ FunctionDeclaration "rest_only" @2:1
+│  ├─ parameters
+│  │  └─ rest
+│  │     └─ Identifier "args" [argument:0] @2:20
+│  └─ body
+│     └─ FunctionBody @3:5
+│        └─ ReturnStatement @3:5
+│           └─ MemberExpression @3:16
+│              ├─ Identifier "args" [argument:0] @3:12
+│              └─ Identifier "length" @3:16
+└─ FunctionDeclaration "rest_with_arguments" [might-need-arguments] @8:1
+   ├─ parameters
+   │  └─ rest
+   │     └─ Identifier "args" [argument:0] @8:30
+   └─ body
+      └─ FunctionBody @9:5
+         └─ ReturnStatement @9:5
+            └─ BinaryExpression (+) @9:24
+               ├─ MemberExpression @9:16
+               │  ├─ Identifier "args" [argument:0] @9:12
+               │  └─ Identifier "length" @9:16
+               └─ MemberExpression @9:35
+                  ├─ Identifier "arguments" [variable:0] @9:26
+                  └─ Identifier "length" @9:35
