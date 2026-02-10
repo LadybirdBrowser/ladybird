@@ -790,9 +790,13 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         // - input elements that have a placeholder attribute whose value is currently being presented to the user.
         if (is<HTML::HTMLInputElement>(element) && element.has_attribute(HTML::AttributeNames::placeholder)) {
             auto const& input_element = static_cast<HTML::HTMLInputElement const&>(element);
-            return input_element.placeholder_element() && input_element.placeholder_value().has_value();
+            return input_element.placeholder_element() && input_element.value().is_empty();
         }
-        // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
+        // - textarea elements that have a placeholder attribute whose value is currently being presented to the user.
+        if (is<HTML::HTMLTextAreaElement>(element) && element.has_attribute(HTML::AttributeNames::placeholder)) {
+            auto const& textarea_element = static_cast<HTML::HTMLTextAreaElement const&>(element);
+            return textarea_element.placeholder_element() && textarea_element.value().is_empty();
+        }
         return false;
     }
     case CSS::PseudoClass::Open:

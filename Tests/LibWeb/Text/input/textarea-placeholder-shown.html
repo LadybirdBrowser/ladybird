@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="a" placeholder="Enter text"></textarea>
+<textarea id="b" placeholder="Enter text">some value</textarea>
+<textarea id="c">no placeholder attr</textarea>
+<textarea id="d" placeholder=""></textarea>
+<script>
+    test(() => {
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+        const c = document.getElementById("c");
+        const d = document.getElementById("d");
+
+        println(a.matches(":placeholder-shown") ? "PASS" : "FAIL");
+        println(!b.matches(":placeholder-shown") ? "PASS" : "FAIL");
+        println(!c.matches(":placeholder-shown") ? "PASS" : "FAIL");
+        println(d.matches(":placeholder-shown") ? "PASS" : "FAIL");
+    });
+</script>
