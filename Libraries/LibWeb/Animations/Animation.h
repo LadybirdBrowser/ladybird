@@ -43,6 +43,9 @@ public:
     GC::Ptr<AnimationTimeline> timeline() const { return m_timeline; }
     void set_timeline(GC::Ptr<AnimationTimeline>);
 
+    virtual GC::Ptr<AnimationTimeline> timeline_for_bindings() const { return m_timeline; }
+    virtual void set_timeline_for_bindings(GC::Ptr<AnimationTimeline> timeline) { set_timeline(timeline); }
+
     // https://drafts.csswg.org/web-animations-2/#dom-animation-starttime
     NullableCSSNumberish start_time_for_bindings() const
     {

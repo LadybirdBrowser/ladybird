@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSAnimationPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSAnimation.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 
@@ -65,6 +66,8 @@ Animations::AnimationClass CSSAnimation::animation_class() const
 
 void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties const& animation_properties)
 {
+    // FIXME: Don't apply overriden properties as defined here: https://drafts.csswg.org/css-animations-2/#animations
+
     VERIFY(effect());
 
     auto& effect = as<Animations::KeyframeEffect>(*this->effect());
@@ -92,6 +95,14 @@ void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties 
 
         set_last_css_animation_play_state(animation_properties.play_state);
     }
+}
+
+void CSSAnimation::set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeline> timeline)
+{
+    // AD-HOC: When the timeline of a CSS animation is modified by the author from JS we should no longer apply changes
+    //         to the `animation-timeline` property. See https://github.com/w3c/csswg-drafts/issues/13472
+    m_ignored_css_properties.set(PropertyID::AnimationTimeline);
+    set_timeline(timeline);
 }
 
 CSSAnimation::CSSAnimation(JS::Realm& realm)
