@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- Test: Image with invalid URL starts loading in iframe. Iframe is removed.
+     The fetch failure callback fires on an inactive document and tries to
+     dispatch an error event. -->
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        doc.body.appendChild(img);
+
+        // Use a URL that will fail to decode as an image.
+        img.src = "data:text/plain,not-an-image";
+
+        // Remove iframe. The error callback fires on an inactive document.
+        setTimeout(() => {
+            iframe.remove();
+        }, 5);
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- Test: A picture element with source elements inside an iframe that gets removed.
+     The uses_srcset_or_picture() path in update_the_image_data_impl is exercised,
+     and callbacks fire on an inactive document. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+
+        const picture = doc.createElement("picture");
+        const source = doc.createElement("source");
+        source.srcset = imageUrl;
+        source.type = "image/png";
+        picture.appendChild(source);
+
+        const img = doc.createElement("img");
+        img.src = imageUrl;
+        picture.appendChild(img);
+
+        doc.body.appendChild(picture);
+
+        // Remove iframe while picture/source loading is in progress.
+        iframe.remove();
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

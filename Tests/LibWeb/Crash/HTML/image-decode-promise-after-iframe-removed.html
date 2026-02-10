@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Test: Start img.decode() on an image inside an iframe, then remove the iframe.
+     The decode promise resolution/rejection fires on an inactive document. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        img.src = imageUrl;
+        doc.body.appendChild(img);
+
+        // Start decode, then remove iframe.
+        img.decode().then(() => {}).catch(() => {});
+        iframe.remove();
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

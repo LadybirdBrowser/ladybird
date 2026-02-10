@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- Test: Create an image in an iframe, remove the iframe, then adopt the image
+     into the main document using adoptNode. The adopted_from callback fires and
+     may trigger image loading state changes between documents. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        img.src = imageUrl;
+        doc.body.appendChild(img);
+
+        // Remove iframe, making the document inactive.
+        iframe.remove();
+
+        // Adopt the image from the inactive document into the main document.
+        // This triggers HTMLImageElement::adopted_from which may access
+        // the old document's observer and try to fire callbacks.
+        const adopted = document.adoptNode(img);
+        document.body.appendChild(adopted);
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Test: An iframe with srcdoc containing an image element. The srcdoc document
+     starts loading the image, then the iframe is removed, making the srcdoc
+     document inactive. Image callbacks fire on the inactive document. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.srcdoc = `<!DOCTYPE html><body><img src="${imageUrl}">`;
+    iframe.onload = () => {
+        // The srcdoc document is now active and the image is loading.
+        // Remove the iframe to make the document inactive.
+        iframe.remove();
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

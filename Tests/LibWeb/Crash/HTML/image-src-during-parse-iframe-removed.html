@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Test: Use document.write() to inject image elements into an iframe document,
+     then immediately remove the iframe. The HTML parser triggers image loading
+     as it processes img elements, and the iframe removal races with the
+     parser-initiated image loads. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    // The initial about:blank document should be fully active.
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write(`<img src="${imageUrl}"><img src="${imageUrl}?2"><img src="${imageUrl}?3">`);
+    doc.close();
+
+    // Remove iframe immediately after parsing completes.
+    iframe.remove();
+
+    setTimeout(() => {
+        document.documentElement.classList.remove("test-wait");
+    }, 500);
+</script>
+</body>
+</html>

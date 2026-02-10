@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Test: Image loads in a nested iframe. Removing the outermost iframe
+     makes all nested documents inactive. Image callbacks fire on the innermost
+     inactive document. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+
+    const outerIframe = document.createElement("iframe");
+    document.body.appendChild(outerIframe);
+
+    const outerDoc = outerIframe.contentDocument;
+    const innerIframe = outerDoc.createElement("iframe");
+    outerDoc.body.appendChild(innerIframe);
+
+    const innerDoc = innerIframe.contentDocument;
+    const img = innerDoc.createElement("img");
+    img.src = imageUrl;
+    innerDoc.body.appendChild(img);
+
+    // Remove the outer iframe, making both documents inactive.
+    setTimeout(() => {
+        outerIframe.remove();
+    }, 10);
+
+    setTimeout(() => {
+        document.documentElement.classList.remove("test-wait");
+    }, 500);
+</script>
+</body>
+</html>

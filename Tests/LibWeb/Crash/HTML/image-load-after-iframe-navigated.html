@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Test: Image starts loading in iframe, then the iframe is navigated to a
+     different page. The old document becomes inactive, but the image fetch
+     callbacks may still fire on it. -->
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    let navigated = false;
+    iframe.onload = () => {
+        if (navigated) {
+            setTimeout(() => {
+                document.documentElement.classList.remove("test-wait");
+            }, 500);
+            return;
+        }
+        navigated = true;
+
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        doc.body.appendChild(img);
+        img.src = "120.png";
+
+        // Navigate the iframe, making the old document inactive.
+        // Image loading callbacks from the old document may still fire.
+        iframe.src = "../../Assets/blank.html";
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

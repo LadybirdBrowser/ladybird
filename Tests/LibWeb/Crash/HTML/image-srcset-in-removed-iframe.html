@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- Test: Image with srcset attribute inside an iframe that gets removed.
+     The srcset parsing and source selection runs via the microtask in
+     update_the_image_data_impl, and may access document properties
+     after the document becomes inactive. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        img.srcset = imageUrl + " 1x, " + imageUrl + " 2x";
+        doc.body.appendChild(img);
+
+        // Remove iframe immediately after setting srcset.
+        iframe.remove();
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>
