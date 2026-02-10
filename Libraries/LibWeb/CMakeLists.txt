@@ -1209,4 +1209,6 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
 
+target_compile_definitions(LibWeb PRIVATE GL_GLEXT_PROTOTYPES=1)
+
 generate_js_bindings(LibWeb)
