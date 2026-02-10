@@ -1,0 +1,6 @@
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedInteger
+[Exposed=Window]
+interface SVGAnimatedInteger {
+    attribute long baseVal;
+    readonly attribute long animVal;
+};

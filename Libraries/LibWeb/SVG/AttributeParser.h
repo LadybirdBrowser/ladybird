@@ -141,6 +141,7 @@ public:
 
     static Optional<float> parse_coordinate(StringView input);
     static Optional<float> parse_length(StringView input);
+    static Optional<i32> parse_integer(StringView input);
     static Optional<NumberPercentage> parse_number_percentage(StringView input);
     static Optional<float> parse_positive_length(StringView input);
     static Vector<Gfx::FloatPoint> parse_points(StringView input);
@@ -171,6 +172,7 @@ private:
 
     ErrorOr<float> parse_length();
     ErrorOr<float> parse_coordinate();
+    ErrorOr<i32> parse_integer();
     ErrorOr<Vector<float>> parse_coordinate_pair();
     ErrorOr<Vector<float>> parse_coordinate_sequence();
     ErrorOr<Vector<Vector<float>>> parse_coordinate_pair_sequence();
@@ -185,11 +187,17 @@ private:
     // -1 if negative, +1 otherwise
     int parse_sign();
 
+    enum class AllowDot {
+        No,
+        Yes,
+    };
+
     bool match_whitespace() const;
     bool match_comma_whitespace() const;
     bool match_coordinate() const;
-    bool match_length() const;
+    bool match_length(AllowDot allow_dot) const;
     bool match_number() const;
+    bool match_integer() const;
     bool match(char c) const { return !done() && ch() == c; }
 
     bool done() const { return m_lexer.is_eof(); }

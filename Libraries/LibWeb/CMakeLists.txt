@@ -931,6 +931,7 @@ set(SOURCES
     SVG/Path.cpp
     SVG/SVGAElement.cpp
     SVG/SVGAnimatedEnumeration.cpp
+    SVG/SVGAnimatedInteger.cpp
     SVG/SVGAnimatedLength.cpp
     SVG/SVGAnimatedLengthList.cpp
     SVG/SVGAnimatedNumber.cpp

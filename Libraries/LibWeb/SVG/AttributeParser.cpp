@@ -68,6 +68,20 @@ Optional<float> AttributeParser::parse_length(StringView input)
     return {};
 }
 
+Optional<i32> AttributeParser::parse_integer(StringView input)
+{
+    AttributeParser parser { input };
+    parser.parse_whitespace();
+    auto result_or_error = parser.parse_integer();
+    if (result_or_error.is_error())
+        return {};
+    parser.parse_whitespace();
+    if (parser.done())
+        return result_or_error.value();
+
+    return {};
+}
+
 float NumberPercentage::resolve_relative_to(float length) const
 {
     if (!m_is_percentage)
@@ -300,6 +314,20 @@ ErrorOr<float> AttributeParser::parse_coordinate()
     // https://www.w3.org/TR/SVG11/types.html#DataTypeCoordinate
     // coordinate ::= length
     return parse_length();
+}
+
+// https://www.w3.org/TR/SVG11/types.html#DataTypeInteger
+ErrorOr<i32> AttributeParser::parse_integer()
+{
+    if (!match_integer())
+        return Error::from_string_literal("Expected integer");
+
+    auto parse_result = AK::parse_first_number<i32>(m_lexer.remaining(), TrimWhitespace::No);
+    if (!parse_result.has_value())
+        return Error::from_string_literal("Integer out of range");
+
+    m_lexer.ignore(parse_result->characters_parsed);
+    return parse_result->value;
 }
 
 ErrorOr<Vector<float>> AttributeParser::parse_coordinate_pair()
@@ -779,15 +807,20 @@ bool AttributeParser::match_comma_whitespace() const
 
 bool AttributeParser::match_coordinate() const
 {
-    return match_length();
+    return match_length(AllowDot::Yes);
 }
 
 bool AttributeParser::match_number() const
 {
-    return match_length();
+    return match_length(AllowDot::Yes);
 }
 
-bool AttributeParser::match_length() const
+bool AttributeParser::match_integer() const
+{
+    return match_length(AllowDot::No);
+}
+
+bool AttributeParser::match_length(AllowDot allow_dot) const
 {
     if (done())
         return false;
@@ -796,7 +829,7 @@ bool AttributeParser::match_length() const
     if (ch() == '-' || ch() == '+')
         offset++;
 
-    if (ch(offset) == '.')
+    if (allow_dot == AllowDot::Yes && ch(offset) == '.')
         offset++;
 
     return !done() && is_ascii_digit(ch(offset));
