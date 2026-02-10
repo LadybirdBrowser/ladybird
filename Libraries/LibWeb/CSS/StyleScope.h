@@ -107,7 +107,7 @@ public:
 
     void invalidate_style_of_elements_affected_by_has();
 
-    void schedule_ancestors_style_invalidation_due_to_presence_of_has(DOM::Node& node) { m_pending_nodes_for_style_invalidation_due_to_presence_of_has.set(node); }
+    void schedule_ancestors_style_invalidation_due_to_presence_of_has(DOM::Node& node);
 
     void visit_edges(GC::Cell::Visitor&);
 

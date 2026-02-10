@@ -1688,10 +1688,13 @@ void Document::update_style()
     // style change event. [CSS-Transitions-2]
     m_transition_generation++;
 
-    style_scope().invalidate_style_of_elements_affected_by_has();
-    for_each_shadow_root([&](auto& shadow_root) {
-        shadow_root.style_scope().invalidate_style_of_elements_affected_by_has();
-    });
+    if (m_needs_invalidation_of_elements_affected_by_has) {
+        m_needs_invalidation_of_elements_affected_by_has = false;
+        style_scope().invalidate_style_of_elements_affected_by_has();
+        for_each_shadow_root([&](auto& shadow_root) {
+            shadow_root.style_scope().invalidate_style_of_elements_affected_by_has();
+        });
+    }
 
     if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
         return;

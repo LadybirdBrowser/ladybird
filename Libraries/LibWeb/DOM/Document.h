@@ -813,6 +813,8 @@ public:
     void set_needs_to_resolve_paint_only_properties() { m_needs_to_resolve_paint_only_properties = true; }
     void set_needs_animated_style_update() { m_needs_animated_style_update = true; }
 
+    void set_needs_invalidation_of_elements_affected_by_has() { m_needs_invalidation_of_elements_affected_by_has = true; }
+
     void set_needs_accumulated_visual_contexts_update(bool value) { m_needs_accumulated_visual_contexts_update = value; }
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
 
@@ -1307,6 +1309,7 @@ private:
 
     bool m_needs_to_resolve_paint_only_properties { true };
     bool m_needs_accumulated_visual_contexts_update { false };
+    bool m_needs_invalidation_of_elements_affected_by_has { false };
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 
