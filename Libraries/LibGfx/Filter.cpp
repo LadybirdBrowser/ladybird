@@ -13,6 +13,7 @@
 #include <core/SkScalar.h>
 #include <effects/SkColorMatrix.h>
 #include <effects/SkImageFilters.h>
+#include <effects/SkPerlinNoiseShader.h>
 
 namespace Gfx {
 
@@ -294,6 +295,22 @@ Filter Filter::offset(float dx, float dy, Optional<Filter const&> input)
 {
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
     return Filter(Impl::create(SkImageFilters::Offset(dx, dy, input_skia)));
+}
+
+Filter Filter::turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size)
+{
+    sk_sp<SkShader> turbulence_shader = [&] {
+        auto skia_size = SkISize::Make(tile_stitch_size.width(), tile_stitch_size.height());
+        switch (turbulence_type) {
+        case TurbulenceType::Turbulence:
+            return SkShaders::MakeTurbulence(base_frequency_x, base_frequency_y, num_octaves, seed, &skia_size);
+        case TurbulenceType::FractalNoise:
+            return SkShaders::MakeFractalNoise(base_frequency_x, base_frequency_y, num_octaves, seed, &skia_size);
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    return Filter(Impl::create(SkImageFilters::Shader(move(turbulence_shader))));
 }
 
 }

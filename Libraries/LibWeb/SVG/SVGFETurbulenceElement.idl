@@ -1,0 +1,28 @@
+#import <SVG/SVGAnimatedEnumeration.idl>
+#import <SVG/SVGAnimatedInteger.idl>
+#import <SVG/SVGAnimatedNumber.idl>
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://drafts.csswg.org/filter-effects/#svgfeturbulenceelement
+[Exposed=Window]
+interface SVGFETurbulenceElement : SVGElement {
+    // Turbulence Types
+    const unsigned short SVG_TURBULENCE_TYPE_UNKNOWN = 0;
+    const unsigned short SVG_TURBULENCE_TYPE_FRACTALNOISE = 1;
+    const unsigned short SVG_TURBULENCE_TYPE_TURBULENCE = 2;
+
+    // Stitch Options
+    const unsigned short SVG_STITCHTYPE_UNKNOWN = 0;
+    const unsigned short SVG_STITCHTYPE_STITCH = 1;
+    const unsigned short SVG_STITCHTYPE_NOSTITCH = 2;
+
+    readonly attribute SVGAnimatedNumber baseFrequencyX;
+    readonly attribute SVGAnimatedNumber baseFrequencyY;
+    readonly attribute SVGAnimatedInteger numOctaves;
+    readonly attribute SVGAnimatedNumber seed;
+    readonly attribute SVGAnimatedEnumeration stitchTiles;
+    readonly attribute SVGAnimatedEnumeration type;
+};
+
+SVGFETurbulenceElement includes SVGFilterPrimitiveStandardAttributes;

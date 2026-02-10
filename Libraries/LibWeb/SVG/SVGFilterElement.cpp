@@ -31,6 +31,7 @@
 #include <LibWeb/SVG/SVGFEMergeNodeElement.h>
 #include <LibWeb/SVG/SVGFEMorphologyElement.h>
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
+#include <LibWeb/SVG/SVGFETurbulenceElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 
 namespace Web::SVG {
@@ -359,6 +360,39 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
             // </feMerge>
             root_filter = Gfx::Filter::merge({ colored_shadow, input });
             update_result_map(*drop_shadow);
+        } else if (auto* turbulence = as_if<SVGFETurbulenceElement>(node)) {
+            auto base_frequency_x = turbulence->base_frequency_x()->base_val();
+            auto base_frequency_y = turbulence->base_frequency_y()->base_val();
+            auto num_octaves = turbulence->num_octaves()->base_val();
+            auto seed = turbulence->seed()->base_val();
+
+            auto type = [turbulence] {
+                auto turbulence_type = turbulence->type()->base_val();
+                switch (turbulence_type) {
+                case to_underlying(SVGFETurbulenceElement::TurbulenceType::Turbulence):
+                    return Gfx::TurbulenceType::Turbulence;
+                case to_underlying(SVGFETurbulenceElement::TurbulenceType::FractalNoise):
+                    return Gfx::TurbulenceType::FractalNoise;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            }();
+
+            auto tile_stitch_size = [turbulence] {
+                auto stitch_tiles = turbulence->stitch_tiles()->base_val();
+                switch (stitch_tiles) {
+                case to_underlying(SVGFETurbulenceElement::StitchType::Stitch):
+                    // FIXME: Are these the correct width and height?
+                    return Gfx::IntSize { turbulence->width()->base_val()->value(), turbulence->height()->base_val()->value() };
+                case to_underlying(SVGFETurbulenceElement::StitchType::NoStitch):
+                    return Gfx::IntSize {};
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            }();
+
+            root_filter = Gfx::Filter::turbulence(type, base_frequency_x, base_frequency_y, num_octaves, seed, tile_stitch_size);
+            update_result_map(*turbulence);
         } else {
             dbgln("SVGFilterElement::gfx_filter(): Unknown or unsupported filter element '{}'", node.debug_description());
         }

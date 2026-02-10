@@ -110,6 +110,7 @@
 #include <LibWeb/SVG/SVGFEMergeNodeElement.h>
 #include <LibWeb/SVG/SVGFEMorphologyElement.h>
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
+#include <LibWeb/SVG/SVGFETurbulenceElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGElement.h>
@@ -517,6 +518,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
         return realm.create<SVG::SVGFEMorphologyElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feOffset)
         return realm.create<SVG::SVGFEOffsetElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feTurbulence)
+        return realm.create<SVG::SVGFETurbulenceElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::filter)
         return realm.create<SVG::SVGFilterElement>(document, move(qualified_name));
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::foreignObject))

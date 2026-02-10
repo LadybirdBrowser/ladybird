@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-feTurbulence-fractalNoise-ref.html" />
+<style>
+    * { margin: 0; }
+    body { background-color: white; }
+</style>
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="turbulence">
+            <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="5" />
+        </filter>
+    </defs>
+    <rect width="200" height="200" filter="url(#turbulence)" />
+</svg>

@@ -25,6 +25,11 @@ enum class ColorFilterType {
     Sepia
 };
 
+enum class TurbulenceType {
+    FractalNoise,
+    Turbulence,
+};
+
 struct FilterImpl;
 
 class Filter {
@@ -50,6 +55,7 @@ public:
     static Filter offset(float dx, float dy, Optional<Filter const&> input = {});
     static Filter erode(float radius_x, float radius_y, Optional<Filter> const& input = {});
     static Filter dilate(float radius_x, float radius_y, Optional<Filter> const& input = {});
+    static Filter turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size);
 
     FilterImpl const& impl() const;
 
