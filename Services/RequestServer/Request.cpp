@@ -576,14 +576,13 @@ void Request::handle_fetch_state()
         VERIFY(revalidation_attributes.etag.has_value() || revalidation_attributes.last_modified.has_value());
 
         if (revalidation_attributes.etag.has_value()) {
-            // There is no CURLOPT for If-None-Match, so we must set the header value directly.
             auto header_string = ByteString::formatted("If-None-Match: {}", *revalidation_attributes.etag);
             curl_headers = curl_slist_append(curl_headers, header_string.characters());
         }
 
         if (revalidation_attributes.last_modified.has_value()) {
-            set_option(CURLOPT_TIMECONDITION, CURL_TIMECOND_IFMODSINCE);
-            set_option(CURLOPT_TIMEVALUE, revalidation_attributes.last_modified->seconds_since_epoch());
+            auto header_string = ByteString::formatted("If-Modified-Since: {}", *revalidation_attributes.last_modified);
+            curl_headers = curl_slist_append(curl_headers, header_string.characters());
         }
     }
 

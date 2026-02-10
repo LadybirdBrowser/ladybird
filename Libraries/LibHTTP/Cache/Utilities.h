@@ -46,7 +46,7 @@ struct RevalidationAttributes {
     static RevalidationAttributes create(HeaderList const&);
 
     Optional<ByteString> etag;
-    Optional<UnixDateTime> last_modified;
+    Optional<ByteString> last_modified;
 };
 
 void store_header_and_trailer_fields(HeaderList&, HeaderList const&);

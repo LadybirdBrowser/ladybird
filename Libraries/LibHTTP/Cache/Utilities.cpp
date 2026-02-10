@@ -470,8 +470,8 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
 RevalidationAttributes RevalidationAttributes::create(HeaderList const& headers)
 {
     RevalidationAttributes attributes;
-    attributes.etag = headers.get("ETag"sv).map([](auto const& etag) { return etag; });
-    attributes.last_modified = parse_http_date(headers.get("Last-Modified"sv));
+    attributes.etag = headers.get("ETag"sv);
+    attributes.last_modified = headers.get("Last-Modified"sv);
 
     return attributes;
 }
