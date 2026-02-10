@@ -17,6 +17,8 @@
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/ErrorTypes.h>
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
@@ -3293,6 +3295,164 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
 
         elements.append({ key });
     }
+
+    // Build a ClassBlueprint that captures all class element metadata at codegen time.
+    auto& vm = generator.vm();
+    ClassBlueprint blueprint;
+    blueprint.has_super_class = !m_super_class.is_null();
+    blueprint.has_name = has_name();
+    blueprint.name = name();
+    blueprint.source_text = source_text();
+
+    // Register shared function data for the constructor.
+    auto constructor_shared_data = m_constructor->ensure_shared_data(vm);
+    blueprint.constructor_shared_function_data_index = generator.register_shared_function_data(constructor_shared_data);
+
+    for (auto const& element : m_elements) {
+        if (is<ClassMethod>(*element)) {
+            auto const& class_method = static_cast<ClassMethod const&>(*element);
+            bool is_private = is<PrivateIdentifier>(class_method.key());
+
+            ClassElementDescriptor::Kind descriptor_kind;
+            switch (class_method.kind()) {
+            case ClassMethod::Kind::Method:
+                descriptor_kind = ClassElementDescriptor::Kind::Method;
+                break;
+            case ClassMethod::Kind::Getter:
+                descriptor_kind = ClassElementDescriptor::Kind::Getter;
+                break;
+            case ClassMethod::Kind::Setter:
+                descriptor_kind = ClassElementDescriptor::Kind::Setter;
+                break;
+            }
+
+            auto shared_data = class_method.function().ensure_shared_data(vm);
+            auto data_index = generator.register_shared_function_data(shared_data);
+
+            blueprint.elements.append({
+                .kind = descriptor_kind,
+                .is_static = element->is_static(),
+                .is_private = is_private,
+                .private_identifier = is_private ? Optional<Utf16FlyString>(static_cast<PrivateIdentifier const&>(class_method.key()).string()) : Optional<Utf16FlyString>(),
+                .shared_function_data_index = data_index,
+                .has_initializer = false,
+                .literal_value = {},
+            });
+        } else if (is<ClassField>(*element)) {
+            auto const& class_field = static_cast<ClassField const&>(*element);
+            bool is_private = is<PrivateIdentifier>(class_field.key());
+
+            Optional<u32> data_index;
+            bool has_initializer = class_field.initializer() != nullptr;
+            Optional<Value> literal_value;
+
+            if (has_initializer) {
+                auto const& initializer = *class_field.initializer();
+
+                // Detect literal initializers and store the value directly,
+                // avoiding function creation and calls for simple cases like x = 0.
+                if (is<NumericLiteral>(initializer)) {
+                    literal_value = static_cast<NumericLiteral const&>(initializer).value();
+                } else if (is<BooleanLiteral>(initializer)) {
+                    literal_value = static_cast<BooleanLiteral const&>(initializer).value();
+                } else if (is<NullLiteral>(initializer)) {
+                    literal_value = js_null();
+                } else if (is<StringLiteral>(initializer)) {
+                    literal_value = Value(PrimitiveString::create(vm, static_cast<StringLiteral const&>(initializer).value()));
+                } else if (is<UnaryExpression>(initializer)) {
+                    auto const& unary = static_cast<UnaryExpression const&>(initializer);
+                    if (unary.op() == UnaryOp::Minus && is<NumericLiteral>(*unary.lhs()))
+                        literal_value = Value(-static_cast<NumericLiteral const&>(*unary.lhs()).value().as_double());
+                }
+
+                if (!literal_value.has_value()) {
+                    // FIXME: For computed-key fields, the field name for anonymous function
+                    //        naming is only known at runtime. We use "" here, which means
+                    //        e.g. (new (class { [sym] = function(){} }))[sym].name would be
+                    //        "" instead of "[sym]". Non-computed keys are handled correctly.
+                    Utf16FlyString field_name;
+                    if (is_private) {
+                        field_name = static_cast<PrivateIdentifier const&>(class_field.key()).string();
+                    } else if (is<Identifier>(class_field.key())) {
+                        field_name = static_cast<Identifier const&>(class_field.key()).string();
+                    } else if (is<StringLiteral>(class_field.key())) {
+                        field_name = Utf16FlyString(static_cast<StringLiteral const&>(class_field.key()).value());
+                    } else if (is<NumericLiteral>(class_field.key())) {
+                        field_name = Utf16FlyString(number_to_utf16_string(static_cast<NumericLiteral const&>(class_field.key()).value().as_double()));
+                    }
+
+                    auto copy_initializer = class_field.initializer();
+                    auto function_code = create_ast_node<ClassFieldInitializerStatement>(
+                        class_field.initializer()->source_range(),
+                        copy_initializer.release_nonnull(),
+                        move(field_name));
+
+                    FunctionParsingInsights parsing_insights;
+                    parsing_insights.uses_this_from_environment = true;
+                    parsing_insights.uses_this = true;
+
+                    auto shared_data = vm.heap().allocate<SharedFunctionInstanceData>(
+                        vm,
+                        FunctionKind::Normal,
+                        "field"_utf16_fly_string,
+                        0,
+                        FunctionParameters::empty(),
+                        *function_code,
+                        Utf16View {},
+                        true,
+                        false,
+                        parsing_insights,
+                        Vector<LocalVariable> {});
+
+                    data_index = generator.register_shared_function_data(shared_data);
+                }
+            }
+
+            blueprint.elements.append({
+                .kind = ClassElementDescriptor::Kind::Field,
+                .is_static = element->is_static(),
+                .is_private = is_private,
+                .private_identifier = is_private ? Optional<Utf16FlyString>(static_cast<PrivateIdentifier const&>(class_field.key()).string()) : Optional<Utf16FlyString>(),
+                .shared_function_data_index = data_index,
+                .has_initializer = has_initializer,
+                .literal_value = literal_value,
+            });
+        } else if (is<StaticInitializer>(*element)) {
+            auto const& static_init = static_cast<StaticInitializer const&>(*element);
+
+            FunctionParsingInsights parsing_insights;
+            parsing_insights.uses_this_from_environment = true;
+            parsing_insights.uses_this = true;
+
+            auto shared_data = vm.heap().allocate<SharedFunctionInstanceData>(
+                vm,
+                FunctionKind::Normal,
+                Utf16FlyString {},
+                0,
+                FunctionParameters::empty(),
+                static_init.function_body(),
+                Utf16View {},
+                true,
+                false,
+                parsing_insights,
+                static_init.function_body().local_variables_names());
+
+            auto data_index = generator.register_shared_function_data(shared_data);
+
+            blueprint.elements.append({
+                .kind = ClassElementDescriptor::Kind::StaticInitializer,
+                .is_static = true,
+                .is_private = false,
+                .private_identifier = {},
+                .shared_function_data_index = data_index,
+                .has_initializer = false,
+                .literal_value = {},
+            });
+        }
+    }
+
+    auto blueprint_index = generator.register_class_blueprint(move(blueprint));
+    (void)blueprint_index;
 
     // Restore parent environment before emitting NewClass.
     generator.emit<Bytecode::Op::SetLexicalEnvironment>(parent_environment);

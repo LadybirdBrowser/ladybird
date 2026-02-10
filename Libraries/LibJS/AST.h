@@ -844,6 +844,7 @@ public:
 
     GC::Ptr<SharedFunctionInstanceData> shared_data() const;
     void set_shared_data(GC::Ptr<SharedFunctionInstanceData>) const;
+    GC::Ref<SharedFunctionInstanceData> ensure_shared_data(VM&) const;
 
     virtual ~FunctionNode();
 
@@ -1472,6 +1473,7 @@ public:
     }
 
     Expression const& key() const { return *m_key; }
+    FunctionExpression const& function() const { return *m_function; }
     Kind kind() const { return m_kind; }
     virtual ElementKind class_element_kind() const override { return ElementKind::Method; }
 
@@ -1520,6 +1522,8 @@ public:
 
     virtual ElementKind class_element_kind() const override { return ElementKind::StaticInitializer; }
     virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
+
+    FunctionBody const& function_body() const { return *m_function_body; }
 
     virtual void dump(ASTDumpState const& state = {}) const override;
 

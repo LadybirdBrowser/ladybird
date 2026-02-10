@@ -65,6 +65,13 @@ u32 Generator::register_shared_function_data(GC::Ref<SharedFunctionInstanceData>
     return index;
 }
 
+u32 Generator::register_class_blueprint(ClassBlueprint blueprint)
+{
+    auto index = static_cast<u32>(m_class_blueprints.size());
+    m_class_blueprints.append(move(blueprint));
+    return index;
+}
+
 CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(SharedFunctionInstanceData const& shared_function_instance_data)
 {
     if (shared_function_instance_data.m_has_parameter_expressions) {
@@ -541,6 +548,8 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     executable->shared_function_data.ensure_capacity(generator.m_shared_function_data.size());
     for (auto& root : generator.m_shared_function_data)
         executable->shared_function_data.append(root.ptr());
+
+    executable->class_blueprints = move(generator.m_class_blueprints);
 
     // NB: Layout is [registers | locals | constants | arguments]
     executable->local_index_base = number_of_registers;
