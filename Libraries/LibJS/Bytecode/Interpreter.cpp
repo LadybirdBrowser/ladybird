@@ -25,6 +25,7 @@
 #include <LibJS/Runtime/AsyncFromSyncIterator.h>
 #include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
 #include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/ClassConstruction.h>
 #include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
@@ -3034,19 +3035,21 @@ NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interprete
     }
 
     auto& running_execution_context = interpreter.running_execution_context();
-    auto class_environment = &as<Environment>(interpreter.get(m_class_environment).as_cell());
+    auto* class_environment = &as<Environment>(interpreter.get(m_class_environment).as_cell());
     auto& outer_environment = running_execution_context.lexical_environment;
+
+    auto const& blueprint = interpreter.current_executable().class_blueprints[m_class_blueprint_index];
 
     Optional<Utf16FlyString> binding_name;
     Utf16FlyString class_name;
-    if (!m_class_expression.has_name() && m_lhs_name.has_value()) {
+    if (!blueprint.has_name && m_lhs_name.has_value()) {
         class_name = interpreter.get_identifier(m_lhs_name.value());
     } else {
-        class_name = m_class_expression.name();
+        class_name = blueprint.name;
         binding_name = class_name;
     }
 
-    auto retval = TRY(m_class_expression.create_class_constructor(interpreter.vm(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
+    auto* retval = TRY(construct_class(interpreter.vm(), blueprint, interpreter.current_executable(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
     interpreter.set(dst(), retval);
     return {};
 }

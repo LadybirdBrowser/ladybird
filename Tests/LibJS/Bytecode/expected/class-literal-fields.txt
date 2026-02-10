@@ -1,0 +1,43 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:test
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, test
+[  38]       InitializeLexicalBinding identifier:a, src:reg5
+[  50]       GetGlobal dst:reg6, identifier:console
+[  60]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  78]       GetGlobal dst:reg8, identifier:a
+[  88]       GetById dst:reg9, base:reg8, property:x, base_identifier:a
+[  a0]       GetGlobal dst:reg8, identifier:a
+[  b0]       GetById dst:reg10, base:reg8, property:y, base_identifier:a
+[  c8]       GetGlobal dst:reg8, identifier:a
+[  d8]       GetById dst:reg11, base:reg8, property:z, base_identifier:a
+[  f0]       GetGlobal dst:reg8, identifier:a
+[ 100]       GetById dst:reg12, base:reg8, property:w, base_identifier:a
+[ 118]       GetGlobal dst:reg8, identifier:a
+[ 128]       GetById dst:reg13, base:reg8, property:s, base_identifier:a
+[ 140]       GetGlobal dst:reg8, identifier:a
+[ 150]       GetById dst:reg14, base:reg8, property:computed, base_identifier:a
+[ 168]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
+[ 1a0]       End value:reg5
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:A, is_immutable:true, is_global:false, is_strict:false
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
+[  68]       Mov dst:A~0, src:reg6
+[  78]       ThrowIfTDZ src:A~0
+[  80]       Mov dst:reg5, src:A~0
+[  90]       CallConstruct dst:reg6, callee:reg5, A
+[  a8]       Return value:reg6
+
+JS bytecode executable "A"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "field"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:Int32(3)
+
+42 -1 true null "hi" 3

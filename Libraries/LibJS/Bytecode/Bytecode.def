@@ -669,7 +669,7 @@ op NewClass < Instruction
     m_dst: Operand
     m_super_class: Optional<Operand>
     m_class_environment: Operand
-    m_class_expression: ClassExpression const&
+    m_class_blueprint_index: u32
     m_lhs_name: Optional<IdentifierTableIndex>
     m_element_keys_count: u32
     m_element_keys: Optional<Operand>[]

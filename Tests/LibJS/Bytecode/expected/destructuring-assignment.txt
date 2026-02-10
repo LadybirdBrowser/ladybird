@@ -18,17 +18,17 @@ JS bytecode executable "array_destructuring_with_class_default"
 [  70]       JumpFalse condition:reg6, target:@98
 [  80]    1: Mov dst:reg11, src:Undefined
 [  90]       Jump target:@98
-[  98]    2: JumpUndefined condition:reg11, true_target:@a8, false_target:@108
+[  98]    2: JumpUndefined condition:reg11, true_target:@a8, false_target:@100
 [  a8]    3: CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0
 [  b8]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
 [  c8]       SetLexicalEnvironment environment:reg4
-[  d0]       NewClass dst:reg13, class_environment:reg12
-[  f8]       Mov dst:reg11, src:reg13
-[ 108]    4: Mov dst:x~0, src:reg11
-[ 118]       JumpFalse condition:reg6, target:@130
-[ 128]    5: Return value:x~0
-[ 130]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-[ 150]       Return value:x~0
+[  d0]       NewClass dst:reg13, class_environment:reg12, class_blueprint_index:0
+[  f0]       Mov dst:reg11, src:reg13
+[ 100]    4: Mov dst:x~0, src:reg11
+[ 110]       JumpFalse condition:reg6, target:@128
+[ 120]    5: Return value:x~0
+[ 128]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+[ 148]       Return value:x~0
 
 JS bytecode executable "object_destructuring_with_function_default"
 [   0]    0: GetLexicalEnvironment dst:reg4
