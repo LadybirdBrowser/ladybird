@@ -9,6 +9,8 @@
 #include <AK/TypeCasts.h>
 #include <LibCore/DirIterator.h>
 #include <LibGC/CellAllocator.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -42,6 +44,7 @@
 #include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -2048,7 +2051,7 @@ Optional<FlyString> ComputedProperties::view_transition_name() const
     return {};
 }
 
-Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations() const
+Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(DOM::AbstractElement const& abstract_element) const
 {
     auto const& animation_name_values = property(PropertyID::AnimationName).as_value_list().values();
 
@@ -2070,7 +2073,8 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
             PropertyID::AnimationDelay,
             PropertyID::AnimationFillMode,
             PropertyID::AnimationComposition,
-            PropertyID::AnimationName });
+            PropertyID::AnimationName,
+            PropertyID::AnimationTimeline });
 
     Vector<AnimationProperties> animations;
 
@@ -2090,6 +2094,7 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
         auto animation_delay_style_value = coordinated_properties.get(PropertyID::AnimationDelay).value()[i];
         auto animation_fill_mode_style_value = coordinated_properties.get(PropertyID::AnimationFillMode).value()[i];
         auto animation_composition_style_value = coordinated_properties.get(PropertyID::AnimationComposition).value()[i];
+        auto animation_timeline_style_value = coordinated_properties.get(PropertyID::AnimationTimeline).value()[i];
 
         // https://drafts.csswg.org/css-animations-2/#animation-duration
         auto duration = [&] -> Variant<double, String> {
@@ -2143,6 +2148,36 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
             VERIFY_NOT_REACHED();
         }();
 
+        // https://drafts.csswg.org/css-animations-2/#animation-timeline
+        auto const& timeline = [&]() -> GC::Ptr<Animations::AnimationTimeline> {
+            // auto
+            // The animation’s timeline is a DocumentTimeline, more specifically the default document timeline.
+            if (animation_timeline_style_value->to_keyword() == Keyword::Auto)
+                return abstract_element.document().timeline();
+
+            // none
+            // The animation is not associated with a timeline.
+            if (animation_timeline_style_value->to_keyword() == Keyword::None)
+                return nullptr;
+
+            // <dashed-ident>
+            // FIXME: If a named scroll progress timeline or view progress timeline is in scope on this element, use the
+            //        referenced timeline as defined in Scroll-driven Animations §  Declaring a Named Timeline’s Scope:
+            //        the timeline-scope property. Otherwise the animation is not associated with a timeline.
+
+            // <scroll()>
+            // FIXME: Use the scroll progress timeline indicated by the given scroll() function. See Scroll-driven
+            //        Animations § 2.2.1 The scroll() notation.
+
+            //<view()>
+            // FIXME: Use the view progress timeline indicated by the given view() function. See Scroll-driven
+            //        Animations § 3.3.1 The view() notation.
+
+            // FIXME: We fall back to document timeline for now as though we don't support the `animation-timeline`
+            //        property at all
+            return abstract_element.document().timeline();
+        }();
+
         animations.append(AnimationProperties {
             .duration = duration,
             .timing_function = timing_function,
@@ -2153,6 +2188,7 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
             .fill_mode = fill_mode,
             .composition = composition,
             .name = name,
+            .timeline = timeline,
         });
     }
 

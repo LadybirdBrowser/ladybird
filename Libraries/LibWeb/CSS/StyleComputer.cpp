@@ -892,7 +892,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 // https://drafts.csswg.org/css-animations-1/#animations
 void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, DOM::AbstractElement& abstract_element) const
 {
-    auto const& animation_definitions = computed_properties.animations();
+    auto const& animation_definitions = computed_properties.animations(abstract_element);
 
     auto& document = abstract_element.document();
 
@@ -918,7 +918,6 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         // animation-name property and the animation uses a valid @keyframes rule
         auto animation = CSSAnimation::create(document.realm());
         animation->set_animation_name(animation_properties.name);
-        animation->set_timeline(document.timeline());
         animation->set_owning_element(abstract_element);
 
         auto effect = Animations::KeyframeEffect::create(document.realm());
