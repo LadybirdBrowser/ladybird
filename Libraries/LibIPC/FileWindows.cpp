@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Windows.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/File.h>
 #include <LibIPC/HandleType.h>
-
-#include <AK/Windows.h>
 
 namespace IPC {
 

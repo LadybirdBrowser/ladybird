@@ -6,11 +6,10 @@
  */
 
 #include <AK/ByteReader.h>
+#include <AK/Windows.h>
 #include <LibCore/System.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/Message.h>
-
-#include <AK/Windows.h>
 
 namespace IPC {
 

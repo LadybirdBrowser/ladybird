@@ -5,10 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Windows.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/System.h>
-
-#include <AK/Windows.h>
 
 namespace Core {
 

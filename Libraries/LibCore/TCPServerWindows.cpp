@@ -6,12 +6,11 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/Types.h>
+#include <AK/Windows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
-
-#include <AK/Windows.h>
 
 namespace Core {
 

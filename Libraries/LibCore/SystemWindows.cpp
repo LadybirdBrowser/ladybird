@@ -14,13 +14,12 @@
 #include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
+#include <AK/Windows.h>
 #include <LibCore/Process.h>
 #include <LibCore/SocketAddress.h>
 #include <LibCore/System.h>
 #include <direct.h>
 #include <sys/mman.h>
-
-#include <AK/Windows.h>
 #include <ws2tcpip.h>
 
 namespace Core::System {
