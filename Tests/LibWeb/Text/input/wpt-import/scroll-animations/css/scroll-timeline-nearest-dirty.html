@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>Unrelated style mutation does not affect anonymous timeline</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#scroll-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<script src="../../css/css-animations/support/testcommon.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+  @keyframes anim {
+    from { z-index: 100; }
+    to { z-index: 100; }
+  }
+  #scroller {
+    overflow: auto;
+    width: 100px;
+    height: 100px;
+  }
+  #element {
+    animation: anim forwards;
+    animation-timeline: scroll();
+  }
+  #spacer {
+    height: 200px;
+  }
+</style>
+<div id=scroller>
+  <div id=element></div>
+  <div id=spacer></div>
+</div>
+
+<script>
+setup(assert_implements_animation_timeline);
+
+promise_test(async () => {
+  await waitForCSSScrollTimelineStyle();
+  assert_equals(getComputedStyle(element).zIndex, '100');
+  // Unrelated style mutation does not change the effect value:
+  element.style.color = 'green';
+  assert_equals(getComputedStyle(element).zIndex, '100');
+});
+</script>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<title>The scroll() timeline source</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#scroll-notation">
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#animation-timeline">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  @keyframes move {
+    to { margin-left: 100px }
+  }
+
+  .animated {
+    animation: move 1s linear;
+  }
+
+  #default {
+    animation-timeline: scroll();
+  }
+
+  #root {
+    animation-timeline: scroll(root);
+  }
+
+  #nearest {
+    animation-timeline: scroll(nearest);
+  }
+</style>
+
+<div class="animated" id="default"></div>
+<div class="animated" id="root"></div>
+<div class="animated" id="nearest"></div>
+
+<script>
+"use strict";
+
+const timelineSourceTest = type => {
+  test(() => {
+    const target = document.getElementById(type);
+    const animations = target.getAnimations();
+    assert_equals(animations.length, 1);
+    assert_equals(animations[0].timeline.source, document.documentElement);
+  }, `CSS animation correctly uses the <html> element as the source for the ${type} scroll() timeline`);
+};
+
+timelineSourceTest("default");
+timelineSourceTest("root");
+timelineSourceTest("nearest");
+
+</script>
