@@ -396,6 +396,7 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/Requests.cpp
     Fetch/Infrastructure/HTTP/Responses.cpp
     Fetch/Infrastructure/HTTP/Statuses.cpp
+    Fetch/Infrastructure/CORSPreflightCache.cpp
     Fetch/Infrastructure/IncrementalReadLoopReadRequest.cpp
     Fetch/Infrastructure/MimeTypeBlocking.cpp
     Fetch/Infrastructure/NetworkPartitionKey.cpp

@@ -60,5 +60,6 @@ void append_fetch_metadata_headers_for_request(Infrastructure::Request&);
 WEB_API void set_http_memory_cache_enabled(bool enabled);
 WEB_API bool http_memory_cache_enabled();
 WEB_API void clear_http_memory_cache();
+WEB_API void clear_cors_preflight_cache();
 
 }

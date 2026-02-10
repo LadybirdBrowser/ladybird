@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        try {
+            const server = httpTestServer();
+
+            await server.createEcho("OPTIONS", "/cors-preflight-cache-test", {
+                status: 204,
+                headers: {
+                    "Access-Control-Allow-Methods": "PUT",
+                    "Access-Control-Allow-Headers": "X-Custom",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Max-Age": "300",
+                },
+            });
+
+            const url = await server.createEcho("PUT", "/cors-preflight-cache-test", {
+                status: 200,
+                body: "ok",
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                },
+            });
+
+            // First PUT triggers a CORS preflight (OPTIONS), which populates the cache.
+            let resp = await fetch(url, { method: "PUT", mode: "cors" });
+            let text = await resp.text();
+            if (!resp.ok || text !== "ok") {
+                println("FAIL - first PUT: " + resp.status + " " + text);
+                return;
+            }
+
+            // Second PUT should succeed. The preflight cache allows skipping the OPTIONS request.
+            resp = await fetch(url, { method: "PUT", mode: "cors" });
+            text = await resp.text();
+            if (!resp.ok || text !== "ok") {
+                println("FAIL - second PUT: " + resp.status + " " + text);
+                return;
+            }
+
+            // PUT with a cached custom header should also succeed.
+            resp = await fetch(url, {
+                method: "PUT",
+                mode: "cors",
+                headers: { "X-Custom": "value" },
+            });
+            text = await resp.text();
+            if (!resp.ok || text !== "ok") {
+                println("FAIL - PUT with X-Custom header: " + resp.status + " " + text);
+                return;
+            }
+
+            println("PASS");
+        } catch (err) {
+            println("FAIL - " + err);
+        }
+    });
+</script>
