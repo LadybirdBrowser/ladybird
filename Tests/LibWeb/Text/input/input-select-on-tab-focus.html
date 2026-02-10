@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<input id="a" value="hello" />
+<input id="b" value="world" />
+<input id="c" />
+<script src="include.js"></script>
+<script>
+    test(() => {
+        a.focus();
+        a.offsetWidth;
+
+        println(`a: ${a.selectionStart} ${a.selectionEnd}`);
+
+        internals.sendKey(a, "Tab");
+        println(`b: ${b.selectionStart} ${b.selectionEnd}`);
+
+        internals.sendKey(b, "Tab");
+        println(`c: ${c.selectionStart} ${c.selectionEnd}`);
+    });
+</script>

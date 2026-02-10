@@ -1468,8 +1468,12 @@ void HTMLInputElement::did_receive_focus()
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
-    if (has_selectable_text())
-        document().get_selection()->remove_all_ranges();
+    if (has_selectable_text()) {
+        if (document().last_focus_trigger() == FocusTrigger::Key)
+            MUST(select());
+        else
+            document().get_selection()->remove_all_ranges();
+    }
 }
 
 void HTMLInputElement::did_lose_focus()
