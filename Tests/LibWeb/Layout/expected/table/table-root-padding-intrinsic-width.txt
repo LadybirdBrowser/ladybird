@@ -1,0 +1,25 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 44 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 28 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 78.78125 0+0+705.21875] [0+0+0 28 0+0+0] [BFC] children: not-inline
+        Box <div> at [13,13] table-box [0+0+5 68.78125 5+0+0] [0+0+5 18 5+0+0] [TFC] children: inline
+          Box <(anonymous)> at [13,13] table-row [0+0+0 68.78125 0+0+0] [0+0+0 18 0+0+0] children: inline
+            BlockContainer <(anonymous)> at [13,13] table-cell [0+0+0 68.78125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 7, rect: [13,13 68.78125x18] baseline: 13.796875
+                  "Foo Bar"
+              TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,36] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x44]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x28]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 78.78125x28]
+        PaintableBox (Box<DIV>) [8,8 78.78125x28]
+          PaintableBox (Box(anonymous)) [13,13 68.78125x18]
+            PaintableWithLines (BlockContainer(anonymous)) [13,13 68.78125x18]
+              TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,36 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x44] [children: 0] (z-index: auto)
