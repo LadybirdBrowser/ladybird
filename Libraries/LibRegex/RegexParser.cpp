@@ -1560,7 +1560,7 @@ bool ECMA262Parser::parse_character_escape(Vector<CompareTypeAndValuePair>& comp
             return true;
         }
 
-        back();
+        back(2);
     }
 
     // LegacyOctalEscapeSequence
