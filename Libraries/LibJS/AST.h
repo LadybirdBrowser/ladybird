@@ -26,7 +26,6 @@
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/LocalVariable.h>
-#include <LibJS/Runtime/ClassFieldDefinition.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
 #include <LibJS/Runtime/FunctionKind.h>
@@ -1446,10 +1445,6 @@ public:
     virtual ElementKind class_element_kind() const = 0;
     bool is_static() const { return m_is_static; }
 
-    // We use the Completion also as a ClassStaticBlockDefinition Record.
-    using ClassValue = Variant<ClassFieldDefinition, Completion, PrivateElement>;
-    virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value) const = 0;
-
     virtual Optional<Utf16FlyString> private_bound_identifier() const { return {}; }
 
 private:
@@ -1478,7 +1473,6 @@ public:
     virtual ElementKind class_element_kind() const override { return ElementKind::Method; }
 
     virtual void dump(ASTDumpState const& state = {}) const override;
-    virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
     virtual Optional<Utf16FlyString> private_bound_identifier() const override;
 
 private:
@@ -1504,7 +1498,6 @@ public:
     virtual ElementKind class_element_kind() const override { return ElementKind::Field; }
 
     virtual void dump(ASTDumpState const& state = {}) const override;
-    virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
     virtual Optional<Utf16FlyString> private_bound_identifier() const override;
 
 private:
@@ -1521,7 +1514,6 @@ public:
     }
 
     virtual ElementKind class_element_kind() const override { return ElementKind::StaticInitializer; }
-    virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
 
     FunctionBody const& function_body() const { return *m_function_body; }
 
@@ -1566,8 +1558,6 @@ public:
     Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     bool has_name() const { return m_name; }
-
-    ThrowCompletionOr<ECMAScriptFunctionObject*> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<Utf16FlyString> const& binding_name = {}, Utf16FlyString const& class_name = {}) const;
 
 private:
     virtual bool is_class_expression() const override { return true; }
