@@ -72,6 +72,11 @@ void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties 
 
     auto& effect = as<Animations::KeyframeEffect>(*this->effect());
 
+    if (!m_ignored_css_properties.contains(PropertyID::AnimationTimeline)) {
+        HTML::TemporaryExecutionContext context(realm());
+        set_timeline(animation_properties.timeline);
+    }
+
     effect.set_specified_iteration_duration(animation_properties.duration);
     effect.set_specified_start_delay(animation_properties.delay);
     // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing

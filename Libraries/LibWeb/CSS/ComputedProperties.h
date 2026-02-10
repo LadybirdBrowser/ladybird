@@ -208,8 +208,9 @@ public:
         AnimationFillMode fill_mode;
         AnimationComposition composition;
         FlyString name;
+        GC::Ptr<Animations::AnimationTimeline> timeline;
     };
-    Vector<AnimationProperties> animations() const;
+    Vector<AnimationProperties> animations(DOM::AbstractElement const&) const;
     Vector<TransitionProperties> transitions() const;
 
     Display display_before_box_type_transformation() const;
