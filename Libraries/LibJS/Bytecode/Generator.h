@@ -208,6 +208,7 @@ public:
     void emit_new_function(ScopedOperand dst, JS::FunctionExpression const&, Optional<IdentifierTableIndex> lhs_name, bool is_method);
 
     u32 register_shared_function_data(GC::Ref<SharedFunctionInstanceData>);
+    u32 register_class_blueprint(ClassBlueprint);
 
     CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {}, bool is_method = false);
 
@@ -514,6 +515,7 @@ private:
     GC::Ptr<SharedFunctionInstanceData const> m_shared_function_instance_data;
 
     Vector<GC::Root<SharedFunctionInstanceData>> m_shared_function_data;
+    Vector<ClassBlueprint> m_class_blueprints;
 
     Optional<PropertyKeyTableIndex> m_length_identifier;
 };
