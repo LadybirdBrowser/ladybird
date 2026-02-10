@@ -510,8 +510,14 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
 
     // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source of navigable's active window to run the steps:
     for (auto& navigable : changing_navigables) {
-        if (!navigable->active_window())
+        // AD-HOC: If the navigable has been destroyed, or has no active window, skip it.
+        //         We must increment completed_change_jobs here rather than relying on the queued
+        //         task, because Document::destroy() removes tasks associated with a document from
+        //         the task queue, which can cause those tasks to never run.
+        if (navigable->has_been_destroyed() || !navigable->active_window()) {
+            completed_change_jobs++;
             continue;
+        }
         queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), GC::create_function(heap(), [&] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
             if (navigable->has_been_destroyed()) {
