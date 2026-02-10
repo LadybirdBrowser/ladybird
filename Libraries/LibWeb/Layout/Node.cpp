@@ -1423,6 +1423,10 @@ bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const
     if (display().is_contents())
         return false;
 
+    // Internal table display types and table captions are handled by the table fixup algorithm.
+    if (display().is_internal_table() || display().is_table_caption())
+        return false;
+
     // Parent element must not be <foreignObject>
     if (is<SVG::SVGForeignObjectElement>(parent()->dom_node()))
         return false;

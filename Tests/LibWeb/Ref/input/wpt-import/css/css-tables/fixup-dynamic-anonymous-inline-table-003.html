@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>CSS Test: CSS Tables fixup merge anonymous inline table siblings (cell + cell)</title>
+<link rel="author" title="Rune Lillesveen" href="mailto:futhark@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-tables/../reference/ref-filled-green-100px-square-only.html">
+<link rel="help" href="https://drafts.csswg.org/css-tables/#fixup-algorithm">
+<style>
+  .cell {
+    display: table-cell;
+  }
+  .filler {
+    width: 50px;
+    height: 100px;
+    background-color: green;
+  }
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div style="width:100px">
+  <span>
+    <span class="cell">
+      <div class="filler"></div>
+    </span>
+    <span id="rm">Remove me</span>
+    <span class="cell">
+      <div class="filler"></div>
+    </span>
+  </span>
+</div>
+<script>
+  rm.offsetTop;
+  rm.remove();
+</script>
