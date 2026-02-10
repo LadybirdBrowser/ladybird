@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+
+<script>
+promise_test(async t => {
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  const result1 = navigation.navigate("#1");
+  const result2 = navigation.navigate("#2");
+
+  assert_equals(navigation.entries().length, start_length + 2);
+  assert_array_equals(navigation.entries().slice(start_index).map(e => (new URL(e.url)).hash), ["", "#1", "#2"]);
+
+  await assertCommittedFulfillsFinishedRejectsDOM(t, result1, navigation.entries()[start_index + 1], "AbortError");
+  await assertBothFulfill(t, result2, navigation.currentEntry);
+}, "interrupted navigate() promises");
+</script>

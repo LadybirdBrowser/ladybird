@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+<meta name="variant" content="?method=navigate">
+<meta name="variant" content="?method=updateCurrentEntry">
+
+<script>
+test(() => {
+  updateStateBasedOnTestVariant(window, { data : "value" });
+  assert_equals(navigation.currentEntry.getState().data, "value");
+  history.pushState(1, "", "#push");
+  assert_equals(navigation.currentEntry.getState(), undefined);
+}, "entry.getState() after history.pushState()");
+</script>

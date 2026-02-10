@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+
+<script>
+promise_test(async t => {
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  let result2;
+  navigation.onnavigate = t.step_func(e => {
+    if (e.info == 1) {
+      result2 = navigation.navigate("#2", { info: 2 });
+      assert_true(e.defaultPrevented);
+    }
+  });
+
+  const result1 = navigation.navigate("#1", { info: 1 });
+
+  assert_equals(navigation.entries().length, start_length + 1);
+  assert_array_equals(navigation.entries().slice(start_index).map(e => (new URL(e.url)).hash), ["", "#2"]);
+
+  await assertBothRejectDOM(t, result1, "AbortError");
+  await assertBothFulfill(t, result2, navigation.currentEntry);
+}, "if navigate() is called inside onnavigate, the previous navigation and navigate event are cancelled");
+</script>

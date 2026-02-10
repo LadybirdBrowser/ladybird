@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  let navigateEvent;
+  let navigateError_called = false;
+  navigation.onnavigate = e => navigateEvent = e;
+  navigation.onnavigateerror = () => navigateError_called = true;
+
+  navigation.navigate("#1");
+  assert_false(navigateEvent.defaultPrevented);
+  assert_false(navigateError_called);
+
+  navigation.navigate("#2");
+  assert_false(navigateEvent.defaultPrevented);
+  assert_true(navigateError_called);
+}, "navigateEvent.defaultPrevented isn't affected when the navigation is preempted after dispatch");
+</script>

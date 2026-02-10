@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="d"></div>
+<script>
+promise_test(async () => {
+  let onnavigate_called = false;
+  navigation.onnavigate = () => onnavigate_called = true;
+  await navigation.navigate("#d").committed;
+  assert_equals(location.hash, "#d");
+  assert_true(onnavigate_called);
+  assert_equals(document.querySelector(":target"), d);
+}, "navigate() navigates same-document and fires onnavigate (async)");
+
+test(() => {
+  let onnavigate_called = false;
+  navigation.onnavigate = () => onnavigate_called = true;
+  navigation.navigate("#d");
+  assert_equals(location.hash, "#d");
+  assert_true(onnavigate_called);
+  assert_equals(document.querySelector(":target"), d);
+}, "navigate() navigates same-document and fires onnavigate (sync)");
+</script>
