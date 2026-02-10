@@ -468,6 +468,12 @@ void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleShee
     }
 }
 
+void StyleScope::schedule_ancestors_style_invalidation_due_to_presence_of_has(DOM::Node& node)
+{
+    m_pending_nodes_for_style_invalidation_due_to_presence_of_has.set(node);
+    document().set_needs_invalidation_of_elements_affected_by_has();
+}
+
 void StyleScope::invalidate_style_of_elements_affected_by_has()
 {
     if (m_pending_nodes_for_style_invalidation_due_to_presence_of_has.is_empty()) {
