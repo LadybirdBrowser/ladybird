@@ -382,4 +382,6 @@ inline Gfx::Font const& NodeWithStyle::first_available_font() const
     return computed_values().font_list().font_for_code_point(' ');
 }
 
+bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow);
+
 }

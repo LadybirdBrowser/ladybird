@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/CSSAnimationPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSAnimation.h>
@@ -64,6 +65,26 @@ Animations::AnimationClass CSSAnimation::animation_class() const
     return Animations::AnimationClass::CSSAnimationWithoutOwningElement;
 }
 
+// NB: Unrelated style changes shouldn't cause us to recreate anonymous timelines, to achieve this we drop updates
+//     between two equivalent anonymous timelines.
+static bool should_update_timeline(GC::Ptr<Animations::AnimationTimeline> old_timeline, GC::Ptr<Animations::AnimationTimeline> new_timeline)
+{
+    if (!old_timeline || !new_timeline)
+        return true;
+
+    if (is<Animations::ScrollTimeline>(*old_timeline) && is<Animations::ScrollTimeline>(*new_timeline)) {
+        auto const& old_scroll_timeline = as<Animations::ScrollTimeline>(*old_timeline);
+        auto const& new_scroll_timeline = as<Animations::ScrollTimeline>(*new_timeline);
+
+        if (!old_scroll_timeline.source_internal().has<Animations::ScrollTimeline::AnonymousSource>() || !new_scroll_timeline.source_internal().has<Animations::ScrollTimeline::AnonymousSource>())
+            return true;
+
+        return old_scroll_timeline.source_internal().get<Animations::ScrollTimeline::AnonymousSource>() != new_scroll_timeline.source_internal().get<Animations::ScrollTimeline::AnonymousSource>();
+    }
+
+    return true;
+}
+
 void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties const& animation_properties)
 {
     // FIXME: Don't apply overriden properties as defined here: https://drafts.csswg.org/css-animations-2/#animations
@@ -72,7 +93,7 @@ void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties 
 
     auto& effect = as<Animations::KeyframeEffect>(*this->effect());
 
-    if (!m_ignored_css_properties.contains(PropertyID::AnimationTimeline)) {
+    if (!m_ignored_css_properties.contains(PropertyID::AnimationTimeline) && should_update_timeline(timeline(), animation_properties.timeline)) {
         HTML::TemporaryExecutionContext context(realm());
         set_timeline(animation_properties.timeline);
     }

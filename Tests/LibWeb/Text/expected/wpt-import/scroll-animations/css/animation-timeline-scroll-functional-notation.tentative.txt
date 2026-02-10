@@ -2,11 +2,12 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	animation-timeline: scroll(nearest)
-Fail	animation-timeline: scroll(root)
-Fail	animation-timeline: scroll(self)
-Fail	animation-timeline: scroll(self), on non-scroller
-Fail	animation-timeline: scroll(inline)
+5 Pass
+2 Fail
+Pass	animation-timeline: scroll(nearest)
+Pass	animation-timeline: scroll(root)
+Pass	animation-timeline: scroll(self)
+Pass	animation-timeline: scroll(self), on non-scroller
+Pass	animation-timeline: scroll(inline)
 Fail	animation-timeline: scroll(x)
 Fail	animation-timeline: scroll(y)

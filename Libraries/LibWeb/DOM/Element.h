@@ -342,6 +342,7 @@ public:
         Yes,
     };
     bool is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowHidden) const;
+    bool is_scroll_container() const;
 
     double scroll_top() const;
     double scroll_left() const;

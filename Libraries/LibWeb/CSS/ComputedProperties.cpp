@@ -11,6 +11,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -36,6 +37,7 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -2166,8 +2168,18 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(D
             //        the timeline-scope property. Otherwise the animation is not associated with a timeline.
 
             // <scroll()>
-            // FIXME: Use the scroll progress timeline indicated by the given scroll() function. See Scroll-driven
-            //        Animations § 2.2.1 The scroll() notation.
+            // Use the scroll progress timeline indicated by the given scroll() function. See Scroll-driven Animations
+            // § 2.2.1 The scroll() notation.
+            if (animation_timeline_style_value->is_scroll_function()) {
+                auto const& scroll_function = animation_timeline_style_value->as_scroll_function();
+
+                Animations::ScrollTimeline::AnonymousSource source {
+                    .scroller = scroll_function.scroller(),
+                    .target = abstract_element,
+                };
+
+                return Animations::ScrollTimeline::create(abstract_element.element().realm(), abstract_element.document(), source, Animations::css_axis_to_bindings_scroll_axis(scroll_function.axis()));
+            }
 
             //<view()>
             // FIXME: Use the view progress timeline indicated by the given view() function. See Scroll-driven

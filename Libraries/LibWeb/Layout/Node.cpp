@@ -1146,7 +1146,7 @@ bool NodeWithStyle::is_body() const
     return dom_node() && dom_node() == document().body();
 }
 
-static bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
+bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
 {
     switch (overflow) {
     case CSS::Overflow::Clip:
