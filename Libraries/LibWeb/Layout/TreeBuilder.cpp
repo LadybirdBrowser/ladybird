@@ -1133,7 +1133,7 @@ void TreeBuilder::generate_missing_child_wrappers(NodeWithStyle& root)
 Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
 {
     Vector<GC::Root<Box>> table_roots_to_wrap;
-    root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& parent) {
+    root.for_each_in_inclusive_subtree_of_type<NodeWithStyle>([&](auto& parent) {
         // 1. An anonymous table-row box must be generated around each sequence of consecutive table-cell boxes whose
         //    parent is not a table-row.
         if (is_not_table_row(parent)) {
@@ -1173,13 +1173,14 @@ Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
         }
 
         // 3. An anonymous table-wrapper box must be generated around each table-root.
-        if (parent.display().is_table_inside()) {
-            if (parent.has_been_wrapped_in_table_wrapper()) {
+        if (auto* box = as_if<Box>(parent); box && box->display().is_table_inside()) {
+            if (box->has_been_wrapped_in_table_wrapper()) {
                 VERIFY(parent.parent());
                 VERIFY(parent.parent()->is_table_wrapper());
                 return TraversalDecision::Continue;
             }
-            table_roots_to_wrap.append(parent);
+
+            table_roots_to_wrap.append(*box);
         }
 
         return TraversalDecision::Continue;
