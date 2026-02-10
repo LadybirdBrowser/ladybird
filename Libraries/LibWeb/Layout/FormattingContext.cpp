@@ -995,13 +995,19 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
 
     auto& state = m_state.get(box);
     auto try_compute_height = [&](CSS::LengthOrAuto height) -> CSS::LengthOrAuto {
+        // Reset values that may have been modified by a previous call (when re-solving for min/max-height).
+        margin_top = box.computed_values().margin().top();
+        margin_bottom = box.computed_values().margin().bottom();
+        top = box.computed_values().inset().top();
+        bottom = box.computed_values().inset().bottom();
+
         auto solve_for = [&](CSS::LengthOrAuto const& length_or_auto, ClampToZero clamp_to_zero = ClampToZero::No) {
             auto unclamped_value = height_of_containing_block
                 - top.to_px_or_zero(box, height_of_containing_block)
                 - margin_top.to_px_or_zero(box, width_of_containing_block)
                 - box.computed_values().border_top().width
                 - state.padding_top
-                - apply_min_max_height_constraints(height).to_px_or_zero(box)
+                - height.to_px_or_zero(box)
                 - state.padding_bottom
                 - box.computed_values().border_bottom().width
                 - margin_bottom.to_px_or_zero(box, width_of_containing_block)
@@ -1165,7 +1171,27 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         return CSS::Length::make_px(calculate_inner_height(box, available_space, box.computed_values().height()));
     }());
 
-    used_height = apply_min_max_height_constraints(used_height);
+    // If the tentative used height is greater than 'max-height', the rules above are applied again,
+    // but this time using the computed value of 'max-height' as the computed value for 'height'.
+    auto const& computed_max_height = box.computed_values().max_height();
+    if (!used_height.is_auto() && !computed_max_height.is_none()) {
+        auto max_height = calculate_inner_height(box, available_space, computed_max_height);
+        if (used_height.to_px_or_zero(box) > max_height)
+            used_height = try_compute_height(CSS::Length::make_px(max_height));
+    }
+
+    // If the resulting height is smaller than 'min-height', the rules above are applied again,
+    // but this time using the value of 'min-height' as the computed value for 'height'.
+    auto const& computed_min_height = box.computed_values().min_height();
+    if (!used_height.is_auto() && !computed_min_height.is_auto()) {
+        auto min_height = calculate_inner_height(box, available_space, computed_min_height);
+        if (used_height.to_px_or_zero(box) < min_height)
+            used_height = try_compute_height(CSS::Length::make_px(min_height));
+    }
+
+    // For the before-inside-layout pass where height is still auto, apply min-max as a simple clamp.
+    if (used_height.is_auto())
+        used_height = apply_min_max_height_constraints(used_height);
 
     // NOTE: The following is not directly part of any spec, but this is where we resolve
     //       the final used values for vertical margin/border/padding.

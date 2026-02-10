@@ -1,0 +1,59 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1000 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1000 0+0+0] children: not-inline
+      BlockContainer <div.container> at [0,0] positioned [0+0+0 200 0+0+600] [0+0+0 200 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div.abspos> at [0,37] positioned [0+0+0 200 0+0+0] [0+0+0 163 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,200] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.container> at [0,200] positioned [0+0+0 200 0+0+600] [0+0+0 200 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div.abspos> at [0,350] positioned [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,400] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.container> at [0,400] positioned [0+0+0 200 0+0+600] [0+0+0 200 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div.abspos> at [0,400] positioned [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,600] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.container> at [0,600] positioned [0+0+0 200 0+0+600] [0+0+0 200 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div.abspos> at [0,650] positioned [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,800] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.container> at [0,800] positioned [0+0+0 200 0+0+600] [0+0+0 200 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div.abspos> at [0,810] positioned [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,1000] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1000]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1000]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x1000]
+      PaintableWithLines (BlockContainer<DIV>.container) [0,0 200x200]
+        PaintableWithLines (BlockContainer<DIV>.abspos) [0,37 200x163]
+      PaintableWithLines (BlockContainer(anonymous)) [0,200 800x0]
+      PaintableWithLines (BlockContainer<DIV>.container) [0,200 200x200]
+        PaintableWithLines (BlockContainer<DIV>.abspos) [0,350 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [0,400 800x0]
+      PaintableWithLines (BlockContainer<DIV>.container) [0,400 200x200]
+        PaintableWithLines (BlockContainer<DIV>.abspos) [0,400 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [0,600 800x0]
+      PaintableWithLines (BlockContainer<DIV>.container) [0,600 200x200]
+        PaintableWithLines (BlockContainer<DIV>.abspos) [0,650 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [0,800 800x0]
+      PaintableWithLines (BlockContainer<DIV>.container) [0,800 200x200]
+        PaintableWithLines (BlockContainer<DIV>.abspos) [0,810 200x150]
+      PaintableWithLines (BlockContainer(anonymous)) [0,1000 800x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1000] [children: 0] (z-index: auto)
