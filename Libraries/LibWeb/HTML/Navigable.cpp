@@ -2246,15 +2246,45 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
-void Navigable::reload(UserNavigationInvolvement user_involvement)
+void Navigable::reload(Optional<SerializationRecord> navigation_api_state, UserNavigationInvolvement user_involvement)
 {
-    // 1. Set navigable's active session history entry's document state's reload pending to true.
+    // 1. If userInvolvement is not "browser UI", then:
+    if (user_involvement != UserNavigationInvolvement::BrowserUI) {
+        // 1. Let navigation be navigable's active window's navigation API.
+        auto active_window = this->active_window();
+        VERIFY(active_window);
+        auto navigation = active_window->navigation();
+
+        // 2. Let destinationNavigationAPIState be navigable's active session history entry's navigation API state.
+        auto destination_navigation_api_state = active_session_history_entry()->navigation_api_state();
+
+        // 3. If navigationAPIState is not null, then set destinationNavigationAPIState to navigationAPIState.
+        if (navigation_api_state.has_value())
+            destination_navigation_api_state = *navigation_api_state;
+
+        // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation with
+        //    navigationType set to "reload", isSameDocument set to false, userInvolvement set to userInvolvement,
+        //    destinationURL set to navigable's active session history entry's URL, navigationAPIState set to
+        //    destinationNavigationAPIState, and apiMethodTracker set to apiMethodTracker.
+        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(Bindings::NavigationType::Reload, active_session_history_entry()->url(), false, user_involvement, nullptr, {}, destination_navigation_api_state);
+
+        // 5. If continue is false, then return.
+        if (!continue_)
+            return;
+    }
+
+    // 1. If navigationAPIState is not null, then set navigable's active session history entry's navigation API state
+    //    to navigationAPIState.
+    if (navigation_api_state.has_value())
+        active_session_history_entry()->set_navigation_api_state(navigation_api_state.release_value());
+
+    // 2. Set navigable's active session history entry's document state's reload pending to true.
     active_session_history_entry()->document_state()->set_reload_pending(true);
 
-    // 2. Let traversable be navigable's traversable navigable.
+    // 3. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
 
-    // 3. Append the following session history traversal steps to traversable:
+    // 4. Append the following session history traversal steps to traversable:
     traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, user_involvement] {
         // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
         auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();

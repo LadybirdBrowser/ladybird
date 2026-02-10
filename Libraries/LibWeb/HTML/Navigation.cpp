@@ -344,8 +344,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::reload(NavigationReloadOptions
     auto api_method_tracker = maybe_set_the_upcoming_non_traverse_api_method_tracker(info, serialized_state);
 
     // 9. Reload document's node navigable with navigationAPIState set to serializedState.
-    // FIXME: Pass serialized_state to reload
-    document.navigable()->reload();
+    document.navigable()->reload(move(serialized_state));
 
     return navigation_api_method_tracker_derived_result(api_method_tracker);
 }

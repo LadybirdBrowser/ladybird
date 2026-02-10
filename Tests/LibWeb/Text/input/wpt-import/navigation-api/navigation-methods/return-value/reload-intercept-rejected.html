@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+
+<script>
+promise_test(async t => {
+  const err = new Error("boo!");
+  const promise = Promise.reject(err);
+  promise.catch(() => {}); // prevent unhandled rejection testharness.js errors
+  navigation.onnavigate = e => e.intercept({ handler: () => promise });
+
+  const result = navigation.reload();
+
+  await assertCommittedFulfillsFinishedRejectsExactly(t, result, navigation.currentEntry, err);
+}, "reload() and intercept() with a rejected promise");
+</script>
