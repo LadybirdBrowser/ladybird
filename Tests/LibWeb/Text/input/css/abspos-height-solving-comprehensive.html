@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    * { margin: 0; padding: 0; }
+    .cb { width: 100px; height: 300px; position: relative; }
+    .a { position: absolute; left: 0; right: 0; }
+</style>
+<body>
+
+<!-- Solve for top -->
+<div class="cb"><div id="solve-top" class="a" style="height:80px; bottom:20px"></div></div>
+
+<!-- Solve for height -->
+<div class="cb"><div id="solve-height" class="a" style="top:50px; bottom:50px"></div></div>
+
+<!-- Solve for bottom -->
+<div class="cb"><div id="solve-bottom" class="a" style="top:30px; height:100px"></div></div>
+
+<!-- Overconstrained (none auto, no auto margins) -->
+<div class="cb"><div id="overconstrained" class="a" style="top:10px; height:80px; bottom:50px"></div></div>
+
+<!-- Both margins auto -->
+<div class="cb"><div id="both-margins-auto" class="a" style="top:10px; height:80px; bottom:10px; margin-top:auto; margin-bottom:auto"></div></div>
+
+<!-- One margin auto -->
+<div class="cb"><div id="margin-top-auto" class="a" style="top:10px; height:80px; bottom:50px; margin-top:auto"></div></div>
+
+<!-- Solve for height + min-height (not constraining) -->
+<div class="cb"><div id="height-with-inactive-min" class="a" style="top:20px; bottom:30px; min-height:100px"></div></div>
+
+<!-- Solve for height + min-height (constraining) -->
+<div class="cb"><div id="height-with-active-min" class="a" style="top:100px; bottom:100px; min-height:200px"></div></div>
+
+<!-- Solve for height + max-height (constraining) -->
+<div class="cb"><div id="height-with-active-max" class="a" style="top:10px; bottom:10px; max-height:100px"></div></div>
+
+<!-- Solve for height + max-height (not constraining) -->
+<div class="cb"><div id="height-with-inactive-max" class="a" style="top:50px; bottom:50px; max-height:300px"></div></div>
+
+<!-- Solve for top + min-height re-solve -->
+<div class="cb"><div id="top-with-active-min" class="a" style="height:40px; bottom:20px; min-height:100px"></div></div>
+
+<!-- Solve for top + max-height re-solve -->
+<div class="cb"><div id="top-with-active-max" class="a" style="height:250px; bottom:20px; max-height:100px"></div></div>
+
+<!-- Solve for bottom + min-height re-solve -->
+<div class="cb"><div id="bottom-with-active-min" class="a" style="top:20px; height:40px; min-height:100px"></div></div>
+
+<!-- Solve for bottom + max-height re-solve -->
+<div class="cb"><div id="bottom-with-active-max" class="a" style="top:20px; height:250px; max-height:100px"></div></div>
+
+<!-- Both margins auto + min-height re-solve -->
+<div class="cb"><div id="both-margins-auto-with-min" class="a" style="top:10px; height:40px; bottom:10px; margin-top:auto; margin-bottom:auto; min-height:100px"></div></div>
+
+<!-- One margin auto + max-height re-solve -->
+<div class="cb"><div id="margin-top-auto-with-max" class="a" style="top:10px; height:250px; bottom:10px; margin-top:auto; max-height:100px"></div></div>
+
+<!-- Solve for height with borders and padding -->
+<div class="cb"><div id="height-with-border-padding" class="a" style="top:10px; bottom:10px; border-top:5px solid; border-bottom:5px solid; padding:15px"></div></div>
+
+<!-- Solve for height with borders, padding, and min-height re-solve -->
+<div class="cb"><div id="height-with-border-padding-min" class="a" style="top:10px; bottom:10px; border-top:5px solid; border-bottom:5px solid; padding:15px; min-height:280px"></div></div>
+
+<script>
+// Polyfill for running outside Ladybird's test harness (e.g. in Chrome/Firefox).
+if (typeof test === "undefined") {
+    window.test = function(f) {
+        document.addEventListener("DOMContentLoaded", f);
+    };
+    window.println = function(s) {
+        let out = document.getElementById("out");
+        if (!out) {
+            out = document.createElement("pre");
+            out.id = "out";
+            document.body.appendChild(out);
+        }
+        out.appendChild(document.createTextNode(s + "\n"));
+    };
+}
+
+test(() => {
+    function check(id, expected_height, expected_offset_top) {
+        const el = document.getElementById(id);
+        const height = el.offsetHeight;
+        const top = el.offsetTop;
+        const pass = (height === expected_height && top === expected_offset_top);
+        println(`${pass ? "PASS" : "FAIL"} ${id}`);
+        if (!pass) {
+            if (height !== expected_height)
+                println(`  height: expected ${expected_height}, got ${height}`);
+            if (top !== expected_offset_top)
+                println(`  offsetTop: expected ${expected_offset_top}, got ${top}`);
+        }
+    }
+
+    // top = 300 - 80 - 20 = 200
+    check("solve-top", 80, 200);
+    // height = 300 - 50 - 50 = 200
+    check("solve-height", 200, 50);
+    // bottom = 300 - 30 - 100 = 170
+    check("solve-bottom", 100, 30);
+    // bottom ignored, top=10 wins
+    check("overconstrained", 80, 10);
+    // margins = (300 - 10 - 80 - 10) / 2 = 100 each, offsetTop = 10 + 100 = 110
+    check("both-margins-auto", 80, 110);
+    // margin-top = 300 - 10 - 80 - 50 = 160, offsetTop = 10 + 160 = 170
+    check("margin-top-auto", 80, 170);
+
+    // height = 250, 250 >= 100 so min-height has no effect
+    check("height-with-inactive-min", 250, 20);
+    // height = 100 < 200, re-solve with h=200, overconstrained
+    check("height-with-active-min", 200, 100);
+    // height = 280 > 100, re-solve with h=100, overconstrained
+    check("height-with-active-max", 100, 10);
+    // height = 200, 200 <= 300 so max-height has no effect
+    check("height-with-inactive-max", 200, 50);
+
+    // h=40 < 100, re-solve with h=100, top = 300 - 100 - 20 = 180
+    check("top-with-active-min", 100, 180);
+    // h=250 > 100, re-solve with h=100, top = 300 - 100 - 20 = 180
+    check("top-with-active-max", 100, 180);
+
+    // h=40 < 100, re-solve with h=100, top stays 20
+    check("bottom-with-active-min", 100, 20);
+    // h=250 > 100, re-solve with h=100, top stays 20
+    check("bottom-with-active-max", 100, 20);
+
+    // h=40 < 100, re-solve with h=100, margins = (300 - 10 - 100 - 10) / 2 = 90, offsetTop = 10 + 90 = 100
+    check("both-margins-auto-with-min", 100, 100);
+    // h=250 > 100, re-solve with h=100, margin-top = 300 - 10 - 100 - 10 = 180, offsetTop = 10 + 180 = 190
+    check("margin-top-auto-with-max", 100, 190);
+
+    // content = 300 - 10 - 5 - 15 - 15 - 5 - 10 = 240, offsetHeight = 240 + 5 + 5 + 15 + 15 = 280
+    check("height-with-border-padding", 280, 10);
+    // content = 240 < 280, re-solve with h=280, overconstrained, offsetHeight = 280 + 40 = 320
+    check("height-with-border-padding-min", 320, 10);
+});
+</script>
+</body>
