@@ -1454,6 +1454,8 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     update_style();
 
+    auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
+
     auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
 
     if (m_layout_root && !m_layout_root->needs_layout_update() && svg_roots_to_relayout.is_empty())
@@ -1464,7 +1466,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         return;
 
     // Partial SVG relayout
-    if (m_layout_root && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update() && !needs_layout_tree_update() && !child_needs_layout_tree_update() && !needs_full_layout_tree_update()) {
+    if (!needs_layout_tree_rebuild && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update()) {
         for (auto const& svg_root : svg_roots_to_relayout)
             relayout_svg_root(*svg_root);
 
@@ -1487,7 +1489,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
-    if (!m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update()) {
+    if (needs_layout_tree_rebuild) {
         Layout::TreeBuilder tree_builder;
         m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
 
