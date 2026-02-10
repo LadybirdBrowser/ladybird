@@ -80,7 +80,6 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
@@ -890,37 +889,6 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     }
 }
 
-static void apply_animation_properties(DOM::Document const& document, ComputedProperties::AnimationProperties const& animation_properties, Animations::Animation& animation)
-{
-    VERIFY(animation.effect());
-
-    auto& effect = as<Animations::KeyframeEffect>(*animation.effect());
-
-    effect.set_specified_iteration_duration(animation_properties.duration);
-    effect.set_specified_start_delay(animation_properties.delay);
-    // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
-    // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
-    // timing requires rerunning the procedure to normalize specified timing.
-    effect.normalize_specified_timing();
-    effect.set_iteration_count(animation_properties.iteration_count);
-    effect.set_timing_function(animation_properties.timing_function);
-    effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));
-    effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
-    effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_properties.composition));
-
-    if (animation_properties.play_state != animation.last_css_animation_play_state()) {
-        if (animation_properties.play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {
-            HTML::TemporaryExecutionContext context(document.realm());
-            animation.play().release_value_but_fixme_should_propagate_errors();
-        } else if (animation_properties.play_state == CSS::AnimationPlayState::Paused && animation.play_state() != Bindings::AnimationPlayState::Paused) {
-            HTML::TemporaryExecutionContext context(document.realm());
-            animation.pause().release_value_but_fixme_should_propagate_errors();
-        }
-
-        animation.set_last_css_animation_play_state(animation_properties.play_state);
-    }
-}
-
 // https://drafts.csswg.org/css-animations-1/#animations
 void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, DOM::AbstractElement& abstract_element) const
 {
@@ -942,7 +910,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         // Changes to the values of animation properties while the animation is running apply as if the animation had
         // those values from when it began
         if (auto const& existing_animation = element_animations->get(animation_properties.name); existing_animation.has_value()) {
-            apply_animation_properties(document, animation_properties, existing_animation.value());
+            existing_animation.value()->apply_css_properties(animation_properties);
             return;
         }
 
@@ -956,7 +924,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         auto effect = Animations::KeyframeEffect::create(document.realm());
         animation->set_effect(effect);
 
-        apply_animation_properties(document, animation_properties, animation);
+        animation->apply_css_properties(animation_properties);
 
         if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, {})) {
             if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())

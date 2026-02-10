@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -24,6 +25,8 @@ public:
 
     virtual Animations::AnimationClass animation_class() const override;
     virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
+
+    void apply_css_properties(ComputedProperties::AnimationProperties const&);
 
 private:
     explicit CSSAnimation(JS::Realm&);
