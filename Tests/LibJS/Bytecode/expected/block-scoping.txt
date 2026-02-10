@@ -20,7 +20,7 @@ JS bytecode executable "closureOverBlockScope"
 [  38]       InitializeLexicalBinding identifier:x, src:Int32(1)
 [  50]       GetById dst:reg7, base:fns~0, property:push, base_identifier:fns
 [  68]       Mov dst:reg8, src:fns~0
-[  78]       NewFunction dst:reg9
+[  78]       NewFunction dst:reg9, shared_function_data_index:0
 [  90]       Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
 [  b8]       SetLexicalEnvironment environment:reg4
 [  c0]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
@@ -28,7 +28,7 @@ JS bytecode executable "closureOverBlockScope"
 [  e0]       InitializeLexicalBinding identifier:y, src:Int32(2)
 [  f8]       GetById dst:reg7, base:fns~0, property:push, base_identifier:fns
 [ 110]       Mov dst:reg8, src:fns~0
-[ 120]       NewFunction dst:reg9
+[ 120]       NewFunction dst:reg9, shared_function_data_index:1
 [ 138]       Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
 [ 160]       SetLexicalEnvironment environment:reg4
 [ 168]       GetByValue dst:reg6, base:fns~0, property:Int32(0)
@@ -58,7 +58,7 @@ JS bytecode executable "breakThroughBlockScopes"
 [  30]    1: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  40]       CreateMutableBinding environment:reg5, identifier:x, can_be_deleted:false
 [  50]       InitializeLexicalBinding identifier:x, src:i~1
-[  68]       NewFunction dst:f~0, lhs_name:f
+[  68]       NewFunction dst:f~0, shared_function_data_index:0, lhs_name:f
 [  80]       GetBinding dst:reg6, identifier:x
 [  98]       JumpGreaterThan lhs:reg6, rhs:Int32(1), true_target:@110, false_target:@130
 [  b0]    2: PostfixIncrement dst:reg5, src:i~1

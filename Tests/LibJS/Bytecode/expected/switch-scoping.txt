@@ -22,11 +22,11 @@ JS bytecode executable "switchWithBlockDecl"
 [  60]    2: JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:@c8, false_target:@78
 [  78]    3: Jump target:@108
 [  80]    4: InitializeLexicalBinding identifier:a, src:String("one")
-[  98]       NewFunction dst:reg6, lhs_name:result
+[  98]       NewFunction dst:reg6, shared_function_data_index:0, lhs_name:result
 [  b0]       Mov dst:result~0, src:reg6
 [  c0]       Jump target:@108
 [  c8]    5: InitializeLexicalBinding identifier:b, src:String("two")
-[  e0]       NewFunction dst:reg6, lhs_name:result
+[  e0]       NewFunction dst:reg6, shared_function_data_index:1, lhs_name:result
 [  f8]       Mov dst:result~0, src:reg6
 [ 108]    6: SetLexicalEnvironment environment:reg4
 [ 110]       Mov dst:reg6, src:result~0

@@ -19,7 +19,7 @@ JS bytecode executable "annexBFunctionInIf"
 [  30]       JumpFalse condition:arg0, target:@d0
 [  40]    1: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  50]       CreateMutableBinding environment:reg5, identifier:inner, can_be_deleted:false
-[  60]       NewFunction dst:reg6
+[  60]       NewFunction dst:reg6, shared_function_data_index:0
 [  78]       InitializeLexicalBinding identifier:inner, src:reg6
 [  90]       GetBinding dst:reg6, identifier:inner
 [  a8]       SetVariableBinding identifier:inner, src:reg6
@@ -27,7 +27,7 @@ JS bytecode executable "annexBFunctionInIf"
 [  c8]       Jump target:@158
 [  d0]    2: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  e0]       CreateMutableBinding environment:reg5, identifier:inner, can_be_deleted:false
-[  f0]       NewFunction dst:reg6
+[  f0]       NewFunction dst:reg6, shared_function_data_index:1
 [ 108]       InitializeLexicalBinding identifier:inner, src:reg6
 [ 120]       GetBinding dst:reg6, identifier:inner
 [ 138]       SetVariableBinding identifier:inner, src:reg6

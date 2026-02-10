@@ -8,8 +8,9 @@ JS bytecode executable "outer"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       CreateVariable identifier:inner, is_immutable:false, is_global:false, is_strict:false
 [  18]       InitializeVariableBinding identifier:inner, src:Undefined
-[  30]       NewFunction dst:reg5
+[  30]       NewFunction dst:reg5, shared_function_data_index:0
 [  48]       SetVariableBinding identifier:inner, src:reg5
 [  60]       GetGlobal dst:reg6, identifier:Number
 [  70]       CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
 [  90]       Return value:reg5
+

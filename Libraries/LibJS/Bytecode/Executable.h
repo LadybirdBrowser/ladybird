@@ -130,6 +130,8 @@ public:
     NonnullOwnPtr<RegexTable> regex_table;
     Vector<Value> constants;
 
+    Vector<GC::Ptr<SharedFunctionInstanceData>> shared_function_data;
+
     NonnullRefPtr<SourceCode const> source_code;
     u32 number_of_registers { 0 };
     bool is_strict_mode { false };

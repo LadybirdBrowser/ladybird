@@ -26,7 +26,7 @@ JS bytecode executable "outer_eval"
 [   8]       CreateArguments is_immutable:false
 [  18]       CreateVariable identifier:inner, is_immutable:false, is_global:false, is_strict:false
 [  28]       InitializeVariableBinding identifier:inner, src:Undefined
-[  40]       NewFunction dst:reg5
+[  40]       NewFunction dst:reg5, shared_function_data_index:0
 [  58]       SetVariableBinding identifier:inner, src:reg5
 [  70]       GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:eval
 [  88]       CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
@@ -42,3 +42,4 @@ JS bytecode executable "inner"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:y~0, src:Int32(2)
 [  18]       Return value:y~0
+

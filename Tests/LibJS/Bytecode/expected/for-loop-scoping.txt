@@ -21,7 +21,7 @@ JS bytecode executable "forLetClosure"
 [  a8]       Jump target:@1b0
 [  b0]    1: GetById dst:reg7, base:fns~0, property:push, base_identifier:fns
 [  c8]       Mov dst:reg8, src:fns~0
-[  d8]       NewFunction dst:reg9
+[  d8]       NewFunction dst:reg9, shared_function_data_index:0
 [  f0]       Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
 [ 118]       GetBinding dst:reg6, identifier:i
 [ 130]       SetLexicalEnvironment environment:reg4
@@ -36,7 +36,7 @@ JS bytecode executable "forLetClosure"
 [ 1e0]    4: SetLexicalEnvironment environment:reg4
 [ 1e8]       GetById dst:reg6, base:fns~0, property:map, base_identifier:fns
 [ 200]       Mov dst:reg7, src:fns~0
-[ 210]       NewFunction dst:reg8
+[ 210]       NewFunction dst:reg8, shared_function_data_index:1
 [ 228]       Call dst:reg5, callee:reg6, this_value:reg7, fns.map, arguments:[reg8]
 [ 250]       Return value:reg5
 

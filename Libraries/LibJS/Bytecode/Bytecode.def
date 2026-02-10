@@ -678,7 +678,7 @@ endop
 op NewFunction < Instruction
     @nothrow
     m_dst: Operand
-    m_function_node: FunctionNode const&
+    m_shared_function_data_index: u32
     m_lhs_name: Optional<IdentifierTableIndex>
     m_home_object: Optional<Operand>
 endop
