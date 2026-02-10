@@ -261,6 +261,7 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& r
         } else {
             executable = TRY(Bytecode::compile(vm(), shared_data(), Bytecode::BuiltinAbstractOperationsEnabled::No));
         }
+        m_shared_data->clear_compile_inputs();
     }
     registers_and_locals_count = executable->registers_and_locals_count;
     constants_count = executable->constants.size();

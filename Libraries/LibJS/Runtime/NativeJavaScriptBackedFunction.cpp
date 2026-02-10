@@ -61,7 +61,7 @@ GC::Ref<NativeJavaScriptBackedFunction> NativeJavaScriptBackedFunction::create(R
     return function;
 }
 
-NativeJavaScriptBackedFunction::NativeJavaScriptBackedFunction(GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, Object& prototype)
+NativeJavaScriptBackedFunction::NativeJavaScriptBackedFunction(GC::Ref<SharedFunctionInstanceData> shared_function_instance_data, Object& prototype)
     : NativeFunction(shared_function_instance_data->m_name, prototype)
     , m_shared_function_instance_data(shared_function_instance_data)
 {
@@ -112,6 +112,7 @@ Bytecode::Executable& NativeJavaScriptBackedFunction::bytecode_executable()
     auto& executable = m_shared_function_instance_data->m_executable;
     if (!executable) {
         executable = MUST(Bytecode::compile(vm(), m_shared_function_instance_data, Bytecode::BuiltinAbstractOperationsEnabled::Yes));
+        m_shared_function_instance_data->clear_compile_inputs();
     }
 
     return *executable;

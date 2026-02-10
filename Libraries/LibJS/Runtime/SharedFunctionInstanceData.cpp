@@ -267,4 +267,11 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;
 
+void SharedFunctionInstanceData::clear_compile_inputs()
+{
+    VERIFY(m_executable);
+    m_functions_to_initialize.clear();
+    m_var_names_to_initialize_binding.clear();
+}
+
 }
