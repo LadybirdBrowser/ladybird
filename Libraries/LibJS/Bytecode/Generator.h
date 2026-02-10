@@ -214,10 +214,11 @@ public:
     void push_lexical_environment_register(ScopedOperand const& environment);
     void pop_lexical_environment_register();
 
-    void begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set);
+    void begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set, Optional<ScopedOperand> completion_register = {});
     void end_continuable_scope();
-    void begin_breakable_scope(Label breakable_target, Vector<FlyString> const& language_label_set);
+    void begin_breakable_scope(Label breakable_target, Vector<FlyString> const& language_label_set, Optional<ScopedOperand> completion_register = {});
     void end_breakable_scope();
+    void set_current_breakable_scope_completion_register(ScopedOperand completion) { m_breakable_scopes.last().completion_register = completion; }
 
     [[nodiscard]] Label nearest_continuable_scope() const;
     [[nodiscard]] Label nearest_breakable_scope() const;
@@ -404,6 +405,26 @@ public:
 
     [[nodiscard]] bool must_propagate_completion() const { return m_must_propagate_completion; }
 
+    [[nodiscard]] Optional<ScopedOperand> current_completion_register() const { return m_current_completion_register; }
+
+    class CompletionRegisterScope {
+    public:
+        CompletionRegisterScope(Generator& gen, ScopedOperand reg)
+            : m_generator(gen)
+            , m_previous(gen.m_current_completion_register)
+        {
+            gen.m_current_completion_register = reg;
+        }
+        ~CompletionRegisterScope() { m_generator.m_current_completion_register = m_previous; }
+
+        CompletionRegisterScope(CompletionRegisterScope const&) = delete;
+        CompletionRegisterScope& operator=(CompletionRegisterScope const&) = delete;
+
+    private:
+        Generator& m_generator;
+        Optional<ScopedOperand> m_previous;
+    };
+
     [[nodiscard]] bool builtin_abstract_operations_enabled() const { return m_builtin_abstract_operations_enabled; }
 
     CodeGenerationErrorOr<void> generate_builtin_abstract_operation(Identifier const& builtin_identifier, ReadonlySpan<CallExpression::Argument> arguments, ScopedOperand const& dst);
@@ -436,6 +457,7 @@ private:
     struct LabelableScope {
         Label bytecode_target;
         Vector<FlyString> language_label_set;
+        Optional<ScopedOperand> completion_register;
     };
 
     Strict m_strict { Strict::No };
@@ -480,6 +502,8 @@ private:
     HashTable<u32> m_initialized_locals;
     HashTable<u32> m_initialized_arguments;
     Vector<LocalVariable> m_local_variables;
+
+    Optional<ScopedOperand> m_current_completion_register {};
 
     bool m_finished { false };
     bool m_must_propagate_completion { true };
