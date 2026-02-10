@@ -442,25 +442,37 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
     auto cursor_position = document().cursor_position();
     VERIFY(cursor_position);
 
-    auto fragment = fragment_at_position(*cursor_position);
-    if (!fragment.has_value())
-        return;
-
-    auto const* dom_node = fragment->layout_node().dom_node();
+    auto const* dom_node = layout_node().dom_node();
     if (!dom_node)
         return;
 
     auto active_element_is_editable = false;
     if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document().active_element()))
         active_element_is_editable = text_control->is_mutable();
-    if (!active_element_is_editable && !dom_node->is_editable())
+    if (!active_element_is_editable && !dom_node->is_editable_or_editing_host())
         return;
 
-    auto caret_color = as<TextPaintable>(fragment->paintable()).computed_values().caret_color();
+    auto fragment = fragment_at_position(*cursor_position);
+
+    CSSPixelRect cursor_rect;
+    Color caret_color;
+
+    if (fragment.has_value()) {
+        caret_color = as<TextPaintable>(fragment->paintable()).computed_values().caret_color();
+        cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
+    } else {
+        // Empty editable elements have no fragments, but should still draw a cursor.
+        if (cursor_position->node() != dom_node)
+            return;
+
+        caret_color = computed_values().caret_color();
+        auto content_box = absolute_padding_box_rect();
+        cursor_rect = { content_box.x(), content_box.y(), 1, computed_values().line_height() };
+    }
+
     if (caret_color.alpha() == 0)
         return;
 
-    auto cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
 
     context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);

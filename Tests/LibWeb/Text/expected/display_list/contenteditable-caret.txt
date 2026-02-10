@@ -1,0 +1,9 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  FillRect@1 rect=[8,8 1x18] color=rgb(0, 0, 0)
+  FillPath@1 path_bounding_rect=[6,6 104x24]
+Restore@0
+
