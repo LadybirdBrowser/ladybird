@@ -1320,8 +1320,6 @@ using Promise = JS::PromiseCapability;
 
 namespace Web::WebDriver {
 
-class HeapTimer;
-
 struct ActionObject;
 struct InputState;
 

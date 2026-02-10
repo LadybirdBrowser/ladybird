@@ -23,6 +23,7 @@ NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAlloca
     char const* name = nullptr;
     auto* block = static_cast<HeapBlock*>(cell_allocator.block_allocator().allocate_block(name));
     new (block) HeapBlock(heap, cell_allocator, cell_size, overrides_must_survive_garbage_collection, overrides_finalize);
+    heap.m_live_heap_blocks.set(block);
     return NonnullOwnPtr<HeapBlock>(NonnullOwnPtr<HeapBlock>::Adopt, *block);
 }
 
@@ -42,7 +43,7 @@ void HeapBlock::deallocate(Cell* cell)
     VERIFY(is_valid_cell_pointer(cell));
     VERIFY(!m_freelist || is_valid_cell_pointer(m_freelist));
     VERIFY(cell->state() == Cell::State::Live);
-    VERIFY(!cell->is_marked());
+    VERIFY(!is_marked(cell_index(cell)));
 
     cell->~Cell();
     auto* freelist_entry = new (cell) FreelistEntry();

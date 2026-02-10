@@ -8,9 +8,11 @@
 
 #include <AK/Badge.h>
 #include <AK/Function.h>
+#include <AK/HashTable.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/RefPtr.h>
 #include <AK/StackInfo.h>
 #include <AK/Swift.h>
 #include <AK/Types.h>
@@ -20,6 +22,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
+#include <LibGC/HeapBlock.h>
 #include <LibGC/HeapRoot.h>
 #include <LibGC/Internals.h>
 #include <LibGC/Root.h>
@@ -46,8 +49,16 @@ public:
         auto* memory = allocate_cell<T>();
         defer_gc();
         new (memory) T(forward<Args>(args)...);
+        auto* cell = static_cast<T*>(memory);
+        // Cells allocated during incremental sweep must be marked so they
+        // survive until the next GC cycle clears and re-establishes marks.
+        if (m_incremental_sweep_active) {
+            auto* block = HeapBlock::from_cell(cell);
+            block->set_marked(block->cell_index(cell));
+            m_cells_allocated_during_sweep.append(cell);
+        }
         undefer_gc();
-        return *static_cast<T*>(memory);
+        return *cell;
     }
 
     enum class CollectionType {
@@ -81,12 +92,19 @@ public:
     void uproot_cell(Cell* cell);
 
     bool is_gc_deferred() const { return m_gc_deferrals > 0; }
+    bool is_incremental_sweep_active() const { return m_incremental_sweep_active; }
+
+    void sweep_block(HeapBlock&);
+
+    bool is_live_heap_block(HeapBlock* block) const { return m_live_heap_blocks.contains(block); }
 
     void enqueue_post_gc_task(AK::Function<void()>);
 
     WeakImpl* create_weak_impl(void*);
 
 private:
+    friend class CellAllocator;
+    friend class HeapBlock;
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
     friend class DeferGC;
@@ -122,14 +140,21 @@ private:
     void will_allocate(size_t);
 
     void find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_address);
-    void gather_roots(HashMap<Cell*, HeapRoot>&, HashTable<HeapBlock*>& all_live_heap_blocks);
-    void gather_conservative_roots(HashMap<Cell*, HeapRoot>&, HashTable<HeapBlock*> const& all_live_heap_blocks);
+    void gather_roots(HashMap<Cell*, HeapRoot>&);
+    void gather_conservative_roots(HashMap<Cell*, HeapRoot>&);
     void gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr min_block_address, FlatPtr max_block_address);
-    void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells, HashTable<HeapBlock*> const& all_live_heap_blocks);
+    void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells);
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
     void sweep_weak_blocks();
     void run_post_gc_tasks();
+
+    bool sweep_next_block();
+    void start_incremental_sweep();
+    void finish_incremental_sweep();
+    void start_incremental_sweep_timer();
+    void stop_incremental_sweep_timer();
+    void sweep_on_timer();
 
     ALWAYS_INLINE CellAllocator& allocator_for_size(size_t cell_size)
     {
@@ -177,8 +202,16 @@ private:
 
     Vector<AK::Function<void()>> m_post_gc_tasks;
 
+    HashTable<HeapBlock*> m_live_heap_blocks;
+
     WeakBlock::List m_usable_weak_blocks;
     WeakBlock::List m_full_weak_blocks;
+
+    bool m_incremental_sweep_active { false };
+    size_t m_sweep_live_cell_bytes { 0 };
+    Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
+    CellAllocator::SweepList m_allocators_to_sweep;
+    RefPtr<Core::Timer> m_incremental_sweep_timer;
 } SWIFT_IMMORTAL_REFERENCE;
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)
