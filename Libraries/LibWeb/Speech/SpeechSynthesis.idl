@@ -13,7 +13,7 @@ interface SpeechSynthesis : EventTarget {
     attribute EventHandler onvoiceschanged;
 
     [FIXME] undefined speak(SpeechSynthesisUtterance utterance);
-    [FIXME] undefined cancel();
+    undefined cancel();
     [FIXME] undefined pause();
     [FIXME] undefined resume();
     sequence<SpeechSynthesisVoice> getVoices();
