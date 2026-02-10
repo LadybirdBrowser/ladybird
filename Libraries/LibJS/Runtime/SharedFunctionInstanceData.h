@@ -98,6 +98,8 @@ public:
     ConstructorKind m_constructor_kind : 1 { ConstructorKind::Base };        // [[ConstructorKind]]
     bool m_is_class_constructor : 1 { false };                               // [[IsClassConstructor]]
 
+    void clear_compile_inputs();
+
 private:
     virtual void visit_edges(Visitor&) override;
 };

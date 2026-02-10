@@ -541,6 +541,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_ast_node(VM&
 
 CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_function(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
 {
+    VERIFY(!shared_function_instance_data->m_executable);
     return compile(vm, *shared_function_instance_data->m_ecmascript_code, shared_function_instance_data->m_kind, shared_function_instance_data, MustPropagateCompletion::No, builtin_abstract_operations_enabled, shared_function_instance_data->m_local_variables_names);
 }
 

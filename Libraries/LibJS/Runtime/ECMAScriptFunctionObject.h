@@ -60,7 +60,11 @@ public:
     [[nodiscard]] bool is_module_wrapper() const { return shared_data().m_is_module_wrapper; }
     void set_is_module_wrapper(bool b) { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_module_wrapper = b; }
 
-    Statement const& ecmascript_code() const { return *shared_data().m_ecmascript_code; }
+    Statement const& ecmascript_code() const
+    {
+        VERIFY(shared_data().m_ecmascript_code);
+        return *shared_data().m_ecmascript_code;
+    }
     [[nodiscard]] virtual FunctionParameters const& formal_parameters() const override { return *shared_data().m_formal_parameters; }
 
     virtual Utf16String name_for_call_stack() const override;
