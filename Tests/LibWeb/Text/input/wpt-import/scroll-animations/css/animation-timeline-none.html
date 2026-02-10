@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="help" src="https://drafts.csswg.org/css-animations-2/#animation-timeline">
+<link rel="help" src="https://drafts.csswg.org/web-animations/#playing-an-animation-section">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<style>
+  @keyframes expand {
+    from { width: 100px; }
+    to { width: 200px; }
+  }
+
+  .test {
+    width: 0px;
+    animation-name: expand;
+    animation-duration: 1s;
+  }
+
+  #element_timeline_none {
+    animation-timeline: none;
+  }
+  #element_unknown_timeline {
+    animation-timeline: --unknown_timeline;
+  }
+
+</style>
+<div class=test id=element_timeline_none></div>
+<div class=test id=element_unknown_timeline></div>
+<script>
+  promise_test(async (t) => {
+    assert_equals(getComputedStyle(element_timeline_none).width, '100px');
+    await waitForAnimationFrames(3);
+    assert_equals(getComputedStyle(element_timeline_none).width, '100px');
+  }, 'Animation with animation-timeline:none holds current time at zero');
+
+  promise_test(async (t) => {
+    assert_equals(getComputedStyle(element_unknown_timeline).width, '100px');
+    await waitForAnimationFrames(3);
+    assert_equals(getComputedStyle(element_unknown_timeline).width, '100px');
+  }, 'Animation with unknown timeline name holds current time at zero');
+</script>

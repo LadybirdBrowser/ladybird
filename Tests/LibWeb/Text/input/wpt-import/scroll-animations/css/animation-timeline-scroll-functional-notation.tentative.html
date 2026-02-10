@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<title>The animation-timeline: scroll() notation</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<link rel="help" src="https://drafts.csswg.org/scroll-animations-1/rewrite#scroll-notation">
+<link rel="help" src="https://github.com/w3c/csswg-drafts/issues/6674">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+  @keyframes anim {
+    from { translate: 50px; }
+    to { translate: 150px; }
+  }
+  html {
+    min-height: 100vh;
+    /* This makes the max scrollable ragne be 100px in root element */
+    padding-bottom: 100px;
+  }
+  #container {
+    width: 300px;
+    height: 300px;
+    overflow: scroll;
+  }
+  #target {
+    width: 100px;
+    /* This makes the max scrollable ragne be 100px in the block direction */
+    height: 100px;
+  }
+  /* large block content */
+  .block-content {
+    block-size: 100%;
+  }
+  /* large inline content */
+  .inline-content {
+    inline-size: 100%;
+    block-size: 5px;
+    /* This makes the max scrollable ragne be 100px in the inline direction */
+    padding-inline-end: 100px;
+  }
+</style>
+<body>
+<div id="log"></div>
+<script>
+"use strict";
+
+setup(assert_implements_animation_timeline);
+
+const root = document.scrollingElement;
+const createTargetWithStuff = function(t, contentClass) {
+  let container = document.createElement('div');
+  container.id = 'container';
+  let target = document.createElement('div');
+  target.id = 'target';
+  let content = document.createElement('div');
+  content.className = contentClass;
+
+  // <div id='container'>
+  //   <div id='target'></div>
+  //   <div class=contentClass></div>
+  // </div>
+  document.body.appendChild(container);
+  container.appendChild(target);
+  container.appendChild(content);
+
+  if (t && typeof t.add_cleanup === 'function') {
+    t.add_cleanup(() => {
+      content.remove();
+      target.remove();
+      container.remove();
+    });
+  }
+
+  return [container, target];
+};
+
+async function scrollLeft(element, value) {
+  element.scrollLeft = value;
+  await waitForNextFrame();
+}
+
+async function scrollTop(element, value) {
+  element.scrollTop = value;
+  await waitForNextFrame();
+}
+
+promise_test(async t => {
+  let [container, div] = createTargetWithStuff(t, 'block-content');
+  await runAndWaitForFrameUpdate(() => {
+    div.style.animation = "anim 10s linear";
+    div.style.animationTimeline = "scroll(nearest)";
+  });
+
+  await scrollTop(root, 50);
+  assert_equals(getComputedStyle(div).translate, '50px');
+
+  await scrollTop(container, 50);
+  assert_equals(getComputedStyle(div).translate, '100px');
+
+  await scrollTop(root, 0);
+}, 'animation-timeline: scroll(nearest)');
+
+promise_test(async t => {
+  let [container, div] = createTargetWithStuff(t, 'block-content');
+  await runAndWaitForFrameUpdate(() => {
+    div.style.animation = "anim 10s linear";
+    div.style.animationTimeline = "scroll(root)";
+  });
+
+  await scrollTop(container, 50);
+  assert_equals(getComputedStyle(div).translate, '50px');
+
+  await scrollTop(root, 50);
+  assert_equals(getComputedStyle(div).translate, '100px');
+
+  await scrollTop(root, 0);
+}, 'animation-timeline: scroll(root)');
+
+promise_test(async t => {
+  let [container, div] = createTargetWithStuff(t, 'block-content');
+  await runAndWaitForFrameUpdate(() => {
+    container.style.animation = "anim 10s linear";
+    container.style.animationTimeline = "scroll(self)";
+  });
+  await scrollTop(container, 50);
+  assert_equals(getComputedStyle(container).translate, '100px');
+}, 'animation-timeline: scroll(self)');
+
+promise_test(async t => {
+  let [container, div] = createTargetWithStuff(t, 'block-content');
+  await runAndWaitForFrameUpdate(() => {
+    div.style.animation = "anim 10s linear";
+    div.style.animationTimeline = "scroll(self)";
+  });
+  await scrollTop(container, 50);
+  assert_equals(getComputedStyle(div).translate, 'none');
+}, 'animation-timeline: scroll(self), on non-scroller');
+
+promise_test(async t => {
+  let [container, div] = createTargetWithStuff(t, 'inline-content');
+  await runAndWaitForFrameUpdate(() => {
+    div.style.animation = "anim 10s linear";
+    div.style.animationTimeline = "scroll(inline)";
+  });
+  await scrollLeft(container, 50);
+  assert_equals(getComputedStyle(div).translate, '100px');
+}, 'animation-timeline: scroll(inline)');
+
+promise_test(async t => {
+  let [container, div] = createTargetWithStuff(t, 'block-content');
+  await runAndWaitForFrameUpdate(() => {
+    container.style.writingMode = 'vertical-lr';
+    div.style.animation = "anim 10s linear";
+    div.style.animationTimeline = "scroll(x)";
+  });
+
+  await scrollLeft(container, 50);
+  assert_equals(getComputedStyle(div).translate, '100px');
+}, 'animation-timeline: scroll(x)');
+
+promise_test(async t => {
+  let [container, div] = createTargetWithStuff(t, 'inline-content');
+  await runAndWaitForFrameUpdate(() => {
+    container.style.writingMode = 'vertical-lr';
+    div.style.animation = "anim 10s linear";
+    div.style.animationTimeline = "scroll(y)";
+  });
+
+  await scrollTop(container, 50);
+  assert_equals(getComputedStyle(div).translate, '100px');
+}, 'animation-timeline: scroll(y)');
+
+// TODO: Add more tests which change the overflow property of the container for
+// scroll(nearest)
+
+</script>
+</body>

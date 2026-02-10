@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Unrelated style mutation does not affect anonymous timeline (root)

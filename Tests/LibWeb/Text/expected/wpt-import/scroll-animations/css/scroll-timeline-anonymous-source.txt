@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	CSS animation correctly uses the <html> element as the source for the default scroll() timeline
+Fail	CSS animation correctly uses the <html> element as the source for the root scroll() timeline
+Fail	CSS animation correctly uses the <html> element as the source for the nearest scroll() timeline
