@@ -70,6 +70,17 @@ void HTMLImageElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 
     m_current_request = ImageRequest::create(realm, document().page());
+
+    // AD-HOC: Create a DocumentObserver eagerly to handle document lifecycle changes.
+    //         The document_became_inactive callback handles the navigation case by clearing the
+    //         load event delayer and stopping the animation timer.
+    //         A document_became_active callback is set lazily by update_the_image_data() when
+    //         needed to restart image loading after the document becomes active again.
+    m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
+    m_document_observer->set_document_became_inactive([this]() {
+        m_load_event_delayer.clear();
+        m_animation_timer->stop();
+    });
 }
 
 void HTMLImageElement::adopted_from(DOM::Document& old_document)
@@ -77,10 +88,10 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
     old_document.unregister_viewport_client(*this);
     document().register_viewport_client(*this);
 
-    if (m_document_observer) {
-        m_document_observer->set_document(document());
-        if (!old_document.is_fully_active() && document().is_fully_active())
-            m_document_observer->document_became_active()->function()();
+    m_document_observer->set_document(document());
+    if (!old_document.is_fully_active() && document().is_fully_active()) {
+        if (auto callback = m_document_observer->document_became_active())
+            callback->function()();
     }
 }
 
@@ -538,7 +549,6 @@ static BatchingDispatcher& batching_dispatcher()
 // https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
 void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
 {
-    auto& realm = this->realm();
     auto update_the_image_data_count = ++m_update_the_image_data_count;
 
     // 1. If the element's node document is not fully active, then:
@@ -547,12 +557,8 @@ void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe
         // 2. Wait until the element's node document is fully active.
         // 3. If another instance of this algorithm for this img element was started after this instance
         //    (even if it aborted and is no longer running), then return.
-        if (m_document_observer)
-            return;
-
-        m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
+        // 4. Queue a microtask to continue this algorithm.
         m_document_observer->set_document_became_active([this, restart_animations, maybe_omit_events, update_the_image_data_count]() {
-            // 4. Queue a microtask to continue this algorithm.
             queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events, update_the_image_data_count]() {
                 update_the_image_data_impl(restart_animations, maybe_omit_events, update_the_image_data_count);
             }));
@@ -644,6 +650,13 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
 
             // 7. Queue an element task on the DOM manipulation task source given the img element and following steps:
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url] {
+                // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
+                //         between when this task was queued and when it runs.
+                if (!document().is_fully_active()) {
+                    m_load_event_delayer.clear();
+                    return;
+                }
+
                 // 1. If restart animation is set, then restart the animation.
                 if (restart_animations)
                     restart_the_animation();
@@ -668,6 +681,13 @@ after_step_7:
         if (update_the_image_data_count != m_update_the_image_data_count)
             return;
 
+        // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
+        //         between when this microtask was queued and when it runs.
+        if (!document().is_fully_active()) {
+            m_load_event_delayer.clear();
+            return;
+        }
+
         // 10. Let selected source and selected pixel density be
         //    the URL and pixel density that results from selecting an image source, respectively.
         Optional<ImageSource> selected_source;
@@ -689,6 +709,13 @@ after_step_7:
 
             // 2. Queue an element task on the DOM manipulation task source given the img element and the following steps:
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, maybe_omit_events, previous_url] {
+                // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
+                //         between when this task was queued and when it runs.
+                if (!document().is_fully_active()) {
+                    m_load_event_delayer.clear();
+                    return;
+                }
+
                 // 1. Change the current request's current URL to the empty string.
                 m_current_request->set_current_url(realm(), String {});
 
@@ -723,6 +750,13 @@ after_step_7:
 
             // 4. Queue an element task on the DOM manipulation task source given the img element and the following steps:
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, maybe_omit_events, previous_url] {
+                // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
+                //         between when this task was queued and when it runs.
+                if (!document().is_fully_active()) {
+                    m_load_event_delayer.clear();
+                    return;
+                }
+
                 // 1. Change the current request's current URL to selected source.
                 m_current_request->set_current_url(realm(), selected_source.value().url);
 
@@ -828,6 +862,13 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
     image_request->add_callbacks(
         [this, image_request, maybe_omit_events, url_string, previous_url]() {
             batching_dispatcher().enqueue(GC::create_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url] {
+                // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
+                //         between when the fetch completed and when this batched callback runs.
+                if (!document().is_fully_active()) {
+                    m_load_event_delayer.clear();
+                    return;
+                }
+
                 VERIFY(image_request->shared_resource_request());
                 auto image_data = image_request->shared_resource_request()->image_data();
                 image_request->set_image_data(image_data);
@@ -870,6 +911,13 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
             }));
         },
         [this, image_request, maybe_omit_events, url_string, previous_url]() {
+            // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
+            //         between when the fetch completed and when this failure callback runs.
+            if (!document().is_fully_active()) {
+                m_load_event_delayer.clear();
+                return;
+            }
+
             // The image data is not in a supported file format;
 
             // the user agent must set image request's state to broken,

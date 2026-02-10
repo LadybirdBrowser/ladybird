@@ -4315,6 +4315,21 @@ void Document::destroy()
     // 2. Abort document.
     abort();
 
+    // AD-HOC: Notify document observers that this document became inactive.
+    //         This allows observers (e.g. HTMLImageElement) to clear resources like
+    //         DocumentLoadEventDelayers that would otherwise block the parent
+    //         document's load event forever.
+    //         Note: did_stop_being_active_document_in_navigable() handles the navigation case,
+    //         but document destruction (e.g. iframe removal) takes a different path.
+    //         The flag ensures we don't fire the callback twice for the same document
+    //         (once from navigation, then again from destruction).
+    if (!m_has_fired_document_became_inactive) {
+        m_has_fired_document_became_inactive = true;
+        notify_each_document_observer([&](auto const& document_observer) {
+            return document_observer.document_became_inactive();
+        });
+    }
+
     // 3. Set document's salvageable state to false.
     m_salvageable = false;
 
@@ -4741,9 +4756,12 @@ void Document::did_stop_being_active_document_in_navigable()
 {
     tear_down_layout_tree();
 
-    notify_each_document_observer([&](auto const& document_observer) {
-        return document_observer.document_became_inactive();
-    });
+    if (!m_has_fired_document_became_inactive) {
+        m_has_fired_document_became_inactive = true;
+        notify_each_document_observer([&](auto const& document_observer) {
+            return document_observer.document_became_inactive();
+        });
+    }
 }
 
 void Document::increment_throw_on_dynamic_markup_insertion_counter(Badge<HTML::HTMLParser>)
