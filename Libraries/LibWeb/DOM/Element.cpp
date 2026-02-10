@@ -18,10 +18,10 @@
 #include <LibURL/Parser.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
-#include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/ElementPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
@@ -4395,7 +4395,7 @@ void Element::play_or_cancel_animations_after_display_property_change()
 
     auto has_display_none_inclusive_ancestor = this->has_inclusive_ancestor_with_display_none();
 
-    auto play_or_cancel_depending_on_display = [&](HashMap<FlyString, GC::Ref<Animations::Animation>>& animations) {
+    auto play_or_cancel_depending_on_display = [&](HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>& animations) {
         for (auto& [_, animation] : animations) {
             if (has_display_none_inclusive_ancestor) {
                 animation->cancel();

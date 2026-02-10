@@ -9,6 +9,7 @@
 #include "Animatable.h"
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
+#include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
@@ -257,7 +258,7 @@ bool Animatable::has_css_defined_animations() const
     return m_impl->has_css_defined_animations;
 }
 
-HashMap<FlyString, GC::Ref<Animation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
+HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
 {
     auto& impl = ensure_impl();
 
@@ -269,7 +270,7 @@ HashMap<FlyString, GC::Ref<Animation>>* Animatable::css_defined_animations(Optio
                      .value_or(0);
 
     if (!impl.css_defined_animations[index])
-        impl.css_defined_animations[index] = make<HashMap<FlyString, GC::Ref<Animation>>>();
+        impl.css_defined_animations[index] = make<HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>>();
 
     return impl.css_defined_animations[index];
 }

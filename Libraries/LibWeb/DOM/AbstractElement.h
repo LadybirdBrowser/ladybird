@@ -55,7 +55,7 @@ public:
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
-    HashMap<FlyString, GC::Ref<Animations::Animation>>* css_defined_animations() const;
+    HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>* css_defined_animations() const;
     void set_has_css_defined_animations();
 
     void visit(GC::Cell::Visitor& visitor) const;
