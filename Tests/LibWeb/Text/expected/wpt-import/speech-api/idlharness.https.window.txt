@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 250 tests
 
-186 Pass
-64 Fail
+188 Pass
+62 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -166,7 +166,7 @@ Pass	SpeechSynthesis interface: attribute speaking
 Pass	SpeechSynthesis interface: attribute paused
 Pass	SpeechSynthesis interface: attribute onvoiceschanged
 Fail	SpeechSynthesis interface: operation speak(SpeechSynthesisUtterance)
-Fail	SpeechSynthesis interface: operation cancel()
+Pass	SpeechSynthesis interface: operation cancel()
 Fail	SpeechSynthesis interface: operation pause()
 Fail	SpeechSynthesis interface: operation resume()
 Pass	SpeechSynthesis interface: operation getVoices()
@@ -178,7 +178,7 @@ Pass	SpeechSynthesis interface: speechSynthesis must inherit property "paused" w
 Pass	SpeechSynthesis interface: speechSynthesis must inherit property "onvoiceschanged" with the proper type
 Fail	SpeechSynthesis interface: speechSynthesis must inherit property "speak(SpeechSynthesisUtterance)" with the proper type
 Pass	SpeechSynthesis interface: calling speak(SpeechSynthesisUtterance) on speechSynthesis with too few arguments must throw TypeError
-Fail	SpeechSynthesis interface: speechSynthesis must inherit property "cancel()" with the proper type
+Pass	SpeechSynthesis interface: speechSynthesis must inherit property "cancel()" with the proper type
 Fail	SpeechSynthesis interface: speechSynthesis must inherit property "pause()" with the proper type
 Fail	SpeechSynthesis interface: speechSynthesis must inherit property "resume()" with the proper type
 Pass	SpeechSynthesis interface: speechSynthesis must inherit property "getVoices()" with the proper type

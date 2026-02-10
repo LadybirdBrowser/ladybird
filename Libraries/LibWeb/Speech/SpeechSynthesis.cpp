@@ -49,6 +49,12 @@ GC::Ptr<WebIDL::CallbackType> SpeechSynthesis::onvoiceschanged()
     return event_handler_attribute(HTML::EventNames::voiceschanged);
 }
 
+// https://wicg.github.io/speech-api/#dom-speechsynthesis-cancel
+void SpeechSynthesis::cancel()
+{
+    dbgln("FIXME: Implement SpeechSynthesis::cancel()");
+}
+
 // https://wicg.github.io/speech-api/#dom-speechsynthesis-getvoices
 Vector<GC::Ref<SpeechSynthesisVoice>> const& SpeechSynthesis::get_voices() const
 {

@@ -34,6 +34,8 @@ public:
     void set_onvoiceschanged(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onvoiceschanged();
 
+    void cancel();
+
     Vector<GC::Ref<SpeechSynthesisVoice>> const& get_voices() const;
 
 private:
