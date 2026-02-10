@@ -459,6 +459,8 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     auto const& table_box_computed_values = table_box->computed_values();
     table_box_state.border_left = table_box_computed_values.border_left().width;
     table_box_state.border_right = table_box_computed_values.border_right().width;
+    table_box_state.padding_left = table_box_computed_values.padding().left().to_px_or_zero(*table_box, width_of_containing_block);
+    table_box_state.padding_right = table_box_computed_values.padding().right().to_px_or_zero(*table_box, width_of_containing_block);
 
     auto context = make<TableFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, *table_box, this);
     context->run_until_width_calculation(m_state.get(*table_box).available_inner_space_or_constraints_from(available_space));
