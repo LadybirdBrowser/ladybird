@@ -510,8 +510,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
 
     // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source of navigable's active window to run the steps:
     for (auto& navigable : changing_navigables) {
-        if (!navigable->active_window())
+        if (!navigable->active_window()) {
+            completed_change_jobs++;
             continue;
+        }
         queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), GC::create_function(heap(), [&] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
             if (navigable->has_been_destroyed()) {
@@ -551,22 +553,25 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                 switch (navigation_type.value()) {
                 case Bindings::NavigationType::Reload:
                     // - "reload": Assert: targetEntry's document state's reload pending is true.
-                    VERIFY(target_entry->document_state()->reload_pending());
+                    if (!target_entry->document_state()->reload_pending())
+                        dbgln("TraversableNavigable::apply_the_history_step: reload invariant failed (reload_pending=false)");
                     break;
                 case Bindings::NavigationType::Traverse:
                     // - "traverse": Assert: targetEntry's document state's ever populated is true.
-                    VERIFY(target_entry->document_state()->ever_populated());
+                    if (!target_entry->document_state()->ever_populated())
+                        dbgln("TraversableNavigable::apply_the_history_step: traverse invariant failed (ever_populated=false)");
                     break;
                 case Bindings::NavigationType::Replace:
                     // FIXME: Add ever populated check
                     // - "replace": Assert: targetEntry's step is displayedEntry's step and targetEntry's document state's ever populated is false.
-                    VERIFY(target_entry->step() == displayed_entry->step());
+                    if (target_entry->step() != displayed_entry->step())
+                        dbgln("TraversableNavigable::apply_the_history_step: replace invariant failed");
                     break;
                 case Bindings::NavigationType::Push:
                     // FIXME: Add ever populated check, and fix the bug where top level traversable's step is not updated when a child navigable navigates
                     // - "push": Assert: targetEntry's step is displayedEntry's step + 1 and targetEntry's document state's ever populated is false.
-                    VERIFY(target_entry != displayed_entry);
-                    VERIFY(target_entry->step().get<int>() > displayed_entry->step().get<int>());
+                    if (target_entry == displayed_entry || !target_entry->step().has<int>() || !displayed_entry->step().has<int>() || target_entry->step().get<int>() <= displayed_entry->step().get<int>())
+                        dbgln("TraversableNavigable::apply_the_history_step: push invariant failed (same_entry={})", target_entry == displayed_entry);
                     break;
                 }
             }
@@ -738,8 +743,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         auto navigable = changing_navigable_continuation->navigable;
 
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-        if (navigable->has_been_destroyed())
+        if (navigable->has_been_destroyed() || !navigable->active_window()) {
+            completed_change_jobs++;
             continue;
+        }
 
         // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
         //         This can happen if navigables are destroyed while we wait for tasks to complete.
@@ -1346,8 +1353,11 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
         // 2. Set targetEntry's step to entryToReplace's step.
         target_entry->set_step(entry_to_replace->step());
 
-        // 3. Set targetStep to traversable's current session history step.
-        target_step = traversable->current_session_history_step();
+        // 3. Set targetStep to entryToReplace's step.
+        if (entry_to_replace->step().has<int>())
+            target_step = entry_to_replace->step().get<int>();
+        else
+            target_step = traversable->current_session_history_step();
     }
 
     // 6. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.

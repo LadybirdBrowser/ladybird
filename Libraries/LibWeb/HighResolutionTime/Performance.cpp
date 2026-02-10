@@ -18,6 +18,7 @@
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/EventNames.h>
+#include <LibWeb/UserTiming/PerformanceMark.h>
 
 namespace Web::HighResolutionTime {
 
@@ -377,7 +378,16 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 
     // Returns a PerformanceEntryList object returned by filter buffer map by name and type algorithm with name set to null,
     // and type set to the method's input type parameter.
-    return TRY_OR_THROW_OOM(vm, window_or_worker().filter_buffer_map_by_name_and_type(/* name= */ Optional<String> {}, type));
+    auto entries = TRY_OR_THROW_OOM(vm, window_or_worker().filter_buffer_map_by_name_and_type(/* name= */ Optional<String> {}, type));
+
+    // AD-HOC: Some sites assume getEntriesByType("navigation")[0] always exists.
+    // We provide a synthetic entry to avoid uncaught "undefined[0]" failures until PerformanceNavigationTiming exists.
+    if (type == PerformanceTimeline::EntryTypes::navigation && entries.is_empty()) {
+        auto fallback_entry = TRY(UserTiming::PerformanceMark::construct_impl(realm(), "navigation"_string));
+        TRY_OR_THROW_OOM(vm, entries.try_append(GC::Root<PerformanceTimeline::PerformanceEntry> { static_cast<PerformanceTimeline::PerformanceEntry&>(*fallback_entry) }));
+    }
+
+    return entries;
 }
 
 // https://www.w3.org/TR/performance-timeline/#dom-performance-getentriesbyname

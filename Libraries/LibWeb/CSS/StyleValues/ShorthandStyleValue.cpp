@@ -75,10 +75,26 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 return;
         }
 
-        auto entry_count = longhand(m_properties.sub_properties[0])->as_value_list().size();
+        auto get_entry_count = [](auto const& style_value) -> size_t {
+            return style_value->is_value_list() ? style_value->as_value_list().size() : 1;
+        };
+
+        auto get_entry_value = [](auto const& style_value, size_t index) -> StyleValue const& {
+            if (style_value->is_value_list())
+                return *style_value->as_value_list().value_at(index, true);
+            return *style_value;
+        };
+
+        size_t entry_count = 1;
+        for (auto longhand_id : m_properties.sub_properties) {
+            if (reset_only_longhands.contains_slow(longhand_id))
+                continue;
+            entry_count = get_entry_count(longhand(longhand_id));
+            break;
+        }
 
         // If we don't have the same number of values for each non-reset-only longhand, we can't serialize this shorthand.
-        if (any_of(m_properties.sub_properties, [&](auto longhand_id) { return !reset_only_longhands.contains_slow(longhand_id) && longhand(longhand_id)->as_value_list().size() != entry_count; }))
+        if (any_of(m_properties.sub_properties, [&](auto longhand_id) { return !reset_only_longhands.contains_slow(longhand_id) && get_entry_count(longhand(longhand_id)) != entry_count; }))
             return;
 
         // We should serialize a longhand if it is not a reset-only longhand and one of the following is true:
@@ -94,9 +110,9 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
             if (required_longhands.contains_slow(longhand_id))
                 return true;
 
-            auto longhand_value = longhand(longhand_id)->as_value_list().values()[entry_index];
+            auto const& longhand_value = get_entry_value(longhand(longhand_id), entry_index);
 
-            if (!longhand_value->equals(property_initial_value(longhand_id)->as_value_list().values()[0]))
+            if (!longhand_value.equals(get_entry_value(property_initial_value(longhand_id), 0)))
                 return true;
 
             for (size_t other_longhand_index = longhand_index + 1; other_longhand_index < m_properties.sub_properties.size(); other_longhand_index++) {
@@ -105,13 +121,13 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 if (reset_only_longhands.contains_slow(other_longhand_id))
                     continue;
 
-                auto other_longhand_value = longhand(other_longhand_id)->as_value_list().values()[entry_index];
+                auto const& other_longhand_value = get_entry_value(longhand(other_longhand_id), entry_index);
 
                 // FIXME: This should really account for the other longhand being included in the serialization for any reason, not just because it is not the initial value.
-                if (other_longhand_value->equals(property_initial_value(other_longhand_id)->as_value_list().values()[0]))
+                if (other_longhand_value.equals(get_entry_value(property_initial_value(other_longhand_id), 0)))
                     continue;
 
-                if (parse_css_value(Parser::ParsingParams {}, other_longhand_value->to_string(mode), longhand_id))
+                if (parse_css_value(Parser::ParsingParams {}, other_longhand_value.to_string(mode), longhand_id))
                     return true;
             }
 
@@ -130,9 +146,9 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 if (!builder.is_empty() && !first)
                     builder.append(' ');
 
-                auto longhand_value = longhand(longhand_id)->as_value_list().values()[entry_index];
+                auto const& longhand_value = get_entry_value(longhand(longhand_id), entry_index);
 
-                longhand_value->serialize(builder, mode);
+                longhand_value.serialize(builder, mode);
                 first = false;
             }
 

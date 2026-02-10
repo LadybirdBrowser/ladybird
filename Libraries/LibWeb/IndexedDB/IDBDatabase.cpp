@@ -201,8 +201,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
 
     // 1. If a live upgrade transaction is associated with the connection, throw an "InvalidStateError" DOMException.
     auto database = associated_database();
-    if (database->upgrade_transaction())
+    if (database->upgrade_transaction()) {
         return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is live"_utf16);
+    }
 
     // 2. If this's close pending flag is true, then throw an "InvalidStateError" DOMException.
     if (close_pending())
@@ -305,6 +306,9 @@ void IDBDatabase::TransactionFinishState::add_transaction_to_observe(GC::Ref<IDB
 {
     auto transaction_observer = heap().allocate<IDBTransactionObserver>(transaction);
     transaction_observer->set_transaction_finished_observer(GC::create_function(heap(), [this] {
+        if (transaction_observers.is_empty())
+            return;
+
         transaction_observers.remove_all_matching([](GC::Ref<IDBTransactionObserver> const& transaction_observer) {
             if (transaction_observer->transaction()->is_finished()) {
                 transaction_observer->unobserve();
@@ -315,7 +319,10 @@ void IDBDatabase::TransactionFinishState::add_transaction_to_observe(GC::Ref<IDB
         });
 
         if (transaction_observers.is_empty()) {
-            queue_a_database_task(after_all.as_nonnull());
+            auto callback = after_all;
+            VERIFY(callback);
+            after_all = nullptr;
+            queue_a_database_task(callback.as_nonnull());
         }
     }));
 

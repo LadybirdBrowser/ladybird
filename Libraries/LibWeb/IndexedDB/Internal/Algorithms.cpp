@@ -428,8 +428,8 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     // 8. Set db’s version to version. This change is considered part of the transaction, and so if the transaction is aborted, this change is reverted.
     db->set_version(version);
 
-    // 9. Set request’s processed flag to true.
-    request->set_processed(true);
+    // NOTE: Keep request's processed flag false until the open operation itself completes,
+    // so subsequent open/delete requests remain properly ordered in the connection queue.
 
     // 10. Queue a database task to run these steps:
     queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {

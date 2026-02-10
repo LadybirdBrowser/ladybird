@@ -96,7 +96,7 @@ private:
         for (auto observer : m_transaction_observers)
             m_transaction_observers_being_notified.unchecked_append(observer);
 
-        for (auto transaction_observer : m_transaction_observers) {
+        for (auto transaction_observer : m_transaction_observers_being_notified) {
             if (auto notifier = get_notifier(*transaction_observer))
                 notifier->function()(forward<Args>(args)...);
         }

@@ -4,7 +4,7 @@ interface StorageManager {
     [FIXME] Promise<boolean> persisted();
     [FIXME, Exposed=Window] Promise<boolean> persist();
 
-    [FIXME] Promise<StorageEstimate> estimate();
+    Promise<StorageEstimate> estimate();
 };
 
 // https://storage.spec.whatwg.org/#dictdef-storageestimate
