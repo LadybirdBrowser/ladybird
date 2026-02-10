@@ -1152,6 +1152,7 @@ class SVGFEFuncRElement;
 class SVGFEGaussianBlurElement;
 class SVGFEImageElement;
 class SVGFEMorphologyElement;
+class SVGFETurbulenceElement;
 class SVGFilterElement;
 class SVGFitToViewBox;
 class SVGForeignObjectElement;

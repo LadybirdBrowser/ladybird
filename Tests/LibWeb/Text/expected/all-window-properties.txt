@@ -401,6 +401,7 @@ SVGFEMergeElement
 SVGFEMergeNodeElement
 SVGFEMorphologyElement
 SVGFEOffsetElement
+SVGFETurbulenceElement
 SVGFilterElement
 SVGForeignObjectElement
 SVGGElement
