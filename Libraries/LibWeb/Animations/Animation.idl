@@ -10,7 +10,7 @@ interface Animation : EventTarget {
 
     attribute DOMString id;
     attribute AnimationEffect? effect;
-    attribute AnimationTimeline? timeline;
+    [ImplementedAs=timeline_for_bindings] attribute AnimationTimeline? timeline;
     [ImplementedAs=start_time_for_bindings] attribute CSSNumberish? startTime;
     [ImplementedAs=current_time_for_bindings] attribute CSSNumberish? currentTime;
     attribute double playbackRate;

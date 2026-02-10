@@ -28,6 +28,8 @@ public:
 
     void apply_css_properties(ComputedProperties::AnimationProperties const&);
 
+    virtual void set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeline> timeline) override;
+
 private:
     explicit CSSAnimation(JS::Realm&);
 
@@ -37,6 +39,8 @@ private:
 
     // https://drafts.csswg.org/css-animations-2/#dom-cssanimation-animationname
     FlyString m_animation_name;
+
+    HashTable<CSS::PropertyID> m_ignored_css_properties;
 };
 
 }
