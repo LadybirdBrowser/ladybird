@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 
 namespace Web::CSS {
 
@@ -60,6 +61,37 @@ Animations::AnimationClass CSSAnimation::animation_class() const
     if (owning_element().has_value())
         return Animations::AnimationClass::CSSAnimationWithOwningElement;
     return Animations::AnimationClass::CSSAnimationWithoutOwningElement;
+}
+
+void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties const& animation_properties)
+{
+    VERIFY(effect());
+
+    auto& effect = as<Animations::KeyframeEffect>(*this->effect());
+
+    effect.set_specified_iteration_duration(animation_properties.duration);
+    effect.set_specified_start_delay(animation_properties.delay);
+    // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
+    // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
+    // timing requires rerunning the procedure to normalize specified timing.
+    effect.normalize_specified_timing();
+    effect.set_iteration_count(animation_properties.iteration_count);
+    effect.set_timing_function(animation_properties.timing_function);
+    effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));
+    effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
+    effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_properties.composition));
+
+    if (animation_properties.play_state != last_css_animation_play_state()) {
+        if (animation_properties.play_state == CSS::AnimationPlayState::Running && play_state() != Bindings::AnimationPlayState::Running) {
+            HTML::TemporaryExecutionContext context(realm());
+            play().release_value_but_fixme_should_propagate_errors();
+        } else if (animation_properties.play_state == CSS::AnimationPlayState::Paused && play_state() != Bindings::AnimationPlayState::Paused) {
+            HTML::TemporaryExecutionContext context(realm());
+            pause().release_value_but_fixme_should_propagate_errors();
+        }
+
+        set_last_css_animation_play_state(animation_properties.play_state);
+    }
 }
 
 CSSAnimation::CSSAnimation(JS::Realm& realm)
