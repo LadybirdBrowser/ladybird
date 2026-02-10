@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea style="width: 100px">hello</textarea>
+<script>
+    test(() => {
+        document.querySelector("textarea").focus();
+        println(internals.dumpDisplayList());
+    });
+</script>
