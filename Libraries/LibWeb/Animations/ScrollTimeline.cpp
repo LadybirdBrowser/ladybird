@@ -14,7 +14,7 @@ namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(ScrollTimeline);
 
-GC::Ref<ScrollTimeline> ScrollTimeline::create(JS::Realm& realm, DOM::Document& document, GC::Ptr<DOM::Element const> source, Bindings::ScrollAxis axis)
+GC::Ref<ScrollTimeline> ScrollTimeline::create(JS::Realm& realm, DOM::Document& document, Source source, Bindings::ScrollAxis axis)
 {
     auto timeline = realm.create<ScrollTimeline>(realm, document, source, axis);
 
@@ -47,6 +47,30 @@ GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, ScrollT
 
     // 3. Set the axis property of timeline to the corresponding value from options.
     return create(realm, document, source, options.axis);
+}
+
+GC::Ptr<DOM::Element const> ScrollTimeline::source() const
+{
+    return m_source.visit(
+        [](GC::Ptr<DOM::Element const> const& source) -> GC::Ptr<DOM::Element const> {
+            return source;
+        },
+        [](AnonymousSource const& anonymous_source) -> GC::Ptr<DOM::Element const> {
+            switch (anonymous_source.scroller) {
+            case CSS::Scroller::Root:
+                return anonymous_source.target.document().document_element();
+            case CSS::Scroller::Nearest: {
+                GC::Ptr<DOM::Element const> ancestor = anonymous_source.target.parent_element();
+
+                while (ancestor && !ancestor->is_scroll_container())
+                    ancestor = ancestor->parent_element();
+
+                return ancestor;
+            }
+            case CSS::Scroller::Self:
+                return anonymous_source.target.element();
+            }
+        });
 }
 
 struct ComputedScrollAxis {
@@ -147,7 +171,7 @@ void ScrollTimeline::update_current_time(double)
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }
 
-ScrollTimeline::ScrollTimeline(JS::Realm& realm, DOM::Document& document, GC::Ptr<DOM::Element const> source, Bindings::ScrollAxis axis)
+ScrollTimeline::ScrollTimeline(JS::Realm& realm, DOM::Document& document, Source source, Bindings::ScrollAxis axis)
     : AnimationTimeline(realm)
     , m_source(source)
     , m_axis(axis)
@@ -158,7 +182,9 @@ ScrollTimeline::ScrollTimeline(JS::Realm& realm, DOM::Document& document, GC::Pt
 void ScrollTimeline::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_source);
+    m_source.visit(
+        [&](GC::Ptr<DOM::Element const>& source) { visitor.visit(source); },
+        [&](AnonymousSource& anonymous_source) { anonymous_source.target.visit(visitor); });
 }
 
 void ScrollTimeline::initialize(JS::Realm& realm)
@@ -169,12 +195,30 @@ void ScrollTimeline::initialize(JS::Realm& realm)
 
 Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> ScrollTimeline::get_propagated_source() const
 {
+    auto const& source = this->source();
+
     // https://drafts.csswg.org/scroll-animations-1/#scroll-notation
     // References to the root element propagate to the document viewport (which functions as its scroll container).
-    if (m_source && m_source == m_source->document().document_element())
-        return m_source->owner_document();
+    if (source && source == source->document().document_element())
+        return source->owner_document();
 
-    return m_source;
+    return source;
+}
+
+Bindings::ScrollAxis css_axis_to_bindings_scroll_axis(CSS::Axis axis)
+{
+    switch (axis) {
+    case CSS::Axis::Block:
+        return Bindings::ScrollAxis::Block;
+    case CSS::Axis::Inline:
+        return Bindings::ScrollAxis::Inline;
+    case CSS::Axis::X:
+        return Bindings::ScrollAxis::X;
+    case CSS::Axis::Y:
+        return Bindings::ScrollAxis::Y;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 }

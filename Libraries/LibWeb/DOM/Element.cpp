@@ -1922,6 +1922,18 @@ bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowH
     return true;
 }
 
+bool Element::is_scroll_container() const
+{
+    // NB: We should only call this if we know that computed_properties has already been computed
+    VERIFY(computed_properties());
+
+    if (is_document_element())
+        return true;
+
+    return Layout::overflow_value_makes_box_a_scroll_container(computed_properties()->overflow_x())
+        || Layout::overflow_value_makes_box_a_scroll_container(computed_properties()->overflow_y());
+}
+
 // https://drafts.csswg.org/cssom-view/#dom-element-scrolltop
 double Element::scroll_top() const
 {
