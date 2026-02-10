@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input value="hello" style="width: 100px" />
+<script>
+    test(() => {
+        document.querySelector("input").focus();
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -28,7 +28,6 @@ GC_DEFINE_ALLOCATOR(PaintableWithLines);
 
 static void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment::FragmentSpan const&);
 static Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude);
-static void paint_cursor_if_needed(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
 static void compute_render_spans(PaintableFragment const&, Vector<PaintableFragment::FragmentSpan, 4>&);
 static void paint_text_fragment(DisplayListRecordingContext&, PaintableFragment::FragmentSpan const&);
 
@@ -280,6 +279,9 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
 
         for (auto const& span : spans)
             paint_text_fragment(context, span);
+
+        if (document().cursor_position())
+            paint_cursor(context);
     }
 }
 
@@ -416,49 +418,49 @@ void paint_text_fragment(DisplayListRecordingContext& context, PaintableFragment
     }
 
     paint_text_decoration(context, text_paintable, span);
-
-    // Paint cursor once per fragment (when this is the last span).
-    if (span.end_code_unit == fragment.length_in_code_units())
-        paint_cursor_if_needed(context, text_paintable, fragment);
 }
 
-void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
+Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM::Position const& position) const
 {
-    auto const& document = paintable.document();
-    auto const& navigable = *document.navigable();
+    return m_fragments.first_matching([&](auto const& fragment) {
+        auto const* text_paintable = as_if<TextPaintable>(fragment.paintable());
+        if (!text_paintable)
+            return false;
+        if (position.offset() < fragment.start_offset())
+            return false;
+        if (position.offset() > fragment.start_offset() + fragment.length_in_code_units())
+            return false;
+        return position.node() == text_paintable->dom_node();
+    });
+}
 
-    if (!navigable.is_focused())
+void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) const
+{
+    if (!document().cursor_blink_state() || !document().navigable()->is_focused())
         return;
 
-    if (!document.cursor_blink_state())
+    auto cursor_position = document().cursor_position();
+    VERIFY(cursor_position);
+
+    auto fragment = fragment_at_position(*cursor_position);
+    if (!fragment.has_value())
         return;
 
-    auto cursor_position = document.cursor_position();
-    if (!cursor_position)
+    auto const* dom_node = fragment->layout_node().dom_node();
+    if (!dom_node)
         return;
 
-    if (cursor_position->node() != paintable.dom_node())
-        return;
-
-    // NOTE: This checks if the cursor is before the start or after the end of the fragment. If it is at the end, after all text, it should still be painted.
-    if (cursor_position->offset() < (unsigned)fragment.start_offset() || cursor_position->offset() > (unsigned)(fragment.start_offset() + fragment.length_in_code_units()))
-        return;
-
-    auto active_element = document.active_element();
     auto active_element_is_editable = false;
-    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(active_element))
+    if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document().active_element()))
         active_element_is_editable = text_control->is_mutable();
-
-    auto dom_node = fragment.layout_node().dom_node();
-    if (!dom_node || (!dom_node->is_editable() && !active_element_is_editable))
+    if (!active_element_is_editable && !dom_node->is_editable())
         return;
 
-    auto caret_color = paintable.computed_values().caret_color();
+    auto caret_color = as<TextPaintable>(fragment->paintable()).computed_values().caret_color();
     if (caret_color.alpha() == 0)
         return;
 
-    auto cursor_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
-
+    auto cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
 
     context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);
