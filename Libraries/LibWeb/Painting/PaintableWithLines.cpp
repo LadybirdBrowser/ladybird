@@ -458,7 +458,6 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
         return;
 
     auto cursor_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
-    VERIFY(cursor_rect.width() == 1);
 
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
 
