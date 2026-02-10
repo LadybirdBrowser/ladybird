@@ -219,7 +219,7 @@ CSS::StyleScope const& AbstractElement::style_scope() const
     return root.document().style_scope();
 }
 
-HashMap<FlyString, GC::Ref<Animations::Animation>>* AbstractElement::css_defined_animations() const
+HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>* AbstractElement::css_defined_animations() const
 {
     return m_element->css_defined_animations(m_pseudo_element);
 }
