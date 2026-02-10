@@ -384,11 +384,19 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
 
     // 7. Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts that will execute in order as soon as possible are empty.
     main_thread_event_loop().spin_until(GC::create_function(heap, [document] {
+        // AD-HOC: Also bail out if the document is no longer fully active (e.g. navigated away from).
+        //         Otherwise this spin_until stays on the call stack indefinitely, and all subsequent
+        //         event processing on the same event loop happens in nested spin_until pumping.
+        if (!document->is_fully_active())
+            return true;
         return document->scripts_to_execute_as_soon_as_possible().is_empty();
     }));
 
     // 8. Spin the event loop until there is nothing that delays the load event in the Document.
     main_thread_event_loop().spin_until(GC::create_function(heap, [document] {
+        // AD-HOC: Bail out if the document is no longer fully active.
+        if (!document->is_fully_active())
+            return true;
         return !document->anything_is_delaying_the_load_event();
     }));
 
