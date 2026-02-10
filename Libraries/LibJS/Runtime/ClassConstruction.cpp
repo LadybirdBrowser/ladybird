@@ -224,23 +224,27 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
 
             Variant<GC::Ref<ECMAScriptFunctionObject>, Value, Empty> initializer;
             if (descriptor.has_initializer) {
-                auto shared_data = executable.shared_function_data[*descriptor.shared_function_data_index];
+                if (descriptor.literal_value.has_value()) {
+                    initializer = *descriptor.literal_value;
+                } else {
+                    auto shared_data = executable.shared_function_data[*descriptor.shared_function_data_index];
 
-                // Set class_field_initializer_name at runtime for computed keys.
-                if (!descriptor.is_private && !shared_data->m_class_field_initializer_name.has<PropertyKey>()
-                    && !shared_data->m_class_field_initializer_name.has<PrivateName>()) {
-                    shared_data->m_class_field_initializer_name = element_name.visit(
-                        [](PropertyKey const& key) -> Variant<PropertyKey, PrivateName, Empty> { return key; },
-                        [](PrivateName const& name) -> Variant<PropertyKey, PrivateName, Empty> { return name; });
+                    // Set class_field_initializer_name at runtime for computed keys.
+                    if (!descriptor.is_private && !shared_data->m_class_field_initializer_name.has<PropertyKey>()
+                        && !shared_data->m_class_field_initializer_name.has<PrivateName>()) {
+                        shared_data->m_class_field_initializer_name = element_name.visit(
+                            [](PropertyKey const& key) -> Variant<PropertyKey, PrivateName, Empty> { return key; },
+                            [](PrivateName const& name) -> Variant<PropertyKey, PrivateName, Empty> { return name; });
+                    }
+
+                    auto function = ECMAScriptFunctionObject::create_from_function_data(
+                        realm,
+                        *shared_data,
+                        vm.lexical_environment(),
+                        vm.running_execution_context().private_environment);
+                    function->make_method(home_object);
+                    initializer = function;
                 }
-
-                auto function = ECMAScriptFunctionObject::create_from_function_data(
-                    realm,
-                    *shared_data,
-                    vm.lexical_environment(),
-                    vm.running_execution_context().private_environment);
-                function->make_method(home_object);
-                initializer = function;
             }
 
             ClassFieldDefinition field {

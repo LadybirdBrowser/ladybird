@@ -3404,6 +3404,25 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
                         parsing_insights,
                         Vector<LocalVariable> {});
 
+                    // Set class_field_initializer_name for keys known at codegen time.
+                    // This is needed so eval("arguments") inside field initializers
+                    // correctly throws a SyntaxError.
+                    if (is_private) {
+                        auto private_name = static_cast<PrivateIdentifier const&>(class_field.key()).string();
+                        shared_data->m_class_field_initializer_name = PrivateName(0, private_name);
+                    } else if (is<Identifier>(class_field.key())) {
+                        auto name = static_cast<Identifier const&>(class_field.key()).string();
+                        shared_data->m_class_field_initializer_name = PropertyKey(name.to_utf16_string());
+                    } else if (is<StringLiteral>(class_field.key())) {
+                        auto name = static_cast<StringLiteral const&>(class_field.key()).value();
+                        shared_data->m_class_field_initializer_name = PropertyKey(name);
+                    } else if (is<NumericLiteral>(class_field.key())) {
+                        auto name = number_to_utf16_string(static_cast<NumericLiteral const&>(class_field.key()).value().as_double());
+                        shared_data->m_class_field_initializer_name = PropertyKey(name);
+                    }
+                    // For computed keys, class_field_initializer_name is set at runtime
+                    // in construct_class().
+
                     data_index = generator.register_shared_function_data(shared_data);
                 }
             }
@@ -3452,14 +3471,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
     }
 
     auto blueprint_index = generator.register_class_blueprint(move(blueprint));
-    (void)blueprint_index;
 
     // Restore parent environment before emitting NewClass.
     generator.emit<Bytecode::Op::SetLexicalEnvironment>(parent_environment);
     generator.pop_lexical_environment_register();
 
     auto dst = choose_dst(generator, preferred_dst);
-    generator.emit_with_extra_slots<Op::NewClass, Optional<Operand>>(elements.size(), dst, super_class.has_value() ? super_class->operand() : Optional<Operand> {}, class_environment, *this, lhs_name, elements);
+    generator.emit_with_extra_slots<Op::NewClass, Optional<Operand>>(elements.size(), dst, super_class.has_value() ? super_class->operand() : Optional<Operand> {}, class_environment, blueprint_index, lhs_name, elements);
 
     if (did_emit_private_environment_allocation) {
         generator.emit<Op::LeavePrivateEnvironment>();

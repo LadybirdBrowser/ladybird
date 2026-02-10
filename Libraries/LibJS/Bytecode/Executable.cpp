@@ -100,6 +100,12 @@ void Executable::visit_edges(Visitor& visitor)
         visitor.visit(cache.cached_template_object);
     for (auto& data : shared_function_data)
         visitor.visit(data);
+    for (auto& blueprint : class_blueprints) {
+        for (auto& element : blueprint.elements) {
+            if (element.literal_value.has_value() && element.literal_value->is_cell())
+                visitor.visit(element.literal_value->as_cell());
+        }
+    }
     property_key_table->visit_edges(visitor);
 }
 
