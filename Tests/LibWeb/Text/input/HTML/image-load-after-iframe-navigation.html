@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: Image fetch completes after the iframe has been navigated to a new page.
+// The old document is no longer the active document of its navigable,
+// making is_fully_active() return false for the old document.
+asyncTest(async done => {
+    const server = httpTestServer();
+
+    const svgBody = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>';
+
+    // Delayed image: 300ms
+    const imageUrl = await server.createEcho("GET", "/delayed-nav-image.svg", {
+        status: 200,
+        headers: {
+            "Content-Type": "image/svg+xml",
+            "Access-Control-Allow-Origin": "*",
+        },
+        body: svgBody,
+        delay_ms: 300,
+    });
+
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    const img = doc.createElement("img");
+    img.src = imageUrl;
+    doc.body.appendChild(img);
+
+    // Navigate the iframe to about:blank after 50ms.
+    // The old document becomes inactive when navigation completes.
+    setTimeout(() => {
+        iframe.src = "about:blank";
+    }, 50);
+
+    setTimeout(() => {
+        println("PASS");
+        done();
+    }, 1500);
+});
+</script>

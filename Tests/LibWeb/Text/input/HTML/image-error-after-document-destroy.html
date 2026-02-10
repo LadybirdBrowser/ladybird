@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: Image fetch returns invalid image data after the iframe's document
+// has been destroyed. The error callback fires on a destroyed document.
+asyncTest(async done => {
+    const server = httpTestServer();
+
+    // Create a delayed response that is not a valid image (200ms delay).
+    const imageUrl = await server.createEcho("GET", "/delayed-bad-image-1.txt", {
+        status: 200,
+        headers: {
+            "Content-Type": "image/png",
+            "Access-Control-Allow-Origin": "*",
+        },
+        body: "this is not a valid PNG image",
+        delay_ms: 200,
+    });
+
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    const img = doc.createElement("img");
+    img.src = imageUrl;
+    doc.body.appendChild(img);
+
+    // Remove iframe before the delayed error response arrives.
+    setTimeout(() => {
+        iframe.remove();
+    }, 50);
+
+    setTimeout(() => {
+        println("PASS");
+        done();
+    }, 1000);
+});
+</script>
