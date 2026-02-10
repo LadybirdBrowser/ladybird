@@ -9,14 +9,13 @@
 #include <AK/Checked.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Types.h>
+#include <AK/Windows.h>
 #include <LibCore/System.h>
 #include <LibIPC/File.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportSocketWindows.h>
-
-#include <AK/Windows.h>
 
 namespace IPC {
 

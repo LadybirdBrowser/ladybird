@@ -12,8 +12,10 @@
 #include <LibCore/Export.h>
 
 #if defined(AK_OS_WINDOWS)
+#    ifndef SOCK_STREAM
 constexpr inline int SOCK_STREAM = 1;
 constexpr inline int SOCK_DGRAM = 2;
+#    endif
 
 using ADDRESS_FAMILY = unsigned short;
 constexpr inline ADDRESS_FAMILY AF_LOCAL = 1;
