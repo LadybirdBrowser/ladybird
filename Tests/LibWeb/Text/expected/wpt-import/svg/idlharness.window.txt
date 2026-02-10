@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-1068 Pass
-713 Fail
+1076 Pass
+705 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -290,14 +290,14 @@ Fail	SVGAnimatedEnumeration must be primary interface of objects.text.lengthAdju
 Fail	Stringification of objects.text.lengthAdjust
 Fail	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "baseVal" with the proper type
 Fail	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "animVal" with the proper type
-Fail	SVGAnimatedInteger interface: existence and properties of interface object
-Fail	SVGAnimatedInteger interface object length
-Fail	SVGAnimatedInteger interface object name
-Fail	SVGAnimatedInteger interface: existence and properties of interface prototype object
-Fail	SVGAnimatedInteger interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimatedInteger interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimatedInteger interface: attribute baseVal
-Fail	SVGAnimatedInteger interface: attribute animVal
+Pass	SVGAnimatedInteger interface: existence and properties of interface object
+Pass	SVGAnimatedInteger interface object length
+Pass	SVGAnimatedInteger interface object name
+Pass	SVGAnimatedInteger interface: existence and properties of interface prototype object
+Pass	SVGAnimatedInteger interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedInteger interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedInteger interface: attribute baseVal
+Pass	SVGAnimatedInteger interface: attribute animVal
 Fail	SVGAnimatedInteger must be primary interface of objects.feConvolveMatrix.orderX
 Fail	Stringification of objects.feConvolveMatrix.orderX
 Fail	SVGAnimatedInteger interface: objects.feConvolveMatrix.orderX must inherit property "baseVal" with the proper type

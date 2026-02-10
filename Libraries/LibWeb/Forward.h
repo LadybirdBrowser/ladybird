@@ -1125,6 +1125,7 @@ namespace Web::SVG {
 
 class Path;
 class SVGAnimatedEnumeration;
+class SVGAnimatedInteger;
 class SVGAnimatedLength;
 class SVGAnimatedLengthList;
 class SVGAnimatedNumber;

@@ -369,6 +369,7 @@ ResizeObserverSize
 Response
 SVGAElement
 SVGAnimatedEnumeration
+SVGAnimatedInteger
 SVGAnimatedLength
 SVGAnimatedLengthList
 SVGAnimatedNumber
