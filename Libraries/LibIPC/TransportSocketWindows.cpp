@@ -8,11 +8,10 @@
 #include <AK/ByteReader.h>
 #include <AK/Checked.h>
 #include <AK/Types.h>
+#include <AK/Windows.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportSocketWindows.h>
-
-#include <AK/Windows.h>
 
 namespace IPC {
 
