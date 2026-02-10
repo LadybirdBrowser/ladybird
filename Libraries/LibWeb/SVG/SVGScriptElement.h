@@ -21,7 +21,9 @@ class SVGScriptElement
 public:
     void process_the_script_element();
 
+    bool is_parser_inserted() const { return m_parser_inserted; }
     void set_parser_inserted(Badge<HTML::HTMLParser>) { m_parser_inserted = true; }
+
     void set_source_line_number(Badge<HTML::HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }
 
     virtual void inserted() override;

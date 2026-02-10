@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Script injected via `appendChild` is allowed with `strict-dynamic`.
+Pass	Script injected via `appendChild` is allowed with `strict-dynamic`, even if it carries an incorrect nonce.
+Pass	Script injected via `appendChild` populated via `textContent` is allowed with `strict-dynamic`.
+Pass	Script injected via `appendChild` populated via `textContent` is allowed with `strict-dynamic`, even if it carries an incorrect nonce.
