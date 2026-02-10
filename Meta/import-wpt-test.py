@@ -10,6 +10,7 @@ from enum import Enum
 from html.parser import HTMLParser
 from pathlib import Path
 from posixpath import normpath
+from urllib.error import HTTPError
 from urllib.parse import urljoin
 from urllib.parse import urlparse
 from urllib.parse import urlsplit
@@ -272,6 +273,40 @@ def download_files(filepaths, wpt_base_url, skip_existing):
     return downloaded_files
 
 
+def download_headers_files(filepaths, wpt_base_url, skip_existing):
+    for file in filepaths:
+        normalized_path = remove_repeated_url_slashes(file.source)
+        headers_path = normalized_path + ".headers"
+
+        if headers_path in visited_paths:
+            continue
+
+        source = urljoin(wpt_base_url, headers_path)
+        destination = Path(os.path.normpath(str(file.destination) + ".headers"))
+
+        if skip_existing and destination.exists():
+            print(f"Skipping {destination} as it already exists")
+            visited_paths.add(headers_path)
+            continue
+
+        visited_paths.add(headers_path)
+
+        try:
+            connection = urlopen(source)
+        except HTTPError:
+            continue
+
+        if connection.status != 200:
+            continue
+
+        os.makedirs(destination.parent, exist_ok=True)
+
+        with open(destination, "wb") as f:
+            f.write(connection.read())
+
+        print(f"Downloaded headers file: {destination}")
+
+
 def create_expectation_files(files, skip_existing):
     # Ref tests don't have an expectation text file
     if test_type in [TestType.REF, TestType.CRASH]:
@@ -342,6 +377,7 @@ def main():
             )
 
     files_to_modify = download_files(main_paths, wpt_base_url, skip_existing)
+    download_headers_files(main_paths, wpt_base_url, skip_existing)
     create_expectation_files(main_paths, skip_existing)
 
     input_parser = LinkedResourceFinder()
@@ -360,6 +396,7 @@ def main():
     modify_sources(files_to_modify, additional_resources)
     script_paths = map_to_path(additional_resources, wpt_base_url, True, resource_path)
     download_files(script_paths, wpt_base_url, skip_existing)
+    download_headers_files(script_paths, wpt_base_url, skip_existing)
 
 
 if __name__ == "__main__":

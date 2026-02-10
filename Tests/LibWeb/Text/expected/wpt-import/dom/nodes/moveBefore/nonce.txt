@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Element nonce content attribute is not cleared after move
+1 Pass
+Pass	Element nonce content attribute is not cleared after move
