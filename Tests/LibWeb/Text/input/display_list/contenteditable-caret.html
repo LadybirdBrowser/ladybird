@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div contenteditable style="width: 100px; height: 20px"></div>
+<script>
+    test(() => {
+        document.querySelector("div").focus();
+        println(internals.dumpDisplayList());
+    });
+</script>
