@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+async_test(t => {
+  window.onload = t.step_func(() => {
+    const navState = { key: "value" };
+    const navInfo = { infoKey: "infoValue" };
+    i.contentWindow.navigation.navigate("#1", { state: navState }).committed.then(t.step_func(() => {
+      // Make sure that state setting worked
+      assert_equals(i.contentWindow.navigation.currentEntry.getState().key, "value");
+      assert_not_equals(i.contentWindow.navigation.currentEntry.getState(), navState);
+
+      let start_url = i.contentWindow.location.href;
+      let start_key = i.contentWindow.navigation.currentEntry.key;
+      let start_id = i.contentWindow.navigation.currentEntry.id;
+      let onnavigate_called = false;
+      let promise_settled = false;
+      i.contentWindow.navigation.onnavigate = t.step_func(e => {
+        e.intercept();
+        onnavigate_called = true;
+        assert_equals(e.info, navInfo);
+        assert_equals(e.navigationType, "reload");
+        assert_equals(e.destination.getState().key, "value", "destination.getState()");
+        assert_not_equals(e.destination.getState(), navState);
+      });
+      i.contentWindow.navigation.reload({ info: navInfo, state: undefined }).committed.then(t.step_func_done(() => {
+        assert_true(onnavigate_called);
+        assert_equals(i.contentWindow.location.href, start_url);
+        assert_equals(i.contentWindow.navigation.currentEntry.key, start_key);
+        assert_equals(i.contentWindow.navigation.currentEntry.id, start_id);
+        assert_equals(i.contentWindow.navigation.currentEntry.getState().key, "value", "destination.getState()");
+        assert_not_equals(i.contentWindow.navigation.currentEntry.getState(), navState);
+      }));
+    }));
+  });
+}, "reload() variant with info and state: undefined counts the same as not present (because of Web IDL dictionary semantics), so preserves the state");
+</script>

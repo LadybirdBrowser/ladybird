@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+
+<script>
+promise_test(async t => {
+  navigation.onnavigate = e => e.intercept({ handler: () => Promise.resolve({ abc: 'def' }) });
+
+  const result = navigation.reload();
+
+  await assertBothFulfill(t, result, navigation.currentEntry);
+}, "reload() and intercept() with a fulfilled promise");
+</script>
