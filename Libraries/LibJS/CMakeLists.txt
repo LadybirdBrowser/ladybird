@@ -66,6 +66,7 @@ set(SOURCES
     Runtime/BooleanObject.cpp
     Runtime/BooleanPrototype.cpp
     Runtime/BoundFunction.cpp
+    Runtime/ClassConstruction.cpp
     Runtime/ClassFieldDefinition.cpp
     Runtime/Completion.cpp
     Runtime/CompletionCell.cpp
