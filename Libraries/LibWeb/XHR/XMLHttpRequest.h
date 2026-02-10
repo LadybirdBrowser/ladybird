@@ -10,6 +10,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/RefCounted.h>
+#include <AK/Time.h>
 #include <AK/Weakable.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
@@ -203,6 +204,8 @@ private:
 
     // Non-standard, see async path in `send()`
     u64 m_request_body_transmitted { 0 };
+    Optional<MonotonicTime> m_last_upload_progress_timestamp;
+    Optional<MonotonicTime> m_last_download_progress_timestamp;
 };
 
 }

@@ -706,6 +706,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         // 2. Let requestBodyTransmitted be 0.
         // NOTE: This is kept on the XHR object itself instead of the stack, as we cannot capture references to stack variables in an async context.
         m_request_body_transmitted = 0;
+        m_last_upload_progress_timestamp = {};
+        m_last_download_progress_timestamp = {};
 
         // 3. Let requestBodyLength be req’s body’s length, if req’s body is non-null; otherwise 0.
         // NOTE: req's body is always m_request_body here, see step 6.
@@ -732,7 +734,12 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             // 1. Increase requestBodyTransmitted by bytesLength.
             m_request_body_transmitted += bytes_length;
 
-            // FIXME: 2. If not roughly 50ms have passed since these steps were last invoked, then return.
+            // 2. If not roughly 50ms have passed since these steps were last invoked, then return.
+            auto now = MonotonicTime::now();
+            bool enough_time_passed = !m_last_upload_progress_timestamp.has_value() || (now - m_last_upload_progress_timestamp.value()) >= AK::Duration::from_milliseconds(50);
+            if (!enough_time_passed)
+                return;
+            m_last_upload_progress_timestamp = now;
 
             // 3. If this’s upload listener flag is set, then fire a progress event named progress at this’s upload object with requestBodyTransmitted and requestBodyLength.
             if (m_upload_listener)
@@ -803,7 +810,12 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                 // 1. Append bytes to this’s received bytes.
                 m_received_bytes.append(byte_buffer);
 
-                // FIXME: 2. If not roughly 50ms have passed since these steps were last invoked, then return.
+                // 2. If not roughly 50ms have passed since these steps were last invoked, then return.
+                auto now = MonotonicTime::now();
+                bool enough_time_passed = !m_last_download_progress_timestamp.has_value() || (now - m_last_download_progress_timestamp.value()) >= AK::Duration::from_milliseconds(50);
+                if (!enough_time_passed)
+                    return;
+                m_last_download_progress_timestamp = now;
 
                 // 3. If this’s state is headers received, then set this’s state to loading.
                 if (m_state == State::HeadersReceived)
