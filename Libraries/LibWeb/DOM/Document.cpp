@@ -2627,6 +2627,8 @@ void Document::set_focused_area(GC::Ptr<Node> node)
     if (new_focused_element)
         new_focused_element->did_receive_focus();
 
+    reset_cursor_blink_cycle();
+
     if (paintable())
         paintable()->set_needs_display();
 
