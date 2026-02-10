@@ -530,6 +530,33 @@
                 headers: {
                     Age: "2",
                     "Cache-Control": "max-age=5,must-revalidate",
+                    "Last-Modified": new Date().toUTCString().replace("GMT", "+0000"),
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "read-from-cache");
+
+            // By not attaching a TEST_CACHE_RESPOND_WITH_NOT_MODIFIED header, we tell http-test-server to respond to
+            // revalidation requests with an HTTP 200 (i.e. revalidation fails).
+            response = await cacheFetch(url, {
+                headers: {
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: "5",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+        })();
+
+        // Expired responses are cached until their max-age directive is reached. A must-revalidate cache directive
+        // with an unsuccessful revalidation results in the cache being refreshed.
+        await (async () => {
+            url = await createRequest("/cache-test/expired-and-refreshed-due-to-unsuccessful-revalidation", {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=5,must-revalidate",
                     "Last-Modified": new Date().toUTCString(),
                 },
             });
