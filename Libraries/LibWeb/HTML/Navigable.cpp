@@ -1640,6 +1640,15 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 void Navigable::begin_navigation(NavigateParams params)
 {
+    // AD-HOC: Not in the spec but we should not navigate a navigable that has been destroyed.
+    //         This can happen when a session history traversal step for creating a child navigable
+    //         runs after the navigable has been destroyed (e.g. an iframe is removed before its
+    //         post-connection steps finish processing). Without this check, we would call
+    //         set_delaying_load_events(true) below, creating a DocumentLoadEventDelayer on the
+    //         parent document that is never cleared.
+    if (has_been_destroyed())
+        return;
+
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
         return;
