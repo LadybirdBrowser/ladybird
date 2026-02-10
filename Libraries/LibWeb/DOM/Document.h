@@ -830,8 +830,19 @@ public:
 
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
-    void for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback);
-    void for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback) const;
+    template<typename Callback>
+    void for_each_shadow_root(Callback&& callback)
+    {
+        for (auto& shadow_root : m_shadow_roots)
+            callback(shadow_root);
+    }
+
+    template<typename Callback>
+    void for_each_shadow_root(Callback&& callback) const
+    {
+        for (auto& shadow_root : m_shadow_roots)
+            callback(const_cast<ShadowRoot&>(shadow_root));
+    }
 
     void add_an_element_to_the_top_layer(GC::Ref<Element>);
     void request_an_element_to_be_remove_from_the_top_layer(GC::Ref<Element>);

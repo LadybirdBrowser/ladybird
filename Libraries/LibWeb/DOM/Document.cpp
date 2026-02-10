@@ -6379,18 +6379,6 @@ void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& s
     m_shadow_roots.remove(shadow_root);
 }
 
-void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
-{
-    for (auto& shadow_root : m_shadow_roots)
-        callback(shadow_root);
-}
-
-void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback) const
-{
-    for (auto& shadow_root : m_shadow_roots)
-        callback(const_cast<ShadowRoot&>(shadow_root));
-}
-
 bool Document::is_decoded_svg() const
 {
     return page().client().is_svg_page_client();
