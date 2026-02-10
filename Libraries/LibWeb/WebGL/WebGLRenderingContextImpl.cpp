@@ -6,8 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define GL_GLEXT_PROTOTYPES 1
-
 #include <GLES3/gl3.h>
 extern "C" {
 #include <GLES2/gl2ext.h>
