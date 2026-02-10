@@ -1072,6 +1072,7 @@ private:
     bool m_active_parser_was_aborted { false };
 
     bool m_has_been_destroyed { false };
+    bool m_has_fired_document_became_inactive { false };
 
     bool m_has_been_browsing_context_associated { false };
 
