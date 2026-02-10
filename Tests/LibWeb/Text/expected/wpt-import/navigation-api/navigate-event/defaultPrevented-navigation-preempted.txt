@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	navigateEvent.defaultPrevented isn't affected when the navigation is preempted after dispatch

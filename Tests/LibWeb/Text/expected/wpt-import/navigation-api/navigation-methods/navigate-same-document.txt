@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	navigate() navigates same-document and fires onnavigate (async)
+Pass	navigate() navigates same-document and fires onnavigate (sync)
