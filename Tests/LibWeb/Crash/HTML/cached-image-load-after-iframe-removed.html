@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- Test: Load an image in an iframe to cache it, then load the same image again.
+     The second load hits the cache and queues an element task to fire the load event.
+     Remove the iframe before the element task fires. The task then dispatches
+     the load event on a document that is no longer fully active. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+
+        // First load: populate the list of available images.
+        const img1 = doc.createElement("img");
+        img1.src = imageUrl;
+        doc.body.appendChild(img1);
+
+        img1.onload = () => {
+            // Second load: should hit the cache and queue an element task.
+            const img2 = doc.createElement("img");
+            img2.src = imageUrl;
+            doc.body.appendChild(img2);
+
+            // Remove iframe before the queued element task fires.
+            iframe.remove();
+
+            setTimeout(() => {
+                document.documentElement.classList.remove("test-wait");
+            }, 500);
+        };
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

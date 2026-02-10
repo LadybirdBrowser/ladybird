@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- Test: The microtask queued by update_the_image_data_impl step 8 runs after
+     the iframe has been removed, making the document no longer fully active.
+     The microtask accesses document().page(), document().encoding_parse_and_serialize_url(), etc. -->
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        doc.body.appendChild(img);
+
+        // Setting src queues a microtask via update_the_image_data_impl.
+        // Removing the iframe synchronously makes the document inactive.
+        // The microtask then runs on an inactive document.
+        img.src = "120.png";
+        iframe.remove();
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

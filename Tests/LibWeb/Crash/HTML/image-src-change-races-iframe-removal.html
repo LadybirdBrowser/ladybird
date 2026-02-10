@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Test: Rapidly change image src while simultaneously removing the iframe.
+     Each src change queues a new microtask and increments the update counter.
+     Some microtasks may run after the iframe is removed. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        doc.body.appendChild(img);
+
+        // Rapidly change src to queue multiple microtasks.
+        for (let i = 0; i < 50; i++) {
+            img.src = imageUrl + "?" + i;
+        }
+
+        // Remove the iframe. Some microtasks may still be pending.
+        iframe.remove();
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

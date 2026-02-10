@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Test: Image fetch completes after iframe is removed. The batching dispatcher's
+     success callback fires on a document that is no longer fully active.
+     The callback calls dispatch_event, document().list_of_available_images(), etc. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        doc.body.appendChild(img);
+        img.src = imageUrl;
+
+        // Give the fetch a moment to start, then remove the iframe.
+        // The batching dispatcher (1ms delay) will fire the callback
+        // after the document is no longer fully active.
+        setTimeout(() => {
+            iframe.remove();
+        }, 10);
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

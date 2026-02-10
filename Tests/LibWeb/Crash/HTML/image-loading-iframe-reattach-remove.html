@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- Test: Create iframe with image, remove it (document inactive, DocumentObserver created),
+     re-append it (document active, observer fires, image loading resumes),
+     then remove again immediately. The image loading callbacks may fire
+     after the second removal. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    let firstLoad = true;
+    iframe.onload = () => {
+        if (!firstLoad) return;
+        firstLoad = false;
+
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        doc.body.appendChild(img);
+        img.src = imageUrl;
+
+        // Remove the iframe.
+        iframe.remove();
+
+        // Re-append it. This may trigger document_became_active observer.
+        document.body.appendChild(iframe);
+
+        // Remove again immediately.
+        iframe.remove();
+
+        // Re-append and remove once more for good measure.
+        document.body.appendChild(iframe);
+        iframe.remove();
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

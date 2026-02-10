@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Test: Get a reference to an image element inside an iframe, remove the iframe,
+     then set img.src. This calls update_the_image_data on an image whose document
+     is no longer fully active. The DocumentObserver path is exercised. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+        const img = doc.createElement("img");
+        doc.body.appendChild(img);
+
+        // Remove iframe first, making the document inactive.
+        iframe.remove();
+
+        // Now set src on the image whose document is inactive.
+        // This exercises the DocumentObserver creation path.
+        img.src = imageUrl;
+
+        // Also try changing src multiple times.
+        img.src = imageUrl + "?2";
+        img.src = imageUrl + "?3";
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

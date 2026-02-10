@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Test: Many images start loading simultaneously in an iframe that gets removed.
+     Multiple batching dispatcher callbacks fire on the inactive document.
+     This stress tests the batching path (up to 16 images batched together). -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const doc = iframe.contentDocument;
+
+        // Create many images to increase crash probability and exercise
+        // the batching dispatcher's queue processing.
+        for (let i = 0; i < 20; i++) {
+            const img = doc.createElement("img");
+            img.src = imageUrl + "?" + i;
+            doc.body.appendChild(img);
+        }
+
+        // Remove iframe while all fetches are in flight.
+        setTimeout(() => {
+            iframe.remove();
+        }, 10);
+
+        setTimeout(() => {
+            document.documentElement.classList.remove("test-wait");
+        }, 1000);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

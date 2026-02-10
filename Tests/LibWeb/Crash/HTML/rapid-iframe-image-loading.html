@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- Test: Rapidly create and destroy iframes containing images.
+     This exercises many concurrent image loading operations across
+     multiple documents that become inactive at different times.
+     The batching dispatcher may accumulate callbacks from many
+     different inactive documents. -->
+<html class="test-wait">
+<body>
+<script>
+    const imageUrl = new URL("../../Assets/120.png", document.baseURI).href;
+
+    function createAndDestroyIframe(index) {
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../Assets/blank.html";
+        iframe.onload = () => {
+            const doc = iframe.contentDocument;
+            for (let i = 0; i < 5; i++) {
+                const img = doc.createElement("img");
+                img.src = imageUrl + "?frame=" + index + "&img=" + i;
+                doc.body.appendChild(img);
+            }
+            // Remove after a variable delay to create different timing conditions.
+            setTimeout(() => { iframe.remove(); }, index * 2);
+        };
+        document.body.appendChild(iframe);
+    }
+
+    for (let i = 0; i < 10; i++) {
+        createAndDestroyIframe(i);
+    }
+
+    setTimeout(() => {
+        document.documentElement.classList.remove("test-wait");
+    }, 2000);
+</script>
+</body>
+</html>
