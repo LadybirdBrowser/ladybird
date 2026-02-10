@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; padding: 0; }
+
+    .container {
+        width: 200px;
+        height: 200px;
+        position: relative;
+    }
+
+    .abspos {
+        position: absolute;
+        left: 0;
+        right: 0;
+        background: magenta;
+    }
+</style>
+
+<!-- Case 1: Height from top+bottom insets with min-height that doesn't constrain -->
+<div class="container">
+    <div class="abspos" style="top: 37px; bottom: 0; min-height: 100px;"></div>
+</div>
+
+<!-- Case 2: Height from top+bottom insets with min-height that constrains -->
+<div class="container">
+    <div class="abspos" style="top: 150px; bottom: 0; min-height: 100px;"></div>
+</div>
+
+<!-- Case 3: Height from top+bottom insets with max-height that constrains -->
+<div class="container">
+    <div class="abspos" style="top: 0; bottom: 0; max-height: 100px;"></div>
+</div>
+
+<!-- Case 4: Height from top+bottom insets with max-height that doesn't constrain -->
+<div class="container">
+    <div class="abspos" style="top: 50px; bottom: 50px; max-height: 200px;"></div>
+</div>
+
+<!-- Case 5: Height from top+bottom insets with both min-height and max-height -->
+<div class="container">
+    <div class="abspos" style="top: 10px; bottom: 10px; min-height: 50px; max-height: 150px;"></div>
+</div>
