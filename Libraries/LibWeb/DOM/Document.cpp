@@ -4668,6 +4668,15 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
 
     Vector<GC::Root<HTML::Navigable>> descendant_navigables;
     for (auto& other_navigable : HTML::all_navigables()) {
+        // AD-HOC: Skip destroyed navigables. When an iframe is removed,
+        //         destroy_the_child_navigable() marks its navigable as destroyed
+        //         synchronously, but removal from all_navigables() happens later
+        //         in an async callback. If we count destroyed navigables here,
+        //         the unload tasks we queue for them can be removed by
+        //         Document::destroy() (which clears tasks for its document),
+        //         causing the spin_until below to wait forever.
+        if (other_navigable->has_been_destroyed())
+            continue;
         if (navigable->is_ancestor_of(*other_navigable))
             descendant_navigables.append(other_navigable);
     }
