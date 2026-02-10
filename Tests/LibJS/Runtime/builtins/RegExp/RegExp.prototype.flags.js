@@ -12,4 +12,15 @@ test("basic functionality", () => {
     expect(/foo/dsgimyu.flags).toBe("dgimsuy");
     // prettier-ignore
     expect(/foo/dgimsvy.flags).toBe("dgimsvy");
+
+    const proxy = new Proxy(
+        {},
+        {
+            get() {
+                return true;
+            },
+        }
+    );
+
+    expect(Object.getOwnPropertyDescriptor(RegExp.prototype, "flags").get.call(proxy)).toBe("dgimsuvy");
 });
