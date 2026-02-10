@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: Picture element with source loading a delayed image.
+// The iframe is removed before the image arrives.
+asyncTest(async done => {
+    const server = httpTestServer();
+
+    const svgBody = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="blue"/></svg>';
+
+    const imageUrl = await server.createEcho("GET", "/delayed-picture-image.svg", {
+        status: 200,
+        headers: {
+            "Content-Type": "image/svg+xml",
+            "Access-Control-Allow-Origin": "*",
+        },
+        body: svgBody,
+        delay_ms: 200,
+    });
+
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    const picture = doc.createElement("picture");
+    const source = doc.createElement("source");
+    source.srcset = imageUrl;
+    source.type = "image/svg+xml";
+    picture.appendChild(source);
+
+    const img = doc.createElement("img");
+    img.src = imageUrl;
+    picture.appendChild(img);
+    doc.body.appendChild(picture);
+
+    setTimeout(() => {
+        iframe.remove();
+    }, 50);
+
+    setTimeout(() => {
+        println("PASS");
+        done();
+    }, 1000);
+});
+</script>

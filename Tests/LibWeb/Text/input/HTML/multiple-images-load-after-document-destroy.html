@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: Multiple images with varying delays complete after the iframe's
+// document is destroyed. Some arrive before destruction, some after.
+asyncTest(async done => {
+    const server = httpTestServer();
+
+    const svgBody = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>';
+
+    // Create images with different delays.
+    const delays = [10, 50, 100, 200, 300, 500];
+    const imageUrls = [];
+    for (let i = 0; i < delays.length; i++) {
+        const url = await server.createEcho("GET", `/delayed-multi-image-${i}.svg`, {
+            status: 200,
+            headers: {
+                "Content-Type": "image/svg+xml",
+                "Access-Control-Allow-Origin": "*",
+            },
+            body: svgBody,
+            delay_ms: delays[i],
+        });
+        imageUrls.push(url);
+    }
+
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    for (const url of imageUrls) {
+        const img = doc.createElement("img");
+        img.src = url;
+        doc.body.appendChild(img);
+    }
+
+    // Remove iframe after 75ms. Images with delay 10 and 50 arrive before removal,
+    // images with delay 100+ arrive after removal.
+    setTimeout(() => {
+        iframe.remove();
+    }, 75);
+
+    setTimeout(() => {
+        println("PASS");
+        done();
+    }, 2000);
+});
+</script>

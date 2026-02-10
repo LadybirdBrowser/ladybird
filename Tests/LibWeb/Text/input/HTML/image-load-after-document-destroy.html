@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: Image fetch completes after the iframe's document has been destroyed.
+// Uses the echo server to delay the image response, ensuring the document
+// destruction runs before the image load callback fires.
+asyncTest(async done => {
+    const server = httpTestServer();
+
+    // Create a delayed SVG image response (200ms delay).
+    const imageUrl = await server.createEcho("GET", "/delayed-image-1.svg", {
+        status: 200,
+        headers: {
+            "Content-Type": "image/svg+xml",
+            "Access-Control-Allow-Origin": "*",
+        },
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>',
+        delay_ms: 200,
+    });
+
+    // Use an about:blank iframe (same-origin) so we can access contentDocument.
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    const img = doc.createElement("img");
+    img.src = imageUrl;
+    doc.body.appendChild(img);
+
+    // Give the fetch time to start, then remove the iframe.
+    // The document will be destroyed before the delayed image arrives.
+    setTimeout(() => {
+        iframe.remove();
+    }, 50);
+
+    // Wait long enough for the delayed image to arrive and callbacks to fire.
+    setTimeout(() => {
+        println("PASS");
+        done();
+    }, 1000);
+});
+</script>
