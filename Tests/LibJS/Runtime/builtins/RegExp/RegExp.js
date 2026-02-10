@@ -555,3 +555,14 @@ test("Unicode case-insensitive matching", () => {
     testMatch(/[\u03A9]/i, "\u2126", null);
     testMatch(/[\u03A9]/iv, "\u2126", ["\u2126"]);
 });
+
+test("surrogate pairs", () => {
+    expect(eval(`/[\uD83D\uDC38]/u`).exec("\u{1F438}")?.[0]).toBe("\u{1F438}");
+    expect(eval(`/[\uD83D\uDC38]/`).exec("\u{1F438}")?.[0]).toBe("\uD83D");
+    expect(eval(`/[\\uD83D\uDC38]/u`).exec("\u{1F438}")).toBeNull();
+    expect(eval(`/[\\u{D83D}\uDC38]/u`).exec("\u{1F438}")).toBeNull();
+    expect(eval(`/[\uD83D\\uDC38]/u`).exec("\u{1F438}")).toBeNull();
+    expect(eval(`/[\uD83D\\u{DC38}]/u`).exec("\u{1F438}")).toBeNull();
+    expect(eval(`/[\\uD83D\uDC38]/`).exec("\u{1F438}")?.[0]).toBe("\uD83D");
+    expect(eval(`/[\uD83D\\uDC38]/`).exec("\u{1F438}")?.[0]).toBe("\uD83D");
+});

@@ -452,6 +452,11 @@ protected:
         if (!combine_surrogate_pairs || !consume_specific("\\u"sv))
             return *high_surrogate;
 
+        if (next_is('{')) {
+            retreat(2);
+            return *high_surrogate;
+        }
+
         auto low_surrogate = decode_one_surrogate();
         if (!low_surrogate.has_value())
             return UnicodeEscapeError::MalformedUnicodeEscape;

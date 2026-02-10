@@ -6,6 +6,7 @@
  */
 
 #include <AK/Function.h>
+#include <AK/UnicodeUtils.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -97,7 +98,6 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pat
 
     StringBuilder builder;
 
-    // FIXME: We need to escape multi-byte code units for LibRegex to parse since the lexer there doesn't handle unicode.
     auto previous_code_unit_was_backslash = false;
     for (size_t i = 0; i < pattern.length_in_code_units(); ++i) {
         u16 code_unit = pattern.code_unit_at(i);
@@ -109,7 +109,22 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pat
             // As such, we're going to remove the (invalid) backslash and pretend it never existed.
             if (!previous_code_unit_was_backslash)
                 builder.append('\\');
-            builder.appendff("u{:04x}", code_unit);
+
+            if ((unicode || unicode_sets) && AK::UnicodeUtils::is_utf16_high_surrogate(code_unit) && i + 1 < pattern.length_in_code_units()) {
+                u16 next_code_unit = pattern.code_unit_at(i + 1);
+                if (AK::UnicodeUtils::is_utf16_low_surrogate(next_code_unit)) {
+                    u32 combined = AK::UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
+                    builder.appendff("u{{{:x}}}", combined);
+                    ++i;
+                    previous_code_unit_was_backslash = false;
+                    continue;
+                }
+            }
+
+            if (unicode || unicode_sets)
+                builder.appendff("u{{{:04x}}}", code_unit);
+            else
+                builder.appendff("u{:04x}", code_unit);
         } else {
             builder.append_code_point(code_unit);
         }
