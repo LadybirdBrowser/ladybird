@@ -719,9 +719,9 @@ void Generator::pop_lexical_environment_register()
     m_lexical_environment_register_stack.take_last();
 }
 
-void Generator::begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set)
+void Generator::begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set, Optional<ScopedOperand> completion_register)
 {
-    m_continuable_scopes.append({ continue_target, language_label_set });
+    m_continuable_scopes.append({ continue_target, language_label_set, move(completion_register) });
     start_boundary(BlockBoundaryType::Continue);
 }
 
@@ -736,9 +736,9 @@ Label Generator::nearest_breakable_scope() const
     return m_breakable_scopes.last().bytecode_target;
 }
 
-void Generator::begin_breakable_scope(Label breakable_target, Vector<FlyString> const& language_label_set)
+void Generator::begin_breakable_scope(Label breakable_target, Vector<FlyString> const& language_label_set, Optional<ScopedOperand> completion_register)
 {
-    m_breakable_scopes.append({ breakable_target, language_label_set });
+    m_breakable_scopes.append({ breakable_target, language_label_set, move(completion_register) });
     start_boundary(BlockBoundaryType::Break);
 }
 
@@ -1142,13 +1142,23 @@ void Generator::generate_scoped_jump(JumpType type)
         switch (boundary) {
         case Break:
             if (type == JumpType::Break) {
-                emit<Op::Jump>(nearest_breakable_scope());
+                auto const& target_scope = m_breakable_scopes.last();
+                if (m_current_completion_register.has_value() && target_scope.completion_register.has_value()
+                    && *m_current_completion_register != *target_scope.completion_register) {
+                    emit_mov(*target_scope.completion_register, *m_current_completion_register);
+                }
+                emit<Op::Jump>(target_scope.bytecode_target);
                 return;
             }
             break;
         case Continue:
             if (type == JumpType::Continue) {
-                emit<Op::Jump>(nearest_continuable_scope());
+                auto const& target_scope = m_continuable_scopes.last();
+                if (m_current_completion_register.has_value() && target_scope.completion_register.has_value()
+                    && *m_current_completion_register != *target_scope.completion_register) {
+                    emit_mov(*target_scope.completion_register, *m_current_completion_register);
+                }
+                emit<Op::Jump>(target_scope.bytecode_target);
                 return;
             }
             break;
@@ -1159,8 +1169,12 @@ void Generator::generate_scoped_jump(JumpType type)
         case ReturnToFinally: {
             VERIFY(m_current_finally_context);
             if (!has_outer_finally_before_target(type, i)) {
-                auto target = type == JumpType::Break ? nearest_breakable_scope() : nearest_continuable_scope();
-                register_jump_in_finally_context(target);
+                auto const& target_scope = type == JumpType::Break ? m_breakable_scopes.last() : m_continuable_scopes.last();
+                if (m_current_completion_register.has_value() && target_scope.completion_register.has_value()
+                    && *m_current_completion_register != *target_scope.completion_register) {
+                    emit_mov(*target_scope.completion_register, *m_current_completion_register);
+                }
+                register_jump_in_finally_context(target_scope.bytecode_target);
                 return;
             }
             emit_trampoline_through_finally(type);
@@ -1191,6 +1205,10 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
             } else if (boundary == BlockBoundaryType::ReturnToFinally) {
                 VERIFY(m_current_finally_context);
                 if (!has_outer_finally_before_target(type, current_boundary) && jumpable_scope.language_label_set.contains_slow(label)) {
+                    if (m_current_completion_register.has_value() && jumpable_scope.completion_register.has_value()
+                        && *m_current_completion_register != *jumpable_scope.completion_register) {
+                        emit_mov(*jumpable_scope.completion_register, *m_current_completion_register);
+                    }
                     register_jump_in_finally_context(jumpable_scope.bytecode_target);
                     return;
                 }
@@ -1203,6 +1221,10 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
         }
 
         if (jumpable_scope.language_label_set.contains_slow(label)) {
+            if (m_current_completion_register.has_value() && jumpable_scope.completion_register.has_value()
+                && *m_current_completion_register != *jumpable_scope.completion_register) {
+                emit_mov(*jumpable_scope.completion_register, *m_current_completion_register);
+            }
             emit<Op::Jump>(jumpable_scope.bytecode_target);
             return;
         }

@@ -58,8 +58,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ScopeNode::generate_byt
     for (auto& child : children()) {
         auto result = TRY(child->generate_bytecode(generator));
         if (generator.must_propagate_completion()) {
-            if (result.has_value())
+            if (result.has_value()) {
                 last_result = result;
+                if (!generator.is_current_block_terminated()) {
+                    if (auto completion_reg = generator.current_completion_register(); completion_reg.has_value())
+                        generator.emit_mov(*completion_reg, *result);
+                }
+            }
         }
         if (generator.is_current_block_terminated())
             break;
@@ -989,19 +994,21 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
         Bytecode::Label { end_block });
 
     generator.switch_to_basic_block(body_block);
-    generator.begin_continuable_scope(Bytecode::Label { test_block }, label_set);
-    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set);
-    auto body = TRY(m_body->generate_bytecode(generator));
+    generator.begin_continuable_scope(Bytecode::Label { test_block }, label_set, completion);
+    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set, completion);
+    {
+        Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+        if (completion.has_value())
+            completion_scope.emplace(generator, *completion);
+        auto body = TRY(m_body->generate_bytecode(generator));
+        if (!generator.is_current_block_terminated() && completion.has_value() && body.has_value())
+            generator.emit_mov(*completion, *body);
+    }
     generator.end_breakable_scope();
     generator.end_continuable_scope();
 
-    if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (body.has_value())
-                generator.emit_mov(*completion, body.value());
-        }
+    if (!generator.is_current_block_terminated())
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { test_block });
-    }
 
     generator.switch_to_basic_block(end_block);
     return completion;
@@ -1044,19 +1051,21 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::gener
         Bytecode::Label { load_result_and_jump_to_end_block });
 
     generator.switch_to_basic_block(body_block);
-    generator.begin_continuable_scope(Bytecode::Label { test_block }, label_set);
-    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set);
-    auto body_result = TRY(m_body->generate_bytecode(generator));
+    generator.begin_continuable_scope(Bytecode::Label { test_block }, label_set, completion);
+    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set, completion);
+    {
+        Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+        if (completion.has_value())
+            completion_scope.emplace(generator, *completion);
+        auto body = TRY(m_body->generate_bytecode(generator));
+        if (!generator.is_current_block_terminated() && completion.has_value() && body.has_value())
+            generator.emit_mov(*completion, *body);
+    }
     generator.end_breakable_scope();
     generator.end_continuable_scope();
 
-    if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (body_result.has_value())
-                generator.emit_mov(*completion, body_result.value());
-        }
+    if (!generator.is_current_block_terminated())
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { test_block });
-    }
 
     generator.switch_to_basic_block(load_result_and_jump_to_end_block);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
@@ -1173,6 +1182,12 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
 
     auto& end_block = generator.make_block();
 
+    Optional<ScopedOperand> completion;
+    if (generator.must_propagate_completion()) {
+        completion = generator.allocate_register();
+        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
+    }
+
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *test_block_ptr });
 
     if (m_test) {
@@ -1183,9 +1198,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
         // OPTIMIZATION: test value is always falsey, skip body entirely
         if (auto constant = generator.try_get_constant(test); constant.has_value() && !constant->to_boolean_slow_case()) {
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
-            auto undefined_value = generator.add_constant(js_undefined());
             generator.switch_to_basic_block(end_block);
-            return undefined_value;
+            if (has_lexical_environment)
+                generator.end_variable_scope();
+            return completion;
         }
 
         generator.emit_jump_if(test, Bytecode::Label { *body_block_ptr }, Bytecode::Label { end_block });
@@ -1199,9 +1215,16 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     }
 
     generator.switch_to_basic_block(*body_block_ptr);
-    generator.begin_continuable_scope(Bytecode::Label { m_update ? *update_block_ptr : *test_block_ptr }, label_set);
-    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set);
-    auto body_result = TRY(m_body->generate_bytecode(generator));
+    generator.begin_continuable_scope(Bytecode::Label { m_update ? *update_block_ptr : *test_block_ptr }, label_set, completion);
+    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set, completion);
+    {
+        Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+        if (completion.has_value())
+            completion_scope.emplace(generator, *completion);
+        auto body = TRY(m_body->generate_bytecode(generator));
+        if (!generator.is_current_block_terminated() && completion.has_value() && body.has_value())
+            generator.emit_mov(*completion, *body);
+    }
     generator.end_breakable_scope();
     generator.end_continuable_scope();
 
@@ -1225,7 +1248,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     if (has_lexical_environment)
         generator.end_variable_scope();
 
-    return body_result;
+    return completion;
 }
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -2483,6 +2506,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     }
 
     auto build_block = [&](auto node, Optional<BasicBlock&> end_block = {}) -> CodeGenerationErrorOr<Optional<ScopedOperand>> {
+        Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+        if (completion.has_value())
+            completion_scope.emplace(generator, *completion);
         auto value = TRY(node->generate_bytecode(generator, completion));
         if (!generator.is_current_block_terminated()) {
             if (generator.must_propagate_completion() && value.has_value())
@@ -3127,18 +3153,23 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
     }
     auto current_block = case_blocks.begin();
-    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set);
+    generator.begin_breakable_scope(Bytecode::Label { end_block }, label_set, completion);
     for (auto& switch_case : m_cases) {
         generator.switch_to_basic_block(*current_block);
-        for (auto& statement : switch_case->children()) {
-            auto result = TRY(statement->generate_bytecode(generator));
-            if (generator.is_current_block_terminated())
-                break;
-            if (generator.must_propagate_completion()) {
-                if (result.has_value())
-                    generator.emit_mov(*completion, *result);
-                else
-                    generator.emit_mov(*completion, generator.add_constant(js_undefined()));
+        {
+            Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+            if (completion.has_value())
+                completion_scope.emplace(generator, *completion);
+            for (auto& statement : switch_case->children()) {
+                auto result = TRY(statement->generate_bytecode(generator));
+                if (generator.is_current_block_terminated())
+                    break;
+                if (generator.must_propagate_completion()) {
+                    if (result.has_value())
+                        generator.emit_mov(*completion, *result);
+                    else
+                        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
+                }
             }
         }
         if (!generator.is_current_block_terminated()) {
@@ -3499,10 +3530,13 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
             "Unimplemented: assignment destructuring in for/of"sv,
         };
     }
+    if (completion.has_value())
+        generator.set_current_breakable_scope_completion_register(*completion);
+
     // 6. Repeat,
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_update });
     generator.switch_to_basic_block(loop_update);
-    generator.begin_continuable_scope(Bytecode::Label { loop_update }, label_set);
+    generator.begin_continuable_scope(Bytecode::Label { loop_update }, label_set, completion);
 
     // a. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
     auto next_value = generator.allocate_register();
@@ -3671,7 +3705,14 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     //         2. Return ? IteratorClose(iteratorRecord, status).
 
     // l. Let result be the result of evaluating stmt.
-    auto result = TRY(body.generate_bytecode(generator));
+    {
+        Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+        if (completion.has_value())
+            completion_scope.emplace(generator, *completion);
+        auto result = TRY(body.generate_bytecode(generator));
+        if (!generator.is_current_block_terminated() && completion.has_value() && result.has_value())
+            generator.emit_mov(*completion, *result);
+    }
 
     // m. Set the running execution context's LexicalEnvironment to oldEnv.
     if (has_lexical_binding)
@@ -3679,26 +3720,9 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     generator.end_continuable_scope();
     generator.end_breakable_scope();
 
-    // NOTE: If we're here, then the loop definitely continues.
-    // n. If LoopContinues(result, labelSet) is false, then
-    //     i. If iterationKind is enumerate, then
-    //         1. Return ? UpdateEmpty(result, V).
-    //     ii. Else,
-    //         1. Assert: iterationKind is iterate.
-    //         2. Set status to Completion(UpdateEmpty(result, V)).
-    //         3. If iteratorKind is async, return ? AsyncIteratorClose(iteratorRecord, status).
-    //         4. Return ? IteratorClose(iteratorRecord, status).
-    // o. If result.[[Value]] is not empty, set V to result.[[Value]].
-
     // The body can contain an unconditional block terminator (e.g. return, throw), so we have to check for that before generating the Jump.
-    if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (result.has_value())
-                generator.emit_mov(*completion, *result);
-        }
-
+    if (!generator.is_current_block_terminated())
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_update });
-    }
 
     generator.switch_to_basic_block(loop_end);
     return completion;
