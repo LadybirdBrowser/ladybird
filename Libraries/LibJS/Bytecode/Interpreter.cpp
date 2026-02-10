@@ -910,56 +910,38 @@ inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter
     return {};
 }
 
-// 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
-static Value instantiate_ordinary_function_expression(Interpreter& interpreter, FunctionNode const& function_node, Utf16FlyString const& given_name)
-{
-    auto own_name = function_node.name();
-    auto has_own_name = !own_name.is_empty();
-
-    auto const& used_name = has_own_name ? own_name : given_name;
-
-    auto environment = GC::Ref { *interpreter.running_execution_context().lexical_environment };
-    if (has_own_name) {
-        environment = new_declarative_environment(*environment);
-        MUST(environment->create_immutable_binding(interpreter.vm(), own_name, false));
-    }
-
-    auto private_environment = interpreter.running_execution_context().private_environment;
-
-    // NB: SetFunctionName and MakeConstructor are performed by ECMAScriptFunctionObject::initialize().
-    auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment);
-
-    if (has_own_name)
-        MUST(environment->initialize_binding(interpreter.vm(), own_name, closure, Environment::InitializeBindingHint::Normal));
-
-    return closure;
-}
-
-inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const lhs_name, Optional<Operand> const home_object)
+inline Value new_function(Interpreter& interpreter, u32 shared_function_data_index, Optional<Operand> const home_object)
 {
     auto& vm = interpreter.vm();
-    Value value;
+    auto& shared_data = *interpreter.current_executable().shared_function_data[shared_function_data_index];
+    auto& realm = *vm.current_realm();
 
-    if (!function_node.has_name()) {
-        if (lhs_name.has_value())
-            value = instantiate_ordinary_function_expression(interpreter, function_node, interpreter.get_identifier(lhs_name.value()));
-        else
-            value = instantiate_ordinary_function_expression(interpreter, function_node, {});
-    } else {
-        value = ECMAScriptFunctionObject::create_from_function_node(
-            function_node,
-            function_node.name(),
-            *vm.current_realm(),
-            vm.lexical_environment(),
-            vm.running_execution_context().private_environment);
-    }
+    GC::Ref<Object> prototype = [&]() -> GC::Ref<Object> {
+        switch (shared_data.m_kind) {
+        case FunctionKind::Normal:
+            return realm.intrinsics().function_prototype();
+        case FunctionKind::Generator:
+            return realm.intrinsics().generator_function_prototype();
+        case FunctionKind::Async:
+            return realm.intrinsics().async_function_prototype();
+        case FunctionKind::AsyncGenerator:
+            return realm.intrinsics().async_generator_function_prototype();
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    auto function = ECMAScriptFunctionObject::create_from_function_data(
+        realm, shared_data,
+        vm.lexical_environment(),
+        vm.running_execution_context().private_environment,
+        *prototype);
 
     if (home_object.has_value()) {
         auto home_object_value = interpreter.get(home_object.value());
-        as<ECMAScriptFunctionObject>(value.as_function()).set_home_object(&home_object_value.as_object());
+        function->set_home_object(&home_object_value.as_object());
     }
 
-    return value;
+    return function;
 }
 
 template<PutKind kind>
@@ -2751,7 +2733,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
 void NewFunction::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), new_function(interpreter, m_function_node, m_lhs_name, m_home_object));
+    interpreter.set(dst(), new_function(interpreter, m_shared_function_data_index, m_home_object));
 }
 
 void Return::execute_impl(Bytecode::Interpreter& interpreter) const

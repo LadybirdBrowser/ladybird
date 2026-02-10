@@ -15,6 +15,7 @@
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS::Bytecode {
@@ -32,6 +33,36 @@ Generator::Generator(VM& vm, GC::Ptr<SharedFunctionInstanceData const> shared_fu
     , m_builtin_abstract_operations_enabled(builtin_abstract_operations_enabled == BuiltinAbstractOperationsEnabled::Yes)
     , m_shared_function_instance_data(shared_function_instance_data)
 {
+}
+
+static GC::Ref<SharedFunctionInstanceData> ensure_shared_function_data(VM& vm, FunctionNode const& function_node, Utf16FlyString name)
+{
+    auto shared_data = function_node.shared_data();
+    if (shared_data)
+        return *shared_data;
+
+    auto& realm = *vm.current_realm();
+    shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
+        vm,
+        function_node.kind(),
+        move(name),
+        function_node.function_length(),
+        function_node.parameters(),
+        *function_node.body_ptr(),
+        function_node.source_text(),
+        function_node.is_strict_mode(),
+        function_node.is_arrow_function(),
+        function_node.parsing_insights(),
+        function_node.local_variables_names());
+    function_node.set_shared_data(shared_data);
+    return *shared_data;
+}
+
+u32 Generator::register_shared_function_data(GC::Ref<SharedFunctionInstanceData> data)
+{
+    auto index = static_cast<u32>(m_shared_function_data.size());
+    m_shared_function_data.append(data);
+    return index;
 }
 
 CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(SharedFunctionInstanceData const& shared_function_instance_data)
@@ -211,14 +242,17 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
     }
 
     for (auto const& declaration : shared_function_instance_data.m_functions_to_initialize) {
+        auto shared_data = ensure_shared_function_data(m_vm, declaration, declaration.name());
+        auto data_index = register_shared_function_data(shared_data);
+
         auto const& identifier = *declaration.name_identifier();
         if (identifier.is_local()) {
             auto local_index = identifier.local_index();
-            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {}, OptionalNone {});
+            emit<Op::NewFunction>(local(local_index), data_index, OptionalNone {}, OptionalNone {});
             set_local_initialized(local_index);
         } else {
             auto function = allocate_register();
-            emit<Op::NewFunction>(function, declaration, OptionalNone {}, OptionalNone {});
+            emit<Op::NewFunction>(function, data_index, OptionalNone {}, OptionalNone {});
             emit<Op::SetVariableBinding>(intern_identifier(declaration.name()), function);
         }
     }
@@ -503,6 +537,11 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     executable->basic_block_start_offsets = move(basic_block_start_offsets);
     executable->source_map = move(source_map);
     executable->local_variable_names = move(local_variable_names);
+
+    executable->shared_function_data.ensure_capacity(generator.m_shared_function_data.size());
+    for (auto& root : generator.m_shared_function_data)
+        executable->shared_function_data.append(root.ptr());
+
     // NB: Layout is [registers | locals | constants | arguments]
     executable->local_index_base = number_of_registers;
 
@@ -657,8 +696,10 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
             auto& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
 
             // ii. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
+            auto shared_data = ensure_shared_function_data(m_vm, function_declaration, function_declaration.name());
+            auto data_index = register_shared_function_data(shared_data);
             auto fo = allocate_register();
-            emit<Bytecode::Op::NewFunction>(fo, function_declaration, OptionalNone {}, OptionalNone {});
+            emit<Bytecode::Op::NewFunction>(fo, data_index, OptionalNone {}, OptionalNone {});
 
             // iii. Perform ! env.InitializeBinding(fn, fo). NOTE: This step is replaced in section B.3.2.6.
             if (function_declaration.name_identifier()->is_local()) {
@@ -1267,10 +1308,19 @@ void Generator::pop_home_object()
 
 void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name, bool is_method)
 {
+    Utf16FlyString name;
+    if (function_node.has_name())
+        name = function_node.name();
+    else if (lhs_name.has_value())
+        name = m_identifier_table->get(lhs_name.value());
+
+    auto shared_data = ensure_shared_function_data(m_vm, function_node, move(name));
+    auto data_index = register_shared_function_data(shared_data);
+
     if (!is_method || m_home_objects.is_empty()) {
-        emit<Op::NewFunction>(dst, function_node, lhs_name, OptionalNone {});
+        emit<Op::NewFunction>(dst, data_index, lhs_name, OptionalNone {});
     } else {
-        emit<Op::NewFunction>(dst, function_node, lhs_name, m_home_objects.last());
+        emit<Op::NewFunction>(dst, data_index, lhs_name, m_home_objects.last());
     }
 }
 

@@ -10,6 +10,7 @@
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/RegexTable.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/SourceCode.h>
 
@@ -97,6 +98,8 @@ void Executable::visit_edges(Visitor& visitor)
     visitor.visit(constants);
     for (auto& cache : template_object_caches)
         visitor.visit(cache.cached_template_object);
+    for (auto& data : shared_function_data)
+        visitor.visit(data);
     property_key_table->visit_edges(visitor);
 }
 

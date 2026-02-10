@@ -37,7 +37,7 @@ JS bytecode executable "object_destructuring_with_function_default"
 [  28]       ThrowIfNullish src:reg5
 [  30]       GetById dst:reg6, base:reg5, property:x
 [  48]       JumpUndefined condition:reg6, true_target:@58, false_target:@80
-[  58]    1: NewFunction dst:reg7, lhs_name:x
+[  58]    1: NewFunction dst:reg7, shared_function_data_index:0, lhs_name:x
 [  70]       Mov dst:reg6, src:reg7
 [  80]    2: Mov dst:x~0, src:reg6
 [  90]       Return value:x~0
@@ -54,7 +54,7 @@ JS bytecode executable "setter_parameter_resolution"
 [  98]    1: Mov dst:reg11, src:Undefined
 [  a8]       Jump target:@b0
 [  b0]    2: NewObject dst:reg12
-[  c0]       NewFunction dst:reg13, lhs_name:set y, home_object:reg12
+[  c0]       NewFunction dst:reg13, shared_function_data_index:0, lhs_name:set y, home_object:reg12
 [  d8]       PutSetterById base:reg12, property:y, src:reg13
 [  f0]       PutNormalById base:reg12, property:y, src:reg11
 [ 108]       JumpFalse condition:reg6, target:@138
@@ -67,3 +67,4 @@ JS bytecode executable "set y"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       SetLexicalBinding identifier:setValue, src:arg0
 [  20]       End value:Undefined
+

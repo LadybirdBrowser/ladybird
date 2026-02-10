@@ -207,6 +207,8 @@ public:
     void pop_home_object();
     void emit_new_function(ScopedOperand dst, JS::FunctionExpression const&, Optional<IdentifierTableIndex> lhs_name, bool is_method);
 
+    u32 register_shared_function_data(GC::Ref<SharedFunctionInstanceData>);
+
     CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {}, bool is_method = false);
 
     void ensure_lexical_environment_register_initialized();
@@ -510,6 +512,8 @@ private:
     bool m_builtin_abstract_operations_enabled { false };
 
     GC::Ptr<SharedFunctionInstanceData const> m_shared_function_instance_data;
+
+    Vector<GC::Root<SharedFunctionInstanceData>> m_shared_function_data;
 
     Optional<PropertyKeyTableIndex> m_length_identifier;
 };
