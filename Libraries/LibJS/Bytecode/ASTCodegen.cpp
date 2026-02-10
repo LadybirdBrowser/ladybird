@@ -2942,11 +2942,24 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
                 return {};
             }));
 
-        auto handler_result = TRY(m_handler->body().generate_bytecode(generator));
+        Optional<ScopedOperand> catch_completion;
+        {
+            // NB: The catch body needs its own completion register so that
+            // break/continue inside the catch block carries the catch's
+            // own completion value rather than leaking a value from an
+            // enclosing statement.
+            Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+            if (generator.must_propagate_completion()) {
+                catch_completion = generator.allocate_register();
+                generator.emit_mov(*catch_completion, generator.add_constant(js_undefined()));
+                completion_scope.emplace(generator, *catch_completion);
+            }
+            (void)TRY(m_handler->body().generate_bytecode(generator));
+        }
         if (generator.must_propagate_completion()) {
-            if (handler_result.has_value() && !generator.is_current_block_terminated()) {
+            if (catch_completion.has_value() && !generator.is_current_block_terminated()) {
                 completion = generator.allocate_register();
-                generator.emit_mov(*completion, *handler_result);
+                generator.emit_mov(*completion, *catch_completion);
             }
         }
         handler_target = Bytecode::Label { handler_block };
@@ -2988,12 +3001,25 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         generator.start_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
 
     generator.switch_to_basic_block(target_block);
-    auto block_result = TRY(m_block->generate_bytecode(generator));
+    Optional<ScopedOperand> try_completion;
+    {
+        // NB: The try body needs its own completion register so that
+        // break/continue inside the try block carries the try's own
+        // completion value rather than leaking a value from an enclosing
+        // statement.
+        Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+        if (generator.must_propagate_completion()) {
+            try_completion = generator.allocate_register();
+            generator.emit_mov(*try_completion, generator.add_constant(js_undefined()));
+            completion_scope.emplace(generator, *try_completion);
+        }
+        (void)TRY(m_block->generate_bytecode(generator));
+    }
     if (!generator.is_current_block_terminated()) {
         if (generator.must_propagate_completion()) {
-            if (block_result.has_value()) {
+            if (try_completion.has_value()) {
                 completion = generator.allocate_register();
-                generator.emit_mov(*completion, *block_result);
+                generator.emit_mov(*completion, *try_completion);
             }
         }
 
@@ -3025,7 +3051,20 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
 
         generator.switch_to_basic_block(*finally_body_block_ptr);
         generator.start_boundary(Bytecode::Generator::BlockBoundaryType::LeaveFinally);
-        (void)TRY(m_finalizer->generate_bytecode(generator));
+        {
+            // NB: The finally body needs its own completion register so that
+            // break/continue inside the finally block carries the finally's
+            // own completion value (initialized to undefined) rather than
+            // leaking the try/catch block's completion value through.
+            Optional<ScopedOperand> finally_completion;
+            Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
+            if (generator.must_propagate_completion()) {
+                finally_completion = generator.allocate_register();
+                generator.emit_mov(*finally_completion, generator.add_constant(js_undefined()));
+                completion_scope.emplace(generator, *finally_completion);
+            }
+            (void)TRY(m_finalizer->generate_bytecode(generator));
+        }
         generator.end_boundary(Bytecode::Generator::BlockBoundaryType::LeaveFinally);
 
         if (!generator.is_current_block_terminated()) {
