@@ -983,7 +983,20 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
 
     promise->when_resolved([&view, test_index, &app, &context](auto) {
         auto& test = context.tests[test_index];
-        auto url = URL::create_with_file_scheme(MUST(FileSystem::real_path(test.input_path))).release_value();
+        auto real_path = MUST(FileSystem::real_path(test.input_path));
+        auto headers_path = ByteString::formatted("{}.headers", real_path);
+
+        URL::URL url;
+        if (FileSystem::exists(headers_path)) {
+            // Serve via the echo server so HTTP headers from the .headers file are applied.
+            auto echo_server_port = Application::web_content_options().echo_server_port;
+            VERIFY(echo_server_port.has_value());
+            auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
+            VERIFY(relative_path.has_value());
+            url = URL::Parser::basic_parse(ByteString::formatted("http://localhost:{}/static/{}", echo_server_port.value(), relative_path.value())).release_value();
+        } else {
+            url = URL::create_with_file_scheme(real_path).release_value();
+        }
 
         // Append variant query string if present (variant is "?foo=bar", set_query expects "foo=bar")
         if (test.variant.has_value())
