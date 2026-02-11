@@ -477,6 +477,16 @@ bool HTMLTextAreaElement::is_mutable() const
     return enabled() && !has_attribute(AttributeNames::readonly);
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#attr-textarea-placeholder
+Optional<String> HTMLTextAreaElement::placeholder_value() const
+{
+    if (!m_text_node || !m_text_node->data().is_empty())
+        return {};
+    if (!has_attribute(HTML::AttributeNames::placeholder))
+        return {};
+    return get_attribute_value(HTML::AttributeNames::placeholder);
+}
+
 GC::Ptr<Layout::Node> HTMLTextAreaElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::TextAreaBox>(document(), *this, style);

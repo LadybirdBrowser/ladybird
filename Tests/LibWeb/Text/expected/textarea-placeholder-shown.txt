@@ -1,0 +1,6 @@
+empty value: true
+non-empty value: false
+no placeholder attr: false
+empty placeholder attr: true
+value cleared: true
+placeholder removed: false
