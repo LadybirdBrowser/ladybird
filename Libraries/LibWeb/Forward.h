@@ -410,6 +410,7 @@ struct CSSStyleSheetInit;
 struct GridRepeatParams;
 struct LogicalAliasMappingContext;
 struct RandomCachingKey;
+struct RequiredInvalidationAfterStyleChange;
 struct StyleSheetIdentifier;
 struct TransitionProperties;
 template<typename T>

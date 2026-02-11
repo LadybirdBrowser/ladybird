@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StylePropertyMap.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>

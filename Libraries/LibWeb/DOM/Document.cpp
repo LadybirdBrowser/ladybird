@@ -50,6 +50,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
