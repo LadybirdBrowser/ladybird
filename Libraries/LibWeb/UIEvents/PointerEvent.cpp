@@ -78,6 +78,40 @@ void PointerEvent::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_predicted_events);
 }
 
+GC::Ref<MouseEvent> PointerEvent::clone() const
+{
+    PointerEventInit init {};
+    init.screen_x = screen_x();
+    init.screen_y = screen_y();
+    init.client_x = client_x();
+    init.client_y = client_y();
+    init.movement_x = movement_x();
+    init.movement_y = movement_y();
+    init.button = button();
+    init.buttons = buttons();
+    init.related_target = related_target();
+    init.ctrl_key = ctrl_key();
+    init.shift_key = shift_key();
+    init.alt_key = alt_key();
+    init.meta_key = meta_key();
+    init.view = view();
+    init.detail = detail();
+    init.pointer_id = m_pointer_id;
+    init.width = m_width;
+    init.height = m_height;
+    init.pressure = m_pressure;
+    init.tangential_pressure = m_tangential_pressure;
+    init.tilt_x = m_tilt_x;
+    init.tilt_y = m_tilt_y;
+    init.twist = m_twist;
+    init.altitude_angle = m_altitude_angle;
+    init.azimuth_angle = m_azimuth_angle;
+    init.pointer_type = m_pointer_type;
+    init.is_primary = m_is_primary;
+    init.persistent_device_id = m_persistent_device_id;
+    return create(realm(), type(), init, page_x(), page_y(), offset_x(), offset_y());
+}
+
 GC::Ref<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
 {
     return realm.create<PointerEvent>(realm, type, event_init, page_x, page_y, offset_x, offset_y);

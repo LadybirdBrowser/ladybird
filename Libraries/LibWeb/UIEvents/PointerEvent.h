@@ -57,6 +57,8 @@ public:
     AK::ReadonlySpan<GC::Ref<PointerEvent>> get_coalesced_events() const { return m_coalesced_events; }
     AK::ReadonlySpan<GC::Ref<PointerEvent>> get_predicted_events() const { return m_predicted_events; }
 
+    [[nodiscard]] virtual GC::Ref<MouseEvent> clone() const override;
+
     // https://w3c.github.io/pointerevents/#dom-pointerevent-pressure
     // For hardware and platforms that do not support pressure, the value MUST be 0.5 when in the active buttons state and 0 otherwise.
     static constexpr float ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE { 0.5 };
