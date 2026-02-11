@@ -9,6 +9,7 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/JsonObjectSerializer.h>
 #include <AK/StringBuilder.h>
 #include <LibGC/DeferGC.h>
 #include <LibIPC/Decoder.h>
@@ -20,6 +21,7 @@
 #include <LibWeb/Bindings/NodePrototype.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
@@ -58,6 +60,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>

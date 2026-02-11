@@ -13,7 +13,7 @@
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/StyleSheet.h>
-#include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Types.h>
 

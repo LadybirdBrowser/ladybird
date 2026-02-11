@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>
 
 namespace Web::DOM {

@@ -8,7 +8,7 @@
 
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/FragmentSerializationMode.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/Parser/ListOfActiveFormattingElements.h>

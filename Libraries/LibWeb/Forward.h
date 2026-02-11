@@ -794,6 +794,7 @@ class XMLSerializer;
 
 enum class AllowMultipleFiles;
 enum class MediaSeekMode;
+enum class RequireWellFormed;
 enum class SandboxingFlagSet;
 
 struct Agent;

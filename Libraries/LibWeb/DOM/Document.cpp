@@ -14,6 +14,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/InsertionSort.h>
+#include <AK/JsonObjectSerializer.h>
 #include <AK/Random.h>
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
@@ -65,6 +66,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>

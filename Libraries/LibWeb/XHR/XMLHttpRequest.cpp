@@ -42,6 +42,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/ByteSequences.h>
 #include <LibWeb/Infra/JSON.h>
 #include <LibWeb/Loader/ResourceLoader.h>

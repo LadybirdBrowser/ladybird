@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Editing {

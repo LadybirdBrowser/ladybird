@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/JsonValue.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/Cursor.h>
