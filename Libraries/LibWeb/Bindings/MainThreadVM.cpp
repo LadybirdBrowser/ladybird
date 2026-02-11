@@ -270,7 +270,7 @@ void initialize_main_thread_vm(AgentType type)
     };
 
     // 8.1.5.4.3 HostEnqueuePromiseJob(job, realm), https://html.spec.whatwg.org/multipage/webappapis.html#hostenqueuepromisejob
-    // // https://whatpr.org/html/9893/webappapis.html#hostenqueuepromisejob
+    // https://whatpr.org/html/9893/webappapis.html#hostenqueuepromisejob
     s_main_thread_vm->host_enqueue_promise_job = [](GC::Ref<GC::Function<JS::ThrowCompletionOr<JS::Value>()>> job, JS::Realm* realm) {
         auto& vm = *s_main_thread_vm;
 

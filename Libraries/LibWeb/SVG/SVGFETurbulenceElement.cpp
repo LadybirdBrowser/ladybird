@@ -73,7 +73,7 @@ GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::seed()
     return *m_seed;
 }
 
-// // https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-stitchtiles
+// https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-stitchtiles
 static SVGFETurbulenceElement::StitchType parse_stitch_tiles(String const& value)
 {
     if (value == "stitch"sv)

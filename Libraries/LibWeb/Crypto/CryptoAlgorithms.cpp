@@ -7230,7 +7230,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
             if (jwk.kty != "OKP"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid key type"_utf16);
 
-            // // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+            // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "X25519"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid curve"_utf16);
@@ -7846,7 +7846,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
             if (jwk.kty != "OKP"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid key type"_utf16);
 
-            // // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+            // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "X448"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid curve"_utf16);
