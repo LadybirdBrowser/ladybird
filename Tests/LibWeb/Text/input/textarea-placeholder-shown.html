@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // Textarea with placeholder, empty value: should match.
+        const t1 = document.createElement("textarea");
+        t1.setAttribute("placeholder", "Enter text");
+        document.body.appendChild(t1);
+        println(`empty value: ${t1.matches(":placeholder-shown")}`);
+
+        // Textarea with placeholder, non-empty value: should not match.
+        const t2 = document.createElement("textarea");
+        t2.setAttribute("placeholder", "Enter text");
+        t2.value = "Hello";
+        document.body.appendChild(t2);
+        println(`non-empty value: ${t2.matches(":placeholder-shown")}`);
+
+        // Textarea without placeholder attribute: should not match.
+        const t3 = document.createElement("textarea");
+        document.body.appendChild(t3);
+        println(`no placeholder attr: ${t3.matches(":placeholder-shown")}`);
+
+        // Textarea with empty placeholder, empty value: should match.
+        const t4 = document.createElement("textarea");
+        t4.setAttribute("placeholder", "");
+        document.body.appendChild(t4);
+        println(`empty placeholder attr: ${t4.matches(":placeholder-shown")}`);
+
+        // Textarea with value set then cleared: should match again.
+        const t5 = document.createElement("textarea");
+        t5.setAttribute("placeholder", "Enter text");
+        document.body.appendChild(t5);
+        t5.value = "Hello";
+        t5.value = "";
+        println(`value cleared: ${t5.matches(":placeholder-shown")}`);
+
+        // Textarea with placeholder removed: should not match.
+        const t6 = document.createElement("textarea");
+        t6.setAttribute("placeholder", "Enter text");
+        document.body.appendChild(t6);
+        t6.removeAttribute("placeholder");
+        println(`placeholder removed: ${t6.matches(":placeholder-shown")}`);
+    });
+</script>

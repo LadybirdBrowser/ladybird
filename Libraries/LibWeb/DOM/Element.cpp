@@ -1675,7 +1675,11 @@ bool Element::matches_placeholder_shown_pseudo_class() const
         auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
         return input_element.placeholder_element() && input_element.placeholder_value().has_value();
     }
-    // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
+    // - textarea elements that have a placeholder attribute whose value is currently being presented to the user.
+    if (is<HTML::HTMLTextAreaElement>(*this) && has_attribute(HTML::AttributeNames::placeholder)) {
+        auto const& textarea_element = static_cast<HTML::HTMLTextAreaElement const&>(*this);
+        return textarea_element.placeholder_element() && textarea_element.placeholder_value().has_value();
+    }
     return false;
 }
 
