@@ -74,6 +74,17 @@ void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_na
     m_system_font_provider->for_each_typeface_with_family_name(family_name, move(callback));
 }
 
+void FontDatabase::clear_all_font_shaping_caches()
+{
+    m_system_font_provider->for_each_typeface([](Typeface const& typeface) {
+        typeface.clear_font_shaping_caches();
+    });
+    for (auto& [_, entry] : m_code_point_fallback_cache) {
+        if (entry.typeface)
+            entry.typeface->clear_font_shaping_caches();
+    }
+}
+
 ErrorOr<Vector<String>> FontDatabase::font_directories()
 {
 #if defined(USE_FONTCONFIG)

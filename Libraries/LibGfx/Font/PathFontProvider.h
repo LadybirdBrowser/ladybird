@@ -28,6 +28,7 @@ public:
 
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) override;
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) override;
+    virtual void for_each_typeface(Function<void(Typeface const&)>) override;
     virtual StringView name() const LIFETIME_BOUND override { return m_name.bytes_as_string_view(); }
 
 private:

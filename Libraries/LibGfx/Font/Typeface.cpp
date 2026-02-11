@@ -73,6 +73,12 @@ NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const
     return font;
 }
 
+void Typeface::clear_font_shaping_caches() const
+{
+    for (auto& [_, font] : m_fonts)
+        font->shaping_cache().clear();
+}
+
 hb_face_t* Typeface::harfbuzz_typeface() const
 {
     if (!m_harfbuzz_blob)

@@ -11,6 +11,7 @@
 #include <AK/JsonValue.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Console.h>
@@ -344,6 +345,7 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 {
     auto& realm = document.realm();
 
+    Gfx::FontDatabase::the().clear_all_font_shaping_caches();
     m_web_ui.clear();
 
     if (auto console_client = document.console_client()) {

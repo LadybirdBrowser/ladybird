@@ -125,4 +125,12 @@ void PathFontProvider::for_each_typeface_with_family_name(FlyString const& famil
     }
 }
 
+void PathFontProvider::for_each_typeface(Function<void(Typeface const&)> callback)
+{
+    for (auto& [_, typefaces] : m_typeface_by_family) {
+        for (auto const& typeface : typefaces)
+            callback(*typeface);
+    }
+}
+
 }

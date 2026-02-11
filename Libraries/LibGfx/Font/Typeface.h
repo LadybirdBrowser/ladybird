@@ -75,6 +75,7 @@ public:
     virtual u8 slope() const = 0;
 
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
+    void clear_font_shaping_caches() const;
 
     hb_face_t* harfbuzz_typeface() const;
 

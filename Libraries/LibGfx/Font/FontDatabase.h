@@ -38,6 +38,7 @@ public:
     virtual StringView name() const = 0;
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) = 0;
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) = 0;
+    virtual void for_each_typeface(Function<void(Typeface const&)>) = 0;
 };
 
 class FontDatabase {
@@ -48,6 +49,7 @@ public:
     RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {});
     RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope);
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
+    void clear_all_font_shaping_caches();
     [[nodiscard]] StringView system_font_provider_name() const;
 
     static ErrorOr<Vector<String>> font_directories();
