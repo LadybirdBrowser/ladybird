@@ -884,10 +884,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
             .loaded_value = dst,
         };
     }
-    return CodeGenerationError {
-        &expression,
-        "Unimplemented non-computed member expression"sv
-    };
+    VERIFY_NOT_REACHED();
 }
 
 CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const& node, ScopedOperand value)
@@ -926,10 +923,7 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
                 auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                 emit<Bytecode::Op::PutPrivateById>(object, identifier_table_ref, value);
             } else {
-                return CodeGenerationError {
-                    &expression,
-                    "Unimplemented non-computed member expression"sv
-                };
+                VERIFY_NOT_REACHED();
             }
         }
 
@@ -1002,11 +996,8 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
             auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
             emit<Bytecode::Op::DeleteById>(dst, object, property_key_table_index);
         } else {
-            // NOTE: Trying to delete a private field generates a SyntaxError in the parser.
-            return CodeGenerationError {
-                &expression,
-                "Unimplemented non-computed member expression"sv
-            };
+            // NB: Trying to delete a private field generates a SyntaxError in the parser.
+            VERIFY_NOT_REACHED();
         }
         return dst;
     }

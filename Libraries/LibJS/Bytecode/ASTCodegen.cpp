@@ -688,10 +688,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     } else if (expression.property().is_private_identifier()) {
                         // Do nothing, this will be handled by PutPrivateById later.
                     } else {
-                        return Bytecode::CodeGenerationError {
-                            &expression,
-                            "Unimplemented non-computed member expression"sv
-                        };
+                        VERIFY_NOT_REACHED();
                     }
 
                     if (lhs_is_super_expression) {
@@ -755,10 +752,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                         auto identifier_table_ref = generator.intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                         generator.emit<Bytecode::Op::PutPrivateById>(*base, identifier_table_ref, rval);
                     } else {
-                        return Bytecode::CodeGenerationError {
-                            &expression,
-                            "Unimplemented non-computed member expression"sv
-                        };
+                        VERIFY_NOT_REACHED();
                     }
                 } else {
                     return Bytecode::CodeGenerationError {
@@ -884,10 +878,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
         generator.emit_mov(dst, rhs);
         break;
     default:
-        return Bytecode::CodeGenerationError {
-            this,
-            "Unimplemented operation"sv,
-        };
+        VERIFY_NOT_REACHED();
     }
 
     if (lhs_expression->is_identifier())
@@ -1568,13 +1559,8 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
             auto nested_value = generator.copy_if_needed_to_preserve_evaluation_order(value);
             TRY(binding_pattern.generate_bytecode(generator, initialization_mode, nested_value));
         } else if (alias.has<Empty>()) {
-            if (name.has<NonnullRefPtr<Expression const>>()) {
-                // This needs some sort of SetVariableByValue opcode, as it's a runtime binding
-                return Bytecode::CodeGenerationError {
-                    name.get<NonnullRefPtr<Expression const>>().ptr(),
-                    "Unimplemented name/alias pair: Empty/Expression"sv,
-                };
-            }
+            // NB: Computed property names always require an alias, so name can't be an Expression here.
+            VERIFY(!name.has<NonnullRefPtr<Expression const>>());
 
             auto const& identifier = *name.get<NonnullRefPtr<Identifier const>>();
             generator.emit_set_variable(identifier, value, initialization_mode);
@@ -3742,7 +3728,7 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
 }
 
 // 14.7.5.7 ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] ), https://tc39.es/ecma262/#sec-runtime-semantics-forin-div-ofbodyevaluation-lhs-stmt-iterator-lhskind-labelset
-static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_evaluation(Bytecode::Generator& generator, ASTNode const& node, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
+static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_evaluation(Bytecode::Generator& generator, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
 {
     // 1. If iteratorKind is not present, set iteratorKind to sync.
 
@@ -3760,15 +3746,9 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     auto destructuring = head_result.is_destructuring;
 
     // 5. If destructuring is true and if lhsKind is assignment, then
-    if (destructuring && head_result.lhs_kind == LHSKind::Assignment) {
-        // a. Assert: lhs is a LeftHandSideExpression.
-        // b. Let assignmentPattern be the AssignmentPattern that is covered by lhs.
-        // FIXME: Implement this.
-        return Bytecode::CodeGenerationError {
-            &node,
-            "Unimplemented: assignment destructuring in for/of"sv,
-        };
-    }
+    // NB: is_destructuring is only set for VariableDeclaration lhs (which always has lhs_kind
+    // VarBinding or LexicalBinding), so this combination is unreachable.
+    VERIFY(!(destructuring && head_result.lhs_kind == LHSKind::Assignment));
     if (completion.has_value())
         generator.set_current_breakable_scope_completion_register(*completion);
 
@@ -3926,10 +3906,8 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
                 head_result.lhs_kind == LHSKind::VarBinding ? Bytecode::Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize,
                 next_value));
         } else {
-            return Bytecode::CodeGenerationError {
-                &node,
-                "Unimplemented: assignment destructuring in for/of"sv,
-            };
+            // NB: lhs_kind is Assignment only when is_destructuring is false, so this is unreachable.
+            VERIFY_NOT_REACHED();
         }
     }
 
@@ -3981,7 +3959,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generat
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
     auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::Enumerate, m_lhs, m_rhs));
-    return for_in_of_body_evaluation(generator, *this, m_lhs, body(), head_result, label_set, loop_end, loop_update);
+    return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, label_set, loop_end, loop_update);
 }
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -3997,7 +3975,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generat
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
     auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::Iterate, m_lhs, m_rhs));
-    return for_in_of_body_evaluation(generator, *this, m_lhs, body(), head_result, label_set, loop_end, loop_update);
+    return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, label_set, loop_end, loop_update);
 }
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -4013,7 +3991,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::ge
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
     auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::AsyncIterate, m_lhs, m_rhs));
-    return for_in_of_body_evaluation(generator, *this, m_lhs, m_body, head_result, label_set, loop_end, loop_update, IteratorHint::Async);
+    return for_in_of_body_evaluation(generator, m_lhs, m_body, head_result, label_set, loop_end, loop_update, IteratorHint::Async);
 }
 
 // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
