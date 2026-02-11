@@ -70,6 +70,7 @@ GC::Ptr<DOM::Element const> ScrollTimeline::source() const
             case CSS::Scroller::Self:
                 return anonymous_source.target.element();
             }
+            VERIFY_NOT_REACHED();
         });
 }
 
