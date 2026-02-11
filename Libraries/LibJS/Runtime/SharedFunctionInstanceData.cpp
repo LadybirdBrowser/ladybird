@@ -61,6 +61,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     ScopeNode const* scope_body = nullptr;
     if (is<ScopeNode>(*m_ecmascript_code))
         scope_body = static_cast<ScopeNode const*>(m_ecmascript_code.ptr());
+    m_has_scope_body = scope_body != nullptr;
 
     // 3. Let strict be func.[[Strict]].
 
@@ -243,8 +244,10 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     size_t* lex_environment_size = nullptr;
 
     // 30. If strict is false, then
+    if (scope_body)
+        m_has_non_local_lexical_declarations = scope_body->has_non_local_lexical_declarations();
     if (!m_strict) {
-        bool can_elide_declarative_environment = !m_contains_direct_call_to_eval && (!scope_body || !scope_body->has_non_local_lexical_declarations());
+        bool can_elide_declarative_environment = !m_contains_direct_call_to_eval && !m_has_non_local_lexical_declarations;
         if (can_elide_declarative_environment) {
             lex_environment_size = var_environment_size;
         } else {
@@ -258,9 +261,16 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     }
 
     if (scope_body) {
-        MUST(scope_body->for_each_lexically_declared_identifier([&](auto const& id) {
-            if (!id.is_local())
-                (*lex_environment_size)++;
+        MUST(scope_body->for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
+            MUST(declaration.for_each_bound_identifier([&](auto const& id) {
+                if (!id.is_local()) {
+                    (*lex_environment_size)++;
+                    m_lexical_bindings.append({
+                        .name = id.string(),
+                        .is_constant = declaration.is_constant_declaration(),
+                    });
+                }
+            }));
         }));
     }
 
@@ -283,6 +293,7 @@ void SharedFunctionInstanceData::clear_compile_inputs()
     VERIFY(m_executable);
     m_functions_to_initialize.clear();
     m_var_names_to_initialize_binding.clear();
+    m_lexical_bindings.clear();
 }
 
 }

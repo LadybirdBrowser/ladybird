@@ -96,6 +96,14 @@ public:
     Vector<VarBinding> m_var_names_to_initialize_binding;
     Vector<Utf16FlyString> m_function_names_to_initialize_binding;
 
+    struct LexicalBinding {
+        Utf16FlyString name;
+        bool is_constant { false };
+    };
+    Vector<LexicalBinding> m_lexical_bindings;
+    bool m_has_scope_body { false };
+    bool m_has_non_local_lexical_declarations { false };
+
     size_t m_function_environment_bindings_count { 0 };
     size_t m_var_environment_bindings_count { 0 };
     size_t m_lex_environment_bindings_count { 0 };
