@@ -77,8 +77,10 @@ public:
 
     Utf16FlyString m_name;
 
-    // NB: m_source_text_owner is used if the source text needs to be owned by the function data.
-    //     Otherwise, m_source_text is a view into the underlying JS::SourceCode we parsed the AST from.
+    // NB: m_source_text is normally a view into the underlying JS::SourceCode we parsed the AST from,
+    //     kept alive by m_source_code. m_source_text_owner is used if the source text needs to be
+    //     owned by the function data (e.g. for dynamically created functions via Function constructor).
+    RefPtr<SourceCode const> m_source_code;
     Utf16String m_source_text_owner;
     Utf16View m_source_text; // [[SourceText]]
 
