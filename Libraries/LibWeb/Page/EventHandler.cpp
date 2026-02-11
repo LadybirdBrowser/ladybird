@@ -981,6 +981,8 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     GC::Ptr<DOM::Node> node;
 
     ScopeGuard update_hovered_node_and_ui_state_guard = [&] {
+        auto* old_hovered_node = document.hovered_node();
+
         document.set_hovered_node(node);
 
         // FIXME: This check is only approximate. ImageCursors from the same CursorStyleValue share bitmaps, but may
@@ -995,6 +997,14 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             GC::Ptr<HTML::HTMLElement const> hovered_html_element = node
                 ? node->enclosing_html_element_with_attribute(HTML::AttributeNames::title)
                 : nullptr;
+
+            if (old_hovered_node) {
+                if (auto* container = as_if<HTML::NavigableContainer>(*old_hovered_node)) {
+                    if (auto old_content_navigable = container->content_navigable()) {
+                        old_content_navigable->event_handler().handle_mouseleave();
+                    }
+                }
+            }
 
             if (hovered_html_element && hovered_html_element->title().has_value()) {
                 page.client().page_did_enter_tooltip_area(hovered_html_element->title()->to_byte_string());
