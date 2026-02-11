@@ -86,17 +86,22 @@ describe("special left hand sides", () => {
         expect(b.a).toBe("2");
     });
 
-    test.xfail("call function is allowed in parsing but fails in runtime", () => {
+    test("call function is allowed in parsing but fails in runtime", () => {
+        var fCalled = false;
         function f() {
-            expect().fail();
+            fCalled = true;
+            return {};
         }
 
-        // Does not fail since it does not iterate
+        // Does not fail since it does not iterate (no keys in [])
         expect("for (f() in []);").toEvalTo(undefined);
 
+        // f() is evaluated as the LHS, then ReferenceError is thrown
+        // because the result of a call is not a valid assignment target.
         expect(() => {
-            eval("for (f() in [0]) { expect().fail() }");
+            eval("for (f() in { a: 1 }) {}");
         }).toThrowWithMessage(ReferenceError, "Invalid left-hand side in assignment");
+        expect(fCalled).toBeTrue();
     });
 
     test("Cannot change constant declaration in body", () => {

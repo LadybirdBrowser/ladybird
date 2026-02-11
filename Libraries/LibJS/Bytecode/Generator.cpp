@@ -819,7 +819,14 @@ Generator::ReferenceOperands Generator::emit_load_from_reference(JS::ASTNode con
         };
     }
     if (!is<MemberExpression>(node)) {
-        emit_todo("Unimplemented/invalid node used as a reference"sv);
+        // Per spec, evaluate the expression (e.g. the call in f()++) before
+        // throwing ReferenceError for invalid assignment target.
+        (void)node.generate_bytecode(*this);
+        auto exception = allocate_register();
+        emit<Bytecode::Op::NewReferenceError>(exception, intern_string(ErrorType::InvalidLeftHandAssignment.message()));
+        perform_needed_unwinds<Op::Throw>();
+        emit<Bytecode::Op::Throw>(exception);
+        switch_to_basic_block(make_block());
         auto dummy = add_constant(js_undefined());
         return ReferenceOperands {
             .base = dummy,
@@ -932,7 +939,14 @@ void Generator::emit_store_to_reference(JS::ASTNode const& node, ScopedOperand v
         return;
     }
 
-    emit_todo("Unimplemented/invalid node used as a reference"sv);
+    // Per spec, evaluate the expression (e.g. the call in for(f() in ...))
+    // before throwing ReferenceError for invalid assignment target.
+    (void)node.generate_bytecode(*this);
+    auto exception = allocate_register();
+    emit<Bytecode::Op::NewReferenceError>(exception, intern_string(ErrorType::InvalidLeftHandAssignment.message()));
+    perform_needed_unwinds<Op::Throw>();
+    emit<Bytecode::Op::Throw>(exception);
+    switch_to_basic_block(make_block());
 }
 
 void Generator::emit_store_to_reference(ReferenceOperands const& reference, ScopedOperand value)
