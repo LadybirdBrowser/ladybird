@@ -1318,6 +1318,8 @@ public:
     {
     }
 
+    ByteString const& raw_value() const { return m_value; }
+
     virtual void dump(ASTDumpState const& state = {}) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 

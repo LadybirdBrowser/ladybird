@@ -26,6 +26,23 @@ namespace JS {
 
 using namespace JS::Bytecode;
 
+static String bigint_literal_to_decimal_string(BigIntLiteral const& literal)
+{
+    auto const& raw = literal.raw_value();
+    auto integer = [&] {
+        if (raw[0] == '0' && raw.length() >= 3) {
+            if (raw[1] == 'x' || raw[1] == 'X')
+                return MUST(Crypto::SignedBigInteger::from_base(16, raw.substring(2, raw.length() - 3)));
+            if (raw[1] == 'o' || raw[1] == 'O')
+                return MUST(Crypto::SignedBigInteger::from_base(8, raw.substring(2, raw.length() - 3)));
+            if (raw[1] == 'b' || raw[1] == 'B')
+                return MUST(Crypto::SignedBigInteger::from_base(2, raw.substring(2, raw.length() - 3)));
+        }
+        return MUST(Crypto::SignedBigInteger::from_base(10, raw.substring(0, raw.length() - 1)));
+    }();
+    return MUST(integer.to_base(10));
+}
+
 static ScopedOperand choose_dst(Bytecode::Generator& generator, Optional<ScopedOperand> const& preferred_dst)
 {
     if (preferred_dst.has_value())
@@ -3379,6 +3396,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
                         field_name = Utf16FlyString(static_cast<StringLiteral const&>(class_field.key()).value());
                     } else if (is<NumericLiteral>(class_field.key())) {
                         field_name = Utf16FlyString(number_to_utf16_string(static_cast<NumericLiteral const&>(class_field.key()).value().as_double()));
+                    } else if (is<BigIntLiteral>(class_field.key())) {
+                        field_name = Utf16FlyString::from_utf8(bigint_literal_to_decimal_string(static_cast<BigIntLiteral const&>(class_field.key())));
                     }
 
                     auto copy_initializer = class_field.initializer();
@@ -3419,6 +3438,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
                     } else if (is<NumericLiteral>(class_field.key())) {
                         auto name = number_to_utf16_string(static_cast<NumericLiteral const&>(class_field.key()).value().as_double());
                         shared_data->m_class_field_initializer_name = PropertyKey(name);
+                    } else if (is<BigIntLiteral>(class_field.key())) {
+                        auto name = bigint_literal_to_decimal_string(static_cast<BigIntLiteral const&>(class_field.key()));
+                        shared_data->m_class_field_initializer_name = PropertyKey(Utf16String::from_utf8(name));
                     }
                     // For computed keys, class_field_initializer_name is set at runtime
                     // in construct_class().
