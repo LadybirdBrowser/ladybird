@@ -54,6 +54,8 @@ public:
     Bytecode::Executable* cached_executable() const { return m_executable; }
     void cache_executable(Bytecode::Executable& executable) const { m_executable = &executable; }
 
+    ThrowCompletionOr<void> global_declaration_instantiation(VM&, GlobalEnvironment&);
+
 private:
     Script(Realm&, StringView filename, NonnullRefPtr<Program>, HostDefined*);
 
@@ -81,7 +83,7 @@ private:
     Vector<FunctionToInitialize> m_functions_to_initialize;
     HashTable<Utf16FlyString> m_declared_function_names;
     Vector<Utf16FlyString> m_var_scoped_names;
-    Vector<NonnullRefPtr<FunctionDeclaration const>> m_annex_b_candidates;
+    Vector<NonnullRefPtr<FunctionDeclaration>> m_annex_b_candidates;
     Vector<LexicalBinding> m_lexical_bindings;
     bool m_is_strict_mode { false };
 
