@@ -127,8 +127,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 11. Let script be scriptRecord.[[ECMAScriptCode]].
     GC::Ptr<Executable> executable = script_record.cached_executable();
     if (!executable && result.type() == Completion::Type::Normal) {
-        auto& script = script_record.parse_node();
-        auto executable_result = JS::Bytecode::Generator::generate_from_ast_node(vm, script, {});
+        auto executable_result = JS::Bytecode::Generator::generate_from_ast_node(vm, *script_record.parse_node(), {});
 
         if (executable_result.is_error()) {
             if (auto error_string = executable_result.error().to_string(); error_string.is_error())
@@ -140,6 +139,9 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
         } else {
             executable = executable_result.release_value();
             script_record.cache_executable(*executable);
+
+            // Drop the AST now that we have compiled bytecode.
+            script_record.drop_ast();
 
             if (g_dump_bytecode)
                 executable->dump();

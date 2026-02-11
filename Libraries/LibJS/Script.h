@@ -44,7 +44,7 @@ public:
     static Result<GC::Ref<Script>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, HostDefined* = nullptr, size_t line_number_offset = 1);
 
     Realm& realm() { return *m_realm; }
-    Program const& parse_node() const { return *m_parse_node; }
+    Program const* parse_node() const { return m_parse_node; }
     Vector<LoadedModuleRequest>& loaded_modules() { return m_loaded_modules; }
     Vector<LoadedModuleRequest> const& loaded_modules() const { return m_loaded_modules; }
 
@@ -56,13 +56,15 @@ public:
 
     ThrowCompletionOr<void> global_declaration_instantiation(VM&, GlobalEnvironment&);
 
+    void drop_ast();
+
 private:
-    Script(Realm&, StringView filename, NonnullRefPtr<Program>, HostDefined*);
+    Script(Realm&, StringView filename, RefPtr<Program>, HostDefined*);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<Realm> m_realm;                       // [[Realm]]
-    NonnullRefPtr<Program> m_parse_node;          // [[ECMAScriptCode]]
+    RefPtr<Program> m_parse_node;                 // [[ECMAScriptCode]]
     Vector<LoadedModuleRequest> m_loaded_modules; // [[LoadedModules]]
 
     mutable GC::Ptr<Bytecode::Executable> m_executable;
