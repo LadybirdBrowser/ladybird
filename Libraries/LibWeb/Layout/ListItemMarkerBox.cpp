@@ -84,13 +84,20 @@ CSSPixels ListItemMarkerBox::relative_size() const
     if (marker_text.has_value())
         return CSSPixels::nearest_value_for(font_size);
 
+    // https://drafts.csswg.org/css-counter-styles-3/#simple-symbolic
+    // NB: The spec allows us to render some predefined symbol counter styles using a UA-generated image instead of
+    //     text, it instructs us to size these in order to attractively fit within a 1em x 1em square. We mimic Firefox
+    //     and generally use a size of 0.35em, except for disclosure open/closed styles which use a size of 0.5em.
+    static constexpr float marker_image_size_factor = 0.35f;
+    static constexpr float disclosure_marker_image_size_factor = 0.5f;
+
     // Scale the marker box relative to the used font's pixel size.
     switch (m_list_style_type.get<CSS::CounterStyleNameKeyword>()) {
     case CSS::CounterStyleNameKeyword::DisclosureClosed:
     case CSS::CounterStyleNameKeyword::DisclosureOpen:
-        return CSSPixels::nearest_value_for(ceilf(font_size * .5f));
+        return CSSPixels::nearest_value_for(ceilf(font_size * disclosure_marker_image_size_factor));
     default:
-        return CSSPixels::nearest_value_for(ceilf(font_size * .35f));
+        return CSSPixels::nearest_value_for(ceilf(font_size * marker_image_size_factor));
     }
 }
 
