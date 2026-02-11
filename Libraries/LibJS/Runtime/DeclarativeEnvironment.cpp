@@ -15,14 +15,6 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(DeclarativeEnvironment);
 
-DeclarativeEnvironment* DeclarativeEnvironment::create_for_per_iteration_bindings(Badge<ForStatement>, DeclarativeEnvironment& other, size_t bindings_size)
-{
-    auto bindings = other.m_bindings.span().slice(0, bindings_size);
-    auto* parent_environment = other.outer_environment();
-
-    return parent_environment->heap().allocate<DeclarativeEnvironment>(parent_environment, bindings);
-}
-
 DeclarativeEnvironment::DeclarativeEnvironment()
     : Environment(nullptr, IsDeclarative::Yes)
     , m_dispose_capability(new_dispose_capability())
@@ -228,11 +220,6 @@ ThrowCompletionOr<void> DeclarativeEnvironment::initialize_or_set_mutable_bindin
     else
         TRY(set_mutable_binding(vm, name, value, false));
     return {};
-}
-
-void DeclarativeEnvironment::initialize_or_set_mutable_binding(Badge<ScopeNode>, VM& vm, Utf16FlyString const& name, Value value)
-{
-    MUST(initialize_or_set_mutable_binding(vm, name, value));
 }
 
 void DeclarativeEnvironment::shrink_to_fit()

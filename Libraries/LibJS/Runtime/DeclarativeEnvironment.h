@@ -30,8 +30,6 @@ class JS_API DeclarativeEnvironment : public Environment {
     };
 
 public:
-    static DeclarativeEnvironment* create_for_per_iteration_bindings(Badge<ForStatement>, DeclarativeEnvironment& other, size_t bindings_size);
-
     virtual ~DeclarativeEnvironment() override = default;
 
     virtual ThrowCompletionOr<bool> has_binding(Utf16FlyString const& name, Optional<size_t>* = nullptr) const override final;
@@ -42,7 +40,6 @@ public:
     virtual ThrowCompletionOr<Value> get_binding_value(VM&, Utf16FlyString const& name, bool strict) override;
     virtual ThrowCompletionOr<bool> delete_binding(VM&, Utf16FlyString const& name) override;
 
-    void initialize_or_set_mutable_binding(Badge<ScopeNode>, VM&, Utf16FlyString const& name, Value value);
     ThrowCompletionOr<void> initialize_or_set_mutable_binding(VM&, Utf16FlyString const& name, Value value);
 
     // This is not a method defined in the spec! Do not use this in any LibJS (or other spec related) code.
