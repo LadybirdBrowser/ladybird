@@ -314,7 +314,7 @@ GC::Ref<SharedFunctionInstanceData> SharedFunctionInstanceData::create_for_funct
 
 GC::Ref<SharedFunctionInstanceData> SharedFunctionInstanceData::create_for_function_node(VM& vm, FunctionNode const& node, Utf16FlyString name)
 {
-    return vm.heap().allocate<SharedFunctionInstanceData>(
+    auto data = vm.heap().allocate<SharedFunctionInstanceData>(
         vm,
         node.kind(),
         move(name),
@@ -326,6 +326,12 @@ GC::Ref<SharedFunctionInstanceData> SharedFunctionInstanceData::create_for_funct
         node.is_arrow_function(),
         node.parsing_insights(),
         node.local_variables_names());
+
+    // NB: Keep the SourceCode alive so that m_source_text (a Utf16View into it) remains valid
+    //     even after the AST is dropped.
+    data->m_source_code = &node.body().source_code();
+
+    return data;
 }
 
 void SharedFunctionInstanceData::clear_compile_inputs()
