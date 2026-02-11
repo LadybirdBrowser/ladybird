@@ -8,6 +8,9 @@
 
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
+#include <AK/HashTable.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <LibCrypto/Forward.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Export.h>
@@ -24,6 +27,8 @@
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
+
+class FunctionDeclaration;
 
 GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment&);
 JS_API GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
@@ -87,6 +92,29 @@ enum class CallerMode {
 };
 
 ThrowCompletionOr<Value> perform_eval(VM&, Value, CallerMode, EvalMode);
+
+struct EvalDeclarationData {
+    Vector<Utf16FlyString> var_names;
+
+    struct FunctionToInitialize {
+        GC::Ref<SharedFunctionInstanceData> shared_data;
+        Utf16FlyString name;
+    };
+    Vector<FunctionToInitialize> functions_to_initialize;
+    HashTable<Utf16FlyString> declared_function_names;
+
+    Vector<Utf16FlyString> var_scoped_names;
+
+    Vector<NonnullRefPtr<FunctionDeclaration>> annex_b_candidates;
+
+    struct LexicalBinding {
+        Utf16FlyString name;
+        bool is_constant { false };
+    };
+    Vector<LexicalBinding> lexical_bindings;
+
+    static EvalDeclarationData create(VM&, Program const&, bool strict);
+};
 
 ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& program, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict);
 

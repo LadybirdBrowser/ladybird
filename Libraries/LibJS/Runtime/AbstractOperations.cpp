@@ -779,6 +779,52 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     return eval_result.value_or(js_undefined());
 }
 
+EvalDeclarationData EvalDeclarationData::create(VM& vm, Program const& program, bool strict)
+{
+    EvalDeclarationData data;
+
+    // Pre-compute var declared names.
+    MUST(program.for_each_var_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
+        data.var_names.append(identifier.string());
+        return {};
+    }));
+
+    // Pre-compute functions to initialize and declared function names.
+    MUST(program.for_each_var_function_declaration_in_reverse_order([&](FunctionDeclaration const& function) -> ThrowCompletionOr<void> {
+        auto function_name = function.name();
+        if (data.declared_function_names.set(function_name) != AK::HashSetResult::InsertedNewEntry)
+            return {};
+        data.functions_to_initialize.append({ function.ensure_shared_data(vm), function_name });
+        return {};
+    }));
+
+    // Pre-compute var scoped variable names.
+    MUST(program.for_each_var_scoped_variable_declaration([&](VariableDeclaration const& declaration) {
+        return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
+            data.var_scoped_names.append(identifier.string());
+            return {};
+        });
+    }));
+
+    // Pre-compute AnnexB candidates.
+    if (!strict) {
+        MUST(program.for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) -> ThrowCompletionOr<void> {
+            data.annex_b_candidates.append(function_declaration);
+            return {};
+        }));
+    }
+
+    // Pre-compute lexical bindings.
+    MUST(program.for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
+        return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
+            data.lexical_bindings.append({ identifier.string(), declaration.is_constant_declaration() });
+            return {};
+        });
+    }));
+
+    return data;
+}
+
 // 19.2.1.3 EvalDeclarationInstantiation ( body, varEnv, lexEnv, privateEnv, strict ), https://tc39.es/ecma262/#sec-evaldeclarationinstantiation
 // 9.1.1.1 EvalDeclarationInstantiation ( body, varEnv, lexEnv, privateEnv, strict ), https://tc39.es/proposal-explicit-resource-management/#sec-evaldeclarationinstantiation
 ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& program, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict)
