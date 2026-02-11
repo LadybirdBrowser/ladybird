@@ -32,7 +32,7 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(StringView source_tex
     return realm.heap().allocate<Script>(realm, filename, move(script), host_defined);
 }
 
-Script::Script(Realm& realm, StringView filename, NonnullRefPtr<Program> parse_node, HostDefined* host_defined)
+Script::Script(Realm& realm, StringView filename, RefPtr<Program> parse_node, HostDefined* host_defined)
     : m_realm(realm)
     , m_parse_node(move(parse_node))
     , m_filename(filename)
@@ -223,6 +223,12 @@ ThrowCompletionOr<void> Script::global_declaration_instantiation(VM& vm, GlobalE
 
     // 18. Return unused.
     return {};
+}
+
+void Script::drop_ast()
+{
+    m_parse_node = nullptr;
+    m_annex_b_candidates.clear();
 }
 
 Script::~Script()
