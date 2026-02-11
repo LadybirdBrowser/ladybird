@@ -163,50 +163,47 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
 
     if (!shared_function_instance_data.m_has_parameter_expressions) {
         if (scope_body) {
-            for (auto const& variable_to_initialize : shared_function_instance_data.m_var_names_to_initialize_binding) {
-                auto const& id = variable_to_initialize.identifier;
-                if (id.is_local()) {
-                    emit<Op::Mov>(local(id.local_index()), add_constant(js_undefined()));
+            for (auto const& var : shared_function_instance_data.m_var_names_to_initialize_binding) {
+                if (var.local.is_variable() || var.local.is_argument()) {
+                    emit<Op::Mov>(local(var.local), add_constant(js_undefined()));
                 } else {
-                    auto intern_id = intern_identifier(id.string());
+                    auto intern_id = intern_identifier(var.name);
                     emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false, false, false);
                     emit<Op::InitializeVariableBinding>(intern_id, add_constant(js_undefined()));
                 }
             }
         }
     } else {
-        bool has_non_local_parameters = false;
+        bool has_non_local_vars = false;
         if (scope_body) {
-            for (auto const& variable_to_initialize : shared_function_instance_data.m_var_names_to_initialize_binding) {
-                auto const& id = variable_to_initialize.identifier;
-                if (!id.is_local()) {
-                    has_non_local_parameters = true;
+            for (auto const& var : shared_function_instance_data.m_var_names_to_initialize_binding) {
+                if (!var.local.is_variable() && !var.local.is_argument()) {
+                    has_non_local_vars = true;
                     break;
                 }
             }
         }
 
-        if (has_non_local_parameters)
+        if (has_non_local_vars)
             emit<Op::CreateVariableEnvironment>(shared_function_instance_data.m_var_environment_bindings_count);
 
         if (scope_body) {
-            for (auto const& variable_to_initialize : shared_function_instance_data.m_var_names_to_initialize_binding) {
-                auto const& id = variable_to_initialize.identifier;
+            for (auto const& var : shared_function_instance_data.m_var_names_to_initialize_binding) {
                 auto initial_value = allocate_register();
-                if (!variable_to_initialize.parameter_binding || variable_to_initialize.function_name) {
+                if (!var.parameter_binding || var.function_name) {
                     emit<Op::Mov>(initial_value, add_constant(js_undefined()));
                 } else {
-                    if (id.is_local()) {
-                        emit<Op::Mov>(initial_value, local(id.local_index()));
+                    if (var.local.is_variable() || var.local.is_argument()) {
+                        emit<Op::Mov>(initial_value, local(var.local));
                     } else {
-                        emit<Op::GetBinding>(initial_value, intern_identifier(id.string()));
+                        emit<Op::GetBinding>(initial_value, intern_identifier(var.name));
                     }
                 }
 
-                if (id.is_local()) {
-                    emit<Op::Mov>(local(id.local_index()), initial_value);
+                if (var.local.is_variable() || var.local.is_argument()) {
+                    emit<Op::Mov>(local(var.local), initial_value);
                 } else {
-                    auto intern_id = intern_identifier(id.string());
+                    auto intern_id = intern_identifier(var.name);
                     emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false, false, false);
                     emit<Op::InitializeVariableBinding>(intern_id, initial_value);
                 }

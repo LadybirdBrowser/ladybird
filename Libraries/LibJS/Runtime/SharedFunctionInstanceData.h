@@ -70,8 +70,9 @@ public:
     bool m_has_simple_parameter_list { false };
     bool m_is_module_wrapper { false };
 
-    struct VariableNameToInitialize {
-        Identifier const& identifier;
+    struct VarBinding {
+        Utf16FlyString name;
+        Identifier::Local local {};
         bool parameter_binding { false };
         bool function_name { false };
     };
@@ -87,7 +88,7 @@ public:
     bool m_arguments_object_needed { false };
     bool m_function_environment_needed { false };
     bool m_uses_this { false };
-    Vector<VariableNameToInitialize> m_var_names_to_initialize_binding;
+    Vector<VarBinding> m_var_names_to_initialize_binding;
     Vector<Utf16FlyString> m_function_names_to_initialize_binding;
 
     size_t m_function_environment_bindings_count { 0 };

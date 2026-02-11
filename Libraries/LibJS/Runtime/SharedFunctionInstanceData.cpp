@@ -177,7 +177,8 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
                     continue;
 
                 m_var_names_to_initialize_binding.append({
-                    .identifier = var.identifier,
+                    .name = var.identifier.string(),
+                    .local = var.identifier.is_local() ? var.identifier.local_index() : Identifier::Local {},
                 });
             }
 
@@ -197,7 +198,8 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
             for (auto const& var : function_scope_data.vars_to_initialize) {
                 bool is_in_parameter_bindings = var.is_parameter || (var.identifier.string() == vm.names.arguments.as_string() && m_arguments_object_needed);
                 m_var_names_to_initialize_binding.append({
-                    .identifier = var.identifier,
+                    .name = var.identifier.string(),
+                    .local = var.identifier.is_local() ? var.identifier.local_index() : Identifier::Local {},
                     .parameter_binding = is_in_parameter_bindings,
                     .function_name = var.is_function_name,
                 });
