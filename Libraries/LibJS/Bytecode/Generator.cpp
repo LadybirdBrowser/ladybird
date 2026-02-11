@@ -157,12 +157,8 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         }
     }
 
-    ScopeNode const* scope_body = nullptr;
-    if (is<ScopeNode>(*shared_function_instance_data.m_ecmascript_code))
-        scope_body = &static_cast<ScopeNode const&>(*shared_function_instance_data.m_ecmascript_code);
-
     if (!shared_function_instance_data.m_has_parameter_expressions) {
-        if (scope_body) {
+        if (shared_function_instance_data.m_has_scope_body) {
             for (auto const& var : shared_function_instance_data.m_var_names_to_initialize_binding) {
                 if (var.local.is_variable() || var.local.is_argument()) {
                     emit<Op::Mov>(local(var.local), add_constant(js_undefined()));
@@ -175,7 +171,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         }
     } else {
         bool has_non_local_vars = false;
-        if (scope_body) {
+        if (shared_function_instance_data.m_has_scope_body) {
             for (auto const& var : shared_function_instance_data.m_var_names_to_initialize_binding) {
                 if (!var.local.is_variable() && !var.local.is_argument()) {
                     has_non_local_vars = true;
@@ -187,7 +183,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         if (has_non_local_vars)
             emit<Op::CreateVariableEnvironment>(shared_function_instance_data.m_var_environment_bindings_count);
 
-        if (scope_body) {
+        if (shared_function_instance_data.m_has_scope_body) {
             for (auto const& var : shared_function_instance_data.m_var_names_to_initialize_binding) {
                 auto initial_value = allocate_register();
                 if (!var.parameter_binding || var.function_name) {
@@ -211,7 +207,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         }
     }
 
-    if (!shared_function_instance_data.m_strict && scope_body) {
+    if (!shared_function_instance_data.m_strict && shared_function_instance_data.m_has_scope_body) {
         for (auto const& function_name : shared_function_instance_data.m_function_names_to_initialize_binding) {
             auto intern_id = intern_identifier(function_name);
             emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false, false, false);
@@ -220,8 +216,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
     }
 
     if (!shared_function_instance_data.m_strict) {
-        bool can_elide_lexical_environment = !scope_body || !scope_body->has_non_local_lexical_declarations();
-        if (!can_elide_lexical_environment) {
+        if (shared_function_instance_data.m_has_non_local_lexical_declarations) {
             auto parent_environment = m_lexical_environment_register_stack.last();
             auto new_environment = allocate_register();
             emit<Op::CreateLexicalEnvironment>(new_environment, parent_environment, shared_function_instance_data.m_lex_environment_bindings_count);
@@ -229,20 +224,12 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         }
     }
 
-    if (scope_body) {
-        MUST(scope_body->for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
-            MUST(declaration.for_each_bound_identifier([&](auto const& id) {
-                if (id.is_local()) {
-                    return;
-                }
-
-                emit<Op::CreateVariable>(intern_identifier(id.string()),
-                    Op::EnvironmentMode::Lexical,
-                    declaration.is_constant_declaration(),
-                    false,
-                    declaration.is_constant_declaration());
-            }));
-        }));
+    for (auto const& binding : shared_function_instance_data.m_lexical_bindings) {
+        emit<Op::CreateVariable>(intern_identifier(binding.name),
+            Op::EnvironmentMode::Lexical,
+            binding.is_constant,
+            false,
+            binding.is_constant);
     }
 
     for (auto const& function_to_initialize : shared_function_instance_data.m_functions_to_initialize) {
