@@ -154,6 +154,20 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
         if (!is<Declaration>(m_default_export->statement()))
             m_default_export_binding_name = m_default_export->entries()[0].local_or_import_name.value();
     }
+
+    // For TLA modules, pre-create the SharedFunctionInstanceData for the
+    // async wrapper function so that execute_module() doesn't need the AST.
+    if (has_top_level_await) {
+        FunctionParsingInsights parsing_insights;
+        parsing_insights.uses_this_from_environment = true;
+        parsing_insights.uses_this = true;
+        m_tla_shared_data = vm.heap().allocate<SharedFunctionInstanceData>(
+            vm, FunctionKind::Async,
+            "module code with top-level await"_utf16_fly_string,
+            0, FunctionParameters::empty(), m_ecmascript_code,
+            Utf16View {}, true, false, parsing_insights, Vector<LocalVariable> {});
+        m_tla_shared_data->m_is_module_wrapper = true;
+    }
 }
 
 SourceTextModule::~SourceTextModule() = default;
@@ -165,6 +179,8 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
     m_execution_context->visit_edges(visitor);
     for (auto const& function : m_functions_to_initialize)
         visitor.visit(function.shared_data);
+    visitor.visit(m_executable);
+    visitor.visit(m_tla_shared_data);
 }
 
 // 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
@@ -693,26 +709,18 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] SourceTextModule::execute_module({}, PromiseCapability @ {})", filename(), capability.ptr());
 
-    GC::Ptr<Bytecode::Executable> executable;
-    if (!m_has_top_level_await) {
-        Completion result;
-
+    if (!m_has_top_level_await && !m_executable) {
         auto maybe_executable = Bytecode::compile(vm, m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
-        if (maybe_executable.is_error()) {
-            result = maybe_executable.release_error();
-        } else {
-            executable = maybe_executable.release_value();
-        }
-
-        if (result.is_error())
-            return result.release_error();
+        if (maybe_executable.is_error())
+            return maybe_executable.release_error();
+        m_executable = maybe_executable.release_value();
     }
 
     u32 registers_and_locals_count = 0;
     u32 constants_count = 0;
-    if (executable) {
-        registers_and_locals_count = executable->registers_and_locals_count;
-        constants_count = executable->constants.size();
+    if (m_executable) {
+        registers_and_locals_count = m_executable->registers_and_locals_count;
+        constants_count = m_executable->constants.size();
     }
 
     // 1. Let moduleContext be a new ECMAScript code execution context.
@@ -753,7 +761,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         // c. Let result be the result of evaluating module.[[ECMAScriptCode]].
         Completion result;
 
-        auto result_or_error = vm.bytecode_interpreter().run_executable(*module_context, *executable, {});
+        auto result_or_error = vm.bytecode_interpreter().run_executable(*module_context, *m_executable, {});
         if (result_or_error.is_error()) {
             result = result_or_error.release_error();
         } else {
@@ -794,13 +802,8 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         //       the async execution context captures the module execution context.
         vm.push_execution_context(*module_context);
 
-        FunctionParsingInsights parsing_insights;
-        parsing_insights.uses_this_from_environment = true;
-        parsing_insights.uses_this = true;
-        auto module_wrapper_function = ECMAScriptFunctionObject::create(
-            realm(), "module code with top-level await"_utf16_fly_string, StringView {}, this->m_ecmascript_code,
-            FunctionParameters::empty(), 0, {}, environment(), nullptr, FunctionKind::Async, true, parsing_insights);
-        module_wrapper_function->set_is_module_wrapper(true);
+        auto module_wrapper_function = ECMAScriptFunctionObject::create_from_function_data(
+            realm(), *m_tla_shared_data, environment(), nullptr);
 
         vm.pop_execution_context();
 

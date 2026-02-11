@@ -67,6 +67,9 @@ private:
     Vector<LexicalBinding> m_lexical_bindings;
     Vector<FunctionToInitialize> m_functions_to_initialize;
     Optional<Utf16FlyString> m_default_export_binding_name;
+
+    GC::Ptr<Bytecode::Executable> m_executable;
+    GC::Ptr<SharedFunctionInstanceData> m_tla_shared_data;
 };
 
 }
