@@ -601,6 +601,13 @@ ScopedOperand Generator::local(Identifier::Local const& local)
     return ScopedOperand { *this, Operand { Operand::Type::Argument, static_cast<u32>(local.index) } };
 }
 
+ScopedOperand Generator::local(FunctionLocal const& local)
+{
+    if (local.is_variable())
+        return ScopedOperand { *this, Operand { Operand::Type::Local, static_cast<u32>(local.index) } };
+    return ScopedOperand { *this, Operand { Operand::Type::Argument, static_cast<u32>(local.index) } };
+}
+
 Generator::SourceLocationScope::SourceLocationScope(Generator& generator, ASTNode const& node)
     : m_generator(generator)
     , m_previous_node(m_generator.m_current_ast_node)
@@ -1468,6 +1475,17 @@ bool Generator::is_local_initialized(Identifier::Local const& local) const
 }
 
 void Generator::set_local_initialized(Identifier::Local const& local)
+{
+    if (local.is_variable()) {
+        m_initialized_locals.set(local.index);
+    } else if (local.is_argument()) {
+        m_initialized_arguments.set(local.index);
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+}
+
+void Generator::set_local_initialized(FunctionLocal const& local)
 {
     if (local.is_variable()) {
         m_initialized_locals.set(local.index);
