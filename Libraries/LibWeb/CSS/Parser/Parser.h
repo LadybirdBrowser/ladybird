@@ -525,6 +525,7 @@ private:
     RefPtr<StyleValue const> parse_rotate_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_stroke_dasharray_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_easing_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_timeline_scope_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_transform_function_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_transform_list_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_transform_origin_value(TokenStream<ComponentValue>&);

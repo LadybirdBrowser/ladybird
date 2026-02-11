@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Property timeline-scope value 'initial'
+Pass	Property timeline-scope value 'inherit'
+Pass	Property timeline-scope value 'unset'
+Pass	Property timeline-scope value 'revert'
+Pass	Property timeline-scope value 'none'
+Pass	Property timeline-scope value 'all'
+Pass	Property timeline-scope value '--test'
+Pass	Property timeline-scope value '--foo, --bar'
+Pass	Property timeline-scope value '--bar, --foo'
+Pass	Property timeline-scope value '--a, --b, --c, --D, --e'
+Pass	The timeline-scope property shows up in CSSStyleDeclaration enumeration
+Pass	The timeline-scope property shows up in CSSStyleDeclaration.cssText

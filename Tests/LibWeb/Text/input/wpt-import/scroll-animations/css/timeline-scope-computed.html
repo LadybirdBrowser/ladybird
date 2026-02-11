@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations/#propdef-timeline-scope">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+</head>
+<style>
+  #outer { timeline-scope: --foo; }
+  #target { timeline-scope: --bar; }
+</style>
+<div id="outer">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value('timeline-scope', 'initial', 'none');
+test_computed_value('timeline-scope', 'inherit', '--foo');
+test_computed_value('timeline-scope', 'unset', 'none');
+test_computed_value('timeline-scope', 'revert', 'none');
+test_computed_value('timeline-scope', 'none');
+test_computed_value('timeline-scope', 'all');
+test_computed_value('timeline-scope', '--test');
+test_computed_value('timeline-scope', '--foo, --bar');
+test_computed_value('timeline-scope', '--bar, --foo');
+test_computed_value('timeline-scope', '--a, --b, --c, --D, --e');
+
+test(() => {
+  let style = getComputedStyle(document.getElementById('target'));
+  assert_not_equals(Array.from(style).indexOf('timeline-scope'), -1);
+}, 'The timeline-scope property shows up in CSSStyleDeclaration enumeration');
+
+test(() => {
+  let style = document.getElementById('target').style;
+  assert_not_equals(style.cssText.indexOf('timeline-scope'), -1);
+}, 'The timeline-scope property shows up in CSSStyleDeclaration.cssText');
+
+</script>

@@ -702,6 +702,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Text); });
     case PropertyID::TextUnderlinePosition:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_text_underline_position_value(tokens); });
+    case PropertyID::TimelineScope:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_timeline_scope_value(tokens); });
     case PropertyID::TouchAction:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_touch_action_value(tokens); });
     case PropertyID::TransformOrigin:
@@ -4603,6 +4605,21 @@ RefPtr<StyleValue const> Parser::parse_text_underline_position_value(TokenStream
 
     transaction.commit();
     return TextUnderlinePositionStyleValue::create(horizontal_value.value_or(TextUnderlinePositionHorizontal::Auto), vertical_value.value_or(TextUnderlinePositionVertical::Auto));
+}
+
+// https://drafts.csswg.org/scroll-animations-1/#propdef-timeline-scope
+RefPtr<StyleValue const> Parser::parse_timeline_scope_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | all | <dashed-ident>#
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
+
+    if (auto all = parse_all_as_single_keyword_value(tokens, Keyword::All))
+        return all;
+
+    return parse_comma_separated_value_list(tokens, [this](TokenStream<ComponentValue>& inner_tokens) {
+        return parse_dashed_ident_value(inner_tokens);
+    });
 }
 
 // https://www.w3.org/TR/pointerevents/#the-touch-action-css-property

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations/#propdef-timeline-scope">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+
+test_valid_value('timeline-scope', 'initial');
+test_valid_value('timeline-scope', 'inherit');
+test_valid_value('timeline-scope', 'unset');
+test_valid_value('timeline-scope', 'revert');
+
+test_valid_value('timeline-scope', 'none');
+test_valid_value('timeline-scope', 'all');
+test_valid_value('timeline-scope', '--abc');
+test_valid_value('timeline-scope', '  --abc', '--abc');
+test_valid_value('timeline-scope', '--aBc');
+test_valid_value('timeline-scope', '--foo, --bar');
+test_valid_value('timeline-scope', '--bar, --foo');
+test_valid_value('timeline-scope', '--auto');
+
+test_invalid_value('timeline-scope', 'none, abc');
+test_invalid_value('timeline-scope', 'all, abc');
+test_invalid_value('timeline-scope', '10px');
+test_invalid_value('timeline-scope', 'foo bar');
+test_invalid_value('timeline-scope', '"foo" "bar"');
+test_invalid_value('timeline-scope', 'rgb(1, 2, 3)');
+test_invalid_value('timeline-scope', '#fefefe');
+test_invalid_value('timeline-scope', 'abc');
+test_invalid_value('timeline-scope', '  abc', 'abc');
+test_invalid_value('timeline-scope', 'aBc');
+test_invalid_value('timeline-scope', 'foo, bar');
+test_invalid_value('timeline-scope', 'bar, foo');
+test_invalid_value('timeline-scope', 'auto');
+
+</script>
