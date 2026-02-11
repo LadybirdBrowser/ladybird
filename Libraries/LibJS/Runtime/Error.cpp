@@ -6,7 +6,6 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibJS/AST.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/ExecutionContext.h>
