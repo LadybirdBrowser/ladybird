@@ -245,19 +245,16 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         }));
     }
 
-    for (auto const& declaration : shared_function_instance_data.m_functions_to_initialize) {
-        auto shared_data = ensure_shared_function_data(m_vm, declaration, declaration.name());
-        auto data_index = register_shared_function_data(shared_data);
+    for (auto const& function_to_initialize : shared_function_instance_data.m_functions_to_initialize) {
+        auto data_index = register_shared_function_data(function_to_initialize.shared_data);
 
-        auto const& identifier = *declaration.name_identifier();
-        if (identifier.is_local()) {
-            auto local_index = identifier.local_index();
-            emit<Op::NewFunction>(local(local_index), data_index, OptionalNone {}, OptionalNone {});
-            set_local_initialized(local_index);
+        if (function_to_initialize.local.is_variable() || function_to_initialize.local.is_argument()) {
+            emit<Op::NewFunction>(local(function_to_initialize.local), data_index, OptionalNone {}, OptionalNone {});
+            set_local_initialized(function_to_initialize.local);
         } else {
             auto function = allocate_register();
             emit<Op::NewFunction>(function, data_index, OptionalNone {}, OptionalNone {});
-            emit<Op::SetVariableBinding>(intern_identifier(declaration.name()), function);
+            emit<Op::SetVariableBinding>(intern_identifier(function_to_initialize.name), function);
         }
     }
 

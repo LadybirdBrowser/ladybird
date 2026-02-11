@@ -84,7 +84,12 @@ public:
         Yes,
     };
     HashMap<Utf16FlyString, ParameterIsLocal> m_parameter_names;
-    Vector<FunctionDeclaration const&> m_functions_to_initialize;
+    struct FunctionToInitialize {
+        GC::Ref<SharedFunctionInstanceData> shared_data;
+        Utf16FlyString name;
+        Identifier::Local local {};
+    };
+    Vector<FunctionToInitialize> m_functions_to_initialize;
     bool m_arguments_object_needed { false };
     bool m_function_environment_needed { false };
     bool m_uses_this { false };
