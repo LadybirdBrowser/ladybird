@@ -43,15 +43,12 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<Me
             auto& stream_cursor = *static_cast<MediaStreamCursor*>(opaque);
             Bytes buffer_bytes { buffer, AK::min<size_t>(size, PAGE_SIZE) };
             auto buffer_bytes_or_error = stream_cursor.read_into(buffer_bytes);
-            if (buffer_bytes_or_error.is_error()) {
-                if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::Aborted)
-                    return AVERROR_EXIT;
-                if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::EndOfStream)
-                    return AVERROR_EOF;
-                return AVERROR_UNKNOWN;
-            }
-            if (buffer_bytes_or_error.value() == 0)
+            if (buffer_bytes_or_error.is_error() || buffer_bytes_or_error.value() == 0) {
+                // We deliberately only return AVERROR_EOF here, because libavcodec's AVIOContext functions
+                // will persist any non-EOF error permanently and return it any time it reaches EOF after that
+                // point.
                 return AVERROR_EOF;
+            }
             return static_cast<int>(buffer_bytes_or_error.value());
         },
         nullptr,
@@ -72,11 +69,8 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<Me
 
             auto maybe_seek_error = stream_cursor.seek(offset, seek_mode_from_whence(whence));
             if (maybe_seek_error.is_error()) {
-                if (maybe_seek_error.error().category() == DecoderErrorCategory::Aborted)
-                    return AVERROR_EXIT;
-                if (maybe_seek_error.error().category() == DecoderErrorCategory::EndOfStream)
-                    return AVERROR_EOF;
-                return AVERROR_UNKNOWN;
+                // This is also deliberately only returning AVERROR_EOF, see the read_packet callback above.
+                return AVERROR_EOF;
             }
             return stream_cursor.position();
         });

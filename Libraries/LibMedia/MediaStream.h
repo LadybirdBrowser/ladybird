@@ -24,6 +24,7 @@ public:
 
     virtual void abort() { }
     virtual void reset_abort() { }
+    virtual bool is_aborted() const { return false; }
     virtual bool is_blocked() const { return false; }
 };
 
