@@ -27,8 +27,8 @@ JS bytecode executable "array_destructuring_with_class_default"
 [ 100]    4: Mov dst:x~0, src:reg11
 [ 110]       JumpFalse condition:reg6, target:@128
 [ 120]    5: Return value:x~0
-[ 128]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-[ 148]       Return value:x~0
+[ 128]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+[ 140]       Return value:x~0
 
 JS bytecode executable "object_destructuring_with_function_default"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -60,11 +60,10 @@ JS bytecode executable "setter_parameter_resolution"
 [ 108]       JumpFalse condition:reg6, target:@138
 [ 118]    3: GetInitializedBinding dst:reg5, identifier:setValue
 [ 130]       Return value:reg5
-[ 138]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-[ 158]       Jump target:@118
+[ 138]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+[ 150]       Jump target:@118
 
 JS bytecode executable "set y"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       SetLexicalBinding identifier:setValue, src:arg0
 [  20]       End value:Undefined
-

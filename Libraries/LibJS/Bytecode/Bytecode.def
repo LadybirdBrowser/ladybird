@@ -25,7 +25,7 @@ op AsyncIteratorClose < Instruction
     m_iterator_next: Operand
     m_iterator_done: Operand
     m_completion_type: Completion::Type
-    m_completion_value: Optional<Value>
+    m_completion_value: Operand
 endop
 
 op Await < Instruction
@@ -458,7 +458,7 @@ op IteratorClose < Instruction
     m_iterator_next: Operand
     m_iterator_done: Operand
     m_completion_type: Completion::Type
-    m_completion_value: Optional<Value>
+    m_completion_value: Operand
 endop
 
 op IteratorNext < Instruction

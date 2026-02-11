@@ -2950,8 +2950,8 @@ ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& inter
     auto iterator_done_property = interpreter.get(m_iterator_done).as_bool();
     IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
 
-    // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(iterator_close(vm, iterator_record, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
+    // FIXME: Return the value of the resulting completion.
+    TRY(iterator_close(vm, iterator_record, Completion { m_completion_type, interpreter.get(m_completion_value) }));
     return {};
 }
 
@@ -2963,8 +2963,8 @@ ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& 
     auto iterator_done_property = interpreter.get(m_iterator_done).as_bool();
     IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
 
-    // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(async_iterator_close(vm, iterator_record, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
+    // FIXME: Return the value of the resulting completion.
+    TRY(async_iterator_close(vm, iterator_record, Completion { m_completion_type, interpreter.get(m_completion_value) }));
     return {};
 }
 
