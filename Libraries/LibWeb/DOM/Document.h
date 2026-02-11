@@ -18,38 +18,28 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibCore/SharedVersion.h>
-#include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibUnicode/Forward.h>
-#include <LibWeb/CSS/CSSPropertyRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/StyleScope.h>
-#include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
-#include <LibWeb/HTML/HTMLScriptElement.h>
-#include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
-#include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/ObservableArray.h>
-#include <LibWeb/XPath/XPath.h>
 
 namespace Web::DOM {
 
@@ -473,7 +463,7 @@ public:
     HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
     void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
 
-    Element const* active_element() const { return m_active_element ? m_active_element.ptr() : body(); }
+    Element const* active_element() const;
     void set_active_element(GC::Ptr<Element>);
 
     Element const* target_element() const { return m_target_element.ptr(); }
@@ -583,11 +573,6 @@ public:
     GC::Ref<CSS::VisualViewport> visual_viewport();
     [[nodiscard]] CSSPixelRect viewport_rect() const;
 
-    class ViewportClient {
-    public:
-        virtual ~ViewportClient() = default;
-        virtual void did_set_viewport_rect(CSSPixelRect const&) = 0;
-    };
     void register_viewport_client(ViewportClient&);
     void unregister_viewport_client(ViewportClient&);
     void inform_all_viewport_clients_about_the_current_viewport_rect();
@@ -919,7 +904,7 @@ public:
     void set_onvisibilitychange(WebIDL::CallbackType*);
 
     // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
-    GC::Ptr<ViewTransition::ViewTransition> start_view_transition(ViewTransition::ViewTransitionUpdateCallback update_callback);
+    GC::Ptr<ViewTransition::ViewTransition> start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback);
     // https://drafts.csswg.org/css-view-transitions-1/#perform-pending-transition-operations
     void perform_pending_transition_operations();
     // https://drafts.csswg.org/css-view-transitions-1/#flush-the-update-callback-queue

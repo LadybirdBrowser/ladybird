@@ -11,9 +11,8 @@
 #include <AK/OwnPtr.h>
 #include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
-#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -28,7 +27,7 @@ class HTMLImageElement final
     , public FormAssociatedElement
     , public LazyLoadingElement<HTMLImageElement>
     , public Layout::ImageProvider
-    , public DOM::Document::ViewportClient {
+    , public DOM::ViewportClient {
     WEB_PLATFORM_OBJECT(HTMLImageElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLImageElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLImageElement);

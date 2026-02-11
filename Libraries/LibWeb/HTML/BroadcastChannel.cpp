@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/BroadcastChannelPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>

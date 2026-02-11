@@ -6,6 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Gamepad/EventNames.h>
 #include <LibWeb/Gamepad/Gamepad.h>
 #include <LibWeb/Gamepad/GamepadEvent.h>

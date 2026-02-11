@@ -176,6 +176,7 @@ class ClassExpression;
 struct ClassFieldDefinition;
 class Completion;
 class Console;
+class ConsoleClient;
 class CyclicModule;
 class DeclarativeEnvironment;
 struct DisposeCapability;

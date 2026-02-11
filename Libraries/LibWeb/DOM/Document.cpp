@@ -23,6 +23,7 @@
 #include <LibGC/RootVector.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibJS/Console.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -41,6 +42,8 @@
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSPropertyRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -52,6 +55,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
@@ -128,6 +132,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLTitleElement.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
+#include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/MessageEvent.h>
@@ -142,6 +147,7 @@
 #include <LibWeb/HTML/PopStateEvent.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -187,9 +193,12 @@
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/TextEvent.h>
+#include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/ObservableArray.h>
+#include <LibWeb/XPath/XPath.h>
 
 namespace Web::DOM {
 
@@ -2645,6 +2654,11 @@ void Document::set_focused_area(GC::Ptr<Node> node)
     }
 
     update_active_element();
+}
+
+Element const* Document::active_element() const
+{
+    return m_active_element ? m_active_element.ptr() : body();
 }
 
 void Document::set_active_element(GC::Ptr<Element> element)
@@ -6973,7 +6987,7 @@ void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
-GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(ViewTransition::ViewTransitionUpdateCallback update_callback)
+GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback)
 {
     // The method steps for startViewTransition(updateCallback) are as follows:
 

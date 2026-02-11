@@ -7,6 +7,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 
 namespace Web::HTML {
 

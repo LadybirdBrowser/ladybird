@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 
@@ -14,7 +14,7 @@ namespace Web::Layout {
 
 class VideoBox final
     : public ReplacedBox
-    , public DOM::Document::ViewportClient {
+    , public DOM::ViewportClient {
     GC_CELL(VideoBox, ReplacedBox);
     GC_DECLARE_ALLOCATOR(VideoBox);
 

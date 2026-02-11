@@ -8,12 +8,14 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/CSS.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {

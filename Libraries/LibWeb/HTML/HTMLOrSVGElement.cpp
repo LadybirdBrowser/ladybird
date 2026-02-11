@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOrSVGElement.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 

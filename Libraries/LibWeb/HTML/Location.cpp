@@ -15,6 +15,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/LocationPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/Navigable.h>

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/EncryptedMediaExtensions/Algorithms.h>
 #include <LibWeb/EncryptedMediaExtensions/MediaKeySystemAccess.h>
 #include <LibWeb/EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.h>
