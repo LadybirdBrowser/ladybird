@@ -59,7 +59,7 @@ public:
     {
         auto* that = const_cast<T*>(static_cast<T const*>(this));
 
-        auto new_ref_count = deref_base();
+        auto new_ref_count = that->deref_base();
         if (new_ref_count == 0) {
             if constexpr (requires { that->will_be_destroyed(); })
                 that->will_be_destroyed();
