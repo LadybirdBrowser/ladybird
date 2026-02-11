@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/LineBuilder.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -54,17 +55,39 @@ void LineBuilder::begin_new_line(bool increment_y, bool is_first_break_in_sequen
             // First break is simple, just go to the start of the next line.
             m_current_block_offset += max(m_max_height_on_current_line, m_context.containing_block().computed_values().line_height());
         } else {
-            // We're doing more than one break in a row.
-            // This means we're trying to squeeze past intruding floats.
-            // Scan 1px at a time until we find a Y value where a new line can fit.
-            // FIXME: This is super dumb and inefficient.
-            CSSPixels candidate_block_offset = m_current_block_offset + 1;
-            while (true) {
-                if (m_context.can_fit_new_line_at_block_offset(candidate_block_offset))
+            // We're doing more than one break in a row, trying to squeeze past intruding floats.
+            // Float intrusion only changes at float edge boundaries, so we collect the bottom
+            // edges of all floats below our current position and test each as a candidate.
+            auto box_in_root_rect = m_context.parent().content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, m_context.parent().root());
+
+            Vector<CSSPixels> candidate_block_offsets;
+            m_context.parent().for_each_floating_box([&](auto const& float_box) {
+                auto float_box_bottom = float_box.margin_box_rect_in_root_coordinate_space.bottom() - box_in_root_rect.y();
+                if (float_box_bottom > m_current_block_offset)
+                    candidate_block_offsets.append(float_box_bottom);
+                return IterationDecision::Continue;
+            });
+
+            quick_sort(candidate_block_offsets);
+
+            Optional<CSSPixels> new_block_offset;
+            for (auto candidate : candidate_block_offsets) {
+                if (m_context.can_fit_new_line_at_block_offset(candidate)) {
+                    new_block_offset = candidate;
                     break;
-                ++candidate_block_offset;
+                }
             }
-            m_current_block_offset = candidate_block_offset;
+
+            if (!new_block_offset.has_value()) {
+                // No float edge provided enough room. Fall back to scanning past the last candidate,
+                // which handles edge cases like floats that overlap in unusual ways.
+                CSSPixels fallback = candidate_block_offsets.is_empty() ? m_current_block_offset + 1 : candidate_block_offsets.last() + 1;
+                while (!m_context.can_fit_new_line_at_block_offset(fallback))
+                    ++fallback;
+                new_block_offset = fallback;
+            }
+
+            m_current_block_offset = new_block_offset.value();
         }
     }
     recalculate_available_space();
