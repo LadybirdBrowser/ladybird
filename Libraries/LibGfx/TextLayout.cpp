@@ -182,7 +182,6 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     auto const& metrics = font.pixel_metrics();
     auto& shaping_cache = font.shaping_cache();
 
-    // FIXME: The cache currently grows unbounded. We should have some limit and LRU mechanism.
     auto get_or_create_buffer = [&] -> hb_buffer_t* {
         if (string.length_in_code_units() == 1) {
             auto code_unit = string.code_unit_at(0);
@@ -194,11 +193,16 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
                 return cache_slot;
             }
         }
-        if (auto it = shaping_cache.map.find(
-                string.hash(), [&](auto& candidate) { return candidate.key == string; });
-            it != shaping_cache.map.end()) {
+        if (auto it = shaping_cache.map.find(string.hash(), [&](auto& candidate) { return candidate.key == string; }); it != shaping_cache.map.end()) {
             return it->value;
         }
+
+        constexpr size_t max_cached_shaping_count = 8192;
+        if (shaping_cache.map.size() >= max_cached_shaping_count) {
+            hb_buffer_destroy(shaping_cache.map.begin()->value);
+            shaping_cache.map.remove(shaping_cache.map.begin());
+        }
+
         auto* buffer = setup_text_shaping(string, font, text_type);
         shaping_cache.map.set(Utf16String::from_utf16(string), buffer);
         return buffer;

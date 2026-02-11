@@ -85,7 +85,7 @@ public:
     ShapeFeatures const& features() const { return m_shape_features; }
 
     struct ShapingCache {
-        HashMap<Utf16String, hb_buffer_t*> map;
+        OrderedHashMap<Utf16String, hb_buffer_t*> map;
         hb_buffer_t* single_ascii_character_map[128] { nullptr };
 
         ~ShapingCache();
