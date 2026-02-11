@@ -960,15 +960,15 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
         if (is<SuperExpression>(expression.object())) {
             auto super_reference = TRY(emit_super_reference(expression));
 
-            auto dst = allocate_register();
-            if (super_reference.referenced_name.has_value()) {
-                emit<Bytecode::Op::DeleteByValueWithThis>(dst, *super_reference.base, *super_reference.this_value, *super_reference.referenced_name);
-            } else {
-                auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
-                emit<Bytecode::Op::DeleteByIdWithThis>(dst, *super_reference.base, *super_reference.this_value, property_key_table_index);
-            }
+            auto exception = allocate_register();
+            emit<Bytecode::Op::NewReferenceError>(exception, intern_string(ErrorType::UnsupportedDeleteSuperProperty.message()));
+            perform_needed_unwinds<Op::Throw>();
+            emit<Bytecode::Op::Throw>(exception);
 
-            return dst;
+            // Switch to a new block so callers can continue emitting code
+            // (which will be unreachable, but avoids a terminated-block VERIFY).
+            switch_to_basic_block(make_block());
+            return add_constant(js_undefined());
         }
 
         auto object = TRY(expression.object().generate_bytecode(*this)).value();

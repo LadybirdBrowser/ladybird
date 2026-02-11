@@ -228,23 +228,9 @@ op DeleteById < Instruction
     m_property: PropertyKeyTableIndex
 endop
 
-op DeleteByIdWithThis < Instruction
-    m_dst: Operand
-    m_base: Operand
-    m_this_value: Operand
-    m_property: PropertyKeyTableIndex
-endop
-
 op DeleteByValue < Instruction
     m_dst: Operand
     m_base: Operand
-    m_property: Operand
-endop
-
-op DeleteByValueWithThis < Instruction
-    m_dst: Operand
-    m_base: Operand
-    m_this_value: Operand
     m_property: Operand
 endop
 
@@ -725,6 +711,12 @@ op NewRegExp < Instruction
 endop
 
 op NewTypeError < Instruction
+    @nothrow
+    m_dst: Operand
+    m_error_string: StringTableIndex
+endop
+
+op NewReferenceError < Instruction
     @nothrow
     m_dst: Operand
     m_error_string: StringTableIndex
