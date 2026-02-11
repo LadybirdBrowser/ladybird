@@ -149,10 +149,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
     // 5. If runningContext is not already suspended, suspend runningContext.
     // NOTE: This would be unused due to step 9 and is omitted for that reason.
 
-    auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
-    if (maybe_executable.is_error())
-        return vm.throw_completion<TypeError>(ErrorType::ShadowRealmEvaluateAbruptCompletion);
-    auto executable = maybe_executable.release_value();
+    auto executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
 
     // 6. Let evalContext be GetShadowRealmContext(evalRealm, strictEval).
     auto eval_context = get_shadow_realm_context(eval_realm, strict_eval, executable->registers_and_locals_count, executable->constants.size());

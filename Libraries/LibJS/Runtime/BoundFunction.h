@@ -35,7 +35,7 @@ public:
 private:
     BoundFunction(Realm&, FunctionObject& target_function, Value bound_this, Vector<Value> bound_arguments, Object* prototype);
 
-    ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count) override;
+    void get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count) override;
     virtual void visit_edges(Visitor&) override;
 
     virtual bool is_bound_function() const final { return true; }

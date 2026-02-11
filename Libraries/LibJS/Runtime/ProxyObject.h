@@ -57,7 +57,7 @@ private:
     virtual bool is_proxy_object() const final { return true; }
     virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
 
-    virtual ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count) override;
+    virtual void get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count) override;
 
     GC::Ref<Object> m_target;
     GC::Ref<Object> m_handler;
