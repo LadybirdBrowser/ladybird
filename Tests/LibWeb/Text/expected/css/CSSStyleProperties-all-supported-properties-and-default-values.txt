@@ -780,6 +780,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'text-wrap-mode': 'wrap'
 'textWrapStyle': 'auto'
 'text-wrap-style': 'auto'
+'timelineScope': 'none'
+'timeline-scope': 'none'
 'top': 'auto'
 'touchAction': 'auto'
 'touch-action': 'auto'

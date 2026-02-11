@@ -275,6 +275,7 @@ text-decoration-color: rgb(0, 0, 0)
 text-decoration-style: solid
 text-decoration-thickness: auto
 text-overflow: clip
+timeline-scope: none
 top: auto
 touch-action: auto
 transform: none

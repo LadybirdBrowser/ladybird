@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Pass
+Pass	e.style['timeline-scope'] = "initial" should set the property value
+Pass	e.style['timeline-scope'] = "inherit" should set the property value
+Pass	e.style['timeline-scope'] = "unset" should set the property value
+Pass	e.style['timeline-scope'] = "revert" should set the property value
+Pass	e.style['timeline-scope'] = "none" should set the property value
+Pass	e.style['timeline-scope'] = "all" should set the property value
+Pass	e.style['timeline-scope'] = "--abc" should set the property value
+Pass	e.style['timeline-scope'] = "  --abc" should set the property value
+Pass	e.style['timeline-scope'] = "--aBc" should set the property value
+Pass	e.style['timeline-scope'] = "--foo, --bar" should set the property value
+Pass	e.style['timeline-scope'] = "--bar, --foo" should set the property value
+Pass	e.style['timeline-scope'] = "--auto" should set the property value
+Pass	e.style['timeline-scope'] = "none, abc" should not set the property value
+Pass	e.style['timeline-scope'] = "all, abc" should not set the property value
+Pass	e.style['timeline-scope'] = "10px" should not set the property value
+Pass	e.style['timeline-scope'] = "foo bar" should not set the property value
+Pass	e.style['timeline-scope'] = "\"foo\" \"bar\"" should not set the property value
+Pass	e.style['timeline-scope'] = "rgb(1, 2, 3)" should not set the property value
+Pass	e.style['timeline-scope'] = "#fefefe" should not set the property value
+Pass	e.style['timeline-scope'] = "abc" should not set the property value
+Pass	e.style['timeline-scope'] = "  abc" should not set the property value
+Pass	e.style['timeline-scope'] = "aBc" should not set the property value
+Pass	e.style['timeline-scope'] = "foo, bar" should not set the property value
+Pass	e.style['timeline-scope'] = "bar, foo" should not set the property value
+Pass	e.style['timeline-scope'] = "auto" should not set the property value
