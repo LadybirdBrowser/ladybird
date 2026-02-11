@@ -81,7 +81,7 @@ if (HAS_FONTCONFIG)
     list(APPEND SOURCES Font/GlobalFontConfig.cpp)
 endif()
 
-ladybird_lib(LibGfx gfx)
+ladybird_lib(LibGfx gfx EXPLICIT_SYMBOL_EXPORT)
 
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibTextCodec LibIPC LibUnicode)
 

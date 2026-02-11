@@ -7,6 +7,7 @@
 #include <AK/Math.h>
 #include <AK/Optional.h>
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
 
@@ -158,7 +159,7 @@ void AffineTransform::map(float unmapped_x, float unmapped_y, float& mapped_x, f
 }
 
 template<>
-IntPoint AffineTransform::map(IntPoint point) const
+GFX_API IntPoint AffineTransform::map(IntPoint point) const
 {
     float mapped_x;
     float mapped_y;
@@ -167,7 +168,7 @@ IntPoint AffineTransform::map(IntPoint point) const
 }
 
 template<>
-FloatPoint AffineTransform::map(FloatPoint point) const
+GFX_API FloatPoint AffineTransform::map(FloatPoint point) const
 {
     float mapped_x;
     float mapped_y;
@@ -203,7 +204,7 @@ static T largest_of(T p1, T p2, T p3, T p4)
 }
 
 template<>
-FloatRect AffineTransform::map(FloatRect const& rect) const
+GFX_API FloatRect AffineTransform::map(FloatRect const& rect) const
 {
     if (is_identity()) {
         return rect;

@@ -9,6 +9,7 @@
 #include <AK/Error.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibGfx/Export.h>
 #include <LibIPC/Forward.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 
@@ -20,7 +21,7 @@ struct ColorSpaceImpl;
 
 }
 
-class ColorSpace {
+class GFX_API ColorSpace {
 public:
     ColorSpace();
     ColorSpace(ColorSpace const&);
@@ -54,9 +55,9 @@ private:
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Gfx::ColorSpace const&);
+GFX_API ErrorOr<void> encode(Encoder&, Gfx::ColorSpace const&);
 
 template<>
-ErrorOr<Gfx::ColorSpace> decode(Decoder&);
+GFX_API ErrorOr<Gfx::ColorSpace> decode(Decoder&);
 
 }

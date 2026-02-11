@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
 #include <LibGfx/Rect.h>
@@ -80,7 +81,7 @@ private:
     Optional<float> m_repeat_length;
 };
 
-class CanvasPatternPaintStyle : public PaintStyle {
+class GFX_API CanvasPatternPaintStyle : public PaintStyle {
 public:
     enum class Repetition : u8 {
         Repeat,

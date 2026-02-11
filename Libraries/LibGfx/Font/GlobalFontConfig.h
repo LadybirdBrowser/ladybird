@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibGfx/Export.h>
 #include <fontconfig/fontconfig.h>
 
 namespace Gfx {
 
-class GlobalFontConfig {
+class GFX_API GlobalFontConfig {
 public:
     static GlobalFontConfig& the();
     FcConfig* get();

@@ -12,11 +12,12 @@
 #include <AK/Noncopyable.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/SystemTheme.h>
 
 namespace Gfx {
 
-class PaletteImpl : public RefCounted<PaletteImpl> {
+class GFX_API PaletteImpl : public RefCounted<PaletteImpl> {
     AK_MAKE_NONCOPYABLE(PaletteImpl);
     AK_MAKE_NONMOVABLE(PaletteImpl);
 
@@ -55,7 +56,7 @@ private:
     Core::AnonymousBuffer m_theme_buffer;
 };
 
-class Palette {
+class GFX_API Palette {
 
 public:
     explicit Palette(NonnullRefPtr<PaletteImpl>);
