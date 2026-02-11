@@ -136,7 +136,7 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
             if (declaration.is_function_declaration()) {
                 VERIFY(is<FunctionDeclaration>(declaration));
                 auto const& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
-                auto shared_data = function_declaration.ensure_shared_data(vm);
+                auto shared_data = SharedFunctionInstanceData::create_for_function_node(vm, function_declaration);
                 if (function_declaration.name() == ExportStatement::local_name_for_default)
                     shared_data->m_name = "default"_utf16_fly_string;
                 binding.function_index = static_cast<i32>(m_functions_to_initialize.size());

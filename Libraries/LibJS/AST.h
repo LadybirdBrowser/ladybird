@@ -16,7 +16,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibGC/Root.h>
 #include <LibJS/Bytecode/CodeGenerationError.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
@@ -45,8 +44,6 @@ class FunctionDeclaration;
 class Identifier;
 class MemberExpression;
 class VariableDeclaration;
-class SharedFunctionInstanceData;
-
 template<class T, class... Args>
 static inline NonnullRefPtr<T>
 create_ast_node(SourceRange range, Args&&... args)
@@ -829,10 +826,6 @@ public:
 
     virtual bool has_name() const = 0;
 
-    GC::Ptr<SharedFunctionInstanceData> shared_data() const;
-    void set_shared_data(GC::Ptr<SharedFunctionInstanceData>) const;
-    GC::Ref<SharedFunctionInstanceData> ensure_shared_data(VM&) const;
-
     virtual ~FunctionNode();
 
 protected:
@@ -850,8 +843,6 @@ private:
     bool m_is_strict_mode : 1 { false };
     bool m_is_arrow_function : 1 { false };
     FunctionParsingInsights m_parsing_insights;
-
-    mutable GC::Root<SharedFunctionInstanceData> m_shared_data;
 };
 
 class FunctionDeclaration final

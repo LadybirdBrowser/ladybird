@@ -9,6 +9,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <LibGC/Cell.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/FunctionParsingInsights.h>
 #include <LibJS/LocalVariable.h>
@@ -44,12 +45,17 @@ enum class ConstructorKind : u8 {
     Derived,
 };
 
-class SharedFunctionInstanceData final : public GC::Cell {
+class FunctionNode;
+
+class JS_API SharedFunctionInstanceData final : public GC::Cell {
     GC_CELL(SharedFunctionInstanceData, GC::Cell);
     GC_DECLARE_ALLOCATOR(SharedFunctionInstanceData);
 
 public:
     virtual ~SharedFunctionInstanceData() override;
+
+    static GC::Ref<SharedFunctionInstanceData> create_for_function_node(VM&, FunctionNode const&);
+    static GC::Ref<SharedFunctionInstanceData> create_for_function_node(VM&, FunctionNode const&, Utf16FlyString name);
 
     SharedFunctionInstanceData(
         VM& vm,
