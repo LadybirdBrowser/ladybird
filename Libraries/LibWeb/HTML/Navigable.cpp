@@ -53,6 +53,7 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
@@ -2531,10 +2532,20 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
             break;
         if (!ancestor->container())
             return {};
-        if (!ancestor->container()->paintable())
+        auto const* paintable = ancestor->container()->paintable();
+        if (!paintable)
             return {};
-        // FIXME: Handle CSS transforms that might affect the ancestor.
-        position.translate_by(ancestor->container()->paintable()->box_type_agnostic_position());
+
+        if (auto const* paintable_box = as_if<Painting::PaintableBox>(*paintable); paintable_box && paintable_box->accumulated_visual_context()) {
+            auto const& accumulated_visual_context = *paintable_box->accumulated_visual_context();
+            auto const& viewport_paintable = *paintable_box->document().paintable();
+            auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+            auto point = paintable_box->absolute_position();
+            point.translate_by(position);
+            position = accumulated_visual_context.transform_rect_to_viewport({ point, { 0, 0 } }, scroll_state).location();
+        } else {
+            position.translate_by(paintable->box_type_agnostic_position());
+        }
     }
     return position;
 }
