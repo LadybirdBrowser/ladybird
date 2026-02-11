@@ -7,13 +7,14 @@
 #pragma once
 
 #include <AK/RefCounted.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Size.h>
 
 namespace Gfx {
 
-class VectorGraphic : public RefCounted<VectorGraphic> {
+class GFX_API VectorGraphic : public RefCounted<VectorGraphic> {
 public:
     virtual IntSize intrinsic_size() const = 0;
     virtual void draw(Painter&) const = 0;

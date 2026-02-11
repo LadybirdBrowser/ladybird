@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 
 namespace Gfx {
@@ -20,7 +21,7 @@ struct PNGWriterOptions {
     Optional<ReadonlyBytes> icc_data;
 };
 
-class PNGWriter {
+class GFX_API PNGWriter {
 public:
     using Options = PNGWriterOptions;
 

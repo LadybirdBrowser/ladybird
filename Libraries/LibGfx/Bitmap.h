@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
@@ -33,7 +34,7 @@ enum class BitmapFormat {
 #undef ENUMERATE_BITMAP_FORMAT
 };
 
-[[nodiscard]] StringView bitmap_format_name(BitmapFormat);
+[[nodiscard]] GFX_API StringView bitmap_format_name(BitmapFormat);
 
 inline bool is_valid_bitmap_format(u32 const format)
 {
@@ -51,7 +52,7 @@ inline bool is_valid_bitmap_format(u32 const format)
 
 struct BackingStore;
 
-class Bitmap : public AtomicRefCounted<Bitmap> {
+class GFX_API Bitmap : public AtomicRefCounted<Bitmap> {
 public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);

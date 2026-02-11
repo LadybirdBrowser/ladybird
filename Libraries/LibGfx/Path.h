@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/String.h>
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -17,7 +18,7 @@
 
 namespace Gfx {
 
-class PathImpl {
+class GFX_API PathImpl {
 public:
     static NonnullOwnPtr<Gfx::PathImpl> create();
 

@@ -12,6 +12,7 @@
 #include <AK/Forward.h>
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
@@ -30,7 +31,7 @@ struct DrawGlyph {
     u32 glyph_id { 0 };
 };
 
-class GlyphRun : public AtomicRefCounted<GlyphRun> {
+class GFX_API GlyphRun : public AtomicRefCounted<GlyphRun> {
 public:
     enum class TextType {
         Common,
@@ -67,8 +68,8 @@ private:
     mutable OwnPtr<CachedTextBlob> m_cached_text_blob;
 };
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType);
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&);
-float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
+GFX_API NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType);
+GFX_API Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&);
+GFX_API float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
 
 }
