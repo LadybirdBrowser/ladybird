@@ -386,8 +386,9 @@ private:
 
 // ImportEntry Record, https://tc39.es/ecma262/#table-importentry-record-fields
 struct ImportEntry {
-    Optional<Utf16FlyString> import_name; // [[ImportName]]: stored string if Optional is not empty, NAMESPACE-OBJECT otherwise
-    Utf16FlyString local_name;            // [[LocalName]]
+    Optional<Utf16FlyString> import_name;     // [[ImportName]]: stored string if Optional is not empty, NAMESPACE-OBJECT otherwise
+    Utf16FlyString local_name;                // [[LocalName]]
+    Optional<ModuleRequest> m_module_request; // [[ModuleRequest]]
 
     ImportEntry(Optional<Utf16FlyString> import_name_, Utf16FlyString local_name_)
         : import_name(move(import_name_))
@@ -399,13 +400,8 @@ struct ImportEntry {
 
     ModuleRequest const& module_request() const
     {
-        VERIFY(m_module_request);
-        return *m_module_request;
+        return m_module_request.value();
     }
-
-private:
-    friend class ImportStatement;
-    ModuleRequest* m_module_request = nullptr; // [[ModuleRequest]]
 };
 
 class ImportStatement final : public Statement {
@@ -416,7 +412,7 @@ public:
         , m_entries(move(entries))
     {
         for (auto& entry : m_entries)
-            entry.m_module_request = &m_module_request;
+            entry.m_module_request = m_module_request;
     }
 
     virtual void dump(ASTDumpState const& state = {}) const override;
@@ -455,29 +451,24 @@ struct ExportEntry {
     {
     }
 
+    Optional<ModuleRequest> m_module_request; // [[ModuleRequest]]
+
     bool is_module_request() const
     {
-        return m_module_request != nullptr;
+        return m_module_request.has_value();
     }
 
-    static ExportEntry indirect_export_entry(ModuleRequest const& module_request, Optional<Utf16FlyString> export_name, Optional<Utf16FlyString> import_name)
+    static ExportEntry indirect_export_entry(ModuleRequest module_request, Optional<Utf16FlyString> export_name, Optional<Utf16FlyString> import_name)
     {
         ExportEntry entry { Kind::NamedExport, move(export_name), move(import_name) };
-        entry.m_module_request = &module_request;
+        entry.m_module_request = move(module_request);
         return entry;
     }
 
     ModuleRequest const& module_request() const
     {
-        VERIFY(m_module_request);
-        return *m_module_request;
+        return m_module_request.value();
     }
-
-private:
-    ModuleRequest const* m_module_request { nullptr }; // [[ModuleRequest]]
-    friend class ExportStatement;
-
-public:
     static ExportEntry named_export(Utf16FlyString export_name, Utf16FlyString local_name)
     {
         return ExportEntry { Kind::NamedExport, move(export_name), move(local_name) };
@@ -512,7 +503,7 @@ public:
     {
         if (m_module_request.has_value()) {
             for (auto& entry : m_entries)
-                entry.m_module_request = &m_module_request.value();
+                entry.m_module_request = m_module_request.value();
         }
     }
 
