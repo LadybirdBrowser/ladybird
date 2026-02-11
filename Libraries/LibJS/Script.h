@@ -10,6 +10,7 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
 #include <LibJS/Export.h>
+#include <LibJS/Forward.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Realm.h>
 
@@ -46,6 +47,9 @@ public:
     HostDefined* host_defined() const { return m_host_defined; }
     StringView filename() const LIFETIME_BOUND { return m_filename; }
 
+    Bytecode::Executable* cached_executable() const { return m_executable; }
+    void cache_executable(Bytecode::Executable& executable) const { m_executable = &executable; }
+
 private:
     Script(Realm&, StringView filename, NonnullRefPtr<Program>, HostDefined*);
 
@@ -54,6 +58,8 @@ private:
     GC::Ptr<Realm> m_realm;                       // [[Realm]]
     NonnullRefPtr<Program> m_parse_node;          // [[ECMAScriptCode]]
     Vector<LoadedModuleRequest> m_loaded_modules; // [[LoadedModules]]
+
+    mutable GC::Ptr<Bytecode::Executable> m_executable;
 
     // Needed for potential lookups of modules.
     ByteString m_filename;
