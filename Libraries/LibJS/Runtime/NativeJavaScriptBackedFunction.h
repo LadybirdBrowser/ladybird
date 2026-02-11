@@ -16,7 +16,7 @@ class NativeJavaScriptBackedFunction final : public NativeFunction {
     GC_DECLARE_ALLOCATOR(NativeJavaScriptBackedFunction);
 
 public:
-    static GC::Ref<NativeJavaScriptBackedFunction> create(Realm&, FunctionNode const& function_node, PropertyKey const& name, i32 length);
+    static GC::Ref<NativeJavaScriptBackedFunction> create(Realm&, GC::Ref<SharedFunctionInstanceData>, PropertyKey const& name, i32 length);
 
     virtual ~NativeJavaScriptBackedFunction() override = default;
 
