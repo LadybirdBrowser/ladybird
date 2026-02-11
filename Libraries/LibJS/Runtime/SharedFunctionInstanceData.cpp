@@ -123,8 +123,15 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         scope_body->ensure_function_scope_data();
         auto const& function_scope_data = *scope_body->function_scope_data();
 
-        for (auto const& decl : function_scope_data.functions_to_initialize)
-            m_functions_to_initialize.append(*decl);
+        for (auto const& decl : function_scope_data.functions_to_initialize) {
+            auto shared_data = decl->ensure_shared_data(vm);
+            auto const& name_id = *decl->name_identifier();
+            m_functions_to_initialize.append({
+                .shared_data = shared_data,
+                .name = decl->name(),
+                .local = name_id.is_local() ? name_id.local_index() : Identifier::Local {},
+            });
+        }
 
         if (!m_has_parameter_expressions && function_scope_data.has_function_named_arguments)
             m_arguments_object_needed = false;
@@ -264,6 +271,8 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_executable);
+    for (auto& function : m_functions_to_initialize)
+        visitor.visit(function.shared_data);
     m_class_field_initializer_name.visit([&](PropertyKey const& key) { key.visit_edges(visitor); }, [](auto&) {});
 }
 
