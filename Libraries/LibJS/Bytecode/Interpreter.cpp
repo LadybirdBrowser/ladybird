@@ -127,8 +127,8 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     auto instantiation_result = script.global_declaration_instantiation(vm, global_environment);
     Completion result = instantiation_result.is_throw_completion() ? instantiation_result.throw_completion() : normal_completion(js_undefined());
 
-    GC::Ptr<Executable> executable;
-    if (result.type() == Completion::Type::Normal) {
+    GC::Ptr<Executable> executable = script_record.cached_executable();
+    if (!executable && result.type() == Completion::Type::Normal) {
         auto executable_result = JS::Bytecode::Generator::generate_from_ast_node(vm, script, {});
 
         if (executable_result.is_error()) {
@@ -140,6 +140,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
                 result = vm.template throw_completion<JS::InternalError>(error_string.release_value());
         } else {
             executable = executable_result.release_value();
+            script_record.cache_executable(*executable);
 
             if (g_dump_bytecode)
                 executable->dump();
