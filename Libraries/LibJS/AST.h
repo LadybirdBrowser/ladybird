@@ -572,8 +572,6 @@ public:
     bool has_top_level_await() const { return m_has_top_level_await; }
     void set_has_top_level_await() { m_has_top_level_await = true; }
 
-    ThrowCompletionOr<void> global_declaration_instantiation(VM&, GlobalEnvironment&) const;
-
 private:
     virtual bool is_program() const override { return true; }
 
