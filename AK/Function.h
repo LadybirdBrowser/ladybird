@@ -357,6 +357,7 @@ private:
         case FunctionKind::Inline:
         case FunctionKind::Block:
             other_wrapper->init_and_swap(m_storage, inline_capacity);
+            other_wrapper->~CallableWrapperBase();
             m_kind = other.m_kind;
             break;
         case FunctionKind::Outline:
