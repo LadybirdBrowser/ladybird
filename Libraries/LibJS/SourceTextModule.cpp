@@ -14,6 +14,7 @@
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/PromiseCapability.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/SourceTextModule.h>
 
 namespace JS {
@@ -117,6 +118,42 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     , m_star_export_entries(move(star_export_entries))
     , m_default_export(move(default_export))
 {
+    auto& vm = realm.vm();
+
+    // Pre-compute var declared names (initialize_environment step 21).
+    MUST(m_ecmascript_code->for_each_var_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
+        m_var_declared_names.append(identifier.string());
+        return {};
+    }));
+
+    // Pre-compute lexical bindings and functions to initialize (initialize_environment step 24).
+    MUST(m_ecmascript_code->for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
+        return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
+            LexicalBinding binding;
+            binding.name = identifier.string();
+            binding.is_constant = declaration.is_constant_declaration();
+
+            if (declaration.is_function_declaration()) {
+                VERIFY(is<FunctionDeclaration>(declaration));
+                auto const& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
+                auto shared_data = function_declaration.ensure_shared_data(vm);
+                if (function_declaration.name() == ExportStatement::local_name_for_default)
+                    shared_data->m_name = "default"_utf16_fly_string;
+                binding.function_index = static_cast<i32>(m_functions_to_initialize.size());
+                m_functions_to_initialize.append({ *shared_data, shared_data->m_name });
+            }
+
+            m_lexical_bindings.append(move(binding));
+            return {};
+        });
+    }));
+
+    // Pre-compute default export binding name (initialize_environment default export block).
+    if (m_default_export) {
+        VERIFY(m_default_export->has_statement());
+        if (!is<Declaration>(m_default_export->statement()))
+            m_default_export_binding_name = m_default_export->entries()[0].local_or_import_name.value();
+    }
 }
 
 SourceTextModule::~SourceTextModule() = default;
@@ -126,6 +163,8 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_import_meta);
     m_execution_context->visit_edges(visitor);
+    for (auto const& function : m_functions_to_initialize)
+        visitor.visit(function.shared_data);
 }
 
 // 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
@@ -446,18 +485,12 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     // 18. Let code be module.[[ECMAScriptCode]].
 
     // 19. Let varDeclarations be the VarScopedDeclarations of code.
-    // NOTE: We just loop through them in step 21.
-
     // 20. Let declaredVarNames be a new empty List.
     Vector<Utf16FlyString> declared_var_names;
 
     // 21. For each element d of varDeclarations, do
     // a. For each element dn of the BoundNames of d, do
-    // NOTE: Due to the use of MUST with `create_mutable_binding` and `initialize_binding` below,
-    //       an exception should not result from `for_each_var_declared_identifier`.
-    MUST(m_ecmascript_code->for_each_var_declared_identifier([&](Identifier const& identifier) {
-        auto const& name = identifier.string();
-
+    for (auto const& name : m_var_declared_names) {
         // i. If dn is not an element of declaredVarNames, then
         if (!declared_var_names.contains_slow(name)) {
             // 1. Perform ! env.CreateMutableBinding(dn, false).
@@ -469,72 +502,47 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
             // 3. Append dn to declaredVarNames.
             declared_var_names.empend(name);
         }
-    }));
+    }
 
     // 22. Let lexDeclarations be the LexicallyScopedDeclarations of code.
-    // NOTE: We only loop through them in step 24.
-
     // 23. Let privateEnv be null.
     PrivateEnvironment* private_environment = nullptr;
 
     // 24. For each element d of lexDeclarations, do
-    // NOTE: Due to the use of MUST in the callback, an exception should not result from `for_each_lexically_scoped_declaration`.
-    MUST(m_ecmascript_code->for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
+    for (auto const& binding : m_lexical_bindings) {
         // a. For each element dn of the BoundNames of d, do
-        MUST(declaration.for_each_bound_identifier([&](Identifier const& identifier) {
-            auto const& name = identifier.string();
+        // i. If IsConstantDeclaration of d is true, then
+        if (binding.is_constant) {
+            // 1. Perform ! env.CreateImmutableBinding(dn, true).
+            MUST(environment->create_immutable_binding(vm, binding.name, true));
+        }
+        // ii. Else,
+        else {
+            // 1. Perform ! env.CreateMutableBinding(dn, false).
+            MUST(environment->create_mutable_binding(vm, binding.name, false));
+        }
 
-            // i. If IsConstantDeclaration of d is true, then
-            if (declaration.is_constant_declaration()) {
-                // 1. Perform ! env.CreateImmutableBinding(dn, true).
-                MUST(environment->create_immutable_binding(vm, name, true));
-            }
-            // ii. Else,
-            else {
-                // 1. Perform ! env.CreateMutableBinding(dn, false).
-                MUST(environment->create_mutable_binding(vm, name, false));
-            }
+        // iii. If d is a FunctionDeclaration, a GeneratorDeclaration, an AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration, then
+        if (binding.function_index >= 0) {
+            auto const& function_to_initialize = m_functions_to_initialize[binding.function_index];
 
-            // iii. If d is a FunctionDeclaration, a GeneratorDeclaration, an AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration, then
-            if (declaration.is_function_declaration()) {
-                VERIFY(is<FunctionDeclaration>(declaration));
-                auto const& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
+            // 1. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
+            auto function = ECMAScriptFunctionObject::create_from_function_data(
+                realm,
+                function_to_initialize.shared_data,
+                environment,
+                private_environment);
 
-                // 1. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
-                // NOTE: Special case if the function is a default export of an anonymous function
-                //       it has name "*default*" but internally should have name "default".
-                auto function_name = function_declaration.name();
-                if (function_name == ExportStatement::local_name_for_default)
-                    function_name = "default"_utf16_fly_string;
-                auto function = ECMAScriptFunctionObject::create_from_function_node(
-                    function_declaration,
-                    move(function_name),
-                    realm,
-                    environment,
-                    private_environment);
-
-                // 2. Perform ! env.InitializeBinding(dn, fo, normal).
-                MUST(environment->initialize_binding(vm, name, function, Environment::InitializeBindingHint::Normal));
-            }
-        }));
-    }));
+            // 2. Perform ! env.InitializeBinding(dn, fo, normal).
+            MUST(environment->initialize_binding(vm, binding.name, function, Environment::InitializeBindingHint::Normal));
+        }
+    }
 
     // NOTE: The default export name is also part of the local lexical declarations but instead of making that a special
     //       case in the parser we just check it here. This is only needed for things which are not declarations. For more
     //       info check Parser::parse_export_statement. Furthermore, that declaration is not constant. so we take 24.a.ii.
-    if (m_default_export) {
-        VERIFY(m_default_export->has_statement());
-
-        if (auto const& statement = m_default_export->statement(); !is<Declaration>(statement)) {
-            auto const& name = m_default_export->entries()[0].local_or_import_name.value();
-            dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] Adding default export to lexical declarations: local name: {}, Expression: {}", name, statement.class_name());
-
-            // 1. Perform ! env.CreateMutableBinding(dn, false).
-            MUST(environment->create_mutable_binding(vm, name, false));
-
-            // NOTE: Since this is not a function declaration 24.a.iii never applies
-        }
-    }
+    if (m_default_export_binding_name.has_value())
+        MUST(environment->create_mutable_binding(vm, *m_default_export_binding_name, false));
 
     // 25. Remove moduleContext from the execution context stack.
     vm.pop_execution_context();
