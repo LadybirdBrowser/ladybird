@@ -412,6 +412,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
     if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node)
             m_placeholder_text_node->set_data(Utf16String::from_utf8(value.value_or(String {})));
+        update_placeholder_visibility();
     } else if (name == HTML::AttributeNames::maxlength) {
         handle_maxlength_attribute();
     }
