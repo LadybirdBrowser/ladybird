@@ -100,11 +100,11 @@ void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties 
 
     effect.set_specified_iteration_duration(animation_properties.duration);
     effect.set_specified_start_delay(animation_properties.delay);
+    effect.set_iteration_count(animation_properties.iteration_count);
     // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
     // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
     // timing requires rerunning the procedure to normalize specified timing.
     effect.normalize_specified_timing();
-    effect.set_iteration_count(animation_properties.iteration_count);
     effect.set_timing_function(animation_properties.timing_function);
     effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));

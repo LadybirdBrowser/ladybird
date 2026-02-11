@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-8 Pass
-4 Fail
+12 Pass
 Pass	animation-duration
 Pass	animation-duration: 0s
-Fail	animation-iteration-count
+Pass	animation-iteration-count
 Pass	animation-iteration-count: 0
-Fail	animation-iteration-count: infinite
+Pass	animation-iteration-count: infinite
 Pass	animation-direction: normal
 Pass	animation-direction: reverse
-Fail	animation-direction: alternate
-Fail	animation-direction: alternate-reverse
+Pass	animation-direction: alternate
+Pass	animation-direction: alternate-reverse
 Pass	animation-delay with a positive value
 Pass	animation-delay with a negative value
 Pass	animation-fill-mode
