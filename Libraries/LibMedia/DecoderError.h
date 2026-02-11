@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2022-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,7 +18,7 @@ namespace Media {
 template<typename T>
 using DecoderErrorOr = ErrorOr<T, DecoderError>;
 
-enum class DecoderErrorCategory : u32 {
+enum class DecoderErrorCategory : u8 {
     Aborted,
     Unknown,
     IO,
@@ -83,6 +83,31 @@ private:
     Variant<StringView, ByteString> m_description;
 };
 
+constexpr StringView decoder_error_category_to_string(DecoderErrorCategory category)
+{
+    switch (category) {
+    case DecoderErrorCategory::Aborted:
+        return "Aborted"sv;
+    case DecoderErrorCategory::Unknown:
+        return "Unknown"sv;
+    case DecoderErrorCategory::IO:
+        return "IO"sv;
+    case DecoderErrorCategory::NeedsMoreInput:
+        return "NeedsMoreInput"sv;
+    case DecoderErrorCategory::EndOfStream:
+        return "EndOfStream"sv;
+    case DecoderErrorCategory::Memory:
+        return "Memory"sv;
+    case DecoderErrorCategory::Corrupted:
+        return "Corrupted"sv;
+    case DecoderErrorCategory::Invalid:
+        return "Invalid"sv;
+    case DecoderErrorCategory::NotImplemented:
+        return "NotImplemented"sv;
+    }
+    return "Invalid"sv;
+}
+
 #define DECODER_TRY(category, expression)                                                  \
     ({                                                                                     \
         auto&& _result = ((expression));                                                   \
@@ -103,10 +128,18 @@ private:
 namespace AK {
 
 template<>
+struct Formatter<Media::DecoderErrorCategory> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder& builder, Media::DecoderErrorCategory const& decoder_error_category)
+    {
+        return builder.put_literal(Media::decoder_error_category_to_string(decoder_error_category));
+    }
+};
+
+template<>
 struct Formatter<Media::DecoderError> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Media::DecoderError const& decoder_error)
     {
-        return Formatter<FormatString>::format(builder, "[DecoderError]: {}"sv, decoder_error.description());
+        return Formatter<FormatString>::format(builder, "[DecoderError] ({}): {}"sv, decoder_error.category(), decoder_error.description());
     }
 };
 
