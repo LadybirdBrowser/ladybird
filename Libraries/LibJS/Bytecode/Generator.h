@@ -21,6 +21,7 @@
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/FunctionKind.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibRegex/Regex.h>
 
 namespace JS::Bytecode {
@@ -47,12 +48,14 @@ public:
 
     [[nodiscard]] ScopedOperand allocate_register();
     [[nodiscard]] ScopedOperand local(Identifier::Local const&);
+    [[nodiscard]] ScopedOperand local(FunctionLocal const&);
     [[nodiscard]] ScopedOperand accumulator();
     [[nodiscard]] ScopedOperand this_value();
 
     void free_register(Register);
 
     void set_local_initialized(Identifier::Local const&);
+    void set_local_initialized(FunctionLocal const&);
     [[nodiscard]] bool is_local_initialized(u32 local_index) const;
     [[nodiscard]] bool is_local_initialized(Identifier::Local const&) const;
     [[nodiscard]] bool is_local_lexically_declared(Identifier::Local const& local) const;

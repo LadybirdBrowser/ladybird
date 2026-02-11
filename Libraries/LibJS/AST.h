@@ -25,6 +25,7 @@
 #include <LibJS/Bytecode/ScopedOperand.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
+#include <LibJS/FunctionParsingInsights.h>
 #include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
@@ -814,12 +815,8 @@ private:
     Vector<FunctionParameter> m_parameters;
 };
 
-struct FunctionParsingInsights {
-    bool uses_this { false };
-    bool uses_this_from_environment { false };
-    bool contains_direct_call_to_eval { false };
-    bool might_need_arguments_object { false };
-};
+// NB: FunctionParsingInsights is defined in FunctionParsingInsights.h
+//     and re-exported here for convenience.
 
 class JS_API FunctionNode {
 public:

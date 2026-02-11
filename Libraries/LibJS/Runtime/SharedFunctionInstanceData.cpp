@@ -4,10 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/AST.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS {
+
+static FunctionLocal to_function_local(Identifier const& identifier)
+{
+    if (!identifier.is_local())
+        return {};
+    auto local = identifier.local_index();
+    return { static_cast<FunctionLocal::Type>(local.type), local.index };
+}
 
 GC_DEFINE_ALLOCATOR(SharedFunctionInstanceData);
 
@@ -140,7 +149,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
             m_functions_to_initialize.append({
                 .shared_data = shared_data,
                 .name = decl->name(),
-                .local = name_id.is_local() ? name_id.local_index() : Identifier::Local {},
+                .local = to_function_local(name_id),
             });
         }
 
@@ -196,7 +205,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
                 m_var_names_to_initialize_binding.append({
                     .name = var.identifier.string(),
-                    .local = var.identifier.is_local() ? var.identifier.local_index() : Identifier::Local {},
+                    .local = to_function_local(var.identifier),
                 });
             }
 
@@ -217,7 +226,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
                 bool is_in_parameter_bindings = var.is_parameter || (var.identifier.string() == vm.names.arguments.as_string() && m_arguments_object_needed);
                 m_var_names_to_initialize_binding.append({
                     .name = var.identifier.string(),
-                    .local = var.identifier.is_local() ? var.identifier.local_index() : Identifier::Local {},
+                    .local = to_function_local(var.identifier),
                     .parameter_binding = is_in_parameter_bindings,
                     .function_name = var.is_function_name,
                 });

@@ -7,11 +7,31 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibJS/AST.h>
+#include <AK/RefPtr.h>
+#include <LibGC/Cell.h>
 #include <LibJS/Forward.h>
+#include <LibJS/FunctionParsingInsights.h>
+#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/FunctionKind.h>
+#include <LibJS/Runtime/PrivateEnvironment.h>
+#include <LibJS/Runtime/PropertyKey.h>
 
 namespace JS {
+
+// NB: This mirrors Identifier::Local from AST.h, defined here to avoid
+//     including the full AST header in this file.
+struct FunctionLocal {
+    enum Type : u8 {
+        None,
+        Argument,
+        Variable,
+    };
+    Type type { None };
+    u32 index { 0 };
+
+    bool is_argument() const { return type == Argument; }
+    bool is_variable() const { return type == Variable; }
+};
 
 enum class ThisMode : u8 {
     Lexical,
@@ -74,7 +94,7 @@ public:
 
     struct VarBinding {
         Utf16FlyString name;
-        Identifier::Local local {};
+        FunctionLocal local {};
         bool parameter_binding { false };
         bool function_name { false };
     };
@@ -89,7 +109,7 @@ public:
     struct FunctionToInitialize {
         GC::Ref<SharedFunctionInstanceData> shared_data;
         Utf16FlyString name;
-        Identifier::Local local {};
+        FunctionLocal local {};
     };
     Vector<FunctionToInitialize> m_functions_to_initialize;
     bool m_arguments_object_needed { false };
