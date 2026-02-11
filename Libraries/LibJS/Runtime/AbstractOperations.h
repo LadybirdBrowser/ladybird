@@ -116,7 +116,7 @@ struct EvalDeclarationData {
     static EvalDeclarationData create(VM&, Program const&, bool strict);
 };
 
-ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& program, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict);
+ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, EvalDeclarationData&, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict);
 
 // 7.3.14 Call ( F, V [ , argumentsList ] ), https://tc39.es/ecma262/#sec-call
 ALWAYS_INLINE ThrowCompletionOr<Value> call(VM& vm, Value function, Value this_value, ReadonlySpan<Value> arguments_list)

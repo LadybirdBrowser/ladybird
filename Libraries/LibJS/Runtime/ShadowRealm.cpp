@@ -167,7 +167,8 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
     TRY(vm.push_execution_context(*eval_context, {}));
 
     // 10. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, null, strictEval)).
-    auto eval_result = eval_declaration_instantiation(vm, program, variable_environment, lexical_environment, nullptr, strict_eval);
+    auto eval_declaration_data = EvalDeclarationData::create(vm, program, strict_eval);
+    auto eval_result = eval_declaration_instantiation(vm, eval_declaration_data, variable_environment, lexical_environment, nullptr, strict_eval);
 
     Completion result;
 
