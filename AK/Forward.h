@@ -125,6 +125,12 @@ class Function;
 template<typename Out, typename... In>
 class Function<Out(In...)>;
 
+template<typename>
+class JsonArraySerializer;
+
+template<typename>
+class JsonObjectSerializer;
+
 template<typename T>
 class NonnullRefPtr;
 
@@ -188,7 +194,9 @@ using AK::HashTable;
 using AK::IPv4Address;
 using AK::IPv6Address;
 using AK::JsonArray;
+using AK::JsonArraySerializer;
 using AK::JsonObject;
+using AK::JsonObjectSerializer;
 using AK::JsonValue;
 using AK::LexicalPath;
 using AK::LittleEndianInputBitStream;

@@ -9,7 +9,6 @@
 
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/CSS/URL.h>
-#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>

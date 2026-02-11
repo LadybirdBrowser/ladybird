@@ -11,7 +11,6 @@
 #include <AK/Error.h>
 #include <AK/String.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {

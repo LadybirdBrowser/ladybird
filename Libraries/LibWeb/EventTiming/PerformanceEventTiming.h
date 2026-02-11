@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/DOM/Node.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 
 namespace Web::EventTiming {

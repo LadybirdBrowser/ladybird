@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 
 namespace Web::DOM {
