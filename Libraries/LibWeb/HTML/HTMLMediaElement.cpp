@@ -1213,9 +1213,9 @@ Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref
     return {};
 }
 
-void HTMLMediaElement::restart_fetch_at_offset(NonnullRefPtr<FetchData> const& fetch_data, u64 offset)
+void HTMLMediaElement::restart_fetch_at_offset(FetchData& fetch_data, u64 offset)
 {
-    if (!fetch_data->accepts_byte_ranges)
+    if (!fetch_data.accepts_byte_ranges)
         return;
     if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
         m_fetch_controller->stop_fetch();

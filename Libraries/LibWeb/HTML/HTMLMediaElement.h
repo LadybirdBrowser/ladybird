@@ -207,7 +207,7 @@ private:
 
     Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&, NonnullRefPtr<FetchData> const&);
 
-    void restart_fetch_at_offset(NonnullRefPtr<FetchData> const&, u64 offset);
+    void restart_fetch_at_offset(FetchData&, u64 offset);
 
     void set_up_playback_manager(NonnullRefPtr<FetchData> const&);
     enum class FetchingStatus {
