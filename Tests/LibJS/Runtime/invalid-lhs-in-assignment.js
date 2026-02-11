@@ -1,11 +1,11 @@
-test.xfail("assignment to function call", () => {
+test("assignment to function call", () => {
     expect(() => {
         function foo() {}
         foo() = "foo";
     }).toThrowWithMessage(ReferenceError, "Invalid left-hand side in assignment");
 });
 
-test.xfail("Postfix operator after function call", () => {
+test("Postfix operator after function call", () => {
     expect(() => {
         function foo() {}
         foo()++;
@@ -16,7 +16,7 @@ test("assignment to function call in strict mode", () => {
     expect("'use strict'; foo() = 'foo'").toEval();
 });
 
-test.xfail("assignment to inline function call", () => {
+test("assignment to inline function call", () => {
     expect(() => {
         (function () {})() = "foo";
     }).toThrowWithMessage(ReferenceError, "Invalid left-hand side in assignment");

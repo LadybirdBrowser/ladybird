@@ -704,7 +704,14 @@ Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Genera
                     // NOTE: For Identifiers, we cannot perform GetBinding and then write into the reference it retrieves, only SetVariable can do this.
                     // FIXME: However, this breaks spec as we are doing variable lookup after evaluating the RHS. This is observable in an object environment, where we visibly perform HasOwnProperty and Get(@@unscopables) on the binded object.
                 } else {
+                    // Per spec 13.15.2 step 1b, we must evaluate the LHS (the call),
+                    // then throw ReferenceError before evaluating the RHS.
                     (void)lhs->generate_bytecode(generator);
+                    auto exception = generator.allocate_register();
+                    generator.emit<Bytecode::Op::NewReferenceError>(exception, generator.intern_string(ErrorType::InvalidLeftHandAssignment.message()));
+                    generator.perform_needed_unwinds<Bytecode::Op::Throw>();
+                    generator.emit<Bytecode::Op::Throw>(exception);
+                    generator.switch_to_basic_block(generator.make_block());
                 }
 
                 // c. If IsAnonymousFunctionDefinition(AssignmentExpression) and IsIdentifierRef of LeftHandSideExpression are both true, then

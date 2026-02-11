@@ -130,17 +130,22 @@ describe("special left hand sides", () => {
         expect(f().a).toBe("c");
     });
 
-    test.xfail("call function is allowed in parsing but fails in runtime", () => {
+    test("call function is allowed in parsing but fails in runtime", () => {
+        var fCalled = false;
         function f() {
-            expect().fail();
+            fCalled = true;
+            return {};
         }
 
         // Does not fail since it does not iterate but prettier does not like it so we use eval.
         expect("for (f() of []);").toEvalTo(undefined);
 
+        // f() is evaluated as the LHS, then ReferenceError is thrown
+        // because the result of a call is not a valid assignment target.
         expect(() => {
-            eval("for (f() of [0]) { expect().fail() }");
+            eval("for (f() of [0]) {}");
         }).toThrowWithMessage(ReferenceError, "Invalid left-hand side in assignment");
+        expect(fCalled).toBeTrue();
     });
 
     test("Cannot change constant declaration in body", () => {
