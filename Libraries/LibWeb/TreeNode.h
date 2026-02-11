@@ -72,7 +72,7 @@ public:
         return index;
     }
 
-    // // https://dom.spec.whatwg.org/#concept-tree-root
+    // https://dom.spec.whatwg.org/#concept-tree-root
     T& root()
     {
         // The root of an object is itself, if its parent is null, or else it is the root of its parent.

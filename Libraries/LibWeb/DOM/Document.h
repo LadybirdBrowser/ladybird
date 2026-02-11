@@ -465,7 +465,7 @@ public:
 
     void set_editable(bool editable) { m_editable = editable; }
 
-    // // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
+    // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> focused_area() { return m_focused_area; }
     GC::Ptr<Node const> focused_area() const { return m_focused_area; }
     void set_focused_area(GC::Ptr<Node>);
@@ -939,7 +939,7 @@ public:
 
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
 
-    // // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
+    // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
     FlyString const& default_single_line_container_name() const { return m_default_single_line_container_name; }
     void set_default_single_line_container_name(FlyString const& name) { m_default_single_line_container_name = name; }
 

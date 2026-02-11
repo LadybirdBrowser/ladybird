@@ -419,7 +419,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     return instance_result.release_value();
 }
 
-// // https://webassembly.github.io/spec/js-api/#compile-a-webassembly-module
+// https://webassembly.github.io/spec/js-api/#compile-a-webassembly-module
 // https://webassembly.github.io/content-security-policy/js-api/#compile-a-webassembly-module
 JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::VM& vm, ByteBuffer data)
 {
