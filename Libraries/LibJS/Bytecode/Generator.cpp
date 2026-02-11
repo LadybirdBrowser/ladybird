@@ -1609,84 +1609,43 @@ ScopedOperand Generator::add_constant(Value value)
 CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Identifier const& builtin_identifier, ReadonlySpan<CallExpression::Argument> arguments, ScopedOperand const& dst)
 {
     VERIFY(m_builtin_abstract_operations_enabled);
-    for (auto const& argument : arguments) {
-        if (argument.is_spread) {
-            return CodeGenerationError {
-                argument.value.ptr(),
-                "Spread arguments not allowed for builtin abstract operations"sv,
-            };
-        }
-    }
+    for (auto const& argument : arguments)
+        VERIFY(!argument.is_spread);
 
     auto const& operation_name = builtin_identifier.string();
 
     if (operation_name == "IsCallable"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "IsCallable only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
         emit<Op::IsCallable>(dst, source);
         return {};
     }
 
     if (operation_name == "IsConstructor"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "IsConstructor only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
         emit<Op::IsConstructor>(dst, source);
         return {};
     }
 
     if (operation_name == "ToBoolean"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "ToBoolean only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
         emit<Op::ToBoolean>(dst, source);
         return {};
     }
 
     if (operation_name == "ToObject"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "ToObject only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
         emit<Op::ToObject>(dst, source);
         return {};
     }
 
     if (operation_name == "ThrowTypeError"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "throw_type_error only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto const* message = as_if<StringLiteral>(*arguments[0].value);
-        if (!message) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "ThrowTypeError's message must be a string literal"sv,
-            };
-        }
+        VERIFY(message);
 
         auto message_string = intern_string(message->value());
         auto type_error_register = allocate_register();
@@ -1697,25 +1656,14 @@ CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Ident
     }
 
     if (operation_name == "ThrowIfNotObject"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "ThrowIfNotObject only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
         emit<Op::ThrowIfNotObject>(source);
         return {};
     }
 
     if (operation_name == "Call"sv) {
-        if (arguments.size() < 2) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "Call must have at least two arguments"sv,
-            };
-        }
+        VERIFY(arguments.size() >= 2);
 
         auto const& callee_argument = arguments[0].value;
         auto callee = TRY(callee_argument->generate_bytecode(*this)).value();
@@ -1754,25 +1702,13 @@ CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Ident
     }
 
     if (operation_name == "NewObjectWithNoPrototype"sv) {
-        if (!arguments.is_empty()) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "NewObjectWithNoPrototype does not take any arguments"sv,
-            };
-        }
-
+        VERIFY(arguments.is_empty());
         emit<Op::NewObjectWithNoPrototype>(dst);
         return {};
     }
 
     if (operation_name == "CreateAsyncFromSyncIterator"sv) {
-        if (arguments.size() != 3) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "CreateAsyncFromSyncIterator only accepts exactly three arguments"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 3);
         auto iterator = TRY(arguments[0].value->generate_bytecode(*this)).value();
         auto next_method = TRY(arguments[1].value->generate_bytecode(*this)).value();
         auto done = TRY(arguments[2].value->generate_bytecode(*this)).value();
@@ -1782,33 +1718,16 @@ CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Ident
     }
 
     if (operation_name == "ToLength"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "ToLength only accepts exactly one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto value = TRY(arguments[0].value->generate_bytecode(*this)).value();
         emit<Op::ToLength>(dst, value);
         return {};
     }
 
     if (operation_name == "NewTypeError"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "NewTypeError only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto const* message = as_if<StringLiteral>(*arguments[0].value);
-        if (!message) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "new_type_error's message must be a string literal"sv,
-            };
-        }
+        VERIFY(message);
 
         auto message_string = intern_string(message->value());
         emit<Op::NewTypeError>(dst, message_string);
@@ -1816,26 +1735,14 @@ CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Ident
     }
 
     if (operation_name == "NewArrayWithLength"sv) {
-        if (arguments.size() != 1) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "NewArrayWithLength only accepts one argument"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 1);
         auto length = TRY(arguments[0].value->generate_bytecode(*this)).value();
         emit<Op::NewArrayWithLength>(dst, length);
         return {};
     }
 
     if (operation_name == "CreateDataPropertyOrThrow"sv) {
-        if (arguments.size() != 3) {
-            return CodeGenerationError {
-                &builtin_identifier,
-                "CreateDataPropertyOrThrow only accepts three arguments"sv,
-            };
-        }
-
+        VERIFY(arguments.size() == 3);
         auto object = TRY(arguments[0].value->generate_bytecode(*this)).value();
         auto property = TRY(arguments[1].value->generate_bytecode(*this)).value();
         auto value = TRY(arguments[2].value->generate_bytecode(*this)).value();
@@ -1863,11 +1770,7 @@ CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Ident
     JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
 #undef __JS_ENUMERATE
 
-    dbgln("Unknown builtin abstract operation: '{}'", operation_name);
-    return CodeGenerationError {
-        &builtin_identifier,
-        "Unknown builtin abstract operation"sv,
-    };
+    VERIFY_NOT_REACHED();
 }
 
 CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::maybe_generate_builtin_constant(Identifier const& builtin_identifier)
@@ -1901,11 +1804,7 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::maybe_generate_builtin
         return add_constant(Value(MAX_ARRAY_LIKE_INDEX));
     }
 
-    dbgln("Unknown builtin constant: '{}'", constant_name);
-    return CodeGenerationError {
-        &builtin_identifier,
-        "Unknown builtin constant"sv,
-    };
+    VERIFY_NOT_REACHED();
 }
 
 }
