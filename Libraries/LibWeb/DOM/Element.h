@@ -16,7 +16,6 @@
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Selector.h>
-#include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StylePropertyMapReadOnly.h>
 #include <LibWeb/DOM/ChildNode.h>
