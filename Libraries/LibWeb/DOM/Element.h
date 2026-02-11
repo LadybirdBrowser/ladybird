@@ -6,18 +6,14 @@
 
 #pragma once
 
-#include <AK/IterationDecision.h>
 #include <AK/Optional.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
-#include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/Animations/Animatable.h>
 #include <LibWeb/Bindings/ElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
-#include <LibWeb/CSS/StylePropertyMapReadOnly.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/NonDocumentTypeChildNode.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -27,12 +23,11 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
-#include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
-#include <LibWeb/IntersectionObserver/IntersectionObserver.h>
+#include <LibWeb/IntersectionObserver/IntersectionObserverRegistration.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>

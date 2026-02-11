@@ -88,6 +88,7 @@
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ListItemBox.h>

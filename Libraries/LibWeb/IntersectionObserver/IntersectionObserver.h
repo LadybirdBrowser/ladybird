@@ -9,6 +9,7 @@
 #include <LibGC/Root.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
+#include <LibWeb/IntersectionObserver/IntersectionObserverRegistration.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::IntersectionObserver {
@@ -20,22 +21,6 @@ struct IntersectionObserverInit {
     Variant<double, Vector<double>> threshold { 0 };
     long delay = 0;
     bool track_visibility = false;
-};
-
-// https://www.w3.org/TR/intersection-observer/#intersectionobserverregistration
-struct IntersectionObserverRegistration {
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverregistration-observer
-    // [A]n observer property holding an IntersectionObserver.
-    GC::Ref<IntersectionObserver> observer;
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverregistration-observer
-    // NOTE: Optional is used in place of the spec using -1 to indicate no previous index.
-    // [A] previousThresholdIndex property holding a number between -1 and the length of the observer’s thresholds property (inclusive).
-    Optional<size_t> previous_threshold_index;
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverregistration-previousisintersecting
-    // [A] previousIsIntersecting property holding a boolean.
-    bool previous_is_intersecting { false };
 };
 
 // https://w3c.github.io/IntersectionObserver/#intersection-observer-interface
