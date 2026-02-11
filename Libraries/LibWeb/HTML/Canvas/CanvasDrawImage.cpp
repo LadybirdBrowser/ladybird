@@ -58,6 +58,7 @@ RefPtr<Gfx::ImmutableBitmap> canvas_image_source_bitmap(CanvasImageSource const&
             return element->default_image_bitmap();
         },
         [](GC::Root<HTMLCanvasElement> const& canvas) -> RefPtr<Gfx::ImmutableBitmap> {
+            canvas->present();
             auto surface = canvas->surface();
             if (!surface)
                 return Gfx::ImmutableBitmap::create(*canvas->get_bitmap_from_surface());
