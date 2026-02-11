@@ -432,9 +432,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateArguments);
             HANDLE_INSTRUCTION(Decrement);
             HANDLE_INSTRUCTION(DeleteById);
-            HANDLE_INSTRUCTION(DeleteByIdWithThis);
             HANDLE_INSTRUCTION(DeleteByValue);
-            HANDLE_INSTRUCTION(DeleteByValueWithThis);
             HANDLE_INSTRUCTION(DeleteVariable);
             HANDLE_INSTRUCTION(Div);
             HANDLE_INSTRUCTION(EnterObjectEnvironment);
@@ -491,6 +489,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewObjectWithNoPrototype);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewPrimitiveArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewRegExp);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewReferenceError);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewTypeError);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Not);
             HANDLE_INSTRUCTION(PostfixDecrement);
@@ -1953,6 +1952,13 @@ void NewRegExp::execute_impl(Bytecode::Interpreter& interpreter) const
             interpreter.current_executable().get_string(m_flags_index)));
 }
 
+COLD void NewReferenceError::execute_impl(Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto& realm = *vm.current_realm();
+    interpreter.set(dst(), ReferenceError::create(realm, interpreter.current_executable().get_string(m_error_string)));
+}
+
 COLD void NewTypeError::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
@@ -2423,16 +2429,6 @@ COLD ThrowCompletionOr<void> DeleteById::execute_impl(Bytecode::Interpreter& int
     auto& vm = interpreter.vm();
     auto const& property_key = interpreter.get_property_key(m_property);
     auto reference = Reference { interpreter.get(m_base), property_key, {}, strict() };
-    interpreter.set(dst(), Value(TRY(reference.delete_(vm))));
-    return {};
-}
-
-COLD ThrowCompletionOr<void> DeleteByIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto base_value = interpreter.get(m_base);
-    auto const& property_key = interpreter.get_property_key(m_property);
-    auto reference = Reference { base_value, property_key, interpreter.get(m_this_value), strict() };
     interpreter.set(dst(), Value(TRY(reference.delete_(vm))));
     return {};
 }
@@ -2951,16 +2947,6 @@ COLD ThrowCompletionOr<void> DeleteByValue::execute_impl(Bytecode::Interpreter& 
     auto property_key = TRY(interpreter.get(m_property).to_property_key(vm));
     auto reference = Reference { interpreter.get(m_base), property_key, {}, strict() };
     interpreter.set(m_dst, Value(TRY(reference.delete_(vm))));
-    return {};
-}
-
-COLD ThrowCompletionOr<void> DeleteByValueWithThis::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto property_key_value = interpreter.get(m_property);
-    auto property_key = TRY(property_key_value.to_property_key(vm));
-    auto reference = Reference { interpreter.get(m_base), property_key, interpreter.get(m_this_value), strict() };
-    interpreter.set(dst(), Value(TRY(reference.delete_(vm))));
     return {};
 }
 
