@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
 #include <LibJS/Export.h>
@@ -15,6 +17,8 @@
 #include <LibJS/Runtime/Realm.h>
 
 namespace JS {
+
+class FunctionDeclaration;
 
 // 16.1.4 Script Records, https://tc39.es/ecma262/#sec-script-records
 class JS_API Script final : public Cell {
@@ -60,6 +64,26 @@ private:
     Vector<LoadedModuleRequest> m_loaded_modules; // [[LoadedModules]]
 
     mutable GC::Ptr<Bytecode::Executable> m_executable;
+
+    // Pre-computed global declaration instantiation data.
+    // These are extracted from the AST at parse time so that GDI can run
+    // without needing to walk the AST.
+    struct FunctionToInitialize {
+        GC::Ref<SharedFunctionInstanceData> shared_data;
+        Utf16FlyString name;
+    };
+    struct LexicalBinding {
+        Utf16FlyString name;
+        bool is_constant { false };
+    };
+    Vector<Utf16FlyString> m_lexical_names;
+    Vector<Utf16FlyString> m_var_names;
+    Vector<FunctionToInitialize> m_functions_to_initialize;
+    HashTable<Utf16FlyString> m_declared_function_names;
+    Vector<Utf16FlyString> m_var_scoped_names;
+    Vector<NonnullRefPtr<FunctionDeclaration const>> m_annex_b_candidates;
+    Vector<LexicalBinding> m_lexical_bindings;
+    bool m_is_strict_mode { false };
 
     // Needed for potential lookups of modules.
     ByteString m_filename;
