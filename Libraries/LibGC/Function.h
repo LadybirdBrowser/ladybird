@@ -18,7 +18,7 @@ class Function final : public Cell {
     GC_DECLARE_ALLOCATOR(Function);
 
 public:
-    static Ref<Function> create(Heap& heap, ESCAPING AK::Function<T> function)
+    static Ref<Function> create(Heap& heap, ESCAPING AK::Function<T>&& function)
     {
         return heap.allocate<Function>(move(function));
     }
@@ -28,7 +28,7 @@ public:
     [[nodiscard]] AK::Function<T> const& function() const { return m_function; }
 
 private:
-    Function(AK::Function<T> function)
+    Function(AK::Function<T>&& function)
         : m_function(move(function))
     {
     }
