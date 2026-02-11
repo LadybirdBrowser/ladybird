@@ -3715,7 +3715,7 @@ static ForInOfHeadEvaluationResult for_in_of_head_evaluation(Bytecode::Generator
 }
 
 // 14.7.5.7 ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] ), https://tc39.es/ecma262/#sec-runtime-semantics-forin-div-ofbodyevaluation-lhs-stmt-iterator-lhskind-labelset
-static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& generator, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
+static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& generator, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, IterationKind iteration_kind, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
 {
     // 1. If iteratorKind is not present, set iteratorKind to sync.
 
@@ -3738,6 +3738,54 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
     VERIFY(!(destructuring && head_result.lhs_kind == LHSKind::Assignment));
     if (completion.has_value())
         generator.set_current_breakable_scope_completion_register(*completion);
+
+    // For for-of and for-await-of, set up a synthetic FinallyContext so that
+    // IteratorClose/AsyncIteratorClose is called on abrupt completion (break,
+    // return, throw, or continue-to-outer-loop). for-in (enumerate) does not
+    // need iterator close per spec.
+    bool needs_iterator_close = (iteration_kind != IterationKind::Enumerate);
+
+    Optional<Bytecode::Generator::FinallyContext> iterator_close_finally_context;
+    Optional<Bytecode::Generator::UnwindContext> iterator_close_unwind_context;
+    Optional<ScopedOperand> close_completion_type;
+    Optional<ScopedOperand> close_completion_value;
+    Bytecode::BasicBlock* exception_preamble_block { nullptr };
+    Bytecode::BasicBlock* iterator_close_body_block { nullptr };
+    Optional<ScopedOperand> lexical_environment_at_entry;
+
+    if (needs_iterator_close) {
+        lexical_environment_at_entry = generator.current_lexical_environment_register();
+        close_completion_type = generator.allocate_register();
+        close_completion_value = generator.allocate_register();
+
+        exception_preamble_block = &generator.make_block();
+        iterator_close_body_block = &generator.make_block();
+
+        iterator_close_finally_context.emplace(Bytecode::Generator::FinallyContext {
+            .completion_type = *close_completion_type,
+            .completion_value = *close_completion_value,
+            .finally_body = Bytecode::Label { *iterator_close_body_block },
+            .exception_preamble = Bytecode::Label { *exception_preamble_block },
+            .parent = generator.current_finally_context(),
+            .registered_jumps = {},
+            .next_jump_index = Bytecode::Generator::FinallyContext::FIRST_JUMP_INDEX,
+            .lexical_environment_at_entry = lexical_environment_at_entry,
+        });
+        generator.set_current_finally_context(&*iterator_close_finally_context);
+
+        // Place ReturnToFinally between Break (pushed by caller) and Continue
+        // (pushed by begin_continuable_scope below). This ensures:
+        //   - continue to this loop: hits Continue first -> direct jump (no close)
+        //   - break/return/throw/continue-to-outer: hits ReturnToFinally -> close
+        generator.start_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
+
+        // NB: The UnwindContext (exception handler) is set up later, after
+        //     the iterator-next section. Per spec, exceptions from steps a-f
+        //     (IteratorNext, Await, IteratorComplete, IteratorValue) propagate
+        //     directly without calling IteratorClose. Only exceptions from
+        //     LHS assignment (steps g-j) and the loop body (step l) should
+        //     trigger iterator close.
+    }
 
     // 6. Repeat,
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_update });
@@ -3786,6 +3834,17 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
 
         // f. Let nextValue be ? IteratorValue(nextResult).
         generator.emit_iterator_value(next_value, next_result);
+    }
+
+    // Set up the exception handler now, after the iterator-next section.
+    // This ensures only LHS assignment and body exceptions trigger close.
+    // We must also switch to a fresh block so that subsequent code gets the
+    // new handler (make_block sets the handler at creation time).
+    if (needs_iterator_close) {
+        iterator_close_unwind_context.emplace(generator, Bytecode::Label { *exception_preamble_block });
+        auto& loop_body = generator.make_block();
+        generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_body });
+        generator.switch_to_basic_block(loop_body);
     }
 
     // g. If lhsKind is either assignment or varBinding, then
@@ -3898,7 +3957,6 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
         }
     }
 
-    // FIXME: Implement iteration closure.
     // k. If status is an abrupt completion, then
     //     i. Set the running execution context's LexicalEnvironment to oldEnv.
     //     ii. If iteratorKind is async, return ? AsyncIteratorClose(iteratorRecord, status).
@@ -3907,6 +3965,8 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
     //     iv. Else,
     //         1. Assert: iterationKind is iterate.
     //         2. Return ? IteratorClose(iteratorRecord, status).
+    // NB: Abrupt completions from LHS assignment and the loop body are handled
+    //     by the synthetic FinallyContext set up above (for iterate/async-iterate).
 
     // l. Let result be the result of evaluating stmt.
     {
@@ -3922,11 +3982,92 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
     if (has_lexical_binding)
         generator.end_variable_scope();
     generator.end_continuable_scope();
+
+    if (needs_iterator_close) {
+        generator.end_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
+        generator.set_current_finally_context(iterator_close_finally_context->parent);
+        iterator_close_unwind_context.clear();
+    }
+
     generator.end_breakable_scope();
 
     // The body can contain an unconditional block terminator (e.g. return, throw), so we have to check for that before generating the Jump.
     if (!generator.is_current_block_terminated())
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_update });
+
+    // Generate iterator close blocks for for-of/for-await-of.
+    if (needs_iterator_close) {
+        auto undefined_value = generator.add_constant(js_undefined());
+
+        // Exception preamble: catches thrown exceptions and routes to iterator close.
+        generator.switch_to_basic_block(*exception_preamble_block);
+        generator.emit<Bytecode::Op::Catch>(*close_completion_value);
+        generator.emit<Bytecode::Op::SetLexicalEnvironment>(*lexical_environment_at_entry);
+        generator.emit_mov(*close_completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::THROW)));
+        generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *iterator_close_body_block });
+
+        // Iterator close body: dispatch chain based on completion type.
+        generator.switch_to_basic_block(*iterator_close_body_block);
+
+        // THROW path: IteratorClose with Throw completion (original throw always wins).
+        auto& throw_close_block = generator.make_block();
+        auto& non_throw_close_block = generator.make_block();
+        generator.emit<Bytecode::Op::JumpStrictlyEquals>(
+            *close_completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::THROW)),
+            Bytecode::Label { throw_close_block }, Bytecode::Label { non_throw_close_block });
+
+        // Non-throw abrupt path (break/return/continue-to-outer): close with Normal completion.
+        generator.switch_to_basic_block(non_throw_close_block);
+        if (iterator_kind == IteratorHint::Async)
+            generator.emit<Bytecode::Op::AsyncIteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Normal, undefined_value);
+        else
+            generator.emit<Bytecode::Op::IteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Normal, undefined_value);
+
+        // Dispatch registered jumps (break/continue targets, indices 3+).
+        for (auto const& jump : iterator_close_finally_context->registered_jumps) {
+            auto& after_jump_check = generator.make_block();
+            generator.emit<Bytecode::Op::JumpStrictlyEquals>(
+                *close_completion_type, generator.add_constant(Value(jump.index)),
+                jump.target, Bytecode::Label { after_jump_check });
+            generator.switch_to_basic_block(after_jump_check);
+        }
+
+        // RETURN path.
+        auto& return_block = generator.make_block();
+        auto& unreachable_block = generator.make_block();
+        generator.emit<Bytecode::Op::JumpStrictlyEquals>(
+            *close_completion_type, generator.add_constant(Value(Bytecode::Generator::FinallyContext::RETURN)),
+            Bytecode::Label { return_block }, Bytecode::Label { unreachable_block });
+
+        generator.switch_to_basic_block(return_block);
+        if (iterator_close_finally_context->parent) {
+            // Nested finally: copy completion record to outer and jump to outer finally body.
+            auto& outer = *iterator_close_finally_context->parent;
+            generator.emit_mov(outer.completion_type, *close_completion_type);
+            generator.emit_mov(outer.completion_value, *close_completion_value);
+            generator.emit<Bytecode::Op::Jump>(outer.finally_body);
+        } else {
+            if (generator.is_in_generator_function())
+                generator.emit<Bytecode::Op::Yield>(OptionalNone {}, *close_completion_value);
+            else
+                generator.emit<Bytecode::Op::Return>(*close_completion_value);
+        }
+
+        // Default: unreachable (all completion types have been dispatched).
+        generator.switch_to_basic_block(unreachable_block);
+        generator.emit<Bytecode::Op::Throw>(*close_completion_value);
+
+        // Throw close block: IteratorClose with Throw completion, then rethrow.
+        generator.switch_to_basic_block(throw_close_block);
+        if (iterator_kind == IteratorHint::Async)
+            generator.emit<Bytecode::Op::AsyncIteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Throw, *close_completion_value);
+        else
+            generator.emit<Bytecode::Op::IteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Throw, *close_completion_value);
+        // iterator_close with Throw completion always re-throws, but if it
+        // somehow returns normally, rethrow the original exception.
+        if (!generator.is_current_block_terminated())
+            generator.emit<Bytecode::Op::Throw>(*close_completion_value);
+    }
 
     generator.switch_to_basic_block(loop_end);
     return completion;
@@ -3946,7 +4087,7 @@ Optional<ScopedOperand> ForInStatement::generate_labelled_evaluation(Bytecode::G
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
     auto head_result = for_in_of_head_evaluation(generator, IterationKind::Enumerate, m_lhs, m_rhs);
-    return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, label_set, loop_end, loop_update);
+    return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, IterationKind::Enumerate, label_set, loop_end, loop_update);
 }
 
 Optional<ScopedOperand> ForOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -3962,7 +4103,7 @@ Optional<ScopedOperand> ForOfStatement::generate_labelled_evaluation(Bytecode::G
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
     auto head_result = for_in_of_head_evaluation(generator, IterationKind::Iterate, m_lhs, m_rhs);
-    return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, label_set, loop_end, loop_update);
+    return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, IterationKind::Iterate, label_set, loop_end, loop_update);
 }
 
 Optional<ScopedOperand> ForAwaitOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -3978,7 +4119,7 @@ Optional<ScopedOperand> ForAwaitOfStatement::generate_labelled_evaluation(Byteco
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
     auto head_result = for_in_of_head_evaluation(generator, IterationKind::AsyncIterate, m_lhs, m_rhs);
-    return for_in_of_body_evaluation(generator, m_lhs, m_body, head_result, label_set, loop_end, loop_update, IteratorHint::Async);
+    return for_in_of_body_evaluation(generator, m_lhs, m_body, head_result, IterationKind::AsyncIterate, label_set, loop_end, loop_update, IteratorHint::Async);
 }
 
 // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
