@@ -2,4 +2,5 @@
 
 endpoint WebDriverServer {
     driver_execution_complete(Web::WebDriver::Response response) =|
+    did_set_window_handle(String handle) =|
 }

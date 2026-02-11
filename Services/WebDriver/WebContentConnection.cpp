@@ -26,4 +26,10 @@ void WebContentConnection::driver_execution_complete(Web::WebDriver::Response re
         on_driver_execution_complete(move(response));
 }
 
+void WebContentConnection::did_set_window_handle(String handle)
+{
+    if (on_did_set_window_handle)
+        on_did_set_window_handle(move(handle));
+}
+
 }

@@ -99,6 +99,9 @@ private:
     HashMap<String, Window> m_windows;
     String m_current_window_handle;
 
+    HashMap<u64, NonnullRefPtr<WebContentConnection>> m_pending_connections;
+    u64 m_next_pending_connection_id { 0 };
+
     Optional<ByteString> m_web_content_socket_path;
     Optional<Core::Process> m_browser_process;
 
