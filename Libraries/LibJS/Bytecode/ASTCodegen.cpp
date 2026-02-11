@@ -712,6 +712,7 @@ Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Genera
                     generator.perform_needed_unwinds<Bytecode::Op::Throw>();
                     generator.emit<Bytecode::Op::Throw>(exception);
                     generator.switch_to_basic_block(generator.make_block());
+                    return generator.add_constant(js_undefined());
                 }
 
                 // c. If IsAnonymousFunctionDefinition(AssignmentExpression) and IsIdentifierRef of LeftHandSideExpression are both true, then
@@ -760,8 +761,7 @@ Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Genera
                         VERIFY_NOT_REACHED();
                     }
                 } else {
-                    generator.emit_todo("Unimplemented/invalid node used as a reference"sv);
-                    return rval;
+                    VERIFY_NOT_REACHED();
                 }
 
                 // f. Return rval.
