@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Root.h>
 #include <LibJS/Lexer.h>
 #include <LibJS/Parser.h>
 #include <LibJS/Runtime/Accessor.h>
@@ -204,7 +205,7 @@ GC::Ref<Intrinsics> Intrinsics::create(Realm& realm)
     return *intrinsics;
 }
 
-static Vector<NonnullRefPtr<FunctionDeclaration const>> parse_builtin_file(unsigned char const* script_text)
+static Vector<GC::Root<SharedFunctionInstanceData>> parse_builtin_file(unsigned char const* script_text, VM& vm)
 {
     auto script_text_as_utf16 = Utf16String::from_utf8_without_validation({ script_text, strlen(reinterpret_cast<char const*>(script_text)) });
     auto code = SourceCode::create("BuiltinFile"_string, move(script_text_as_utf16));
@@ -213,13 +214,13 @@ static Vector<NonnullRefPtr<FunctionDeclaration const>> parse_builtin_file(unsig
     VERIFY(!parser.has_errors());
     auto program = parser.parse_program(true);
 
-    Vector<NonnullRefPtr<FunctionDeclaration const>> declarations;
+    Vector<GC::Root<SharedFunctionInstanceData>> shared_data_list;
     for (auto const& child : program->children()) {
         if (auto const* function_declaration = as_if<FunctionDeclaration>(*child))
-            declarations.append(*function_declaration);
+            shared_data_list.append(function_declaration->ensure_shared_data(vm));
     }
 
-    return declarations;
+    return shared_data_list;
 }
 
 void Intrinsics::initialize_intrinsics(Realm& realm)
@@ -555,34 +556,34 @@ GC::Ref<Intl::Collator> Intrinsics::default_collator()
     return *m_default_collator;
 }
 
-#define __JS_ENUMERATE(snake_name, functionName, length)                                                                                                                                                                                      \
-    GC::Ref<NativeJavaScriptBackedFunction> Intrinsics::snake_name##_abstract_operation_function()                                                                                                                                            \
-    {                                                                                                                                                                                                                                         \
-        if (!m_##snake_name##_abstract_operation_function) {                                                                                                                                                                                  \
-            static auto abstract_operations_function_declarations = parse_builtin_file(ABSTRACT_OPERATIONS);                                                                                                                                  \
-            auto snake_name##_function_declaration = abstract_operations_function_declarations.find_if([](auto const& function_declaration) {                                                                                                 \
-                return function_declaration->name() == #functionName##sv;                                                                                                                                                                     \
-            });                                                                                                                                                                                                                               \
-            VERIFY(!snake_name##_function_declaration.is_end());                                                                                                                                                                              \
-            m_##snake_name##_abstract_operation_function = NativeJavaScriptBackedFunction::create(m_realm, *snake_name##_function_declaration, PropertyKey { #functionName##_utf16_fly_string, PropertyKey::StringMayBeNumber::No }, length); \
-        }                                                                                                                                                                                                                                     \
-        return *m_##snake_name##_abstract_operation_function;                                                                                                                                                                                 \
+#define __JS_ENUMERATE(snake_name, functionName, length)                                                                                                                                                        \
+    GC::Ref<NativeJavaScriptBackedFunction> Intrinsics::snake_name##_abstract_operation_function()                                                                                                              \
+    {                                                                                                                                                                                                           \
+        if (!m_##snake_name##_abstract_operation_function) {                                                                                                                                                    \
+            auto shared_data_list = parse_builtin_file(ABSTRACT_OPERATIONS, m_realm->vm());                                                                                                                     \
+            auto it = shared_data_list.find_if([](auto const& shared_data) {                                                                                                                                    \
+                return shared_data->m_name == #functionName##sv;                                                                                                                                                \
+            });                                                                                                                                                                                                 \
+            VERIFY(!it.is_end());                                                                                                                                                                               \
+            m_##snake_name##_abstract_operation_function = NativeJavaScriptBackedFunction::create(m_realm, **it, PropertyKey { #functionName##_utf16_fly_string, PropertyKey::StringMayBeNumber::No }, length); \
+        }                                                                                                                                                                                                       \
+        return *m_##snake_name##_abstract_operation_function;                                                                                                                                                   \
     }
 JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
 #undef __JS_ENUMERATE
 
-#define __JS_ENUMERATE(snake_name, functionName, length)                                                                                                                                                                                     \
-    GC::Ref<NativeJavaScriptBackedFunction> Intrinsics::snake_name##_array_constructor_function()                                                                                                                                            \
-    {                                                                                                                                                                                                                                        \
-        if (!m_##snake_name##_array_constructor_function) {                                                                                                                                                                                  \
-            static auto intrinsics_function_declarations = parse_builtin_file(ARRAY_CONSTRUCTOR);                                                                                                                                            \
-            auto snake_name##_function_declaration = intrinsics_function_declarations.find_if([](auto const& function_declaration) {                                                                                                         \
-                return function_declaration->name() == #functionName##sv;                                                                                                                                                                    \
-            });                                                                                                                                                                                                                              \
-            VERIFY(!snake_name##_function_declaration.is_end());                                                                                                                                                                             \
-            m_##snake_name##_array_constructor_function = NativeJavaScriptBackedFunction::create(m_realm, *snake_name##_function_declaration, PropertyKey { #functionName##_utf16_fly_string, PropertyKey::StringMayBeNumber::No }, length); \
-        }                                                                                                                                                                                                                                    \
-        return *m_##snake_name##_array_constructor_function;                                                                                                                                                                                 \
+#define __JS_ENUMERATE(snake_name, functionName, length)                                                                                                                                                       \
+    GC::Ref<NativeJavaScriptBackedFunction> Intrinsics::snake_name##_array_constructor_function()                                                                                                              \
+    {                                                                                                                                                                                                          \
+        if (!m_##snake_name##_array_constructor_function) {                                                                                                                                                    \
+            auto shared_data_list = parse_builtin_file(ARRAY_CONSTRUCTOR, m_realm->vm());                                                                                                                      \
+            auto it = shared_data_list.find_if([](auto const& shared_data) {                                                                                                                                   \
+                return shared_data->m_name == #functionName##sv;                                                                                                                                               \
+            });                                                                                                                                                                                                \
+            VERIFY(!it.is_end());                                                                                                                                                                              \
+            m_##snake_name##_array_constructor_function = NativeJavaScriptBackedFunction::create(m_realm, **it, PropertyKey { #functionName##_utf16_fly_string, PropertyKey::StringMayBeNumber::No }, length); \
+        }                                                                                                                                                                                                      \
+        return *m_##snake_name##_array_constructor_function;                                                                                                                                                   \
     }
 JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
 #undef __JS_ENUMERATE
