@@ -203,7 +203,9 @@ ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::Pa
     page_client.page().set_should_block_pop_ups(false);
 
     dbgln_if(WEBDRIVER_DEBUG, "Connected to WebDriver");
-    return adopt_nonnull_ref_or_enomem(new (nothrow) WebDriverConnection(make<IPC::Transport>(move(socket)), page_client));
+    auto connection = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) WebDriverConnection(make<IPC::Transport>(move(socket)), page_client)));
+    connection->async_did_set_window_handle(page_client.page().top_level_traversable()->window_handle());
+    return connection;
 }
 
 WebDriverConnection::WebDriverConnection(NonnullOwnPtr<IPC::Transport> transport, Web::PageClient& page_client)

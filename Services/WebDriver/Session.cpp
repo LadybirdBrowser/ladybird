@@ -181,6 +181,12 @@ void Session::close()
     //        before returning the error.
 
     // 4. Perform any implementation-specific cleanup steps.
+    for (auto& [_, connection] : m_pending_connections) {
+        connection->on_close = nullptr;
+        connection->on_did_set_window_handle = nullptr;
+    }
+    m_pending_connections.clear();
+
     if (m_browser_process.has_value())
         MUST(Core::System::kill(m_browser_process->pid(), SIGTERM));
 
@@ -217,33 +223,47 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
         dbgln("WebDriver is connected to WebContent socket");
         auto web_content_connection = maybe_connection.release_value();
 
-        auto maybe_window_handle = web_content_connection->get_window_handle();
-        if (maybe_window_handle.is_error()) {
-            promise->reject(Error::from_string_literal("Window was closed immediately"));
-            return;
-        }
+        auto connection_id = m_next_pending_connection_id++;
 
-        auto const& window_handle = maybe_window_handle.value().as_string();
-
-        web_content_connection->on_close = [this, window_handle]() {
-            dbgln_if(WEBDRIVER_DEBUG, "Window {} was closed remotely.", window_handle);
-            m_windows.remove(window_handle);
-            if (m_windows.is_empty())
-                close();
+        web_content_connection->on_close = [this, promise, connection_id]() {
+            if (m_pending_connections.remove(connection_id)) {
+                dbgln_if(WEBDRIVER_DEBUG, "Pending connection {} closed before sending its handle", connection_id);
+                promise->reject(Error::from_string_literal("Window was closed before sending its handle"));
+            }
         };
 
-        web_content_connection->async_set_page_load_strategy(m_page_load_strategy);
-        web_content_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
-        web_content_connection->async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
-        if (m_timeouts_configuration.has_value())
-            web_content_connection->async_set_timeouts(*m_timeouts_configuration);
+        web_content_connection->on_did_set_window_handle = [this, promise, connection_id](String window_handle) {
+            auto maybe_pending_connection = m_pending_connections.take(connection_id);
+            if (!maybe_pending_connection.has_value())
+                return;
 
-        m_windows.set(window_handle, Session::Window { window_handle, move(web_content_connection) });
+            auto pending_connection = maybe_pending_connection.value();
+            pending_connection->on_did_set_window_handle = nullptr;
 
-        if (m_current_window_handle.is_empty())
-            m_current_window_handle = window_handle;
+            dbgln_if(WEBDRIVER_DEBUG, "Window {} registered with WebDriver.", window_handle);
 
-        promise->resolve({});
+            pending_connection->on_close = [this, window_handle]() {
+                dbgln_if(WEBDRIVER_DEBUG, "Window {} was closed remotely.", window_handle);
+                m_windows.remove(window_handle);
+                if (m_windows.is_empty())
+                    close();
+            };
+
+            pending_connection->async_set_page_load_strategy(m_page_load_strategy);
+            pending_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
+            pending_connection->async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
+            if (m_timeouts_configuration.has_value())
+                pending_connection->async_set_timeouts(*m_timeouts_configuration);
+
+            m_windows.set(window_handle, Session::Window { window_handle, move(pending_connection) });
+
+            if (m_current_window_handle.is_empty())
+                m_current_window_handle = window_handle;
+
+            promise->resolve({});
+        };
+
+        m_pending_connections.set(connection_id, move(web_content_connection));
     };
 
     server->on_accept_error = [promise](auto error) {
