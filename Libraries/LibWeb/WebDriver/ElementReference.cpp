@@ -262,7 +262,10 @@ bool is_element_pointer_interactable(Web::HTML::BrowsingContext const& browsing_
         return false;
 
     auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
-    auto center_point = in_view_center_point(element, viewport);
+    auto center_point_or_error = in_view_center_point(element, viewport);
+    if (center_point_or_error.is_error())
+        return false;
+    auto center_point = center_point_or_error.release_value();
 
     auto result = paint_root->hit_test(center_point, Painting::HitTestType::TextCursor);
     if (!result.has_value())
@@ -398,7 +401,10 @@ GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::
 
     // 4. Let center point be the in-view center point of the first indexed element in rectangles.
     auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
-    auto center_point = Web::WebDriver::in_view_center_point(element, viewport);
+    auto center_point_or_error = Web::WebDriver::in_view_center_point(element, viewport);
+    if (center_point_or_error.is_error())
+        return GC::RootVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
+    auto center_point = center_point_or_error.release_value();
 
     // 5. Return the elements from point given the coordinates center point.
     return browsing_context.active_document()->elements_from_point(center_point.x().to_double(), center_point.y().to_double());
@@ -527,10 +533,13 @@ String element_rendered_text(DOM::Node& node)
 }
 
 // https://w3c.github.io/webdriver/#dfn-center-point
-CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect viewport)
+ErrorOr<CSSPixelPoint, WebDriver::Error> in_view_center_point(DOM::Element const& element, CSSPixelRect viewport)
 {
     // 1. Let rectangle be the first element of the DOMRect sequence returned by calling getClientRects() on element.
-    auto rectangle = element.get_client_rects().first();
+    auto rects = element.get_client_rects();
+    if (rects.is_empty())
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::ElementNotInteractable, "Element has no client rects"_string);
+    auto rectangle = rects.first();
 
     // 2. Let left be max(0, min(x coordinate, x coordinate + width dimension)).
     auto left = max(CSSPixels(0), min(rectangle.x(), rectangle.x() + rectangle.width()));
@@ -551,7 +560,7 @@ CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect vie
     auto y = floor((top + bottom) / 2.0);
 
     // 8. Return the pair of (x, y).
-    return { x, y };
+    return CSSPixelPoint { x, y };
 }
 
 }

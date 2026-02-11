@@ -58,6 +58,6 @@ bool is_shadow_root_detached(Web::DOM::ShadowRoot const&);
 
 WEB_API String element_rendered_text(DOM::Node&);
 
-CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect viewport);
+ErrorOr<CSSPixelPoint, WebDriver::Error> in_view_center_point(DOM::Element const& element, CSSPixelRect viewport);
 
 }
