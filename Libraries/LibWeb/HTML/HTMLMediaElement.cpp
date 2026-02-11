@@ -979,6 +979,7 @@ struct HTMLMediaElement::FetchData : public RefCounted<FetchData> {
     ~FetchData()
     {
         if (stream != nullptr) {
+            stream->set_data_request_callback(nullptr);
             stream->close();
         }
     }
@@ -989,7 +990,7 @@ void HTMLMediaElement::fetch_resource(URL::URL const& url_record, Function<void(
     auto fetch_data = make_ref_counted<FetchData>();
     fetch_data->url_record = url_record;
     fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
-    fetch_data->stream->set_data_request_callback([self = GC::Weak(*this), fetch_data](u64 offset) {
+    fetch_data->stream->set_data_request_callback([self = GC::Weak(*this), &fetch_data = *fetch_data](u64 offset) {
         if (!self)
             return;
         self->restart_fetch_at_offset(fetch_data, offset);
