@@ -77,9 +77,9 @@ ThrowCompletionOr<Value> WrappedFunction::internal_call(ExecutionContext& callee
     return result;
 }
 
-ThrowCompletionOr<void> WrappedFunction::get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count)
+void WrappedFunction::get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count)
 {
-    return m_wrapped_target_function->get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
+    m_wrapped_target_function->get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
 }
 
 // 2.2 OrdinaryWrappedFunctionCall ( F: a wrapped function exotic object, thisArgument: an ECMAScript language value, argumentsList: a List of ECMAScript language values, ), https://tc39.es/proposal-shadowrealm/#sec-ordinary-wrapped-function-call

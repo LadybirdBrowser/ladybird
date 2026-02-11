@@ -127,25 +127,11 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 11. Let script be scriptRecord.[[ECMAScriptCode]].
     GC::Ptr<Executable> executable = script_record.cached_executable();
     if (!executable && result.type() == Completion::Type::Normal) {
-        auto executable_result = JS::Bytecode::Generator::generate_from_ast_node(vm, *script_record.parse_node(), {});
-
-        if (executable_result.is_error()) {
-            if (auto error_string = executable_result.error().to_string(); error_string.is_error())
-                result = vm.template throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
-            else if (error_string = String::formatted("TODO({})", error_string.value()); error_string.is_error())
-                result = vm.template throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
-            else
-                result = vm.template throw_completion<JS::InternalError>(error_string.release_value());
-        } else {
-            executable = executable_result.release_value();
-            script_record.cache_executable(*executable);
-
-            // Drop the AST now that we have compiled bytecode.
-            script_record.drop_ast();
-
-            if (g_dump_bytecode)
-                executable->dump();
-        }
+        executable = JS::Bytecode::Generator::generate_from_ast_node(vm, *script_record.parse_node(), {});
+        script_record.cache_executable(*executable);
+        script_record.drop_ast();
+        if (g_dump_bytecode)
+            executable->dump();
     }
 
     u32 registers_and_locals_count = 0;
@@ -634,13 +620,9 @@ void Interpreter::catch_exception(Operand dst)
     reg(Register::exception()) = js_special_empty_value();
 }
 
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, Utf16FlyString const& name)
+GC::Ref<Bytecode::Executable> compile(VM& vm, ASTNode const& node, FunctionKind kind, Utf16FlyString const& name)
 {
-    auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, node, kind);
-    if (executable_result.is_error()) [[unlikely]]
-        return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
-
-    auto bytecode_executable = executable_result.release_value();
+    auto bytecode_executable = Bytecode::Generator::generate_from_ast_node(vm, node, kind);
     bytecode_executable->name = name;
 
     if (Bytecode::g_dump_bytecode)
@@ -649,15 +631,11 @@ ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& 
     return bytecode_executable;
 }
 
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
+GC::Ref<Bytecode::Executable> compile(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
 {
     auto const& name = shared_function_instance_data->m_name;
 
-    auto executable_result = Bytecode::Generator::generate_from_function(vm, shared_function_instance_data, builtin_abstract_operations_enabled);
-    if (executable_result.is_error()) [[unlikely]]
-        return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
-
-    auto bytecode_executable = executable_result.release_value();
+    auto bytecode_executable = Bytecode::Generator::generate_from_function(vm, shared_function_instance_data, builtin_abstract_operations_enabled);
     bytecode_executable->name = name;
 
     if (Bytecode::g_dump_bytecode)
@@ -2536,7 +2514,7 @@ static ThrowCompletionOr<void> execute_call(
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
     size_t argument_count = arguments.size();
-    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_locals_count, constants_count, max(arguments.size(), argument_count));
 
     auto* callee_context_argument_values = callee_context->arguments.data();
@@ -2609,7 +2587,7 @@ static ThrowCompletionOr<void> call_with_argument_array(
     size_t argument_count = argument_array_length;
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
-    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_locals_count, constants_count, max(argument_array_length, argument_count));
 
     auto* callee_context_argument_values = callee_context->arguments.data();
@@ -2690,7 +2668,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
     size_t argument_count = argument_array_length;
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
-    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_locals_count, constants_count, max(argument_array_length, argument_count));
 
     auto* callee_context_argument_values = callee_context->arguments.data();

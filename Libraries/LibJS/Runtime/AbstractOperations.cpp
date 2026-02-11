@@ -65,7 +65,7 @@ ThrowCompletionOr<Value> call_impl(VM& vm, Value function, Value this_value, Rea
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
-    TRY(function_object.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    function_object.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
 
     auto* argument_values = callee_context->arguments.data();
@@ -88,7 +88,7 @@ ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_val
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
-    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
 
     auto* argument_values = callee_context->arguments.data();
@@ -113,7 +113,7 @@ ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject& function,
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
-    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
 
     auto* argument_values = callee_context->arguments.data();
@@ -729,10 +729,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     // 31. If result.[[Type]] is normal, then
     //     a. Set result to the result of evaluating body.
-    auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, program, {});
-    if (executable_result.is_error())
-        return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
-    auto executable = executable_result.release_value();
+    auto executable = Bytecode::Generator::generate_from_ast_node(vm, program, {});
     executable->name = "eval"_utf16_fly_string;
     if (Bytecode::g_dump_bytecode)
         executable->dump();

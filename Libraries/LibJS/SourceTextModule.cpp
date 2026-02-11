@@ -707,10 +707,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] SourceTextModule::execute_module({}, PromiseCapability @ {})", filename(), capability.ptr());
 
     if (!m_has_top_level_await && !m_executable) {
-        auto maybe_executable = Bytecode::compile(vm, *m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
-        if (maybe_executable.is_error())
-            return maybe_executable.release_error();
-        m_executable = maybe_executable.release_value();
+        m_executable = Bytecode::compile(vm, *m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
         m_ecmascript_code = nullptr;
     }
 

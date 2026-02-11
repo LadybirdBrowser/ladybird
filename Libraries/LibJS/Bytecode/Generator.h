@@ -11,7 +11,6 @@
 #include <LibJS/AST.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/BuiltinAbstractOperationsEnabled.h>
-#include <LibJS/Bytecode/CodeGenerationError.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
@@ -41,10 +40,10 @@ public:
         Yes,
     };
 
-    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_ast_node(VM&, ASTNode const&, FunctionKind = FunctionKind::Normal);
-    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_function(VM&, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled = BuiltinAbstractOperationsEnabled::No);
+    static GC::Ref<Executable> generate_from_ast_node(VM&, ASTNode const&, FunctionKind = FunctionKind::Normal);
+    static GC::Ref<Executable> generate_from_function(VM&, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled = BuiltinAbstractOperationsEnabled::No);
 
-    CodeGenerationErrorOr<void> emit_function_declaration_instantiation(SharedFunctionInstanceData const& shared_function_instance_data);
+    void emit_function_declaration_instantiation(SharedFunctionInstanceData const& shared_function_instance_data);
 
     [[nodiscard]] ScopedOperand allocate_register();
     [[nodiscard]] ScopedOperand local(Identifier::Local const&);
@@ -188,6 +187,8 @@ public:
 
     void emit_jump_if(ScopedOperand const& condition, Label true_target, Label false_target);
 
+    void emit_todo(StringView message);
+
     struct ReferenceOperands {
         Optional<ScopedOperand> base {};                                 // [[Base]]
         Optional<ScopedOperand> referenced_name {};                      // [[ReferencedName]] as an operand
@@ -197,12 +198,12 @@ public:
         Optional<ScopedOperand> loaded_value {};                         // Loaded value, if we've performed a load.
     };
 
-    CodeGenerationErrorOr<ReferenceOperands> emit_load_from_reference(JS::ASTNode const&, Optional<ScopedOperand> preferred_dst = {});
-    CodeGenerationErrorOr<void> emit_store_to_reference(JS::ASTNode const&, ScopedOperand value);
-    CodeGenerationErrorOr<void> emit_store_to_reference(ReferenceOperands const&, ScopedOperand value);
-    CodeGenerationErrorOr<Optional<ScopedOperand>> emit_delete_reference(JS::ASTNode const&);
+    ReferenceOperands emit_load_from_reference(JS::ASTNode const&, Optional<ScopedOperand> preferred_dst = {});
+    void emit_store_to_reference(JS::ASTNode const&, ScopedOperand value);
+    void emit_store_to_reference(ReferenceOperands const&, ScopedOperand value);
+    Optional<ScopedOperand> emit_delete_reference(JS::ASTNode const&);
 
-    CodeGenerationErrorOr<ReferenceOperands> emit_super_reference(MemberExpression const&);
+    ReferenceOperands emit_super_reference(MemberExpression const&);
 
     void emit_set_variable(JS::Identifier const& identifier, ScopedOperand value, Bytecode::Op::BindingInitializationMode initialization_mode = Bytecode::Op::BindingInitializationMode::Set, Bytecode::Op::EnvironmentMode mode = Bytecode::Op::EnvironmentMode::Lexical);
 
@@ -213,7 +214,7 @@ public:
     u32 register_shared_function_data(GC::Ref<SharedFunctionInstanceData>);
     u32 register_class_blueprint(ClassBlueprint);
 
-    CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {}, bool is_method = false);
+    ScopedOperand emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {}, bool is_method = false);
 
     void ensure_lexical_environment_register_initialized();
     [[nodiscard]] ScopedOperand current_lexical_environment_register() const;
@@ -433,13 +434,13 @@ public:
 
     [[nodiscard]] bool builtin_abstract_operations_enabled() const { return m_builtin_abstract_operations_enabled; }
 
-    CodeGenerationErrorOr<void> generate_builtin_abstract_operation(Identifier const& builtin_identifier, ReadonlySpan<CallExpression::Argument> arguments, ScopedOperand const& dst);
-    CodeGenerationErrorOr<Optional<ScopedOperand>> maybe_generate_builtin_constant(Identifier const& builtin_identifier);
+    void generate_builtin_abstract_operation(Identifier const& builtin_identifier, ReadonlySpan<CallExpression::Argument> arguments, ScopedOperand const& dst);
+    Optional<ScopedOperand> maybe_generate_builtin_constant(Identifier const& builtin_identifier);
 
 private:
     VM& m_vm;
 
-    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, BuiltinAbstractOperationsEnabled, Vector<LocalVariable> local_variable_names);
+    static GC::Ref<Executable> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, BuiltinAbstractOperationsEnabled, Vector<LocalVariable> local_variable_names);
 
     enum class JumpType {
         Continue,

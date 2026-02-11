@@ -27,7 +27,7 @@ public:
     FunctionObject const& wrapped_target_function() const { return m_wrapped_target_function; }
     FunctionObject& wrapped_target_function() { return m_wrapped_target_function; }
 
-    virtual ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count) override;
+    virtual void get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count) override;
 
     virtual Utf16String name_for_call_stack() const override;
 

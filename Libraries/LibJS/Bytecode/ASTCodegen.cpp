@@ -50,15 +50,13 @@ static ScopedOperand choose_dst(Bytecode::Generator& generator, Optional<ScopedO
     return generator.allocate_register();
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ASTNode::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ASTNode::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
-    return Bytecode::CodeGenerationError {
-        this,
-        "Missing generate_bytecode()"sv,
-    };
+    generator.emit_todo(class_name());
+    return {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ScopeNode::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ScopeNode::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     bool did_create_lexical_environment = false;
@@ -75,7 +73,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ScopeNode::generate_byt
 
     Optional<ScopedOperand> last_result;
     for (auto& child : children()) {
-        auto result = TRY(child->generate_bytecode(generator));
+        auto result = child->generate_bytecode(generator);
         if (generator.must_propagate_completion()) {
             if (result.has_value()) {
                 last_result = result;
@@ -95,12 +93,12 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ScopeNode::generate_byt
     return last_result;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> EmptyStatement::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> EmptyStatement::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExpressionStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ExpressionStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return m_expression->generate_bytecode(generator);
@@ -186,12 +184,12 @@ static ThrowCompletionOr<ScopedOperand> constant_fold_binary_expression(Generato
     }
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> BinaryExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     if (m_op == BinaryOp::In && is<PrivateIdentifier>(*m_lhs)) {
         auto const& private_identifier = static_cast<PrivateIdentifier const&>(*m_lhs).string();
-        auto base = TRY(m_rhs->generate_bytecode(generator)).value();
+        auto base = m_rhs->generate_bytecode(generator).value();
         auto dst = choose_dst(generator, preferred_dst);
         generator.emit<Bytecode::Op::HasPrivateId>(dst, base, generator.intern_identifier(private_identifier));
         return dst;
@@ -200,7 +198,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
     // OPTIMIZATION: If LHS and/or RHS are numeric literals, we make sure they are converted to i32/u32
     //               as appropriate, to avoid having to perform these conversions at runtime.
 
-    auto get_left_side = [&](Expression const& side) -> CodeGenerationErrorOr<Optional<ScopedOperand>> {
+    auto get_left_side = [&](Expression const& side) -> Optional<ScopedOperand> {
         switch (m_op) {
         case BinaryOp::BitwiseAnd:
         case BinaryOp::BitwiseOr:
@@ -221,7 +219,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
         return side.generate_bytecode(generator);
     };
 
-    auto get_right_side = [&](Expression const& side) -> CodeGenerationErrorOr<Optional<ScopedOperand>> {
+    auto get_right_side = [&](Expression const& side) -> Optional<ScopedOperand> {
         switch (m_op) {
         case BinaryOp::BitwiseAnd:
         case BinaryOp::BitwiseOr:
@@ -248,8 +246,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
         return side.generate_bytecode(generator);
     };
 
-    auto lhs = TRY(get_left_side(*m_lhs)).value();
-    auto rhs = TRY(get_right_side(*m_rhs)).value();
+    auto lhs = get_left_side(*m_lhs).value();
+    auto rhs = get_right_side(*m_rhs).value();
     auto dst = choose_dst(generator, preferred_dst);
 
     // OPTIMIZATION: Do some basic constant folding for binary operations.
@@ -336,13 +334,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
     return dst;
 }
 
-static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> constant_fold_logical_expression(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst, ScopedOperand& lhs, LogicalExpression const* expr)
+static Optional<ScopedOperand> constant_fold_logical_expression(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst, ScopedOperand& lhs, LogicalExpression const* expr)
 {
     auto constant = generator.get_constant(lhs);
 
-    auto return_rhs = [&] -> CodeGenerationErrorOr<Optional<ScopedOperand>> {
+    auto return_rhs = [&] -> Optional<ScopedOperand> {
         auto dst = choose_dst(generator, preferred_dst);
-        auto rhs = TRY(expr->rhs()->generate_bytecode(generator, dst)).value();
+        auto rhs = expr->rhs()->generate_bytecode(generator, dst).value();
 
         if (rhs.operand().is_constant())
             return rhs;
@@ -354,15 +352,15 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> constant_fold_lo
     switch (expr->op()) {
     case LogicalOp::And:
         if (constant.to_boolean_slow_case())
-            return TRY(return_rhs());
+            return return_rhs();
         return lhs;
     case LogicalOp::Or:
         if (constant.to_boolean_slow_case())
             return lhs;
-        return TRY(return_rhs());
+        return return_rhs();
     case LogicalOp::NullishCoalescing:
         if (constant.is_nullish())
-            return TRY(return_rhs());
+            return return_rhs();
         return lhs;
     default:
         VERIFY_NOT_REACHED();
@@ -371,14 +369,14 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> constant_fold_lo
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LogicalExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> LogicalExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto lhs = TRY(m_lhs->generate_bytecode(generator, preferred_dst)).value();
+    auto lhs = m_lhs->generate_bytecode(generator, preferred_dst).value();
 
     // OPTIMIZATION: return lhs/rhs directly if we can detect lhs as a truthy/falsey literal
     if (auto constant = generator.try_get_constant(lhs); constant.has_value()) {
-        return TRY(constant_fold_logical_expression(generator, preferred_dst, lhs, this));
+        return constant_fold_logical_expression(generator, preferred_dst, lhs, this);
     }
 
     // lhs
@@ -418,7 +416,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LogicalExpression::gene
 
     generator.switch_to_basic_block(rhs_block);
 
-    auto rhs = TRY(m_rhs->generate_bytecode(generator, dst)).value();
+    auto rhs = m_rhs->generate_bytecode(generator, dst).value();
 
     generator.emit_mov(dst, rhs);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
@@ -426,7 +424,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LogicalExpression::gene
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> UnaryExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -437,7 +435,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
     // Typeof needs some special handling for when the LHS is an Identifier. Namely, it shouldn't throw on unresolvable references, but instead return "undefined".
     // Skip Not operator as it needs to be evaluated breadth first in order to detect `!!` optimization (otherwise the inner `!x` would eval first).
     if (m_op != UnaryOp::Typeof && m_op != UnaryOp::Not)
-        src = TRY(m_lhs->generate_bytecode(generator)).value();
+        src = m_lhs->generate_bytecode(generator).value();
 
     auto dst = choose_dst(generator, preferred_dst);
 
@@ -452,7 +450,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
         break;
     case UnaryOp::Not:
         if (auto nested = as_if<UnaryExpression>(*m_lhs); nested && nested->op() == UnaryOp::Not) {
-            auto value = TRY(nested->lhs()->generate_bytecode(generator)).value();
+            auto value = nested->lhs()->generate_bytecode(generator).value();
 
             if (value.operand().is_constant())
                 return generator.add_constant(Value(generator.get_constant(value).to_boolean()));
@@ -461,7 +459,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
             break;
         }
 
-        src = TRY(m_lhs->generate_bytecode(generator)).value();
+        src = m_lhs->generate_bytecode(generator).value();
 
         if (auto result = try_constant_fold_unary_expression(generator, *src, m_op); result.has_value())
             return result.release_value();
@@ -483,7 +481,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
             }
         }
 
-        src = TRY(m_lhs->generate_bytecode(generator)).value();
+        src = m_lhs->generate_bytecode(generator).value();
         generator.emit<Bytecode::Op::Typeof>(dst, *src);
         break;
     case UnaryOp::Void:
@@ -496,25 +494,25 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> NumericLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> NumericLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generator.add_constant(Value(m_value));
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BooleanLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> BooleanLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generator.add_constant(Value(m_value));
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> NullLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> NullLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generator.add_constant(js_null());
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BigIntLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> BigIntLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // 1. Return the NumericValue of NumericLiteral as defined in 12.8.3.
@@ -531,13 +529,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BigIntLiteral::generate
     return generator.add_constant(BigInt::create(generator.vm(), move(integer)));
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> StringLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> StringLiteral::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generator.add_constant(PrimitiveString::create(generator.vm(), m_value));
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> RegExpLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> RegExpLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto source_index = generator.intern_string(m_pattern);
@@ -552,7 +550,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> RegExpLiteral::generate
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> Identifier::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -571,7 +569,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_by
     }
 
     if (is_global()) {
-        auto maybe_constant = TRY(generator.maybe_generate_builtin_constant(*this));
+        auto maybe_constant = generator.maybe_generate_builtin_constant(*this);
         if (maybe_constant.has_value())
             return maybe_constant.release_value();
     }
@@ -589,7 +587,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_by
     return dst;
 }
 
-static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> arguments_to_array_for_call(Bytecode::Generator& generator, ReadonlySpan<CallExpression::Argument> arguments)
+static Optional<ScopedOperand> arguments_to_array_for_call(Bytecode::Generator& generator, ReadonlySpan<CallExpression::Argument> arguments)
 {
     auto dst = generator.allocate_register();
     if (arguments.is_empty()) {
@@ -604,7 +602,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> arguments_to_arr
     for (auto it = arguments.begin(); it != first_spread; ++it) {
         VERIFY(!it->is_spread);
         auto reg = generator.allocate_register();
-        auto value = TRY(it->value->generate_bytecode(generator)).value();
+        auto value = it->value->generate_bytecode(generator).value();
         generator.emit_mov(reg, value);
         args.append(move(reg));
     }
@@ -616,7 +614,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> arguments_to_arr
 
     if (first_spread != arguments.end()) {
         for (auto it = first_spread; it != arguments.end(); ++it) {
-            auto value = TRY(it->value->generate_bytecode(generator)).value();
+            auto value = it->value->generate_bytecode(generator).value();
             generator.emit<Bytecode::Op::ArrayAppend>(dst, value, it->is_spread);
         }
     }
@@ -624,7 +622,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> arguments_to_arr
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SuperCall::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> SuperCall::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     Optional<ScopedOperand> arguments;
@@ -635,9 +633,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SuperCall::generate_byt
         VERIFY(m_arguments[0].is_spread);
         auto const& argument = m_arguments[0];
         // This generates a single argument.
-        arguments = MUST(argument.value->generate_bytecode(generator));
+        arguments = argument.value->generate_bytecode(generator);
     } else {
-        arguments = TRY(arguments_to_array_for_call(generator, m_arguments)).value();
+        arguments = arguments_to_array_for_call(generator, m_arguments).value();
     }
 
     auto dst = choose_dst(generator, preferred_dst);
@@ -645,14 +643,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SuperCall::generate_byt
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     if (m_op == AssignmentOp::Assignment) {
         // AssignmentExpression : LeftHandSideExpression = AssignmentExpression
         return m_lhs.visit(
             // 1. If LeftHandSideExpression is neither an ObjectLiteral nor an ArrayLiteral, then
-            [&](NonnullRefPtr<Expression const> const& lhs) -> Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> {
+            [&](NonnullRefPtr<Expression const> const& lhs) -> Optional<ScopedOperand> {
                 // a. Let lref be the result of evaluating LeftHandSideExpression.
                 // b. ReturnIfAbrupt(lref).
                 Optional<ScopedOperand> base;
@@ -666,7 +664,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     lhs_is_super_expression = is<SuperExpression>(expression.object());
 
                     if (!lhs_is_super_expression) {
-                        auto generated_base = TRY(expression.object().generate_bytecode(generator)).value();
+                        auto generated_base = expression.object().generate_bytecode(generator).value();
                         base = generator.copy_if_needed_to_preserve_evaluation_order(generated_base);
                     } else {
                         // https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
@@ -680,7 +678,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     }
 
                     if (expression.is_computed()) {
-                        auto property = TRY(expression.property().generate_bytecode(generator)).value();
+                        auto property = expression.property().generate_bytecode(generator).value();
                         computed_property = generator.copy_if_needed_to_preserve_evaluation_order(property);
                         // To be continued later with PutByValue.
                     } else if (expression.property().is_identifier()) {
@@ -706,7 +704,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     // NOTE: For Identifiers, we cannot perform GetBinding and then write into the reference it retrieves, only SetVariable can do this.
                     // FIXME: However, this breaks spec as we are doing variable lookup after evaluating the RHS. This is observable in an object environment, where we visibly perform HasOwnProperty and Get(@@unscopables) on the binded object.
                 } else {
-                    (void)TRY(lhs->generate_bytecode(generator));
+                    (void)lhs->generate_bytecode(generator);
                 }
 
                 // c. If IsAnonymousFunctionDefinition(AssignmentExpression) and IsIdentifierRef of LeftHandSideExpression are both true, then
@@ -714,13 +712,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                 // d. Else,
                 //    i. Let rref be the result of evaluating AssignmentExpression.
                 //    ii. Let rval be ? GetValue(rref).
-                auto rval = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
+                auto rval = [&]() -> ScopedOperand {
                     if (lhs->is_identifier()) {
-                        return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs).string())));
+                        return generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs).string()));
                     } else {
-                        return TRY(m_rhs->generate_bytecode(generator)).value();
+                        return m_rhs->generate_bytecode(generator).value();
                     }
-                }());
+                }();
 
                 // e. Perform ? PutValue(lref, rval).
                 if (is<Identifier>(*lhs)) {
@@ -755,23 +753,21 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                         VERIFY_NOT_REACHED();
                     }
                 } else {
-                    return Bytecode::CodeGenerationError {
-                        lhs,
-                        "Unimplemented/invalid node used a reference"sv
-                    };
+                    generator.emit_todo("Unimplemented/invalid node used as a reference"sv);
+                    return rval;
                 }
 
                 // f. Return rval.
                 return rval;
             },
             // 2. Let assignmentPattern be the AssignmentPattern that is covered by LeftHandSideExpression.
-            [&](NonnullRefPtr<BindingPattern const> const& pattern) -> Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> {
+            [&](NonnullRefPtr<BindingPattern const> const& pattern) -> Optional<ScopedOperand> {
                 // 3. Let rref be the result of evaluating AssignmentExpression.
                 // 4. Let rval be ? GetValue(rref).
-                auto rval = TRY(m_rhs->generate_bytecode(generator)).value();
+                auto rval = m_rhs->generate_bytecode(generator).value();
 
                 // 5. Perform ? DestructuringAssignmentEvaluation of assignmentPattern with argument rval.
-                TRY(pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Set, rval));
+                pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Set, rval);
 
                 // 6. Return rval.
                 return rval;
@@ -781,7 +777,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
     VERIFY(m_lhs.has<NonnullRefPtr<Expression const>>());
     auto& lhs_expression = m_lhs.get<NonnullRefPtr<Expression const>>();
 
-    auto reference_operands = TRY(generator.emit_load_from_reference(lhs_expression));
+    auto reference_operands = generator.emit_load_from_reference(lhs_expression);
     auto lhs = reference_operands.loaded_value.value();
 
     Bytecode::BasicBlock* rhs_block_ptr { nullptr };
@@ -821,12 +817,12 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
     if (rhs_block_ptr)
         generator.switch_to_basic_block(*rhs_block_ptr);
 
-    auto rhs = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
+    auto rhs = [&]() -> ScopedOperand {
         if (lhs_expression->is_identifier()) {
-            return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs_expression).string())));
+            return generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs_expression).string()));
         }
-        return TRY(m_rhs->generate_bytecode(generator)).value();
-    }());
+        return m_rhs->generate_bytecode(generator).value();
+    }();
 
     // OPTIMIZATION: If LHS is a local, we can write the result directly into it.
     auto dst = [&] {
@@ -884,7 +880,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
     if (lhs_expression->is_identifier())
         generator.emit_set_variable(static_cast<Identifier const&>(*lhs_expression), dst);
     else
-        (void)TRY(generator.emit_store_to_reference(reference_operands, dst));
+        generator.emit_store_to_reference(reference_operands, dst);
 
     if (rhs_block_ptr) {
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *end_block_ptr });
@@ -905,7 +901,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
 
 // 14.13.3 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-labelled-statements-runtime-semantics-evaluation
 //  LabelledStatement : LabelIdentifier : LabelledItem
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> LabelledStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // Return ? LabelledEvaluation of this LabelledStatement with argument « ».
@@ -914,7 +910,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::gene
 
 // 14.13.4 Runtime Semantics: LabelledEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-labelledevaluation
 // LabelledStatement : LabelIdentifier : LabelledItem
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> LabelledStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // Convert the m_labelled_item NNRP to a reference early so we don't have to do it every single time we want to use it.
@@ -932,19 +928,19 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::gene
     Optional<ScopedOperand> stmt_result;
     if (is<IterationStatement>(labelled_item)) {
         auto const& iteration_statement = static_cast<IterationStatement const&>(labelled_item);
-        stmt_result = TRY(iteration_statement.generate_labelled_evaluation(generator, new_label_set));
+        stmt_result = iteration_statement.generate_labelled_evaluation(generator, new_label_set);
     } else if (is<SwitchStatement>(labelled_item)) {
         auto const& switch_statement = static_cast<SwitchStatement const&>(labelled_item);
-        stmt_result = TRY(switch_statement.generate_labelled_evaluation(generator, new_label_set));
+        stmt_result = switch_statement.generate_labelled_evaluation(generator, new_label_set);
     } else if (is<LabelledStatement>(labelled_item)) {
         auto const& labelled_statement = static_cast<LabelledStatement const&>(labelled_item);
-        stmt_result = TRY(labelled_statement.generate_labelled_evaluation(generator, new_label_set));
+        stmt_result = labelled_statement.generate_labelled_evaluation(generator, new_label_set);
     } else {
         auto& labelled_break_block = generator.make_block();
 
         // NOTE: We do not need a continuable scope as `continue;` is not allowed outside of iteration statements, throwing a SyntaxError in the parser.
         generator.begin_breakable_scope(Bytecode::Label { labelled_break_block }, new_label_set);
-        stmt_result = TRY(labelled_item.generate_bytecode(generator));
+        stmt_result = labelled_item.generate_bytecode(generator);
         generator.end_breakable_scope();
 
         if (!generator.is_current_block_terminated()) {
@@ -962,13 +958,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::gene
     return stmt_result;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> WhileStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> WhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -983,7 +979,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { test_block });
 
     generator.switch_to_basic_block(test_block);
-    auto test = TRY(m_test->generate_bytecode(generator)).value();
+    auto test = m_test->generate_bytecode(generator).value();
 
     // OPTIMIZATION: If predicate is always false, ignore body and exit early
     if (auto constant = generator.try_get_constant(test); constant.has_value() && !constant->to_boolean_slow_case()) {
@@ -1010,7 +1006,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
         Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
         if (completion.has_value())
             completion_scope.emplace(generator, *completion);
-        auto body = TRY(m_body->generate_bytecode(generator));
+        auto body = m_body->generate_bytecode(generator);
         if (!generator.is_current_block_terminated() && completion.has_value() && body.has_value())
             generator.emit_mov(*completion, *body);
     }
@@ -1024,13 +1020,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
     return completion;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> DoWhileStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> DoWhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // jump always (true) body
@@ -1054,7 +1050,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::gener
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { body_block });
 
     generator.switch_to_basic_block(test_block);
-    auto test = TRY(m_test->generate_bytecode(generator)).value();
+    auto test = m_test->generate_bytecode(generator).value();
     generator.emit_jump_if(
         test,
         Bytecode::Label { body_block },
@@ -1067,7 +1063,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::gener
         Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
         if (completion.has_value())
             completion_scope.emplace(generator, *completion);
-        auto body = TRY(m_body->generate_bytecode(generator));
+        auto body = m_body->generate_bytecode(generator);
         if (!generator.is_current_block_terminated() && completion.has_value() && body.has_value())
             generator.emit_mov(*completion, *body);
     }
@@ -1084,13 +1080,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::gener
     return completion;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // init
@@ -1142,7 +1138,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
             }
         }
 
-        (void)TRY(m_init->generate_bytecode(generator));
+        (void)m_init->generate_bytecode(generator);
     }
 
     // CreatePerIterationEnvironment (https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#sec-createperiterationenvironment)
@@ -1203,7 +1199,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     if (m_test) {
         generator.switch_to_basic_block(*test_block_ptr);
 
-        auto test = TRY(m_test->generate_bytecode(generator)).value();
+        auto test = m_test->generate_bytecode(generator).value();
 
         // OPTIMIZATION: test value is always falsey, skip body entirely
         if (auto constant = generator.try_get_constant(test); constant.has_value() && !constant->to_boolean_slow_case()) {
@@ -1220,7 +1216,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     if (m_update) {
         generator.switch_to_basic_block(*update_block_ptr);
 
-        (void)TRY(m_update->generate_bytecode(generator));
+        (void)m_update->generate_bytecode(generator);
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *test_block_ptr });
     }
 
@@ -1231,7 +1227,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
         Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
         if (completion.has_value())
             completion_scope.emplace(generator, *completion);
-        auto body = TRY(m_body->generate_bytecode(generator));
+        auto body = m_body->generate_bytecode(generator);
         if (!generator.is_current_block_terminated() && completion.has_value() && body.has_value())
             generator.emit_mov(*completion, *body);
     }
@@ -1261,7 +1257,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     return completion;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ObjectExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -1316,7 +1312,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             property_kind = Bytecode::PutKind::Prototype;
             break;
         case ObjectProperty::Type::Spread:
-            generator.emit<Bytecode::Op::PutBySpread>(object, TRY(property->key().generate_bytecode(generator)).value());
+            generator.emit<Bytecode::Op::PutBySpread>(object, property->key().generate_bytecode(generator).value());
             continue;
         }
 
@@ -1325,7 +1321,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
 
             Optional<ScopedOperand> value;
             if (property_kind == Bytecode::PutKind::Prototype) {
-                value = TRY(property->value().generate_bytecode(generator)).value();
+                value = property->value().generate_bytecode(generator).value();
             } else {
                 auto identifier = string_literal.value();
                 if (property_kind == Bytecode::PutKind::Getter)
@@ -1334,7 +1330,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                     identifier = Utf16String::formatted("set {}", identifier);
 
                 auto name = generator.intern_identifier(identifier);
-                value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name, {}, property->is_method()));
+                value = generator.emit_named_evaluation_if_anonymous_function(property->value(), name, {}, property->is_method());
             }
 
             auto property_key_table_index = generator.intern_property_key(string_literal.value());
@@ -1346,7 +1342,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                 generator.emit_put_by_id(object, property_key_table_index, *value, property_kind, generator.next_property_lookup_cache());
             }
         } else {
-            auto property_name = TRY(property->key().generate_bytecode(generator)).value();
+            auto property_name = property->key().generate_bytecode(generator).value();
 
             // ComputedPropertyName evaluation calls ToPropertyKey, which includes ToPrimitive(hint: string).
             // This must happen before the value expression is evaluated per the spec for
@@ -1357,7 +1353,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             // After this, the ToPrimitive inside put_by_value's to_property_key is a no-op.
             generator.emit<Bytecode::Op::ToPrimitiveWithStringHint>(property_name, property_name);
 
-            auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), {}, {}, property->is_method()));
+            auto value = generator.emit_named_evaluation_if_anonymous_function(property->value(), {}, {}, property->is_method());
 
             generator.emit_put_by_value(object, property_name, value, property_kind, {});
         }
@@ -1371,7 +1367,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
     return object;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ArrayExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     if (m_elements.is_empty()) {
@@ -1401,7 +1397,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::genera
     args.ensure_capacity(m_elements.size());
     for (auto it = m_elements.begin(); it != first_spread; ++it) {
         if (*it) {
-            auto value = TRY((*it)->generate_bytecode(generator)).value();
+            auto value = (*it)->generate_bytecode(generator).value();
             args.append(generator.copy_if_needed_to_preserve_evaluation_order(value));
         } else {
             args.append(generator.add_constant(js_special_empty_value()));
@@ -1420,7 +1416,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::genera
             if (!*it) {
                 generator.emit<Bytecode::Op::ArrayAppend>(dst, generator.add_constant(js_special_empty_value()), false);
             } else {
-                auto value = TRY((*it)->generate_bytecode(generator)).value();
+                auto value = (*it)->generate_bytecode(generator).value();
                 generator.emit<Bytecode::Op::ArrayAppend>(dst, value, *it && is<SpreadExpression>(**it));
             }
         }
@@ -1429,14 +1425,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::genera
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> MemberExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> MemberExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto reference = TRY(generator.emit_load_from_reference(*this, preferred_dst));
+    auto reference = generator.emit_load_from_reference(*this, preferred_dst);
     return reference.loaded_value;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionDeclaration::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> FunctionDeclaration::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     if (m_is_hoisted) {
         Bytecode::Generator::SourceLocationScope scope(generator, *this);
@@ -1448,7 +1444,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionDeclaration::ge
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst, bool is_method) const
+Optional<ScopedOperand> FunctionExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst, bool is_method) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     bool has_name = !name().is_empty();
@@ -1472,13 +1468,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::gen
     return new_function;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> FunctionExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_bytecode_with_lhs_name(generator, {}, preferred_dst);
 }
 
-static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_bytecode(Bytecode::Generator& generator, BindingPattern const& pattern, Bytecode::Op::BindingInitializationMode initialization_mode, ScopedOperand const& object)
+static void generate_object_binding_pattern_bytecode(Bytecode::Generator& generator, BindingPattern const& pattern, Bytecode::Op::BindingInitializationMode initialization_mode, ScopedOperand const& object)
 {
     generator.emit<Bytecode::Op::ThrowIfNullish>(object);
 
@@ -1498,14 +1494,14 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
                     excluded_property_names.size(), copy, object, excluded_property_names);
                 generator.emit_set_variable(*identifier, copy, initialization_mode);
 
-                return {};
+                return;
             }
             if (alias.has<NonnullRefPtr<MemberExpression const>>()) {
                 auto copy = generator.allocate_register();
                 generator.emit_with_extra_operand_slots<Bytecode::Op::CopyObjectExcludingProperties>(
                     excluded_property_names.size(), copy, object, excluded_property_names);
-                (void)TRY(generator.emit_store_to_reference(alias.get<NonnullRefPtr<MemberExpression const>>(), copy));
-                return {};
+                generator.emit_store_to_reference(alias.get<NonnullRefPtr<MemberExpression const>>(), copy);
+                return;
             }
             VERIFY_NOT_REACHED();
         }
@@ -1520,7 +1516,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
             generator.emit_get_by_id(value, object, generator.intern_property_key(identifier));
         } else {
             auto expression = name.get<NonnullRefPtr<Expression const>>();
-            auto property_name = TRY(expression->generate_bytecode(generator)).value();
+            auto property_name = expression->generate_bytecode(generator).value();
 
             if (has_rest) {
                 auto excluded_name = generator.copy_if_needed_to_preserve_evaluation_order(property_name);
@@ -1542,11 +1538,11 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
             generator.switch_to_basic_block(if_undefined_block);
             Optional<ScopedOperand> default_value;
             if (auto const* alias_identifier = alias.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string())));
+                default_value = generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string()));
             } else if (auto const* lhs = name.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*lhs)->string())));
+                default_value = generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*lhs)->string()));
             } else {
-                default_value = TRY(initializer->generate_bytecode(generator)).value();
+                default_value = initializer->generate_bytecode(generator).value();
             }
             generator.emit_mov(value, *default_value);
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { if_not_undefined_block });
@@ -1557,7 +1553,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
         if (alias.has<NonnullRefPtr<BindingPattern const>>()) {
             auto& binding_pattern = *alias.get<NonnullRefPtr<BindingPattern const>>();
             auto nested_value = generator.copy_if_needed_to_preserve_evaluation_order(value);
-            TRY(binding_pattern.generate_bytecode(generator, initialization_mode, nested_value));
+            binding_pattern.generate_bytecode(generator, initialization_mode, nested_value);
         } else if (alias.has<Empty>()) {
             // NB: Computed property names always require an alias, so name can't be an Expression here.
             VERIFY(!name.has<NonnullRefPtr<Expression const>>());
@@ -1565,16 +1561,15 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
             auto const& identifier = *name.get<NonnullRefPtr<Identifier const>>();
             generator.emit_set_variable(identifier, value, initialization_mode);
         } else if (alias.has<NonnullRefPtr<MemberExpression const>>()) {
-            TRY(generator.emit_store_to_reference(alias.get<NonnullRefPtr<MemberExpression const>>(), value));
+            generator.emit_store_to_reference(alias.get<NonnullRefPtr<MemberExpression const>>(), value);
         } else {
             auto const& identifier = *alias.get<NonnullRefPtr<Identifier const>>();
             generator.emit_set_variable(identifier, value, initialization_mode);
         }
     }
-    return {};
 }
 
-static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_bytecode(Bytecode::Generator& generator, BindingPattern const& pattern, Bytecode::Op::BindingInitializationMode initialization_mode, ScopedOperand const& input_array, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
+static void generate_array_binding_pattern_bytecode(Bytecode::Generator& generator, BindingPattern const& pattern, Bytecode::Op::BindingInitializationMode initialization_mode, ScopedOperand const& input_array, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
 {
     /*
      * Consider the following destructuring assignment:
@@ -1607,20 +1602,17 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
 
     auto assign_value_to_alias = [&](auto& alias, ScopedOperand value) {
         return alias.visit(
-            [&](Empty) -> Bytecode::CodeGenerationErrorOr<void> {
+            [&](Empty) -> void {
                 // This element is an elision
-                return {};
             },
-            [&](NonnullRefPtr<Identifier const> const& identifier) -> Bytecode::CodeGenerationErrorOr<void> {
+            [&](NonnullRefPtr<Identifier const> const& identifier) -> void {
                 generator.emit_set_variable(*identifier, value, initialization_mode);
-                return {};
             },
-            [&](NonnullRefPtr<BindingPattern const> const& pattern) -> Bytecode::CodeGenerationErrorOr<void> {
-                return pattern->generate_bytecode(generator, initialization_mode, value);
+            [&](NonnullRefPtr<BindingPattern const> const& pattern) -> void {
+                pattern->generate_bytecode(generator, initialization_mode, value);
             },
-            [&](NonnullRefPtr<MemberExpression const> const& expr) -> Bytecode::CodeGenerationErrorOr<void> {
-                (void)generator.emit_store_to_reference(*expr, value);
-                return {};
+            [&](NonnullRefPtr<MemberExpression const> const& expr) -> void {
+                generator.emit_store_to_reference(*expr, value);
             });
     };
 
@@ -1712,11 +1704,11 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
 
             Optional<ScopedOperand> default_value;
             if (auto const* alias_identifier = alias.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string())));
+                default_value = generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string()));
             } else if (auto const* name_identifier = name.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*name_identifier)->string())));
+                default_value = generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*name_identifier)->string()));
             } else {
-                default_value = TRY(initializer->generate_bytecode(generator)).value();
+                default_value = initializer->generate_bytecode(generator).value();
             }
             generator.emit_mov(value, *default_value);
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { value_is_not_undefined_block });
@@ -1724,7 +1716,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
             generator.switch_to_basic_block(value_is_not_undefined_block);
         }
 
-        TRY(assign_value_to_alias(alias, value));
+        assign_value_to_alias(alias, value);
 
         first = false;
     }
@@ -1742,10 +1734,9 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { done_block });
 
     generator.switch_to_basic_block(done_block);
-    return {};
 }
 
-Bytecode::CodeGenerationErrorOr<void> BindingPattern::generate_bytecode(Bytecode::Generator& generator, Bytecode::Op::BindingInitializationMode initialization_mode, ScopedOperand const& input_value) const
+void BindingPattern::generate_bytecode(Bytecode::Generator& generator, Bytecode::Op::BindingInitializationMode initialization_mode, ScopedOperand const& input_value) const
 {
     if (kind == Kind::Object)
         return generate_object_binding_pattern_bytecode(generator, *this, initialization_mode, input_value);
@@ -1753,21 +1744,20 @@ Bytecode::CodeGenerationErrorOr<void> BindingPattern::generate_bytecode(Bytecode
     return generate_array_binding_pattern_bytecode(generator, *this, initialization_mode, input_value);
 }
 
-static Bytecode::CodeGenerationErrorOr<void> assign_value_to_variable_declarator(Bytecode::Generator& generator, VariableDeclarator const& declarator, VariableDeclaration const& declaration, ScopedOperand value)
+static void assign_value_to_variable_declarator(Bytecode::Generator& generator, VariableDeclarator const& declarator, VariableDeclaration const& declaration, ScopedOperand value)
 {
     auto initialization_mode = declaration.is_lexical_declaration() ? Bytecode::Op::BindingInitializationMode::Initialize : Bytecode::Op::BindingInitializationMode::Set;
 
-    return declarator.target().visit(
-        [&](NonnullRefPtr<Identifier const> const& id) -> Bytecode::CodeGenerationErrorOr<void> {
+    declarator.target().visit(
+        [&](NonnullRefPtr<Identifier const> const& id) -> void {
             generator.emit_set_variable(*id, value, initialization_mode);
-            return {};
         },
-        [&](NonnullRefPtr<BindingPattern const> const& pattern) -> Bytecode::CodeGenerationErrorOr<void> {
-            return pattern->generate_bytecode(generator, initialization_mode, value);
+        [&](NonnullRefPtr<BindingPattern const> const& pattern) -> void {
+            pattern->generate_bytecode(generator, initialization_mode, value);
         });
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> VariableDeclaration::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> VariableDeclaration::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -1785,16 +1775,16 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> VariableDeclaration::ge
         }
 
         if (declarator->init()) {
-            auto value = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
+            auto value = [&]() -> ScopedOperand {
                 if (auto const* lhs = declarator->target().get_pointer<NonnullRefPtr<Identifier const>>()) {
-                    return TRY(generator.emit_named_evaluation_if_anonymous_function(*declarator->init(), generator.intern_identifier((*lhs)->string()), init_dst));
+                    return generator.emit_named_evaluation_if_anonymous_function(*declarator->init(), generator.intern_identifier((*lhs)->string()), init_dst);
                 } else {
-                    return TRY(declarator->init()->generate_bytecode(generator, init_dst)).value();
+                    return declarator->init()->generate_bytecode(generator, init_dst).value();
                 }
-            }());
-            (void)TRY(assign_value_to_variable_declarator(generator, declarator, *this, value));
+            }();
+            assign_value_to_variable_declarator(generator, declarator, *this, value);
         } else if (m_declaration_kind != DeclarationKind::Var) {
-            (void)TRY(assign_value_to_variable_declarator(generator, declarator, *this, generator.add_constant(js_undefined())));
+            assign_value_to_variable_declarator(generator, declarator, *this, generator.add_constant(js_undefined()));
         }
 
         if (auto const* identifier = declarator->target().get_pointer<NonnullRefPtr<Identifier const>>()) {
@@ -1813,7 +1803,7 @@ struct BaseAndValue {
     ScopedOperand value;
 };
 
-static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_member_expression(Bytecode::Generator& generator, MemberExpression const& member_expression)
+static BaseAndValue get_base_and_value_from_member_expression(Bytecode::Generator& generator, MemberExpression const& member_expression)
 {
     // https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
     if (is<SuperExpression>(member_expression.object())) {
@@ -1827,7 +1817,7 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
             // SuperProperty : super [ Expression ]
             // 3. Let propertyNameReference be ? Evaluation of Expression.
             // 4. Let propertyNameValue be ? GetValue(propertyNameReference).
-            computed_property = TRY(member_expression.property().generate_bytecode(generator));
+            computed_property = member_expression.property().generate_bytecode(generator);
         }
 
         // 5/7. Return ? MakeSuperPropertyReference(actualThis, propertyKey, strict).
@@ -1854,10 +1844,10 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
         return BaseAndValue { this_value, value };
     }
 
-    auto base = TRY(member_expression.object().generate_bytecode(generator)).value();
+    auto base = member_expression.object().generate_bytecode(generator).value();
     auto value = generator.allocate_register();
     if (member_expression.is_computed()) {
-        auto property = TRY(member_expression.property().generate_bytecode(generator)).value();
+        auto property = member_expression.property().generate_bytecode(generator).value();
         generator.emit_get_by_value(value, base, property);
     } else if (is<PrivateIdentifier>(member_expression.property())) {
         generator.emit<Bytecode::Op::GetPrivateById>(
@@ -1872,9 +1862,9 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
     return BaseAndValue { base, value };
 }
 
-static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::Generator& generator, OptionalChain const& optional_chain, ScopedOperand current_value, ScopedOperand current_base, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {});
+static void generate_optional_chain(Bytecode::Generator& generator, OptionalChain const& optional_chain, ScopedOperand current_value, ScopedOperand current_base, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {});
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> CallExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -1886,11 +1876,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
     Bytecode::Op::CallType call_type = Bytecode::Op::CallType::Call;
 
     if (is<NewExpression>(this)) {
-        original_callee = TRY(m_callee->generate_bytecode(generator)).value();
+        original_callee = m_callee->generate_bytecode(generator).value();
         call_type = Bytecode::Op::CallType::Construct;
     } else if (is<MemberExpression>(*m_callee)) {
         auto& member_expression = static_cast<MemberExpression const&>(*m_callee);
-        auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
+        auto base_and_value = get_base_and_value_from_member_expression(generator, member_expression);
         original_callee = base_and_value.value;
         original_this_value = base_and_value.base;
         builtin = Bytecode::get_builtin(member_expression);
@@ -1898,7 +1888,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         auto& optional_chain = static_cast<OptionalChain const&>(*m_callee);
         original_callee = generator.allocate_register();
         original_this_value = generator.allocate_register();
-        TRY(generate_optional_chain(generator, optional_chain, *original_callee, original_this_value));
+        generate_optional_chain(generator, optional_chain, *original_callee, original_this_value);
     } else if (is<Identifier>(*m_callee)) {
         // If the original_callee is an identifier, we may need to extract a `this` value.
         // This is important when we're inside a `with` statement and calling a method on
@@ -1907,7 +1897,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         //       a `with` binding, so we can skip this.
         auto& identifier = static_cast<Identifier const&>(*m_callee);
         if (generator.builtin_abstract_operations_enabled() && identifier.is_global()) {
-            TRY(generator.generate_builtin_abstract_operation(identifier, arguments(), dst));
+            generator.generate_builtin_abstract_operation(identifier, arguments(), dst);
             return dst;
         }
 
@@ -1933,7 +1923,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
     } else {
         // NB: For non-Reference calls, EvaluateCall sets thisValue to undefined.
         //     OrdinaryCallBindThis coerces undefined to the global object in sloppy mode at runtime.
-        original_callee = TRY(m_callee->generate_bytecode(generator)).value();
+        original_callee = m_callee->generate_bytecode(generator).value();
     }
 
     // NOTE: If the callee/this value isn't already a temporary, we copy them to new registers
@@ -1949,7 +1939,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
     bool has_spread = any_of(arguments(), [](auto& argument) { return argument.is_spread; });
 
     if (has_spread) {
-        auto arguments = TRY(arguments_to_array_for_call(generator, this->arguments())).value();
+        auto arguments = arguments_to_array_for_call(generator, this->arguments()).value();
         if (call_type == Op::CallType::Construct) {
             generator.emit<Bytecode::Op::CallConstructWithArgumentArray>(dst, callee, this_value, arguments, expression_string_index);
         } else if (call_type == Op::CallType::DirectEval) {
@@ -1961,7 +1951,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         Vector<ScopedOperand> argument_operands;
         argument_operands.ensure_capacity(arguments().size());
         for (auto const& argument : arguments()) {
-            auto argument_value = TRY(argument.value->generate_bytecode(generator)).value();
+            auto argument_value = argument.value->generate_bytecode(generator).value();
             argument_operands.append(generator.copy_if_needed_to_preserve_evaluation_order(argument_value));
         }
         if (builtin.has_value() && builtin_argument_count(builtin.value()) == argument_operands.size()) {
@@ -2011,7 +2001,7 @@ static ScopedOperand generate_await(
     ScopedOperand received_completion_value);
 
 // https://tc39.es/ecma262/#sec-return-statement-runtime-semantics-evaluation
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ReturnStatement::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand>) const
+Optional<ScopedOperand> ReturnStatement::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand>) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -2021,7 +2011,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ReturnStatement::genera
         //  ReturnStatement : return Expression ;
         //     1. Let exprRef be ? Evaluation of Expression.
         //     2. Let exprValue be ? GetValue(exprRef).
-        return_value = TRY(m_argument->generate_bytecode(generator)).value();
+        return_value = m_argument->generate_bytecode(generator).value();
 
         //     3. If GetGeneratorKind() is async, set exprValue to ? Await(exprValue).
         // Spec Issue?: The spec doesn't seem to do implicit await on explicit return for async functions, but does for
@@ -2126,7 +2116,7 @@ static void generate_yield(Bytecode::Generator& generator,
     generator.emit<Bytecode::Op::Jump>(continuation_label);
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> YieldExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     // Note: We need to catch any scheduled exceptions and reschedule them on re-entry
     //       as the act of yielding would otherwise clear them out
@@ -2149,7 +2139,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         // 2. Let exprRef be ? Evaluation of AssignmentExpression.
         // 3. Let value be ? GetValue(exprRef).
         VERIFY(m_argument);
-        auto value = TRY(m_argument->generate_bytecode(generator)).value();
+        auto value = m_argument->generate_bytecode(generator).value();
 
         // 4. Let iteratorRecord be ? GetIterator(value, generatorKind).
         // 5. Let iterator be iteratorRecord.[[Iterator]].
@@ -2430,7 +2420,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
     Optional<ScopedOperand> argument;
     if (m_argument)
-        argument = TRY(m_argument->generate_bytecode(generator)).value();
+        argument = m_argument->generate_bytecode(generator).value();
     else
         argument = generator.add_constant(js_undefined());
 
@@ -2491,7 +2481,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
     return received_completion_value;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> IfStatement::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // test
@@ -2502,7 +2492,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     // jump always (true) end
     // end
 
-    auto predicate = TRY(m_predicate->generate_bytecode(generator)).value();
+    auto predicate = m_predicate->generate_bytecode(generator).value();
 
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
@@ -2510,11 +2500,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
         generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
-    auto build_block = [&](auto node, Optional<BasicBlock&> end_block = {}) -> CodeGenerationErrorOr<Optional<ScopedOperand>> {
+    auto build_block = [&](auto node, Optional<BasicBlock&> end_block = {}) -> Optional<ScopedOperand> {
         Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
         if (completion.has_value())
             completion_scope.emplace(generator, *completion);
-        auto value = TRY(node->generate_bytecode(generator, completion));
+        auto value = node->generate_bytecode(generator, completion);
         if (!generator.is_current_block_terminated()) {
             if (generator.must_propagate_completion() && value.has_value())
                 generator.emit_mov(*completion, *value);
@@ -2527,9 +2517,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     // OPTIMIZATION: if the predicate is always true/false, only build the consequent/alternate blocks, respectively.
     if (auto constant = generator.try_get_constant(predicate); constant.has_value()) {
         if (constant->to_boolean_slow_case()) {
-            (void)TRY(build_block(m_consequent));
+            (void)build_block(m_consequent);
         } else if (m_alternate) {
-            (void)TRY(build_block(m_alternate));
+            (void)build_block(m_alternate);
         }
         return completion;
     }
@@ -2545,11 +2535,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
         Bytecode::Label { false_block });
 
     generator.switch_to_basic_block(true_block);
-    (void)TRY(build_block(m_consequent, { end_block }));
+    (void)build_block(m_consequent, { end_block });
 
     if (m_alternate) {
         generator.switch_to_basic_block(false_block);
-        (void)TRY(build_block(m_alternate, { end_block }));
+        (void)build_block(m_alternate, { end_block });
     }
 
     generator.switch_to_basic_block(end_block);
@@ -2557,7 +2547,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     return completion;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ContinueStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ContinueStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     if (!m_target_label.has_value()) {
@@ -2569,24 +2559,24 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ContinueStatement::gene
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DebuggerStatement::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> DebuggerStatement::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ConditionalExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ConditionalExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
-    auto test = TRY(m_test->generate_bytecode(generator)).value();
+    auto test = m_test->generate_bytecode(generator).value();
 
     // OPTIMIZATION: if the predicate is always true/false, only build the consequent/alternate blocks, respectively.
     if (auto constant = generator.try_get_constant(test); constant.has_value()) {
         auto is_always_true = constant->to_boolean_slow_case();
 
         if (is_always_true)
-            return TRY(m_consequent->generate_bytecode(generator)).value();
-        return TRY(m_alternate->generate_bytecode(generator)).value();
+            return m_consequent->generate_bytecode(generator).value();
+        return m_alternate->generate_bytecode(generator).value();
     }
 
     // test
@@ -2609,13 +2599,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ConditionalExpression::
     auto dst = choose_dst(generator, preferred_dst);
 
     generator.switch_to_basic_block(true_block);
-    auto consequent = TRY(m_consequent->generate_bytecode(generator)).value();
+    auto consequent = m_consequent->generate_bytecode(generator).value();
     generator.emit_mov(dst, consequent);
 
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
 
     generator.switch_to_basic_block(false_block);
-    auto alternate = TRY(m_alternate->generate_bytecode(generator)).value();
+    auto alternate = m_alternate->generate_bytecode(generator).value();
     generator.emit_mov(dst, alternate);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
 
@@ -2623,18 +2613,18 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ConditionalExpression::
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SequenceExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> SequenceExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     Optional<ScopedOperand> last_value;
     for (auto& expression : m_expressions) {
-        last_value = TRY(expression->generate_bytecode(generator));
+        last_value = expression->generate_bytecode(generator);
     }
 
     return last_value;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TemplateLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> TemplateLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -2651,7 +2641,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TemplateLiteral::genera
         return generator.add_constant(Value { GC::Ref { generator.vm().empty_string() } });
 
     if (segments.size() == 1) {
-        auto value = TRY(segments[0]->generate_bytecode(generator)).value();
+        auto value = segments[0]->generate_bytecode(generator).value();
 
         // OPTIMIZATION: String literal template (`xyz`) can be returned directly
         if (value.operand().is_constant())
@@ -2666,7 +2656,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TemplateLiteral::genera
     for (size_t i = 0; i < segments.size(); i++) {
         auto expr = segments[i];
 
-        auto value = TRY(expr->generate_bytecode(generator)).value();
+        auto value = expr->generate_bytecode(generator).value();
 
         if (i == 0) {
             if (expr->is_string_literal()) {
@@ -2687,13 +2677,13 @@ struct TagAndThisValue {
     ScopedOperand this_value;
 };
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> TaggedTemplateLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto [tag, this_value] = TRY([&]() -> CodeGenerationErrorOr<TagAndThisValue> {
+    auto [tag, this_value] = [&]() -> TagAndThisValue {
         if (is<MemberExpression>(*m_tag)) {
             auto& member_expression = static_cast<MemberExpression const&>(*m_tag);
-            auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
+            auto base_and_value = get_base_and_value_from_member_expression(generator, member_expression);
             return TagAndThisValue { .tag = base_and_value.value, .this_value = base_and_value.base };
         }
 
@@ -2703,7 +2693,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
                 // Keep the normal Identifier path so local/global tags preserve
                 // TDZ behavior; only non-local identifiers need with-aware
                 // callee/this extraction.
-                auto tag = TRY(m_tag->generate_bytecode(generator)).value();
+                auto tag = m_tag->generate_bytecode(generator).value();
                 return TagAndThisValue { .tag = tag, .this_value = generator.add_constant(js_undefined()) };
             }
 
@@ -2716,9 +2706,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
             return TagAndThisValue { .tag = tag, .this_value = this_value };
         }
 
-        auto tag = TRY(m_tag->generate_bytecode(generator)).value();
+        auto tag = m_tag->generate_bytecode(generator).value();
         return TagAndThisValue { .tag = tag, .this_value = generator.add_constant(js_undefined()) };
-    }());
+    }();
 
     // 13.2.8.4 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
     Vector<ScopedOperand> string_regs;
@@ -2731,14 +2721,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         if (is<NullLiteral>(expressions[i])) {
             string_regs.append(generator.add_constant(js_undefined()));
         } else {
-            auto value = TRY(expressions[i]->generate_bytecode(generator)).value();
+            auto value = expressions[i]->generate_bytecode(generator).value();
             string_regs.append(move(value));
         }
     }
 
     auto& raw_strings = m_template_literal->raw_strings();
     for (auto const& raw_string : raw_strings) {
-        auto value = TRY(raw_string->generate_bytecode(generator)).value();
+        auto value = raw_string->generate_bytecode(generator).value();
         string_regs.append(move(value));
     }
 
@@ -2753,7 +2743,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
     argument_regs.append(strings_array);
 
     for (size_t i = 1; i < expressions.size(); i += 2) {
-        auto argument = TRY(expressions[i]->generate_bytecode(generator)).value();
+        auto argument = expressions[i]->generate_bytecode(generator).value();
         argument_regs.append(move(argument));
     }
 
@@ -2762,10 +2752,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UpdateExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand>) const
+Optional<ScopedOperand> UpdateExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand>) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto reference = TRY(generator.emit_load_from_reference(*m_argument));
+    auto reference = generator.emit_load_from_reference(*m_argument);
 
     Optional<ScopedOperand> previous_value_for_postfix;
 
@@ -2786,25 +2776,25 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UpdateExpression::gener
     }
 
     if (is<Identifier>(*m_argument))
-        (void)TRY(generator.emit_store_to_reference(static_cast<Identifier const&>(*m_argument), *reference.loaded_value));
+        generator.emit_store_to_reference(static_cast<Identifier const&>(*m_argument), *reference.loaded_value);
     else
-        (void)TRY(generator.emit_store_to_reference(reference, *reference.loaded_value));
+        generator.emit_store_to_reference(reference, *reference.loaded_value);
 
     if (!m_prefixed)
         return *previous_value_for_postfix;
     return *reference.loaded_value;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ThrowStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ThrowStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto argument = TRY(m_argument->generate_bytecode(generator)).value();
+    auto argument = m_argument->generate_bytecode(generator).value();
     generator.perform_needed_unwinds<Bytecode::Op::Throw>();
     generator.emit<Bytecode::Op::Throw>(argument);
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BreakStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> BreakStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // FIXME: Handle finally blocks in a graceful manner
@@ -2838,7 +2828,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BreakStatement::generat
 // For nested finally (e.g. break through two finally blocks), trampoline
 // blocks chain through each finally layer, with each inner finally dispatching
 // to a trampoline that sets up the outer finally's completion record.
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> TryStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto& saved_block = generator.current_block();
@@ -2909,8 +2899,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         // OPTIMIZATION: We avoid creating a lexical environment if the catch clause has no parameter.
         bool did_create_variable_scope_for_catch_clause = false;
 
-        TRY(m_handler->parameter().visit(
-            [&](NonnullRefPtr<Identifier const> const& parameter) -> Bytecode::CodeGenerationErrorOr<void> {
+        m_handler->parameter().visit(
+            [&](NonnullRefPtr<Identifier const> const& parameter) -> void {
                 if (parameter->is_local()) {
                     auto local = generator.local(parameter->local_index());
                     generator.emit_mov(local, caught_value);
@@ -2922,9 +2912,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
                     generator.emit<Bytecode::Op::CreateVariable>(parameter_identifier, Bytecode::Op::EnvironmentMode::Lexical, false, false, false);
                     generator.emit<Bytecode::Op::InitializeLexicalBinding>(parameter_identifier, caught_value);
                 }
-                return {};
             },
-            [&](NonnullRefPtr<BindingPattern const> const& binding_pattern) -> Bytecode::CodeGenerationErrorOr<void> {
+            [&](NonnullRefPtr<BindingPattern const> const& binding_pattern) -> void {
                 MUST(binding_pattern->for_each_bound_identifier([&](auto const& identifier) {
                     if (!identifier.is_local())
                         did_create_variable_scope_for_catch_clause = true;
@@ -2940,12 +2929,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
                     generator.emit<Bytecode::Op::CreateVariable>(parameter_identifier, Bytecode::Op::EnvironmentMode::Lexical, false, false, false);
                 }));
 
-                TRY(binding_pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Initialize, caught_value));
-                return {};
+                binding_pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Initialize, caught_value);
             },
-            [](Empty) -> Bytecode::CodeGenerationErrorOr<void> {
-                return {};
-            }));
+            [](Empty) -> void {
+            });
 
         Optional<ScopedOperand> catch_completion;
         {
@@ -2959,7 +2946,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
                 generator.emit_mov(*catch_completion, generator.add_constant(js_undefined()));
                 completion_scope.emplace(generator, *catch_completion);
             }
-            (void)TRY(m_handler->body().generate_bytecode(generator));
+            (void)m_handler->body().generate_bytecode(generator);
         }
         if (generator.must_propagate_completion()) {
             if (catch_completion.has_value() && !generator.is_current_block_terminated()) {
@@ -3018,7 +3005,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
             generator.emit_mov(*try_completion, generator.add_constant(js_undefined()));
             completion_scope.emplace(generator, *try_completion);
         }
-        (void)TRY(m_block->generate_bytecode(generator));
+        (void)m_block->generate_bytecode(generator);
     }
     if (!generator.is_current_block_terminated()) {
         if (generator.must_propagate_completion()) {
@@ -3068,7 +3055,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
                 generator.emit_mov(*finally_completion, generator.add_constant(js_undefined()));
                 completion_scope.emplace(generator, *finally_completion);
             }
-            (void)TRY(m_finalizer->generate_bytecode(generator));
+            (void)m_finalizer->generate_bytecode(generator);
         }
         generator.end_boundary(Bytecode::Generator::BlockBoundaryType::LeaveFinally);
 
@@ -3137,13 +3124,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
     return completion;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> SwitchStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> SwitchStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -3153,7 +3140,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
         generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
-    auto discriminant = TRY(m_discriminant->generate_bytecode(generator)).value();
+    auto discriminant = m_discriminant->generate_bytecode(generator).value();
     Vector<Bytecode::BasicBlock&> case_blocks;
     Bytecode::BasicBlock* entry_block_for_default { nullptr };
     Bytecode::BasicBlock* next_test_block = &generator.make_block();
@@ -3174,7 +3161,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
         auto& case_block = generator.make_block();
         if (switch_case->test()) {
             generator.switch_to_basic_block(*next_test_block);
-            auto test_value = TRY(switch_case->test()->generate_bytecode(generator)).value();
+            auto test_value = switch_case->test()->generate_bytecode(generator).value();
             auto result = generator.allocate_register();
             generator.emit<Bytecode::Op::StrictlyEquals>(result, test_value, discriminant);
             next_test_block = test_blocks.dequeue();
@@ -3205,7 +3192,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
             if (completion.has_value())
                 completion_scope.emplace(generator, *completion);
             for (auto& statement : switch_case->children()) {
-                auto result = TRY(statement->generate_bytecode(generator));
+                auto result = statement->generate_bytecode(generator);
                 if (generator.is_current_block_terminated())
                     break;
                 if (generator.must_propagate_completion()) {
@@ -3237,23 +3224,23 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
     return completion;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SuperExpression::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> SuperExpression::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     // The semantics for SuperExpression are handled in CallExpression and SuperCall.
     VERIFY_NOT_REACHED();
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassDeclaration::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ClassDeclaration::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto value = TRY(m_class_expression->generate_bytecode(generator)).value();
+    auto value = m_class_expression->generate_bytecode(generator).value();
     generator.emit_set_variable(*m_class_expression.ptr()->m_name, value, Bytecode::Op::BindingInitializationMode::Initialize);
     // NOTE: ClassDeclaration does not produce a value.
     return Optional<ScopedOperand> {};
 }
 
 // 15.7.14 Runtime Semantics: ClassDefinitionEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ClassExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst) const
 {
     // NOTE: Step 2 is not a part of NewClass instruction because it is assumed to be done before super class expression evaluation
     auto parent_environment = generator.current_lexical_environment_register();
@@ -3269,7 +3256,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
 
     Optional<ScopedOperand> super_class;
     if (m_super_class)
-        super_class = TRY(m_super_class->generate_bytecode(generator)).value();
+        super_class = m_super_class->generate_bytecode(generator).value();
 
     bool did_emit_private_environment_allocation = false;
     for (auto const& element : m_elements) {
@@ -3289,11 +3276,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
         if (is<ClassMethod>(*element)) {
             auto const& class_method = static_cast<ClassMethod const&>(*element);
             if (!is<PrivateIdentifier>(class_method.key()))
-                key = TRY(class_method.key().generate_bytecode(generator));
+                key = class_method.key().generate_bytecode(generator);
         } else if (is<ClassField>(*element)) {
             auto const& class_field = static_cast<ClassField const&>(*element);
             if (!is<PrivateIdentifier>(class_field.key()))
-                key = TRY(class_field.key().generate_bytecode(generator));
+                key = class_field.key().generate_bytecode(generator);
         }
 
         elements.append({ key });
@@ -3494,20 +3481,20 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ClassExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_bytecode_with_lhs_name(generator, {}, preferred_dst);
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SpreadExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> SpreadExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     // NOTE: All users of this should handle the behaviour of this on their own,
     //       assuming it returns an Array-like object
     return m_target->generate_bytecode(generator);
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ThisExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ThisExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generator.get_this(preferred_dst);
@@ -3555,10 +3542,10 @@ static ScopedOperand generate_await(
     return received_completion_value;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AwaitExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> AwaitExpression::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto argument = TRY(m_argument->generate_bytecode(generator)).value();
+    auto argument = m_argument->generate_bytecode(generator).value();
 
     auto received_completion = generator.allocate_register();
     auto received_completion_type = generator.allocate_register();
@@ -3569,10 +3556,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AwaitExpression::genera
     return generate_await(generator, argument, received_completion, received_completion_type, received_completion_value);
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WithStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> WithStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto object = TRY(m_object->generate_bytecode(generator)).value();
+    auto object = m_object->generate_bytecode(generator).value();
 
     auto object_environment = generator.allocate_register();
     generator.emit<Bytecode::Op::EnterObjectEnvironment>(object_environment, object);
@@ -3581,7 +3568,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WithStatement::generate
     // EnterObjectEnvironment sets the running execution context's lexical_environment to a new Object Environment.
     generator.start_boundary(Bytecode::Generator::BlockBoundaryType::LeaveLexicalEnvironment);
 
-    auto body_result = TRY(m_body->generate_bytecode(generator));
+    auto body_result = m_body->generate_bytecode(generator);
     if (!body_result.has_value())
         body_result = generator.add_constant(js_undefined());
     generator.end_boundary(Bytecode::Generator::BlockBoundaryType::LeaveLexicalEnvironment);
@@ -3613,7 +3600,7 @@ struct ForInOfHeadEvaluationResult {
     Optional<ScopedOperand> iterator_next_method;
     Optional<ScopedOperand> iterator_done_property;
 };
-static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_head_evaluation(Bytecode::Generator& generator, IterationKind iteration_kind, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, NonnullRefPtr<ASTNode const> const& rhs)
+static ForInOfHeadEvaluationResult for_in_of_head_evaluation(Bytecode::Generator& generator, IterationKind iteration_kind, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, NonnullRefPtr<ASTNode const> const& rhs)
 {
     ForInOfHeadEvaluationResult result {};
 
@@ -3636,7 +3623,7 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
                 VERIFY(variable->target().has<NonnullRefPtr<Identifier const>>());
                 auto identifier = variable->target().get<NonnullRefPtr<Identifier const>>();
                 auto identifier_table_ref = generator.intern_identifier(identifier->string());
-                auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(*variable->init(), identifier_table_ref));
+                auto value = generator.emit_named_evaluation_if_anonymous_function(*variable->init(), identifier_table_ref);
                 generator.emit_set_variable(*identifier, value);
             }
         } else {
@@ -3675,7 +3662,7 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
     }
 
     // 3. Let exprRef be the result of evaluating expr.
-    auto object = TRY(rhs->generate_bytecode(generator)).value();
+    auto object = rhs->generate_bytecode(generator).value();
 
     // 4. Set the running execution context's LexicalEnvironment to oldEnv.
     if (entered_lexical_scope)
@@ -3728,7 +3715,7 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
 }
 
 // 14.7.5.7 ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] ), https://tc39.es/ecma262/#sec-runtime-semantics-forin-div-ofbodyevaluation-lhs-stmt-iterator-lhskind-labelset
-static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_evaluation(Bytecode::Generator& generator, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
+static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& generator, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
 {
     // 1. If iteratorKind is not present, set iteratorKind to sync.
 
@@ -3810,13 +3797,13 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
             if (head_result.lhs_kind == LHSKind::VarBinding) {
                 auto& declaration = static_cast<VariableDeclaration const&>(*lhs.get<NonnullRefPtr<ASTNode const>>());
                 VERIFY(declaration.declarations().size() == 1);
-                TRY(assign_value_to_variable_declarator(generator, declaration.declarations().first(), declaration, next_value));
+                assign_value_to_variable_declarator(generator, declaration.declarations().first(), declaration, next_value);
             } else {
                 if (auto ptr = lhs.get_pointer<NonnullRefPtr<ASTNode const>>()) {
-                    TRY(generator.emit_store_to_reference(**ptr, next_value));
+                    generator.emit_store_to_reference(**ptr, next_value);
                 } else {
                     auto& binding_pattern = lhs.get<NonnullRefPtr<BindingPattern const>>();
-                    TRY(binding_pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Set, next_value));
+                    binding_pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Set, next_value);
                 }
             }
         }
@@ -3901,10 +3888,10 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
             auto& declaration = static_cast<VariableDeclaration const&>(*lhs.get<NonnullRefPtr<ASTNode const>>());
             VERIFY(declaration.declarations().size() == 1);
             auto& binding_pattern = declaration.declarations().first()->target().get<NonnullRefPtr<BindingPattern const>>();
-            (void)TRY(binding_pattern->generate_bytecode(
+            binding_pattern->generate_bytecode(
                 generator,
                 head_result.lhs_kind == LHSKind::VarBinding ? Bytecode::Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize,
-                next_value));
+                next_value);
         } else {
             // NB: lhs_kind is Assignment only when is_destructuring is false, so this is unreachable.
             VERIFY_NOT_REACHED();
@@ -3926,7 +3913,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
         if (completion.has_value())
             completion_scope.emplace(generator, *completion);
-        auto result = TRY(body.generate_bytecode(generator));
+        auto result = body.generate_bytecode(generator);
         if (!generator.is_current_block_terminated() && completion.has_value() && result.has_value())
             generator.emit_mov(*completion, *result);
     }
@@ -3945,57 +3932,57 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     return completion;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForInStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_labelled_evaluation(generator, {});
 }
 
 // 14.7.5.5 Runtime Semantics: ForInOfLoopEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-forinofloopevaluation
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForInStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     auto& loop_end = generator.make_block();
     auto& loop_update = generator.make_block();
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
-    auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::Enumerate, m_lhs, m_rhs));
+    auto head_result = for_in_of_head_evaluation(generator, IterationKind::Enumerate, m_lhs, m_rhs);
     return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, label_set, loop_end, loop_update);
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     auto& loop_end = generator.make_block();
     auto& loop_update = generator.make_block();
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
-    auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::Iterate, m_lhs, m_rhs));
+    auto head_result = for_in_of_head_evaluation(generator, IterationKind::Iterate, m_lhs, m_rhs);
     return for_in_of_body_evaluation(generator, m_lhs, body(), head_result, label_set, loop_end, loop_update);
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForAwaitOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ForAwaitOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     auto& loop_end = generator.make_block();
     auto& loop_update = generator.make_block();
     generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
 
-    auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::AsyncIterate, m_lhs, m_rhs));
+    auto head_result = for_in_of_head_evaluation(generator, IterationKind::AsyncIterate, m_lhs, m_rhs);
     return for_in_of_body_evaluation(generator, m_lhs, m_body, head_result, label_set, loop_end, loop_update, IteratorHint::Async);
 }
 
 // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> MetaProperty::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> MetaProperty::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // NewTarget : new . target
@@ -4016,29 +4003,29 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> MetaProperty::generate_
     VERIFY_NOT_REACHED();
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassFieldInitializerStatement::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ClassFieldInitializerStatement::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(*m_expression, generator.intern_identifier(m_class_field_identifier_name), preferred_dst));
+    auto value = generator.emit_named_evaluation_if_anonymous_function(*m_expression, generator.intern_identifier(m_class_field_identifier_name), preferred_dst);
     generator.perform_needed_unwinds<Bytecode::Op::Return>();
     generator.emit<Bytecode::Op::Return>(value.operand());
     return value;
 }
 
-static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::Generator& generator, OptionalChain const& optional_chain, ScopedOperand current_value, ScopedOperand current_base, [[maybe_unused]] Optional<ScopedOperand> preferred_dst)
+static void generate_optional_chain(Bytecode::Generator& generator, OptionalChain const& optional_chain, ScopedOperand current_value, ScopedOperand current_base, [[maybe_unused]] Optional<ScopedOperand> preferred_dst)
 {
     Optional<ScopedOperand> new_current_value;
     if (is<MemberExpression>(optional_chain.base())) {
         auto& member_expression = static_cast<MemberExpression const&>(optional_chain.base());
-        auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
+        auto base_and_value = get_base_and_value_from_member_expression(generator, member_expression);
         new_current_value = base_and_value.value;
         generator.emit_mov(current_base, base_and_value.base);
     } else if (is<OptionalChain>(optional_chain.base())) {
         auto& sub_optional_chain = static_cast<OptionalChain const&>(optional_chain.base());
-        TRY(generate_optional_chain(generator, sub_optional_chain, current_value, current_base));
+        generate_optional_chain(generator, sub_optional_chain, current_value, current_base);
         new_current_value = current_value;
     } else {
-        new_current_value = TRY(optional_chain.base().generate_bytecode(generator)).value();
+        new_current_value = optional_chain.base().generate_bytecode(generator).value();
     }
 
     generator.emit_mov(current_value, *new_current_value);
@@ -4057,30 +4044,25 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
             generator.switch_to_basic_block(not_nullish_block);
         }
 
-        TRY(reference.visit(
-            [&](OptionalChain::Call const& call) -> Bytecode::CodeGenerationErrorOr<void> {
-                auto arguments = TRY(arguments_to_array_for_call(generator, call.arguments)).value();
+        reference.visit(
+            [&](OptionalChain::Call const& call) -> void {
+                auto arguments = arguments_to_array_for_call(generator, call.arguments).value();
                 generator.emit<Bytecode::Op::CallWithArgumentArray>(current_value, current_value, current_base, arguments, OptionalNone {});
                 generator.emit_mov(current_base, generator.add_constant(js_undefined()));
-                return {};
             },
-            [&](OptionalChain::ComputedReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
+            [&](OptionalChain::ComputedReference const& ref) -> void {
                 generator.emit_mov(current_base, current_value);
-                auto property = TRY(ref.expression->generate_bytecode(generator)).value();
+                auto property = ref.expression->generate_bytecode(generator).value();
                 generator.emit_get_by_value(current_value, current_value, property);
-                return {};
             },
-            [&](OptionalChain::MemberReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
+            [&](OptionalChain::MemberReference const& ref) -> void {
                 generator.emit_mov(current_base, current_value);
                 generator.emit_get_by_id(current_value, current_value, generator.intern_property_key(ref.identifier->string()));
-                return {};
             },
-            [&](OptionalChain::PrivateMemberReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
+            [&](OptionalChain::PrivateMemberReference const& ref) -> void {
                 generator.emit_mov(current_base, current_value);
                 generator.emit<Bytecode::Op::GetPrivateById>(current_value, current_value, generator.intern_identifier(ref.private_identifier->string()));
-
-                return {};
-            }));
+            });
     }
 
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
@@ -4090,27 +4072,26 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
 
     generator.switch_to_basic_block(end_block);
-    return {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> OptionalChain::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> OptionalChain::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto current_base = generator.allocate_register();
     auto current_value = choose_dst(generator, preferred_dst);
     generator.emit_mov(current_base, generator.add_constant(js_undefined()));
-    TRY(generate_optional_chain(generator, *this, current_value, current_base));
+    generate_optional_chain(generator, *this, current_value, current_base);
     return current_value;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ImportCall::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ImportCall::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto specifier = TRY(m_specifier->generate_bytecode(generator)).value();
+    auto specifier = m_specifier->generate_bytecode(generator).value();
 
     Optional<ScopedOperand> options;
     if (m_options) {
-        options = TRY(m_options->generate_bytecode(generator)).value();
+        options = m_options->generate_bytecode(generator).value();
     } else {
         options = generator.add_constant(js_undefined());
     }
@@ -4119,7 +4100,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ImportCall::generate_by
     return dst;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExportStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ExportStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     if (!is_default_export()) {
@@ -4136,7 +4117,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExportStatement::genera
     }
 
     if (is<ClassExpression>(*m_statement)) {
-        auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<ClassExpression const&>(*m_statement), generator.intern_identifier("default"_utf16_fly_string)));
+        auto value = generator.emit_named_evaluation_if_anonymous_function(static_cast<ClassExpression const&>(*m_statement), generator.intern_identifier("default"_utf16_fly_string));
 
         if (!static_cast<ClassExpression const&>(*m_statement).has_name()) {
             generator.emit<Bytecode::Op::InitializeLexicalBinding>(
@@ -4149,14 +4130,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExportStatement::genera
 
     // ExportDeclaration : export default AssignmentExpression ;
     VERIFY(is<Expression>(*m_statement));
-    auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<Expression const&>(*m_statement), generator.intern_identifier("default"_utf16_fly_string)));
+    auto value = generator.emit_named_evaluation_if_anonymous_function(static_cast<Expression const&>(*m_statement), generator.intern_identifier("default"_utf16_fly_string));
     generator.emit<Bytecode::Op::InitializeLexicalBinding>(
         generator.intern_identifier(ExportStatement::local_name_for_default),
         value);
     return value;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ImportStatement::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Optional<ScopedOperand> ImportStatement::generate_bytecode(Bytecode::Generator&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     return Optional<ScopedOperand> {};
 }

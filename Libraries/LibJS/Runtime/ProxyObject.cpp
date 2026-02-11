@@ -890,9 +890,9 @@ void ProxyObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_handler);
 }
 
-ThrowCompletionOr<void> ProxyObject::get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count)
+void ProxyObject::get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count)
 {
-    return as<FunctionObject>(*m_target).get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
+    as<FunctionObject>(*m_target).get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
 }
 
 Utf16String ProxyObject::name_for_call_stack() const
