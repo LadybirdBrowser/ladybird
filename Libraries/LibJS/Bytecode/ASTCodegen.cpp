@@ -1730,7 +1730,7 @@ static void generate_array_binding_pattern_bytecode(Bytecode::Generator& generat
         Bytecode::Label { not_done_block });
 
     generator.switch_to_basic_block(not_done_block);
-    generator.emit<Bytecode::Op::IteratorClose>(iterator_object, iterator_next_method, iterator_done_property, Completion::Type::Normal, Optional<Value> {});
+    generator.emit<Bytecode::Op::IteratorClose>(iterator_object, iterator_next_method, iterator_done_property, Completion::Type::Normal, generator.add_constant(js_undefined()));
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { done_block });
 
     generator.switch_to_basic_block(done_block);
@@ -2318,11 +2318,11 @@ Optional<ScopedOperand> YieldExpression::generate_bytecode(Bytecode::Generator& 
         // 3. If generatorKind is async, perform ? AsyncIteratorClose(iteratorRecord, closeCompletion).
         if (generator.is_in_async_generator_function()) {
             // FIXME: This performs `await` outside of the generator!
-            generator.emit<Bytecode::Op::AsyncIteratorClose>(iterator, next_method, done, Completion::Type::Normal, Optional<Value> {});
+            generator.emit<Bytecode::Op::AsyncIteratorClose>(iterator, next_method, done, Completion::Type::Normal, generator.add_constant(js_undefined()));
         }
         // 4. Else, perform ? IteratorClose(iteratorRecord, closeCompletion).
         else {
-            generator.emit<Bytecode::Op::IteratorClose>(iterator, next_method, done, Completion::Type::Normal, Optional<Value> {});
+            generator.emit<Bytecode::Op::IteratorClose>(iterator, next_method, done, Completion::Type::Normal, generator.add_constant(js_undefined()));
         }
 
         // 5. NOTE: The next step throws a TypeError to indicate that there was a yield* protocol violation: iterator does not have a throw method.
