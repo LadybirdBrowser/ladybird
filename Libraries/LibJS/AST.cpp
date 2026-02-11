@@ -117,37 +117,6 @@ FunctionNode::FunctionNode(RefPtr<Identifier const> name, Utf16View source_text,
 
 FunctionNode::~FunctionNode() = default;
 
-void FunctionNode::set_shared_data(GC::Ptr<SharedFunctionInstanceData> shared_data) const
-{
-    m_shared_data = move(shared_data);
-}
-
-GC::Ptr<SharedFunctionInstanceData> FunctionNode::shared_data() const
-{
-    return m_shared_data.ptr();
-}
-
-GC::Ref<SharedFunctionInstanceData> FunctionNode::ensure_shared_data(VM& vm) const
-{
-    if (auto data = shared_data())
-        return *data;
-
-    auto data = vm.heap().allocate<SharedFunctionInstanceData>(
-        vm,
-        kind(),
-        name(),
-        function_length(),
-        parameters(),
-        *body_ptr(),
-        source_text(),
-        is_strict_mode(),
-        is_arrow_function(),
-        parsing_insights(),
-        local_variables_names());
-    set_shared_data(data);
-    return *data;
-}
-
 ThrowCompletionOr<void> FunctionDeclaration::for_each_bound_identifier(ThrowCompletionOrVoidCallback<Identifier const&>&& callback) const
 {
     if (!m_name)
@@ -551,7 +520,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
         // b. Let fo be InstantiateFunctionObject of f with arguments env and privateEnv.
         auto function = ECMAScriptFunctionObject::create_from_function_data(
             realm,
-            declaration.ensure_shared_data(vm),
+            SharedFunctionInstanceData::create_for_function_node(vm, declaration),
             &global_environment,
             private_environment);
 

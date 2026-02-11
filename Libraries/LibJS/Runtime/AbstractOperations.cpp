@@ -34,6 +34,7 @@
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/ProxyObject.h>
 #include <LibJS/Runtime/Reference.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/SuppressedError.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
@@ -795,7 +796,7 @@ EvalDeclarationData EvalDeclarationData::create(VM& vm, Program const& program, 
         auto function_name = function.name();
         if (data.declared_function_names.set(function_name) != AK::HashSetResult::InsertedNewEntry)
             return {};
-        data.functions_to_initialize.append({ function.ensure_shared_data(vm), function_name });
+        data.functions_to_initialize.append({ SharedFunctionInstanceData::create_for_function_node(vm, function), function_name });
         return {};
     }));
 

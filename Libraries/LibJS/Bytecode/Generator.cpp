@@ -37,25 +37,7 @@ Generator::Generator(VM& vm, GC::Ptr<SharedFunctionInstanceData const> shared_fu
 
 static GC::Ref<SharedFunctionInstanceData> ensure_shared_function_data(VM& vm, FunctionNode const& function_node, Utf16FlyString name)
 {
-    auto shared_data = function_node.shared_data();
-    if (shared_data)
-        return *shared_data;
-
-    auto& realm = *vm.current_realm();
-    shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
-        vm,
-        function_node.kind(),
-        move(name),
-        function_node.function_length(),
-        function_node.parameters(),
-        *function_node.body_ptr(),
-        function_node.source_text(),
-        function_node.is_strict_mode(),
-        function_node.is_arrow_function(),
-        function_node.parsing_insights(),
-        function_node.local_variables_names());
-    function_node.set_shared_data(shared_data);
-    return *shared_data;
+    return SharedFunctionInstanceData::create_for_function_node(vm, function_node, move(name));
 }
 
 u32 Generator::register_shared_function_data(GC::Ref<SharedFunctionInstanceData> data)

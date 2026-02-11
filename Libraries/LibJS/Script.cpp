@@ -60,7 +60,7 @@ Script::Script(Realm& realm, StringView filename, RefPtr<Program> parse_node, Ho
         auto function_name = function.name();
         if (m_declared_function_names.set(function_name) != AK::HashSetResult::InsertedNewEntry)
             return {};
-        m_functions_to_initialize.append({ function.ensure_shared_data(vm), function_name });
+        m_functions_to_initialize.append({ SharedFunctionInstanceData::create_for_function_node(vm, function), function_name });
         return {};
     }));
 

@@ -101,6 +101,7 @@
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/SharedArrayBufferConstructor.h>
 #include <LibJS/Runtime/SharedArrayBufferPrototype.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/StringConstructor.h>
 #include <LibJS/Runtime/StringIteratorPrototype.h>
 #include <LibJS/Runtime/StringPrototype.h>
@@ -217,7 +218,7 @@ static Vector<GC::Root<SharedFunctionInstanceData>> parse_builtin_file(unsigned 
     Vector<GC::Root<SharedFunctionInstanceData>> shared_data_list;
     for (auto const& child : program->children()) {
         if (auto const* function_declaration = as_if<FunctionDeclaration>(*child))
-            shared_data_list.append(function_declaration->ensure_shared_data(vm));
+            shared_data_list.append(SharedFunctionInstanceData::create_for_function_node(vm, *function_declaration));
     }
 
     return shared_data_list;

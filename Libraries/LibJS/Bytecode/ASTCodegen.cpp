@@ -3305,7 +3305,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
     blueprint.source_text = source_text();
 
     // Register shared function data for the constructor.
-    auto constructor_shared_data = m_constructor->ensure_shared_data(vm);
+    auto constructor_shared_data = SharedFunctionInstanceData::create_for_function_node(vm, *m_constructor);
     blueprint.constructor_shared_function_data_index = generator.register_shared_function_data(constructor_shared_data);
 
     for (auto const& element : m_elements) {
@@ -3326,7 +3326,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
                 break;
             }
 
-            auto shared_data = class_method.function().ensure_shared_data(vm);
+            auto shared_data = SharedFunctionInstanceData::create_for_function_node(vm, class_method.function());
             auto data_index = generator.register_shared_function_data(shared_data);
 
             blueprint.elements.append({

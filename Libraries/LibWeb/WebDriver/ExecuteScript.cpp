@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -83,10 +84,9 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     //    The result of parsing global scope above.
     // strict
     //    The result of parsing strict above.
-    auto function = JS::ECMAScriptFunctionObject::create_from_function_node(
-        function_expression,
-        Utf16FlyString {},
+    auto function = JS::ECMAScriptFunctionObject::create_from_function_data(
         realm,
+        JS::SharedFunctionInstanceData::create_for_function_node(realm.vm(), *function_expression),
         &global_scope,
         nullptr);
 

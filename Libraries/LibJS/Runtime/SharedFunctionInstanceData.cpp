@@ -144,7 +144,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         auto const& function_scope_data = *scope_body->function_scope_data();
 
         for (auto const& decl : function_scope_data.functions_to_initialize) {
-            auto shared_data = decl->ensure_shared_data(vm);
+            auto shared_data = create_for_function_node(vm, *decl);
             auto const& name_id = *decl->name_identifier();
             m_functions_to_initialize.append({
                 .shared_data = shared_data,
@@ -306,6 +306,27 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 }
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;
+
+GC::Ref<SharedFunctionInstanceData> SharedFunctionInstanceData::create_for_function_node(VM& vm, FunctionNode const& node)
+{
+    return create_for_function_node(vm, node, node.name());
+}
+
+GC::Ref<SharedFunctionInstanceData> SharedFunctionInstanceData::create_for_function_node(VM& vm, FunctionNode const& node, Utf16FlyString name)
+{
+    return vm.heap().allocate<SharedFunctionInstanceData>(
+        vm,
+        node.kind(),
+        move(name),
+        node.function_length(),
+        node.parameters(),
+        *node.body_ptr(),
+        node.source_text(),
+        node.is_strict_mode(),
+        node.is_arrow_function(),
+        node.parsing_insights(),
+        node.local_variables_names());
+}
 
 void SharedFunctionInstanceData::clear_compile_inputs()
 {
