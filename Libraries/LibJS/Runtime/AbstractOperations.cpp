@@ -1048,10 +1048,9 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
 
         // a. Let fn be the sole element of the BoundNames of f.
         // b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
-        auto function = ECMAScriptFunctionObject::create_from_function_node(
-            declaration,
-            declaration_name,
+        auto function = ECMAScriptFunctionObject::create_from_function_data(
             realm,
+            declaration.ensure_shared_data(vm),
             lexical_environment,
             private_environment);
 
@@ -1150,7 +1149,7 @@ Object* create_unmapped_arguments_object(VM& vm, ReadonlySpan<Value> arguments)
 }
 
 // 10.4.4.7 CreateMappedArgumentsObject ( func, formals, argumentsList, env ), https://tc39.es/ecma262/#sec-createmappedargumentsobject
-Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, NonnullRefPtr<FunctionParameters const> const& formals, ReadonlySpan<Value> arguments, Environment& environment)
+Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, ReadonlySpan<Utf16FlyString> parameter_names, ReadonlySpan<Value> arguments, Environment& environment)
 {
     auto& realm = *vm.current_realm();
 
@@ -1167,7 +1166,7 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
     // 7. Set obj.[[Set]] as specified in 10.4.4.4.
     // 8. Set obj.[[Delete]] as specified in 10.4.4.5.
     // 9. Set obj.[[Prototype]] to %Object.prototype%.
-    auto object = realm.create<ArgumentsObject>(realm, environment, formals->is_empty());
+    auto object = realm.create<ArgumentsObject>(realm, environment, parameter_names.is_empty());
 
     // 14. Let index be 0.
     // 15. Repeat, while index < len,
@@ -1198,10 +1197,10 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
 
     // 18. Set index to numberOfParameters - 1.
     // 19. Repeat, while index ≥ 0,
-    VERIFY(formals->size() <= NumericLimits<i32>::max());
-    for (i32 index = static_cast<i32>(formals->size()) - 1; index >= 0; --index) {
+    VERIFY(parameter_names.size() <= NumericLimits<i32>::max());
+    for (i32 index = static_cast<i32>(parameter_names.size()) - 1; index >= 0; --index) {
         // a. Let name be parameterNames[index].
-        auto const& name = formals->parameters()[index].binding.get<NonnullRefPtr<Identifier const>>()->string();
+        auto const& name = parameter_names[index];
 
         // b. If name is not an element of mappedNames, then
         if (seen_names.contains(name))

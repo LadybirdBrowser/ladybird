@@ -59,6 +59,8 @@ public:
     Vector<LocalVariable> m_local_variables_names;
 
     i32 m_function_length { 0 };
+    u32 m_formal_parameter_count { 0 };
+    Vector<Utf16FlyString> m_parameter_names_for_mapped_arguments;
 
     ThisMode m_this_mode : 2 { ThisMode::Global }; // [[ThisMode]]
     FunctionKind m_kind : 3 { FunctionKind::Normal };

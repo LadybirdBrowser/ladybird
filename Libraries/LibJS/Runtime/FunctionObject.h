@@ -41,8 +41,6 @@ public:
 
     virtual Vector<LocalVariable> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
 
-    virtual FunctionParameters const& formal_parameters() const { VERIFY_NOT_REACHED(); }
-
     virtual Utf16String name_for_call_stack() const = 0;
 
     bool is_array_prototype_next_builtin() const { return m_builtin.has_value() && *m_builtin == Bytecode::Builtin::ArrayIteratorPrototypeNext; }

@@ -43,6 +43,8 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     else
         m_this_mode = ThisMode::Global;
 
+    m_formal_parameter_count = m_formal_parameters->size();
+
     // 15.1.3 Static Semantics: IsSimpleParameterList, https://tc39.es/ecma262/#sec-static-semantics-issimpleparameterlist
     m_has_simple_parameter_list = all_of(m_formal_parameters->parameters(), [&](auto& parameter) {
         if (parameter.is_rest)
@@ -53,6 +55,14 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
             return false;
         return true;
     });
+
+    // Pre-extract parameter names for create_mapped_arguments_object.
+    // NB: Mapped arguments are only used for non-strict functions with simple parameter lists.
+    if (m_has_simple_parameter_list) {
+        m_parameter_names_for_mapped_arguments.ensure_capacity(m_formal_parameter_count);
+        for (auto const& parameter : m_formal_parameters->parameters())
+            m_parameter_names_for_mapped_arguments.append(parameter.binding.get<NonnullRefPtr<Identifier const>>()->string());
+    }
 
     // NOTE: The following steps are from FunctionDeclarationInstantiation that could be executed once
     //       and then reused in all subsequent function instantiations.

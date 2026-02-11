@@ -2215,7 +2215,8 @@ void CreateArguments::execute_impl(Bytecode::Interpreter& interpreter) const
     auto passed_arguments = ReadonlySpan<Value> { arguments.data(), interpreter.running_execution_context().passed_argument_count };
     Object* arguments_object;
     if (m_kind == ArgumentsKind::Mapped) {
-        arguments_object = create_mapped_arguments_object(interpreter.vm(), *function, function->formal_parameters(), passed_arguments, *environment);
+        auto const& ecma_function = static_cast<ECMAScriptFunctionObject const&>(*function);
+        arguments_object = create_mapped_arguments_object(interpreter.vm(), *function, ecma_function.parameter_names_for_mapped_arguments(), passed_arguments, *environment);
     } else {
         arguments_object = create_unmapped_arguments_object(interpreter.vm(), passed_arguments);
     }
