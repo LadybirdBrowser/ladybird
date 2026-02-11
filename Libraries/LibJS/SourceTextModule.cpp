@@ -108,7 +108,7 @@ static Vector<ModuleRequest> module_requests(Program& program)
 SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await, NonnullRefPtr<Program> body, Vector<ModuleRequest> requested_modules,
     Vector<ImportEntry> import_entries, Vector<ExportEntry> local_export_entries,
     Vector<ExportEntry> indirect_export_entries, Vector<ExportEntry> star_export_entries,
-    RefPtr<ExportStatement const> default_export)
+    Optional<Utf16FlyString> default_export_binding_name)
     : CyclicModule(realm, filename, has_top_level_await, move(requested_modules), host_defined)
     , m_ecmascript_code(move(body))
     , m_execution_context(ExecutionContext::create(0, 0, 0))
@@ -116,7 +116,7 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     , m_local_export_entries(move(local_export_entries))
     , m_indirect_export_entries(move(indirect_export_entries))
     , m_star_export_entries(move(star_export_entries))
-    , m_default_export(move(default_export))
+    , m_default_export_binding_name(move(default_export_binding_name))
 {
     auto& vm = realm.vm();
 
@@ -148,13 +148,6 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
         });
     }));
 
-    // Pre-compute default export binding name (initialize_environment default export block).
-    if (m_default_export) {
-        VERIFY(m_default_export->has_statement());
-        if (!is<Declaration>(m_default_export->statement()))
-            m_default_export_binding_name = m_default_export->entries()[0].local_or_import_name.value();
-    }
-
     // For TLA modules, pre-create the SharedFunctionInstanceData for the
     // async wrapper function so that execute_module() doesn't need the AST.
     if (has_top_level_await) {
@@ -164,9 +157,10 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
         m_tla_shared_data = vm.heap().allocate<SharedFunctionInstanceData>(
             vm, FunctionKind::Async,
             "module code with top-level await"_utf16_fly_string,
-            0, FunctionParameters::empty(), m_ecmascript_code,
+            0, FunctionParameters::empty(), *m_ecmascript_code,
             Utf16View {}, true, false, parsing_insights, Vector<LocalVariable> {});
         m_tla_shared_data->m_is_module_wrapper = true;
+        m_ecmascript_code = nullptr;
     }
 }
 
@@ -216,13 +210,13 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
     Vector<ExportEntry> star_export_entries;
 
     // NOTE: Not in the spec but makes it easier to find the default.
-    RefPtr<ExportStatement const> default_export;
+    Optional<Utf16FlyString> default_export_binding_name;
 
     // 9. Let exportEntries be ExportEntries of body.
     // 10. For each ExportEntry Record ee of exportEntries, do
     for (auto const& export_statement : body->exports()) {
         if (export_statement->is_default_export()) {
-            VERIFY(!default_export);
+            VERIFY(!default_export_binding_name.has_value());
             VERIFY(export_statement->entries().size() == 1);
             VERIFY(export_statement->has_statement());
 
@@ -234,7 +228,10 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
                                          return import_entry.local_name == entry.local_or_import_name;
                                      })
                     .is_end());
-            default_export = export_statement;
+
+            // Extract the binding name if the default export is a non-declaration statement.
+            if (!is<Declaration>(export_statement->statement()))
+                default_export_binding_name = entry.local_or_import_name.value();
         }
 
         for (auto const& export_entry : export_statement->entries()) {
@@ -313,7 +310,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
         move(local_export_entries),
         move(indirect_export_entries),
         move(star_export_entries),
-        move(default_export));
+        move(default_export_binding_name));
 }
 
 // 16.2.1.7.2.1 GetExportedNames ( [ exportStarSet ] ), https://tc39.es/ecma262/#sec-getexportednames
@@ -710,10 +707,11 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] SourceTextModule::execute_module({}, PromiseCapability @ {})", filename(), capability.ptr());
 
     if (!m_has_top_level_await && !m_executable) {
-        auto maybe_executable = Bytecode::compile(vm, m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
+        auto maybe_executable = Bytecode::compile(vm, *m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
         if (maybe_executable.is_error())
             return maybe_executable.release_error();
         m_executable = maybe_executable.release_value();
+        m_ecmascript_code = nullptr;
     }
 
     u32 registers_and_locals_count = 0;
