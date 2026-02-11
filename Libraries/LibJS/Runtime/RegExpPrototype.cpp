@@ -223,12 +223,14 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     //       i. Assert: r is a State.
     //       ii. Set matchSucceeded to true.
 
+    auto utf16_view = string->utf16_string_view();
+
     // 13.b and 13.c
     regex.start_offset = full_unicode && last_index <= string->length_in_utf16_code_units()
-        ? string->utf16_string_view().code_point_offset_of(last_index)
+        ? utf16_view.code_point_offset_of(last_index)
         : last_index;
 
-    result = regex.match(string->utf16_string_view());
+    result = regex.match(utf16_view);
 
     // 13.d and 13.a
     if (!result.success || last_index > string->length_in_utf16_code_units()) {
@@ -251,8 +253,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     // 15. If fullUnicode is true, set e to ! GetStringIndex(S, Input, e).
     if (full_unicode) {
-        match_index = string->utf16_string_view().code_unit_offset_of(match.global_offset);
-        end_index = string->utf16_string_view().code_unit_offset_of(end_index);
+        match_index = utf16_view.code_unit_offset_of(match.global_offset);
+        end_index = match_index + match.view.length_in_code_units();
     }
 
     // 16. If global is true or sticky is true, then
@@ -425,7 +427,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
                 }
             }
         }
-        auto indices_array = make_match_indices_index_pair_array(vm, string->utf16_string_view(), indices, indices_group_names, has_groups);
+        auto indices_array = make_match_indices_index_pair_array(vm, utf16_view, indices, indices_group_names, has_groups);
 
         // Make sure indices.groups includes all named groups in source order
         if (has_groups) {
