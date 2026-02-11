@@ -37,10 +37,7 @@ protected:
     virtual ThrowCompletionOr<void> execute_module(VM& vm, GC::Ptr<PromiseCapability> capability) override;
 
 private:
-    SourceTextModule(Realm&, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await, NonnullRefPtr<Program> body, Vector<ModuleRequest> requested_modules,
-        Vector<ImportEntry> import_entries, Vector<ExportEntry> local_export_entries,
-        Vector<ExportEntry> indirect_export_entries, Vector<ExportEntry> star_export_entries,
-        RefPtr<ExportStatement const> default_export);
+    SourceTextModule(Realm&, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await, NonnullRefPtr<Program> body, Vector<ModuleRequest> requested_modules, Vector<ImportEntry> import_entries, Vector<ExportEntry> local_export_entries, Vector<ExportEntry> indirect_export_entries, Vector<ExportEntry> star_export_entries, RefPtr<ExportStatement const> default_export);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -53,6 +50,23 @@ private:
     Vector<ExportEntry> m_star_export_entries;           // [[StarExportEntries]]
 
     RefPtr<ExportStatement const> m_default_export; // Note: Not from the spec
+
+    // Pre-computed module declaration instantiation data.
+    // These are extracted from the AST at construction time so that
+    // initialize_environment() can run without walking the AST.
+    struct FunctionToInitialize {
+        GC::Ref<SharedFunctionInstanceData> shared_data;
+        Utf16FlyString name;
+    };
+    struct LexicalBinding {
+        Utf16FlyString name;
+        bool is_constant { false };
+        i32 function_index { -1 }; // index into m_functions_to_initialize, -1 if not a function
+    };
+    Vector<Utf16FlyString> m_var_declared_names;
+    Vector<LexicalBinding> m_lexical_bindings;
+    Vector<FunctionToInitialize> m_functions_to_initialize;
+    Optional<Utf16FlyString> m_default_export_binding_name;
 };
 
 }
