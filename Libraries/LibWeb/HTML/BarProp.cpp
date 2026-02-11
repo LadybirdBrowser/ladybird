@@ -6,7 +6,9 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/BarPropPrototype.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BarProp.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {

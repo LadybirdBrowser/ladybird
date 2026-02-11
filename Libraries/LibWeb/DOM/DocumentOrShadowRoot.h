@@ -11,6 +11,7 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Utils.h>
+#include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::DOM {
 

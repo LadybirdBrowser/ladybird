@@ -9,8 +9,8 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
-
-#include "XPathResult.h"
+#include <LibWeb/XPath/XPathNSResolver.h>
+#include <LibWeb/XPath/XPathResult.h>
 
 namespace Web::XPath {
 

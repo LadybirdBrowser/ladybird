@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Page/Page.h>
 

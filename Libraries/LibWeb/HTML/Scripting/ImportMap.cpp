@@ -6,6 +6,7 @@
  */
 
 #include <LibJS/Console.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>

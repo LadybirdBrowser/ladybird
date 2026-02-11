@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -14,7 +15,7 @@ namespace Web::Painting {
 
 class ImagePaintable final
     : public PaintableBox
-    , public DOM::Document::ViewportClient {
+    , public DOM::ViewportClient {
     GC_CELL(ImagePaintable, PaintableBox);
     GC_DECLARE_ALLOCATOR(ImagePaintable);
 

@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/HTML/EventHandler.h>
+#include <LibWeb/HTML/EventNames.h>
 
 namespace Web::CSS {
 

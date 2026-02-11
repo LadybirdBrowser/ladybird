@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/AudioContextPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/MessageChannel.h>
