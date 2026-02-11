@@ -7,6 +7,8 @@
 #include <LibJS/AST.h>
 #include <LibJS/Lexer.h>
 #include <LibJS/Parser.h>
+#include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
@@ -85,6 +87,142 @@ Script::Script(Realm& realm, StringView filename, NonnullRefPtr<Program> parse_n
             return {};
         });
     }));
+}
+
+// 16.1.7 GlobalDeclarationInstantiation ( script, env ), https://tc39.es/ecma262/#sec-globaldeclarationinstantiation
+ThrowCompletionOr<void> Script::global_declaration_instantiation(VM& vm, GlobalEnvironment& global_environment)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. Let lexNames be the LexicallyDeclaredNames of script.
+    // 2. Let varNames be the VarDeclaredNames of script.
+    // 3. For each element name of lexNames, do
+    for (auto const& name : m_lexical_names) {
+        // a. If env.HasLexicalDeclaration(name) is true, throw a SyntaxError exception.
+        if (global_environment.has_lexical_declaration(name))
+            return vm.throw_completion<SyntaxError>(ErrorType::TopLevelVariableAlreadyDeclared, name);
+
+        // b. Let hasRestrictedGlobal be ? HasRestrictedGlobalProperty(env, name).
+        auto has_restricted_global = TRY(global_environment.has_restricted_global_property(name));
+
+        // d. If hasRestrictedGlobal is true, throw a SyntaxError exception.
+        if (has_restricted_global)
+            return vm.throw_completion<SyntaxError>(ErrorType::RestrictedGlobalProperty, name);
+    }
+
+    // 4. For each element name of varNames, do
+    for (auto const& name : m_var_names) {
+        // a. If env.HasLexicalDeclaration(name) is true, throw a SyntaxError exception.
+        if (global_environment.has_lexical_declaration(name))
+            return vm.throw_completion<SyntaxError>(ErrorType::TopLevelVariableAlreadyDeclared, name);
+    }
+
+    // 5. Let varDeclarations be the VarScopedDeclarations of script.
+    // 6. Let functionsToInitialize be a new empty List.
+    // 7. Let declaredFunctionNames be a new empty List.
+    // 8. For each element d of varDeclarations, in reverse List order, do
+    for (auto const& function : m_functions_to_initialize) {
+        // 1. Let fnDefinable be ? env.CanDeclareGlobalFunction(fn).
+        auto function_definable = TRY(global_environment.can_declare_global_function(function.name));
+
+        // 2. If fnDefinable is false, throw a TypeError exception.
+        if (!function_definable)
+            return vm.throw_completion<TypeError>(ErrorType::CannotDeclareGlobalFunction, function.name);
+    }
+
+    // 9. Let declaredVarNames be a new empty List.
+    HashTable<Utf16FlyString> declared_var_names;
+
+    // 10. For each element d of varDeclarations, do
+    for (auto const& name : m_var_scoped_names) {
+        // 1. If vn is not an element of declaredFunctionNames, then
+        if (m_declared_function_names.contains(name))
+            continue;
+
+        // a. Let vnDefinable be ? env.CanDeclareGlobalVar(vn).
+        auto var_definable = TRY(global_environment.can_declare_global_var(name));
+
+        // b. If vnDefinable is false, throw a TypeError exception.
+        if (!var_definable)
+            return vm.throw_completion<TypeError>(ErrorType::CannotDeclareGlobalVariable, name);
+
+        // c. If vn is not an element of declaredVarNames, then
+        // i. Append vn to declaredVarNames.
+        declared_var_names.set(name);
+    }
+
+    // 12. NOTE: Annex B.3.2.2 adds additional steps at this point.
+    // 12. Let strict be IsStrict of script.
+    // 13. If strict is false, then
+    if (!m_is_strict_mode) {
+        // a. Let declaredFunctionOrVarNames be the list-concatenation of declaredFunctionNames and declaredVarNames.
+        // b. For each FunctionDeclaration f that is directly contained in the StatementList of a Block, CaseClause, or DefaultClause Contained within script, do
+        for (auto& function_declaration : m_annex_b_candidates) {
+            // i. Let F be StringValue of the BindingIdentifier of f.
+            auto function_name = function_declaration->name();
+
+            // 1. If env.HasLexicalDeclaration(F) is false, then
+            if (global_environment.has_lexical_declaration(function_name))
+                continue;
+
+            // a. Let fnDefinable be ? env.CanDeclareGlobalVar(F).
+            auto function_definable = TRY(global_environment.can_declare_global_function(function_name));
+            // b. If fnDefinable is true, then
+            if (!function_definable)
+                continue;
+
+            // ii. If declaredFunctionOrVarNames does not contain F, then
+            if (!m_declared_function_names.contains(function_name) && !declared_var_names.contains(function_name)) {
+                // i. Perform ? env.CreateGlobalVarBinding(F, false).
+                TRY(global_environment.create_global_var_binding(function_name, false));
+            }
+
+            // iii. When the FunctionDeclaration f is evaluated, perform the following steps in place of the FunctionDeclaration Evaluation algorithm provided in 15.2.6:
+            function_declaration->set_should_do_additional_annexB_steps();
+        }
+    }
+
+    // 14. Let privateEnv be null.
+    PrivateEnvironment* private_environment = nullptr;
+
+    // 15. For each element d of lexDeclarations, do
+    for (auto const& binding : m_lexical_bindings) {
+        // i. If IsConstantDeclaration of d is true, then
+        if (binding.is_constant) {
+            // 1. Perform ? env.CreateImmutableBinding(dn, true).
+            TRY(global_environment.create_immutable_binding(vm, binding.name, true));
+        }
+        // ii. Else,
+        else {
+            // 1. Perform ? env.CreateMutableBinding(dn, false).
+            TRY(global_environment.create_mutable_binding(vm, binding.name, false));
+        }
+    }
+
+    // 16. For each Parse Node f of functionsToInitialize, do
+    // NB: We iterate in reverse order since we appended the functions
+    //     instead of prepending during pre-computation.
+    for (auto const& function_to_initialize : m_functions_to_initialize.in_reverse()) {
+        // a. Let fn be the sole element of the BoundNames of f.
+        // b. Let fo be InstantiateFunctionObject of f with arguments env and privateEnv.
+        auto function = ECMAScriptFunctionObject::create_from_function_data(
+            realm,
+            function_to_initialize.shared_data,
+            &global_environment,
+            private_environment);
+
+        // c. Perform ? env.CreateGlobalFunctionBinding(fn, fo, false).
+        TRY(global_environment.create_global_function_binding(function->name(), function, false));
+    }
+
+    // 17. For each String vn of declaredVarNames, do
+    for (auto& var_name : declared_var_names) {
+        // a. Perform ? env.CreateGlobalVarBinding(vn, false).
+        TRY(global_environment.create_global_var_binding(var_name, false));
+    }
+
+    // 18. Return unused.
+    return {};
 }
 
 Script::~Script()

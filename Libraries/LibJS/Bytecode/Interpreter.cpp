@@ -120,15 +120,14 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
 
     // NOTE: Spec steps are rearranged in order to compute number of registers+constants+locals before construction of the execution context.
 
-    // 11. Let script be scriptRecord.[[ECMAScriptCode]].
-    auto& script = script_record.parse_node();
-
     // 12. Let result be Completion(GlobalDeclarationInstantiation(script, globalEnv)).
-    auto instantiation_result = script.global_declaration_instantiation(vm, global_environment);
+    auto instantiation_result = script_record.global_declaration_instantiation(vm, global_environment);
     Completion result = instantiation_result.is_throw_completion() ? instantiation_result.throw_completion() : normal_completion(js_undefined());
 
+    // 11. Let script be scriptRecord.[[ECMAScriptCode]].
     GC::Ptr<Executable> executable = script_record.cached_executable();
     if (!executable && result.type() == Completion::Type::Normal) {
+        auto& script = script_record.parse_node();
         auto executable_result = JS::Bytecode::Generator::generate_from_ast_node(vm, script, {});
 
         if (executable_result.is_error()) {
