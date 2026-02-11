@@ -1356,10 +1356,22 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::some)
 
 ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::RootVector<Value>& arr_to_sort)
 {
-    // FIXME: it would probably be better to switch to insertion sort for small arrays for
-    // better performance
-    if (arr_to_sort.size() <= 1)
+    // OPTIMIZATION: Insertion sort for small subarrays avoids allocating two RootVectors
+    // per recursive call. NB: Swap-based so all values stay GC-rooted during compare_func.
+    static constexpr size_t insertion_sort_threshold = 6;
+    if (arr_to_sort.size() <= insertion_sort_threshold) {
+        for (size_t i = 1; i < arr_to_sort.size(); ++i) {
+            size_t j = i;
+            while (j > 0) {
+                double comparison_result = TRY(compare_func(arr_to_sort[j - 1], arr_to_sort[j]));
+                if (comparison_result <= 0)
+                    break;
+                swap(arr_to_sort[j - 1], arr_to_sort[j]);
+                --j;
+            }
+        }
         return {};
+    }
 
     GC::RootVector<Value> left(vm.heap());
     GC::RootVector<Value> right(vm.heap());
