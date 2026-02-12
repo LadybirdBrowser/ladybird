@@ -162,8 +162,12 @@ void Generator::emit_function_declaration_instantiation(SharedFunctionInstanceDa
             }
         }
 
-        if (has_non_local_vars)
+        if (has_non_local_vars) {
             emit<Op::CreateVariableEnvironment>(shared_function_instance_data.m_var_environment_bindings_count);
+            auto variable_environment = allocate_register();
+            emit<Op::GetLexicalEnvironment>(variable_environment);
+            m_lexical_environment_register_stack.append(variable_environment);
+        }
 
         if (shared_function_instance_data.m_has_scope_body) {
             for (auto const& var : shared_function_instance_data.m_var_names_to_initialize_binding) {
