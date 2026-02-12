@@ -585,7 +585,7 @@
                 ladybird.sendMessage("restoreDefaultSettings");
             });
 
-            document.querySelectorAll("dialog").forEach(dialog =>
+            document.querySelectorAll("dialog").forEach(dialog => {
                 dialog.addEventListener("click", event => {
                     const rect = dialog.getBoundingClientRect();
 
@@ -597,8 +597,14 @@
                     ) {
                         dialog.close();
                     }
-                })
-            );
+                });
+
+                dialog.addEventListener("keydown", event => {
+                    if (event.key === "Escape") {
+                        dialog.close();
+                    }
+                });
+            });
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadCurrentSettings");
