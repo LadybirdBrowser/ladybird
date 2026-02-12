@@ -606,11 +606,14 @@
             border-left: 3px solid var(--root-color);
         }
 
+        .edge-item > :not(:first-child) {
+            margin-left: 10px;
+        }
+
         .edge-address {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             color: var(--text-muted);
-            width: 100px;
             flex-shrink: 0;
         }
 
@@ -619,8 +622,30 @@
             font-size: 11px;
             color: var(--text-primary);
             white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .edge-location {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
             overflow: hidden;
-            text-overflow: ellipsis;
+            display: flex;
+            justify-content: flex-end;
+            min-width: 0;
+            -webkit-mask-image: linear-gradient(to right, transparent, black 20px);
+            mask-image: linear-gradient(to right, transparent, black 20px);
+        }
+
+        .edge-location > span {
+            white-space: nowrap;
+        }
+
+        .path-edge-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
         }
 
         /* Path to Root */
@@ -1263,6 +1288,22 @@
         function processData(data) {
             heapData = data;
 
+            // Normalize edges from {address, location} objects to
+            // a flat address array + a label lookup map
+            for (const addr in data) {
+                const node = data[addr];
+                const rawEdges = node.edges || [];
+                const normalizedEdges = [];
+                const edgeLabels = {};
+                for (const edge of rawEdges) {
+                    normalizedEdges.push(edge.address);
+                    if (edge.location)
+                        edgeLabels[edge.address] = edge.location;
+                }
+                node.edges = normalizedEdges;
+                node.edge_labels = edgeLabels;
+            }
+
             // Build reverse edges map
             reverseEdges = {};
             for (const addr in data) {
@@ -1631,6 +1672,7 @@
                 <div class="edge-item ${heapData[edge]?.root ? 'root' : ''}" onclick="selectNode('${edge}')">
                     <span class="edge-address">${formatAddress(edge)}</span>
                     <span class="edge-class">${escapeHtml(heapData[edge]?.class_name || 'Unknown')}</span>
+                    <span class="edge-location" title="${escapeHtml(node.edge_labels[edge] || '')}"><span>${escapeHtml(node.edge_labels[edge] || '')}</span></span>
                 </div>
             `).join('') || '<div class="no-selection">No outgoing edges</div>';
 
@@ -1641,6 +1683,7 @@
                 <div class="edge-item ${heapData[edge]?.root ? 'root' : ''}" onclick="selectNode('${edge}')">
                     <span class="edge-address">${formatAddress(edge)}</span>
                     <span class="edge-class">${escapeHtml(heapData[edge]?.class_name || 'Unknown')}</span>
+                    <span class="edge-location" title="${escapeHtml(heapData[edge]?.edge_labels[addr] || '')}"><span>${escapeHtml(heapData[edge]?.edge_labels[addr] || '')}</span></span>
                 </div>
             `).join('') || '<div class="no-selection">No incoming edges</div>';
 
@@ -1681,6 +1724,9 @@
                 const node = heapData[addr];
                 const isRoot = i === 0;
                 const isTarget = i === path.length - 1;
+                // Get the edge label from this node to the next in the path
+                const nextAddr = i < path.length - 1 ? path[i + 1] : null;
+                const edgeLabel = nextAddr ? node.edge_labels?.[nextAddr] : null;
                 return `
                     <div class="path-node ${isRoot ? 'root' : ''} ${isTarget ? 'target' : ''}"
                          onclick="selectNode('${addr}')" style="cursor: pointer;">
@@ -1688,6 +1734,7 @@
                             <div class="path-node-class">${escapeHtml(node.class_name)}</div>
                             <div class="path-node-addr">${formatAddress(addr)}</div>
                             ${node.root ? `<div class="path-root-info">${escapeHtml(node.root)}</div>` : ''}
+                            ${edgeLabel ? `<div class="path-edge-label">${escapeHtml(edgeLabel)}</div>` : ''}
                         </div>
                     </div>
                 `;

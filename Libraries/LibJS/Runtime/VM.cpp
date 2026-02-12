@@ -255,12 +255,12 @@ Utf16String const& VM::error_message(ErrorMessage type) const
 }
 
 struct ExecutionContextRootsCollector : public Cell::Visitor {
-    virtual void visit_impl(GC::Cell& cell) override
+    virtual void visit_impl(GC::Cell& cell, SourceLocation) override
     {
         roots.set(&cell);
     }
 
-    virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue> values) override
+    virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue> values, SourceLocation) override
     {
         for (auto const& value : values) {
             if (value.is_cell())
