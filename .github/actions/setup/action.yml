@@ -58,8 +58,6 @@ runs:
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
-        set -e
-
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
         UBUNTU_RELEASE=$(lsb_release -cs)
@@ -78,8 +76,6 @@ runs:
       if: ${{ inputs.os == 'Linux' && inputs.type == 'build' }}
       shell: bash
       run: |
-        set -e
-
         sudo apt-get install -y \
             autoconf \
             autoconf-archive \
@@ -126,8 +122,6 @@ runs:
       if: ${{ inputs.os == 'Linux' && inputs.type == 'lint' }}
       shell: bash
       run: |
-        set -e
-
         sudo apt-get install -y \
             clang-format-${{ inputs.llvm_version }} \
             generate-ninja \
@@ -162,7 +156,6 @@ runs:
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       shell: bash
       run: |
-        set -e
         brew update
 
         brew install \
