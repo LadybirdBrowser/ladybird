@@ -86,7 +86,7 @@ public:
     Function<void(AK::Duration)> on_duration_change;
     Function<void(DecoderError&&)> on_error;
 
-    void add_media_source(NonnullRefPtr<IncrementallyPopulatedStream>);
+    void add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> const&);
 
 private:
     class WeakPlaybackManager : public AtomicRefCounted<WeakPlaybackManager> {
