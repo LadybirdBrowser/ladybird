@@ -360,6 +360,7 @@ public:
     void obtain_theme_color();
 
     void update_style();
+    [[nodiscard]] bool element_needs_style_update(AbstractElement const&) const;
     void update_layout(UpdateLayoutReason);
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();

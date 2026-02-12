@@ -560,7 +560,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             // always need update_layout() to ensure both style and layout tree are up to date.
             abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
             layout_node = abstract_element.layout_node();
-        } else {
+        } else if (abstract_element.document().element_needs_style_update(abstract_element)) {
             // Just ensure styles are up to date.
             abstract_element.document().update_style();
         }
