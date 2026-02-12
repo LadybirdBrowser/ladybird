@@ -60,10 +60,11 @@ CSSPixels BlockFormattingContext::automatic_content_height() const
 
 static bool margins_collapse_through(Box const& box, LayoutState& state)
 {
-    // FIXME: A box's own margins collapse if the 'min-height' property is zero, and it has neither top or bottom borders
-    // nor top or bottom padding, and it has a 'height' of either 0 or 'auto', and it does not contain a line box, and
-    // all of its in-flow children's margins (if any) collapse.
     // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+    // A box's own margins collapse if the 'min-height' property is zero, and it has neither top or bottom borders
+    // nor top or bottom padding, and it has a 'height' of either 0 or 'auto', and it does not contain a line box,
+    // all of its in-flow children's margins (if any) collapse, and it does not establish a new formatting context.
+
     // FIXME: For the purpose of margin collapsing (CSS 2 §8.3.1 Collapsing margins), if the block axis is the
     //        ratio-dependent axis, it is not considered to have a computed block-size of auto.
     //        https://www.w3.org/TR/css-sizing-4/#aspect-ratio-margin-collapse
@@ -71,7 +72,25 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
     if (box.computed_values().clear() != CSS::Clear::None)
         return false;
 
-    return state.get(box).border_box_height() == 0;
+    // Elements that establish a new block formatting context do not allow margins to collapse through them.
+    // https://www.w3.org/TR/css-box-4/#collapsing-margins
+    if (FormattingContext::creates_block_formatting_context(box))
+        return false;
+
+    // NOTE: This implicitly checks the spec conditions for min-height, borders, padding, height,
+    //       and line boxes — all of which contribute to border_box_height().
+    if (state.get(box).border_box_height() != 0)
+        return false;
+
+    // All of its in-flow children's margins (if any) must also collapse.
+    for (auto const* child = box.first_child_of_type<Box>(); child; child = child->next_sibling_of_type<Box>()) {
+        if (child->is_out_of_flow())
+            continue;
+        if (!margins_collapse_through(*child, state))
+            return false;
+    }
+
+    return true;
 }
 
 void BlockFormattingContext::run(AvailableSpace const& available_space)
