@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<body>
+<script>
+    // Ensure the parent has a session Storage object so broadcast() iterates.
+    sessionStorage.setItem("parent-key", "value");
+
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    let firstLoad = true;
+    iframe.onload = () => {
+        if (firstLoad) {
+            firstLoad = false;
+
+            const oldStorage = iframe.contentWindow.sessionStorage;
+            oldStorage.setItem("crash-test-key", "value");
+
+            iframe.addEventListener("load", () => {
+                oldStorage.removeItem("crash-test-key");
+                sessionStorage.removeItem("parent-key");
+            }, { once: true });
+
+            iframe.src = "../../Assets/blank.html";
+        }
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
