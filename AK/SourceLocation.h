@@ -26,7 +26,7 @@ public:
 
     constexpr SourceLocation() = default;
     constexpr SourceLocation(SourceLocation const&) = default;
-    SourceLocation& operator=(SourceLocation& other) = default;
+    SourceLocation& operator=(SourceLocation const& other) = default;
 
 private:
     constexpr SourceLocation(char const* const file, u32 line, char const* const function)
