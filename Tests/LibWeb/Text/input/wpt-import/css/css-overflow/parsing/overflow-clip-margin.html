@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Overflow: parsing overflow-clip-margin</title>
+<link rel="help" href="https://drafts.csswg.org/css-overflow/#overflow-clip-margin">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("overflow-clip-margin", '10px', '10px');
+
+test_valid_value("overflow-clip-margin", 'content-box', 'content-box');
+test_valid_value("overflow-clip-margin", 'content-box 10px', 'content-box 10px');
+test_valid_value("overflow-clip-margin", '10px content-box', 'content-box 10px');
+test_valid_value("overflow-clip-margin", '0px content-box', 'content-box');
+
+test_valid_value("overflow-clip-margin", 'padding-box', '0px');
+test_valid_value("overflow-clip-margin", 'padding-box 0px', '0px');
+test_valid_value("overflow-clip-margin", 'padding-box 10px', '10px');
+test_valid_value("overflow-clip-margin", '10px padding-box', '10px');
+
+test_valid_value("overflow-clip-margin", 'border-box', 'border-box');
+test_valid_value("overflow-clip-margin", 'border-box 0px', 'border-box');
+test_valid_value("overflow-clip-margin", 'border-box 10px', 'border-box 10px');
+test_valid_value("overflow-clip-margin", '10px border-box', 'border-box 10px');
+
+test_invalid_value("overflow-clip-margin", 'margin-box');
+test_invalid_value("overflow-clip-margin", 'inset(10px)');
+test_invalid_value("overflow-clip-margin", '50px 50px');
+</script>
+</body>
+</html>

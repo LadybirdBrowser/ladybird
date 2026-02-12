@@ -176,6 +176,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
     };
 
     // Then special cases
+    // FIXME: overflow-clip-margin needs a special case here for when its longhands aren't identical.
     switch (m_properties.shorthand_property) {
     case PropertyID::All: {
         // NOTE: 'all' can only be serialized in the case all sub-properties share the same CSS-wide keyword, this is

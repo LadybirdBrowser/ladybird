@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Verifies overflow-clip-margin doesn't impact paint effects</title>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#propdef-overflow-clip-margin">
+<link rel="author" title="Scott Violet" href="mailto:sky@chromium.org">
+<style>
+  .parent {
+      width: 100px;
+      height: 100px;
+      background-color: green;
+      box-shadow: 20px 20px 5px red;
+  }
+</style>
+<p>You should see a green box with a red box shadow.
+<div class="parent"></div>

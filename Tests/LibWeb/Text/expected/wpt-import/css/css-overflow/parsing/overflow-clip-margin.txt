@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+4 Pass
+12 Fail
+Pass	e.style['overflow-clip-margin'] = "10px" should set the property value
+Fail	e.style['overflow-clip-margin'] = "content-box" should set the property value
+Fail	e.style['overflow-clip-margin'] = "content-box 10px" should set the property value
+Fail	e.style['overflow-clip-margin'] = "10px content-box" should set the property value
+Fail	e.style['overflow-clip-margin'] = "0px content-box" should set the property value
+Fail	e.style['overflow-clip-margin'] = "padding-box" should set the property value
+Fail	e.style['overflow-clip-margin'] = "padding-box 0px" should set the property value
+Fail	e.style['overflow-clip-margin'] = "padding-box 10px" should set the property value
+Fail	e.style['overflow-clip-margin'] = "10px padding-box" should set the property value
+Fail	e.style['overflow-clip-margin'] = "border-box" should set the property value
+Fail	e.style['overflow-clip-margin'] = "border-box 0px" should set the property value
+Fail	e.style['overflow-clip-margin'] = "border-box 10px" should set the property value
+Fail	e.style['overflow-clip-margin'] = "10px border-box" should set the property value
+Pass	e.style['overflow-clip-margin'] = "margin-box" should not set the property value
+Pass	e.style['overflow-clip-margin'] = "inset(10px)" should not set the property value
+Pass	e.style['overflow-clip-margin'] = "50px 50px" should not set the property value

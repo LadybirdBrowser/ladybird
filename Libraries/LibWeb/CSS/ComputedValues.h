@@ -223,6 +223,7 @@ public:
     static LengthBox inset() { return {}; }
     static LengthBox margin() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
     static LengthBox padding() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
+    static LengthBox overflow_clip_margin() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
     static Size width() { return Size::make_auto(); }
     static Size min_width() { return Size::make_auto(); }
     static Size max_width() { return Size::make_none(); }
@@ -605,6 +606,7 @@ public:
     LengthBox const& inset() const { return m_noninherited.inset; }
     LengthBox const& margin() const { return m_noninherited.margin; }
     LengthBox const& padding() const { return m_noninherited.padding; }
+    LengthBox const& overflow_clip_margin() const { return m_noninherited.overflow_clip_margin; }
 
     BorderData const& border_left() const { return m_noninherited.border_left; }
     BorderData const& border_top() const { return m_noninherited.border_top; }
@@ -797,6 +799,7 @@ protected:
         LengthBox inset { InitialValues::inset() };
         LengthBox margin { InitialValues::margin() };
         LengthBox padding { InitialValues::padding() };
+        LengthBox overflow_clip_margin { InitialValues::overflow_clip_margin() };
         Filter backdrop_filter { InitialValues::backdrop_filter() };
         Filter filter { InitialValues::filter() };
         BorderData border_left;
@@ -980,6 +983,7 @@ public:
     void set_inset(LengthBox const& inset) { m_noninherited.inset = inset; }
     void set_margin(LengthBox const& margin) { m_noninherited.margin = margin; }
     void set_padding(LengthBox const& padding) { m_noninherited.padding = padding; }
+    void set_overflow_clip_margin(LengthBox const& overflow_clip_margin) { m_noninherited.overflow_clip_margin = overflow_clip_margin; }
     void set_overflow_x(Overflow value) { m_noninherited.overflow_x = value; }
     void set_overflow_y(Overflow value) { m_noninherited.overflow_y = value; }
     void set_list_style_type(ListStyleType value) { m_inherited.list_style_type = move(value); }
