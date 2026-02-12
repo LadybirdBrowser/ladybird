@@ -116,11 +116,35 @@
   "-webkit-mask": {
     "legacy-alias-for": "mask"
   },
+  "-webkit-mask-clip": {
+    "legacy-alias-for": "mask-clip"
+  },
+  "-webkit-mask-composite": {
+    "legacy-alias-for": "mask-composite"
+  },
   "-webkit-mask-image": {
     "legacy-alias-for": "mask-image"
   },
+  "-webkit-mask-origin": {
+    "legacy-alias-for": "mask-origin"
+  },
+  "-webkit-mask-position": {
+    "legacy-alias-for": "mask-position"
+  },
+  "-webkit-mask-repeat": {
+    "legacy-alias-for": "mask-repeat"
+  },
+  "-webkit-mask-size": {
+    "legacy-alias-for": "mask-size"
+  },
   "-webkit-order": {
     "legacy-alias-for": "order"
+  },
+  "-webkit-perspective": {
+    "legacy-alias-for": "perspective"
+  },
+  "-webkit-perspective-origin": {
+    "legacy-alias-for": "perspective-origin"
   },
   "-webkit-text-fill-color": {
     "affects-layout": false,
@@ -137,6 +161,9 @@
   },
   "-webkit-transform-origin": {
     "legacy-alias-for": "transform-origin"
+  },
+  "-webkit-transform-style": {
+    "legacy-alias-for": "transform-style"
   },
   "-webkit-transition": {
     "legacy-alias-for": "transition"
