@@ -11,3 +11,10 @@ function forOfReturn() {
     }
 }
 forOfReturn();
+
+async function forAwaitOfBreak(iter) {
+    for await (const x of iter) {
+        if (x === 2) break;
+    }
+}
+forAwaitOfBreak([1, 2, 3]);

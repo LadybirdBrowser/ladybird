@@ -2324,8 +2324,24 @@ Optional<ScopedOperand> YieldExpression::generate_bytecode(Bytecode::Generator& 
         // 2. Let closeCompletion be Completion Record { [[Type]]: normal, [[Value]]: empty, [[Target]]: empty }.
         // 3. If generatorKind is async, perform ? AsyncIteratorClose(iteratorRecord, closeCompletion).
         if (generator.is_in_async_generator_function()) {
-            // FIXME: This performs `await` outside of the generator!
-            generator.emit<Bytecode::Op::AsyncIteratorClose>(iterator, next_method, done, Completion::Type::Normal, generator.add_constant(js_undefined()));
+            // Inline AsyncIteratorClose with proper Await op to avoid
+            // spinning the event loop synchronously.
+            auto return_method = generator.allocate_register();
+            generator.emit<Bytecode::Op::GetMethod>(return_method, iterator, generator.intern_property_key("return"_utf16_fly_string));
+
+            auto& call_return_block = generator.make_block();
+            auto& after_close = generator.make_block();
+            generator.emit<Bytecode::Op::JumpUndefined>(return_method, Bytecode::Label { after_close }, Bytecode::Label { call_return_block });
+            generator.switch_to_basic_block(call_return_block);
+
+            auto inner_result = generator.allocate_register();
+            generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(0, inner_result, return_method, iterator, OptionalNone {}, ReadonlySpan<ScopedOperand> {});
+
+            auto awaited = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value);
+            generator.emit<Bytecode::Op::ThrowIfNotObject>(awaited);
+
+            generator.emit<Bytecode::Op::Jump>(Bytecode::Label { after_close });
+            generator.switch_to_basic_block(after_close);
         }
         // 4. Else, perform ? IteratorClose(iteratorRecord, closeCompletion).
         else {
@@ -4025,10 +4041,43 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
 
         // Non-throw abrupt path (break/return/continue-to-outer): close with Normal completion.
         generator.switch_to_basic_block(non_throw_close_block);
-        if (iterator_kind == IteratorHint::Async)
-            generator.emit<Bytecode::Op::AsyncIteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Normal, undefined_value);
-        else
+
+        if (iterator_kind == IteratorHint::Async) {
+            // For async iterators, we inline the AsyncIteratorClose steps
+            // using a proper Await op instead of the synchronous await()
+            // that the AsyncIteratorClose C++ op uses. The synchronous await
+            // spins the event loop inside bytecode execution, which violates
+            // the microtask checkpoint assertion.
+            auto& after_close = generator.make_block();
+
+            // Spec: 7.4.13 AsyncIteratorClose ( iteratorRecord, completion )
+            // 3. Let innerResult be Completion(GetMethod(iterator, "return")).
+            auto return_method = generator.allocate_register();
+            generator.emit<Bytecode::Op::GetMethod>(return_method, *head_result.iterator_object, generator.intern_property_key("return"_utf16_fly_string));
+
+            // 4a/b. If return is undefined, skip close.
+            auto& call_return_block = generator.make_block();
+            generator.emit<Bytecode::Op::JumpUndefined>(return_method, Bytecode::Label { after_close }, Bytecode::Label { call_return_block });
+            generator.switch_to_basic_block(call_return_block);
+
+            // 4c. Set innerResult to Completion(Call(return, iterator)).
+            auto inner_result = generator.allocate_register();
+            generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(0, inner_result, return_method, *head_result.iterator_object, OptionalNone {}, ReadonlySpan<ScopedOperand> {});
+
+            // 4d. Set innerResult to Completion(Await(innerResult.[[Value]])).
+            auto received_completion = generator.allocate_register();
+            auto received_completion_type = generator.allocate_register();
+            auto received_completion_value = generator.allocate_register();
+            auto awaited = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value);
+
+            // 7. If Type(innerResult.[[Value]]) is not Object, throw a TypeError exception.
+            generator.emit<Bytecode::Op::ThrowIfNotObject>(awaited);
+
+            generator.emit<Bytecode::Op::Jump>(Bytecode::Label { after_close });
+            generator.switch_to_basic_block(after_close);
+        } else {
             generator.emit<Bytecode::Op::IteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Normal, undefined_value);
+        }
 
         // Dispatch registered jumps (break/continue targets, indices 3+).
         for (auto const& jump : iterator_close_finally_context->registered_jumps) {
@@ -4065,15 +4114,59 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
         generator.emit<Bytecode::Op::Throw>(*close_completion_value);
 
         // Throw close block: IteratorClose with Throw completion, then rethrow.
+        // Per spec step 5, the original throw always takes precedence.
         generator.switch_to_basic_block(throw_close_block);
-        if (iterator_kind == IteratorHint::Async)
-            generator.emit<Bytecode::Op::AsyncIteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Throw, *close_completion_value);
-        else
-            generator.emit<Bytecode::Op::IteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Throw, *close_completion_value);
-        // iterator_close with Throw completion always re-throws, but if it
-        // somehow returns normally, rethrow the original exception.
-        if (!generator.is_current_block_terminated())
+        if (iterator_kind == IteratorHint::Async) {
+            // Inline AsyncIteratorClose with exception handler: any error from
+            // the close steps is discarded and the original exception is rethrown.
+            auto& rethrow_block = generator.make_block();
+            auto& close_catch_block = generator.make_block();
+
+            {
+                Bytecode::Generator::UnwindContext close_unwind(generator, Bytecode::Label { close_catch_block });
+
+                // Jump to a block created inside the UnwindContext so that
+                // GetMethod/Call/Await all have the exception handler set.
+                // throw_close_block was created before the UnwindContext and
+                // doesn't have the handler.
+                auto& close_try_block = generator.make_block();
+                generator.emit<Bytecode::Op::Jump>(Bytecode::Label { close_try_block });
+                generator.switch_to_basic_block(close_try_block);
+
+                auto return_method = generator.allocate_register();
+                generator.emit<Bytecode::Op::GetMethod>(return_method, *head_result.iterator_object, generator.intern_property_key("return"_utf16_fly_string));
+
+                auto& call_return_block = generator.make_block();
+                generator.emit<Bytecode::Op::JumpUndefined>(return_method, Bytecode::Label { rethrow_block }, Bytecode::Label { call_return_block });
+                generator.switch_to_basic_block(call_return_block);
+
+                auto inner_result = generator.allocate_register();
+                generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(0, inner_result, return_method, *head_result.iterator_object, OptionalNone {}, ReadonlySpan<ScopedOperand> {});
+
+                auto received_completion = generator.allocate_register();
+                auto received_completion_type = generator.allocate_register();
+                auto received_completion_value = generator.allocate_register();
+                generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value);
+
+                // Even if close succeeded, rethrow original (spec step 5).
+                generator.emit<Bytecode::Op::Jump>(Bytecode::Label { rethrow_block });
+            }
+
+            // Exception handler: discard close error, rethrow original.
+            generator.switch_to_basic_block(close_catch_block);
+            auto discarded = generator.allocate_register();
+            generator.emit<Bytecode::Op::Catch>(discarded);
+            generator.emit<Bytecode::Op::Jump>(Bytecode::Label { rethrow_block });
+
+            generator.switch_to_basic_block(rethrow_block);
             generator.emit<Bytecode::Op::Throw>(*close_completion_value);
+        } else {
+            generator.emit<Bytecode::Op::IteratorClose>(*head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property, Completion::Type::Throw, *close_completion_value);
+            // iterator_close with Throw completion always re-throws, but if it
+            // somehow returns normally, rethrow the original exception.
+            if (!generator.is_current_block_terminated())
+                generator.emit<Bytecode::Op::Throw>(*close_completion_value);
+        }
     }
 
     generator.switch_to_basic_block(loop_end);
