@@ -270,14 +270,15 @@ describe("for-of iterator close on abrupt completion", () => {
 });
 
 describe("for-await-of iterator close on abrupt completion", () => {
-    test("break calls return()", () => {
+    function makeAsyncIterator(values) {
         let returnCalled = false;
-        const asyncIter = {
+        return {
             [Symbol.asyncIterator]() {
+                let index = 0;
                 return {
-                    i: 0,
                     next() {
-                        return Promise.resolve(this.i++ < 3 ? { value: this.i, done: false } : { done: true });
+                        if (index < values.length) return Promise.resolve({ value: values[index++], done: false });
+                        return Promise.resolve({ done: true });
                     },
                     return() {
                         returnCalled = true;
@@ -285,44 +286,206 @@ describe("for-await-of iterator close on abrupt completion", () => {
                     },
                 };
             },
+            get returnCalled() {
+                return returnCalled;
+            },
         };
+    }
 
-        const promise = (async () => {
-            for await (const x of asyncIter) {
+    test("break calls return()", () => {
+        const iter = makeAsyncIterator([1, 2, 3]);
+        return (async () => {
+            for await (const x of iter) {
                 break;
             }
-        })();
+        })().then(() => {
+            expect(iter.returnCalled).toBeTrue();
+        });
+    });
 
-        return promise.then(() => {
-            expect(returnCalled).toBeTrue();
+    test("return from async function calls return()", () => {
+        const iter = makeAsyncIterator([1, 2, 3]);
+        return (async () => {
+            for await (const x of iter) {
+                return x;
+            }
+        })().then(() => {
+            expect(iter.returnCalled).toBeTrue();
         });
     });
 
     test("throw from body calls return()", () => {
-        let returnCalled = false;
-        const asyncIter = {
+        const iter = makeAsyncIterator([1, 2, 3]);
+        return (async () => {
+            for await (const x of iter) {
+                throw new Error("oops");
+            }
+        })().catch(() => {
+            expect(iter.returnCalled).toBeTrue();
+        });
+    });
+
+    test("continue to same loop does NOT call return()", () => {
+        const iter = makeAsyncIterator([1, 2, 3]);
+        return (async () => {
+            for await (const x of iter) {
+                continue;
+            }
+        })().then(() => {
+            expect(iter.returnCalled).toBeFalse();
+        });
+    });
+
+    test("normal completion does NOT call return()", () => {
+        const iter = makeAsyncIterator([1, 2, 3]);
+        return (async () => {
+            for await (const x of iter) {
+                // exhaust normally
+            }
+        })().then(() => {
+            expect(iter.returnCalled).toBeFalse();
+        });
+    });
+
+    test("continue to outer label calls return()", () => {
+        const iter = makeAsyncIterator([1, 2, 3]);
+        return (async () => {
+            outer: for (let i = 0; i < 1; i++) {
+                for await (const x of iter) {
+                    continue outer;
+                }
+            }
+        })().then(() => {
+            expect(iter.returnCalled).toBeTrue();
+        });
+    });
+
+    test("return() that throws during non-throw exit: close error propagates", () => {
+        const iter = {
             [Symbol.asyncIterator]() {
                 return {
                     next() {
                         return Promise.resolve({ value: 1, done: false });
                     },
                     return() {
-                        returnCalled = true;
-                        return Promise.resolve({ done: true });
+                        return Promise.reject(new Error("close error"));
                     },
                 };
             },
         };
+        return (async () => {
+            for await (const x of iter) {
+                break;
+            }
+        })().then(
+            () => {
+                expect().fail("should have thrown");
+            },
+            error => {
+                expect(error).toBeInstanceOf(Error);
+                expect(error.message).toBe("close error");
+            }
+        );
+    });
 
-        const promise = (async () => {
-            for await (const x of asyncIter) {
-                throw new Error("oops");
+    test("return() that throws during throw exit: original throw takes precedence", () => {
+        const iter = {
+            [Symbol.asyncIterator]() {
+                return {
+                    next() {
+                        return Promise.resolve({ value: 1, done: false });
+                    },
+                    return() {
+                        return Promise.reject(new Error("close error"));
+                    },
+                };
+            },
+        };
+        return (async () => {
+            for await (const x of iter) {
+                throw new Error("body error");
+            }
+        })().then(
+            () => {
+                expect().fail("should have thrown");
+            },
+            error => {
+                expect(error).toBeInstanceOf(Error);
+                expect(error.message).toBe("body error");
+            }
+        );
+    });
+
+    test("iterator without return() method: no error on break", () => {
+        const iter = {
+            [Symbol.asyncIterator]() {
+                let index = 0;
+                return {
+                    next() {
+                        return Promise.resolve(index++ < 3 ? { value: index, done: false } : { done: true });
+                    },
+                };
+            },
+        };
+        return (async () => {
+            for await (const x of iter) {
+                break;
             }
         })();
+    });
 
-        return promise.catch(() => {
-            expect(returnCalled).toBeTrue();
-        });
+    test("GetMethod throwing during throw exit: original throw takes precedence", () => {
+        const iter = {
+            [Symbol.asyncIterator]() {
+                return {
+                    next() {
+                        return Promise.resolve({ value: 1, done: false });
+                    },
+                    get return() {
+                        throw { name: "inner error" };
+                    },
+                };
+            },
+        };
+        return (async () => {
+            for await (const x of iter) {
+                throw new Error("original");
+            }
+        })().then(
+            () => {
+                expect().fail("should have thrown");
+            },
+            error => {
+                expect(error).toBeInstanceOf(Error);
+                expect(error.message).toBe("original");
+            }
+        );
+    });
+
+    test("non-callable return during throw exit: original throw takes precedence", () => {
+        const iter = {
+            [Symbol.asyncIterator]() {
+                return {
+                    next() {
+                        return Promise.resolve({ value: 1, done: false });
+                    },
+                    return: true,
+                };
+            },
+        };
+        return (async () => {
+            for await (const x of iter) {
+                throw new Error("original");
+            }
+        })().then(
+            () => {
+                expect().fail("should have thrown");
+            },
+            error => {
+                expect(error).toBeInstanceOf(Error);
+                expect(error.message).toBe("original");
+            }
+        );
     });
 
     test("sync iterator with rejected promise value: return() called only once", () => {
@@ -340,15 +503,13 @@ describe("for-await-of iterator close on abrupt completion", () => {
             },
         };
 
-        const promise = (async () => {
+        return (async () => {
             for await (const x of syncIter) {
                 // The rejected promise causes the async-from-sync iterator
                 // to call return() internally. Our for-await-of close logic
                 // must not double-close.
             }
-        })();
-
-        return promise.catch(() => {
+        })().catch(() => {
             expect(returnCount).toBe(1);
         });
     });

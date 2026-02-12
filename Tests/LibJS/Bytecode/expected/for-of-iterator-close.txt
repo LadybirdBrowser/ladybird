@@ -4,7 +4,10 @@ JS bytecode executable ""
 [  18]       Call dst:reg5, callee:reg6, this_value:Undefined, forOfBreak
 [  38]       GetGlobal dst:reg7, identifier:forOfReturn
 [  48]       Call dst:reg6, callee:reg7, this_value:Undefined, forOfReturn
-[  68]       End value:reg6
+[  68]       GetGlobal dst:reg7, identifier:forAwaitOfBreak
+[  78]       NewPrimitiveArray dst:reg8, elements:[1, 2, 3]
+[  a0]       Call dst:reg5, callee:reg7, this_value:Undefined, forAwaitOfBreak, arguments:[reg8]
+[  c8]       End value:reg5
 
 JS bytecode executable "forOfBreak"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -61,3 +64,64 @@ JS bytecode executable "forOfReturn"
 
 Exception handlers:
     from   b8 to   f8 handler   80
+
+JS bytecode executable "forAwaitOfBreak"
+[   0]    0: Yield continuation_label:@10, value:Undefined
+[  10]    1: GetLexicalEnvironment dst:reg4
+[  18]       GetIterator dst_iterator_object:reg5, dst_iterator_next:reg6, dst_iterator_done:reg7, iterable:arg0
+[  30]       Jump target:@48
+[  38]    2: Yield value:Undefined
+[  48]    3: IteratorNext dst:reg12, iterator_object:reg5, iterator_next:reg6, iterator_done:reg7
+[  60]       Mov dst:reg13, src:reg0
+[  70]       Await continuation_label:@b8, argument:reg12
+[  80]    4: Catch dst:reg9
+[  88]       SetLexicalEnvironment environment:reg4
+[  90]       Mov dst:reg8, src:Int32(1)
+[  a0]    5: JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@1a0, false_target:@1a8
+[  b8]    6: Mov dst:reg13, src:reg0
+[  c8]       GetCompletionFields type_dst:reg14, value_dst:reg15, completion:reg13
+[  d8]       JumpStrictlyEquals lhs:reg14, rhs:Int32(1), true_target:@f0, false_target:@130
+[  f0]    7: Mov dst:reg12, src:reg15
+[ 100]       ThrowIfNotObject src:reg12
+[ 108]       GetById dst:reg11, base:reg12, property:done
+[ 120]       JumpIf condition:reg11, true_target:@38, false_target:@138
+[ 130]    8: Throw src:reg15
+[ 138]    9: GetById dst:reg10, base:reg12, property:value
+[ 150]   10: Mov dst:x~0, src:reg10
+[ 160]       ThrowIfTDZ src:x~0
+[ 168]       JumpStrictlyEquals lhs:x~0, rhs:Int32(2), true_target:@180, false_target:@198
+[ 180]   11: Mov dst:reg8, src:Int32(3)
+[ 190]       Jump target:@a0
+[ 198]   12: Jump target:@48
+[ 1a0]   13: Jump target:@2a0
+[ 1a8]   14: GetMethod dst:reg12, object:reg5, property:return
+[ 1b8]       JumpUndefined condition:reg12, true_target:@1c8, false_target:@1e0
+[ 1c8]   15: JumpStrictlyEquals lhs:reg8, rhs:Int32(3), true_target:@38, false_target:@260
+[ 1e0]   16: Call dst:reg13, callee:reg12, this_value:reg5
+[ 200]       Await continuation_label:@210, argument:reg13
+[ 210]   17: Mov dst:reg14, src:reg0
+[ 220]       GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
+[ 230]       JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:@248, false_target:@258
+[ 248]   18: ThrowIfNotObject src:reg16
+[ 250]       Jump target:@1c8
+[ 258]   19: Throw src:reg16
+[ 260]   20: JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:@278, false_target:@280
+[ 278]   21: Return value:reg9
+[ 280]   22: Throw src:reg9
+[ 288]   23: Throw src:reg9
+[ 290]   24: Catch dst:reg12
+[ 298]       Jump target:@288
+[ 2a0]   25: GetMethod dst:reg12, object:reg5, property:return
+[ 2b0]       JumpUndefined condition:reg12, true_target:@288, false_target:@2c0
+[ 2c0]   26: Call dst:reg13, callee:reg12, this_value:reg5
+[ 2e0]       Await continuation_label:@2f0, argument:reg13
+[ 2f0]   27: Mov dst:reg14, src:reg0
+[ 300]       GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
+[ 310]       JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:@328, false_target:@330
+[ 328]   28: Jump target:@288
+[ 330]   29: Throw src:reg16
+
+Exception handlers:
+    from  150 to  1a0 handler   80
+    from  2a0 to  338 handler  290
+

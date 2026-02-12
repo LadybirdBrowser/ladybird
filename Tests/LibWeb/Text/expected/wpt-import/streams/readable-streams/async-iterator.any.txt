@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 41 tests
 
-36 Pass
-5 Fail
+41 Pass
 Pass	Async iterator instances should have the correct list of properties
 Pass	Async-iterating a push source
 Pass	Async-iterating a pull source
@@ -14,11 +13,11 @@ Pass	Async-iterating an errored stream throws
 Pass	Async-iterating a closed stream never executes the loop body, but works fine
 Pass	Async-iterating an empty but not closed/errored stream never executes the loop body and stalls the async function
 Pass	Async-iterating a partially consumed stream
-Fail	Cancellation behavior when throwing inside loop body; preventCancel = false
+Pass	Cancellation behavior when throwing inside loop body; preventCancel = false
 Pass	Cancellation behavior when throwing inside loop body; preventCancel = true
-Fail	Cancellation behavior when breaking inside loop body; preventCancel = false
+Pass	Cancellation behavior when breaking inside loop body; preventCancel = false
 Pass	Cancellation behavior when breaking inside loop body; preventCancel = true
-Fail	Cancellation behavior when returning inside loop body; preventCancel = false
+Pass	Cancellation behavior when returning inside loop body; preventCancel = false
 Pass	Cancellation behavior when returning inside loop body; preventCancel = true
 Pass	Cancellation behavior when manually calling return(); preventCancel = false
 Pass	Cancellation behavior when manually calling return(); preventCancel = true
@@ -40,8 +39,8 @@ Pass	return(); return() [no awaiting]
 Pass	values() throws if there's already a lock
 Pass	Acquiring a reader after exhaustively async-iterating a stream
 Pass	Acquiring a reader after return()ing from a stream that errors
-Fail	Acquiring a reader after partially async-iterating a stream
-Fail	Acquiring a reader and reading the remaining chunks after partially async-iterating a stream with preventCancel = true
+Pass	Acquiring a reader after partially async-iterating a stream
+Pass	Acquiring a reader and reading the remaining chunks after partially async-iterating a stream with preventCancel = true
 Pass	return() should unlock the stream synchronously when preventCancel = false
 Pass	return() should unlock the stream synchronously when preventCancel = true
 Pass	close() while next() is pending
