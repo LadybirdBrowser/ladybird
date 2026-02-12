@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const picture = document.createElement("picture");
+        const source = document.createElement("source");
+        source.media = "(min-width: 1px)";
+        source.srcset = "../../../Assets/120.png";
+        source.width = 200;
+        source.height = 100;
+        const img = document.createElement("img");
+        img.src = "../../../Assets/120.png";
+        img.width = 25;
+        img.height = 25;
+        picture.appendChild(source);
+        picture.appendChild(img);
+        document.body.appendChild(picture);
+        img.onload = function() {
+            println("with source dimensions: " + img.clientWidth + "x" + img.clientHeight);
+            picture.remove();
+
+            // Test without source dimensions (should use img dimensions)
+            const picture2 = document.createElement("picture");
+            const source2 = document.createElement("source");
+            source2.media = "(min-width: 1px)";
+            source2.srcset = "../../../Assets/120.png";
+            const img2 = document.createElement("img");
+            img2.src = "../../../Assets/120.png";
+            img2.width = 50;
+            img2.height = 50;
+            picture2.appendChild(source2);
+            picture2.appendChild(img2);
+            document.body.appendChild(picture2);
+            img2.onload = function() {
+                println("without source dimensions: " + img2.clientWidth + "x" + img2.clientHeight);
+                picture2.remove();
+                done();
+            };
+        };
+    });
+</script>

@@ -92,6 +92,10 @@ public:
 
     void set_source_set(SourceSet);
 
+    // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attribute-source
+    DOM::Element const& dimension_attribute_source() const;
+    void set_dimension_attribute_source(DOM::Element const*);
+
     ImageRequest& current_request() { return *m_current_request; }
     ImageRequest const& current_request() const { return *m_current_request; }
 
@@ -167,6 +171,10 @@ private:
     SourceSet m_source_set;
 
     CSSPixelSize m_last_seen_viewport_size;
+
+    // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attribute-source
+    // Each img element has a dimension attribute source, which must initially be the img element itself.
+    GC::Ptr<DOM::Element const> m_dimension_attribute_source;
 
     u64 m_update_the_image_data_count { 0 };
 };

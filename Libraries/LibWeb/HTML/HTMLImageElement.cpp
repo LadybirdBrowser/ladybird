@@ -102,7 +102,24 @@ void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_current_request);
     visitor.visit(m_pending_request);
     visitor.visit(m_document_observer);
+    visitor.visit(m_dimension_attribute_source);
     visit_lazy_loading_element(visitor);
+}
+
+// https://html.spec.whatwg.org/multipage/embedded-content.html#concept-img-dimension-attribute-source
+DOM::Element const& HTMLImageElement::dimension_attribute_source() const
+{
+    if (m_dimension_attribute_source)
+        return *m_dimension_attribute_source;
+    return *this;
+}
+
+void HTMLImageElement::set_dimension_attribute_source(DOM::Element const* source)
+{
+    if (m_dimension_attribute_source.ptr() != source) {
+        m_dimension_attribute_source = source;
+        set_needs_style_update(true);
+    }
 }
 
 bool HTMLImageElement::is_presentational_hint(FlyString const& name) const
@@ -1290,25 +1307,22 @@ static void update_the_source_set(DOM::Element& element)
         // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {
             auto mime_type = child->get_attribute_value(HTML::AttributeNames::type);
-            if (is<HTMLImageElement>(element)) {
-                if (!is_supported_image_type(mime_type))
-                    continue;
-            }
-
-            // FIXME: Implement this step for link elements
+            if (!is_supported_image_type(mime_type))
+                continue;
         }
 
-        // FIXME: 9. If child has width or height attributes, set el's dimension attribute source to child.
-        //           Otherwise, set el's dimension attribute source to el.
+        // 9. If child has width or height attributes, set el's dimension attribute source to child.
+        //    Otherwise, set el's dimension attribute source to el.
+        if (child->has_attribute(HTML::AttributeNames::width) || child->has_attribute(HTML::AttributeNames::height))
+            img->set_dimension_attribute_source(child);
+        else
+            img->set_dimension_attribute_source(nullptr);
 
         // 10. Normalize the source densities of source set.
         source_set.normalize_source_densities(element);
 
         // 11. Set el's source set to source set.
-        if (auto* image_element = as_if<HTMLImageElement>(element))
-            image_element->set_source_set(move(source_set));
-        else if (is<HTMLLinkElement>(element))
-            TODO();
+        img->set_source_set(move(source_set));
 
         // 12. Return.
         return;
