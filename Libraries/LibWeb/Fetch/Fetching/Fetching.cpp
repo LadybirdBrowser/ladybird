@@ -1458,7 +1458,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
         // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
         auto converted_source = source.has<ByteBuffer>()
             ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
-            : BodyInitOrReadableBytes { source.get<GC::Root<FileAPI::Blob>>() };
+            : BodyInitOrReadableBytes { source.get<GC::Ref<FileAPI::Blob>>() };
         auto [body, _] = safely_extract_body(realm, converted_source);
         request->set_body(body);
     }
@@ -1896,7 +1896,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
                 auto converted_source = source.has<ByteBuffer>()
                     ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
-                    : BodyInitOrReadableBytes { source.get<GC::Root<FileAPI::Blob>>() };
+                    : BodyInitOrReadableBytes { source.get<GC::Ref<FileAPI::Blob>>() };
                 auto [body, _] = safely_extract_body(realm, converted_source);
                 request->set_body(body);
             }
