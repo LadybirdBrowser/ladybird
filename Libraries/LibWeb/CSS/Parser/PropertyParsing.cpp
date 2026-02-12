@@ -666,6 +666,19 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
                 return parse_single_background_size_value(PropertyID::MaskSize, tokens);
             });
         });
+    case PropertyID::OverflowClipMarginBlockEnd:
+    case PropertyID::OverflowClipMarginBlockStart:
+    case PropertyID::OverflowClipMarginBottom:
+    case PropertyID::OverflowClipMarginInlineEnd:
+    case PropertyID::OverflowClipMarginInlineStart:
+    case PropertyID::OverflowClipMarginLeft:
+    case PropertyID::OverflowClipMarginRight:
+    case PropertyID::OverflowClipMarginTop:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_overflow_clip_margin_value(tokens); });
+    case PropertyID::OverflowClipMargin:
+    case PropertyID::OverflowClipMarginBlock:
+    case PropertyID::OverflowClipMarginInline:
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_overflow_clip_margin_shorthand(property_id, tokens); });
     case PropertyID::PaintOrder:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_paint_order_value(tokens); });
     case PropertyID::PlaceContent:
@@ -3747,6 +3760,35 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
     if (auto integer_value = parse_integer_value(tokens)) {
         transaction.commit();
         return integer_value;
+    }
+
+    return nullptr;
+}
+
+// https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
+RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_value(TokenStream<ComponentValue>& tokens)
+{
+    // <visual-box> || <length [0,∞]>
+    // FIXME: Implement the <visual-box> part of this.
+
+    if (auto length = parse_length_value(tokens)) {
+        return length.release_nonnull();
+    }
+
+    return nullptr;
+}
+
+RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_shorthand(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+{
+    // <visual-box> || <length [0,∞]>
+    // FIXME: Implement the <visual-box> part of this.
+
+    if (auto value = parse_overflow_clip_margin_value(tokens)) {
+        auto const& longhands = longhands_for_shorthand(property_id);
+        Vector<ValueComparingNonnullRefPtr<StyleValue const>> longhand_values;
+        longhand_values.resize_with_default_value(longhands.size(), value.release_nonnull());
+
+        return ShorthandStyleValue::create(property_id, longhands, longhand_values);
     }
 
     return nullptr;

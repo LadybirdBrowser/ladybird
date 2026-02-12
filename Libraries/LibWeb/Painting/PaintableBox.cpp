@@ -296,8 +296,26 @@ CSSPixelRect PaintableBox::absolute_border_box_rect() const
 // https://drafts.csswg.org/css-overflow-4/#overflow-clip-edge
 CSSPixelRect PaintableBox::overflow_clip_edge_rect() const
 {
-    // FIXME: Apply overflow-clip-margin-* properties
-    return absolute_padding_box_rect();
+    // https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
+    // Values are defined as follows:
+    // '<visual-box>'
+    //     Specifies the box edge to use as the overflow clip edge origin, i.e. when the specified offset is zero.
+    //     If omitted, defaults to 'padding-box' on non-replaced elements, or 'content-box' on replaced elements.
+    // FIXME: We can't parse this yet so it's always omitted for now.
+    auto overflow_clip_edge = absolute_padding_box_rect();
+    if (layout_node().is_replaced_box()) {
+        overflow_clip_edge = absolute_rect();
+    }
+
+    // '<length [0,∞]>'
+    //     The specified offset dictates how much the overflow clip edge is expanded from the specified box edge
+    //     Negative values are invalid. Defaults to zero if omitted.
+    overflow_clip_edge.inflate(
+        computed_values().overflow_clip_margin().top().length().absolute_length_to_px(),
+        computed_values().overflow_clip_margin().right().length().absolute_length_to_px(),
+        computed_values().overflow_clip_margin().bottom().length().absolute_length_to_px(),
+        computed_values().overflow_clip_margin().left().length().absolute_length_to_px());
+    return overflow_clip_edge;
 }
 
 template<typename Callable>

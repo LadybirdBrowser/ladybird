@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Overflow: overflow-clip-margin: invalidation on change</title>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#propdef-overflow-clip-margin">
+<link rel="author" title="Scott Violet" href="mailto:sky@chromium.org">
+<style>
+  .container {
+      display: flex;
+  }
+  .parent_overflow {
+      position: relative;
+      top: -10px;
+      left: -10px;
+      width: 120px;
+      height: 120px;
+      flex: none;
+      background-color: green;
+  }
+  .parent {
+      width: 100px;
+      height: 100px;
+      flex: none;
+      background-color: green;
+  }
+  .spacer {
+      flex: none;
+      height: 100px;
+      width: 100px;
+  }
+
+</style>
+<div class="spacer"></div>
+<div class="container">
+  <div class="spacer"></div>
+  <div class="parent"></div>
+<div class="spacer"></div>
+<div class="container">
+  <div class="spacer"></div>
+  <div class="parent_overflow"></div>
+</body>

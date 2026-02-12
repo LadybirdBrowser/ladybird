@@ -3257,6 +3257,98 @@
       "mapping": "block-xy"
     }
   },
+  "overflow-clip-margin": {
+    "initial": "0px",
+    "longhands": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-block": {
+    "initial": "0px",
+    "longhands": [
+      "overflow-clip-margin-block-start",
+      "overflow-clip-margin-block-end"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-block-end": {
+    "logical-alias-for": {
+      "group": "overflow-clip-margin",
+      "mapping": "block-end"
+    }
+  },
+  "overflow-clip-margin-block-start": {
+    "logical-alias-for": {
+      "group": "overflow-clip-margin",
+      "mapping": "block-start"
+    }
+  },
+  "overflow-clip-margin-bottom": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "requires-computation": "cascaded-value"
+  },
+  "overflow-clip-margin-inline": {
+    "initial": "0px",
+    "longhands": [
+      "overflow-clip-margin-inline-start",
+      "overflow-clip-margin-inline-end"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-inline-end": {
+    "logical-alias-for": {
+      "group": "overflow-clip-margin",
+      "mapping": "inline-end"
+    }
+  },
+  "overflow-clip-margin-inline-start": {
+    "logical-alias-for": {
+      "group": "overflow-clip-margin",
+      "mapping": "inline-start"
+    }
+  },
+  "overflow-clip-margin-left": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "requires-computation": "cascaded-value"
+  },
+  "overflow-clip-margin-right": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "requires-computation": "cascaded-value"
+  },
+  "overflow-clip-margin-top": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "requires-computation": "cascaded-value"
+  },
   "overflow-inline": {
     "logical-alias-for": {
       "group": "overflow",

@@ -53,6 +53,12 @@
     "x": "overflow-x",
     "y": "overflow-y"
   },
+  "overflow-clip-margin": {
+    "top": "overflow-clip-margin-top",
+    "right": "overflow-clip-margin-right",
+    "bottom": "overflow-clip-margin-bottom",
+    "left": "overflow-clip-margin-left"
+  },
   "padding": {
     "top": "padding-top",
     "right": "padding-right",
