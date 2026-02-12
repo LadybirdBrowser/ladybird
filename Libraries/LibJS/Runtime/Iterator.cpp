@@ -308,7 +308,10 @@ ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecordImp
 // 7.4.11 IteratorClose ( iteratorRecord, completion , https://tc39.es/ecma262/#sec-iteratorclose
 // 7.4.13 AsyncIteratorClose ( iteratorRecord, completion ), https://tc39.es/ecma262/#sec-asynciteratorclose
 // NOTE: These only differ in that async awaits the inner value after the call.
-static Completion iterator_close_impl(VM& vm, IteratorRecordImpl const& iterator_record, Completion completion, IteratorHint iterator_hint)
+// NB: AsyncIteratorClose is not implemented here. It is inlined as bytecode
+//     in ASTCodegen.cpp, using the Await bytecode op to yield naturally instead
+//     of spinning the event loop synchronously.
+static Completion iterator_close_impl(VM& vm, IteratorRecordImpl const& iterator_record, Completion completion)
 {
     // 1. Assert: Type(iteratorRecord.[[Iterator]]) is Object.
 
@@ -336,12 +339,6 @@ static Completion iterator_close_impl(VM& vm, IteratorRecordImpl const& iterator
 
         // c. Set innerResult to Completion(Call(return, iterator)).
         inner_result = call(vm, return_method, iterator);
-
-        // Note: If this is AsyncIteratorClose perform one extra step.
-        if (iterator_hint == IteratorHint::Async && !inner_result.is_error()) {
-            // d. If innerResult.[[Type]] is normal, set innerResult to Completion(Await(innerResult.[[Value]])).
-            inner_result = await(vm, inner_result.value());
-        }
     }
 
     // 5. If completion.[[Type]] is throw, return ? completion.
@@ -363,7 +360,7 @@ static Completion iterator_close_impl(VM& vm, IteratorRecordImpl const& iterator
 // 7.4.11 IteratorClose ( iteratorRecord, completion , https://tc39.es/ecma262/#sec-iteratorclose
 Completion iterator_close(VM& vm, IteratorRecordImpl const& iterator_record, Completion completion)
 {
-    return iterator_close_impl(vm, iterator_record, move(completion), IteratorHint::Sync);
+    return iterator_close_impl(vm, iterator_record, move(completion));
 }
 
 // 7.4.12 IteratorCloseAll ( iters, completion ), https://tc39.es/ecma262/#sec-iteratorclose
@@ -379,12 +376,6 @@ Completion iterator_close_all(VM& vm, ReadonlySpan<GC::Ref<IteratorRecord>> iter
 
     // 2. Return ? completion.
     return completion;
-}
-
-// 7.4.14 AsyncIteratorClose ( iteratorRecord, completion ), https://tc39.es/ecma262/#sec-asynciteratorclose
-Completion async_iterator_close(VM& vm, IteratorRecordImpl const& iterator_record, Completion completion)
-{
-    return iterator_close_impl(vm, iterator_record, move(completion), IteratorHint::Async);
 }
 
 // 7.4.15 CreateIteratorResultObject ( value, done ), https://tc39.es/ecma262/#sec-createiterresultobject

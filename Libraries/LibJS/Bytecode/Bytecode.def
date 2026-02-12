@@ -20,14 +20,6 @@ op ArrayAppend < Instruction
     m_is_spread: bool
 endop
 
-op AsyncIteratorClose < Instruction
-    m_iterator_object: Operand
-    m_iterator_next: Operand
-    m_iterator_done: Operand
-    m_completion_type: Completion::Type
-    m_completion_value: Operand
-endop
-
 op Await < Instruction
     @terminator
     @nothrow
