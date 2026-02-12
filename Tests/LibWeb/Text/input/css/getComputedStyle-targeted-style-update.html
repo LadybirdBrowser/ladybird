@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:andreas@ladybird.org">
+<script src="../include.js"></script>
+<style>
+    .red { color: red; }
+    .green { color: green; }
+    .blue { color: blue; }
+</style>
+<div id="parent">
+    <div id="target">hello</div>
+    <div id="sibling">world</div>
+</div>
+<div id="slot-host">
+    <template shadowrootmode="open">
+        <slot id="the-slot"></slot>
+    </template>
+    <span id="slotted-child">slotted</span>
+</div>
+<div id="shadow-host-2">
+    <template shadowrootmode="open">
+        <style>
+            #inside { color: blue; }
+        </style>
+        <div id="inside">inside shadow</div>
+    </template>
+</div>
+<div id="inherit-parent" class="red">
+    <div id="inherit-child">inherits</div>
+</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sibling = document.getElementById("sibling");
+        const parent = document.getElementById("parent");
+        const slottedChild = document.getElementById("slotted-child");
+        const slotHost = document.getElementById("slot-host");
+        const inheritParent = document.getElementById("inherit-parent");
+        const inheritChild = document.getElementById("inherit-child");
+
+        // Force initial style computation.
+        getComputedStyle(target).color;
+        getComputedStyle(sibling).color;
+        getComputedStyle(slottedChild).color;
+        getComputedStyle(inheritChild).color;
+
+        // 1. Reading computed style without changes should return correct values.
+        println(`1: ${getComputedStyle(target).color}`);
+
+        // 2. After changing the element's own style, getComputedStyle must reflect it.
+        target.classList.add("red");
+        println(`2: ${getComputedStyle(target).color}`);
+
+        // 3. After changing an ancestor's style, inherited properties must update.
+        inheritParent.classList.remove("red");
+        inheritParent.classList.add("green");
+        println(`3: ${getComputedStyle(inheritChild).color}`);
+
+        // 4. Changing a sibling should not affect our element's computed style.
+        target.classList.remove("red");
+        target.classList.add("blue");
+        getComputedStyle(target).color; // Force update after our change.
+        sibling.classList.add("red"); // Now dirty the sibling.
+        // target's color should still be correct even though sibling is dirty.
+        println(`4: ${getComputedStyle(target).color}`);
+
+        // 5. Slotted element: changing the slot's style must affect the slotted child,
+        //    since the slot is the flat tree parent and inheritance follows the flat tree.
+        // FIXME: Ladybird doesn't currently propagate inherited style changes through
+        //        slots to slotted elements. When that bug is fixed, these should show
+        //        red and green respectively instead of black.
+        const shadowRoot = slotHost.shadowRoot;
+        const theSlot = shadowRoot.getElementById("the-slot");
+        theSlot.style.color = "red";
+        println(`5: ${getComputedStyle(slottedChild).color}`);
+        theSlot.style.color = "green";
+        println(`5b: ${getComputedStyle(slottedChild).color}`);
+
+        // 6. Element inside shadow DOM should get correct computed style.
+        const shadowHost2 = document.getElementById("shadow-host-2");
+        const inside = shadowHost2.shadowRoot.getElementById("inside");
+        println(`6: ${getComputedStyle(inside).color}`);
+
+        // 7. Reading computed style of a pseudo-element.
+        const styleEl = document.createElement("style");
+        styleEl.textContent = "#target::before { content: 'X'; color: green; }";
+        document.head.appendChild(styleEl);
+        println(`7: ${getComputedStyle(target, "::before").color}`);
+
+        // 8. Multiple reads without changes return consistent values.
+        println(`8a: ${getComputedStyle(target).color}`);
+        println(`8b: ${getComputedStyle(target).color}`);
+    });
+</script>
