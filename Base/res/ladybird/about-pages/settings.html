@@ -585,7 +585,6 @@
                 ladybird.sendMessage("restoreDefaultSettings");
             });
 
-            // FIXME: This should be replaced once we support popover light dismissal.
             document.querySelectorAll("dialog").forEach(dialog =>
                 dialog.addEventListener("click", event => {
                     const rect = dialog.getBoundingClientRect();
