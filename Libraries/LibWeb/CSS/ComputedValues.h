@@ -633,7 +633,7 @@ public:
     FillRule fill_rule() const { return m_inherited.fill_rule; }
     Optional<SVGPaint> const& stroke() const { return m_inherited.stroke; }
     float fill_opacity() const { return m_inherited.fill_opacity; }
-    Vector<Variant<LengthPercentage, NumberOrCalculated>> const& stroke_dasharray() const { return m_inherited.stroke_dasharray; }
+    Vector<Variant<LengthPercentage, float>> const& stroke_dasharray() const { return m_inherited.stroke_dasharray; }
     LengthPercentage const& stroke_dashoffset() const { return m_inherited.stroke_dashoffset; }
     StrokeLinecap stroke_linecap() const { return m_inherited.stroke_linecap; }
     StrokeLinejoin stroke_linejoin() const { return m_inherited.stroke_linejoin; }
@@ -756,7 +756,7 @@ protected:
         ClipRule clip_rule { InitialValues::clip_rule() };
         MathShift math_shift { InitialValues::math_shift() };
         MathStyle math_style { InitialValues::math_style() };
-        Vector<Variant<LengthPercentage, NumberOrCalculated>> stroke_dasharray;
+        Vector<Variant<LengthPercentage, float>> stroke_dasharray;
         LengthPercentage stroke_dashoffset { InitialValues::stroke_dashoffset() };
         double stroke_miterlimit { InitialValues::stroke_miterlimit() };
         LengthPercentage stroke_width { InitialValues::stroke_width() };
@@ -1085,7 +1085,7 @@ public:
     void set_stroke(SVGPaint value) { m_inherited.stroke = move(value); }
     void set_fill_rule(FillRule value) { m_inherited.fill_rule = value; }
     void set_fill_opacity(float value) { m_inherited.fill_opacity = value; }
-    void set_stroke_dasharray(Vector<Variant<LengthPercentage, NumberOrCalculated>> value) { m_inherited.stroke_dasharray = move(value); }
+    void set_stroke_dasharray(Vector<Variant<LengthPercentage, float>> value) { m_inherited.stroke_dasharray = move(value); }
     void set_stroke_dashoffset(LengthPercentage value) { m_inherited.stroke_dashoffset = move(value); }
     void set_stroke_linecap(StrokeLinecap value) { m_inherited.stroke_linecap = move(value); }
     void set_stroke_linejoin(StrokeLinejoin value) { m_inherited.stroke_linejoin = move(value); }

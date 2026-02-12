@@ -471,7 +471,7 @@ float ComputedProperties::fill_opacity() const
     return property(PropertyID::FillOpacity).as_number().number();
 }
 
-Vector<Variant<LengthPercentage, NumberOrCalculated>> ComputedProperties::stroke_dasharray() const
+Vector<Variant<LengthPercentage, float>> ComputedProperties::stroke_dasharray() const
 {
     auto const& value = property(PropertyID::StrokeDasharray);
 
@@ -480,7 +480,7 @@ Vector<Variant<LengthPercentage, NumberOrCalculated>> ComputedProperties::stroke
         return {};
 
     auto const& stroke_dasharray = value.as_value_list();
-    Vector<Variant<LengthPercentage, NumberOrCalculated>> dashes;
+    Vector<Variant<LengthPercentage, float>> dashes;
 
     for (auto const& value : stroke_dasharray.values()) {
         if (value->is_length())
@@ -490,7 +490,7 @@ Vector<Variant<LengthPercentage, NumberOrCalculated>> ComputedProperties::stroke
         else if (value->is_calculated())
             dashes.append(LengthPercentage { value->as_calculated() });
         else if (value->is_number())
-            dashes.append(NumberOrCalculated { value->as_number().number() });
+            dashes.append(value->as_number().number());
         else
             VERIFY_NOT_REACHED();
     }
