@@ -230,7 +230,6 @@ jobs:
         if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
-          set -e
           git ls-files '*.ipc' | xargs ./Build/bin/IPCMagicLinter
         env:
           ASAN_OPTIONS: 'strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1'
