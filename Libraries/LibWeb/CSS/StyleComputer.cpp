@@ -78,6 +78,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/Node.h>
@@ -1274,8 +1275,11 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
         auto& element = abstract_element.element();
         element.apply_presentational_hints(cascaded_properties);
         if (element.supports_dimension_attributes()) {
-            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::width, CSS::PropertyID::Width);
-            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::height, CSS::PropertyID::Height);
+            auto const& dimension_source = is<HTML::HTMLImageElement>(element)
+                ? static_cast<HTML::HTMLImageElement const&>(element).dimension_attribute_source()
+                : element;
+            apply_dimension_attribute(cascaded_properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
+            apply_dimension_attribute(cascaded_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
         }
 
         // SVG presentation attributes are parsed as CSS values, so we need to handle potential custom properties here.
