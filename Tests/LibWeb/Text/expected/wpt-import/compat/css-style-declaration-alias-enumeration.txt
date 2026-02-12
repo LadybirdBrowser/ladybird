@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 51 tests
 
-40 Pass
-11 Fail
+49 Pass
+2 Fail
 Pass	webkitAlignContent found on CSSStyleDeclaration
 Pass	webkitAlignItems found on CSSStyleDeclaration
 Pass	webkitAlignSelf found on CSSStyleDeclaration
@@ -37,19 +37,19 @@ Pass	webkitFlexShrink found on CSSStyleDeclaration
 Pass	webkitFlexWrap found on CSSStyleDeclaration
 Pass	webkitJustifyContent found on CSSStyleDeclaration
 Pass	webkitMask found on CSSStyleDeclaration
-Fail	webkitMaskClip found on CSSStyleDeclaration
-Fail	webkitMaskComposite found on CSSStyleDeclaration
+Pass	webkitMaskClip found on CSSStyleDeclaration
+Pass	webkitMaskComposite found on CSSStyleDeclaration
 Pass	webkitMaskImage found on CSSStyleDeclaration
-Fail	webkitMaskOrigin found on CSSStyleDeclaration
-Fail	webkitMaskPosition found on CSSStyleDeclaration
-Fail	webkitMaskRepeat found on CSSStyleDeclaration
-Fail	webkitMaskSize found on CSSStyleDeclaration
+Pass	webkitMaskOrigin found on CSSStyleDeclaration
+Pass	webkitMaskPosition found on CSSStyleDeclaration
+Pass	webkitMaskRepeat found on CSSStyleDeclaration
+Pass	webkitMaskSize found on CSSStyleDeclaration
 Pass	webkitOrder found on CSSStyleDeclaration
-Fail	webkitPerspective found on CSSStyleDeclaration
-Fail	webkitPerspectiveOrigin found on CSSStyleDeclaration
+Pass	webkitPerspective found on CSSStyleDeclaration
+Pass	webkitPerspectiveOrigin found on CSSStyleDeclaration
 Pass	webkitTransform found on CSSStyleDeclaration
 Pass	webkitTransformOrigin found on CSSStyleDeclaration
-Fail	webkitTransformStyle found on CSSStyleDeclaration
+Pass	webkitTransformStyle found on CSSStyleDeclaration
 Pass	webkitTransition found on CSSStyleDeclaration
 Pass	webkitTransitionDelay found on CSSStyleDeclaration
 Pass	webkitTransitionDuration found on CSSStyleDeclaration
