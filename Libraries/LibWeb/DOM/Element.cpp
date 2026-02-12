@@ -4543,8 +4543,8 @@ GC::Ptr<Element const> Element::element_to_inherit_style_from(Optional<CSS::Pseu
 {
     if (pseudo_element.has_value())
         return this;
-    while (auto const slot = assigned_slot_internal())
-        return slot->element_to_inherit_style_from({});
+    if (auto const slot = assigned_slot_internal())
+        return slot;
     return parent_or_shadow_host_element();
 }
 
