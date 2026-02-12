@@ -112,7 +112,6 @@ JS_API ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecor
 JS_API ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecordImpl&);
 Completion iterator_close(VM&, IteratorRecordImpl const&, Completion);
 Completion iterator_close_all(VM&, ReadonlySpan<GC::Ref<IteratorRecord>>, Completion);
-Completion async_iterator_close(VM&, IteratorRecordImpl const&, Completion);
 JS_API GC::Ref<Object> create_iterator_result_object(VM&, Value, bool done);
 JS_API ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM&, IteratorRecord&);
 ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM&, Value this_, Object const& home, PropertyKey const& property, Value value);

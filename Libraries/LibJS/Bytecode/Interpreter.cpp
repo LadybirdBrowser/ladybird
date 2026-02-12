@@ -391,7 +391,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(Add);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(AddPrivateName);
             HANDLE_INSTRUCTION(ArrayAppend);
-            HANDLE_INSTRUCTION(AsyncIteratorClose);
             HANDLE_INSTRUCTION(BitwiseAnd);
             HANDLE_INSTRUCTION(BitwiseNot);
             HANDLE_INSTRUCTION(BitwiseOr);
@@ -2952,19 +2951,6 @@ ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& inter
 
     // FIXME: Return the value of the resulting completion.
     TRY(iterator_close(vm, iterator_record, Completion { m_completion_type, interpreter.get(m_completion_value) }));
-    return {};
-}
-
-ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto& iterator_object = interpreter.get(m_iterator_object).as_object();
-    auto iterator_next_method = interpreter.get(m_iterator_next);
-    auto iterator_done_property = interpreter.get(m_iterator_done).as_bool();
-    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
-
-    // FIXME: Return the value of the resulting completion.
-    TRY(async_iterator_close(vm, iterator_record, Completion { m_completion_type, interpreter.get(m_completion_value) }));
     return {};
 }
 
