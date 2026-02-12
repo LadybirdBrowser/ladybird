@@ -217,6 +217,40 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox con
     return perspective_matrix;
 }
 
+static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
+{
+    auto overflow_x = computed_values.overflow_x();
+    auto overflow_y = computed_values.overflow_y();
+    auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
+
+    auto should_clip_overflow = has_hidden_overflow && paintable_box.overflow_property_applies();
+    if (should_clip_overflow || paintable_box.layout_node().has_paint_containment()) {
+        bool clip_x = overflow_x != CSS::Overflow::Visible;
+        bool clip_y = overflow_y != CSS::Overflow::Visible;
+
+        if (paintable_box.layout_node().has_paint_containment()) {
+            clip_x = true;
+            clip_y = true;
+        }
+
+        if (clip_x || clip_y) {
+            auto clip_rect = paintable_box.overflow_clip_edge_rect();
+            if (!clip_x) {
+                clip_rect.set_left(0);
+                clip_rect.set_right(CSSPixels::max_integer_value);
+            }
+            if (!clip_y) {
+                clip_rect.set_top(0);
+                clip_rect.set_bottom(CSSPixels::max_integer_value);
+            }
+            auto radii = (clip_x && clip_y) ? paintable_box.normalized_border_radii_data(PaintableBox::ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
+            return ClipData { clip_rect, radii };
+        }
+    }
+
+    return {};
+}
+
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     m_next_accumulated_visual_context_id = 1;
@@ -330,34 +364,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values); perspective_matrix.has_value())
             state_for_descendants = append_node(state_for_descendants, PerspectiveData { *perspective_matrix });
 
-        auto overflow_x = computed_values.overflow_x();
-        auto overflow_y = computed_values.overflow_y();
-        auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
-
-        auto should_clip_overflow = has_hidden_overflow && paintable_box.overflow_property_applies();
-        if (should_clip_overflow || paintable_box.layout_node().has_paint_containment()) {
-            bool clip_x = overflow_x != CSS::Overflow::Visible;
-            bool clip_y = overflow_y != CSS::Overflow::Visible;
-
-            if (paintable_box.layout_node().has_paint_containment()) {
-                clip_x = true;
-                clip_y = true;
-            }
-
-            if (clip_x || clip_y) {
-                auto clip_rect = paintable_box.overflow_clip_edge_rect();
-                if (!clip_x) {
-                    clip_rect.set_left(0);
-                    clip_rect.set_right(CSSPixels::max_integer_value);
-                }
-                if (!clip_y) {
-                    clip_rect.set_top(0);
-                    clip_rect.set_bottom(CSSPixels::max_integer_value);
-                }
-                auto radii = (clip_x && clip_y) ? paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
-                state_for_descendants = append_node(state_for_descendants, ClipData { clip_rect, radii });
-            }
-        }
+        if (auto clip_data = compute_clip_data(paintable_box, computed_values); clip_data.has_value())
+            state_for_descendants = append_node(state_for_descendants, clip_data.value());
 
         if (paintable_box.own_scroll_frame()) {
             auto is_sticky_without_scrollable_overflow = paintable_box.is_sticky_position() && paintable_box.enclosing_scroll_frame() == paintable_box.own_scroll_frame();
