@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+    <link rel="match" href="../expected/stroke-dasharray-none-application-ref.html" />
+    <svg>
+        <style>
+            line {
+                stroke: black;
+            }
+        </style>
+        <line id="line" style="stroke-dasharray: 4" x1="0" y1="1" x2="30" y2="1"></line>
+    </svg>
+    <script>
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                line.style.strokeDasharray = "none";
+            });
+        });
+    </script>
+</html>
