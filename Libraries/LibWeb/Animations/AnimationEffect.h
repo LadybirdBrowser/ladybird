@@ -50,7 +50,7 @@ struct EffectTiming {
 struct ComputedEffectTiming : public EffectTiming {
     CSS::CSSNumberish end_time;
     CSS::CSSNumberish active_duration;
-    NullableCSSNumberish local_time;
+    Optional<NullableCSSNumberish> local_time;
     Optional<double> progress;
     Optional<double> current_iteration;
 };
