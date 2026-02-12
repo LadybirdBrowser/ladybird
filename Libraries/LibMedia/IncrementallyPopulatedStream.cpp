@@ -40,6 +40,13 @@ IncrementallyPopulatedStream::~IncrementallyPopulatedStream() = default;
 void IncrementallyPopulatedStream::set_data_request_callback(DataRequestCallback callback)
 {
     Threading::MutexLocker locker { m_mutex };
+
+    if (!callback) {
+        m_callback_event_loop = nullptr;
+        m_data_request_callback = nullptr;
+        return;
+    }
+
     m_callback_event_loop = Core::EventLoop::current_weak();
     m_data_request_callback = move(callback);
 }
