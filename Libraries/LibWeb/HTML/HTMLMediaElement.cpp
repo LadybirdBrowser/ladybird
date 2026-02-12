@@ -975,6 +975,13 @@ struct HTMLMediaElement::FetchData : public RefCounted<FetchData> {
     Function<void(String)> failure_callback;
     bool accepts_byte_ranges { false };
     u64 offset { 0 };
+
+    ~FetchData()
+    {
+        if (stream != nullptr) {
+            stream->close();
+        }
+    }
 };
 
 void HTMLMediaElement::fetch_resource(URL::URL const& url_record, Function<void(String)> failure_callback)
