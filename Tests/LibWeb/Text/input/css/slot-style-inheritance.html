@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:andreas@ladybird.org">
+<script src="../include.js"></script>
+<style>
+    .red { color: red; }
+    .green { color: green; }
+    .blue { color: blue; }
+</style>
+
+<!-- Test 1: Basic slot inheritance via inline style -->
+<div id="host1">
+    <template shadowrootmode="open">
+        <slot style="color: red;"></slot>
+    </template>
+    <span id="child1">slotted</span>
+</div>
+
+<!-- Test 2: Slot inheritance via CSS rule in shadow DOM -->
+<div id="host2">
+    <template shadowrootmode="open">
+        <style>
+            slot { color: green; }
+        </style>
+        <slot></slot>
+    </template>
+    <span id="child2">slotted</span>
+</div>
+
+<!-- Test 3: Named slot inheritance -->
+<div id="host3">
+    <template shadowrootmode="open">
+        <slot name="a" style="color: red;"></slot>
+        <slot name="b" style="color: blue;"></slot>
+    </template>
+    <span id="child3a" slot="a">slotted a</span>
+    <span id="child3b" slot="b">slotted b</span>
+</div>
+
+<!-- Test 4: Nested shadow hosts - slot in outer shadow, host in slotted content -->
+<div id="host4">
+    <template shadowrootmode="open">
+        <slot style="color: red;"></slot>
+    </template>
+    <div id="inner-host4">
+        <template shadowrootmode="open">
+            <div id="inner-child4">nested shadow</div>
+        </template>
+    </div>
+</div>
+
+<!-- Test 5: Slotted element with own style overrides slot inheritance -->
+<div id="host5">
+    <template shadowrootmode="open">
+        <slot style="color: red;"></slot>
+    </template>
+    <span id="child5" class="blue">own style wins</span>
+</div>
+
+<!-- Test 6: Deep inheritance chain: host style -> slot inherits -> slotted child inherits -->
+<div id="host6" style="font-style: italic;">
+    <template shadowrootmode="open">
+        <slot style="color: green;"></slot>
+    </template>
+    <span id="child6">inherits both</span>
+</div>
+
+<!-- Test 7: Dynamic slot reassignment -->
+<div id="host7">
+    <template shadowrootmode="open">
+        <slot name="target" style="color: red;"></slot>
+    </template>
+    <span id="child7">will be reassigned</span>
+</div>
+
+<!-- Test 8: Multiple slotted children in same slot all inherit -->
+<div id="host8">
+    <template shadowrootmode="open">
+        <slot style="color: green;"></slot>
+    </template>
+    <span id="child8a">first</span>
+    <span id="child8b">second</span>
+    <span id="child8c">third</span>
+</div>
+
+<!-- Test 9: Dynamically inserted style element in shadow DOM -->
+<div id="host9">
+    <template shadowrootmode="open">
+        <slot id="slot9"></slot>
+    </template>
+    <span id="child9">dynamic style</span>
+</div>
+
+<!-- Test 10: Dynamically created shadow DOM via JS -->
+<div id="host10">
+    <span id="child10">JS shadow</span>
+</div>
+
+<!-- Test 11: Slot style change via class toggle in shadow DOM -->
+<div id="host11">
+    <template shadowrootmode="open">
+        <style>
+            .colored { color: green; }
+        </style>
+        <slot id="slot11"></slot>
+    </template>
+    <span id="child11">class toggle</span>
+</div>
+
+<!-- Test 12: Moving a slotted element to a different host -->
+<div id="host12a">
+    <template shadowrootmode="open">
+        <slot style="color: red;"></slot>
+    </template>
+    <span id="child12">will be moved</span>
+</div>
+<div id="host12b">
+    <template shadowrootmode="open">
+        <slot style="color: blue;"></slot>
+    </template>
+</div>
+
+<script>
+    test(() => {
+        // 1. Basic slot inheritance via inline style.
+        println(`1: ${getComputedStyle(document.getElementById("child1")).color}`);
+
+        // 2. Slot inheritance via CSS rule in shadow DOM.
+        println(`2: ${getComputedStyle(document.getElementById("child2")).color}`);
+
+        // 3. Named slots: each slotted child inherits from its own slot.
+        println(`3a: ${getComputedStyle(document.getElementById("child3a")).color}`);
+        println(`3b: ${getComputedStyle(document.getElementById("child3b")).color}`);
+
+        // 4. Nested shadow host: the inner host inherits from the outer slot.
+        const innerHost4 = document.getElementById("inner-host4");
+        println(`4: ${getComputedStyle(innerHost4).color}`);
+
+        // 5. Slotted element's own style overrides slot inheritance.
+        println(`5: ${getComputedStyle(document.getElementById("child5")).color}`);
+
+        // 6. Slot inherits from host (font-style), and slotted child inherits
+        // color from slot and font-style from the chain.
+        const child6 = document.getElementById("child6");
+        println(`6-color: ${getComputedStyle(child6).color}`);
+        println(`6-font: ${getComputedStyle(child6).fontStyle}`);
+
+        // 7. Dynamic slot reassignment: assign to named slot, inherit its style.
+        const child7 = document.getElementById("child7");
+        println(`7-before: ${getComputedStyle(child7).color}`);
+        child7.slot = "target";
+        println(`7-after: ${getComputedStyle(child7).color}`);
+
+        // 8. Multiple children in same slot all inherit.
+        println(`8a: ${getComputedStyle(document.getElementById("child8a")).color}`);
+        println(`8b: ${getComputedStyle(document.getElementById("child8b")).color}`);
+        println(`8c: ${getComputedStyle(document.getElementById("child8c")).color}`);
+
+        // 9. Dynamically insert a <style> into the shadow DOM that styles the slot.
+        // FIXME: The slot itself gets the correct color, but the slotted child
+        //        doesn't pick it up. This appears to be a bug with dynamic style
+        //        element insertion not propagating to slotted elements.
+        const child9 = document.getElementById("child9");
+        const shadowRoot9 = document.getElementById("host9").shadowRoot;
+        const slot9 = shadowRoot9.getElementById("slot9");
+        println(`9-before: ${getComputedStyle(child9).color}`);
+        const style9 = document.createElement("style");
+        style9.textContent = "#slot9 { color: red; }";
+        shadowRoot9.appendChild(style9);
+        println(`9-slot: ${getComputedStyle(slot9).color}`);
+        println(`9-after: ${getComputedStyle(child9).color}`);
+
+        // 10. Create shadow DOM entirely via JS, attach slot with style.
+        const host10 = document.getElementById("host10");
+        const child10 = document.getElementById("child10");
+        println(`10-before: ${getComputedStyle(child10).color}`);
+        const shadow10 = host10.attachShadow({ mode: "open" });
+        const slot10 = document.createElement("slot");
+        slot10.style.color = "green";
+        shadow10.appendChild(slot10);
+        println(`10-after: ${getComputedStyle(child10).color}`);
+
+        // 11. Toggle a class on the slot element inside the shadow DOM.
+        const child11 = document.getElementById("child11");
+        const slot11 = document.getElementById("host11").shadowRoot.getElementById("slot11");
+        println(`11-before: ${getComputedStyle(child11).color}`);
+        slot11.classList.add("colored");
+        println(`11-after: ${getComputedStyle(child11).color}`);
+        slot11.classList.remove("colored");
+        println(`11-removed: ${getComputedStyle(child11).color}`);
+
+        // 12. Move a slotted element from one host to another.
+        const child12 = document.getElementById("child12");
+        println(`12-before: ${getComputedStyle(child12).color}`);
+        document.getElementById("host12b").appendChild(child12);
+        println(`12-after: ${getComputedStyle(child12).color}`);
+    });
+</script>
