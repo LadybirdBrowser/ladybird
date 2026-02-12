@@ -289,6 +289,8 @@ ManagedSourceBuffer
 Map
 MathMLElement
 MediaCapabilities
+MediaDeviceInfo
+MediaDevices
 MediaElementAudioSourceNode
 MediaError
 MediaKeySystemAccess
@@ -297,6 +299,9 @@ MediaQueryList
 MediaQueryListEvent
 MediaSource
 MediaSourceHandle
+MediaStream
+MediaStreamTrack
+MediaStreamTrackEvent
 MessageChannel
 MessageEvent
 MessagePort

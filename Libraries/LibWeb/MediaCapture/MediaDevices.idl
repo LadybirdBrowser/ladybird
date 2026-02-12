@@ -1,0 +1,16 @@
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <MediaCapture/MediaDeviceInfo.idl>
+#import <MediaCapture/MediaStream.idl>
+#import <MediaCapture/MediaStreamConstraints.idl>
+
+// https://w3c.github.io/mediacapture-main/#mediadevices
+[Exposed=Window, SecureContext]
+interface MediaDevices : EventTarget {
+    attribute EventHandler ondevicechange;
+    Promise<sequence<MediaDeviceInfo>> enumerateDevices();
+    // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getsupportedconstraints
+    // Returns a dictionary whose members are the constrainable properties known to the User Agent.
+    MediaTrackSupportedConstraints getSupportedConstraints();
+    Promise<MediaStream> getUserMedia(optional MediaStreamConstraints constraints = {});
+};

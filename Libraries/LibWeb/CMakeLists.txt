@@ -785,6 +785,11 @@ set(SOURCES
     MathML/MathMLMspaceElement.cpp
     MathML/TagNames.cpp
     MediaCapabilitiesAPI/MediaCapabilities.cpp
+    MediaCapture/MediaDeviceInfo.cpp
+    MediaCapture/MediaDevices.cpp
+    MediaCapture/MediaStream.cpp
+    MediaCapture/MediaStreamTrack.cpp
+    MediaCapture/MediaStreamTrackEvent.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
     MediaSourceExtensions/EventNames.cpp
     MediaSourceExtensions/ManagedMediaSource.cpp

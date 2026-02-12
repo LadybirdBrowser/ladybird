@@ -92,6 +92,7 @@ enum class HdrMetadataType : u8;
 enum class ImageSmoothingQuality : u8;
 enum class MediaDecodingType : u8;
 enum class MediaEncodingType : u8;
+enum class MediaStreamTrackState : u8;
 enum class OffscreenRenderingContextId : u8;
 enum class ReadableStreamReaderMode : u8;
 enum class ReferrerPolicy : u8;
@@ -108,6 +109,13 @@ enum class ResponseType : u8;
 enum class TextTrackKind : u8;
 enum class TransferFunction : u8;
 enum class XMLHttpRequestResponseType : u8;
+
+}
+
+namespace Web::MediaCapture {
+
+class MediaStream;
+class MediaStreamTrack;
 
 }
 
