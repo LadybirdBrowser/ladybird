@@ -13,11 +13,35 @@ namespace Web::IndexedDB {
 
 GC_DEFINE_ALLOCATOR(Key);
 
+static Key::KeyValueInternal to_key_value_internal(Key::KeyValue const& key_value)
+{
+    return key_value.visit(
+        [](GC::Root<GC::HeapVector<GC::Ref<Key>>> const& keys) -> Key::KeyValueInternal {
+            return GC::Ref { *keys };
+        },
+        [](auto const& other) -> Key::KeyValueInternal { return other; });
+}
+
+Key::Key(KeyType type, KeyValue value)
+    : m_type(type)
+    , m_value(to_key_value_internal(value))
+{
+}
+
 Key::~Key() = default;
 
 GC::Ref<Key> Key::create(JS::Realm& realm, KeyType key, KeyValue value)
 {
     return realm.create<Key>(key, value);
+}
+
+Key::KeyValue Key::value()
+{
+    return m_value.visit(
+        [](GC::Ref<GC::HeapVector<GC::Ref<Key>>> const& keys) -> KeyValue {
+            return GC::make_root(keys);
+        },
+        [](auto const& other) -> KeyValue { return other; });
 }
 
 // https://w3c.github.io/IndexedDB/#compare-two-keys
@@ -185,6 +209,17 @@ String Key::dump() const
         [](auto const& value) {
             return MUST(String::formatted("{}", value));
         });
+}
+
+void Key::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+
+    m_value.visit(
+        [&](GC::Ref<GC::HeapVector<GC::Ref<Key>>> const& keys) {
+            visitor.visit(keys);
+        },
+        [](auto const&) {});
 }
 
 }

@@ -24,12 +24,14 @@ class Key : public JS::Cell {
     GC_CELL(Key, JS::Cell);
     GC_DECLARE_ALLOCATOR(Key);
 
+public:
     // A key also has an associated value, which will be either:
     // * an unrestricted double if type is number or date,
     // * a DOMString if type is string,
     // * a byte sequence if type is binary,
     // * a list of other keys if type is array.
     using KeyValue = Variant<double, AK::String, ByteBuffer, GC::Root<GC::HeapVector<GC::Ref<Key>>>>;
+    using KeyValueInternal = Variant<double, AK::String, ByteBuffer, GC::Ref<GC::HeapVector<GC::Ref<Key>>>>;
 
     // A key has an associated type which is one of: number, date, string, binary, or array.
     enum KeyType {
@@ -41,19 +43,18 @@ class Key : public JS::Cell {
         Array,
     };
 
-public:
     [[nodiscard]] static GC::Ref<Key> create(JS::Realm&, KeyType, KeyValue);
     virtual ~Key();
 
     [[nodiscard]] KeyType type() { return m_type; }
-    [[nodiscard]] KeyValue value() { return m_value; }
+    [[nodiscard]] KeyValue value();
 
     [[nodiscard]] bool is_invalid() { return m_type == Invalid; }
 
     [[nodiscard]] double value_as_double() { return m_value.get<double>(); }
     [[nodiscard]] AK::String value_as_string() { return m_value.get<AK::String>(); }
     [[nodiscard]] ByteBuffer value_as_byte_buffer() { return m_value.get<ByteBuffer>(); }
-    [[nodiscard]] ReadonlySpan<GC::Ref<Key>> value_as_vector() { return m_value.get<GC::Root<GC::HeapVector<GC::Ref<Key>>>>()->elements(); }
+    [[nodiscard]] ReadonlySpan<GC::Ref<Key>> value_as_vector() { return m_value.get<GC::Ref<GC::HeapVector<GC::Ref<Key>>>>()->elements(); }
     [[nodiscard]] ReadonlySpan<GC::Ref<Key>> subkeys()
     {
         VERIFY(m_type == Array);
@@ -77,14 +78,11 @@ public:
     AK::String dump() const;
 
 private:
-    Key(KeyType type, KeyValue value)
-        : m_type(type)
-        , m_value(value)
-    {
-    }
+    Key(KeyType, KeyValue);
+    virtual void visit_edges(Visitor&) override;
 
     KeyType m_type;
-    KeyValue m_value;
+    KeyValueInternal m_value;
 };
 
 }
