@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 68 tests
 
-67 Pass
-1 Fail
+68 Pass
 Pass	Branding
 Pass	Immutable i32 (missing)
 Pass	Immutable i32 with ToNumber side-effects (missing)
@@ -70,5 +69,5 @@ Pass	Mutable f64 (one)
 Pass	Mutable f64 (string)
 Pass	Mutable f64 (true on prototype)
 Pass	i64 mutability
-Fail	Calling setter without argument
+Pass	Calling setter without argument
 Pass	Stray argument
