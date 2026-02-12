@@ -862,24 +862,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_fill_rule(computed_style.fill_rule());
 
     computed_values.set_fill_opacity(computed_style.fill_opacity());
-
-    if (auto const& stroke_dasharray_or_none = computed_style.property(CSS::PropertyID::StrokeDasharray); !stroke_dasharray_or_none.is_keyword()) {
-        auto const& stroke_dasharray = stroke_dasharray_or_none.as_value_list();
-        Vector<Variant<CSS::LengthPercentage, CSS::NumberOrCalculated>> dashes;
-
-        for (auto const& value : stroke_dasharray.values()) {
-            if (value->is_length())
-                dashes.append(CSS::LengthPercentage { value->as_length().length() });
-            else if (value->is_percentage())
-                dashes.append(CSS::LengthPercentage { value->as_percentage().percentage() });
-            else if (value->is_calculated())
-                dashes.append(CSS::LengthPercentage { value->as_calculated() });
-            else if (value->is_number())
-                dashes.append(CSS::NumberOrCalculated { value->as_number().number() });
-        }
-
-        computed_values.set_stroke_dasharray(move(dashes));
-    }
+    computed_values.set_stroke_dasharray(computed_style.stroke_dasharray());
 
     auto const& stroke_dashoffset = computed_style.property(CSS::PropertyID::StrokeDashoffset);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"

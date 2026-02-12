@@ -230,6 +230,7 @@ public:
     MaskType mask_type() const;
     float stop_opacity() const;
     float fill_opacity() const;
+    Vector<Variant<LengthPercentage, NumberOrCalculated>> stroke_dasharray() const;
     StrokeLinecap stroke_linecap() const;
     StrokeLinejoin stroke_linejoin() const;
     double stroke_miterlimit() const;
