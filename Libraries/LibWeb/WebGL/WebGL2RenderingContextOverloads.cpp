@@ -37,12 +37,19 @@ void WebGL2RenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, W
     glBufferData(target, size, 0, usage);
 }
 
-void WebGL2RenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::BufferSource> src_data, WebIDL::UnsignedLong usage)
+void WebGL2RenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, Optional<GC::Root<WebIDL::BufferSource>> src_data, WebIDL::UnsignedLong usage)
 {
     m_context->make_current();
 
-    auto data = MUST(get_offset_span<u8 const>(*src_data, /* src_offset= */ 0));
-    glBufferData(target, data.size(), data.data(), usage);
+    // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.5
+    // If the passed data is null then an INVALID_VALUE error is generated.
+    if (!src_data.has_value()) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    auto data = MUST(get_offset_span<u8 const>(*src_data.value(), /* src_offset= */ 0));
+    glBufferData(target, static_cast<GLsizeiptr>(data.size()), data.data(), usage);
 }
 
 void WebGL2RenderingContextOverloads::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, GC::Root<WebIDL::BufferSource> src_data)
