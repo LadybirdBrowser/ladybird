@@ -483,16 +483,25 @@ Vector<Variant<LengthPercentage, float>> ComputedProperties::stroke_dasharray() 
     Vector<Variant<LengthPercentage, float>> dashes;
 
     for (auto const& value : stroke_dasharray.values()) {
-        if (value->is_length())
+        if (value->is_length()) {
             dashes.append(LengthPercentage { value->as_length().length() });
-        else if (value->is_percentage())
+        } else if (value->is_percentage()) {
             dashes.append(LengthPercentage { value->as_percentage().percentage() });
-        else if (value->is_calculated())
-            dashes.append(LengthPercentage { value->as_calculated() });
-        else if (value->is_number())
+        } else if (value->is_calculated()) {
+            auto const& calculated_value = value->as_calculated();
+
+            if (calculated_value.resolves_to_length())
+                dashes.append(LengthPercentage { value->as_calculated() });
+            else if (calculated_value.resolves_to_number())
+                dashes.append(calculated_value.resolve_number({}).value());
+            else
+                VERIFY_NOT_REACHED();
+
+        } else if (value->is_number()) {
             dashes.append(value->as_number().number());
-        else
+        } else {
             VERIFY_NOT_REACHED();
+        }
     }
 
     return dashes;
