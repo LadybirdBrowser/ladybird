@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Part in inner host is forwarded, under the same name, for styling by document style sheet
+1 Pass
+Pass	Part in inner host is forwarded, under the same name, for styling by document style sheet
