@@ -132,9 +132,9 @@ PlaybackManager::~PlaybackManager()
     m_weak_wrapper->revoke();
 }
 
-void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> stream)
+void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
 {
-    auto thread = Threading::Thread::construct("Media Init"sv, [playback_manager = NonnullRefPtr { *this }, stream, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
+    auto thread = Threading::Thread::construct("Media Init"sv, [playback_manager = NonnullRefPtr { *this }, stream = stream, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
         auto main_thread_event_loop = main_thread_event_loop_reference->take();
         auto maybe_error = playback_manager->prepare_playback_from_media_data(stream, main_thread_event_loop_reference);
         if (maybe_error.is_error()) {
