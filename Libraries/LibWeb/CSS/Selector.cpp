@@ -81,8 +81,9 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     if (!m_compound_selectors.is_empty()) {
         for (auto const& simple_selector : m_compound_selectors.last().simple_selectors) {
             if (simple_selector.type == SimpleSelector::Type::PseudoElement) {
+                if (simple_selector.pseudo_element().type() == PseudoElement::Part)
+                    m_contains_part_pseudo_element = true;
                 m_pseudo_element = simple_selector.pseudo_element();
-                break;
             }
         }
     }
