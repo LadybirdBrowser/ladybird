@@ -410,6 +410,7 @@ void Request::handle_serve_substitution_state()
 
     m_response_headers->append({ "Content-Type"sv, ByteString { content_type } });
     m_response_headers->append({ "Content-Length"sv, ByteString::number(content.value().size()) });
+    m_response_headers->append({ "Access-Control-Allow-Origin"sv, "*"sv });
 
     if (inform_client_request_started().is_error())
         return;
