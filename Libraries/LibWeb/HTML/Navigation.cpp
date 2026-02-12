@@ -183,9 +183,9 @@ bool Navigation::can_go_forward() const
     // 2. Assert: navigation's current entry index is not −1.
     VERIFY(m_current_entry_index != -1);
 
-    // 3. If this's current entry index is equal to this's entry list's size, then return false.
+    // 3. If this's current entry index is equal to this's entry list's size − 1, then return false.
     // 4. Return true.
-    return (m_current_entry_index != static_cast<i64>(m_entry_list.size()));
+    return (m_current_entry_index != static_cast<i64>(m_entry_list.size() - 1));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#history-handling-behavior

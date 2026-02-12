@@ -2,4 +2,4 @@ entries[length - 1] is current entry: true
 currentEntry is a [object NavigationHistoryEntry]
 transition is null: true
 canGoBack: true
-canGoForward: true
+canGoForward: false
