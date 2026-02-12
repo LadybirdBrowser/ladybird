@@ -65,9 +65,6 @@
 
         // 5. Slotted element: changing the slot's style must affect the slotted child,
         //    since the slot is the flat tree parent and inheritance follows the flat tree.
-        // FIXME: Ladybird doesn't currently propagate inherited style changes through
-        //        slots to slotted elements. When that bug is fixed, these should show
-        //        red and green respectively instead of black.
         const shadowRoot = slotHost.shadowRoot;
         const theSlot = shadowRoot.getElementById("the-slot");
         theSlot.style.color = "red";

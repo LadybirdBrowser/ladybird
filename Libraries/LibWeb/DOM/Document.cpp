@@ -131,6 +131,7 @@
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLTitleElement.h>
@@ -1634,6 +1635,21 @@ void Document::update_layout(UpdateLayoutReason reason)
             node_invalidation = element.recompute_inherited_style();
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
+
+        // If this is a slot element and its style changed, mark its assigned
+        // (slotted) nodes as needing a style update. Slotted elements inherit
+        // from their slot in the flat tree, but they are DOM children of the
+        // shadow host, so the normal DOM tree walk won't propagate inherited
+        // style changes to them.
+        if (!node_invalidation.is_none()) {
+            if (auto* slot = as_if<HTML::HTMLSlotElement>(node)) {
+                for (auto const& slottable : slot->assigned_nodes_internal()) {
+                    slottable.visit([](auto const& assigned_node) {
+                        assigned_node->set_needs_style_update(true);
+                    });
+                }
+            }
+        }
     }
     if (node_invalidation.relayout && node.layout_node()) {
         node.layout_node()->set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
