@@ -54,7 +54,7 @@
 static ErrorOr<void> load_content_filters(StringView config_path);
 
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
-static ErrorOr<void> reinitialize_resource_loader(IPC::File const& image_decoder_socket);
+static ErrorOr<void> reinitialize_resource_loader(IPC::File const& request_server_socket);
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);

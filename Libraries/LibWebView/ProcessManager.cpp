@@ -93,6 +93,12 @@ Optional<Process&> ProcessManager::find_process(pid_t pid)
     return m_processes.get(pid);
 }
 
+ProcessPolicyRouter const& ProcessManager::policy_router() const
+{
+    static ProcessPolicyRouter s_router;
+    return s_router;
+}
+
 void ProcessManager::add_process(WebView::Process&& process)
 {
     Threading::MutexLocker locker { m_lock };

@@ -63,6 +63,12 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+    if (m_image_decoder_client)
+        m_image_decoder_client->on_death = {};
+
+    if (m_request_server_client)
+        m_request_server_client->on_request_server_died = {};
+
     // Explicitly delete the settings observer first, as the observer destructor will refer to Application::the().
     m_settings_observer.clear();
 
@@ -333,11 +339,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
 
 void Application::launch_spare_web_content_process()
 {
-    // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
-    if (browser_options().debug_helper_process == ProcessType::WebContent)
-        return;
-    // Disable spare processes when profiling WebContent. This reduces callgrind logging we are not interested in.
-    if (browser_options().profile_helper_process == ProcessType::WebContent)
+    if (m_process_manager && !ProcessPolicyRouter::should_maintain_spare_web_content_process(browser_options()))
         return;
 
     if (m_has_queued_task_to_launch_spare_web_content_process)
@@ -396,9 +398,20 @@ ErrorOr<void> Application::launch_services()
             };
         }
     }
-
-    TRY(launch_request_server());
-    TRY(launch_image_decoder_server());
+    for (auto type : ProcessPolicyRouter::singleton_services_to_launch()) {
+        switch (type) {
+        case ProcessType::RequestServer:
+            TRY(launch_request_server());
+            break;
+        case ProcessType::ImageDecoder:
+            TRY(launch_image_decoder_server());
+            break;
+        case ProcessType::Browser:
+        case ProcessType::WebContent:
+        case ProcessType::WebWorker:
+            VERIFY_NOT_REACHED();
+        }
+    }
 
     if (m_browser_options.devtools_port.has_value())
         TRY(launch_devtools_server());
