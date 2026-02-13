@@ -36,6 +36,9 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
     args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
     args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
+
+    args_parser.add_option(repeat_count, "Repeat all matched tests N times", "repeat", 0, "n");
+
     args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
     args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     args_parser.add_option(shuffle, "Shuffle the order of tests before running them", "shuffle", 's');

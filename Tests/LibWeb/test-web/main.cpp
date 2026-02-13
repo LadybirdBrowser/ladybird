@@ -53,6 +53,8 @@ namespace TestWeb {
 static size_t s_terminal_width = 80;
 static bool s_is_tty = false;
 
+static size_t s_current_run = 1;
+
 static void update_terminal_size()
 {
 #ifndef AK_OS_WINDOWS
@@ -164,7 +166,10 @@ static void render_live_display()
         size_t total = s_total_tests;
 
         // Calculate progress bar width (leave room for "completed/total []")
-        auto counter = ByteString::formatted("{}/{} ", completed, total);
+        auto counter = ByteString::formatted("{}/{} tests ", completed, total);
+        if (Application::the().repeat_count > 1)
+            counter = ByteString::formatted("{}run {}/{} ", counter, s_current_run, Application::the().repeat_count);
+
         size_t bar_width = s_terminal_width > counter.length() + 3 ? s_terminal_width - counter.length() - 3 : 20;
 
         size_t filled = total > 0 ? (completed * bar_width) / total : 0;
@@ -207,6 +212,16 @@ struct ViewOutputCapture {
 };
 
 static HashMap<WebView::ViewImplementation const*, OwnPtr<ViewOutputCapture>> s_output_captures;
+
+static ByteString output_relative_path_for_test(Test const& test)
+{
+    auto& app = Application::the();
+    if (app.repeat_count <= 1)
+        return test.safe_relative_path;
+
+    auto run_dir = ByteString::formatted("run{}", test.run_index);
+    return LexicalPath::join(run_dir, test.safe_relative_path).string();
+}
 
 static void setup_output_capture_for_view(TestWebView& view)
 {
@@ -268,11 +283,13 @@ static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& 
 {
     auto& app = Application::the();
 
+    auto output_relative_path = output_relative_path_for_test(test);
+
     // Create the directory structure for this test's output
-    auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
+    auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(output_relative_path)).string();
     TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
 
-    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+    auto base_path = LexicalPath::join(app.results_directory, output_relative_path).string();
 
     // Write stdout if not empty
     if (!capture.stdout_buffer.is_empty()) {
@@ -509,12 +526,13 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
         first = false;
 
         auto const& test = tests[result.test_index];
-        auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+        auto output_relative_path = output_relative_path_for_test(test);
+        auto base_path = LexicalPath::join(app.results_directory, output_relative_path).string();
         bool has_stdout = FileSystem::exists(ByteString::formatted("{}.stdout.txt", base_path));
         bool has_stderr = FileSystem::exists(ByteString::formatted("{}.stderr.txt", base_path));
 
         js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasStdout\": {}, \"hasStderr\": {} }}",
-            test.safe_relative_path,
+            output_relative_path,
             test_result_to_string(result.result),
             test_mode_to_string(test.mode),
             has_stdout ? "true" : "false",
@@ -542,11 +560,13 @@ static ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer con
 {
     auto& app = Application::the();
 
+    auto output_relative_path = output_relative_path_for_test(test);
+
     // Create the directory structure
-    auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
+    auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(output_relative_path)).string();
     TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
 
-    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+    auto base_path = LexicalPath::join(app.results_directory, output_relative_path).string();
 
     // Write expected output
     auto expected_path = ByteString::formatted("{}.expected.txt", base_path);
@@ -627,6 +647,8 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
     for (auto const& variant : variants) {
         Test variant_test;
         variant_test.mode = base_test.mode;
+        variant_test.run_index = base_test.run_index;
+        variant_test.total_runs = base_test.total_runs;
         variant_test.input_path = base_test.input_path;
         variant_test.variant = variant;
 
@@ -736,7 +758,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
 
             // NOTE: We take a screenshot here to force the lazy layout of SVG-as-image documents to happen.
             //       It also causes a lot more code to run, which is good for finding bugs. :^)
-            view.take_screenshot()->when_resolved([&view, &context, test_index, on_test_complete = move(on_test_complete)](auto) {
+            view.take_screenshot()->when_resolved([&view, &context, test_index, on_test_complete = move(on_test_complete)](auto const&) {
                 auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree | WebView::PageInfoType::StackingContextTree);
 
                 promise->when_resolved([&context, test_index, on_test_complete = move(on_test_complete)](auto const& text) {
@@ -836,7 +858,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
     view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
         auto& test = context.tests[test_index];
         if (milliseconds > timeout_in_milliseconds)
-            test.timeout_timer->restart(milliseconds);
+            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
     };
 
     view.load(url);
@@ -868,10 +890,11 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
             return {};
         };
 
-        auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
+        auto output_relative_path = output_relative_path_for_test(test);
+        auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(output_relative_path)).string();
         TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
 
-        auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+        auto base_path = LexicalPath::join(app.results_directory, output_relative_path).string();
         TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("{}.actual.png", base_path)));
         TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("{}.expected.png", base_path)));
 
@@ -962,7 +985,7 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
     view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
         auto& test = context.tests[test_index];
         if (milliseconds > timeout_in_milliseconds)
-            test.timeout_timer->restart(milliseconds);
+            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
     };
 
     view.load(url);
@@ -1178,6 +1201,21 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         return Error::from_string_literal("No tests found matching filter");
     }
 
+    s_current_run = 1;
+
+    if (app.repeat_count > 1) {
+        auto base_tests = move(tests);
+        tests.ensure_capacity(base_tests.size() * app.repeat_count);
+
+        for (size_t run_index = 1; run_index <= app.repeat_count; ++run_index) {
+            for (auto const& base_test : base_tests) {
+                Test test = base_test;
+                test.run_index = run_index;
+                test.total_runs = app.repeat_count;
+                tests.append(move(test));
+            }
+        }
+    }
     auto concurrency = min(app.test_concurrency, tests.size());
     size_t loaded_web_views = 0;
 
@@ -1309,6 +1347,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             auto index = current_test++;
 
             auto& test = tests[index];
+            s_current_run = test.run_index;
             test.start_time = UnixDateTime::now();
             test.index = index;
 
@@ -1324,9 +1363,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                     s_view_display_states[view_id].start_time = test.start_time;
                 }
                 render_live_display();
-            } else if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
-                outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index + 1, digits_for_test_id, tests.size(), test.relative_path);
             } else {
+                // Non-TTY mode: print each test as it starts
                 outln("{}/{}: {}", test.index + 1, tests.size(), test.relative_path);
             }
 
@@ -1445,7 +1483,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         if (non_passing_test.result == TestResult::Skipped && app.verbosity < Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS)
             continue;
 
-        outln("{}: {}", test_result_to_string(non_passing_test.result), tests[non_passing_test.test_index].relative_path);
+        auto const& test = tests[non_passing_test.test_index];
+        if (Application::the().repeat_count > 1)
+            outln("{}: (run {}/{}) {}", test_result_to_string(non_passing_test.result), test.run_index, test.total_runs, test.relative_path);
+        else
+            outln("{}: {}", test_result_to_string(non_passing_test.result), test.relative_path);
     }
 
     if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SLOWEST_TESTS) {
@@ -1467,13 +1509,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     if (app.dump_gc_graph) {
         for (auto& view : views) {
-            if (auto path = view->dump_gc_graph(); path.is_error()) {
+            if (auto path = view->dump_gc_graph(); path.is_error())
                 warnln("Failed to dump GC graph: {}", path.error());
-            } else {
+            else
                 outln("GC graph dumped to {}", path.value());
-                auto source_root = LexicalPath(app.test_root_path).parent().parent().string();
-                outln("GC graph explorer: file://{}/Meta/gc-heap-explorer.html?script=file://{}", source_root, path.value());
-            }
         }
     }
 
@@ -1533,6 +1572,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto app = TRY(TestWeb::Application::create(arguments, OptionalNone {}));
 #endif
 
+    if (app->repeat_count > 1 && app->rebaseline) {
+        warnln("Error: --repeat cannot be used together with --rebaseline.");
+        warnln("Run once with --rebaseline, or drop --rebaseline when repeating.");
+        return 1;
+    }
     Core::EventLoop::register_signal(SIGINT, TestWeb::handle_signal);
     Core::EventLoop::register_signal(SIGTERM, TestWeb::handle_signal);
 
