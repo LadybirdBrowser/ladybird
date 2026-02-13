@@ -1468,17 +1468,20 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
             break;
         ancestor->m_needs_layout_update = true;
         if (auto* svg_box = as_if<SVGSVGBox>(ancestor)) {
-            // Absolutely positioned elements are laid out by the formatting context (FC) of their
-            // containing block, not by the FC of their parent. When an abspos element lives inside
-            // an SVG subtree (e.g. inside <foreignObject>) but its containing block is an ancestor
-            // outside that subtree, partial SVG relayout cannot lay it out: only the SVGFormattingContext
-            // runs, while the containing block's FC (which is responsible for the abspos) does not.
-            // In this case we must not stop propagation here — letting needs_layout_update reach the
-            // layout root ensures update_layout() takes the full layout path instead.
-            if (is_absolutely_positioned()) {
-                if (auto cb = containing_block(); cb && !svg_box->is_inclusive_ancestor_of(*cb))
-                    continue;
+            // Walk from `this` up to the SVG root to check if any abspos node in the path has its containing block
+            // outside the SVG subtree. If so, partial SVG relayout cannot handle it — the abspos element is laid out
+            // by its containing block's FC which is outside the SVG subtree.
+            bool can_use_boundary = true;
+            for (auto* node = this; node != svg_box; node = node->parent()) {
+                if (node->is_absolutely_positioned()) {
+                    if (auto cb = node->containing_block(); cb && !svg_box->is_inclusive_ancestor_of(*cb)) {
+                        can_use_boundary = false;
+                        break;
+                    }
+                }
             }
+            if (!can_use_boundary)
+                continue;
             document().mark_svg_root_as_needing_relayout(*svg_box);
             break;
         }
