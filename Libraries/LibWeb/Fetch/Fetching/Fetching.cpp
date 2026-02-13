@@ -1879,7 +1879,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             && request->traversable_for_user_prompts().has<GC::Ptr<HTML::TraversableNavigable>>()
             // AD-HOC: Require at least one WWW-Authenticate header to be set before automatically retrying an authenticated
             //         request (see rule 1 below). See: https://github.com/whatwg/fetch/issues/1766
-            && request->header_list()->contains("WWW-Authenticate"sv)) {
+            && response->header_list()->contains("WWW-Authenticate"sv)) {
             // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
             // (Red box in the spec, no-op)
 
