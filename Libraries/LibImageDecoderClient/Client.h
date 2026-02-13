@@ -24,8 +24,11 @@ struct DecodedImage {
     bool is_animated { false };
     Gfx::FloatPoint scale { 1, 1 };
     u32 loop_count { 0 };
+    u32 frame_count { 0 };
     Vector<Frame> frames;
+    Vector<u32> all_durations;
     Gfx::ColorSpace color_space;
+    i64 session_id { 0 };
 };
 
 class Client final
@@ -40,13 +43,21 @@ public:
 
     NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size = {}, Optional<ByteString> mime_type = {});
 
+    void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count);
+    void stop_animation_decode(i64 session_id);
+
     Function<void()> on_death;
+    Function<void(i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>>)> on_animation_frames_decoded;
+    Function<void(i64 session_id, String error_message)> on_animation_decode_failed;
 
 private:
     virtual void die() override;
 
-    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space) override;
+    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id) override;
     virtual void did_fail_to_decode_image(i64 image_id, String error_message) override;
+
+    virtual void did_decode_animation_frames(i64 session_id, Gfx::BitmapSequence bitmaps) override;
+    virtual void did_fail_animation_decode(i64 session_id, String error_message) override;
 
     HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_pending_decoded_images;
 };

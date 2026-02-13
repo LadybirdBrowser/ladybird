@@ -16,16 +16,27 @@ namespace WebView {
 ImageCodecPlugin::ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client> client)
     : m_client(move(client))
 {
-    m_client->on_death = [this] {
-        m_client = nullptr;
-    };
+    setup_client_callbacks();
 }
 
 void ImageCodecPlugin::set_client(NonnullRefPtr<ImageDecoderClient::Client> client)
 {
     m_client = move(client);
+    setup_client_callbacks();
+}
+
+void ImageCodecPlugin::setup_client_callbacks()
+{
     m_client->on_death = [this] {
         m_client = nullptr;
+    };
+    m_client->on_animation_frames_decoded = [this](i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps) {
+        if (on_animation_frames_decoded)
+            on_animation_frames_decoded(session_id, move(bitmaps));
+    };
+    m_client->on_animation_decode_failed = [this](i64 session_id, String) {
+        if (on_animation_decode_failed)
+            on_animation_decode_failed(session_id);
     };
 }
 
@@ -51,6 +62,9 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
             Web::Platform::DecodedImage decoded_image;
             decoded_image.is_animated = result.is_animated;
             decoded_image.loop_count = result.loop_count;
+            decoded_image.frame_count = result.frame_count;
+            decoded_image.session_id = result.session_id;
+            decoded_image.all_durations = move(result.all_durations);
             for (auto& frame : result.frames) {
                 decoded_image.frames.empend(move(frame.bitmap), frame.duration);
             }
@@ -63,6 +77,18 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
         });
 
     return promise;
+}
+
+void ImageCodecPlugin::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
+{
+    if (m_client)
+        m_client->request_animation_frames(session_id, start_frame_index, count);
+}
+
+void ImageCodecPlugin::stop_animation_decode(i64 session_id)
+{
+    if (m_client)
+        m_client->stop_animation_decode(session_id);
 }
 
 }

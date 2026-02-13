@@ -20,9 +20,14 @@ public:
 
     virtual NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
 
+    virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) override;
+    virtual void stop_animation_decode(i64 session_id) override;
+
     void set_client(NonnullRefPtr<ImageDecoderClient::Client>);
 
 private:
+    void setup_client_callbacks();
+
     RefPtr<ImageDecoderClient::Client> m_client;
 };
 
