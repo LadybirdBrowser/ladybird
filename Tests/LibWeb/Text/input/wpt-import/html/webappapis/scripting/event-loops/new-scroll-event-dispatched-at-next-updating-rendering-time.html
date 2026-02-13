@@ -1,0 +1,116 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="help" href="https://html.spec.whatwg.org/#event-loop-processing-model">
+<link rel="help" href="https://issues.chromium.org/issues/397737222">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+</style>
+<iframe width="300" height="300" srcdoc="
+  <style>
+    html {
+      transition: color 1s step-start;
+    }
+    .scroller {
+      overflow: auto;
+      width: 100%;
+      height: 100px;
+    }
+    .spacer {
+      height: 500px;
+    }
+  </style>
+  <div class='scroller'>
+    <div class='spacer'></div>
+  </div>
+  <div class='scroller'>
+    <div class='spacer'></div>
+  </div>
+  "></iframe>
+<script>
+promise_test(async function() {
+  await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+
+  const iframe = document.querySelector("iframe");
+  const mql = iframe.contentWindow.matchMedia("(max-width: 300px)");
+  assert_true(mql.matches, "");
+
+  // Set up a MQL change event listener to receive the event in between
+  // scroll and transitionrun events.
+  let timeOnMQLChange = null;
+  iframe.width = "400";
+  const mqlChangeEvent = new Promise(resolve => {
+    mql.addEventListener("change", () => {
+      timeOnMQLChange = performance.now();
+      resolve();
+    }, { once: true });
+  });
+
+  // There are two scroll containers, setup a scroll event listener for one
+  // of them.
+  const scrollers = iframe.contentDocument.querySelectorAll(".scroller");
+  let timeOnScrollEventOnAnotherScroller = null;
+  scrollers[1].addEventListener("scroll", () => {
+    timeOnScrollEventOnAnotherScroller = performance.now();
+  }, { once: true });
+
+  // Setup another scroll event listener for the other scroll container.
+  const scrollEventPromise = new Promise(resolve => {
+    scrollers[0].addEventListener("scroll", resolve, { once: true });
+  });
+  // And scroll the scroller.
+  scrollers[0].scrollTop = 10;
+
+  // Await the scroll event.
+  await scrollEventPromise;
+
+  const timeOnScrollEvent = performance.now();
+
+  // Scroll the other scroller.
+  scrollers[1].scrollTop = 10;
+
+  assert_equals(timeOnScrollEventOnAnotherScroller, null,
+    "The new scroll event should not yet have been dispatched");
+
+  // Trigger a CSS transition.
+  let timeOnTransitionRun = null;
+  const transitionrunEventPromise = new Promise(resolve => {
+    iframe.contentDocument.documentElement.addEventListener("transitionrun", () => {
+      timeOnTransitionRun = performance.now();
+      resolve();
+    }, { once: true });
+  });
+  iframe.contentDocument.documentElement.style.color = "blue";
+  getComputedStyle(iframe.contentDocument.documentElement).color;
+
+  // Now it's time to receive the MQL change event.
+  await mqlChangeEvent;
+  assert_less_than(timeOnScrollEvent, timeOnMQLChange,
+    "The MQL change event should have been dispatched after the first scroll event");
+  assert_equals(timeOnScrollEventOnAnotherScroller, null,
+    "The new scroll event should not yet have been dispatched");
+
+  // Await the transitionrun event.
+  await transitionrunEventPromise;
+
+  assert_less_than(timeOnScrollEvent, timeOnTransitionRun,
+    "The transitionrun event should have been dispatched after the first scroll event");
+  assert_equals(timeOnScrollEventOnAnotherScroller, null,
+    "The new scroll event should not yet have been dispatched");
+
+  // Await a requestAnimationFrame callback.
+  await new Promise(resolve => requestAnimationFrame(resolve));
+
+  assert_equals(timeOnScrollEventOnAnotherScroller, null,
+    "The new scroll event should not yet have been dispatched");
+
+  // Await one more requestAnimationFrame callback.
+  await new Promise(resolve => requestAnimationFrame(resolve));
+
+  assert_not_equals(timeOnScrollEventOnAnotherScroller, null,
+    "The new scroll event should now have been dispatched");
+  assert_less_than(timeOnTransitionRun, timeOnScrollEventOnAnotherScroller,
+    "The new scroll event should have been dispatched after the transitionrun event");
+});
+</script>

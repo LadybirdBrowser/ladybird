@@ -5675,6 +5675,10 @@ void Document::update_animations_and_send_events(double timestamp)
 
             for (auto const& animation : timeline->associated_animations())
                 animation->update();
+
+            auto animations = GC::RootVector { heap(), timeline->associated_animations().values() };
+            for (auto& animation : animations)
+                dispatch_events_for_animation_if_necessary(animation.as_nonnull());
         }
 
         // 2. Remove replaced animations for doc.
@@ -5730,12 +5734,6 @@ void Document::update_animations_and_send_events(double timestamp)
     //    the previous step.
     for (auto const& event : events_to_dispatch)
         event.target->dispatch_event(event.event);
-
-    for (auto& timeline : timelines_to_update) {
-        auto animations_to_dispatch = GC::RootVector { heap(), timeline->associated_animations().values() };
-        for (auto& animation : animations_to_dispatch)
-            dispatch_events_for_animation_if_necessary(animation.as_nonnull());
-    }
 }
 
 // https://www.w3.org/TR/web-animations-1/#remove-replaced-animations
