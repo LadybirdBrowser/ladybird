@@ -994,7 +994,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         }
 
         // 8. If request's body is null, then set entry's document state's resource to null.
-        if (!state_holder->request->body().has<Empty>()) {
+        if (state_holder->request->body().has<Empty>()) {
             state_holder->entry->document_state()->set_resource(Empty {});
         }
 
