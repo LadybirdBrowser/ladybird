@@ -242,7 +242,6 @@ static void setup_output_capture_for_view(TestWebView& view)
         view_capture->stdout_notifier->on_activation = [fd, &capture = *view_capture]() {
             char buffer[4096];
             auto nread = read(fd, buffer, sizeof(buffer));
-
             if (nread > 0) {
                 StringView message { buffer, static_cast<size_t>(nread) };
 
@@ -262,7 +261,6 @@ static void setup_output_capture_for_view(TestWebView& view)
         view_capture->stderr_notifier->on_activation = [fd, &capture = *view_capture]() {
             char buffer[4096];
             auto nread = read(fd, buffer, sizeof(buffer));
-
             if (nread > 0) {
                 StringView message { buffer, static_cast<size_t>(nread) };
 
@@ -1527,6 +1525,17 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 test.expectation_screenshot.clear();
 
                 test.end_time = UnixDateTime::now();
+
+                if (result.result == TestResult::Timeout && app.debug_timeouts) {
+                    auto& capture = output_capture_for_view(*view);
+                    StringBuilder diagnostics;
+                    append_timeout_diagnostics_to_stderr(diagnostics, *view, test, view_id);
+                    auto diagnostics_view = diagnostics.string_view();
+                    capture.stderr_buffer.append(diagnostics_view);
+
+                    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
+                        (void)Core::System::write(STDERR_FILENO, diagnostics_view.bytes());
+                }
 
                 // Write captured stdout/stderr to results directory.
                 // NOTE: On crashes, we already flushed it in on_web_content_crashed.

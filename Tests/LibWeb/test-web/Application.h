@@ -39,7 +39,7 @@ public:
     ByteString python_executable_path;
 
     bool dump_gc_graph { false };
-
+    bool debug_timeouts { false };
     size_t repeat_count { 1 };
     bool test_dry_run { false };
     bool rebaseline { false };
