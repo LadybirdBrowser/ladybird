@@ -46,6 +46,8 @@ public:
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
+    void process_auto_scroll();
+
     void set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable>);
     void set_element_resize_in_progress(DOM::Element& element, CSSPixelPoint viewport_position);
 
