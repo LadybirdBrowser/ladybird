@@ -6,5 +6,8 @@ endpoint ImageDecoderServer
     decode_image(Core::AnonymousBuffer data, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) => (i64 image_id)
     cancel_decoding(i64 image_id) =|
 
+    request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) =|
+    stop_animation_decode(i64 session_id) =|
+
     connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
 }
