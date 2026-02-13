@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -150,8 +151,11 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             // Some custom properties set on the element might also be in the registered custom properties set, so we
             // want the size of the union of the two sets.
             HashTable<FlyString> custom_properties;
-            for (auto const& key : element.custom_properties().keys())
-                custom_properties.set(key);
+            if (auto data = element.custom_property_data()) {
+                data->for_each_property([&](FlyString const& name, CSS::StyleProperty const&) {
+                    custom_properties.set(name);
+                });
+            }
             for (auto const& [key, _] : element.document().registered_property_set())
                 custom_properties.set(key);
 

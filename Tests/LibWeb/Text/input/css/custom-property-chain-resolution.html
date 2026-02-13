@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    /* Test that var() resolves correctly through the chain */
+    :root {
+        --base-color: red;
+        --base-size: 10px;
+        --compound: A;
+    }
+
+    #parent {
+        --base-color: green;
+        --compound: B;
+        --ref-color: var(--base-color);
+    }
+
+    #child {
+        --compound: var(--compound) C;
+        color: var(--base-color);
+        font-size: var(--base-size);
+    }
+
+    /* Test inherit keyword */
+    #inherit-parent { --x: from-parent; }
+    #inherit-child { --x: overridden; }
+    #inherit-grandchild { --x: inherit; }
+
+    /* Test unset keyword on root */
+    :root { --unset-test: root-value; }
+    #unset-child { --unset-test: unset; }
+
+    /* Test var() with fallback when property is missing from chain */
+    #fallback-test {
+        --result: var(--nonexistent, fallback-value);
+    }
+
+    /* Test multiple var() references to chain */
+    #multi-var {
+        --a: hello;
+        --combined: var(--a) var(--base-color) var(--base-size);
+    }
+</style>
+
+<div id="parent">
+    <div id="child"></div>
+</div>
+
+<div id="inherit-parent">
+    <div id="inherit-child">
+        <div id="inherit-grandchild"></div>
+    </div>
+</div>
+
+<div id="unset-child"></div>
+
+<div id="fallback-test"></div>
+
+<div id="multi-var"></div>
+
+<script>
+    test(() => {
+        const cs = (id) => getComputedStyle(document.getElementById(id));
+
+        // var() should resolve through the chain
+        println("=== var() through chain ===");
+        println(`child color: ${cs("child").color}`);
+        println(`parent --ref-color: ${cs("parent").getPropertyValue("--ref-color").trim()}`);
+        println(`child --ref-color (inherited): ${cs("child").getPropertyValue("--ref-color").trim()}`);
+
+        // inherit keyword
+        println("=== inherit keyword ===");
+        println(`inherit-parent: ${cs("inherit-parent").getPropertyValue("--x").trim()}`);
+        println(`inherit-child: ${cs("inherit-child").getPropertyValue("--x").trim()}`);
+        println(`inherit-grandchild: ${cs("inherit-grandchild").getPropertyValue("--x").trim()}`);
+
+        // unset on root (should become initial/empty)
+        println("=== unset keyword ===");
+        println(`unset-child: "${cs("unset-child").getPropertyValue("--unset-test").trim()}"`);
+
+        // var() with fallback
+        println("=== var() fallback ===");
+        println(`fallback: ${cs("fallback-test").getPropertyValue("--result").trim()}`);
+
+        // Multiple var() references
+        println("=== Multiple var() ===");
+        println(`combined: ${cs("multi-var").getPropertyValue("--combined").trim()}`);
+    });
+</script>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    /* Root sets several properties */
+    :root {
+        --color: red;
+        --size: 10px;
+        --font: serif;
+    }
+
+    /* Parent overrides one property */
+    #parent {
+        --color: green;
+        --extra: hello;
+    }
+
+    /* Child overrides a different property */
+    #child {
+        --size: 20px;
+    }
+
+    /* Grandchild has no own properties (shares parent chain) */
+    #grandchild {}
+
+    /* Deep nesting to test chain depth flattening */
+    .level1 { --a: 1; }
+    .level2 { --b: 2; }
+    .level3 { --c: 3; }
+    .level4 { --d: 4; }
+    .level5 { --e: 5; }
+    .level6 { --f: 6; }
+
+    /* Override at each level to test shadowing */
+    #shadow-parent { --x: parent; --y: parent; }
+    #shadow-child { --x: child; }
+
+    /* Test with pseudo-elements */
+    #pseudo::before {
+        content: "before";
+        --pseudo-var: from-pseudo;
+    }
+    #pseudo { --pseudo-var: from-element; --inherited-var: from-element; }
+</style>
+
+<div id="parent">
+    <div id="child">
+        <div id="grandchild"></div>
+    </div>
+</div>
+
+<div class="level1">
+    <div class="level2">
+        <div class="level3">
+            <div class="level4">
+                <div class="level5">
+                    <div class="level6" id="deep"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="shadow-parent">
+    <div id="shadow-child" ></div>
+</div>
+
+<div id="pseudo"></div>
+
+<div id="dynamic-parent">
+    <div id="dynamic-child"></div>
+</div>
+
+<script>
+    test(() => {
+        const cs = (id) => getComputedStyle(document.getElementById(id));
+
+        // 1. Basic inheritance through chain
+        println("=== Basic inheritance ===");
+        println(`root --color: ${cs("parent").getPropertyValue("--color").trim()}`);
+        println(`parent --color: ${cs("parent").getPropertyValue("--color").trim()}`);
+        println(`child --color: ${cs("child").getPropertyValue("--color").trim()}`);
+        println(`grandchild --color: ${cs("grandchild").getPropertyValue("--color").trim()}`);
+
+        // 2. Property set at root, inherited through chain
+        println("=== Root property inheritance ===");
+        println(`parent --font: ${cs("parent").getPropertyValue("--font").trim()}`);
+        println(`child --font: ${cs("child").getPropertyValue("--font").trim()}`);
+        println(`grandchild --font: ${cs("grandchild").getPropertyValue("--font").trim()}`);
+
+        // 3. Override at middle level
+        println("=== Override at middle ===");
+        println(`parent --size: ${cs("parent").getPropertyValue("--size").trim()}`);
+        println(`child --size: ${cs("child").getPropertyValue("--size").trim()}`);
+        println(`grandchild --size: ${cs("grandchild").getPropertyValue("--size").trim()}`);
+
+        // 4. Property only on parent, not root
+        println("=== Parent-only property ===");
+        println(`parent --extra: ${cs("parent").getPropertyValue("--extra").trim()}`);
+        println(`child --extra: ${cs("child").getPropertyValue("--extra").trim()}`);
+        println(`grandchild --extra: ${cs("grandchild").getPropertyValue("--extra").trim()}`);
+
+        // 5. Deep chain (tests flattening heuristic)
+        println("=== Deep chain ===");
+        const deep = cs("deep");
+        println(`deep --a: ${deep.getPropertyValue("--a").trim()}`);
+        println(`deep --b: ${deep.getPropertyValue("--b").trim()}`);
+        println(`deep --c: ${deep.getPropertyValue("--c").trim()}`);
+        println(`deep --d: ${deep.getPropertyValue("--d").trim()}`);
+        println(`deep --e: ${deep.getPropertyValue("--e").trim()}`);
+        println(`deep --f: ${deep.getPropertyValue("--f").trim()}`);
+        println(`deep --color: ${deep.getPropertyValue("--color").trim()}`);
+
+        // 6. Shadowing: child overrides parent
+        println("=== Shadowing ===");
+        println(`shadow-parent --x: ${cs("shadow-parent").getPropertyValue("--x").trim()}`);
+        println(`shadow-child --x: ${cs("shadow-child").getPropertyValue("--x").trim()}`);
+        println(`shadow-child --y: ${cs("shadow-child").getPropertyValue("--y").trim()}`);
+
+        // 7. Pseudo-element custom properties
+        println("=== Pseudo-elements ===");
+        const pseudoStyle = getComputedStyle(document.getElementById("pseudo"), "::before");
+        println(`pseudo::before --pseudo-var: ${pseudoStyle.getPropertyValue("--pseudo-var").trim()}`);
+        println(`pseudo::before --inherited-var: ${pseudoStyle.getPropertyValue("--inherited-var").trim()}`);
+
+        // 8. Dynamic update: set property on parent, check child sees it
+        println("=== Dynamic update ===");
+        const parent = document.getElementById("dynamic-parent");
+        const childStyle = cs("dynamic-child");
+        println(`before: ${childStyle.getPropertyValue("--dynamic").trim() || "(empty)"}`);
+        parent.style.setProperty("--dynamic", "hello");
+        println(`after: ${cs("dynamic-child").getPropertyValue("--dynamic").trim()}`);
+
+        // 9. Dynamic update: change existing property
+        parent.style.setProperty("--dynamic", "world");
+        println(`changed: ${cs("dynamic-child").getPropertyValue("--dynamic").trim()}`);
+
+        // 10. Dynamic update: remove property
+        parent.style.removeProperty("--dynamic");
+        println(`removed: ${cs("dynamic-child").getPropertyValue("--dynamic").trim() || "(empty)"}`);
+
+        // 11. Nonexistent property returns empty
+        println("=== Nonexistent ===");
+        println(`nonexistent: ${cs("child").getPropertyValue("--does-not-exist") || "(empty)"}`);
+    });
+</script>

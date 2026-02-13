@@ -3303,10 +3303,10 @@ PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
     return *(m_pseudo_element_data->get(type).value());
 }
 
-void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element, OrderedHashMap<FlyString, CSS::StyleProperty> custom_properties)
+void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
     if (!pseudo_element.has_value()) {
-        m_custom_properties = move(custom_properties);
+        m_custom_property_data = move(data);
         return;
     }
 
@@ -3314,20 +3314,18 @@ void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element,
         return;
     }
 
-    ensure_pseudo_element(pseudo_element.value()).set_custom_properties(move(custom_properties));
+    ensure_pseudo_element(pseudo_element.value()).set_custom_property_data(move(data));
 }
 
-OrderedHashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::PseudoElement> pseudo_element) const
+RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    static OrderedHashMap<FlyString, CSS::StyleProperty> s_empty_custom_properties;
-
     if (!pseudo_element.has_value())
-        return m_custom_properties;
+        return m_custom_property_data;
 
     if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
-        return s_empty_custom_properties;
+        return nullptr;
 
-    return ensure_pseudo_element(pseudo_element.value()).custom_properties();
+    return ensure_pseudo_element(pseudo_element.value()).custom_property_data();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll

@@ -23,6 +23,7 @@
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetList.h>
@@ -334,13 +335,15 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "dump-all-resolved-styles") {
-        auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style, OrderedHashMap<FlyString, Web::CSS::StyleProperty> const& custom_properties) {
+        auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style, RefPtr<Web::CSS::CustomPropertyData const> custom_property_data) {
             dbgln("+ {}", title);
             for (size_t i = to_underlying(Web::CSS::first_longhand_property_id); i < to_underlying(Web::CSS::last_longhand_property_id); ++i) {
                 dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), style.property(static_cast<Web::CSS::PropertyID>(i)).to_string(Web::CSS::SerializationMode::Normal));
             }
-            for (auto const& [name, property] : custom_properties) {
-                dbgln("|  {} = {}", name, property.value->to_string(Web::CSS::SerializationMode::Normal));
+            if (custom_property_data) {
+                custom_property_data->for_each_property([](FlyString const& name, Web::CSS::StyleProperty const& property) {
+                    dbgln("|  {} = {}", name, property.value->to_string(Web::CSS::SerializationMode::Normal));
+                });
             }
             dbgln("---");
         };
@@ -354,12 +357,12 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                     nodes_to_visit.enqueue(child.ptr());
                 if (auto* element = as_if<Web::DOM::Element>(node)) {
                     auto styles = doc->style_computer().compute_style({ *element });
-                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_properties({}));
+                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_property_data({}));
 
                     for (auto pseudo_element_index = 0; pseudo_element_index < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount); ++pseudo_element_index) {
                         auto pseudo_element_type = static_cast<Web::CSS::PseudoElement>(pseudo_element_index);
                         if (auto pseudo_element = element->get_pseudo_element(pseudo_element_type); pseudo_element.has_value() && pseudo_element->computed_properties()) {
-                            dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element->computed_properties(), pseudo_element->custom_properties());
+                            dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element->computed_properties(), pseudo_element->custom_property_data());
                         }
                     }
                 }
@@ -494,9 +497,10 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
         });
 
         // FIXME: Custom properties are not yet included in ComputedProperties, so add them manually.
-        auto custom_properties = element.custom_properties(pseudo_element);
-        for (auto const& [name, value] : custom_properties) {
-            serialized.set(name, value.value->to_string(Web::CSS::SerializationMode::Normal));
+        if (auto custom_property_data = element.custom_property_data(pseudo_element)) {
+            custom_property_data->for_each_property([&](FlyString const& name, Web::CSS::StyleProperty const& value) {
+                serialized.set(name, value.value->to_string(Web::CSS::SerializationMode::Normal));
+            });
         }
 
         return serialized;
