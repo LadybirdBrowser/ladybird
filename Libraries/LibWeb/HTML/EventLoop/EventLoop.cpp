@@ -406,9 +406,8 @@ void EventLoop::update_the_rendering()
     }
 
     // 9. For each doc of docs, run the scroll steps for doc. [CSSOMVIEW]
-    for (auto& document : docs) {
+    for (auto& document : docs)
         document->run_the_scroll_steps();
-    }
 
     // 10. For each doc of docs, evaluate media queries and report changes for doc. [CSSOMVIEW]
     for (auto& document : docs) {
