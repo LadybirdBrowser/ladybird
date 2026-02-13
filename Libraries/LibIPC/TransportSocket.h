@@ -88,6 +88,7 @@ private:
     void stop_io_thread(IOThreadState desired_state);
     void wake_io_thread();
     void read_incoming_messages();
+    void notify_read_available();
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
 

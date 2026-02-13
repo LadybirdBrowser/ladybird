@@ -54,11 +54,9 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
 
     m_send_queue = adopt_ref(*new SendQueue);
 
-    {
-        auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
-        m_wakeup_io_thread_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
-        m_wakeup_io_thread_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
-    }
+    auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
+    m_wakeup_io_thread_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
+    m_wakeup_io_thread_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
 
     {
         auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
@@ -137,6 +135,7 @@ intptr_t TransportSocket::io_thread_loop()
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
     m_peer_eof = true;
     m_incoming_cv.broadcast();
+    notify_read_available();
     return 0;
 }
 
@@ -159,6 +158,14 @@ void TransportSocket::stop_io_thread(IOThreadState desired_state)
     wake_io_thread();
     if (m_io_thread && m_io_thread->needs_to_be_joined())
         (void)m_io_thread->join();
+}
+
+void TransportSocket::notify_read_available()
+{
+    if (!m_notify_hook_write_fd)
+        return;
+    Array<u8, 1> bytes = { 0 };
+    (void)Core::System::write(m_notify_hook_write_fd->value(), bytes);
 }
 
 void TransportSocket::set_up_read_hook(Function<void()> hook)
@@ -463,11 +470,6 @@ void TransportSocket::read_incoming_messages()
     } else {
         m_unprocessed_bytes.clear();
     }
-
-    auto notify_read_available = [&] {
-        Array<u8, 1> bytes = { 0 };
-        (void)Core::System::write(m_notify_hook_write_fd->value(), bytes);
-    };
 
     if (!batch.is_empty()) {
         Threading::MutexLocker locker(m_incoming_mutex);
