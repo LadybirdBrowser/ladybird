@@ -79,6 +79,14 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
         MUST(Core::System::close(stdout_pipe[1]));
         MUST(Core::System::close(stderr_pipe[1]));
 
+#if !defined(AK_OS_WINDOWS)
+        // test-web: Make the read ends non-blocking so the parent can drain without risking stalls.
+        int stdout_flags = TRY(Core::System::fcntl(stdout_pipe[0], F_GETFL));
+        TRY(Core::System::fcntl(stdout_pipe[0], F_SETFL, stdout_flags | O_NONBLOCK));
+        int stderr_flags = TRY(Core::System::fcntl(stderr_pipe[0], F_GETFL));
+        TRY(Core::System::fcntl(stderr_pipe[0], F_SETFL, stderr_flags | O_NONBLOCK));
+#endif
+
         // Wrap read ends in File objects
         output_capture.stdout_file = TRY(Core::File::adopt_fd(stdout_pipe[0], Core::File::OpenMode::Read));
         output_capture.stderr_file = TRY(Core::File::adopt_fd(stderr_pipe[0], Core::File::OpenMode::Read));
