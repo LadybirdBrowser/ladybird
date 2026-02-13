@@ -9,6 +9,7 @@
  */
 
 #include "Application.h"
+#include "Debug.h"
 #include "TestWeb.h"
 #include "TestWebView.h"
 
@@ -288,7 +289,13 @@ static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& 
     if (!capture.stderr_buffer.is_empty()) {
         auto stderr_path = ByteString::formatted("{}.stderr.txt", base_path);
         auto file = TRY(Core::File::open(stderr_path, Core::File::OpenMode::Write));
-        TRY(file->write_until_depleted(capture.stderr_buffer.string_view().bytes()));
+        auto stderr_view = capture.stderr_buffer.string_view();
+        if (stderr_view.contains('\x1b')) {
+            auto stripped = strip_sgr_sequences(stderr_view);
+            TRY(file->write_until_depleted(stripped.bytes()));
+        } else {
+            TRY(file->write_until_depleted(stderr_view.bytes()));
+        }
     }
 
     // Clear buffers for next test
