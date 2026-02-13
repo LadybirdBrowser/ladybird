@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html, body { margin: 0; }
+    .container {
+        position: relative;
+        width: 300px;
+        height: 200px;
+    }
+    .abspos {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        white-space: nowrap;
+        background: #8f8;
+    }
+</style>
+<div class="container">
+    <svg width="100" height="100">
+        <foreignObject width="100" height="100">
+            <div class="abspos" id="abspos"><span id="text">short</span></div>
+        </foreignObject>
+    </svg>
+</div>
+<script>
+    asyncTest(done => {
+        const abspos = document.getElementById("abspos");
+        const text = document.getElementById("text");
+
+        document.body.offsetWidth;
+        const before = abspos.getBoundingClientRect();
+
+        // This mutates a text node inside an abspos element whose containing
+        // block is outside the SVG subtree.
+        text.firstChild.data = "this is a much much longer text inside abspos";
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const after = abspos.getBoundingClientRect();
+                println(`width-grew=${after.width > before.width}`);
+                println(`position-stable=${after.x === before.x && after.y === before.y}`);
+                done();
+            });
+        });
+    });
+</script>
