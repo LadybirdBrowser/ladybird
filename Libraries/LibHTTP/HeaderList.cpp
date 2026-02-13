@@ -289,7 +289,7 @@ static Optional<HeaderList::ContentRangeValues> parse_single_byte_content_range_
         return {};
 
     // complete-length = ( 1*DIGIT / "*" )
-    if (!lexer.consume_specific('*')) {
+    if (lexer.consume_specific('*')) {
         result.complete_length = {};
     } else {
         auto complete_length_result = lexer.consume_decimal_integer<u64>();
@@ -297,6 +297,9 @@ static Optional<HeaderList::ContentRangeValues> parse_single_byte_content_range_
             return {};
         result.complete_length = complete_length_result.release_value();
     }
+
+    if (!lexer.is_eof())
+        return {};
 
     return result;
 }
