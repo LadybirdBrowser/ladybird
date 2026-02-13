@@ -333,12 +333,12 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
 
         // The string "video/*"
         //     Indicates that video files are accepted.
-        if (value.equals_ignoring_ascii_case("video/*"sv))
+        else if (value.equals_ignoring_ascii_case("video/*"sv))
             filter.add_filter(FileFilter::FileType::Video);
 
         // The string "image/*"
         //     Indicates that image files are accepted.
-        if (value.equals_ignoring_ascii_case("image/*"sv))
+        else if (value.equals_ignoring_ascii_case("image/*"sv))
             filter.add_filter(FileFilter::FileType::Image);
 
         // A valid MIME type string with no parameters
