@@ -261,6 +261,27 @@ class AKFlyStringPrinter(GenericPrinter):
             return f"<error: {e}>"
 
 
+class AKOptionalPrinter(GenericPrinter):
+    """Pretty-printer for AK::Optional"""
+
+    def __init__(self, val):
+        super().__init__(val)
+        self.has_value = bool(self.val["m_has_value"])
+        self.contained_type = self.val.type.strip_typedefs().template_argument(0)
+
+    def to_string(self):
+        try:
+            if not self.has_value:
+                return "Empty"
+
+            value = self.val["m_storage"]
+            return value.format_string()
+        except gdb.MemoryError:
+            return "<invalid memory>"
+        except Exception as e:
+            return f"<error: {e}>"
+
+
 def build_pretty_printer():
     pp = gdb.printing.RegexpCollectionPrettyPrinter("AK")
     pp.add_printer("AK::String", "^AK::String$", AKStringPrinter)
@@ -268,6 +289,7 @@ def build_pretty_printer():
     pp.add_printer("AK::Detail::StringData", "^AK::Detail::StringData$", AKStringDataPrinter)
     pp.add_printer("AK::StringView", "^AK::StringView$", AKStringViewPrinter)
     pp.add_printer("AK::FlyString", "^AK::FlyString$", AKFlyStringPrinter)
+    pp.add_printer("AK::Optional", "^AK::Optional<.*>$", AKOptionalPrinter)
     return pp
 
 
