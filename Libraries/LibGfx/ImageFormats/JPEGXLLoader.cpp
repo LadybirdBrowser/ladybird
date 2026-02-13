@@ -266,6 +266,13 @@ ErrorOr<ImageFrameDescriptor> JPEGXLImageDecoderPlugin::frame(size_t index, Opti
     return m_context->frame_descriptors()[index];
 }
 
+int JPEGXLImageDecoderPlugin::frame_duration(size_t index)
+{
+    if (index >= m_context->frame_descriptors().size())
+        return 0;
+    return m_context->frame_descriptors()[index].duration;
+}
+
 ErrorOr<Optional<ReadonlyBytes>> JPEGXLImageDecoderPlugin::icc_data()
 {
     return OptionalNone {};

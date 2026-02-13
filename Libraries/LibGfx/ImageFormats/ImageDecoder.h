@@ -83,6 +83,14 @@ public:
 
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) = 0;
 
+    // Returns the duration of a frame in milliseconds without decoding pixel data.
+    // Not all formats support this; the default returns 0.
+    virtual int frame_duration(size_t index)
+    {
+        (void)index;
+        return 0;
+    }
+
     virtual Optional<Metadata const&> metadata() { return OptionalNone {}; }
 
     virtual ErrorOr<Optional<Media::CodingIndependentCodePoints>> cicp() { return OptionalNone {}; }
@@ -110,6 +118,7 @@ public:
     size_t first_animated_frame_index() const { return m_plugin->first_animated_frame_index(); }
 
     ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) const { return m_plugin->frame(index, ideal_size); }
+    int frame_duration(size_t index) const { return m_plugin->frame_duration(index); }
 
     Optional<Metadata const&> metadata() const { return m_plugin->metadata(); }
     ErrorOr<ColorSpace> color_space();

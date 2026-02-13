@@ -469,6 +469,27 @@ size_t GIFImageDecoderPlugin::first_animated_frame_index()
     return 0;
 }
 
+int GIFImageDecoderPlugin::frame_duration(size_t index)
+{
+    if (m_context->error_state != GIFLoadingContext::ErrorState::NoError)
+        return 0;
+
+    if (m_context->state < GIFLoadingContext::State::FrameDescriptorsLoaded) {
+        if (load_gif_frame_descriptors(*m_context).is_error()) {
+            m_context->error_state = GIFLoadingContext::ErrorState::FailedToLoadFrameDescriptors;
+            return 0;
+        }
+    }
+
+    if (index >= m_context->images.size())
+        return 0;
+
+    int duration = m_context->images[index]->duration * 10;
+    if (duration <= 10)
+        duration = 100;
+    return duration;
+}
+
 ErrorOr<ImageFrameDescriptor> GIFImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
 {
     if (m_context->error_state == GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame) {

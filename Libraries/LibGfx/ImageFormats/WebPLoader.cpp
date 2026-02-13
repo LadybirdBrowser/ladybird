@@ -32,6 +32,7 @@ struct WebPLoadingContext {
     size_t frame_count;
     size_t loop_count;
     ByteBuffer icc_data;
+    Vector<int> frame_durations;
 
     Vector<ImageFrameDescriptor> frame_descriptors;
 };
@@ -91,6 +92,19 @@ static ErrorOr<void> decode_webp_header(WebPLoadingContext& context)
 
         context.frame_count = anim_info.frame_count;
         context.loop_count = anim_info.loop_count;
+
+        // Extract frame durations from the demuxer without decoding pixels.
+        auto* demux = WebPDemux(&webp_data);
+        if (demux) {
+            WebPIterator iter {};
+            if (WebPDemuxGetFrame(demux, 1, &iter)) {
+                do {
+                    context.frame_durations.append(iter.duration);
+                } while (WebPDemuxNextFrame(&iter));
+                WebPDemuxReleaseIterator(&iter);
+            }
+            WebPDemuxDelete(demux);
+        }
     }
 
     WebPData webp_data { .bytes = context.data.data(), .size = context.data.size() };
@@ -220,6 +234,15 @@ ErrorOr<ImageFrameDescriptor> WebPImageDecoderPlugin::frame(size_t index, Option
     if (index >= m_context->frame_descriptors.size())
         return Error::from_string_literal("WebPImageDecoderPlugin: Invalid frame index");
     return m_context->frame_descriptors[index];
+}
+
+int WebPImageDecoderPlugin::frame_duration(size_t index)
+{
+    if (index < m_context->frame_durations.size())
+        return m_context->frame_durations[index];
+    if (index < m_context->frame_descriptors.size())
+        return m_context->frame_descriptors[index].duration;
+    return 0;
 }
 
 ErrorOr<Optional<ReadonlyBytes>> WebPImageDecoderPlugin::icc_data()

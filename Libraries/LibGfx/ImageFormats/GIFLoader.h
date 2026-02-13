@@ -29,6 +29,7 @@ public:
     virtual size_t frame_count() override;
     virtual size_t first_animated_frame_index() override;
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) override;
+    virtual int frame_duration(size_t index) override;
 
 private:
     GIFImageDecoderPlugin(FixedMemoryStream);
