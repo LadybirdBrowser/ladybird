@@ -3648,7 +3648,8 @@ void Document::run_the_scroll_steps()
 
     // 2. For each item (target, type) in doc’s pending scroll events, in the order they were added to the list, run
     //    these substeps:
-    for (auto const& [target, type] : m_pending_scroll_events) {
+    auto pending_scroll_events = move(m_pending_scroll_events);
+    for (auto const& [target, type] : pending_scroll_events) {
         // 1. If target is a Document, and type is "scroll" or "scrollend", fire an event named type that bubbles at target.
         if (is<Document>(*target) && (type == HTML::EventNames::scroll || type == HTML::EventNames::scrollend)) {
             auto event = DOM::Event::create(realm(), type);
@@ -3665,7 +3666,8 @@ void Document::run_the_scroll_steps()
     }
 
     // 3. Empty doc’s pending scroll events.
-    m_pending_scroll_events.clear();
+    // AD-HOC: We already emptied the scroll events by moving in step 2. This prevents us from removing new scroll
+    //         events that were added while dispatching the old scroll events.
 }
 
 void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_list)
