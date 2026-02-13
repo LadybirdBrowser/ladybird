@@ -221,31 +221,59 @@ static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, C
 {
     auto overflow_x = computed_values.overflow_x();
     auto overflow_y = computed_values.overflow_y();
+
+    // https://drafts.csswg.org/css-contain-2/#paint-containment
+    // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
+    //    edge of the paint containment box, taking corner clipping into account. This does not include the creation of
+    //    any mechanism to access or indicate the presence of the clipped content; nor does it inhibit the creation of
+    //    any such mechanism through other properties, such as overflow, resize, or text-overflow.
+    //    NOTE: This clipping shape respects overflow-clip-margin, allowing an element with paint containment
+    //          to still slightly overflow its normal bounds.
+    if (paintable_box.layout_node().has_paint_containment()) {
+        // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
+        //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
+        //       values of 'overflow-x' and 'overflow-y' unchanged.
+        overflow_x = CSS::Overflow::Clip;
+        overflow_y = CSS::Overflow::Clip;
+    }
+
     auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
 
-    auto should_clip_overflow = has_hidden_overflow && paintable_box.overflow_property_applies();
-    if (should_clip_overflow || paintable_box.layout_node().has_paint_containment()) {
-        bool clip_x = overflow_x != CSS::Overflow::Visible;
-        bool clip_y = overflow_y != CSS::Overflow::Visible;
+    if (has_hidden_overflow && paintable_box.overflow_property_applies()) {
+        auto clip_rect = paintable_box.absolute_padding_box_rect();
 
-        if (paintable_box.layout_node().has_paint_containment()) {
-            clip_x = true;
-            clip_y = true;
+        // https://drafts.csswg.org/css-overflow-3/#propdef-overflow
+        // 'clip'
+        //    This value indicates that the box’s content is clipped to its overflow clip edge
+        auto overflow_clip_edge = paintable_box.overflow_clip_edge_rect();
+        if (overflow_x == CSS::Overflow::Visible) {
+            clip_rect.set_left(0);
+            clip_rect.set_right(CSSPixels::max_integer_value);
+        } else if (overflow_x == CSS::Overflow::Clip) {
+            clip_rect.set_left(overflow_clip_edge.left());
+            clip_rect.set_right(overflow_clip_edge.right());
+        }
+        if (overflow_y == CSS::Overflow::Visible) {
+            clip_rect.set_top(0);
+            clip_rect.set_bottom(CSSPixels::max_integer_value);
+        } else if (overflow_y == CSS::Overflow::Clip) {
+            clip_rect.set_top(overflow_clip_edge.top());
+            clip_rect.set_bottom(overflow_clip_edge.bottom());
         }
 
-        if (clip_x || clip_y) {
-            auto clip_rect = paintable_box.overflow_clip_edge_rect();
-            if (!clip_x) {
-                clip_rect.set_left(0);
-                clip_rect.set_right(CSSPixels::max_integer_value);
-            }
-            if (!clip_y) {
-                clip_rect.set_top(0);
-                clip_rect.set_bottom(CSSPixels::max_integer_value);
-            }
-            auto radii = (clip_x && clip_y) ? paintable_box.normalized_border_radii_data(PaintableBox::ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
-            return ClipData { clip_rect, radii };
-        }
+        // https://drafts.csswg.org/css-overflow-3/#corner-clipping
+        // As mentioned in CSS Backgrounds 3 § 4.3 Corner Clipping, the clipping region established by 'overflow' can be
+        // rounded:
+        // - When 'overflow-x' and 'overflow-y' compute to 'hidden', 'scroll', or 'auto', the clipping region is rounded
+        //   based on the border radius, adjusted to the padding edge, as described in CSS Backgrounds 3 § 4.2 Corner
+        //   Shaping.
+        // - When both 'overflow-x' and 'overflow-y' compute to 'clip', the clipping region is rounded as described in § 3.2
+        //   Expanding Clipping Bounds: the 'overflow-clip-margin' property.
+        // - However, when one of 'overflow-x' or 'overflow-y' computes to 'clip' and the other computes to 'visible', the
+        //   clipping region is not rounded.
+        // FIXME: Adjust the border radii for the overflow-clip-margin case. (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
+        auto radii = (overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible) ? paintable_box.normalized_border_radii_data(PaintableBox::ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
+        return ClipData { clip_rect, radii };
     }
 
     return {};
