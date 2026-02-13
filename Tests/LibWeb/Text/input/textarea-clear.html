@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const textarea = document.createElement('textarea');
+        textarea.textContent = 'initial content';
+        document.body.appendChild(textarea);
+
+        textarea.value = 'user modified';
+        internals.clearElement(textarea);
+        println(`1. value after clear: "${textarea.value}"`);
+        println(`2. defaultValue after clear: "${textarea.defaultValue}"`);
+
+        document.body.removeChild(textarea);
+    });
+</script>

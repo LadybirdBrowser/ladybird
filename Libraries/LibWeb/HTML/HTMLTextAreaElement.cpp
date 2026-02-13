@@ -127,7 +127,7 @@ void HTMLTextAreaElement::clear_algorithm()
     m_dirty_value = false;
 
     // and set the raw value of element to an empty string.
-    set_raw_value(child_text_content());
+    set_raw_value({});
 
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).

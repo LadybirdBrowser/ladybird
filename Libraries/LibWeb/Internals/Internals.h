@@ -104,6 +104,8 @@ public:
 
     void set_highlighted_node(GC::Ptr<DOM::Node> node);
 
+    void clear_element(HTML::HTMLElement&);
+
 private:
     explicit Internals(JS::Realm&);
 
