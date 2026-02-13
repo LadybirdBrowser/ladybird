@@ -37,6 +37,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
     args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
     args_parser.add_option(debug_timeouts, "Capture backtrace on timeouts (see test-dumps html -> Timeouts -> stderr)", "debug-timeouts");
+    args_parser.add_option(fail_fast, "Abort on first failure/timeout/crash (offers debugger attach on timeout)", "fail-fast");
 
     args_parser.add_option(repeat_count, "Repeat all matched tests N times", "repeat", 0, "n");
 

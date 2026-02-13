@@ -57,6 +57,8 @@ static bool s_is_tty = false;
 
 static size_t s_current_run = 1;
 
+static bool s_fail_fast_triggered = false;
+
 static void update_terminal_size()
 {
 #ifndef AK_OS_WINDOWS
@@ -1424,6 +1426,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     s_crashed_count = 0;
     s_skipped_count = 0;
     s_completed_tests = 0;
+    s_fail_fast_triggered = false;
 
     s_total_tests = tests.size();
     outln("Running {} tests...", tests.size());
@@ -1480,6 +1483,12 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
         // run_next_test handles: reset promise, attach callback, pick test, run test
         auto run_next_test = [&, view = view.ptr(), cleanup_test, view_id]() {
+            if (app.fail_fast && s_fail_fast_triggered) {
+                if (view_id < s_view_display_states.size())
+                    s_view_display_states[view_id].active = false;
+                return;
+            }
+
             // Check without incrementing first - only consume an index if we have a test
             if (current_test >= tests.size()) {
                 // Mark this view as idle (for variant wake-up tracking)
@@ -1515,7 +1524,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             // Reset promise and attach completion callback
             view->reset_test_promise();
-            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, digits_for_view_id, digits_for_test_id](auto result) {
+            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, digits_for_view_id, digits_for_test_id, use_live_display](auto result) {
                 cleanup_test(result.test_index, result.result);
 
                 auto& test = tests[result.test_index];
@@ -1573,8 +1582,55 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 if (result.result != TestResult::Expanded)
                     ++s_completed_tests;
 
-                if (result.result != TestResult::Pass && result.result != TestResult::Expanded)
+                bool const is_non_passing_result = result.result != TestResult::Pass && result.result != TestResult::Expanded;
+                bool const should_trigger_fail_fast = result.result == TestResult::Fail || result.result == TestResult::Timeout || result.result == TestResult::Crashed;
+
+                if (is_non_passing_result)
                     non_passing_tests.append(result);
+
+                if (app.fail_fast && !s_fail_fast_triggered && should_trigger_fail_fast) {
+                    s_fail_fast_triggered = true;
+
+                    if (s_display_timer) {
+                        s_display_timer->stop();
+                        s_display_timer = nullptr;
+                    }
+
+                    if (use_live_display) {
+                        for (size_t i = 0; i < s_live_display_lines; ++i)
+                            out("\033[A\033[2K"sv);
+                        out("\r"sv);
+                        (void)fflush(stdout);
+                        s_live_display_lines = 0;
+                        print_deferred_warnings();
+                    }
+
+                    auto const pid = view->web_content_pid();
+                    if (result.result == TestResult::Timeout)
+                        outln("Fail-fast: Timeout: {} (pid {})", test.relative_path, pid);
+                    else
+                        outln("Fail-fast: {}: {}", test_result_to_string(result.result), test.relative_path);
+
+                    if (result.result == TestResult::Timeout) {
+                        auto& capture = output_capture_for_view(*view);
+                        StringBuilder backtrace_output;
+                        append_timeout_backtraces_to_stderr(backtrace_output, *view, test, view_id);
+                        auto backtrace_output_view = backtrace_output.string_view();
+                        capture.stderr_buffer.append(backtrace_output_view);
+
+                        if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
+                            (void)Core::System::write(STDERR_FILENO, backtrace_output_view.bytes());
+                    }
+
+                    if (s_all_tests_complete)
+                        s_all_tests_complete->reject(Error::from_string_literal("Fail-fast"));
+                    Core::EventLoop::current().quit(1);
+
+                    if (result.result == TestResult::Timeout)
+                        maybe_attach_on_fail_fast_timeout(pid);
+
+                    return;
+                }
 
                 if (--tests_remaining == 0) {
                     s_all_tests_complete->resolve({});

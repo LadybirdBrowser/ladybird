@@ -42,6 +42,66 @@ ByteBuffer strip_sgr_sequences(StringView input)
     return output;
 }
 
+static bool stdin_and_stdout_are_ttys()
+{
+    auto stdin_is_tty_or_error = Core::System::isatty(0);
+    auto stdout_is_tty_or_error = Core::System::isatty(1);
+
+    return !stdin_is_tty_or_error.is_error() && stdin_is_tty_or_error.value()
+        && !stdout_is_tty_or_error.is_error() && stdout_is_tty_or_error.value();
+}
+
+static void maybe_attach_lldb_to_process(pid_t pid)
+{
+    if (pid <= 0)
+        return;
+
+    Vector<ByteString> arguments;
+    arguments.append("-p"sv);
+    arguments.append(ByteString::number(pid));
+
+    auto process_or_error = Core::Process::spawn({
+        .executable = "lldb"sv,
+        .search_for_executable_in_path = true,
+        .arguments = arguments,
+    });
+
+    if (process_or_error.is_error()) {
+        warnln("Failed to spawn lldb: {}", process_or_error.error());
+        return;
+    }
+
+    Core::Process lldb = process_or_error.release_value();
+    if (auto wait_result = lldb.wait_for_termination(); wait_result.is_error())
+        warnln("Failed waiting for lldb: {}", wait_result.error());
+}
+
+static void maybe_attach_gdb_to_process(pid_t pid)
+{
+    if (pid <= 0)
+        return;
+
+    Vector<ByteString> arguments;
+    arguments.append("-q"sv);
+    arguments.append("-p"sv);
+    arguments.append(ByteString::number(pid));
+
+    auto process_or_error = Core::Process::spawn({
+        .executable = "gdb"sv,
+        .search_for_executable_in_path = true,
+        .arguments = arguments,
+    });
+
+    if (process_or_error.is_error()) {
+        warnln("Failed to spawn gdb: {}", process_or_error.error());
+        return;
+    }
+
+    Core::Process gdb = process_or_error.release_value();
+    if (auto wait_result = gdb.wait_for_termination(); wait_result.is_error())
+        warnln("Failed waiting for gdb: {}", wait_result.error());
+}
+
 static void append_diagnostics_header(StringBuilder& builder, Test const& test, size_t view_id, StringView current_url)
 {
     auto& app = Application::the();
@@ -309,6 +369,44 @@ static void append_backtrace_for_process(StringBuilder& builder, StringView proc
     }
 
     builder.append("\n"sv);
+}
+
+void maybe_attach_on_fail_fast_timeout(pid_t pid)
+{
+    if (pid <= 0)
+        return;
+    if (!stdin_and_stdout_are_ttys())
+        return;
+
+    outln("Fail-fast timeout in WebContent pid {}.", pid);
+    outln("You may attach a debugger now (test-web will wait)."sv);
+    outln("- Press Enter to continue shutdown + exit"sv);
+    outln("- Type 'gdb' then Enter to attach with gdb first"sv);
+    outln("- Type 'lldb' then Enter to attach with lldb first"sv);
+    MUST(Core::System::write(1, "> "sv.bytes()));
+
+    auto standard_input_or_error = Core::File::standard_input();
+    if (standard_input_or_error.is_error())
+        return;
+
+    Array<u8, 64> input_buffer {};
+    auto buffered_standard_input_or_error = Core::InputBufferedFile::create(standard_input_or_error.release_value());
+    if (buffered_standard_input_or_error.is_error())
+        return;
+
+    auto& buffered_standard_input = buffered_standard_input_or_error.value();
+    auto response_or_error = buffered_standard_input->read_line(input_buffer);
+    if (response_or_error.is_error())
+        return;
+
+    ByteString response { response_or_error.value() };
+    response = response.trim_whitespace();
+    if (response.equals_ignoring_ascii_case("gdb"sv)) {
+        maybe_attach_gdb_to_process(pid);
+        return;
+    }
+    if (response.equals_ignoring_ascii_case("lldb"sv))
+        maybe_attach_lldb_to_process(pid);
 }
 
 void append_timeout_diagnostics_to_stderr(StringBuilder& stderr_builder, TestWebView& view, Test const& test, size_t view_id)
