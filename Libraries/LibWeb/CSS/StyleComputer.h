@@ -191,11 +191,11 @@ private:
     [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
 
     Length::FontMetrics m_default_font_metrics;
-    Length::FontMetrics m_root_element_font_metrics;
+    mutable Length::FontMetrics m_root_element_font_metrics;
 
-    Optional<ComputationContext> m_cached_font_computation_context;
-    Optional<ComputationContext> m_cached_line_height_computation_context;
-    Optional<ComputationContext> m_cached_generic_computation_context;
+    mutable Optional<ComputationContext> m_cached_font_computation_context;
+    mutable Optional<ComputationContext> m_cached_line_height_computation_context;
+    mutable Optional<ComputationContext> m_cached_generic_computation_context;
     ComputationContext const& get_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
     void clear_computation_context_caches() const
     {
