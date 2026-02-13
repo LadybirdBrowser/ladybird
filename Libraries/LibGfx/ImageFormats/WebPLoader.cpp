@@ -35,6 +35,17 @@ struct WebPLoadingContext {
     Vector<int> frame_durations;
 
     Vector<ImageFrameDescriptor> frame_descriptors;
+
+    // Incremental animation decoder state.
+    WebPAnimDecoder* anim_decoder { nullptr };
+    int anim_old_timestamp { 0 };
+    size_t anim_frames_decoded { 0 };
+
+    ~WebPLoadingContext()
+    {
+        if (anim_decoder)
+            WebPAnimDecoderDelete(anim_decoder);
+    }
 };
 
 WebPImageDecoderPlugin::WebPImageDecoderPlugin(ReadonlyBytes data, OwnPtr<WebPLoadingContext> context)
@@ -129,50 +140,63 @@ static ErrorOr<void> decode_webp_header(WebPLoadingContext& context)
     return {};
 }
 
+static ErrorOr<void> ensure_anim_decoder(WebPLoadingContext& context)
+{
+    if (context.anim_decoder)
+        return {};
+
+    WebPAnimDecoderOptions options {};
+    WebPAnimDecoderOptionsInit(&options);
+    options.color_mode = MODE_BGRA;
+    options.use_threads = 1;
+
+    WebPData webp_data { .bytes = context.data.data(), .size = context.data.size() };
+    context.anim_decoder = WebPAnimDecoderNew(&webp_data, &options);
+    if (!context.anim_decoder)
+        return Error::from_string_literal("Failed to create WebPAnimDecoder");
+
+    context.anim_old_timestamp = 0;
+    context.anim_frames_decoded = 0;
+
+    return {};
+}
+
+static ErrorOr<ImageFrameDescriptor> decode_next_webp_animation_frame(WebPLoadingContext& context)
+{
+    TRY(ensure_anim_decoder(context));
+
+    if (!WebPAnimDecoderHasMoreFrames(context.anim_decoder))
+        return Error::from_string_literal("No more frames to decode");
+
+    uint8_t* frame_data = nullptr;
+    int timestamp = 0;
+    if (!WebPAnimDecoderGetNext(context.anim_decoder, &frame_data, &timestamp))
+        return Error::from_string_literal("Failed to decode animated frame");
+
+    auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
+    auto bitmap = TRY(Bitmap::create(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
+    memcpy(bitmap->scanline_u8(0), frame_data, context.size.width() * context.size.height() * 4);
+
+    auto duration = timestamp - context.anim_old_timestamp;
+    context.anim_old_timestamp = timestamp;
+    ++context.anim_frames_decoded;
+
+    return ImageFrameDescriptor { bitmap, duration };
+}
+
 static ErrorOr<void> decode_webp_image(WebPLoadingContext& context)
 {
     VERIFY(context.state >= WebPLoadingContext::State::HeaderDecoded);
+    VERIFY(!context.has_animation);
 
-    if (context.has_animation) {
-        WebPAnimDecoderOptions anim_decoder_options {};
-        WebPAnimDecoderOptionsInit(&anim_decoder_options);
-        anim_decoder_options.color_mode = MODE_BGRA;
-        anim_decoder_options.use_threads = 1;
+    auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
+    auto bitmap = TRY(Bitmap::create(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
 
-        WebPData webp_data { .bytes = context.data.data(), .size = context.data.size() };
-        auto* anim_decoder = WebPAnimDecoderNew(&webp_data, &anim_decoder_options);
-        if (anim_decoder == nullptr)
-            return Error::from_string_literal("Failed to allocate WebPAnimDecoderNew failed");
-        ScopeGuard guard { [=]() { WebPAnimDecoderDelete(anim_decoder); } };
+    auto image_data = WebPDecodeBGRAInto(context.data.data(), context.data.size(), bitmap->scanline_u8(0), bitmap->data_size(), bitmap->pitch());
+    if (image_data == nullptr)
+        return Error::from_string_literal("Failed to decode webp image into bitmap");
 
-        int old_timestamp = 0;
-        while (WebPAnimDecoderHasMoreFrames(anim_decoder)) {
-            uint8_t* frame_data = nullptr;
-            int timestamp = 0;
-            if (!WebPAnimDecoderGetNext(anim_decoder, &frame_data, &timestamp))
-                return Error::from_string_literal("Failed to decode animated frame");
-
-            auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-            auto bitmap = TRY(Bitmap::create(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
-
-            memcpy(bitmap->scanline_u8(0), frame_data, context.size.width() * context.size.height() * 4);
-
-            auto duration = timestamp - old_timestamp;
-            old_timestamp = timestamp;
-
-            context.frame_descriptors.append(ImageFrameDescriptor { bitmap, duration });
-        }
-    } else {
-        auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-        auto bitmap = TRY(Bitmap::create(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
-
-        auto image_data = WebPDecodeBGRAInto(context.data.data(), context.data.size(), bitmap->scanline_u8(0), bitmap->data_size(), bitmap->pitch());
-        if (image_data == nullptr)
-            return Error::from_string_literal("Failed to decode webp image into bitmap");
-
-        auto duration = 0;
-        context.frame_descriptors.append(ImageFrameDescriptor { bitmap, duration });
-    }
+    context.frame_descriptors.append(ImageFrameDescriptor { bitmap, 0 });
 
     return {};
 }
@@ -225,6 +249,24 @@ ErrorOr<ImageFrameDescriptor> WebPImageDecoderPlugin::frame(size_t index, Option
 
     if (m_context->state == WebPLoadingContext::State::Error)
         return Error::from_string_literal("WebPImageDecoderPlugin: Decoding failed");
+
+    if (m_context->has_animation) {
+        // Reset the decoder if requesting a frame we've already passed.
+        if (index < m_context->anim_frames_decoded) {
+            if (m_context->anim_decoder) {
+                WebPAnimDecoderReset(m_context->anim_decoder);
+                m_context->anim_frames_decoded = 0;
+                m_context->anim_old_timestamp = 0;
+            }
+        }
+
+        // Skip frames before the requested index.
+        while (m_context->anim_frames_decoded < index)
+            (void)TRY(decode_next_webp_animation_frame(*m_context));
+
+        // Decode and return the requested frame without caching it.
+        return TRY(decode_next_webp_animation_frame(*m_context));
+    }
 
     if (m_context->state < WebPLoadingContext::State::BitmapDecoded) {
         TRY(decode_webp_image(*m_context));
