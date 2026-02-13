@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibGC/Cell.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/PseudoElement.h>
-#include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -43,8 +43,8 @@ public:
 
     GC::Ptr<CSS::ComputedProperties const> computed_properties() const;
 
-    void set_custom_properties(OrderedHashMap<FlyString, CSS::StyleProperty>&& custom_properties);
-    [[nodiscard]] OrderedHashMap<FlyString, CSS::StyleProperty> const& custom_properties() const;
+    void set_custom_property_data(RefPtr<CSS::CustomPropertyData const>);
+    [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data() const;
     RefPtr<CSS::StyleValue const> get_custom_property(FlyString const& name) const;
 
     GC::Ptr<CSS::CascadedProperties> cascaded_properties() const;

@@ -130,32 +130,23 @@ GC::Ptr<CSS::ComputedProperties const> AbstractElement::computed_properties() co
     return m_element->computed_properties(m_pseudo_element);
 }
 
-OrderedHashMap<FlyString, CSS::StyleProperty> const& AbstractElement::custom_properties() const
+RefPtr<CSS::CustomPropertyData const> AbstractElement::custom_property_data() const
 {
-    return m_element->custom_properties(m_pseudo_element);
+    return m_element->custom_property_data(m_pseudo_element);
 }
 
-void AbstractElement::set_custom_properties(OrderedHashMap<FlyString, CSS::StyleProperty>&& custom_properties)
+void AbstractElement::set_custom_property_data(RefPtr<CSS::CustomPropertyData const> data)
 {
-    m_element->set_custom_properties(m_pseudo_element, move(custom_properties));
+    m_element->set_custom_property_data(m_pseudo_element, move(data));
 }
 
 RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(FlyString const& name) const
 {
-    // FIXME: We should be producing computed values for custom properties, just like regular properties.
-    if (m_pseudo_element.has_value()) {
-        auto const& custom_properties = m_element->custom_properties(*m_pseudo_element);
-        if (auto it = custom_properties.find(name); it != custom_properties.end()) {
-            return it->value.value;
-        }
-    }
-
-    for (auto const* current_element = m_element.ptr(); current_element; current_element = current_element->parent_or_shadow_host_element()) {
-        auto const& custom_properties = current_element->custom_properties({});
-        if (auto it = custom_properties.find(name); it != custom_properties.end()) {
-            return it->value.value;
-        }
-    }
+    auto data = custom_property_data();
+    if (!data)
+        return nullptr;
+    if (auto const* property = data->get(name))
+        return property->value;
     return nullptr;
 }
 

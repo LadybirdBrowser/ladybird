@@ -1,0 +1,14 @@
+=== var() through chain ===
+child color: rgb(0, 128, 0)
+parent --ref-color: green
+child --ref-color (inherited): green
+=== inherit keyword ===
+inherit-parent: from-parent
+inherit-child: overridden
+inherit-grandchild: overridden
+=== unset keyword ===
+unset-child: "root-value"
+=== var() fallback ===
+fallback: fallback-value
+=== Multiple var() ===
+combined: hello red 10px

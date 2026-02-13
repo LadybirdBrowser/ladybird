@@ -1,0 +1,39 @@
+=== Basic inheritance ===
+root --color: green
+parent --color: green
+child --color: green
+grandchild --color: green
+=== Root property inheritance ===
+parent --font: serif
+child --font: serif
+grandchild --font: serif
+=== Override at middle ===
+parent --size: 10px
+child --size: 20px
+grandchild --size: 20px
+=== Parent-only property ===
+parent --extra: hello
+child --extra: hello
+grandchild --extra: hello
+=== Deep chain ===
+deep --a: 1
+deep --b: 2
+deep --c: 3
+deep --d: 4
+deep --e: 5
+deep --f: 6
+deep --color: red
+=== Shadowing ===
+shadow-parent --x: parent
+shadow-child --x: child
+shadow-child --y: parent
+=== Pseudo-elements ===
+pseudo::before --pseudo-var: from-pseudo
+pseudo::before --inherited-var: from-element
+=== Dynamic update ===
+before: (empty)
+after: 
+changed: 
+removed: (empty)
+=== Nonexistent ===
+nonexistent: (empty)

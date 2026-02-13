@@ -32,6 +32,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/InvalidationSet.h>
@@ -1829,15 +1830,41 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     PseudoClassBitmap attempted_pseudo_class_matches;
     auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode, style_scope);
 
-    auto old_custom_properties = abstract_element.custom_properties();
+    auto old_custom_property_data = abstract_element.custom_property_data();
 
     // Resolve all the CSS custom properties ("variables") for this element:
     if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
-        OrderedHashMap<FlyString, StyleProperty> custom_properties;
+        OrderedHashMap<FlyString, StyleProperty> cascaded_all;
         for (auto& layer : matching_rule_set.author_rules) {
-            cascade_custom_properties(abstract_element, layer.rules, custom_properties);
+            cascade_custom_properties(abstract_element, layer.rules, cascaded_all);
         }
-        abstract_element.set_custom_properties(move(custom_properties));
+
+        RefPtr<CustomPropertyData const> parent_data;
+        auto inherit_from = abstract_element.element_to_inherit_style_from();
+        if (inherit_from.has_value())
+            parent_data = inherit_from->custom_property_data();
+
+        // Build own_values with only properties that differ from the parent.
+        // We build a fresh map instead of removing from cascaded_all,
+        // because removing entries doesn't shrink the bucket array.
+        OrderedHashMap<FlyString, StyleProperty> cascaded_own;
+        for (auto& [name, property] : cascaded_all) {
+            if (parent_data) {
+                auto const* parent_property = parent_data->get(name);
+                if (parent_property && parent_property->value.ptr() == property.value.ptr())
+                    continue;
+            }
+            cascaded_own.set(name, move(property));
+        }
+
+        if (cascaded_own.is_empty() && parent_data) {
+            abstract_element.set_custom_property_data(parent_data);
+        } else if (cascaded_own.is_empty() && !parent_data) {
+            abstract_element.set_custom_property_data(nullptr);
+        } else {
+            abstract_element.set_custom_property_data(
+                CustomPropertyData::create(move(cascaded_own), move(parent_data)));
+        }
     }
 
     auto logical_alias_mapping_context = compute_logical_alias_mapping_context(abstract_element, mode, matching_rule_set);
@@ -1884,8 +1911,14 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     auto computed_properties = compute_properties(abstract_element, cascaded_properties);
     computed_properties->set_attempted_pseudo_class_matches(attempted_pseudo_class_matches);
 
-    if (did_change_custom_properties.has_value() && abstract_element.custom_properties() != old_custom_properties) {
-        *did_change_custom_properties = true;
+    if (did_change_custom_properties.has_value()) {
+        auto new_custom_property_data = abstract_element.custom_property_data();
+        if (old_custom_property_data.ptr() != new_custom_property_data.ptr()) {
+            auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : OrderedHashMap<FlyString, StyleProperty> {};
+            auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : OrderedHashMap<FlyString, StyleProperty> {};
+            if (old_own != new_own)
+                *did_change_custom_properties = true;
+        }
     }
 
     return computed_properties;
@@ -2158,18 +2191,49 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
     // FIXME: These should probably be part of ComputedProperties.
-    auto custom_properties = abstract_element.custom_properties();
-    decltype(custom_properties) resolved_custom_properties;
+    auto data = abstract_element.custom_property_data();
+    if (!data)
+        return;
 
-    for (auto const& [name, style_property] : custom_properties) {
-        resolved_custom_properties.set(name,
+    // If this element is sharing its parent's data (no own custom properties),
+    // the parent has already resolved its values, so there's nothing to do.
+    auto inherit_from = abstract_element.element_to_inherit_style_from();
+    if (inherit_from.has_value() && inherit_from->custom_property_data().ptr() == data.ptr())
+        return;
+
+    if (data->own_values().is_empty())
+        return;
+
+    // Resolve var() references and only keep values that differ from parent.
+    // This avoids growing the hashmap to full size and then shrinking it,
+    // which would leave an oversized bucket array.
+    RefPtr<CustomPropertyData const> parent_data;
+    if (inherit_from.has_value())
+        parent_data = inherit_from->custom_property_data();
+
+    OrderedHashMap<FlyString, StyleProperty> resolved_own;
+    for (auto const& [name, style_property] : data->own_values()) {
+        auto resolved_value = compute_value_of_custom_property(abstract_element, name);
+        if (parent_data) {
+            auto const* parent_property = parent_data->get(name);
+            if (parent_property && resolved_value->equals(*parent_property->value))
+                continue;
+        }
+        resolved_own.set(name,
             StyleProperty {
                 .important = style_property.important,
                 .property_id = style_property.property_id,
-                .value = compute_value_of_custom_property(abstract_element, name),
+                .value = move(resolved_value),
             });
     }
-    abstract_element.set_custom_properties(move(resolved_custom_properties));
+
+    if (resolved_own.is_empty() && parent_data) {
+        abstract_element.set_custom_property_data(parent_data);
+        return;
+    }
+
+    abstract_element.set_custom_property_data(
+        CustomPropertyData::create(move(resolved_own), parent_data ? move(parent_data) : data->parent()));
 }
 
 static CSSPixels line_width_keyword_to_css_pixels(Keyword keyword)
