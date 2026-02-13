@@ -1396,7 +1396,7 @@
     "inherited": true,
     "initial": "canvastext",
     "needs-layout-node-for-resolved-value": true,
-    "requires-computation": "cascaded-value",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "color"
     ],
