@@ -242,17 +242,10 @@ static void setup_output_capture_for_view(TestWebView& view)
         view_capture->stdout_notifier->on_activation = [fd, &capture = *view_capture]() {
             char buffer[4096];
             auto nread = read(fd, buffer, sizeof(buffer));
-
-            if (nread > 0) {
-                StringView message { buffer, static_cast<size_t>(nread) };
-
-                if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-                    (void)Core::System::write(STDOUT_FILENO, message.bytes());
-
-                capture.stdout_buffer.append(message);
-            } else {
+            if (nread > 0)
+                capture.stdout_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
+            else
                 capture.stdout_notifier->set_enabled(false);
-            }
         };
     }
 
@@ -262,17 +255,10 @@ static void setup_output_capture_for_view(TestWebView& view)
         view_capture->stderr_notifier->on_activation = [fd, &capture = *view_capture]() {
             char buffer[4096];
             auto nread = read(fd, buffer, sizeof(buffer));
-
-            if (nread > 0) {
-                StringView message { buffer, static_cast<size_t>(nread) };
-
-                if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-                    (void)Core::System::write(STDERR_FILENO, message.bytes());
-
-                capture.stderr_buffer.append(message);
-            } else {
+            if (nread > 0)
+                capture.stderr_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
+            else
                 capture.stderr_notifier->set_enabled(false);
-            }
         };
     }
 
@@ -1380,6 +1366,16 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 test.expectation_screenshot.clear();
 
                 test.end_time = UnixDateTime::now();
+
+                if (result.result == TestResult::Timeout && app.debug_timeouts) {
+                    if (auto capture = s_output_captures.get(view); capture.has_value() && *capture) {
+                        append_timeout_diagnostics_to_stderr((**capture).stderr_buffer, *view, test, view_id);
+                    } else if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT) {
+                        StringBuilder diagnostics;
+                        append_timeout_diagnostics_to_stderr(diagnostics, *view, test, view_id);
+                        warnln("{}", diagnostics.string_view());
+                    }
+                }
 
                 // Write captured stdout/stderr to results directory.
                 // NOTE: On crashes, we already flushed it in on_web_content_crashed.

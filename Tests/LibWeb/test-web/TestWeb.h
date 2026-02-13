@@ -43,7 +43,6 @@ enum class RefTestExpectationType {
 
 struct Test {
     TestMode mode;
-
     ByteString input_path {};
     ByteString expectation_path {};
     ByteString relative_path {};
