@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	new-scroll-event-dispatched-at-next-updating-rendering-time
