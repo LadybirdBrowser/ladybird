@@ -104,6 +104,13 @@ size_t PNGImageDecoderPlugin::frame_count()
     return m_context->frame_count;
 }
 
+int PNGImageDecoderPlugin::frame_duration(size_t index)
+{
+    if (index >= m_context->frame_descriptors.size())
+        return 0;
+    return m_context->frame_descriptors[index].duration;
+}
+
 ErrorOr<ImageFrameDescriptor> PNGImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
 {
     if (index >= m_context->frame_descriptors.size())

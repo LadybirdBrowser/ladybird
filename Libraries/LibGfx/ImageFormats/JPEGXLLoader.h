@@ -27,6 +27,7 @@ public:
     virtual ErrorOr<Optional<ReadonlyBytes>> icc_data() override;
 
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) override;
+    virtual int frame_duration(size_t index) override;
 
 private:
     JPEGXLImageDecoderPlugin(OwnPtr<JPEGXLLoadingContext>);

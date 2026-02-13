@@ -186,6 +186,13 @@ ErrorOr<ImageFrameDescriptor> AVIFImageDecoderPlugin::frame(size_t index, Option
     return m_context->frame_descriptors[index];
 }
 
+int AVIFImageDecoderPlugin::frame_duration(size_t index)
+{
+    if (index >= m_context->frame_descriptors.size())
+        return 0;
+    return m_context->frame_descriptors[index].duration;
+}
+
 ErrorOr<Optional<ReadonlyBytes>> AVIFImageDecoderPlugin::icc_data()
 {
     if (m_context->state < AVIFLoadingContext::State::HeaderDecoded)
