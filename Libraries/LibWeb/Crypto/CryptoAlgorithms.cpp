@@ -707,7 +707,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> CShakeParams::from_value(J
     return adopt_own<AlgorithmParams>(*new CShakeParams { length, function_name, customization });
 }
 
-// https://w3c.github.io/webcrypto/#rsa-oaep-operations
+// https://w3c.github.io/webcrypto/#rsa-oaep-operations-encrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto& realm = *m_realm;
@@ -754,7 +754,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
     return JS::ArrayBuffer::create(realm, maybe_ciphertext.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#rsa-oaep-operations
+// https://w3c.github.io/webcrypto/#rsa-oaep-operations-decrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, AK::ByteBuffer const& ciphertext)
 {
     auto& realm = *m_realm;
@@ -801,7 +801,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
     return JS::ArrayBuffer::create(realm, maybe_plaintext.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#rsa-oaep-operations
+// https://w3c.github.io/webcrypto/#rsa-oaep-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -873,7 +873,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
 
-// https://w3c.github.io/webcrypto/#rsa-oaep-operations
+// https://w3c.github.io/webcrypto/#rsa-oaep-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = *m_realm;
@@ -1143,7 +1143,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
     return GC::Ref { *key };
 }
 
-// https://w3c.github.io/webcrypto/#rsa-oaep-operations
+// https://w3c.github.io/webcrypto/#rsa-oaep-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& realm = *m_realm;
@@ -1298,7 +1298,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
     return GC::Ref { *result };
 }
 
-// https://w3c.github.io/webcrypto/#rsa-pss-operations
+// https://w3c.github.io/webcrypto/#rsa-pss-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
@@ -1370,7 +1370,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS:
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
 
-// https://w3c.github.io/webcrypto/#rsa-pss-operations
+// https://w3c.github.io/webcrypto/#rsa-pss-operations-sign
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -1414,7 +1414,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(AlgorithmParams const
     return JS::ArrayBuffer::create(realm, maybe_signature.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#rsa-pss-operations
+// https://w3c.github.io/webcrypto/#rsa-pss-operations-verify
 WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -1456,7 +1456,7 @@ WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(AlgorithmParams const& params, GC:
     return JS::Value { maybe_verification.release_value() };
 }
 
-// https://w3c.github.io/webcrypto/#rsa-pss-operations
+// https://w3c.github.io/webcrypto/#rsa-pss-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = *m_realm;
@@ -1725,7 +1725,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
     return GC::Ref { *key };
 }
 
-// https://w3c.github.io/webcrypto/#rsa-pss-operations
+// https://w3c.github.io/webcrypto/#rsa-pss-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& realm = *m_realm;
@@ -1881,7 +1881,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
     return GC::Ref { *result };
 }
 
-// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAPKCS1::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
@@ -1953,7 +1953,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAP
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
 
-// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-sign
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -1994,7 +1994,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(AlgorithmParams 
     return JS::ArrayBuffer::create(realm, maybe_signature.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-verify
 WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -2033,7 +2033,7 @@ WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(AlgorithmParams const&, GC::R
     return JS::Value { maybe_verification.release_value() };
 }
 
-// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = *m_realm;
@@ -2302,7 +2302,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
     return GC::Ref { *key };
 }
 
-// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& realm = *m_realm;
@@ -2458,7 +2458,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
     return GC::Ref { *result };
 }
 
-// https://w3c.github.io/webcrypto/#aes-cbc-operations
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-encrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::encrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
@@ -2506,7 +2506,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams co
     return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#aes-cbc-operations
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -2617,6 +2617,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const
     return key;
 }
 
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCbc::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -2668,6 +2669,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCbc:
     return { key };
 }
 
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCbc::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -2736,6 +2738,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCbc::export_key(Bindings::KeyFormat 
     return GC::Ref { *result };
 }
 
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> AesCbc::get_key_length(AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
@@ -2748,6 +2751,7 @@ WebIDL::ExceptionOr<JS::Value> AesCbc::get_key_length(AlgorithmParams const& par
     return JS::Value(length);
 }
 
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -2867,6 +2871,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const
     return key;
 }
 
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCtr::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -2935,6 +2940,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCtr::export_key(Bindings::KeyFormat 
     return GC::Ref { *result };
 }
 
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> AesCtr::get_key_length(AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw a OperationError.
@@ -2947,6 +2953,7 @@ WebIDL::ExceptionOr<JS::Value> AesCtr::get_key_length(AlgorithmParams const& par
     return JS::Value(length);
 }
 
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCtr::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -2995,6 +3002,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCtr:
     return { key };
 }
 
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-encrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::encrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
@@ -3022,6 +3030,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::encrypt(AlgorithmParams co
     return JS::ArrayBuffer::create(m_realm, maybe_ciphertext.release_value());
 }
 
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-decrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
@@ -3049,6 +3058,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::decrypt(AlgorithmParams co
     return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> AesGcm::get_key_length(AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw a OperationError.
@@ -3061,6 +3071,7 @@ WebIDL::ExceptionOr<JS::Value> AesGcm::get_key_length(AlgorithmParams const& par
     return JS::Value(length);
 }
 
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -3180,6 +3191,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const
     return key;
 }
 
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesGcm::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -3248,6 +3260,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesGcm::export_key(Bindings::KeyFormat 
     return GC::Ref { *result };
 }
 
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-encrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
@@ -3300,6 +3313,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams co
     return JS::ArrayBuffer::create(m_realm, ciphertext);
 }
 
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-decrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
@@ -3358,6 +3372,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams co
     return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -3406,7 +3421,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm:
     return { key };
 }
 
-// https://w3c.github.io/webcrypto/#aes-kw-registration
+// https://w3c.github.io/webcrypto/#aes-kw-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -3524,7 +3539,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&
     return key;
 }
 
-// https://w3c.github.io/webcrypto/#aes-kw-registration
+// https://w3c.github.io/webcrypto/#aes-kw-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesKw::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -3593,7 +3608,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesKw::export_key(Bindings::KeyFormat f
     return GC::Ref { *result };
 }
 
-// https://w3c.github.io/webcrypto/#aes-kw-registration
+// https://w3c.github.io/webcrypto/#aes-kw-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> AesKw::get_key_length(AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
@@ -3606,7 +3621,7 @@ WebIDL::ExceptionOr<JS::Value> AesKw::get_key_length(AlgorithmParams const& para
     return JS::Value(length);
 }
 
-// https://w3c.github.io/webcrypto/#aes-kw-registration
+// https://w3c.github.io/webcrypto/#aes-kw-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesKw::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -3655,7 +3670,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesKw::
     return { key };
 }
 
-// https://w3c.github.io/webcrypto/#aes-kw-registration
+// https://w3c.github.io/webcrypto/#aes-kw-operations-wrap-key
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::wrap_key(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     // 1. If plaintext is not a multiple of 64 bits in length, then throw an OperationError.
@@ -3673,7 +3688,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::wrap_key(AlgorithmParams co
     return JS::ArrayBuffer::create(m_realm, maybe_ciphertext.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#aes-kw-registration
+// https://w3c.github.io/webcrypto/#aes-kw-operations-unwrap-key
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::unwrap_key(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     // NOTE: The spec does not mention this, but we need to check
@@ -3692,7 +3707,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::unwrap_key(AlgorithmParams 
     return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#hkdf-operations
+// https://w3c.github.io/webcrypto/#hkdf-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. Let keyData be the key data to be imported.
@@ -3735,6 +3750,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(AlgorithmParams const&,
     return key;
 }
 
+// https://w3c.github.io/webcrypto/#sha-operations-digest
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> SHA::digest(AlgorithmParams const& algorithm, ByteBuffer const& data)
 {
     auto& algorithm_name = algorithm.name;
@@ -3769,7 +3785,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> SHA::digest(AlgorithmParams const&
     return JS::ArrayBuffer::create(m_realm, result_buffer.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#ecdsa-operations
+// https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
@@ -3871,7 +3887,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
 
-// https://w3c.github.io/webcrypto/#ecdsa-operations
+// https://w3c.github.io/webcrypto/#ecdsa-operations-sign
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -3967,7 +3983,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
     return JS::ArrayBuffer::create(m_realm, result);
 }
 
-// https://w3c.github.io/webcrypto/#ecdsa-operations
+// https://w3c.github.io/webcrypto/#ecdsa-operations-verify
 WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -4048,7 +4064,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
     return JS::Value(result);
 }
 
-// https://w3c.github.io/webcrypto/#ecdsa-operations
+// https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
@@ -4542,7 +4558,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
     return GC::Ref { *key };
 }
 
-// https://w3c.github.io/webcrypto/#ecdsa-operations
+// https://w3c.github.io/webcrypto/#ecdsa-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // NOTE: This is a parameter to the function
@@ -4835,7 +4851,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
     return GC::Ref { *result };
 }
 
-// https://w3c.github.io/webcrypto/#ecdh-operations
+// https://w3c.github.io/webcrypto/#ecdh-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
@@ -4937,7 +4953,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
 
-// https://w3c.github.io/webcrypto/#ecdh-operations
+// https://w3c.github.io/webcrypto/#ecdh-operations-derive-bits
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto& realm = *m_realm;
@@ -5037,7 +5053,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
     return JS::ArrayBuffer::create(realm, move(slice));
 }
 
-// https://w3c.github.io/webcrypto/#ecdh-operations
+// https://w3c.github.io/webcrypto/#ecdh-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
@@ -5488,7 +5504,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
     return GC::Ref { *key };
 }
 
-// https://w3c.github.io/webcrypto/#ecdh-operations
+// https://w3c.github.io/webcrypto/#ecdh-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // NOTE: This is a parameter to the function
@@ -5775,7 +5791,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
     return GC::Ref { *result };
 }
 
-// https://wicg.github.io/webcrypto-secure-curves/#ed25519-operations
+// https://w3c.github.io/webcrypto/#ed25519-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519::generate_key([[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
@@ -5842,7 +5858,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
 
-// https://wicg.github.io/webcrypto-secure-curves/#ed25519-operations
+// https://w3c.github.io/webcrypto/#ed25519-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
     [[maybe_unused]] Web::Crypto::AlgorithmParams const& params,
     Bindings::KeyFormat format,
@@ -6110,6 +6126,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
     return GC::Ref { *key };
 }
 
+// https://w3c.github.io/webcrypto/#ed25519-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = m_realm->vm();
@@ -6222,6 +6239,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
     return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
 }
 
+// https://w3c.github.io/webcrypto/#ed25519-operations-sign
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED25519::sign([[maybe_unused]] AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -6252,6 +6270,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED25519::sign([[maybe_unused]] Alg
     return JS::ArrayBuffer::create(realm, move(result));
 }
 
+// https://w3c.github.io/webcrypto/#ed25519-operations-verify
 WebIDL::ExceptionOr<JS::Value> ED25519::verify([[maybe_unused]] AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
@@ -6797,7 +6816,7 @@ WebIDL::ExceptionOr<JS::Value> ED448::verify(AlgorithmParams const& params, GC::
     return maybe_verified.release_value();
 }
 
-// https://w3c.github.io/webcrypto/#hkdf-operations
+// https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto& realm = *m_realm;
@@ -6850,13 +6869,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams 
     return JS::ArrayBuffer::create(realm, maybe_result.release_value());
 }
 
+// https://w3c.github.io/webcrypto/#hkdf-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> HKDF::get_key_length(AlgorithmParams const&)
 {
     // 1. Return null.
     return JS::js_null();
 }
 
-// https://w3c.github.io/webcrypto/#pbkdf2-operations
+// https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto& realm = *m_realm;
@@ -6907,14 +6927,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParam
     return JS::ArrayBuffer::create(realm, maybe_result.release_value());
 }
 
-// https://w3c.github.io/webcrypto/#pbkdf2-operations
+// https://w3c.github.io/webcrypto/#pbkdf2-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> PBKDF2::get_key_length(AlgorithmParams const&)
 {
     // 1. Return null.
     return JS::js_null();
 }
 
-// https://w3c.github.io/webcrypto/#pbkdf2-operations
+// https://w3c.github.io/webcrypto/#pbkdf2-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If format is not "raw", throw a NotSupportedError
@@ -6950,7 +6970,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(AlgorithmParams const
     return key;
 }
 
-// https://wicg.github.io/webcrypto-secure-curves/#x25519-operations
+// https://w3c.github.io/webcrypto/#x25519-operations-derive-bits
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto& realm = *m_realm;
@@ -7020,6 +7040,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(AlgorithmParam
     return JS::ArrayBuffer::create(realm, move(slice));
 }
 
+// https://w3c.github.io/webcrypto/#x25519-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519::generate_key([[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
@@ -7089,6 +7110,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
 
+// https://w3c.github.io/webcrypto/#x25519-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
@@ -7338,6 +7360,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
     return GC::Ref { *key };
 }
 
+// https://w3c.github.io/webcrypto/#x25519-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = m_realm->vm();
@@ -7989,7 +8012,7 @@ static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm&
     return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash_name));
 }
 
-// https://w3c.github.io/webcrypto/#hmac-operations
+// https://w3c.github.io/webcrypto/#hmac-operations-sign
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HMAC::sign(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     // 1. Let mac be the result of performing the MAC Generation operation described in Section 4 of
@@ -8004,7 +8027,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HMAC::sign(AlgorithmParams const&,
     return JS::ArrayBuffer::create(m_realm, move(mac));
 }
 
-// https://w3c.github.io/webcrypto/#hmac-operations
+// https://w3c.github.io/webcrypto/#hmac-operations-verify
 WebIDL::ExceptionOr<JS::Value> HMAC::verify(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     // 1. Let mac be the result of performing the MAC Generation operation described in Section 4 of
@@ -8019,7 +8042,7 @@ WebIDL::ExceptionOr<JS::Value> HMAC::verify(AlgorithmParams const&, GC::Ref<Cryp
     return mac == signature;
 }
 
-// https://w3c.github.io/webcrypto/#hmac-operations
+// https://w3c.github.io/webcrypto/#hmac-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // 1. If usages contains any entry which is not "sign" or "verify", then throw a SyntaxError.
@@ -8092,7 +8115,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { key };
 }
 
-// https://w3c.github.io/webcrypto/#hmac-operations
+// https://w3c.github.io/webcrypto/#hmac-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& vm = m_realm->vm();
@@ -8254,7 +8277,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
     return key;
 }
 
-// https://w3c.github.io/webcrypto/#hmac-operations
+// https://w3c.github.io/webcrypto/#hmac-operations-export-key
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot
@@ -8345,7 +8368,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
     return GC::Ref { *result };
 }
 
-// https://w3c.github.io/webcrypto/#hmac-operations
+// https://w3c.github.io/webcrypto/#hmac-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(AlgorithmParams const& params)
 {
     auto const& normalized_derived_key_algorithm = static_cast<HmacImportParams const&>(params);
