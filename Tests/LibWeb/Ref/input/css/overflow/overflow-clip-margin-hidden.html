@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>'overflow-clip-margin' on overflow:hidden element should not extend visible area.</title>
+<link rel="match" href="../../../expected/css/overflow/overflow-clip-margin-hidden-ref.html">
+<style>
+  #outer {
+    width:100px;
+    height:100px;
+    position: relative;
+    overflow: hidden;
+    overflow-clip-margin: 50px;
+  }
+  #innerRed {
+    background-color: red;
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    top: -50px;
+    left: -50px;
+  }
+  #innerGreen {
+    background-color: green;
+    position: absolute;
+    width: 100px;
+    height: 100px;
+  }
+</style>
+<div id="outer">
+  <div id="innerRed"></div>
+  <div id="innerGreen"></div>
+</div>
