@@ -438,7 +438,7 @@ set(SOURCES
     HighResolutionTime/Performance.cpp
     HighResolutionTime/TimeOrigin.cpp
     HTML/AbstractWorker.cpp
-    HTML/AnimatedBitmapDecodedImageData.cpp
+    HTML/BitmapDecodedImageData.cpp
     HTML/AnimationFrameCallbackDriver.cpp
     HTML/AttributeNames.cpp
     HTML/AudioTrack.cpp
@@ -655,6 +655,7 @@ set(SOURCES
     HTML/SessionHistoryTraversalQueue.cpp
     HTML/ShadowRealmGlobalScope.cpp
     HTML/SharedResourceRequest.cpp
+    HTML/AnimatedDecodedImageData.cpp
     HTML/SharedWorker.cpp
     HTML/SharedWorkerGlobalScope.cpp
     HTML/SourceSet.cpp

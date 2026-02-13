@@ -14,7 +14,8 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
-#include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
+#include <LibWeb/HTML/AnimatedDecodedImageData.h>
+#include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Page/Page.h>
@@ -159,14 +160,36 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     }
 
     auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
-        Vector<AnimatedBitmapDecodedImageData::Frame> frames;
-        for (auto& frame : result.frames) {
-            frames.append(AnimatedBitmapDecodedImageData::Frame {
-                .bitmap = Gfx::ImmutableBitmap::create(*frame.bitmap, result.color_space),
-                .duration = static_cast<int>(frame.duration),
-            });
+        if (result.session_id != 0) {
+            // Streaming animated decode: create AnimatedDecodedImageData.
+            Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps;
+            initial_bitmaps.ensure_capacity(result.frames.size());
+            for (auto& frame : result.frames)
+                initial_bitmaps.unchecked_append(*frame.bitmap);
+
+            auto first_bitmap = result.frames.first().bitmap;
+            auto size = first_bitmap->size();
+
+            strong_this->m_image_data = AnimatedDecodedImageData::create(
+                strong_this->m_document->realm(),
+                result.session_id,
+                result.frame_count,
+                result.loop_count,
+                size,
+                result.color_space,
+                move(result.all_durations),
+                move(initial_bitmaps));
+        } else {
+            // Single-shot decode: create BitmapDecodedImageData as before.
+            Vector<BitmapDecodedImageData::Frame> frames;
+            for (auto& frame : result.frames) {
+                frames.append(BitmapDecodedImageData::Frame {
+                    .bitmap = Gfx::ImmutableBitmap::create(*frame.bitmap, result.color_space),
+                    .duration = static_cast<int>(frame.duration),
+                });
+            }
+            strong_this->m_image_data = BitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
         }
-        strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
         strong_this->handle_successful_resource_load();
         return {};
     };

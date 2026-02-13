@@ -32,6 +32,8 @@ public:
     virtual size_t loop_count() const = 0;
     virtual bool is_animated() const = 0;
 
+    virtual size_t notify_frame_advanced(size_t frame_index) { return frame_index; }
+
     virtual Optional<CSSPixels> intrinsic_width() const = 0;
     virtual Optional<CSSPixels> intrinsic_height() const = 0;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const = 0;

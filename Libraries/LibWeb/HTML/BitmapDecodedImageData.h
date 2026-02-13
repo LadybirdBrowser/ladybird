@@ -11,9 +11,9 @@
 
 namespace Web::HTML {
 
-class AnimatedBitmapDecodedImageData final : public DecodedImageData {
-    GC_CELL(AnimatedBitmapDecodedImageData, DecodedImageData);
-    GC_DECLARE_ALLOCATOR(AnimatedBitmapDecodedImageData);
+class BitmapDecodedImageData final : public DecodedImageData {
+    GC_CELL(BitmapDecodedImageData, DecodedImageData);
+    GC_DECLARE_ALLOCATOR(BitmapDecodedImageData);
 
 public:
     struct Frame {
@@ -21,8 +21,8 @@ public:
         int duration { 0 };
     };
 
-    static ErrorOr<GC::Ref<AnimatedBitmapDecodedImageData>> create(JS::Realm&, Vector<Frame>&&, size_t loop_count, bool animated);
-    virtual ~AnimatedBitmapDecodedImageData() override;
+    static ErrorOr<GC::Ref<BitmapDecodedImageData>> create(JS::Realm&, Vector<Frame>&&, size_t loop_count, bool animated);
+    virtual ~BitmapDecodedImageData() override;
 
     virtual RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize = {}) const override;
     virtual int frame_duration(size_t frame_index) const override;
@@ -39,7 +39,7 @@ public:
     virtual void paint(DisplayListRecordingContext&, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const override;
 
 private:
-    AnimatedBitmapDecodedImageData(Vector<Frame>&&, size_t loop_count, bool animated);
+    BitmapDecodedImageData(Vector<Frame>&&, size_t loop_count, bool animated);
 
     Vector<Frame> m_frames;
     size_t m_loop_count { 0 };

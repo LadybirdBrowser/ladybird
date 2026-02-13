@@ -22,7 +22,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Response.h>
-#include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
+#include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -1356,6 +1356,7 @@ void HTMLImageElement::animate()
     }
 
     m_current_frame_index = (m_current_frame_index + 1) % image_data->frame_count();
+    m_current_frame_index = image_data->notify_frame_advanced(m_current_frame_index);
     auto current_frame_duration = image_data->frame_duration(m_current_frame_index);
 
     if (current_frame_duration != m_animation_timer->interval()) {
