@@ -135,9 +135,9 @@ PlaybackManager::~PlaybackManager()
 void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
 {
     auto thread = Threading::Thread::construct("Media Init"sv, [playback_manager = NonnullRefPtr { *this }, stream = stream, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
-        auto main_thread_event_loop = main_thread_event_loop_reference->take();
         auto maybe_error = playback_manager->prepare_playback_from_media_data(stream, main_thread_event_loop_reference);
         if (maybe_error.is_error()) {
+            auto main_thread_event_loop = main_thread_event_loop_reference->take();
             main_thread_event_loop->deferred_invoke([playback_manager, error = maybe_error.release_error()] mutable {
                 if (playback_manager->on_unsupported_format_error)
                     playback_manager->on_unsupported_format_error(move(error));
