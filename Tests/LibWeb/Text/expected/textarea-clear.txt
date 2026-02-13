@@ -1,0 +1,2 @@
+1. value after clear: ""
+2. defaultValue after clear: "initial content"

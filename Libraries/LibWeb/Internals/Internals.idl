@@ -83,4 +83,6 @@ interface Internals {
 
     undefined setHighlightedNode(Node? node);
 
+    undefined clearElement(HTMLElement element);
+
 };

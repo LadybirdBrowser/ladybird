@@ -23,6 +23,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Window.h>
@@ -523,6 +524,12 @@ void Internals::perform_per_test_cleanup()
 void Internals::set_highlighted_node(GC::Ptr<DOM::Node> node)
 {
     window().associated_document().set_highlighted_node(node, {});
+}
+
+void Internals::clear_element(HTML::HTMLElement& element)
+{
+    auto& form_associated_element = as<HTML::FormAssociatedElement>(element);
+    form_associated_element.clear_algorithm();
 }
 
 }
