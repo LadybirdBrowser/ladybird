@@ -3659,7 +3659,7 @@ void Document::run_the_scroll_steps()
         // FIXME: 3. Otherwise, if type is "scrollsnapchanging", then:
         // 4. Otherwise, fire an event named type at target.
         else {
-            auto event = DOM::Event::create(realm(), HTML::EventNames::scroll);
+            auto event = DOM::Event::create(realm(), type);
             target->dispatch_event(event);
         }
     }
