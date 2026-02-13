@@ -20,6 +20,8 @@ public:
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
     static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, u64 page_index);
 
+    void reset_viewport_size(Web::DevicePixelSize);
+
     void disconnect_child_crash_handlers()
     {
         // Disconnect crash handlers so child crashes don't propagate to parent.

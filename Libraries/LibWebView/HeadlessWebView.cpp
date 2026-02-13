@@ -173,6 +173,16 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
     client().async_update_screen_rects(m_client_state.page_index, { { screen_rect } }, 0);
 }
 
+void HeadlessWebView::reset_viewport_size(Web::DevicePixelSize size)
+{
+    m_viewport_size = size;
+
+    client().async_set_window_size(m_client_state.page_index, m_viewport_size);
+    client().async_set_viewport(m_client_state.page_index, m_viewport_size, m_device_pixel_ratio);
+
+    client().async_did_update_window_rect(m_client_state.page_index);
+}
+
 void HeadlessWebView::update_zoom()
 {
     ViewImplementation::update_zoom();
