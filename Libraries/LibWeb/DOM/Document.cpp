@@ -173,6 +173,7 @@
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -3637,6 +3638,11 @@ void Document::run_the_resize_steps()
 // https://drafts.csswg.org/cssom-view-1/#document-run-the-scroll-steps
 void Document::run_the_scroll_steps()
 {
+    // AD-HOC: Process auto-scroll ticks before dispatching scroll events. This is tied to the rendering update to
+    //         ensure exactly one auto-scroll tick per frame.
+    if (auto navigable = this->navigable())
+        navigable->event_handler().process_auto_scroll();
+
     // FIXME: 1. For each scrolling box box that was scrolled:
     //        ...
 

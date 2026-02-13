@@ -414,6 +414,12 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
     (void)selection->set_base_and_extent(*anchor_node, anchor_offset, *focus_node, focus_offset);
 }
 
+void EventHandler::process_auto_scroll()
+{
+    if (m_auto_scroll_handler)
+        m_auto_scroll_handler->perform_tick();
+}
+
 void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position)
 {
     if (m_selection_mode == SelectionMode::None)

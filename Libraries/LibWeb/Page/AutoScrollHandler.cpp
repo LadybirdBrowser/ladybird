@@ -98,11 +98,6 @@ AutoScrollHandler::AutoScrollHandler(HTML::Navigable& navigable, DOM::Element& c
 {
 }
 
-AutoScrollHandler::~AutoScrollHandler()
-{
-    stop_timer();
-}
-
 void AutoScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     visitor.visit(m_navigable);
@@ -124,11 +119,11 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
     CSSPixelRect viewport_rect { {}, m_navigable->viewport_size() };
     auto effective_edge = compute_effective_auto_scroll_edge(*scrollport, viewport_rect);
     if (effective_edge.contains(mouse_position)) {
-        stop_timer();
+        deactivate();
         return mouse_position;
     }
 
-    start_timer();
+    activate();
     if (is_in_form_associated_text_control(m_container_element))
         return constrained(mouse_position, *scrollport);
     return mouse_position;
@@ -155,30 +150,24 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Pain
     return {};
 }
 
-void AutoScrollHandler::start_timer()
+void AutoScrollHandler::activate()
 {
-    if (m_timer)
-        return;
-
-    m_timer = Core::Timer::create_repeating(auto_scroll_interval_ms, [this] {
-        perform_tick();
-    });
-    m_timer->start();
+    m_active = true;
 }
 
-void AutoScrollHandler::stop_timer()
+void AutoScrollHandler::deactivate()
 {
-    if (!m_timer)
-        return;
-    m_timer->stop();
-    m_timer = nullptr;
+    m_active = false;
     m_fractional_delta = {};
 }
 
 void AutoScrollHandler::perform_tick()
 {
+    if (!m_active)
+        return;
+
     if (!m_navigable->event_handler().is_handling_mouse_selection()) {
-        stop_timer();
+        deactivate();
         return;
     }
 
@@ -187,20 +176,20 @@ void AutoScrollHandler::perform_tick()
 
     auto* paintable_box = auto_scroll_paintable(m_container_element);
     if (!paintable_box || !document.paintable()) {
-        stop_timer();
+        deactivate();
         return;
     }
 
     auto scrollport = scrollport_rect_in_viewport(*paintable_box);
     if (!scrollport.has_value()) {
-        stop_timer();
+        deactivate();
         return;
     }
 
     CSSPixelRect viewport_rect { {}, m_navigable->viewport_size() };
     auto effective_edge = compute_effective_auto_scroll_edge(*scrollport, viewport_rect);
     if (effective_edge.contains(m_mouse_position)) {
-        stop_timer();
+        deactivate();
         return;
     }
 
