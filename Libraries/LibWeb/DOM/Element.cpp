@@ -4534,7 +4534,7 @@ GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<PointerLockOptio
 
 // The element to inherit style from.
 // If a pseudo-element is specified, this will return the element itself.
-// Otherwise, if this element is slotted somewhere, it will return the slot's element to inherit style from.
+// Otherwise, if this element is slotted somewhere, it will return the slot.
 // Otherwise, it will return the parent or shadow host element of this element.
 GC::Ptr<Element const> Element::element_to_inherit_style_from(Optional<CSS::PseudoElement> pseudo_element) const
 {

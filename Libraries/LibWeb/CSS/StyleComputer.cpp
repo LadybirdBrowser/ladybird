@@ -1743,6 +1743,10 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 
         auto style = compute_style(abstract_element_for_pseudo_element);
 
+        // Copy cascaded properties to the element itself so that elements
+        // slotted into this slot can find them via element_to_inherit_style_from().
+        abstract_element.set_cascaded_properties(abstract_element_for_pseudo_element.cascaded_properties());
+
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {
             for (auto const& property : inline_style->properties())
