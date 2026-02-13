@@ -54,6 +54,8 @@ struct Test {
     UnixDateTime start_time {};
     UnixDateTime end_time {};
     size_t index { 0 };
+    size_t run_index { 1 };
+    size_t total_runs { 1 };
 
     String text {};
     bool did_finish_test { false };
