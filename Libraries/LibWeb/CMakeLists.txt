@@ -729,6 +729,7 @@ set(SOURCES
     IntersectionObserver/IntersectionObserverEntry.cpp
     Layout/AudioBox.cpp
     Layout/AvailableSpace.cpp
+    Layout/BidiParagraph.cpp
     Layout/BlockContainer.cpp
     Layout/BlockFormattingContext.cpp
     Layout/Box.cpp

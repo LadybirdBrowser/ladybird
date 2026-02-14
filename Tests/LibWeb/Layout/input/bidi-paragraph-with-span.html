@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>BiDi Paragraph + Span Style Tests</title>
+        <style>
+            body {
+                font-size: 18px;
+                line-height: 1.7;
+                padding: 20px;
+            }
+
+            .test {
+                border: 1px solid #bbb;
+                padding: 12px;
+                margin-bottom: 24px;
+            }
+
+            .label {
+                font-weight: bold;
+                color: #444;
+                margin-bottom: 6px;
+            }
+
+            .red {
+                color: darkred;
+            }
+
+            .blue {
+                color: darkblue;
+            }
+
+            .bold {
+                font-weight: bold;
+            }
+
+            .big {
+                font-size: 1.3em;
+            }
+
+            .rtl {
+                direction: rtl;
+            }
+
+            .ltr {
+                direction: ltr;
+            }
+
+            .isolate {
+                unicode-bidi: isolate;
+            }
+
+            .override-rtl {
+                direction: rtl;
+                unicode-bidi: bidi-override;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>BiDi Paragraph + Styled Span Tests</h1>
+        <div class="test">
+            <div class="label">LTR paragraph, styled RTL span</div>
+            <p>
+                ABC
+                <span class="red bold">مرحبا</span>
+                DEF
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">RTL paragraph, styled LTR span</div>
+            <p class="rtl">
+                مرحبا
+                <span class="blue big">ABC 123</span>
+                بالعالم
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Multiple styled spans switching direction</div>
+            <p>
+                ABC
+                <span class="red">مرحبا</span>
+                <span class="blue bold">DEF</span>
+                <span class="big">שלום</span>
+                GHI
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Nested spans with inherited direction</div>
+            <p class="rtl">
+                مرحبا
+                <span class="blue">
+                    ABC
+                    <span class="bold red">123 DEF</span>
+                </span>
+                بالعالم
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Explicit LTR span inside RTL paragraph</div>
+            <p class="rtl">
+                مرحبا
+                <span class="ltr blue bold">ABC DEF 123</span>
+                بالعالم
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Explicit RTL span inside LTR paragraph</div>
+            <p class="ltr">
+                ABC
+                <span class="rtl red bold">مرحبا بالعالم</span>
+                DEF
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Isolation: unicode-bidi: isolate</div>
+            <p>
+                ABC
+                <span class="rtl isolate red">مرحبا ABC 123</span>
+                DEF
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Override: bidi-override (stress test)</div>
+            <p>
+                ABC
+                <span class="override-rtl red">ABC 123 مرحبا</span>
+                DEF
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Direction attribute vs CSS direction</div>
+            <p dir="rtl">
+                مرحبا
+                <span dir="ltr" class="red bold">ABC DEF</span>
+                بالعالم
+            </p>
+        </div>
+        <div class="test">
+            <div class="label">Deeply mixed styles and scripts</div>
+            <p>
+                <span class="bold">ABC</span>
+                <span class="rtl red">
+                    مرحبا
+                    <span class="ltr blue">123 DEF</span>
+                    عالم
+                </span>
+                <span class="big">GHI</span>
+            </p>
+        </div>
+    </body>
+</html>

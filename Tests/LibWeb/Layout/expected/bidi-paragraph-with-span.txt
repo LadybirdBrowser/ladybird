@@ -1,0 +1,454 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1664.890625 0+0+0] [BFC] children: not-inline
+    BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+      TextNode <#text> (not painted)
+    BlockContainer <body> at [28,28] [8+0+20 744 20+0+8] [8+0+20 1608.890625 20+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [28,28] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <h1> at [28,52.125] [0+0+0 744 0+0+0] [24.125+0+0 61.203125 0+0+24.125] children: inline
+        frag 0 from TextNode start: 0, length: 34, rect: [28,52.125 669.390625x61.203125] baseline: 41.390625
+            "BiDi Paragraph + Styled Span Tests"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,137.453125] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,150.453125] [0+1+12 718 12+1+0] [0+1+12 97.1875 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,150.453125] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,150.453125] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 30, rect: [41,150.453125 308.3125x30.59375] baseline: 20.6875
+              "LTR paragraph, styled RTL span"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,187.046875] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [41,199.046875] [0+0+0 718 0+0+0] [18+0+0 30.59375 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 4, rect: [41,199.046875 47.171875x30.59375] baseline: 20.6875
+              "ABC "
+          frag 1 from TextNode start: 0, length: 1, rect: [121.0625,199.046875 9x30.59375] baseline: 20.6875
+              " "
+          frag 2 from TextNode start: 17, length: 3, rect: [130.0625,199.046875 39.984375x30.59375] baseline: 20.6875
+              "DEF"
+          TextNode <#text> (not painted)
+          InlineNode <span.red.bold> at [88.171875,199.046875] [0+0+0 32.890625 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 5, rect: [88.171875,199.046875 32.890625x30.59375] baseline: 20.6875
+                "مرحبا"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,247.640625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,284.640625] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,297.640625] [0+1+12 718 12+1+0] [0+1+12 106.375 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,297.640625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,297.640625] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 30, rect: [41,297.640625 308.3125x30.59375] baseline: 20.6875
+              "RTL paragraph, styled LTR span"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,334.234375] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p.rtl> at [41,346.234375] [0+0+0 718 0+0+0] [18+0+0 39.78125 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 8, rect: [565.25,352.234375 55.046875x30.59375] baseline: 20.6875
+              "بالعالم "
+          frag 1 from TextNode start: 0, length: 1, rect: [620.296875,352.234375 9x30.59375] baseline: 20.6875
+              " "
+          frag 2 from TextNode start: 17, length: 5, rect: [726.109375,352.234375 32.890625x30.59375] baseline: 20.6875
+              "مرحبا"
+          TextNode <#text> (not painted)
+          InlineNode <span.blue.big> at [629.296875,346.234375] [0+0+0 96.8125 0+0+0] [0+0+0 39.796875 0+0+0]
+            frag 0 from TextNode start: 0, length: 7, rect: [629.296875,346.234375 96.8125x39.796875] baseline: 26.90625
+                "ABC 123"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,404.015625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,441.015625] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,454.015625] [0+1+12 718 12+1+0] [0+1+12 106.375 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,454.015625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,454.015625] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 41, rect: [41,454.015625 365.671875x30.59375] baseline: 20.6875
+              "Multiple styled spans switching direction"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,490.609375] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [41,502.609375] [0+0+0 718 0+0+0] [18+0+0 39.78125 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 4, rect: [41,508.609375 47.171875x30.59375] baseline: 20.6875
+              "ABC "
+          frag 1 from TextNode start: 0, length: 1, rect: [121.0625,508.609375 9x30.59375] baseline: 20.6875
+              " "
+          frag 2 from TextNode start: 0, length: 1, rect: [170.046875,508.609375 9x30.59375] baseline: 20.6875
+              " "
+          frag 3 from TextNode start: 0, length: 1, rect: [213.234375,508.609375 9x30.59375] baseline: 20.6875
+              " "
+          frag 4 from TextNode start: 17, length: 3, rect: [222.234375,508.609375 33.828125x30.59375] baseline: 20.6875
+              "GHI"
+          TextNode <#text> (not painted)
+          InlineNode <span.red> at [88.171875,508.609375] [0+0+0 32.890625 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 5, rect: [88.171875,508.609375 32.890625x30.59375] baseline: 20.6875
+                "مرحبا"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <span.blue.bold> at [130.0625,508.609375] [0+0+0 39.984375 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 3, rect: [130.0625,508.609375 39.984375x30.59375] baseline: 20.6875
+                "DEF"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <span.big> at [179.046875,502.609375] [0+0+0 34.1875 0+0+0] [0+0+0 39.796875 0+0+0]
+            frag 0 from TextNode start: 0, length: 4, rect: [179.046875,502.609375 34.1875x39.796875] baseline: 26.90625
+                "שלום"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,560.390625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,597.390625] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,610.390625] [0+1+12 718 12+1+0] [0+1+12 97.1875 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,610.390625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,610.390625] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 37, rect: [41,610.390625 339.890625x30.59375] baseline: 20.6875
+              "Nested spans with inherited direction"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,646.984375] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p.rtl> at [41,658.984375] [0+0+0 718 0+0+0] [18+0+0 30.59375 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 8, rect: [538.609375,658.984375 55.046875x30.59375] baseline: 20.6875
+              "بالعالم "
+          frag 1 from TextNode start: 17, length: 5, rect: [726.109375,658.984375 32.890625x30.59375] baseline: 20.6875
+              "مرحبا"
+          TextNode <#text> (not painted)
+          InlineNode <span.blue> at [593.65625,658.984375] [0+0+0 132.453125 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [593.65625,658.984375 9x30.59375] baseline: 20.6875
+                " "
+            frag 1 from TextNode start: 21, length: 4, rect: [602.65625,658.984375 47.171875x30.59375] baseline: 20.6875
+                "ABC "
+            TextNode <#text> (not painted)
+            InlineNode <span.bold.red> at [649.828125,658.984375] [0+0+0 76.28125 0+0+0] [0+0+0 30.59375 0+0+0]
+              frag 0 from TextNode start: 0, length: 7, rect: [649.828125,658.984375 76.28125x30.59375] baseline: 20.6875
+                  "123 DEF"
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,707.578125] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,744.578125] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,757.578125] [0+1+12 718 12+1+0] [0+1+12 97.1875 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,757.578125] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,757.578125] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 38, rect: [41,757.578125 379.8125x30.59375] baseline: 20.6875
+              "Explicit LTR span inside RTL paragraph"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,794.171875] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p.rtl> at [41,806.171875] [0+0+0 718 0+0+0] [18+0+0 30.59375 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 8, rect: [538.609375,806.171875 55.046875x30.59375] baseline: 20.6875
+              "بالعالم "
+          frag 1 from TextNode start: 0, length: 1, rect: [593.65625,806.171875 9x30.59375] baseline: 20.6875
+              " "
+          frag 2 from TextNode start: 17, length: 5, rect: [726.109375,806.171875 32.890625x30.59375] baseline: 20.6875
+              "مرحبا"
+          TextNode <#text> (not painted)
+          InlineNode <span.ltr.blue.bold> at [602.65625,806.171875] [0+0+0 123.453125 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 11, rect: [602.65625,806.171875 123.453125x30.59375] baseline: 20.6875
+                "ABC DEF 123"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,854.765625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,891.765625] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,904.765625] [0+1+12 718 12+1+0] [0+1+12 97.1875 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,904.765625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,904.765625] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 38, rect: [41,904.765625 379.8125x30.59375] baseline: 20.6875
+              "Explicit RTL span inside LTR paragraph"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,941.359375] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p.ltr> at [41,953.359375] [0+0+0 718 0+0+0] [18+0+0 30.59375 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 4, rect: [41,953.359375 47.171875x30.59375] baseline: 20.6875
+              "ABC "
+          frag 1 from TextNode start: 0, length: 1, rect: [176.109375,953.359375 9x30.59375] baseline: 20.6875
+              " "
+          frag 2 from TextNode start: 17, length: 3, rect: [185.109375,953.359375 39.984375x30.59375] baseline: 20.6875
+              "DEF"
+          TextNode <#text> (not painted)
+          InlineNode <span.rtl.red.bold> at [88.171875,953.359375] [0+0+0 87.9375 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 13, rect: [88.171875,953.359375 87.9375x30.59375] baseline: 20.6875
+                "مرحبا بالعالم"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1001.953125] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,1038.953125] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,1051.953125] [0+1+12 718 12+1+0] [0+1+12 97.1875 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,1051.953125] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,1051.953125] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 32, rect: [41,1051.953125 268.90625x30.59375] baseline: 20.6875
+              "Isolation: unicode-bidi: isolate"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1088.546875] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [41,1100.546875] [0+0+0 718 0+0+0] [18+0+0 30.59375 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 4, rect: [41,1100.546875 47.171875x30.59375] baseline: 20.6875
+              "ABC "
+          frag 1 from TextNode start: 0, length: 1, rect: [204.53125,1100.546875 9x30.59375] baseline: 20.6875
+              " "
+          frag 2 from TextNode start: 17, length: 3, rect: [213.53125,1100.546875 39.984375x30.59375] baseline: 20.6875
+              "DEF"
+          TextNode <#text> (not painted)
+          InlineNode <span.rtl.isolate.red> at [88.171875,1100.546875] [0+0+0 116.359375 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 13, rect: [88.171875,1100.546875 116.359375x30.59375] baseline: 20.6875
+                "مرحبا ABC 123"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1149.140625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,1186.140625] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,1199.140625] [0+1+12 718 12+1+0] [0+1+12 97.1875 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,1199.140625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,1199.140625] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 37, rect: [41,1199.140625 324.71875x30.59375] baseline: 20.6875
+              "Override: bidi-override (stress test)"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1235.734375] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [41,1247.734375] [0+0+0 718 0+0+0] [18+0+0 30.59375 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 4, rect: [41,1247.734375 47.171875x30.59375] baseline: 20.6875
+              "ABC "
+          frag 1 from TextNode start: 17, length: 3, rect: [204.53125,1247.734375 39.984375x30.59375] baseline: 20.6875
+              "DEF"
+          frag 2 from TextNode start: 0, length: 1, rect: [244.515625,1247.734375 9x30.59375] baseline: 20.6875
+              " "
+          TextNode <#text> (not painted)
+          InlineNode <span.override-rtl.red> at [88.171875,1247.734375] [0+0+0 116.359375 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 13, rect: [88.171875,1247.734375 116.359375x30.59375] baseline: 20.6875
+                "ABC 123 مرحبا"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1296.328125] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,1333.328125] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,1346.328125] [0+1+12 718 12+1+0] [0+1+12 97.1875 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,1346.328125] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,1346.328125] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 36, rect: [41,1346.328125 336.3125x30.59375] baseline: 20.6875
+              "Direction attribute vs CSS direction"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1382.921875] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [41,1394.921875] [0+0+0 718 0+0+0] [18+0+0 30.59375 0+0+18] children: inline
+          frag 0 from TextNode start: 17, length: 8, rect: [574.90625,1394.921875 55.046875x30.59375] baseline: 20.6875
+              "بالعالم "
+          frag 1 from TextNode start: 0, length: 1, rect: [629.953125,1394.921875 9x30.59375] baseline: 20.6875
+              " "
+          frag 2 from TextNode start: 17, length: 5, rect: [726.109375,1394.921875 32.890625x30.59375] baseline: 20.6875
+              "مرحبا"
+          TextNode <#text> (not painted)
+          InlineNode <span.red.bold> at [638.953125,1394.921875] [0+0+0 87.15625 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 7, rect: [638.953125,1394.921875 87.15625x30.59375] baseline: 20.6875
+                "ABC DEF"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1443.515625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,1480.515625] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.test> at [41,1493.515625] [0+1+12 718 12+1+0] [0+1+12 106.375 12+1+24] children: not-inline
+        BlockContainer <(anonymous)> at [41,1493.515625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.label> at [41,1493.515625] [0+0+0 718 0+0+0] [0+0+0 30.59375 0+0+6] children: inline
+          frag 0 from TextNode start: 0, length: 31, rect: [41,1493.515625 286.015625x30.59375] baseline: 20.6875
+              "Deeply mixed styles and scripts"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1530.109375] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [41,1542.109375] [0+0+0 718 0+0+0] [18+0+0 39.78125 0+0+18] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [79.171875,1548.109375 9x30.59375] baseline: 20.6875
+              " "
+          TextNode <#text> (not painted)
+          InlineNode <span.bold> at [41,1548.109375] [0+0+0 38.171875 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 0, length: 3, rect: [41,1548.109375 38.171875x30.59375] baseline: 20.6875
+                "ABC"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <span.rtl.red> at [88.171875,1548.109375] [0+0+0 162.484375 0+0+0] [0+0+0 30.59375 0+0+0]
+            frag 0 from TextNode start: 21, length: 6, rect: [88.171875,1548.109375 41.890625x30.59375] baseline: 20.6875
+                "مرحبا "
+            frag 1 from TextNode start: 0, length: 1, rect: [206.34375,1548.109375 9x30.59375] baseline: 20.6875
+                " "
+            frag 2 from TextNode start: 21, length: 5, rect: [215.34375,1548.109375 35.3125x30.59375] baseline: 20.6875
+                "عالم "
+            TextNode <#text> (not painted)
+            InlineNode <span.ltr.blue> at [130.0625,1548.109375] [0+0+0 76.28125 0+0+0] [0+0+0 30.59375 0+0+0]
+              frag 0 from TextNode start: 0, length: 7, rect: [130.0625,1548.109375 76.28125x30.59375] baseline: 20.6875
+                  "123 DEF"
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+          InlineNode <span.big> at [250.65625,1542.109375] [0+0+0 43.96875 0+0+0] [0+0+0 39.796875 0+0+0]
+            frag 0 from TextNode start: 0, length: 3, rect: [250.65625,1542.109375 43.96875x39.796875] baseline: 26.90625
+                "GHI"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [41,1599.890625] [0+0+0 718 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [28,1636.890625] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1664.890625]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1664.890625]
+    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x1648.890625]
+      PaintableWithLines (BlockContainer(anonymous)) [28,28 744x0]
+      PaintableWithLines (BlockContainer<H1>) [28,52.125 744x61.203125]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [28,137.453125 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,137.453125 744x123.1875]
+        PaintableWithLines (BlockContainer(anonymous)) [41,150.453125 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,150.453125 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,187.046875 718x0]
+        PaintableWithLines (BlockContainer<P>) [41,199.046875 718x30.59375]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.red.bold) [88.171875,199.046875 32.890625x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,247.640625 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,284.640625 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,284.640625 744x132.375]
+        PaintableWithLines (BlockContainer(anonymous)) [41,297.640625 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,297.640625 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,334.234375 718x0]
+        PaintableWithLines (BlockContainer<P>.rtl) [41,346.234375 718x39.78125]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.blue.big) [629.296875,346.234375 96.8125x39.796875]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,404.015625 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,441.015625 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,441.015625 744x132.375]
+        PaintableWithLines (BlockContainer(anonymous)) [41,454.015625 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,454.015625 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,490.609375 718x0]
+        PaintableWithLines (BlockContainer<P>) [41,502.609375 718x39.78125]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.red) [88.171875,508.609375 32.890625x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.blue.bold) [130.0625,508.609375 39.984375x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.big) [179.046875,502.609375 34.1875x39.796875]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,560.390625 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,597.390625 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,597.390625 744x123.1875]
+        PaintableWithLines (BlockContainer(anonymous)) [41,610.390625 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,610.390625 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,646.984375 718x0]
+        PaintableWithLines (BlockContainer<P>.rtl) [41,658.984375 718x30.59375]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.blue) [593.65625,658.984375 132.453125x30.59375]
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode<SPAN>.bold.red) [649.828125,658.984375 76.28125x30.59375]
+              TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,707.578125 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,744.578125 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,744.578125 744x123.1875]
+        PaintableWithLines (BlockContainer(anonymous)) [41,757.578125 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,757.578125 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,794.171875 718x0]
+        PaintableWithLines (BlockContainer<P>.rtl) [41,806.171875 718x30.59375]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.ltr.blue.bold) [602.65625,806.171875 123.453125x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,854.765625 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,891.765625 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,891.765625 744x123.1875]
+        PaintableWithLines (BlockContainer(anonymous)) [41,904.765625 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,904.765625 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,941.359375 718x0]
+        PaintableWithLines (BlockContainer<P>.ltr) [41,953.359375 718x30.59375]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.rtl.red.bold) [88.171875,953.359375 87.9375x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1001.953125 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,1038.953125 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,1038.953125 744x123.1875]
+        PaintableWithLines (BlockContainer(anonymous)) [41,1051.953125 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,1051.953125 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1088.546875 718x0]
+        PaintableWithLines (BlockContainer<P>) [41,1100.546875 718x30.59375]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.rtl.isolate.red) [88.171875,1100.546875 116.359375x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1149.140625 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,1186.140625 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,1186.140625 744x123.1875]
+        PaintableWithLines (BlockContainer(anonymous)) [41,1199.140625 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,1199.140625 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1235.734375 718x0]
+        PaintableWithLines (BlockContainer<P>) [41,1247.734375 718x30.59375]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.override-rtl.red) [88.171875,1247.734375 116.359375x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1296.328125 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,1333.328125 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,1333.328125 744x123.1875]
+        PaintableWithLines (BlockContainer(anonymous)) [41,1346.328125 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,1346.328125 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1382.921875 718x0]
+        PaintableWithLines (BlockContainer<P>) [41,1394.921875 718x30.59375]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.red.bold) [638.953125,1394.921875 87.15625x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1443.515625 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,1480.515625 744x0]
+      PaintableWithLines (BlockContainer<DIV>.test) [28,1480.515625 744x132.375]
+        PaintableWithLines (BlockContainer(anonymous)) [41,1493.515625 718x0]
+        PaintableWithLines (BlockContainer<DIV>.label) [41,1493.515625 718x30.59375]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1530.109375 718x0]
+        PaintableWithLines (BlockContainer<P>) [41,1542.109375 718x39.78125]
+          PaintableWithLines (InlineNode<SPAN>.bold) [41,1548.109375 38.171875x30.59375]
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.rtl.red) [88.171875,1548.109375 162.484375x30.59375]
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode<SPAN>.ltr.blue) [130.0625,1548.109375 76.28125x30.59375]
+              TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.big) [250.65625,1542.109375 43.96875x39.796875]
+            TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [41,1599.890625 718x0]
+      PaintableWithLines (BlockContainer(anonymous)) [28,1636.890625 744x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1664.890625] [children: 0] (z-index: auto)

@@ -73,5 +73,6 @@ enum class BidiClass {
 };
 
 BidiClass bidirectional_class(u32 code_point);
+StringView bidi_class_to_string_view(BidiClass);
 
 }

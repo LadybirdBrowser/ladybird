@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibWeb/Layout/AvailableSpace.h>
 #include <LibWeb/Layout/LineBoxFragment.h>
 
 namespace Web::Layout {
@@ -33,6 +34,7 @@ public:
     Vector<LineBoxFragment>& fragments() { return m_fragments; }
 
     CSSPixels get_trailing_whitespace_width() const;
+    void reorder_fragments(Vector<size_t> const& visual_order);
     void trim_trailing_whitespace();
 
     bool is_empty_or_ends_in_whitespace() const;
