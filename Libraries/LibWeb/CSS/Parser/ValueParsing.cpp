@@ -2233,7 +2233,7 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
             }
         } else {
             auto color_space_token = function_tokens.consume_a_token();
-            if (color_space_token.token().type() != Token::Type::Ident)
+            if (!color_space_token.is(Token::Type::Ident))
                 return {};
             color_space = color_space_token.token().ident().to_string();
         }
