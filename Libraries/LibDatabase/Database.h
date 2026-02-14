@@ -23,12 +23,13 @@ namespace Database {
 
 class DATABASE_API Database : public RefCounted<Database> {
 public:
+    static ErrorOr<NonnullRefPtr<Database>> create_memory_backed();
     static ErrorOr<NonnullRefPtr<Database>> create(ByteString const& directory, StringView name);
     ~Database();
 
     using OnResult = Function<void(StatementID)>;
 
-    LexicalPath const& database_path() const { return m_database_path; }
+    Optional<LexicalPath> const& database_path() const { return m_database_path; }
 
     ErrorOr<StatementID> prepare_statement(StringView statement);
 
@@ -72,7 +73,8 @@ public:
     ErrorOr<void> set_synchronous_pragma(Synchronous);
 
 private:
-    Database(LexicalPath, sqlite3*);
+    static ErrorOr<NonnullRefPtr<Database>> create(sqlite3*, Optional<LexicalPath> database_path = {});
+    Database(sqlite3*, Optional<LexicalPath> database_path);
 
     void execute_statement_internal(StatementID, OnResult);
 
@@ -87,7 +89,7 @@ private:
         return m_prepared_statements[statement_id];
     }
 
-    LexicalPath m_database_path;
+    Optional<LexicalPath> m_database_path;
     sqlite3* m_database { nullptr };
     Vector<sqlite3_stmt*> m_prepared_statements;
 };
