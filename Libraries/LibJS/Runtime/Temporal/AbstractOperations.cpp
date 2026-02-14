@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2022, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -820,7 +820,7 @@ String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision
 // 13.26 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring
 String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
 {
-    // 1. If style is present and style is UNSEPARATED, let separator be the empty String; otherwise, let separator be ":".
+    // 1. If style is present and style is UNSEPARATED, let separator be the empty String; else, let separator be ":".
     auto separator = style == TimeStyle::Unseparated ? ""sv : ":"sv;
 
     // 2. Let hh be ToZeroPaddedDecimalString(hour, 2).

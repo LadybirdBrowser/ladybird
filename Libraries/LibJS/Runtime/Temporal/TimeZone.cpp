@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -132,7 +132,7 @@ Optional<Crypto::SignedBigInteger> get_named_time_zone_previous_transition(Strin
 // 11.1.5 FormatOffsetTimeZoneIdentifier ( offsetMinutes [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formatoffsettimezoneidentifier
 String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle> style)
 {
-    // 1. If offsetMinutes ≥ 0, let sign be the code unit 0x002B (PLUS SIGN); otherwise, let sign be the code unit 0x002D (HYPHEN-MINUS).
+    // 1. If offsetMinutes ≥ 0, let sign be the code unit 0x002B (PLUS SIGN); else, let sign be the code unit 0x002D (HYPHEN-MINUS).
     auto sign = offset_minutes >= 0 ? '+' : '-';
 
     // 2. Let absoluteMinutes be abs(offsetMinutes).
@@ -154,7 +154,7 @@ String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle
 // 11.1.6 FormatUTCOffsetNanoseconds ( offsetNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-formatutcoffsetnanoseconds
 String format_utc_offset_nanoseconds(i64 offset_nanoseconds)
 {
-    // 1. If offsetNanoseconds ≥ 0, let sign be the code unit 0x002B (PLUS SIGN); otherwise, let sign be the code unit 0x002D (HYPHEN-MINUS).
+    // 1. If offsetNanoseconds ≥ 0, let sign be the code unit 0x002B (PLUS SIGN); else, let sign be the code unit 0x002D (HYPHEN-MINUS).
     auto sign = offset_nanoseconds >= 0 ? '+' : '-';
 
     // 2. Let absoluteNanoseconds be abs(offsetNanoseconds).
@@ -172,7 +172,7 @@ String format_utc_offset_nanoseconds(i64 offset_nanoseconds)
     // 6. Let subSecondNanoseconds be absoluteNanoseconds modulo 10**9.
     auto sub_second_nanoseconds = modulo(absolute_nanoseconds, 1'000'000'000.0);
 
-    // 7. If second = 0 and subSecondNanoseconds = 0, let precision be MINUTE; otherwise, let precision be AUTO.
+    // 7. If second = 0 and subSecondNanoseconds = 0, let precision be MINUTE; else, let precision be AUTO.
     SecondsStringPrecision::Precision precision { Auto {} };
     if (second == 0 && sub_second_nanoseconds == 0)
         precision = SecondsStringPrecision::Minute {};
