@@ -41,6 +41,7 @@ GC::Ref<SessionHistoryEntry> SessionHistoryEntry::clone() const
     entry->m_navigation_api_key = m_navigation_api_key;
     entry->m_navigation_api_id = m_navigation_api_id;
     entry->m_scroll_restoration_mode = m_scroll_restoration_mode;
+    entry->m_scroll_position_data = m_scroll_position_data;
     entry->m_policy_container = m_policy_container;
     entry->m_browsing_context_name = m_browsing_context_name;
     entry->m_original_source_browsing_context = m_original_source_browsing_context;
