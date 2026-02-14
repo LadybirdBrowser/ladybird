@@ -170,8 +170,9 @@ ValueType Database::result_column(StatementID statement_id, int column)
     auto* statement = prepared_statement(statement_id);
 
     if constexpr (IsSame<ValueType, String>) {
+        auto length = sqlite3_column_bytes(statement, column);
         auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
-        return MUST(String::from_utf8(StringView { text, strlen(text) }));
+        return MUST(String::from_utf8(StringView { text, static_cast<size_t>(length) }));
     } else if constexpr (IsSame<ValueType, ByteString>) {
         auto length = sqlite3_column_bytes(statement, column);
         auto const* text = sqlite3_column_blob(statement, column);
