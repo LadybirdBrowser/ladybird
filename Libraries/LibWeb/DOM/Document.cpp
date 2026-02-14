@@ -1471,8 +1471,6 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     update_style();
 
-    auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
-
     auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
 
     if (m_layout_root && !m_layout_root->needs_layout_update() && svg_roots_to_relayout.is_empty())
@@ -1481,6 +1479,8 @@ void Document::update_layout(UpdateLayoutReason reason)
     // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
     if (m_created_for_appropriate_template_contents)
         return;
+
+    auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
 
     // Partial SVG relayout
     if (!needs_layout_tree_rebuild && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update()) {
