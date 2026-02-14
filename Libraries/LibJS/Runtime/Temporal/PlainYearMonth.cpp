@@ -101,8 +101,8 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
     // 12. Set result to ISODateToFields(calendar, isoDate, YEAR-MONTH).
     auto result = iso_date_to_fields(calendar, iso_date, DateType::YearMonth);
 
-    // 13. NOTE: The following operation is called with CONSTRAIN regardless of the value of overflow, in order for the
-    //     calendar to store a canonical value in the [[Day]] field of the [[ISODate]] internal slot of the result.
+    // 13. NOTE: The following operation is called with CONSTRAIN regardless of overflow, in order for the calendar to
+    //     store a canonical value in the [[Day]] field of the [[ISODate]] internal slot of the result.
     // 14. Set isoDate to ? CalendarYearMonthFromFields(calendar, result, CONSTRAIN).
     iso_date = TRY(calendar_year_month_from_fields(vm, calendar, result, Overflow::Constrain));
 
