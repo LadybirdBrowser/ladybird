@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -147,7 +147,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationConstructor::compare)
     // 11. Let duration2 be ToInternalDurationRecord(two).
     auto duration2 = to_internal_duration_record(vm, two);
 
-    // 12. If zonedRelativeTo is not undefined, and either TemporalUnitCategory(largestUnit1) or TemporalUnitCategory(largestUnit2) is date, then
+    // 12. If zonedRelativeTo is not undefined, and TemporalUnitCategory(largestUnit1) is DATE or TemporalUnitCategory(largestUnit2) is DATE, then
     if (zoned_relative_to && (temporal_unit_category(largest_unit1) == UnitCategory::Date || temporal_unit_category(largest_unit2) == UnitCategory::Date)) {
         // a. Let timeZone be zonedRelativeTo.[[TimeZone]].
         auto const time_zone = zoned_relative_to->time_zone();

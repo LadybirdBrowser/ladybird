@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -1526,8 +1527,8 @@ String temporal_duration_to_string(Duration const& duration, Precision precision
     // 10. Let zeroMinutesAndHigher be false.
     auto zero_minutes_and_higher = false;
 
-    // 11. If DefaultTemporalLargestUnit(duration) is SECOND, MILLISECOND, MICROSECOND, or NANOSECOND, set zeroMinutesAndHigher to true.
-    if (auto unit = default_temporal_largest_unit(duration); unit == Unit::Second || unit == Unit::Millisecond || unit == Unit::Microsecond || unit == Unit::Nanosecond)
+    // 11. If DefaultTemporalLargestUnit(duration) is one of SECOND, MILLISECOND, MICROSECOND, or NANOSECOND, set zeroMinutesAndHigher to true.
+    if (first_is_one_of(default_temporal_largest_unit(duration), Unit::Second, Unit::Millisecond, Unit::Microsecond, Unit::Nanosecond))
         zero_minutes_and_higher = true;
 
     // 12. Let secondsDuration be TimeDurationFromComponents(0, 0, duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]).

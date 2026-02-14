@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -407,7 +407,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         return TRY(temporal_duration_from_internal(vm, internal_duration, largest_unit_value));
     }
 
-    // 29. If IsCalendarUnit(existingLargestUnit) is true, or IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
+    // 29. If IsCalendarUnit(existingLargestUnit) is true or IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
     if (is_calendar_unit(existing_largest_unit))
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(existing_largest_unit));
     if (is_calendar_unit(largest_unit_value))
@@ -548,7 +548,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
         // a. Let largestUnit be DefaultTemporalLargestUnit(duration).
         auto largest_unit = default_temporal_largest_unit(duration);
 
-        // b. If IsCalendarUnit(largestUnit) is true, or IsCalendarUnit(unit) is true, throw a RangeError exception.
+        // b. If IsCalendarUnit(largestUnit) is true or IsCalendarUnit(unit) is true, throw a RangeError exception.
         if (is_calendar_unit(largest_unit))
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(largest_unit));
         if (is_calendar_unit(unit_value))
@@ -591,7 +591,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_string)
     // 8. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
     TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
 
-    // 9. If smallestUnit is HOUR or MINUTE, throw a RangeError exception.
+    // 9. If smallestUnit is either HOUR or MINUTE, throw a RangeError exception.
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && (*unit == Unit::Hour || *unit == Unit::Minute))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
 

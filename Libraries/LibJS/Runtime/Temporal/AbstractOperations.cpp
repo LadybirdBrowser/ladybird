@@ -310,7 +310,7 @@ ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM& vm
         return Precision { Auto {} };
     }
 
-    // 4. If digitsValue is NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
+    // 4. If digitsValue is one of NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if (digits_value.is_nan() || digits_value.is_infinity())
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, digits_value, vm.names.fractionalSecondDigits);
 
@@ -469,11 +469,11 @@ ThrowCompletionOr<void> validate_temporal_unit_value(VM& vm, PropertyKey const& 
     auto unit_value = value.get<Unit>();
     auto category = temporal_unit_category(unit_value);
 
-    // 4. If category is DATE and unitGroup is DATE or DATETIME, return unused.
+    // 4. If category is DATE and unitGroup is either DATE or DATETIME, return unused.
     if (category == UnitCategory::Date && (unit_group == UnitGroup::Date || unit_group == UnitGroup::DateTime))
         return {};
 
-    // 5. If category is TIME and unitGroup is TIME or DATETIME, return unused.
+    // 5. If category is TIME and unitGroup is either TIME or DATETIME, return unused.
     if (category == UnitCategory::Time && (unit_group == UnitGroup::Time || unit_group == UnitGroup::DateTime))
         return {};
 
@@ -1666,13 +1666,13 @@ CalendarFields iso_date_to_fields(StringView calendar, ISODate iso_date, DateTyp
     // 3. Set fields.[[MonthCode]] to calendarDate.[[MonthCode]].
     fields.month_code = calendar_date.month_code;
 
-    // 4. If type is MONTH-DAY or DATE, then
+    // 4. If type is either MONTH-DAY or DATE, then
     if (type == DateType::MonthDay || type == DateType::Date) {
         // a. Set fields.[[Day]] to calendarDate.[[Day]].
         fields.day = calendar_date.day;
     }
 
-    // 5. If type is YEAR-MONTH or DATE, then
+    // 5. If type is either YEAR-MONTH or DATE, then
     if (type == DateType::YearMonth || type == DateType::Date) {
         // a. Set fields.[[Year]] to calendarDate.[[Year]].
         fields.year = calendar_date.year;

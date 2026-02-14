@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -538,7 +538,7 @@ Time round_time(Time const& time, u64 increment, Unit unit, RoundingMode roundin
     double quantity = 0;
 
     switch (unit) {
-    // 1. If unit is DAY or HOUR, then
+    // 1. If unit is either DAY or HOUR, then
     case Unit::Day:
     case Unit::Hour:
         // a. Let quantity be ((((time.[[Hour]] × 60 + time.[[Minute]]) × 60 + time.[[Second]]) × 1000 + time.[[Millisecond]]) × 1000 + time.[[Microsecond]]) × 1000 + time.[[Nanosecond]].

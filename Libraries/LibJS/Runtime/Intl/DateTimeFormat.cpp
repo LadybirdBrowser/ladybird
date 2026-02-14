@@ -353,7 +353,7 @@ Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern
             format_options.era = options.era;
         }
 
-        // c. If required is TIME or ANY, then
+        // c. If required is either TIME or ANY, then
         if (required == OptionRequired::Time || required == OptionRequired::Any) {
             // i. Set formatOptions.[[hourCycle]] to options.[[hourCycle]].
             format_options.hour_cycle = options.hour_cycle;
@@ -536,7 +536,7 @@ static double to_epoch_milliseconds(Crypto::SignedBigInteger const& epoch_nanose
 // 15.6.15 HandleDateTimeTemporalDate ( dateTimeFormat, temporalDate ), https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainDate const& temporal_date)
 {
-    // 1. If temporalDate.[[Calendar]] is not dateTimeFormat.[[Calendar]] or "iso8601", throw a RangeError exception.
+    // 1. If temporalDate.[[Calendar]] is not either dateTimeFormat.[[Calendar]] or "iso8601", throw a RangeError exception.
     if (!temporal_date.calendar().is_one_of(date_time_format.calendar(), "iso8601"sv))
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDate"sv, temporal_date.calendar(), date_time_format.calendar());
 
