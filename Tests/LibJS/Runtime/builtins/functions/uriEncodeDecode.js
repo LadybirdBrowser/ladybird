@@ -53,7 +53,21 @@ test("decodeURIComponent", () => {
 test("decodeURIComponent exception", () => {
     ["%", "%a", "%gh", "%%%"].forEach(test => {
         expect(() => {
-            decodeURI(test);
+            decodeURIComponent(test);
+        }).toThrowWithMessage(URIError, "URI malformed");
+    });
+});
+
+test("decodeURIComponent invalid UTF-8 sequences", () => {
+    [
+        "%ED%BF%BF", // surrogate code point (U+DFFF)
+        "%C0%AF", // overlong encoding
+        "%ED%7F%BF", // invalid continuation byte
+        "%ED%BF", // incomplete 3-byte sequence
+        "%F4%90%80%80", // code point beyond U+10FFFF
+    ].forEach(test => {
+        expect(() => {
+            decodeURIComponent(test);
         }).toThrowWithMessage(URIError, "URI malformed");
     });
 });
