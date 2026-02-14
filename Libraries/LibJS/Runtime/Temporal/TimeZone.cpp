@@ -474,21 +474,19 @@ ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const& parse_res
         // c. Return Time Zone Identifier Parse Record { [[Name]]: CodePointsToString(name), [[OffsetMinutes]]: EMPTY }.
         return ParsedTimeZoneIdentifier { .name = String::from_utf8_without_validation(parse_result.time_zone_iana_name->bytes()), .offset_minutes = {} };
     }
-    // 4. Else,
-    else {
-        // a. Assert: parseResult contains a UTCOffset[~SubMinutePrecision] Parse Node.
-        VERIFY(parse_result.time_zone_offset.has_value());
 
-        // b. Let offset be the source text matched by the UTCOffset[~SubMinutePrecision] Parse Node contained within parseResult.
-        // c. Let offsetNanoseconds be ! ParseDateTimeUTCOffset(CodePointsToString(offset)).
-        auto offset_nanoseconds = parse_date_time_utc_offset(parse_result.time_zone_offset->source_text);
+    // 4. Assert: parseResult contains a UTCOffset[~SubMinutePrecision] Parse Node.
+    VERIFY(parse_result.time_zone_offset.has_value());
 
-        // d. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
-        auto offset_minutes = offset_nanoseconds / 60'000'000'000;
+    // 5. Let offset be the source text matched by the UTCOffset[~SubMinutePrecision] Parse Node contained within parseResult.
+    // 6. Let offsetNanoseconds be ! ParseDateTimeUTCOffset(CodePointsToString(offset)).
+    auto offset_nanoseconds = parse_date_time_utc_offset(parse_result.time_zone_offset->source_text);
 
-        // e. Return Time Zone Identifier Parse Record { [[Name]]: EMPTY, [[OffsetMinutes]]: offsetMinutes }.
-        return ParsedTimeZoneIdentifier { .name = {}, .offset_minutes = static_cast<i64>(offset_minutes) };
-    }
+    // 7. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
+    auto offset_minutes = offset_nanoseconds / 60'000'000'000;
+
+    // 8. Return Time Zone Identifier Parse Record { [[Name]]: empty, [[OffsetMinutes]]: offsetMinutes }.
+    return ParsedTimeZoneIdentifier { .name = {}, .offset_minutes = static_cast<i64>(offset_minutes) };
 }
 
 }

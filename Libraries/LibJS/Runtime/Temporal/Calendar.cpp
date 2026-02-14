@@ -228,8 +228,7 @@ String create_month_code(u8 month_number, bool is_leap_month)
         return MUST(String::formatted("M{:02}L", month_number));
     }
 
-    // 4. Else,
-    //     a. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M) and numberPart.
+    // 4. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M) and numberPart.
     return MUST(String::formatted("M{:02}", month_number));
 }
 
