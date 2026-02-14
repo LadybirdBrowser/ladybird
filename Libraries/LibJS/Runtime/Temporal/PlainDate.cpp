@@ -338,7 +338,7 @@ String pad_iso_year(i32 year)
         return MUST(String::formatted("{:04}", year));
     }
 
-    // 2. If y > 0, let yearSign be "+"; otherwise, let yearSign be "-".
+    // 2. If y > 0, let yearSign be "+"; else, let yearSign be "-".
     auto year_sign = year > 0 ? '+' : '-';
 
     // 3. Let year be ToZeroPaddedDecimalString(abs(y), 6).
