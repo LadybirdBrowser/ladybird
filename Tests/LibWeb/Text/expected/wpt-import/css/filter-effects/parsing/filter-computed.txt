@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 34 tests
 
-32 Pass
-2 Fail
+33 Pass
+1 Fail
 Pass	Property filter value 'none'
 Pass	Property filter value 'blur(100px)'
 Pass	Property filter value 'blur()'
@@ -37,4 +37,4 @@ Pass	Property filter value 'sepia(0)'
 Pass	Property filter value 'sepia(100%)'
 Pass	Property filter value 'sepia(2)'
 Pass	Property filter value 'sepia()'
-Fail	Property filter value 'blur(10px) url("https://www.example.com/picture.svg#f") contrast(20) brightness(30)'
+Pass	Property filter value 'blur(10px) url("https://www.example.com/picture.svg#f") contrast(20) brightness(30)'
