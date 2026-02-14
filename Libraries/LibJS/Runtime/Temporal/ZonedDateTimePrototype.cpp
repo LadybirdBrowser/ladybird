@@ -794,7 +794,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_string)
 }
 
 // 6.3.42 Temporal.ZonedDateTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
-// 15.12.8.1 Temporal.ZonedDateTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-properties-of-the-temporal-zoneddatetime-prototype-object
+// 15.11.8.1 Temporal.ZonedDateTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-temporal.zoneddatetime.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_locale_string)
 {
     auto& realm = *vm.current_realm();

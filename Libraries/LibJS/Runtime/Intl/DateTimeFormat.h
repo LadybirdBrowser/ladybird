@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -127,9 +127,9 @@ using FormattableDateTime = Variant<
     GC::Ref<Temporal::ZonedDateTime>,
     GC::Ref<Temporal::Instant>>;
 
-// https://tc39.es/proposal-temporal/#datetimeformat-value-format-record
-// NOTE: ICU does not support nanoseconds in its date-time formatter. Thus, we do do not store the epoch nanoseconds as
-//       a BigInt here. Instead, we store the epoch in milliseconds as a double.
+// 15.6.14 Value Format Records, https://tc39.es/proposal-temporal/#datetimeformat-value-format-record
+// NB: ICU does not support nanoseconds in its date-time formatter. Thus, we do do not store the epoch nanoseconds as a
+//     BigInt here. Instead, we store the epoch in milliseconds as a double.
 struct ValueFormat {
     Unicode::DateTimeFormat const& formatter; // [[Format]]
     double epoch_milliseconds { 0 };          // [[EpochNanoseconds]]
