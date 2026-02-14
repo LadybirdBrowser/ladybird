@@ -475,7 +475,7 @@ static ThrowCompletionOr<ByteString> decode(VM& vm, ByteString const& string, St
         if (expected_continuation_bytes > 0) {
             decoded_builder.append(decoded_code_unit);
             expected_continuation_bytes--;
-            if (expected_continuation_bytes == 0 && !Utf8View(decoded_builder.string_view().substring_view(code_point_start_offset)).validate())
+            if (expected_continuation_bytes == 0 && !Utf8View(decoded_builder.string_view().substring_view(code_point_start_offset)).validate(AllowLonelySurrogates::No))
                 return vm.throw_completion<URIError>(ErrorType::URIMalformed);
             continue;
         }
