@@ -89,6 +89,18 @@ struct LayoutState {
         void set_content_x(CSSPixels x) { offset.set_x(x); }
         void set_content_y(CSSPixels y) { offset.set_y(y); }
 
+        // Offset from ICB (viewport) content edge to this box's content edge.
+        // Computed lazily by walking the containing block chain.
+        // For pre-populated nodes (partial relayout), returns the cached value from paintable absolute position.
+        CSSPixelPoint cumulative_offset() const
+        {
+            if (m_cumulative_offset.has_value())
+                return *m_cumulative_offset;
+            if (m_containing_block_used_values)
+                return m_containing_block_used_values->cumulative_offset() + offset;
+            return offset;
+        }
+
         // offset from top-left corner of content area of box's containing block to top-left corner of box's content area
         CSSPixelPoint offset;
 
@@ -179,6 +191,7 @@ struct LayoutState {
 
         GC::Ptr<Layout::NodeWithStyle const> m_node { nullptr };
         UsedValues const* m_containing_block_used_values { nullptr };
+        Optional<CSSPixelPoint> m_cumulative_offset;
 
         CSSPixels m_content_width { 0 };
         CSSPixels m_content_height { 0 };

@@ -665,7 +665,8 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::PaintableBox 
     m_has_definite_width = true;
     m_has_definite_height = true;
 
-    offset = paintable.offset();
+    set_content_offset(paintable.offset());
+    m_cumulative_offset = paintable.absolute_rect().location();
 
     margin_left = box_model.margin.left;
     margin_right = box_model.margin.right;

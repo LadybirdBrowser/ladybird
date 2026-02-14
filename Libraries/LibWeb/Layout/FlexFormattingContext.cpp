@@ -516,9 +516,9 @@ void FlexFormattingContext::set_cross_size(FlexItem& item, CSSPixels size)
 void FlexFormattingContext::set_offset(FlexItem& item, CSSPixels main_offset, CSSPixels cross_offset)
 {
     if (is_row_layout())
-        item.used_values.offset = CSSPixelPoint { main_offset, cross_offset };
+        item.used_values.set_content_offset({ main_offset, cross_offset });
     else
-        item.used_values.offset = CSSPixelPoint { cross_offset, main_offset };
+        item.used_values.set_content_offset({ cross_offset, main_offset });
 }
 
 void FlexFormattingContext::set_main_axis_first_margin(FlexItem& item, CSSPixels margin)

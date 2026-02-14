@@ -1211,9 +1211,9 @@ void TableFormattingContext::position_cell_boxes()
         // - for top: the height reserved for top captions (including margins), if any
         // - the padding-left/padding-top and border-left-width/border-top-width of the table
         // FIXME: Account for visibility.
-        cell_state.offset = row_state.offset.translated(
+        cell_state.set_content_offset(row_state.offset.translated(
             cell_state.border_box_left() + m_columns[cell.column_index].left_offset + cell.column_index * border_spacing_horizontal(),
-            cell_state.border_box_top());
+            cell_state.border_box_top()));
     }
 }
 
