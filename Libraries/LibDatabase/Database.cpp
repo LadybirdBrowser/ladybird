@@ -54,15 +54,25 @@ static constexpr StringView sql_error(int error_code)
     __ENUMERATE_TYPE(unsigned long long) \
     __ENUMERATE_TYPE(bool)
 
+ErrorOr<NonnullRefPtr<Database>> Database::create_memory_backed()
+{
+    sqlite3* sql_database { nullptr };
+    SQL_TRY(sqlite3_open(":memory:", &sql_database));
+    return create(sql_database);
+}
+
 ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, StringView name)
 {
     TRY(Core::Directory::create(directory, Core::Directory::CreateDirectories::Yes));
     LexicalPath database_path { ByteString::formatted("{}/{}.db", directory, name) };
+    sqlite3* sql_database { nullptr };
+    SQL_TRY(sqlite3_open(database_path.string().characters(), &sql_database));
+    return create(sql_database, database_path);
+}
 
-    sqlite3* m_database { nullptr };
-    SQL_TRY(sqlite3_open(database_path.string().characters(), &m_database));
-
-    auto database = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) Database(move(database_path), m_database)));
+ErrorOr<NonnullRefPtr<Database>> Database::create(sqlite3* sql_database, Optional<LexicalPath> database_path)
+{
+    auto database = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) Database(sql_database, move(database_path))));
 
     // Enable the WAL and set the synchronous pragma to normal by default for performance.
     TRY(database->set_journal_mode_pragma(JournalMode::WriteAheadLog));
@@ -71,7 +81,7 @@ ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, S
     return database;
 }
 
-Database::Database(LexicalPath database_path, sqlite3* database)
+Database::Database(sqlite3* database, Optional<LexicalPath> database_path)
     : m_database_path(move(database_path))
     , m_database(database)
 {

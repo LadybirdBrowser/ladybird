@@ -129,7 +129,9 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
         WHERE last_access_time >= ?;
     )#"sv));
 
-    auto disk_space = TRY(FileSystem::compute_disk_space(database.database_path().parent()));
+    auto database_path = database.database_path();
+    VERIFY(database_path.has_value()); // We assume a disk backed database for CacheIndex.
+    auto disk_space = TRY(FileSystem::compute_disk_space(database.database_path().value().parent()));
     auto maximum_disk_cache_size = compute_maximum_disk_cache_size(disk_space.free_bytes);
 
     Limits limits {
