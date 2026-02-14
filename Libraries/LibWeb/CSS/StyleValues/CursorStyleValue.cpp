@@ -125,17 +125,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
     if (m_properties.x && m_properties.y) {
         VERIFY(document.window());
 
-        auto resolved_value = [](StyleValue const& value) {
-            if (value.is_number())
-                return value.as_number().number();
-
-            if (value.is_calculated() && value.as_calculated().resolves_to_number())
-                return value.as_calculated().resolve_number({}).value();
-
-            VERIFY_NOT_REACHED();
-        };
-
-        hotspot = { resolved_value(*m_properties.x), resolved_value(*m_properties.y) };
+        hotspot = { number_from_style_value(*m_properties.x, {}), number_from_style_value(*m_properties.y, {}) };
     }
 
     return Gfx::ImageCursor {

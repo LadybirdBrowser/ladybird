@@ -52,16 +52,7 @@ ValueComparingNonnullRefPtr<StyleValue const> RandomValueSharingStyleValue::abso
 
 double RandomValueSharingStyleValue::random_base_value() const
 {
-    VERIFY(m_fixed_value);
-    VERIFY(m_fixed_value->is_number() || (m_fixed_value->is_calculated() && m_fixed_value->as_calculated().resolves_to_number()));
-
-    if (m_fixed_value->is_number())
-        return m_fixed_value->as_number().number();
-
-    if (m_fixed_value->is_calculated())
-        return m_fixed_value->as_calculated().resolve_number({}).value();
-
-    VERIFY_NOT_REACHED();
+    return number_from_style_value(*m_fixed_value, {});
 }
 
 void RandomValueSharingStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const

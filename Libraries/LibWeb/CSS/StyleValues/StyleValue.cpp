@@ -184,4 +184,33 @@ StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const&)
     return StyleValueVector { *this };
 }
 
+double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis)
+{
+    if (style_value->is_number())
+        return style_value->as_number().number();
+
+    if (style_value->is_calculated()) {
+        auto const& calculated_style_value = style_value->as_calculated();
+
+        if (calculated_style_value.resolves_to_number())
+            return calculated_style_value.resolve_number({}).value();
+
+        if (calculated_style_value.resolves_to_percentage()) {
+            VERIFY(percentage_basis.has_value());
+
+            return calculated_style_value.resolve_percentage({}).value().as_fraction() * percentage_basis.value();
+        }
+
+        VERIFY_NOT_REACHED();
+    }
+
+    if (style_value->is_percentage()) {
+        VERIFY(percentage_basis.has_value());
+
+        return percentage_basis.value() * style_value->as_percentage().percentage().as_fraction();
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 }

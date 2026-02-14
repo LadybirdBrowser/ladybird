@@ -826,6 +826,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
+    // FIXME: Support calc()
     if (stroke_width.is_number())
         computed_values.set_stroke_width(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_width.as_number().number())));
     else if (stroke_width.is_length())
@@ -868,6 +869,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     auto const& stroke_dashoffset = computed_style.property(CSS::PropertyID::StrokeDashoffset);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
+    // FIXME: Support calc()
     if (stroke_dashoffset.is_number())
         computed_values.set_stroke_dashoffset(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_dashoffset.as_number().number())));
     else if (stroke_dashoffset.is_length())
