@@ -450,16 +450,6 @@ ErrorOr<int> mkstemp(Span<char> pattern)
     return fd;
 }
 
-ErrorOr<String> mkdtemp(Span<char> pattern)
-{
-    auto* path = ::mkdtemp(pattern.data());
-    if (path == nullptr) {
-        return Error::from_errno(errno);
-    }
-
-    return String::from_utf8(StringView { path, strlen(path) });
-}
-
 ErrorOr<void> rename(StringView old_path, StringView new_path)
 {
     if (old_path.is_null() || new_path.is_null())
