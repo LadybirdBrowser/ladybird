@@ -195,12 +195,25 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
     // * if the response status code is 206 or 304, or the must-understand cache directive (see Section 5.2.2.3) is
     //   present: the cache understands the response status code;
     //
-    // This cache implements the semantics of 206 and 304, so no check is needed here.
-    // FIXME: must-understand is not implemented.
+    // NB: This cache implements the semantics of 304 for revalidation. 206 is excluded above.
+    bool has_must_understand = cache_control.has_value() && contains_cache_control_directive(*cache_control, "must-understand"sv);
 
-    // * the no-store cache directive is not present in the response (see Section 5.2.2.5);
-    if (cache_control.has_value() && contains_cache_control_directive(*cache_control, "no-store"sv))
-        return false;
+    if (has_must_understand) {
+        if (!is_heuristically_cacheable_status(status_code) && status_code != 304)
+            return false;
+
+        // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-understand
+        // The must-understand response directive limits caching of the response to a cache that understands and conforms
+        // to the requirements for that response's status code.
+        //
+        // A response that contains the must-understand directive SHOULD also contain the no-store directive. When a cache
+        // that implements the must-understand directive receives a response that includes it, the cache SHOULD ignore the
+        // no-store directive if it understands and implements the status code's caching requirements.
+    } else {
+        // * the no-store cache directive is not present in the response (see Section 5.2.2.5);
+        if (cache_control.has_value() && contains_cache_control_directive(*cache_control, "no-store"sv))
+            return false;
+    }
 
     // * if the cache is shared: the private response directive is either not present or allows a shared cache to store
     //   a modified response; see Section 5.2.2.7);

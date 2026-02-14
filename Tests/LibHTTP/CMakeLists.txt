@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestCacheUtilities.cpp
     TestHTTPUtils.cpp
 )
 
