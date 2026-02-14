@@ -429,23 +429,44 @@ Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern
 }
 
 // 15.6.2 AdjustDateTimeStyleFormat ( formats, baseFormat, matcher, allowedOptions ), https://tc39.es/proposal-temporal/#sec-adjustdatetimestyleformat
-Unicode::CalendarPattern adjust_date_time_style_format(Unicode::CalendarPattern const& base_format, ReadonlySpan<Unicode::CalendarPattern::Field> allowed_options)
+Unicode::CalendarPattern adjust_date_time_style_format(VM& vm, Unicode::CalendarPattern& base_format, ReadonlySpan<Unicode::CalendarPattern::Field> allowed_options)
 {
-    // 1. Let formatOptions be a new Record.
+    // 1. Let anyConflictingFields be false.
+    auto any_conflicted_fields = false;
+
+    // 2. For each row of Table 16, except the header row, in table order, do
+    MUST(for_each_calendar_field(vm, base_format, [&](auto option_type, auto& option, auto const&, auto const&) -> ThrowCompletionOr<void> {
+        // a. Let prop be the name given in the "Property" column of the current row.
+        // b. If baseFormat has a [[<prop>]] field and allowedOptions does not contain prop, set anyConflictingFields to true.
+        if (option.has_value() && !allowed_options.contains_slow(option_type))
+            any_conflicted_fields = true;
+        return {};
+    }));
+
+    // 3. If anyConflictingFields is false, return baseFormat.
+    if (!any_conflicted_fields)
+        return base_format;
+
+    // 4. NOTE: The above steps prevent the operation from returning an altered format when baseFormat would be sufficient.
+    //    This should be unnecessary, but exists because the ECMA-402 specification does not guarantee that a format
+    //    returned from DateTimeStyleFormat can also be returned from BasicFormatMatcher or BestFitFormatMatcher.
+
+    // 5. Let formatOptions be a new Record.
     Unicode::CalendarPattern format_options;
 
-    // 2. For each field name fieldName of allowedOptions, do
+    // 6. For each property name prop of allowedOptions, do
     base_format.for_each_calendar_field_zipped_with(format_options, allowed_options, [&](auto const& base_option, auto& format_option) {
-        // a. Set the field of formatOptions whose name is fieldName to the value of the field of baseFormat whose name is fieldName.
-        format_option = base_option;
+        // a. If baseFormat has a [[<prop>]] field, set formatOptions.[[<prop>]] to baseFormat.[[<prop>]].
+        if (base_option.has_value())
+            format_option = base_option;
         return IterationDecision::Continue;
     });
 
-    // 3. If matcher is "basic", then
+    // 7. If matcher is "basic", then
     //     a. Let bestFormat be BasicFormatMatcher(formatOptions, formats).
-    // 4. Else,
+    // 8. Else,
     //     a. Let bestFormat be BestFitFormatMatcher(formatOptions, formats).
-    // 5. Return bestFormat.
+    // 9. Return bestFormat.
     return format_options;
 }
 

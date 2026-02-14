@@ -233,7 +233,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     PropertyKey const* explicit_format_component = nullptr;
 
     // 25. For each row of Table 16, except the header row, in table order, do
-    TRY(for_each_calendar_field(vm, format_options, [&](auto& option, PropertyKey const& property, auto const& values) -> ThrowCompletionOr<void> {
+    TRY(for_each_calendar_field(vm, format_options, [&](auto, auto& option, PropertyKey const& property, auto const& values) -> ThrowCompletionOr<void> {
         using ValueType = typename RemoveReference<decltype(option)>::ValueType;
 
         // a. Let prop be the name given in the Property column of the current row.
@@ -327,16 +327,16 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
         // f. If dateStyle is not undefined, then
         if (!date_style.is_undefined()) {
-            // i. Set dateTimeFormat.[[TemporalPlainDateFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « [[weekday]], [[era]], [[year]], [[month]], [[day]] »).
-            auto temporal_plain_date_format = adjust_date_time_style_format(best_format, { { Weekday, Era, Year, Month, Day } });
+            // i. Set dateTimeFormat.[[TemporalPlainDateFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « "weekday", "era", "year", "month", "day" »).
+            auto temporal_plain_date_format = adjust_date_time_style_format(vm, best_format, { { Weekday, Era, Year, Month, Day } });
             date_time_format->set_temporal_plain_date_format(move(temporal_plain_date_format));
 
-            // ii. Set dateTimeFormat.[[TemporalPlainYearMonthFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « [[era]], [[year]], [[month]] »).
-            auto temporal_plain_year_month_format = adjust_date_time_style_format(best_format, { { Era, Year, Month } });
+            // ii. Set dateTimeFormat.[[TemporalPlainYearMonthFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « "era", "year", "month" »).
+            auto temporal_plain_year_month_format = adjust_date_time_style_format(vm, best_format, { { Era, Year, Month } });
             date_time_format->set_temporal_plain_year_month_format(move(temporal_plain_year_month_format));
 
-            // iii. Set dateTimeFormat.[[TemporalPlainMonthDayFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « [[month]], [[day]] »).
-            auto temporal_plain_month_day_format = adjust_date_time_style_format(best_format, { { Month, Day } });
+            // iii. Set dateTimeFormat.[[TemporalPlainMonthDayFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « "month", "day" »).
+            auto temporal_plain_month_day_format = adjust_date_time_style_format(vm, best_format, { { Month, Day } });
             date_time_format->set_temporal_plain_month_day_format(move(temporal_plain_month_day_format));
         }
         // g. Else,
@@ -348,8 +348,8 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
         // h. If timeStyle is not undefined, then
         if (!time_style.is_undefined()) {
-            // i. Set dateTimeFormat.[[TemporalPlainTimeFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « [[dayPeriod]], [[hour]], [[minute]], [[second]], [[fractionalSecondDigits]] »).
-            auto temporal_plain_time_format = adjust_date_time_style_format(best_format, { { DayPeriod, Hour, Minute, Second, FractionalSecondDigits } });
+            // i. Set dateTimeFormat.[[TemporalPlainTimeFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" »).
+            auto temporal_plain_time_format = adjust_date_time_style_format(vm, best_format, { { DayPeriod, Hour, Minute, Second, FractionalSecondDigits } });
             date_time_format->set_temporal_plain_time_format(move(temporal_plain_time_format));
         }
         // i. Else,
@@ -357,8 +357,8 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
             // i. Set dateTimeFormat.[[TemporalPlainTimeFormat]] to null.
         }
 
-        // j. Set dateTimeFormat.[[TemporalPlainDateTimeFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « [[weekday]], [[era]], [[year]], [[month]], [[day]], [[dayPeriod]], [[hour]], [[minute]], [[second]], [[fractionalSecondDigits]] »).
-        auto temporal_plain_date_time_format = adjust_date_time_style_format(best_format, { { Weekday, Era, Year, Month, Day, DayPeriod, Hour, Minute, Second, FractionalSecondDigits } });
+        // j. Set dateTimeFormat.[[TemporalPlainDateTimeFormat]] to AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, « "weekday", "era", "year", "month", "day", "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" »).
+        auto temporal_plain_date_time_format = adjust_date_time_style_format(vm, best_format, { { Weekday, Era, Year, Month, Day, DayPeriod, Hour, Minute, Second, FractionalSecondDigits } });
         date_time_format->set_temporal_plain_date_time_format(move(temporal_plain_date_time_format));
 
         // k. Set dateTimeFormat.[[TemporalInstantFormat]] to bestFormat.
