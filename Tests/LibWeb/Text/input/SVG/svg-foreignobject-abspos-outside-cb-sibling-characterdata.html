@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html, body { margin: 0; }
+    .container {
+        position: relative;
+        width: 300px;
+        height: 200px;
+    }
+    #flow {
+        font: 16px/16px serif;
+        width: 20px;
+    }
+    #abspos {
+        position: absolute;
+        width: 20px;
+        height: 10px;
+    }
+</style>
+<div class="container">
+    <svg width="300" height="200">
+        <foreignObject width="300" height="200">
+            <div id="flow">x</div>
+            <div id="abspos"></div>
+        </foreignObject>
+    </svg>
+</div>
+<script>
+    asyncTest(done => {
+        const flow = document.getElementById("flow");
+        const abspos = document.getElementById("abspos");
+        document.body.offsetWidth;
+
+        const before = abspos.getBoundingClientRect();
+
+        // CharacterData mutation is expected to take partial relayout path here.
+        flow.firstChild.data = "x x x x x x x x x x x x x x x x";
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const after = abspos.getBoundingClientRect();
+                println(`moved=${after.x !== before.x || after.y !== before.y}`);
+                done();
+            });
+        });
+    });
+</script>
