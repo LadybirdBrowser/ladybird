@@ -253,12 +253,7 @@ void FlexFormattingContext::parent_context_did_dimension_child_root_box()
         return IterationDecision::Continue;
     });
 
-    for (auto& child : flex_container().contained_abspos_children()) {
-        auto& box = as<Box>(*child);
-        auto available_width = AvailableSize::make_definite(m_flex_container_state.content_width() + m_flex_container_state.padding_left + m_flex_container_state.padding_right);
-        auto available_height = AvailableSize::make_definite(m_flex_container_state.content_height() + m_flex_container_state.padding_top + m_flex_container_state.padding_bottom);
-        layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
-    }
+    layout_absolutely_positioned_children();
 }
 
 // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property

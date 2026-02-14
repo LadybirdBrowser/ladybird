@@ -1701,13 +1701,7 @@ void TableFormattingContext::parent_context_did_dimension_child_root_box()
         return TraversalDecision::Continue;
     });
 
-    for (auto& child : context_box().contained_abspos_children()) {
-        auto& box = as<Box>(*child);
-        auto& cb_state = m_state.get(*box.containing_block());
-        auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
-        auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
-        layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
-    }
+    layout_absolutely_positioned_children();
 }
 
 void TableFormattingContext::run(AvailableSpace const& available_space)

@@ -17,22 +17,6 @@ enum class GridDimension {
     Column
 };
 
-enum class Alignment {
-    Baseline,
-    Center,
-    End,
-    Normal,
-    Safe,
-    SelfEnd,
-    SelfStart,
-    SpaceAround,
-    SpaceBetween,
-    SpaceEvenly,
-    Start,
-    Stretch,
-    Unsafe,
-};
-
 struct GridPosition {
     int row;
     int column;
@@ -325,7 +309,7 @@ private:
     void determine_grid_container_height();
     void determine_intrinsic_size_of_grid_container(AvailableSpace const& available_space);
 
-    void layout_absolutely_positioned_element(Box const&);
+    virtual AbsposContainingBlockInfo resolve_abspos_containing_block_info(Box const&) override;
     virtual void parent_context_did_dimension_child_root_box() override;
 
     void resolve_grid_item_sizes(GridDimension dimension);
