@@ -162,12 +162,9 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
         },
         [&](FilterOperation::HueRotate const& from_value) -> Optional<FilterValue> {
             auto const& to_value = to.get<FilterOperation::HueRotate>();
-            auto const& from_style_value = from_value.angle.has<FilterOperation::HueRotate::Zero>() ? AngleStyleValue::create(Angle::make_degrees(0)) : from_value.angle.get<AngleOrCalculated>().as_style_value();
-            auto const& to_style_value = to_value.angle.has<FilterOperation::HueRotate::Zero>() ? AngleStyleValue::create(Angle::make_degrees(0)) : to_value.angle.get<AngleOrCalculated>().as_style_value();
-            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_style_value, to_style_value, delta, allow_discrete)) {
-                AngleOrCalculated interpolated_angle = interpolated_style_value->is_angle() ? AngleOrCalculated { interpolated_style_value->as_angle().angle() } : AngleOrCalculated { interpolated_style_value->as_calculated() };
+            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_value.angle, to_value.angle, delta, allow_discrete)) {
                 return FilterOperation::HueRotate {
-                    .angle = interpolated_angle,
+                    .angle = interpolated_style_value.release_nonnull(),
                 };
             }
             return {};
@@ -271,7 +268,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
                 };
             },
             [&](FilterOperation::HueRotate const&) -> FilterValue {
-                return FilterOperation::HueRotate {};
+                return FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) };
             },
             [&](FilterOperation::Color const& color) -> FilterValue {
                 auto default_value_for_interpolation = [&]() {
@@ -2142,7 +2139,7 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                 };
             },
             [&](FilterOperation::HueRotate const&) -> FilterValue {
-                return FilterOperation::HueRotate {};
+                return FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) };
             },
             [&](FilterOperation::Color const& color) -> FilterValue {
                 auto default_value_for_accumulation = [&]() {
@@ -2183,22 +2180,7 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                     return {};
                 auto const& animated_rotate = animated.get<FilterOperation::HueRotate>();
 
-                auto get_angle = [](FilterOperation::HueRotate::AngleOrZero const& angle_or_zero) -> Optional<double> {
-                    return angle_or_zero.visit(
-                        [](AngleOrCalculated const& angle) -> Optional<double> {
-                            if (angle.is_calculated())
-                                return {};
-                            return angle.value().raw_value();
-                        },
-                        [](FilterOperation::HueRotate::Zero) -> Optional<double> { return 0.0; });
-                };
-
-                auto underlying_angle = get_angle(underlying_rotate.angle);
-                auto animated_angle = get_angle(animated_rotate.angle);
-                if (!underlying_angle.has_value() || !animated_angle.has_value())
-                    return {};
-
-                return FilterOperation::HueRotate { .angle = AngleOrCalculated { Angle::make_degrees(*underlying_angle + *animated_angle) } };
+                return FilterOperation::HueRotate { .angle = AngleStyleValue::create(Angle::make_degrees(underlying_rotate.angle_degrees() + animated_rotate.angle_degrees())) };
             },
             [&](FilterOperation::Color const& underlying_color) -> Optional<FilterValue> {
                 if (!animated.has<FilterOperation::Color>())

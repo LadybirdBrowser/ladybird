@@ -20,9 +20,9 @@ float FilterOperation::Blur::resolved_radius(Layout::Node const& node) const
     return radius.resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_px(node).to_float();
 }
 
-float FilterOperation::HueRotate::angle_degrees(Layout::Node const& node) const
+float FilterOperation::HueRotate::angle_degrees() const
 {
-    return angle.visit([&](AngleOrCalculated const& a) { return a.resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_degrees(); }, [&](Zero) { return 0.0; });
+    return Angle::from_style_value(angle, {}).to_degrees();
 }
 
 float FilterOperation::Color::resolved_amount() const
@@ -57,13 +57,7 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
             },
             [&](FilterOperation::HueRotate const& hue_rotate) {
                 builder.append("hue-rotate("sv);
-                hue_rotate.angle.visit(
-                    [&](AngleOrCalculated const& angle) {
-                        angle.serialize(builder, mode);
-                    },
-                    [&](FilterOperation::HueRotate::Zero const&) {
-                        builder.append("0deg"sv);
-                    });
+                hue_rotate.angle->serialize(builder, mode);
                 builder.append(')');
             },
             [&](FilterOperation::Color const& color) {
@@ -124,15 +118,6 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolut
         return length;
     };
 
-    auto absolutize_angle = [&](AngleOrCalculated const& angle) -> AngleOrCalculated {
-        if (angle.is_calculated()) {
-            if (auto resolved = angle.resolved(resolution_context); resolved.has_value())
-                return AngleOrCalculated { Angle::make_degrees(resolved->to_degrees()) };
-            return angle;
-        }
-        return AngleOrCalculated { Angle::make_degrees(angle.value().to_degrees()) };
-    };
-
     Vector<FilterValue> absolutized_filter_values;
     absolutized_filter_values.ensure_capacity(m_filter_value_list.size());
 
@@ -152,15 +137,8 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolut
                 });
             },
             [&](FilterOperation::HueRotate const& hue_rotate) {
-                auto absolutized_angle = hue_rotate.angle.visit(
-                    [&](AngleOrCalculated const& angle) -> FilterOperation::HueRotate::AngleOrZero {
-                        return absolutize_angle(angle);
-                    },
-                    [&](FilterOperation::HueRotate::Zero) -> FilterOperation::HueRotate::AngleOrZero {
-                        return AngleOrCalculated { Angle::make_degrees(0) };
-                    });
                 absolutized_filter_values.append(FilterOperation::HueRotate {
-                    .angle = absolutized_angle,
+                    .angle = hue_rotate.angle->absolutized(computation_context),
                 });
             },
             [&](FilterOperation::Color const& color) {

@@ -5791,18 +5791,18 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
         } else if (filter_token == FilterToken::HueRotate) {
             // hue-rotate( [ <angle> | <zero> ]? )
             if (!tokens.has_next_token())
-                return FilterOperation::HueRotate {};
+                return FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) };
 
             if (tokens.next_token().is(Token::Type::Number)) {
                 // hue-rotate(0)
                 auto number = tokens.consume_a_token().token().number();
                 if (number.is_integer() && number.integer_value() == 0)
-                    return if_no_more_tokens_return(FilterOperation::HueRotate { FilterOperation::HueRotate::Zero {} });
+                    return if_no_more_tokens_return(FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) });
                 return {};
             }
 
-            if (auto angle = parse_angle(tokens); angle.has_value())
-                return if_no_more_tokens_return(FilterOperation::HueRotate { angle.value() });
+            if (auto angle = parse_angle_value(tokens))
+                return if_no_more_tokens_return(FilterOperation::HueRotate { angle.release_nonnull() });
 
             return {};
         } else {
