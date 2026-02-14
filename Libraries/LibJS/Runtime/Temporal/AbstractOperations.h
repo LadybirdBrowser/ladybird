@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -206,7 +206,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, Err
     // 1. Let number be ? ToNumber(argument).
     auto number = TRY(argument.to_number(vm));
 
-    // 2. If number is NaN, +∞𝔽 or -∞𝔽, throw a RangeError exception.
+    // 2. If number is one of NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if (number.is_nan() || number.is_infinity())
         return vm.throw_completion<RangeError>(error_type, forward<Args>(args)...);
 
@@ -223,7 +223,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument
     // 1. Let number be ? ToNumber(argument).
     auto number = string_to_number(argument);
 
-    // 2. If number is NaN, +∞𝔽 or -∞𝔽, throw a RangeError exception.
+    // 2. If number is one of NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if (isnan(number) || isinf(number))
         return vm.throw_completion<RangeError>(error_type, forward<Args>(args)...);
 

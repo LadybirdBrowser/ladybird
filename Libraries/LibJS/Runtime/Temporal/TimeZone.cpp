@@ -295,7 +295,7 @@ ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseco
 
     // 3. If n ≠ 0, then
     if (n != 0) {
-        // a. If disambiguation is EARLIER or COMPATIBLE, then
+        // a. If disambiguation is either EARLIER or COMPATIBLE, then
         if (disambiguation == Disambiguation::Earlier || disambiguation == Disambiguation::Compatible) {
             // i. Return possibleEpochNs[0].
             return move(possible_epoch_ns[0]);

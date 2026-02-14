@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -485,7 +486,7 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
         //               number of months to traverse.
 
         // c. If largestUnit is YEAR, then
-        // e. If largestUnit is YEAR or largestUnit is MONTH, then
+        // e. If largestUnit is either YEAR or MONTH, then
         if (largest_unit == Unit::Year || largest_unit == Unit::Month) {
             // c.i. Let candidateYears be sign.
             auto candidate_years = two.year - one.year;
@@ -691,12 +692,12 @@ bool calendar_equals(StringView one, StringView two)
 // 12.3.17 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
 u8 iso_days_in_month(double year, double month)
 {
-    // 1. If month is 1, 3, 5, 7, 8, 10, or 12, return 31.
-    if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12)
+    // 1. If month is one of 1, 3, 5, 7, 8, 10, or 12, return 31.
+    if (first_is_one_of(month, 1, 3, 5, 7, 8, 10, 12))
         return 31;
 
-    // 2. If month is 4, 6, 9, or 11, return 30.
-    if (month == 4 || month == 6 || month == 9 || month == 11)
+    // 2. If month is one of 4, 6, 9, or 11, return 30.
+    if (first_is_one_of(month, 4, 6, 9, 11))
         return 30;
 
     // 3. Assert: month is 2.
