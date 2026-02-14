@@ -1092,8 +1092,10 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
     auto total = total_mv.to_double();
 
     // 16. NOTE: The above two steps cannot be implemented directly using floating-point arithmetic. This division can be
-    //     implemented as if expressing the denominator and numerator of total as two time durations, and performing one
-    //     division operation with a floating-point result.
+    //     implemented as if expressing total as the quotient of two time durations (which may not be safe integers),
+    //     performing all other calculations before the division, and finally performing one division operation with a
+    //     floating-point result for total. The division can be implemented in C++ with the __float128 type if the
+    //     compiler supports it, or with software emulation such as in the SoftFP library.
 
     // 17. Assert: 0 ≤ progress ≤ 1.
 
