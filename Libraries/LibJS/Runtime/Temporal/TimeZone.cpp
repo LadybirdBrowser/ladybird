@@ -401,38 +401,35 @@ bool time_zone_equals(StringView one, StringView two)
     if (one == two)
         return true;
 
-    // 2. Let offsetMinutesOne be ! ParseTimeZoneIdentifier(one).[[OffsetMinutes]].
-    auto offset_minutes_one = parse_time_zone_identifier(one).offset_minutes;
+    // NB: IsOffsetTimeZoneIdentifier simply invokes parse_utc_offset and returns whether it has a value. We do this
+    //     manually here so that we can handle the offset minutes assertion below without any extra performance penalty.
+    auto time_zone_offset_one = parse_utc_offset(one, SubMinutePrecision::No);
+    auto time_zone_offset_two = parse_utc_offset(two, SubMinutePrecision::No);
 
-    // 3. Let offsetMinutesTwo be ! ParseTimeZoneIdentifier(two).[[OffsetMinutes]].
-    auto offset_minutes_two = parse_time_zone_identifier(two).offset_minutes;
-
-    // 4. If offsetMinutesOne is EMPTY and offsetMinutesTwo is EMPTY, then
-    if (!offset_minutes_one.has_value() && !offset_minutes_two.has_value()) {
+    // 2. If IsOffsetTimeZoneIdentifier(one) is false and IsOffsetTimeZoneIdentifier(two) is false, then
+    if (!time_zone_offset_one.has_value() && !time_zone_offset_two.has_value()) {
         // a. Let recordOne be GetAvailableNamedTimeZoneIdentifier(one).
         auto record_one = Intl::get_available_named_time_zone_identifier(one);
 
         // b. Let recordTwo be GetAvailableNamedTimeZoneIdentifier(two).
         auto record_two = Intl::get_available_named_time_zone_identifier(two);
 
-        // c. If recordOne is not EMPTY and recordTwo is not EMPTY and recordOne.[[PrimaryIdentifier]] is
-        //    recordTwo.[[PrimaryIdentifier]], return true.
-        if (record_one.has_value() && record_two.has_value()) {
-            if (record_one->primary_identifier == record_two->primary_identifier)
-                return true;
-        }
-    }
-    // 5. Else,
-    else {
-        // a. If offsetMinutesOne is not EMPTY and offsetMinutesTwo is not EMPTY and offsetMinutesOne = offsetMinutesTwo,
-        //    return true.
-        if (offset_minutes_one.has_value() && offset_minutes_two.has_value()) {
-            if (offset_minutes_one == offset_minutes_two)
-                return true;
-        }
+        // c. Assert: recordOne is not EMPTY.
+        VERIFY(record_one.has_value());
+
+        // d. Assert: recordTwo is not EMPTY.
+        VERIFY(record_two.has_value());
+
+        // e. If recordOne.[[PrimaryIdentifier]] is recordTwo.[[PrimaryIdentifier]], return true.
+        if (record_one->primary_identifier == record_two->primary_identifier)
+            return true;
     }
 
-    // 6. Return false.
+    // 3. Assert: If one and two are both offset time zone identifiers, they do not represent the same number of offset minutes.
+    if (time_zone_offset_one.has_value() && time_zone_offset_two.has_value())
+        VERIFY(time_zone_offset_one->minutes != time_zone_offset_two->minutes);
+
+    // 4. Return false.
     return false;
 }
 
