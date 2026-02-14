@@ -149,7 +149,7 @@ String temporal_month_day_to_string(PlainMonthDay const& month_day, ShowCalendar
     // 3. Let result be the string-concatenation of month, the code unit 0x002D (HYPHEN-MINUS), and day.
     auto result = MUST(String::formatted("{:02}-{:02}", month_day.iso_date().month, month_day.iso_date().day));
 
-    // 4. If showCalendar is one of ALWAYS or CRITICAL, or if monthDay.[[Calendar]] is not "iso8601", then
+    // 4. If showCalendar is one of ALWAYS or CRITICAL, or monthDay.[[Calendar]] is not "iso8601", then
     if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || month_day.calendar() != "iso8601"sv) {
         // a. Let year be PadISOYear(monthDay.[[ISODate]].[[Year]]).
         auto year = pad_iso_year(month_day.iso_date().year);

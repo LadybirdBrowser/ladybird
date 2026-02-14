@@ -180,7 +180,7 @@ String temporal_year_month_to_string(PlainYearMonth const& year_month, ShowCalen
     // 3. Let result be the string-concatenation of year, the code unit 0x002D (HYPHEN-MINUS), and month.
     auto result = MUST(String::formatted("{}-{:02}", year, year_month.iso_date().month));
 
-    // 4. If showCalendar is one of always or critical, or if yearMonth.[[Calendar]] is not "iso8601", then
+    // 4. If showCalendar is one of always or critical, or yearMonth.[[Calendar]] is not "iso8601", then
     if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || year_month.calendar() != "iso8601"sv) {
         // a. Let day be ToZeroPaddedDecimalString(yearMonth.[[ISODate]].[[Day]], 2).
         // b. Set result to the string-concatenation of result, the code unit 0x002D (HYPHEN-MINUS), and day.
