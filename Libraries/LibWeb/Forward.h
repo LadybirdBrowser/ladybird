@@ -199,6 +199,15 @@ class SubtleCrypto;
 
 }
 
+namespace Web::CSS::FilterOperation {
+
+struct Blur;
+struct DropShadow;
+struct HueRotate;
+struct Color;
+
+}
+
 namespace Web::CSS {
 
 class AbstractImageStyleValue;
@@ -423,6 +432,8 @@ struct ValueComparingNonnullRefPtr;
 using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
 using PaintOrderList = Array<PaintOrder, 3>;
 using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
+
+using FilterValue = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color, URL>;
 
 }
 

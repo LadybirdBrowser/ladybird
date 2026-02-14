@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Variant.h>
-#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -15,7 +14,7 @@ namespace Web::CSS {
 class Filter {
 public:
     Filter() = default;
-    Filter(FilterValueListStyleValue const& filter_value_list)
+    Filter(StyleValue const& filter_value_list)
         : m_filter_value_list { filter_value_list }
     {
     }
@@ -28,14 +27,10 @@ public:
     bool has_filters() const { return m_filter_value_list; }
     bool is_none() const { return !has_filters(); }
 
-    ReadonlySpan<FilterValue> filters() const
-    {
-        VERIFY(has_filters());
-        return m_filter_value_list->filter_value_list().span();
-    }
+    ReadonlySpan<FilterValue> filters() const;
 
 private:
-    RefPtr<FilterValueListStyleValue const> m_filter_value_list { nullptr };
+    RefPtr<StyleValue const> m_filter_value_list { nullptr };
 };
 
 }

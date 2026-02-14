@@ -164,6 +164,7 @@ set(SOURCES
     CSS/EasingFunction.cpp
     CSS/EdgeRect.cpp
     CSS/Fetch.cpp
+    CSS/Filter.cpp
     CSS/Flex.cpp
     CSS/FontComputer.cpp
     CSS/FontFace.cpp

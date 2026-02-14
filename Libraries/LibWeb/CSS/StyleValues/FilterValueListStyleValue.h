@@ -55,8 +55,6 @@ struct Color {
 
 };
 
-using FilterValue = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color, URL>;
-
 class FilterValueListStyleValue final : public StyleValueWithDefaultOperators<FilterValueListStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<FilterValueListStyleValue const> create(
