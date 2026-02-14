@@ -1307,28 +1307,57 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
     return bounding_rect;
 }
 
-void FormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
+AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_info(Box const& box)
+{
+    auto const& computed_values = box.computed_values();
+
+    // Per-axis mode: auto+auto insets -> static position, otherwise -> inset from rect
+    auto horizontal_axis_mode = (computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto())
+        ? AbsposAxisMode::StaticPosition
+        : AbsposAxisMode::InsetFromRect;
+    auto vertical_axis_mode = (computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto())
+        ? AbsposAxisMode::StaticPosition
+        : AbsposAxisMode::InsetFromRect;
+
+    // Check if there's an inline element that should be the real containing block.
+    auto inline_containing_block = box.inline_containing_block_if_applicable();
+    if (inline_containing_block && box.containing_block()) {
+        auto rect = compute_inline_containing_block_rect(*inline_containing_block, *box.containing_block(), m_state);
+        if (rect.has_value())
+            return { *rect, horizontal_axis_mode, vertical_axis_mode, {}, {} };
+    }
+
+    // Normal case: padding box of the actual containing block.
+    VERIFY(box.containing_block());
+    auto& containing_block_state = m_state.get(*box.containing_block());
+    CSSPixelRect rect {
+        -containing_block_state.padding_left,
+        -containing_block_state.padding_top,
+        containing_block_state.content_width() + containing_block_state.padding_left + containing_block_state.padding_right,
+        containing_block_state.content_height() + containing_block_state.padding_top + containing_block_state.padding_bottom
+    };
+    return { rect, horizontal_axis_mode, vertical_axis_mode, {}, {} };
+}
+
+void FormattingContext::layout_absolutely_positioned_children()
+{
+    if (m_layout_mode != LayoutMode::Normal)
+        return;
+    for (auto& child : context_box().contained_abspos_children()) {
+        auto& box = as<Box>(*child);
+        auto containing_block_info = resolve_abspos_containing_block_info(box);
+        layout_absolutely_positioned_element(box, containing_block_info);
+    }
+}
+
+void FormattingContext::layout_absolutely_positioned_element(Box const& box, AbsposContainingBlockInfo const& containing_block_info)
 {
     if (box.is_svg_box()) {
         dbgln("FIXME: Implement support for absolutely positioned SVG elements.");
         return;
     }
 
-    // Check if there's an inline element that should be the real containing block.
-    // See the large FIXME comment above for context on why this workaround is needed.
-    auto inline_containing_block = box.inline_containing_block_if_applicable();
-    Optional<CSSPixelRect> inline_containing_block_rect;
-    if (inline_containing_block && box.containing_block())
-        inline_containing_block_rect = compute_inline_containing_block_rect(*inline_containing_block, *box.containing_block(), m_state);
-
-    // Determine the effective available space for this abspos element.
-    // If we have an inline containing block, use its dimensions; otherwise use the passed-in available_space.
-    auto effective_available_space = available_space;
-    if (inline_containing_block_rect.has_value()) {
-        effective_available_space = AvailableSpace(
-            AvailableSize::make_definite(inline_containing_block_rect->width()),
-            AvailableSize::make_definite(inline_containing_block_rect->height()));
-    }
+    auto const available_space = AvailableSpace(AvailableSize::make_definite(containing_block_info.rect.width()), AvailableSize::make_definite(containing_block_info.rect.height()));
 
     auto& containing_block_state = m_state.get_mutable(*box.containing_block());
 
@@ -1338,38 +1367,37 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     containing_block_state.set_has_definite_height(true);
 
     auto& box_state = m_state.get_mutable(box);
+    auto const& computed_values = box.computed_values();
 
     // The border computed values are not changed by the compute_height & width calculations below.
     // The spec only adjusts and computes sizes, insets and margins.
-    box_state.border_left = box.computed_values().border_left().width;
-    box_state.border_right = box.computed_values().border_right().width;
-    box_state.border_top = box.computed_values().border_top().width;
-    box_state.border_bottom = box.computed_values().border_bottom().width;
+    box_state.border_left = computed_values.border_left().width;
+    box_state.border_right = computed_values.border_right().width;
+    box_state.border_top = computed_values.border_top().width;
+    box_state.border_bottom = computed_values.border_bottom().width;
 
-    auto const containing_block_width = effective_available_space.width.to_px_or_zero();
-    box_state.padding_left = box.computed_values().padding().left().to_px_or_zero(box, containing_block_width);
-    box_state.padding_right = box.computed_values().padding().right().to_px_or_zero(box, containing_block_width);
-    box_state.padding_top = box.computed_values().padding().top().to_px_or_zero(box, containing_block_width);
-    box_state.padding_bottom = box.computed_values().padding().bottom().to_px_or_zero(box, containing_block_width);
+    auto const containing_block_width = available_space.width.to_px_or_zero();
+    box_state.padding_left = computed_values.padding().left().to_px_or_zero(box, containing_block_width);
+    box_state.padding_right = computed_values.padding().right().to_px_or_zero(box, containing_block_width);
+    box_state.padding_top = computed_values.padding().top().to_px_or_zero(box, containing_block_width);
+    box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(box, containing_block_width);
 
-    compute_width_for_absolutely_positioned_element(box, effective_available_space);
+    compute_width_for_absolutely_positioned_element(box, available_space);
 
     // NOTE: We compute height before *and* after doing inside layout.
     //       This is done so that inside layout can resolve percentage heights.
     //       In some situations, e.g with non-auto top & bottom values, the height can be determined early.
-    compute_height_for_absolutely_positioned_element(box, effective_available_space, BeforeOrAfterInsideLayout::Before);
+    compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::Before);
 
     // If the box width and/or height is fixed and/or or resolved from inset properties,
     // mark the size as being definite (since layout was not required to resolve it, per CSS-SIZING-3).
     auto is_length_but_not_auto = [](auto& length_percentage) {
         return length_percentage.is_length() && !length_percentage.is_auto();
     };
-    if (is_length_but_not_auto(box.computed_values().inset().left())
-        && is_length_but_not_auto(box.computed_values().inset().right())) {
+    if (is_length_but_not_auto(computed_values.inset().left()) && is_length_but_not_auto(computed_values.inset().right())) {
         box_state.set_has_definite_width(true);
     }
-    if (is_length_but_not_auto(box.computed_values().inset().top())
-        && is_length_but_not_auto(box.computed_values().inset().bottom())) {
+    if (is_length_but_not_auto(computed_values.inset().top()) && is_length_but_not_auto(computed_values.inset().bottom())) {
         box_state.set_has_definite_height(true);
     }
 
@@ -1382,61 +1410,79 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
         box_state.set_has_definite_height(true);
     }
 
-    auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, box_state.available_inner_space_or_constraints_from(effective_available_space));
+    auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, box_state.available_inner_space_or_constraints_from(available_space));
 
-    if (box.computed_values().height().is_auto()) {
-        compute_height_for_absolutely_positioned_element(box, effective_available_space, BeforeOrAfterInsideLayout::After);
+    if (computed_values.height().is_auto()) {
+        compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::After);
+    }
+
+    // Apply grid alignment for auto inset axes
+    if (containing_block_info.horizontal_alignment.has_value() && computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto()) {
+        auto available_space_for_alignment = containing_block_info.rect.width() - box_state.margin_box_width();
+        switch (*containing_block_info.horizontal_alignment) {
+        case Alignment::Center:
+            box_state.inset_left = available_space_for_alignment / 2;
+            box_state.inset_right = available_space_for_alignment / 2;
+            break;
+        case Alignment::Start:
+            box_state.inset_right = available_space_for_alignment;
+            break;
+        case Alignment::End:
+            box_state.inset_left = available_space_for_alignment;
+            break;
+        case Alignment::Normal:
+        case Alignment::Stretch:
+        default:
+            break;
+        }
+    }
+
+    if (containing_block_info.vertical_alignment.has_value() && computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto()) {
+        auto available_space_for_alignment = containing_block_info.rect.height() - box_state.margin_box_height();
+        switch (*containing_block_info.vertical_alignment) {
+        case Alignment::Center:
+            box_state.inset_top = available_space_for_alignment / 2;
+            box_state.inset_bottom = available_space_for_alignment / 2;
+            break;
+        case Alignment::Start:
+        case Alignment::SelfStart:
+            box_state.inset_bottom = available_space_for_alignment;
+            break;
+        case Alignment::End:
+        case Alignment::SelfEnd:
+            box_state.inset_top = available_space_for_alignment;
+            break;
+        case Alignment::Normal:
+        case Alignment::Stretch:
+        case Alignment::Baseline:
+        default:
+            break;
+        }
     }
 
     CSSPixelPoint used_offset;
 
     auto static_position = m_state.get(box).static_position();
-    auto const* static_cb = box.static_position_containing_block();
-    auto actual_cb = box.containing_block();
-    if (static_cb && static_cb != actual_cb.ptr()) {
-        auto offset = m_state.get(*static_cb).cumulative_offset() - m_state.get(*actual_cb).cumulative_offset();
+    auto const* static_position_cb = box.static_position_containing_block();
+    auto actual_containing_block = box.containing_block();
+    if (static_position_cb && static_position_cb != actual_containing_block.ptr()) {
+        auto offset = m_state.get(*static_position_cb).cumulative_offset() - m_state.get(*actual_containing_block).cumulative_offset();
         static_position += offset;
     }
 
-    // Track whether we used static position for each axis. When using static position, the coordinates
-    // are already in the Box containing_block's coordinate space and don't need inline CB translation.
-    bool used_static_position_x = false;
-    bool used_static_position_y = false;
-
-    if (box.computed_values().inset().top().is_auto() && box.computed_values().inset().bottom().is_auto()) {
-        used_offset.set_y(static_position.y());
-        used_static_position_y = true;
-    } else {
-        used_offset.set_y(box_state.inset_top);
-        // NOTE: Absolutely positioned boxes are relative to the *padding edge* of the containing block.
-        // When using an inline containing block, the rect already represents the padding box, so no adjustment needed.
-        if (!inline_containing_block_rect.has_value())
-            used_offset.translate_by(0, -containing_block_state.padding_top);
-    }
-
-    if (box.computed_values().inset().left().is_auto() && box.computed_values().inset().right().is_auto()) {
+    // Horizontal axis
+    if (containing_block_info.horizontal_axis_mode == AbsposAxisMode::StaticPosition)
         used_offset.set_x(static_position.x());
-        used_static_position_x = true;
-    } else {
-        used_offset.set_x(box_state.inset_left);
-        // NOTE: Absolutely positioned boxes are relative to the *padding edge* of the containing block.
-        // When using an inline containing block, the rect already represents the padding box, so no adjustment needed.
-        if (!inline_containing_block_rect.has_value())
-            used_offset.translate_by(-containing_block_state.padding_left, 0);
-    }
+    else
+        used_offset.set_x(containing_block_info.rect.x() + box_state.inset_left);
+
+    // Vertical axis
+    if (containing_block_info.vertical_axis_mode == AbsposAxisMode::StaticPosition)
+        used_offset.set_y(static_position.y());
+    else
+        used_offset.set_y(containing_block_info.rect.y() + box_state.inset_top);
 
     used_offset.translate_by(box_state.margin_box_left(), box_state.margin_box_top());
-
-    // If we have an inline containing block, the offset we've computed so far (when using inset values)
-    // is relative to the inline's bounding box. We need to translate it to be relative to the Box
-    // containing_block() that the rest of the system expects.
-    // NOTE: We only apply this translation for dimensions where we used inset values. Static position
-    // is already computed in the Box containing_block's coordinate space.
-    if (inline_containing_block_rect.has_value()) {
-        CSSPixels translate_x = used_static_position_x ? 0 : inline_containing_block_rect->x();
-        CSSPixels translate_y = used_static_position_y ? 0 : inline_containing_block_rect->y();
-        used_offset.translate_by(translate_x, translate_y);
-    }
 
     box_state.set_content_offset(used_offset);
 
