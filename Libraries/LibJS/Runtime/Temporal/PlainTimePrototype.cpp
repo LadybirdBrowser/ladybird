@@ -209,11 +209,9 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::round)
     // 2. Perform ? RequireInternalSlot(plainTime, [[InitializedTemporalTime]]).
     auto plain_time = TRY(typed_this_object(vm));
 
-    // 3. If roundTo is undefined, then
-    if (round_to_value.is_undefined()) {
-        // a. Throw a TypeError exception.
+    // 3. If roundTo is undefined, throw a TypeError exception.
+    if (round_to_value.is_undefined())
         return vm.throw_completion<TypeError>(ErrorType::TemporalMissingOptionsObject);
-    }
 
     GC::Ptr<Object> round_to;
 

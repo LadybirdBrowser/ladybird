@@ -246,41 +246,29 @@ ThrowCompletionOr<Time> regulate_time(VM& vm, double hour, double minute, double
 // 4.5.9 IsValidTime ( hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/proposal-temporal/#sec-temporal-isvalidtime
 bool is_valid_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond)
 {
-    // 1. If hour < 0 or hour > 23, then
-    if (hour < 0 || hour > 23) {
-        // a. Return false.
+    // 1. If hour < 0 or hour > 23, return false.
+    if (hour < 0 || hour > 23)
         return false;
-    }
 
-    // 2. If minute < 0 or minute > 59, then
-    if (minute < 0 || minute > 59) {
-        // a. Return false.
+    // 2. If minute < 0 or minute > 59, return false.
+    if (minute < 0 || minute > 59)
         return false;
-    }
 
-    // 3. If second < 0 or second > 59, then
-    if (second < 0 || second > 59) {
-        // a. Return false.
+    // 3. If second < 0 or second > 59, return false.
+    if (second < 0 || second > 59)
         return false;
-    }
 
-    // 4. If millisecond < 0 or millisecond > 999, then
-    if (millisecond < 0 || millisecond > 999) {
-        // a. Return false.
+    // 4. If millisecond < 0 or millisecond > 999, return false.
+    if (millisecond < 0 || millisecond > 999)
         return false;
-    }
 
-    // 5. If microsecond < 0 or microsecond > 999, then
-    if (microsecond < 0 || microsecond > 999) {
-        // a. Return false.
+    // 5. If microsecond < 0 or microsecond > 999, return false.
+    if (microsecond < 0 || microsecond > 999)
         return false;
-    }
 
-    // 6. If nanosecond < 0 or nanosecond > 999, then
-    if (nanosecond < 0 || nanosecond > 999) {
-        // a. Return false.
+    // 6. If nanosecond < 0 or nanosecond > 999, return false.
+    if (nanosecond < 0 || nanosecond > 999)
         return false;
-    }
 
     // 7. Return true.
     return true;
@@ -587,34 +575,28 @@ Time round_time(Time const& time, u64 increment, Unit unit, RoundingMode roundin
     auto result = round_number_to_increment(quantity, increment * unit_length, rounding_mode) / static_cast<double>(unit_length);
 
     switch (unit) {
-    // 9. If unit is DAY, then
+    // 9. If unit is DAY, return CreateTimeRecord(0, 0, 0, 0, 0, 0, result).
     case Unit::Day:
-        // a. Return CreateTimeRecord(0, 0, 0, 0, 0, 0, result).
         return create_time_record(0, 0, 0, 0, 0, 0, result);
 
-    // 10. If unit is HOUR, then
+    // 10. If unit is HOUR, return BalanceTime(result, 0, 0, 0, 0, 0).
     case Unit::Hour:
-        // a. Return BalanceTime(result, 0, 0, 0, 0, 0).
         return balance_time(result, 0, 0, 0, 0, 0);
 
-    // 11. If unit is MINUTE, then
+    // 11. If unit is MINUTE, return BalanceTime(time.[[Hour]], result, 0, 0, 0, 0).
     case Unit::Minute:
-        // a. Return BalanceTime(time.[[Hour]], result, 0, 0, 0, 0).
         return balance_time(time.hour, result, 0, 0, 0, 0);
 
-    // 12. If unit is SECOND, then
+    // 12. If unit is SECOND, return BalanceTime(time.[[Hour]], time.[[Minute]], result, 0, 0, 0).
     case Unit::Second:
-        // a. Return BalanceTime(time.[[Hour]], time.[[Minute]], result, 0, 0, 0).
         return balance_time(time.hour, time.minute, result, 0, 0, 0);
 
-    // 13. If unit is MILLISECOND, then
+    // 13. If unit is MILLISECOND, return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], result, 0, 0).
     case Unit::Millisecond:
-        // a. Return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], result, 0, 0).
         return balance_time(time.hour, time.minute, time.second, result, 0, 0);
 
-    // 14. If unit is MICROSECOND, then
+    // 14. If unit is MICROSECOND, return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], result, 0).
     case Unit::Microsecond:
-        // a. Return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], result, 0).
         return balance_time(time.hour, time.minute, time.second, time.millisecond, result, 0);
 
     // 15. Assert: unit is NANOSECOND.

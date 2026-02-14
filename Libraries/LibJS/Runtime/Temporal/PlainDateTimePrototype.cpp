@@ -394,11 +394,9 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::round)
     // 2. Perform ? RequireInternalSlot(plainDateTime, [[InitializedTemporalDateTime]]).
     auto plain_date_time = TRY(typed_this_object(vm));
 
-    // 3. If roundTo is undefined, then
-    if (round_to_value.is_undefined()) {
-        // a. Throw a TypeError exception.
+    // 3. If roundTo is undefined, throw a TypeError exception.
+    if (round_to_value.is_undefined())
         return vm.throw_completion<TypeError>(ErrorType::TemporalMissingOptionsObject);
-    }
 
     GC::Ptr<Object> round_to;
 

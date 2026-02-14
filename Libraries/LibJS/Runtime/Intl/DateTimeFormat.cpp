@@ -500,12 +500,10 @@ ThrowCompletionOr<FormattableDateTime> to_date_time_formattable(VM& vm, Value va
 // 15.6.12 IsTemporalObject ( value ), https://tc39.es/proposal-temporal/#sec-temporal-istemporalobject
 bool is_temporal_object(FormattableDateTime const& value)
 {
-    // 1. If value is not an Object, then
-    //     a. Return false.
+    // 1. If value is not an Object, return false.
     // 2. If value does not have an [[InitializedTemporalDate]], [[InitializedTemporalTime]], [[InitializedTemporalDateTime]],
     //    [[InitializedTemporalZonedDateTime]], [[InitializedTemporalYearMonth]], [[InitializedTemporalMonthDay]], or
-    //    [[InitializedTemporalInstant]] internal slot, then
-    //     a. Return false.
+    //    [[InitializedTemporalInstant]] internal slot, return false.
     // 3. Return true.
     return !value.has<double>();
 }
@@ -560,11 +558,9 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFo
 // 15.6.16 HandleDateTimeTemporalYearMonth ( dateTimeFormat, temporalYearMonth ), https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainYearMonth const& temporal_year_month)
 {
-    // 1. If temporalYearMonth.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], then
-    if (temporal_year_month.calendar() != date_time_format.calendar()) {
-        // a. Throw a RangeError exception.
+    // 1. If temporalYearMonth.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], throw a RangeError exception.
+    if (temporal_year_month.calendar() != date_time_format.calendar())
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainYearMonth"sv, temporal_year_month.calendar(), date_time_format.calendar());
-    }
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
     auto iso_date_time = Temporal::combine_iso_date_and_time_record(temporal_year_month.iso_date(), Temporal::noon_time_record());
@@ -586,11 +582,9 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, Date
 // 15.6.17 HandleDateTimeTemporalMonthDay ( dateTimeFormat, temporalMonthDay ), https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainMonthDay const& temporal_month_day)
 {
-    // 1. If temporalMonthDay.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], then
-    if (temporal_month_day.calendar() != date_time_format.calendar()) {
-        // a. Throw a RangeError exception.
+    // 1. If temporalMonthDay.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], throw a RangeError exception.
+    if (temporal_month_day.calendar() != date_time_format.calendar())
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainMonthDay"sv, temporal_month_day.calendar(), date_time_format.calendar());
-    }
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalMonthDay.[[ISODate]], NoonTimeRecord()).
     auto iso_date_time = Temporal::combine_iso_date_and_time_record(temporal_month_day.iso_date(), Temporal::noon_time_record());
@@ -635,11 +629,9 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM& vm, DateTimeFo
 // 15.6.19 HandleDateTimeTemporalDateTime ( dateTimeFormat, dateTime ), https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldatetime
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date_time(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainDateTime const& date_time)
 {
-    // 1. If dateTime.[[Calendar]] is not "iso8601" and not equal to dateTimeFormat.[[Calendar]], then
-    if (!date_time.calendar().is_one_of(date_time_format.calendar(), "iso8601"sv)) {
-        // a. Throw a RangeError exception.
+    // 1. If dateTime.[[Calendar]] is not "iso8601" and not equal to dateTimeFormat.[[Calendar]], throw a RangeError exception.
+    if (!date_time.calendar().is_one_of(date_time_format.calendar(), "iso8601"sv))
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDateTime"sv, date_time.calendar(), date_time_format.calendar());
-    }
 
     // 2. Let epochNs be GetUTCEpochNanoseconds(dateTime.[[ISODateTime]]).
     auto epoch_nanoseconds = get_utc_epoch_nanoseconds(date_time.iso_date_time());
@@ -686,45 +678,38 @@ ThrowCompletionOr<ValueFormat> handle_date_time_others(VM& vm, DateTimeFormat& d
 ThrowCompletionOr<ValueFormat> handle_date_time_value(VM& vm, DateTimeFormat& date_time_format, FormattableDateTime const& formattable)
 {
     return formattable.visit(
-        // 1. If x is an Object, then
-        // a. If x has an [[InitializedTemporalDate]] internal slot, then
-        [&](GC::Ref<Temporal::PlainDate> temporal_date) {
-            // i. Return ? HandleDateTimeTemporalDate(dateTimeFormat, x).
-            return handle_date_time_temporal_date(vm, date_time_format, temporal_date);
-        },
-        // b. If x has an [[InitializedTemporalYearMonth]] internal slot, then
-        [&](GC::Ref<Temporal::PlainYearMonth> temporal_year_month) {
-            // i. Return ? HandleDateTimeTemporalYearMonth(dateTimeFormat, x).
-            return handle_date_time_temporal_year_month(vm, date_time_format, temporal_year_month);
-        },
-        // c. If x has an [[InitializedTemporalMonthDay]] internal slot, then
-        [&](GC::Ref<Temporal::PlainMonthDay> temporal_month_day) {
-            // i. Return ? HandleDateTimeTemporalMonthDay(dateTimeFormat, x).
-            return handle_date_time_temporal_month_day(vm, date_time_format, temporal_month_day);
-        },
-        // d. If x has an [[InitializedTemporalTime]] internal slot, then
-        [&](GC::Ref<Temporal::PlainTime> temporal_time) {
-            // i. Return ? HandleDateTimeTemporalTime(dateTimeFormat, x).
-            return handle_date_time_temporal_time(vm, date_time_format, temporal_time);
-        },
-        // e. If x has an [[InitializedTemporalDateTime]] internal slot, then
-        [&](GC::Ref<Temporal::PlainDateTime> date_time) {
-            // i. Return ? HandleDateTimeTemporalDateTime(dateTimeFormat, x).
-            return handle_date_time_temporal_date_time(vm, date_time_format, date_time);
-        },
-        // f. If x has an [[InitializedTemporalInstant]] internal slot, then
-        [&](GC::Ref<Temporal::Instant> instant) -> ThrowCompletionOr<ValueFormat> {
-            // i. Return HandleDateTimeTemporalInstant(dateTimeFormat, x).
-            return handle_date_time_temporal_instant(date_time_format, instant);
-        },
-        // g. Assert: x has an [[InitializedTemporalZonedDateTime]] internal slot.
-        [&](GC::Ref<Temporal::ZonedDateTime>) -> ThrowCompletionOr<ValueFormat> {
-            // h. Throw a TypeError exception.
-            return vm.throw_completion<TypeError>(ErrorType::IntlTemporalZonedDateTime);
-        },
-        // 2. Return ? HandleDateTimeOthers(dateTimeFormat, x).
+        // 1. If x is a Number, return ? HandleDateTimeOthers(dateTimeFormat, x).
         [&](double time) {
             return handle_date_time_others(vm, date_time_format, time);
+        },
+        // 2. If x has an [[InitializedTemporalDate]] internal slot, return ? HandleDateTimeTemporalDate(dateTimeFormat, x).
+        [&](GC::Ref<Temporal::PlainDate> temporal_date) {
+            return handle_date_time_temporal_date(vm, date_time_format, temporal_date);
+        },
+        // 3. If x has an [[InitializedTemporalYearMonth]] internal slot, return ? HandleDateTimeTemporalYearMonth(dateTimeFormat, x).
+        [&](GC::Ref<Temporal::PlainYearMonth> temporal_year_month) {
+            return handle_date_time_temporal_year_month(vm, date_time_format, temporal_year_month);
+        },
+        // 4. If x has an [[InitializedTemporalMonthDay]] internal slot, return ? HandleDateTimeTemporalMonthDay(dateTimeFormat, x).
+        [&](GC::Ref<Temporal::PlainMonthDay> temporal_month_day) {
+            return handle_date_time_temporal_month_day(vm, date_time_format, temporal_month_day);
+        },
+        // 5. If x has an [[InitializedTemporalTime]] internal slot, return ? HandleDateTimeTemporalTime(dateTimeFormat, x).
+        [&](GC::Ref<Temporal::PlainTime> temporal_time) {
+            return handle_date_time_temporal_time(vm, date_time_format, temporal_time);
+        },
+        // 6. If x has an [[InitializedTemporalDateTime]] internal slot, return ? HandleDateTimeTemporalDateTime(dateTimeFormat, x).
+        [&](GC::Ref<Temporal::PlainDateTime> date_time) {
+            return handle_date_time_temporal_date_time(vm, date_time_format, date_time);
+        },
+        // 7. If x has an [[InitializedTemporalInstant]] internal slot, return HandleDateTimeTemporalInstant(dateTimeFormat, x).
+        [&](GC::Ref<Temporal::Instant> instant) -> ThrowCompletionOr<ValueFormat> {
+            return handle_date_time_temporal_instant(date_time_format, instant);
+        },
+        // 8. Assert: x has an [[InitializedTemporalZonedDateTime]] internal slot.
+        [&](GC::Ref<Temporal::ZonedDateTime>) -> ThrowCompletionOr<ValueFormat> {
+            // 9. Throw a TypeError exception.
+            return vm.throw_completion<TypeError>(ErrorType::IntlTemporalZonedDateTime);
         });
 }
 
