@@ -15,8 +15,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text> (not painted)
               BlockContainer <td> at [11,15] table-cell [0+0+1 0 1+0+0] [0+0+1 0 1+0+0] [BFC] children: not-inline
-                BlockContainer <div> at [13,21] positioned [0+0+0 70.5625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 6, rect: [13,21 70.5625x18] baseline: 13.796875
+                BlockContainer <div> at [11,15] positioned [0+0+0 70.5625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 6, rect: [11,15 70.5625x18] baseline: 13.796875
                       "ABSPOS"
                   TextNode <#text> (not painted)
               BlockContainer <(anonymous)> (not painted) children: inline
@@ -36,7 +36,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer<TD>) [10,10 2x2]
             PaintableBox (Box<TR>) [10,14 2x2]
               PaintableWithLines (BlockContainer<TD>) [10,14 2x2]
-                PaintableWithLines (BlockContainer<DIV>) [13,21 70.5625x18]
+                PaintableWithLines (BlockContainer<DIV>) [11,15 70.5625x18]
                   TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,18 784x0]
 

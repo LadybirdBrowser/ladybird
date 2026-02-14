@@ -1211,28 +1211,6 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     box_state.margin_bottom = margin_bottom.to_px_or_zero(box, width_of_containing_block);
 }
 
-CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coordinate_space(Box const& box) const
-{
-    auto box_used_values = m_state.get(box);
-    CSSPixelRect rect = { { 0, 0 }, box_used_values.content_size() };
-    // FIXME: ListItemMarkerBox's should also run this assertion once it has a supported FormattingContext type
-    VERIFY(box_used_values.offset.is_zero() || box.is_list_item_marker_box()); // Set as result of this calculation
-    auto next_containing_block = box.static_position_containing_block();
-    for (NodeWithStyle const* current = box.static_position_containing_block(); current; current = current->parent()) {
-        if (current == box.containing_block())
-            return rect;
-        // Whenever we walk past other containing blocks, we need to offset the rect by those.
-        if (current == next_containing_block) {
-            auto const& current_state = m_state.get(*current);
-            rect.translate_by(current_state.offset);
-            next_containing_block = next_containing_block->containing_block();
-        }
-    }
-    // If we get here, `ancestor_box` was not in the containing block chain of the static position containing block of `box`!
-    // Something about the containing block chain is set up incorrectly then.
-    VERIFY_NOT_REACHED();
-}
-
 // FIXME: Containing block handling for absolutely positioned elements needs architectural improvements.
 //
 //        The CSS specification defines the containing block as a *rectangle*, not a box. For most cases,
@@ -1413,8 +1391,12 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     CSSPixelPoint used_offset;
 
     auto static_position = m_state.get(box).static_position();
-    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box);
-    static_position += offset_to_static_parent.location();
+    auto const* static_cb = box.static_position_containing_block();
+    auto actual_cb = box.containing_block();
+    if (static_cb && static_cb != actual_cb.ptr()) {
+        auto offset = m_state.get(*static_cb).cumulative_offset() - m_state.get(*actual_cb).cumulative_offset();
+        static_position += offset;
+    }
 
     // Track whether we used static position for each axis. When using static position, the coordinates
     // are already in the Box containing_block's coordinate space and don't need inline CB translation.
