@@ -193,7 +193,7 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, StringView month_code)
     // 4. Let isLeapMonth be false.
     auto is_leap_month = false;
 
-    // 5. If the length of monthCode is 4, then
+    // 5. If the length of monthCode = 4, then
     if (month_code.length() == 4) {
         // a. Assert: The fourth code unit of monthCode is 0x004C (LATIN CAPITAL LETTER L).
         VERIFY(month_code[3] == 'L');
@@ -463,7 +463,7 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
     // 1. Let sign be CompareISODate(one, two).
     auto sign = compare_iso_date(one, two);
 
-    // 2. If sign is 0, then
+    // 2. If sign = 0, then
     if (sign == 0) {
         // a. Return ZeroDateDuration().
         return zero_date_duration(vm);
