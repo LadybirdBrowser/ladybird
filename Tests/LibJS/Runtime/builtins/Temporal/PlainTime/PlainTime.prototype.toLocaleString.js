@@ -7,6 +7,17 @@ describe("correct behavior", () => {
         const plainTime = new Temporal.PlainTime(18, 14, 47, 123, 456, 789);
         expect(plainTime.toLocaleString()).toBe("6:14:47 PM");
     });
+
+    test("ignores time zones", () => {
+        const plainTime = new Temporal.PlainTime(18, 14, 47, 123, 456, 789);
+
+        const result1 = plainTime.toLocaleString("en-US");
+        const result2 = plainTime.toLocaleString("en-US", { timeZone: "UTC" });
+        const result3 = plainTime.toLocaleString("en-US", { timeZone: "Pacific/Apia" });
+
+        expect(result1).toBe(result2);
+        expect(result1).toBe(result3);
+    });
 });
 
 describe("errors", () => {

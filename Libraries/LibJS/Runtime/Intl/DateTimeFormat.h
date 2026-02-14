@@ -130,6 +130,9 @@ using FormattableDateTime = Variant<
 // 15.6.14 Value Format Records, https://tc39.es/proposal-temporal/#datetimeformat-value-format-record
 // NB: ICU does not support nanoseconds in its date-time formatter. Thus, we do do not store the epoch nanoseconds as a
 //     BigInt here. Instead, we store the epoch in milliseconds as a double.
+// NB: We do not create an [[IsPlain]] internal slot. The spec assumes we have a single formatter, and re-use that
+//     formatter for each format invocation. Instead, we have separate formatters for each formattable type. So we bake
+//     the [[IsPlain]] aspect into each formatter by using UTC as the formatter's time zone as appropriate.
 struct ValueFormat {
     Unicode::DateTimeFormat const& formatter; // [[Format]]
     double epoch_milliseconds { 0 };          // [[EpochNanoseconds]]

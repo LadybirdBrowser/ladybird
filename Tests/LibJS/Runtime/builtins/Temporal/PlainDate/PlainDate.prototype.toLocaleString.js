@@ -9,6 +9,17 @@ describe("correct behavior", () => {
         plainDate = new Temporal.PlainDate(2021, 7, 6, "gregory");
         expect(plainDate.toLocaleString()).toBe("7/6/2021");
     });
+
+    test("ignores time zones", () => {
+        const plainDate = new Temporal.PlainDate(2021, 7, 6, "gregory");
+
+        const result1 = plainDate.toLocaleString("en-US");
+        const result2 = plainDate.toLocaleString("en-US", { timeZone: "UTC" });
+        const result3 = plainDate.toLocaleString("en-US", { timeZone: "Pacific/Apia" });
+
+        expect(result1).toBe(result2);
+        expect(result1).toBe(result3);
+    });
 });
 
 describe("errors", () => {

@@ -71,27 +71,27 @@ static Optional<Unicode::DateTimeFormat const&> get_or_create_formatter(StringVi
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_date_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_date_formatter, m_temporal_plain_date_format);
+    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_date_formatter, m_temporal_plain_date_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_year_month_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_year_month_formatter, m_temporal_plain_year_month_format);
+    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_year_month_formatter, m_temporal_plain_year_month_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_month_day_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_month_day_formatter, m_temporal_plain_month_day_format);
+    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_month_day_formatter, m_temporal_plain_month_day_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_time_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_time_formatter, m_temporal_plain_time_format);
+    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_time_formatter, m_temporal_plain_time_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_date_time_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_date_time_formatter, m_temporal_plain_date_time_format);
+    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_date_time_formatter, m_temporal_plain_date_time_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_instant_formatter()
@@ -100,7 +100,7 @@ Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_instant_format
 }
 
 // 11.5.5 FormatDateTimePattern ( dateTimeFormat, patternParts, x, rangeFormatOptions ), https://tc39.es/ecma402/#sec-formatdatetimepattern
-// 15.6.4 FormatDateTimePattern ( dateTimeFormat, format, pattern, x, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-formatdatetimepattern
+// 15.6.4 FormatDateTimePattern ( dateTimeFormat, format, pattern, epochNanoseconds, isPlain ), https://tc39.es/proposal-temporal/#sec-formatdatetimepattern
 Vector<Unicode::DateTimeFormat::Partition> format_date_time_pattern(ValueFormat const& format_record)
 {
     return format_record.formatter.format_to_parts(format_record.epoch_milliseconds);
@@ -113,7 +113,7 @@ ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_tim
     // 1. Let xFormatRecord be ? HandleDateTimeValue(dateTimeFormat, x).
     auto format_record = TRY(handle_date_time_value(vm, date_time_format, time));
 
-    // 5. Let result be ? FormatDateTimePattern(dateTimeFormat, format, pattern, xFormatRecord.[[EpochNanoseconds]]).
+    // 5. Let result be FormatDateTimePattern(dateTimeFormat, format, pattern, epochNanoseconds, formatRecord.[[IsPlain]]).
     return format_date_time_pattern(format_record);
 }
 
@@ -522,8 +522,8 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFo
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]], NoonTimeRecord()).
     auto iso_date_time = Temporal::combine_iso_date_and_time_record(temporal_date.iso_date(), Temporal::noon_time_record());
 
-    // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]], isoDateTime, COMPATIBLE).
-    auto epoch_nanoseconds = TRY(Temporal::get_epoch_nanoseconds_for(vm, date_time_format.time_zone(), iso_date_time, Temporal::Disambiguation::Compatible));
+    // 3. Let epochNs be GetUTCEpochNanoseconds(isoDateTime).
+    auto epoch_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
 
     // 4. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
     auto formatter = date_time_format.temporal_plain_date_formatter();
@@ -532,7 +532,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFo
     if (!formatter.has_value())
         return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainDate"sv);
 
-    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
+    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs, [[IsPlain]]: true  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
 }
 
@@ -548,8 +548,8 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, Date
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
     auto iso_date_time = Temporal::combine_iso_date_and_time_record(temporal_year_month.iso_date(), Temporal::noon_time_record());
 
-    // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]], isoDateTime, COMPATIBLE).
-    auto epoch_nanoseconds = TRY(Temporal::get_epoch_nanoseconds_for(vm, date_time_format.time_zone(), iso_date_time, Temporal::Disambiguation::Compatible));
+    // 3. Let epochNs be GetUTCEpochNanoseconds(isoDateTime).
+    auto epoch_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
 
     // 4. Let format be dateTimeFormat.[[TemporalPlainYearMonthFormat]].
     auto formatter = date_time_format.temporal_plain_year_month_formatter();
@@ -558,7 +558,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, Date
     if (!formatter.has_value())
         return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainYearMonth"sv);
 
-    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
+    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs, [[IsPlain]]: true  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
 }
 
@@ -574,8 +574,8 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM& vm, DateT
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalMonthDay.[[ISODate]], NoonTimeRecord()).
     auto iso_date_time = Temporal::combine_iso_date_and_time_record(temporal_month_day.iso_date(), Temporal::noon_time_record());
 
-    // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]], isoDateTime, COMPATIBLE).
-    auto epoch_nanoseconds = TRY(Temporal::get_epoch_nanoseconds_for(vm, date_time_format.time_zone(), iso_date_time, Temporal::Disambiguation::Compatible));
+    // 3. Let epochNs be GetUTCEpochNanoseconds(isoDateTime).
+    auto epoch_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
 
     // 4. Let format be dateTimeFormat.[[TemporalPlainMonthDayFormat]].
     auto formatter = date_time_format.temporal_plain_month_day_formatter();
@@ -584,7 +584,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM& vm, DateT
     if (!formatter.has_value())
         return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainMonthDay"sv);
 
-    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
+    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs, [[IsPlain]]: true  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
 }
 
@@ -597,8 +597,8 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM& vm, DateTimeFo
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(isoDate, temporalTime.[[Time]]).
     auto iso_date_time = Temporal::combine_iso_date_and_time_record(iso_date, temporal_time.time());
 
-    // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]], isoDateTime, COMPATIBLE).
-    auto epoch_nanoseconds = TRY(Temporal::get_epoch_nanoseconds_for(vm, date_time_format.time_zone(), iso_date_time, Temporal::Disambiguation::Compatible));
+    // 3. Let epochNs be GetUTCEpochNanoseconds(isoDateTime).
+    auto epoch_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
 
     // 4. Let format be dateTimeFormat.[[TemporalPlainTimeFormat]].
     auto formatter = date_time_format.temporal_plain_time_formatter();
@@ -607,7 +607,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM& vm, DateTimeFo
     if (!formatter.has_value())
         return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainTime"sv);
 
-    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
+    // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs, [[IsPlain]]: true  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
 }
 
@@ -620,14 +620,14 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date_time(VM& vm, DateT
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDateTime"sv, date_time.calendar(), date_time_format.calendar());
     }
 
-    // 2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]], dateTime.[[ISODateTime]], COMPATIBLE).
-    auto epoch_nanoseconds = TRY(Temporal::get_epoch_nanoseconds_for(vm, date_time_format.time_zone(), date_time.iso_date_time(), Temporal::Disambiguation::Compatible));
+    // 2. Let epochNs be GetUTCEpochNanoseconds(dateTime.[[ISODateTime]]).
+    auto epoch_nanoseconds = get_utc_epoch_nanoseconds(date_time.iso_date_time());
 
     // 3. Let format be dateTimeFormat.[[TemporalPlainDateTimeFormat]].
     auto formatter = date_time_format.temporal_plain_date_time_formatter();
     VERIFY(formatter.has_value());
 
-    // 4. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
+    // 4. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs, [[IsPlain]]: true  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
 }
 
@@ -638,7 +638,7 @@ ValueFormat handle_date_time_temporal_instant(DateTimeFormat& date_time_format, 
     auto formatter = date_time_format.temporal_instant_formatter();
     VERIFY(formatter.has_value());
 
-    // 2. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: instant.[[EpochNanoseconds]]  }.
+    // 2. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: instant.[[EpochNanoseconds]], [[IsPlain]]: false  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(instant.epoch_nanoseconds()->big_integer()) };
 }
 
@@ -657,7 +657,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_others(VM& vm, DateTimeFormat& d
     // 4. Let format be dateTimeFormat.[[DateTimeFormat]].
     auto const& formatter = date_time_format.formatter();
 
-    // 5. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNanoseconds  }.
+    // 5. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNanoseconds, [[IsPlain]]: false  }.
     return ValueFormat { .formatter = formatter, .epoch_milliseconds = time };
 }
 
