@@ -4770,6 +4770,12 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 if (function.name.equals_ignoring_ascii_case("view"sv)) {
                     return CalculationContext { .percentages_resolve_as = ValueType::Length };
                 }
+                if (function.name.is_one_of_ignoring_ascii_case("grayscale"sv, "invert"sv, "opacity"sv, "sepia"sv)) {
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } }, { ValueType::Percentage, { 0, 100 } } } };
+                }
+                if (function.name.is_one_of_ignoring_ascii_case("brightness"sv, "contrast"sv, "saturate"sv)) {
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, NumericLimits<float>::max() } } } };
+                }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
             },

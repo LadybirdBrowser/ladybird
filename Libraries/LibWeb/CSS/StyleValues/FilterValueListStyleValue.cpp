@@ -193,24 +193,9 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolut
                 }
 
                 if (resolved_value.has_value()) {
-                    auto clamped_value = [&] {
-                        switch (color.operation) {
-                        case Gfx::ColorFilterType::Grayscale:
-                        case Gfx::ColorFilterType::Invert:
-                        case Gfx::ColorFilterType::Opacity:
-                        case Gfx::ColorFilterType::Sepia:
-                            return clamp(*resolved_value, 0.0, 1.0);
-                        case Gfx::ColorFilterType::Brightness:
-                        case Gfx::ColorFilterType::Contrast:
-                        case Gfx::ColorFilterType::Saturate:
-                            return max(*resolved_value, 0.0);
-                        }
-                        VERIFY_NOT_REACHED();
-                    }();
-
                     absolutized_filter_values.append(FilterOperation::Color {
                         .operation = color.operation,
-                        .amount = NumberPercentage { Number { Number::Type::Number, clamped_value } },
+                        .amount = NumberPercentage { Number { Number::Type::Number, resolved_value.value() } },
                     });
                     return;
                 }
