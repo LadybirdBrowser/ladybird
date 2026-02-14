@@ -45,7 +45,7 @@ ThrowCompletionOr<Crypto::SignedBigInteger> interpret_iso_date_time_offset(VM& v
         // a. Assert: offsetBehaviour is WALL.
         VERIFY(offset_behavior == OffsetBehavior::Wall);
 
-        // b. Assert: offsetNanoseconds is 0.
+        // b. Assert: offsetNanoseconds = 0.
         VERIFY(offset_nanoseconds == 0);
 
         // c. Return ? GetStartOfDay(timeZone, isoDate).

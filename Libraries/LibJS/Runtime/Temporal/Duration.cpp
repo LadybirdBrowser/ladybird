@@ -948,10 +948,10 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
         end_duration = TRY(adjust_date_duration_record(vm, duration.date, r2));
     }
 
-    // 5. Assert: If sign is 1, r1 ≥ 0 and r1 < r2.
+    // 5. Assert: If sign = 1, r1 ≥ 0 and r1 < r2.
     if (sign == 1)
         VERIFY(r1 >= 0 && r1 < r2);
-    // 6. Assert: If sign is -1, r1 ≤ 0 and r1 > r2.
+    // 6. Assert: If sign = -1, r1 ≤ 0 and r1 > r2.
     else if (sign == -1)
         VERIFY(r1 <= 0 && r1 > r2);
 
@@ -1026,7 +1026,7 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
         return {};
     };
 
-    // 5. If sign is 1, then
+    // 5. If sign = 1, then
     if (sign == 1) {
         // a. If startEpochNs ≤ destEpochNs ≤ endEpochNs is false, then
         if (start_epoch_ns > dest_epoch_ns || dest_epoch_ns > end_epoch_ns) {
