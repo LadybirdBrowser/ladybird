@@ -590,11 +590,9 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
     // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
     auto zoned_date_time = TRY(typed_this_object(vm));
 
-    // 3. If roundTo is undefined, then
-    if (round_to_value.is_undefined()) {
-        // a. Throw a TypeError exception.
+    // 3. If roundTo is undefined, throw a TypeError exception.
+    if (round_to_value.is_undefined())
         return vm.throw_completion<TypeError>(ErrorType::TemporalMissingOptionsObject);
-    }
 
     GC::Ptr<Object> round_to;
 
@@ -809,11 +807,9 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_locale_string)
     // 3. Let dateTimeFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, ANY, ALL, zonedDateTime.[[TimeZone]]).
     auto date_time_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All, zoned_date_time->time_zone()));
 
-    // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is false, then
-    if (zoned_date_time->calendar() != "iso8601"sv && !calendar_equals(zoned_date_time->calendar(), date_time_format->calendar())) {
-        // a. Throw a RangeError exception.
+    // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is false, throw a RangeError exception.
+    if (zoned_date_time->calendar() != "iso8601"sv && !calendar_equals(zoned_date_time->calendar(), date_time_format->calendar()))
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.ZonedDateTime"sv, zoned_date_time->calendar(), date_time_format->calendar());
-    }
 
     // 5. Let instant be ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
     auto instant = MUST(create_temporal_instant(vm, zoned_date_time->epoch_nanoseconds()));

@@ -66,17 +66,13 @@ bool iso_date_time_within_limits(ISODateTime const& iso_date_time)
     // 2. Let ns be ℝ(GetUTCEpochNanoseconds(isoDateTime)).
     auto nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
 
-    // 3. If ns ≤ nsMinInstant - nsPerDay, then
-    if (nanoseconds <= DATETIME_NANOSECONDS_MIN) {
-        // a. Return false.
+    // 3. If ns ≤ nsMinInstant - nsPerDay, return false.
+    if (nanoseconds <= DATETIME_NANOSECONDS_MIN)
         return false;
-    }
 
-    // 4. If ns ≥ nsMaxInstant + nsPerDay, then
-    if (nanoseconds >= DATETIME_NANOSECONDS_MAX) {
-        // a. Return false.
+    // 4. If ns ≥ nsMaxInstant + nsPerDay, return false.
+    if (nanoseconds >= DATETIME_NANOSECONDS_MAX)
         return false;
-    }
 
     // 5. Return true.
     return true;
@@ -224,11 +220,9 @@ ThrowCompletionOr<GC::Ref<PlainDateTime>> create_temporal_date_time(VM& vm, ISOD
 {
     auto& realm = *vm.current_realm();
 
-    // 1. If ISODateTimeWithinLimits(isoDateTime) is false, then
-    if (!iso_date_time_within_limits(iso_date_time)) {
-        // a. Throw a RangeError exception.
+    // 1. If ISODateTimeWithinLimits(isoDateTime) is false, throw a RangeError exception.
+    if (!iso_date_time_within_limits(iso_date_time))
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainDateTime);
-    }
 
     // 2. If newTarget is not present, set newTarget to %Temporal.PlainDateTime%.
     if (!new_target)
@@ -351,11 +345,9 @@ InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_ti
 // 5.5.13 DifferencePlainDateTimeWithRounding ( isoDateTime1, isoDateTime2, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithrounding
 ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode rounding_mode)
 {
-    // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, then
-    if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0) {
-        // a. Return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
+    // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
+    if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0)
         return combine_date_and_time_duration(zero_date_duration(vm), TimeDuration { 0 });
-    }
 
     // 2. If ISODateTimeWithinLimits(isoDateTime1) is false or ISODateTimeWithinLimits(isoDateTime2) is false, throw a
     //    RangeError exception.
@@ -382,11 +374,9 @@ ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&
 // 5.5.14 DifferencePlainDateTimeWithTotal ( isoDateTime1, isoDateTime2, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithtotal
 ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit unit)
 {
-    // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, then
-    if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0) {
-        // a. Return 0.
+    // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, return 0.
+    if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0)
         return Crypto::BigFraction {};
-    }
 
     // 2. If ISODateTimeWithinLimits(isoDateTime1) is false or ISODateTimeWithinLimits(isoDateTime2) is false, throw a
     //    RangeError exception.
@@ -426,11 +416,9 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date_time(VM& vm,
     // 4. Let settings be ? GetDifferenceSettings(operation, resolvedOptions, DATETIME, « », NANOSECOND, DAY).
     auto settings = TRY(get_difference_settings(vm, operation, resolved_options, UnitGroup::DateTime, {}, Unit::Nanosecond, Unit::Day));
 
-    // 5. If CompareISODateTime(dateTime.[[ISODateTime]], other.[[ISODateTime]]) = 0, then
-    if (compare_iso_date_time(date_time.iso_date_time(), other->iso_date_time()) == 0) {
-        // a. Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+    // 5. If CompareISODateTime(dateTime.[[ISODateTime]], other.[[ISODateTime]]) = 0, return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+    if (compare_iso_date_time(date_time.iso_date_time(), other->iso_date_time()) == 0)
         return MUST(create_temporal_duration(vm, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
-    }
 
     // 6. Let internalDuration be ? DifferencePlainDateTimeWithRounding(dateTime.[[ISODateTime]], other.[[ISODateTime]], dateTime.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
     auto internal_duration = TRY(difference_plain_date_time_with_rounding(vm, date_time.iso_date_time(), other->iso_date_time(), date_time.calendar(), settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));

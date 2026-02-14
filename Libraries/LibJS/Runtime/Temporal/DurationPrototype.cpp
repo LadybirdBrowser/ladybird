@@ -239,11 +239,9 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
     // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
     auto duration = TRY(typed_this_object(vm));
 
-    // 3. If roundTo is undefined, then
-    if (round_to_value.is_undefined()) {
-        // a. Throw a TypeError exception.
+    // 3. If roundTo is undefined, throw a TypeError exception.
+    if (round_to_value.is_undefined())
         return vm.throw_completion<TypeError>(ErrorType::TemporalMissingOptionsObject);
-    }
 
     GC::Ptr<Object> round_to;
 
@@ -325,11 +323,9 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         largest_unit = default_largest_unit;
     }
 
-    // 22. If smallestUnitPresent is false and largestUnitPresent is false, then
-    if (!smallest_unit_present && !largest_unit_present) {
-        // a. Throw a RangeError exception.
+    // 22. If smallestUnitPresent is false and largestUnitPresent is false, throw a RangeError exception.
+    if (!smallest_unit_present && !largest_unit_present)
         return vm.throw_completion<RangeError>(ErrorType::TemporalMissingUnits);
-    }
 
     auto largest_unit_value = largest_unit.get<Unit>();
 

@@ -320,11 +320,9 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, StringView cal
         }
         // d. Else if requiredFieldNames is a List, then
         else if (auto const* required = required_field_names.get_pointer<CalendarFieldList>()) {
-            // i. If requiredFieldNames contains key, then
-            if (required->contains_slow(key)) {
-                // 1. Throw a TypeError exception.
+            // i. If requiredFieldNames contains key, throw a TypeError exception.
+            if (required->contains_slow(key))
                 return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, *property);
-            }
 
             // ii. Set result's field whose name is given in the Field Name column of the same row to the corresponding
             //     Default value of the same row.
@@ -332,11 +330,9 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, StringView cal
         }
     }
 
-    // 10. If requiredFieldNames is PARTIAL and any is false, then
-    if (required_field_names.has<Partial>() && !any) {
-        // a. Throw a TypeError exception.
+    // 10. If requiredFieldNames is PARTIAL and any is false, throw a TypeError exception.
+    if (required_field_names.has<Partial>() && !any)
         return vm.throw_completion<TypeError>(ErrorType::TemporalObjectMustBePartialTemporalObject);
-    }
 
     // 11. Return result.
     return result;
@@ -464,11 +460,9 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
     // 1. Let sign be CompareISODate(one, two).
     auto sign = compare_iso_date(one, two);
 
-    // 2. If sign = 0, then
-    if (sign == 0) {
-        // a. Return ZeroDateDuration().
+    // 2. If sign = 0, return ZeroDateDuration().
+    if (sign == 0)
         return zero_date_duration(vm);
-    }
 
     // 3. If calendar is "iso8601", then
     if (calendar == "iso8601"sv) {
@@ -548,24 +542,22 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
 // 12.3.10 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
 ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal_calendar_like)
 {
-    // 1. If temporalCalendarLike is an Object, then
+    // 1. If temporalCalendarLike is an Object and temporalCalendarLike has an [[InitializedTemporalDate]],
+    //    [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or
+    //    [[InitializedTemporalZonedDateTime]] internal slot, return temporalCalendarLike.[[Calendar]].
     if (temporal_calendar_like.is_object()) {
         auto const& temporal_calendar_object = temporal_calendar_like.as_object();
 
-        // a. If temporalCalendarLike has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]],
-        //    [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
-        //    internal slot, then
-        //     i. Return temporalCalendarLike.[[Calendar]].
-        if (is<PlainDate>(temporal_calendar_object))
-            return static_cast<PlainDate const&>(temporal_calendar_object).calendar();
-        if (is<PlainDateTime>(temporal_calendar_object))
-            return static_cast<PlainDateTime const&>(temporal_calendar_object).calendar();
-        if (is<PlainMonthDay>(temporal_calendar_object))
-            return static_cast<PlainMonthDay const&>(temporal_calendar_object).calendar();
-        if (is<PlainYearMonth>(temporal_calendar_object))
-            return static_cast<PlainYearMonth const&>(temporal_calendar_object).calendar();
-        if (is<ZonedDateTime>(temporal_calendar_object))
-            return static_cast<ZonedDateTime const&>(temporal_calendar_object).calendar();
+        if (auto const* plain_date = as_if<PlainDate>(temporal_calendar_object))
+            return plain_date->calendar();
+        if (auto const* plain_date_time = as_if<PlainDateTime>(temporal_calendar_object))
+            return plain_date_time->calendar();
+        if (auto const* plain_month_day = as_if<PlainMonthDay>(temporal_calendar_object))
+            return plain_month_day->calendar();
+        if (auto const* plain_year_month = as_if<PlainYearMonth>(temporal_calendar_object))
+            return plain_year_month->calendar();
+        if (auto const* zoned_date_time = as_if<ZonedDateTime>(temporal_calendar_object))
+            return zoned_date_time->calendar();
     }
 
     // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
@@ -585,25 +577,23 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     // 1. If item has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
     //    [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, then
     //     a. Return item.[[Calendar]].
-    if (is<PlainDate>(item))
-        return static_cast<PlainDate const&>(item).calendar();
-    if (is<PlainDateTime>(item))
-        return static_cast<PlainDateTime const&>(item).calendar();
-    if (is<PlainMonthDay>(item))
-        return static_cast<PlainMonthDay const&>(item).calendar();
-    if (is<PlainYearMonth>(item))
-        return static_cast<PlainYearMonth const&>(item).calendar();
-    if (is<ZonedDateTime>(item))
-        return static_cast<PlainYearMonth const&>(item).calendar();
+    if (auto const* plain_date = as_if<PlainDate>(item))
+        return plain_date->calendar();
+    if (auto const* plain_date_time = as_if<PlainDateTime>(item))
+        return plain_date_time->calendar();
+    if (auto const* plain_month_day = as_if<PlainMonthDay>(item))
+        return plain_month_day->calendar();
+    if (auto const* plain_year_month = as_if<PlainYearMonth>(item))
+        return plain_year_month->calendar();
+    if (auto const* zoned_date_time = as_if<ZonedDateTime>(item))
+        return zoned_date_time->calendar();
 
     // 2. Let calendarLike be ? Get(item, "calendar").
     auto calendar_like = TRY(item.get(vm.names.calendar));
 
-    // 3. If calendarLike is undefined, then
-    if (calendar_like.is_undefined()) {
-        // a. Return "iso8601".
+    // 3. If calendarLike is undefined, return "iso8601".
+    if (calendar_like.is_undefined())
         return "iso8601"_string;
-    }
 
     // 4. Return ? ToTemporalCalendarIdentifier(calendarLike).
     return TRY(to_temporal_calendar_identifier(vm, calendar_like));

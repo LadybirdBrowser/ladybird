@@ -577,11 +577,9 @@ Unit default_temporal_largest_unit(Duration const& duration)
 // 7.5.18 ToTemporalPartialDurationRecord ( temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalpartialdurationrecord
 ThrowCompletionOr<PartialDuration> to_temporal_partial_duration_record(VM& vm, Value temporal_duration_like)
 {
-    // 1. If temporalDurationLike is not an Object, then
-    if (!temporal_duration_like.is_object()) {
-        // a. Throw a TypeError exception.
+    // 1. If temporalDurationLike is not an Object, throw a TypeError exception.
+    if (!temporal_duration_like.is_object())
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, temporal_duration_like);
-    }
 
     // 2. Let result be a new partial Duration Record with each field set to undefined.
     PartialDuration result {};

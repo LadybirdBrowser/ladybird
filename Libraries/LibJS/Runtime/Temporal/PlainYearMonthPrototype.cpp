@@ -318,11 +318,9 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::to_plain_date)
     // 2. Perform ? RequireInternalSlot(plainYearMonth, [[InitializedTemporalYearMonth]]).
     auto plain_year_month = TRY(typed_this_object(vm));
 
-    // 3. If item is not an Object, then
-    if (!item.is_object()) {
-        // a. Throw a TypeError exception.
+    // 3. If item is not an Object, throw a TypeError exception.
+    if (!item.is_object())
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, item);
-    }
 
     // 4. Let calendar be plainYearMonth.[[Calendar]].
     auto const& calendar = plain_year_month->calendar();

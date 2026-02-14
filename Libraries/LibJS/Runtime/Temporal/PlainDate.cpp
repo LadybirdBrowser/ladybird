@@ -297,23 +297,15 @@ bool is_valid_iso_date(double year, double month, double day)
     if (!AK::is_within_range<i32>(year) || !AK::is_within_range<u8>(month) || !AK::is_within_range<u8>(day))
         return false;
 
-    // 1. If month < 1 or month > 12, then
-    if (month < 1 || month > 12) {
-        // a. Return false.
+    // 1. If month < 1 or month > 12, return false.
+    if (month < 1 || month > 12)
         return false;
-    }
 
     // 2. Let daysInMonth be ISODaysInMonth(year, month).
     auto days_in_month = iso_days_in_month(year, month);
 
-    // 3. If day < 1 or day > daysInMonth, then
-    if (day < 1 || day > days_in_month) {
-        // a. Return false.
-        return false;
-    }
-
-    // 4. Return true.
-    return true;
+    // 3. If day < 1 or day > daysInMonth, return false; else return true.
+    return day >= 1 && day <= days_in_month;
 }
 
 // 3.5.8 AddDaysToISODate ( isoDate, days ), https://tc39.es/proposal-temporal/#sec-temporal-adddaystoisodate
@@ -332,11 +324,9 @@ ISODate add_days_to_iso_date(ISODate iso_date, double days)
 // 3.5.9 PadISOYear ( y ), https://tc39.es/proposal-temporal/#sec-temporal-padisoyear
 String pad_iso_year(i32 year)
 {
-    // 1. If y ≥ 0 and y ≤ 9999, then
-    if (year >= 0 && year <= 9999) {
-        // a. Return ToZeroPaddedDecimalString(y, 4).
+    // 1. If y ≥ 0 and y ≤ 9999, return ToZeroPaddedDecimalString(y, 4).
+    if (year >= 0 && year <= 9999)
         return MUST(String::formatted("{:04}", year));
-    }
 
     // 2. If y > 0, let yearSign be "+"; else, let yearSign be "-".
     auto year_sign = year > 0 ? '+' : '-';

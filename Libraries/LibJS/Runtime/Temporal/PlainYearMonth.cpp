@@ -113,23 +113,17 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
 // 9.5.3 ISOYearMonthWithinLimits ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isoyearmonthwithinlimits
 bool iso_year_month_within_limits(ISODate iso_date)
 {
-    // 1. If isoDate.[[Year]] < -271821 or isoDate.[[Year]] > 275760, then
-    if (iso_date.year < -271821 || iso_date.year > 275760) {
-        // a. Return false.
+    // 1. If isoDate.[[Year]] < -271821 or isoDate.[[Year]] > 275760, return false.
+    if (iso_date.year < -271821 || iso_date.year > 275760)
         return false;
-    }
 
-    // 2. If isoDate.[[Year]] = -271821 and isoDate.[[Month]] < 4, then
-    if (iso_date.year == -271821 && iso_date.month < 4) {
-        // a. Return false.
+    // 2. If isoDate.[[Year]] = -271821 and isoDate.[[Month]] < 4, return false.
+    if (iso_date.year == -271821 && iso_date.month < 4)
         return false;
-    }
 
-    // 3. If isoDate.[[Year]] = 275760 and isoDate.[[Month]] > 9, then
-    if (iso_date.year == 275760 && iso_date.month > 9) {
-        // a. Return false.
+    // 3. If isoDate.[[Year]] = 275760 and isoDate.[[Month]] > 9, return false.
+    if (iso_date.year == 275760 && iso_date.month > 9)
         return false;
-    }
 
     // 4. Return true.
     return true;
@@ -216,11 +210,9 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
     // 5. Let settings be ? GetDifferenceSettings(operation, resolvedOptions, DATE, « WEEK, DAY », MONTH, YEAR).
     auto settings = TRY(get_difference_settings(vm, operation, resolved_options, UnitGroup::Date, { { Unit::Week, Unit::Day } }, Unit::Month, Unit::Year));
 
-    // 6. If CompareISODate(yearMonth.[[ISODate]], other.[[ISODate]]) = 0, then
-    if (compare_iso_date(year_month.iso_date(), other->iso_date()) == 0) {
-        // a. Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+    // 6. If CompareISODate(yearMonth.[[ISODate]], other.[[ISODate]]) = 0, return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+    if (compare_iso_date(year_month.iso_date(), other->iso_date()) == 0)
         return MUST(create_temporal_duration(vm, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
-    }
 
     // 7. Let thisFields be ISODateToFields(calendar, yearMonth.[[ISODate]], YEAR-MONTH).
     auto this_fields = iso_date_to_fields(calendar, year_month.iso_date(), DateType::YearMonth);

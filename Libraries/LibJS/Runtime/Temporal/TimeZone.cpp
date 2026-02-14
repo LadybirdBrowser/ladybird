@@ -203,16 +203,10 @@ String format_date_time_utc_offset_rounded(i64 offset_nanoseconds)
 // 11.1.8 ToTemporalTimeZoneIdentifier ( temporalTimeZoneLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimezoneidentifier
 ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Value temporal_time_zone_like)
 {
-    // 1. If temporalTimeZoneLike is an Object, then
-    if (temporal_time_zone_like.is_object()) {
-        auto const& object = temporal_time_zone_like.as_object();
-
-        // a. If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        if (is<ZonedDateTime>(object)) {
-            // i. Return temporalTimeZoneLike.[[TimeZone]].
-            return static_cast<ZonedDateTime const&>(object).time_zone();
-        }
-    }
+    // 1. If temporalTimeZoneLike is an Object and temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]]
+    //    internal slot, return temporalTimeZoneLike.[[TimeZone]].
+    if (auto const* zoned_date_time = temporal_time_zone_like.as_if<ZonedDateTime>())
+        return zoned_date_time->time_zone();
 
     // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
     if (!temporal_time_zone_like.is_string())
@@ -287,25 +281,19 @@ ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseco
     // 1. Let n be the number of elements in possibleEpochNs.
     auto n = possible_epoch_ns.size();
 
-    // 2. If n = 1, then
-    if (n == 1) {
-        // a. Return the sole element of possibleEpochNs.
+    // 2. If n = 1, return the sole element of possibleEpochNs.
+    if (n == 1)
         return move(possible_epoch_ns[0]);
-    }
 
     // 3. If n ≠ 0, then
     if (n != 0) {
-        // a. If disambiguation is either EARLIER or COMPATIBLE, then
-        if (disambiguation == Disambiguation::Earlier || disambiguation == Disambiguation::Compatible) {
-            // i. Return possibleEpochNs[0].
+        // a. If disambiguation is either EARLIER or COMPATIBLE, return possibleEpochNs[0].
+        if (disambiguation == Disambiguation::Earlier || disambiguation == Disambiguation::Compatible)
             return move(possible_epoch_ns[0]);
-        }
 
-        // b. If disambiguation is LATER, then
-        if (disambiguation == Disambiguation::Later) {
-            // i. Return possibleEpochNs[n - 1].
+        // b. If disambiguation is LATER, return possibleEpochNs[n - 1].
+        if (disambiguation == Disambiguation::Later)
             return move(possible_epoch_ns[n - 1]);
-        }
 
         // c. Assert: disambiguation is REJECT.
         VERIFY(disambiguation == Disambiguation::Reject);
@@ -317,11 +305,9 @@ ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseco
     // 4. Assert: n = 0.
     VERIFY(n == 0);
 
-    // 5. If disambiguation is REJECT, then
-    if (disambiguation == Disambiguation::Reject) {
-        // a. Throw a RangeError exception.
+    // 5. If disambiguation is REJECT, throw a RangeError exception.
+    if (disambiguation == Disambiguation::Reject)
         return vm.throw_completion<RangeError>(ErrorType::TemporalDisambiguatePossibleEpochNSRejectZero);
-    }
 
     // FIXME: GetNamedTimeZoneEpochNanoseconds currently does not produce zero instants.
     (void)time_zone;
