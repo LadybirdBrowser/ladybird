@@ -2017,7 +2017,8 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
         script_history_length = script_history_index + 1;
     }
 
-    // NB: Persist scroll position data for the entry being navigated away from.
+    // AD-HOC: The spec only calls "save persisted state" during traversals, but same-document fragment
+    //         navigations also switch the active entry, so scroll data must be persisted here.
     save_persisted_state(*m_active_session_history_entry);
 
     // 12. Set navigable's active session history entry to historyEntry.
@@ -2509,7 +2510,8 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 9. Set document's latest entry to newEntry.
     document.set_latest_entry(new_entry);
 
-    // NB: Persist scroll position data for the entry being navigated away from.
+    // AD-HOC: The spec only calls "save persisted state" during traversals, but pushState/replaceState
+    //         also switch the active entry, so scroll data must be persisted here.
     navigable->save_persisted_state(*navigable->active_session_history_entry());
 
     // 10. Set navigable's active session history entry to newEntry.
