@@ -284,12 +284,12 @@ ThrowCompletionOr<Crypto::SignedBigInteger> get_epoch_nanoseconds_for(VM& vm, St
 // 11.1.12 DisambiguatePossibleEpochNanoseconds ( possibleEpochNs, timeZone, isoDateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleepochnanoseconds
 ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseconds(VM& vm, Vector<Crypto::SignedBigInteger> possible_epoch_ns, StringView time_zone, ISODateTime const& iso_date_time, Disambiguation disambiguation)
 {
-    // 1. Let n be possibleEpochNs's length.
+    // 1. Let n be the number of elements in possibleEpochNs.
     auto n = possible_epoch_ns.size();
 
     // 2. If n = 1, then
     if (n == 1) {
-        // a. Return possibleEpochNs[0].
+        // a. Return the sole element of possibleEpochNs.
         return move(possible_epoch_ns[0]);
     }
 
