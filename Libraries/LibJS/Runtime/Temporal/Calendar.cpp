@@ -981,48 +981,49 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
 {
     // 1. If calendar is "iso8601", then
     if (calendar == "iso8601"sv) {
-        // a. If type is DATE or YEAR-MONTH and fields.[[Year]] is UNSET, throw a TypeError exception.
-        if ((type == DateType::Date || type == DateType::YearMonth) && !fields.year.has_value())
+        // a. Let needsYear be false.
+        // b. If type is either DATE or YEAR-MONTH, set needsYear to true.
+        auto needs_year = type == DateType::Date || type == DateType::YearMonth;
+
+        // c. Let needsDay be false.
+        // d. If type is either DATE or MONTH-DAY, set needsDay to true.
+        auto needs_day = type == DateType::Date || type == DateType::MonthDay;
+
+        // e. If needsYear is true and fields.[[Year]] is UNSET, throw a TypeError exception.
+        if (needs_year && !fields.year.has_value())
             return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "year"sv);
 
-        // b. If type is DATE or MONTH-DAY and fields.[[Day]] is UNSET, throw a TypeError exception.
-        if ((type == DateType::Date || type == DateType::MonthDay) && !fields.day.has_value())
+        // f. If needsDay is true and fields.[[Day]] is UNSET, throw a TypeError exception.
+        if (needs_day && !fields.day.has_value())
             return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "day"sv);
 
-        // c. Let month be fields.[[Month]].
-        auto const& month = fields.month;
+        // g. If fields.[[Month]] is UNSET and fields.[[MonthCode]] is UNSET, throw a TypeError exception.
+        if (!fields.month.has_value() && !fields.month_code.has_value())
+            return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "month"sv);
 
-        // d. Let monthCode be fields.[[MonthCode]].
-        auto const& month_code = fields.month_code;
+        // h. If fields.[[MonthCode]] is not UNSET, then
+        if (fields.month_code.has_value()) {
+            // i. Let parsedMonthCode be ! ParseMonthCode(fields.[[MonthCode]]).
+            auto parsed_month_code = MUST(parse_month_code(vm, *fields.month_code));
 
-        // e. If monthCode is UNSET, then
-        if (!month_code.has_value()) {
-            // i. If month is UNSET, throw a TypeError exception.
-            if (!month.has_value())
-                return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "month"sv);
+            // ii. If parsedMonthCode.[[IsLeapMonth]] is true, throw a RangeError exception.
+            if (parsed_month_code.is_leap_month)
+                return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
 
-            // ii. Return UNUSED.
-            return {};
+            // iii. Let month be parsedMonthCode.[[MonthNumber]].
+            auto month = parsed_month_code.month_number;
+
+            // iv. If month > 12, throw a RangeError exception.
+            if (month > 12)
+                return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
+
+            // v. If fields.[[Month]] is not UNSET and fields.[[Month]] ≠ month, throw a RangeError exception.
+            if (fields.month.has_value() && fields.month != month)
+                return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "month"sv);
+
+            // vi. Set fields.[[Month]] to month.
+            fields.month = month;
         }
-
-        // f. Assert: monthCode is a month code.
-        // g. Let parsedMonthCode be ! ParseMonthCode(monthCode).
-        auto parsed_month_code = MUST(parse_month_code(vm, *month_code));
-
-        // h. If parsedMonthCode.[[IsLeapMonth]] is true, throw a RangeError exception.
-        if (parsed_month_code.is_leap_month)
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
-
-        // i. If parsedMonthCode.[[MonthNumber]] > 12, throw a RangeError exception.
-        if (parsed_month_code.month_number > 12)
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
-
-        // j. If month is not UNSET and month ≠ parsedMonthCode.[[MonthNumber]], throw a RangeError exception.
-        if (month.has_value() && month != parsed_month_code.month_number)
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "month"sv);
-
-        // k. Set fields.[[Month]] to parsedMonthCode.[[MonthNumber]].
-        fields.month = parsed_month_code.month_number;
     }
     // 2. Else,
     else {
