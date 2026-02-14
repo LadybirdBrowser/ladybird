@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe src="../../data/scroll-position-restoration.html"></iframe>
+<script>
+    asyncTest(done => {
+        let messageCount = 0;
+        window.addEventListener("message", event => {
+            println(event.data);
+            messageCount++;
+            if (messageCount === 2)
+                done();
+        });
+    });
+</script>
