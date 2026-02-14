@@ -1463,24 +1463,28 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
         return IterationDecision::Continue;
     });
 
+    auto has_abspos_with_external_containing_block = [](SVGSVGBox const& svg_box) {
+        for (auto const* ancestor = svg_box.parent(); ancestor; ancestor = ancestor->parent()) {
+            auto const* box = as_if<Box>(ancestor);
+            if (!box)
+                continue;
+            for (auto const& abspos_child : box->contained_abspos_children()) {
+                if (svg_box.is_inclusive_ancestor_of(abspos_child))
+                    return true;
+            }
+        }
+        return false;
+    };
+
     for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
         if (ancestor->m_needs_layout_update)
             break;
         ancestor->m_needs_layout_update = true;
         if (auto* svg_box = as_if<SVGSVGBox>(ancestor)) {
-            // Walk from `this` up to the SVG root to check if any abspos node in the path has its containing block
-            // outside the SVG subtree. If so, partial SVG relayout cannot handle it — the abspos element is laid out
-            // by its containing block's FC which is outside the SVG subtree.
-            bool can_use_boundary = true;
-            for (auto* node = this; node != svg_box; node = node->parent()) {
-                if (node->is_absolutely_positioned()) {
-                    if (auto cb = node->containing_block(); cb && !svg_box->is_inclusive_ancestor_of(*cb)) {
-                        can_use_boundary = false;
-                        break;
-                    }
-                }
-            }
-            if (!can_use_boundary)
+            // Absolutely positioned elements inside the SVG subtree whose containing
+            // block is outside the SVG can't be properly relaid out during partial SVG
+            // relayout — their layout depends on formatting contexts outside the subtree.
+            if (has_abspos_with_external_containing_block(*svg_box))
                 continue;
             document().mark_svg_root_as_needing_relayout(*svg_box);
             break;
