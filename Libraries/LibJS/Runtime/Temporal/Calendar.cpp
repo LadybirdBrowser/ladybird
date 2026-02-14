@@ -920,7 +920,7 @@ CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
 // 12.3.27 CalendarExtraFields ( calendar, fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarextrafields
 Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldList)
 {
-    // 1. If calendar is "iso8601", return an empty List.
+    // 1. If calendar is "iso8601", return a new empty List.
     if (calendar == "iso8601"sv)
         return {};
 
@@ -941,7 +941,7 @@ Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, Readonl
 {
     // 1. If calendar is "iso8601", then
     if (calendar == "iso8601"sv) {
-        // a. Let ignoredKeys be an empty List.
+        // a. Let ignoredKeys be a new empty List.
         Vector<CalendarField> ignored_keys;
 
         // b. For each element key of keys, do
