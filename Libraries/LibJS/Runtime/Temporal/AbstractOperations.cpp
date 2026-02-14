@@ -58,11 +58,7 @@ double iso_date_to_epoch_days(double year, double month, double date)
     // 3. Find a time t such that EpochTimeToEpochYear(t) = resolvedYear, EpochTimeToMonthInYear(t) = resolvedMonth, and EpochTimeToDate(t) = 1.
     // 4. Return EpochTimeToDayNumber(t) + date - 1.
 
-    // EDITOR'S NOTE: This operation corresponds to ECMA-262 operation MakeDay(year, month, date). It calculates the
-    //                result in mathematical values instead of Number values. These two operations would be unified when
-    //                https://github.com/tc39/ecma262/issues/1087 is fixed.
-
-    // Since we don't have a real MV type to work with, let's defer to MakeDay.
+    // NB: Since we don't have a real MV type to work with, let's defer to MakeDay.
     return JS::make_day(year, month, date);
 }
 
