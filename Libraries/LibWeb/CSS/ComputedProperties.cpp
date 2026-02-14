@@ -522,13 +522,7 @@ StrokeLinejoin ComputedProperties::stroke_linejoin() const
 
 double ComputedProperties::stroke_miterlimit() const
 {
-    auto const& value = property(PropertyID::StrokeMiterlimit);
-
-    if (value.is_calculated()) {
-        return value.as_calculated().resolve_number({}).value();
-    }
-
-    return value.as_number().number();
+    return number_from_style_value(property(PropertyID::StrokeMiterlimit), {});
 }
 
 float ComputedProperties::stroke_opacity() const
@@ -1802,12 +1796,7 @@ HashMap<FlyString, double> ComputedProperties::font_variation_settings() const
         for (auto const& tag_value : axis_tags) {
             auto const& axis_tag = tag_value->as_open_type_tagged();
 
-            if (axis_tag.value()->is_number()) {
-                result.set(axis_tag.tag(), axis_tag.value()->as_number().number());
-            } else {
-                VERIFY(axis_tag.value()->is_calculated());
-                result.set(axis_tag.tag(), axis_tag.value()->as_calculated().resolve_number({}).value());
-            }
+            result.set(axis_tag.tag(), number_from_style_value(axis_tag.value(), {}));
         }
         return result;
     }
@@ -2171,13 +2160,7 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(D
             if (animation_iteration_count_style_value->to_keyword() == Keyword::Infinite)
                 return AK::Infinity<double>;
 
-            if (animation_iteration_count_style_value->is_number())
-                return animation_iteration_count_style_value->as_number().number();
-
-            if (animation_iteration_count_style_value->is_calculated())
-                return animation_iteration_count_style_value->as_calculated().resolve_number({}).value();
-
-            VERIFY_NOT_REACHED();
+            return number_from_style_value(animation_iteration_count_style_value, {});
         }();
 
         auto direction = keyword_to_animation_direction(animation_direction_style_value->to_keyword()).value();

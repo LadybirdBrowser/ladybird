@@ -202,6 +202,8 @@ struct StyleValueWithDefaultOperators : public StyleValue {
     }
 };
 
+double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis);
+
 }
 
 template<>

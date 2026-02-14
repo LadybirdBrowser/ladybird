@@ -187,16 +187,11 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
             auto const& variation_tags = value->as_value_list().values();
             OrderedHashMap<FlyString, double> settings;
             settings.ensure_capacity(variation_tags.size());
-            for (auto const& variation_tag : variation_tags) {
-                auto const& setting_value = variation_tag->as_open_type_tagged().value();
-                if (setting_value->is_number()) {
-                    settings.set(variation_tag->as_open_type_tagged().tag(), setting_value->as_number().number());
-                } else if (setting_value->is_calculated() && setting_value->as_calculated().resolves_to_number()) {
-                    if (auto number = setting_value->as_calculated().resolve_number({}); number.has_value()) {
-                        settings.set(variation_tag->as_open_type_tagged().tag(), *number);
-                    }
-                }
-            }
+
+            // FIXME: Absolutize these values to handle relative lengths within calcs
+            for (auto const& variation_tag : variation_tags)
+                settings.set(variation_tag->as_open_type_tagged().tag(), number_from_style_value(variation_tag->as_open_type_tagged().value(), {}));
+
             font_variation_settings = move(settings);
         }
     }
