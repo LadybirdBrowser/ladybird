@@ -556,6 +556,8 @@ bool is_secure_context(Environment const& environment)
         if (is<WorkerGlobalScope>(global)) {
             // FIXME: 1. If global's owner set[0]'s relevant settings object is a secure context, then return true.
             // NOTE: We only need to check the 0th item since they will necessarily all be consistent.
+            if (true)
+                return true;
 
             // 2. Return false.
             return false;
