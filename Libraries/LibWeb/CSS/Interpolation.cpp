@@ -173,18 +173,7 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
             return {};
         },
         [&](FilterOperation::Color const& from_value) -> Optional<FilterValue> {
-            auto resolve_number_percentage = [](NumberPercentage const& amount) -> ValueComparingNonnullRefPtr<StyleValue const> {
-                if (amount.is_number())
-                    return NumberStyleValue::create(amount.number().value());
-                if (amount.is_percentage())
-                    return NumberStyleValue::create(amount.percentage().as_fraction());
-                if (amount.is_calculated())
-                    return amount.calculated();
-                VERIFY_NOT_REACHED();
-            };
             auto const& to_value = to.get<FilterOperation::Color>();
-            auto from_style_value = resolve_number_percentage(from_value.amount);
-            auto to_style_value = resolve_number_percentage(to_value.amount);
             auto operation = delta >= 0.5f ? to_value.operation : from_value.operation;
 
             CalculationContext filter_function_calculation_context = calculation_context;
@@ -202,23 +191,10 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
                 break;
             }
 
-            if (auto interpolated_style_value = interpolate_value(element, filter_function_calculation_context, from_style_value, to_style_value, delta, allow_discrete)) {
-                auto to_number_percentage = [&](StyleValue const& style_value) -> NumberPercentage {
-                    if (style_value.is_number()) {
-                        return Number {
-                            Number::Type::Number,
-                            style_value.as_number().number(),
-                        };
-                    }
-                    if (style_value.is_percentage())
-                        return Percentage { style_value.as_percentage().percentage() };
-                    if (style_value.is_calculated())
-                        return NumberPercentage { style_value.as_calculated() };
-                    VERIFY_NOT_REACHED();
-                };
+            if (auto interpolated_style_value = interpolate_value(element, filter_function_calculation_context, from_value.amount, to_value.amount, delta, allow_discrete)) {
                 return FilterOperation::Color {
                     .operation = operation,
-                    .amount = to_number_percentage(*interpolated_style_value)
+                    .amount = *interpolated_style_value
                 };
             }
             return {};
@@ -312,7 +288,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
                     }
                     VERIFY_NOT_REACHED();
                 }();
-                return FilterOperation::Color { .operation = color.operation, .amount = NumberPercentage { Number { Number::Type::Integer, default_value_for_interpolation } } };
+                return FilterOperation::Color { .operation = color.operation, .amount = NumberStyleValue::create(default_value_for_interpolation) };
             },
             [&](auto&) -> FilterValue {
                 VERIFY_NOT_REACHED();
@@ -2183,7 +2159,7 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                     }
                     VERIFY_NOT_REACHED();
                 }();
-                return FilterOperation::Color { .operation = color.operation, .amount = NumberPercentage { Number { Number::Type::Integer, default_value_for_accumulation } } };
+                return FilterOperation::Color { .operation = color.operation, .amount = NumberStyleValue::create(default_value_for_accumulation) };
             },
             [&](auto&) -> FilterValue {
                 VERIFY_NOT_REACHED();
@@ -2253,7 +2229,7 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
 
                 return FilterOperation::Color {
                     .operation = underlying_color.operation,
-                    .amount = NumberPercentage { Number { Number::Type::Number, accumulated } }
+                    .amount = NumberStyleValue::create(accumulated)
                 };
             },
             [&](FilterOperation::DropShadow const& underlying_shadow) -> Optional<FilterValue> {
