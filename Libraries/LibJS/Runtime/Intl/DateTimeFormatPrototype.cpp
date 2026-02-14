@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -146,7 +146,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format)
 }
 
 // 11.3.4 Intl.DateTimeFormat.prototype.formatRange ( startDate, endDate ), https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.formatRange
-// 15.10.2 Intl.DateTimeFormat.prototype.formatRange ( startDate, endDate ), https://tc39.es/proposal-temporal/#sec-intl.datetimeformat.prototype.formatRange
+// 15.7.2 Intl.DateTimeFormat.prototype.formatRange ( startDate, endDate ), https://tc39.es/proposal-temporal/#sec-intl.datetimeformat.prototype.formatRange
 JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format_range)
 {
     auto start_date_value = vm.argument(0);
@@ -174,7 +174,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format_range)
 }
 
 // 11.3.5 Intl.DateTimeFormat.prototype.formatRangeToParts ( startDate, endDate ), https://tc39.es/ecma402/#sec-Intl.DateTimeFormat.prototype.formatRangeToParts
-// 15.10.3 Intl.DateTimeFormat.prototype.formatRangeToParts ( startDate, endDate ), https://tc39.es/proposal-temporal/#sec-Intl.DateTimeFormat.prototype.formatRangeToParts
+// 15.7.3 Intl.DateTimeFormat.prototype.formatRangeToParts ( startDate, endDate ), https://tc39.es/proposal-temporal/#sec-Intl.DateTimeFormat.prototype.formatRangeToParts
 JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format_range_to_parts)
 {
     auto start_date_value = vm.argument(0);
@@ -201,7 +201,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format_range_to_parts)
 }
 
 // 11.3.6 Intl.DateTimeFormat.prototype.formatToParts ( date ), https://tc39.es/ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
-// 15.10.1 Intl.DateTimeFormat.prototype.formatToParts ( date ), https://tc39.es/proposal-temporal/#sec-Intl.DateTimeFormat.prototype.formatToParts
+// 15.7.1 Intl.DateTimeFormat.prototype.formatToParts ( date ), https://tc39.es/proposal-temporal/#sec-Intl.DateTimeFormat.prototype.formatToParts
 JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format_to_parts)
 {
     auto& realm = *vm.current_realm();
