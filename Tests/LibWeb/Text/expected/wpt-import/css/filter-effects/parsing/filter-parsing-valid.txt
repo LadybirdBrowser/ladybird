@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 39 tests
 
-36 Pass
-3 Fail
+39 Pass
 Pass	e.style['filter'] = "none" should set the property value
 Pass	e.style['filter'] = "blur(100px)" should set the property value
 Pass	e.style['filter'] = "blur(0)" should set the property value
@@ -40,6 +39,6 @@ Pass	e.style['filter'] = "saturate()" should set the property value
 Pass	e.style['filter'] = "sepia(0)" should set the property value
 Pass	e.style['filter'] = "sepia(300%)" should set the property value
 Pass	e.style['filter'] = "sepia()" should set the property value
-Fail	e.style['filter'] = "url(picture.svg#f)" should set the property value
-Fail	e.style['filter'] = "url(\"https://www.example.com/picture.svg#f\")" should set the property value
-Fail	e.style['filter'] = "blur(10px) url(\"picture.svg#f\") contrast(20) brightness(30)" should set the property value
+Pass	e.style['filter'] = "url(picture.svg#f)" should set the property value
+Pass	e.style['filter'] = "url(\"https://www.example.com/picture.svg#f\")" should set the property value
+Pass	e.style['filter'] = "blur(10px) url(\"picture.svg#f\") contrast(20) brightness(30)" should set the property value

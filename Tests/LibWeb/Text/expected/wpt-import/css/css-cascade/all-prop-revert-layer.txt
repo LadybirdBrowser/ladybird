@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 285 tests
 
-280 Pass
-5 Fail
+281 Pass
+4 Fail
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -159,7 +159,7 @@ Pass	counter-set
 Pass	cx
 Pass	cy
 Pass	display
-Fail	filter
+Pass	filter
 Pass	flex-basis
 Pass	flex-direction
 Pass	flex-grow
