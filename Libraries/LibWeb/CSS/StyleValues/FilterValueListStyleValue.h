@@ -13,8 +13,6 @@
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/Number.h>
-#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -48,7 +46,7 @@ struct HueRotate {
 
 struct Color {
     Gfx::ColorFilterType operation;
-    NumberPercentage amount { Number { Number::Type::Integer, 1.0 } };
+    ValueComparingNonnullRefPtr<StyleValue const> amount;
     float resolved_amount() const;
     bool operator==(Color const&) const = default;
 };

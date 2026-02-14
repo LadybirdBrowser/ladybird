@@ -5815,21 +5815,27 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
             // sepia( <number-percentage>? )
             // saturate( <number-percentage>? )
             if (!tokens.has_next_token())
-                return FilterOperation::Color { filter_token_to_operation(filter_token) };
-            auto amount = parse_number_percentage(tokens);
-            if (amount.has_value()) {
-                if (amount->is_percentage() && amount->percentage().value() < 0)
-                    return {};
-                if (amount->is_number() && amount->number().value() < 0)
-                    return {};
-                if (first_is_one_of(filter_token, FilterToken::Grayscale, FilterToken::Invert, FilterToken::Opacity, FilterToken::Sepia)) {
-                    if (amount->is_percentage() && amount->percentage().value() > 100)
-                        amount = Percentage { 100 };
-                    if (amount->is_number() && amount->number().value() > 1)
-                        amount = Number { Number::Type::Integer, 1.0 };
-                }
+                return FilterOperation::Color { filter_token_to_operation(filter_token), NumberStyleValue::create(1) };
+
+            auto amount = parse_number_percentage_value(tokens);
+
+            if (!amount)
+                return {};
+
+            if (amount->is_percentage() && amount->as_percentage().percentage().value() < 0)
+                return {};
+
+            if (amount->is_number() && amount->as_number().number() < 0)
+                return {};
+
+            if (first_is_one_of(filter_token, FilterToken::Grayscale, FilterToken::Invert, FilterToken::Opacity, FilterToken::Sepia)) {
+                if (amount->is_percentage() && amount->as_percentage().percentage().value() > 100)
+                    amount = PercentageStyleValue::create(Percentage { 100 });
+                if (amount->is_number() && amount->as_number().number() > 1)
+                    amount = NumberStyleValue::create(1);
             }
-            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), amount.value_or(Number { Number::Type::Integer, 1 }) });
+
+            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), amount.release_nonnull() });
         }
     };
 

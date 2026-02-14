@@ -10,6 +10,7 @@
 #include "FilterValueListStyleValue.h"
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
@@ -26,22 +27,7 @@ float FilterOperation::HueRotate::angle_degrees(Layout::Node const& node) const
 
 float FilterOperation::Color::resolved_amount() const
 {
-    if (amount.is_number())
-        return amount.number().value();
-
-    if (amount.is_percentage())
-        return amount.percentage().as_fraction();
-
-    if (amount.is_calculated()) {
-        CalculationResolutionContext context {};
-        if (amount.calculated()->resolves_to_number())
-            return amount.calculated()->resolve_number(context).value();
-
-        if (amount.calculated()->resolves_to_percentage())
-            return amount.calculated()->resolve_percentage(context)->as_fraction();
-    }
-
-    VERIFY_NOT_REACHED();
+    return number_from_style_value(amount, 1);
 }
 
 void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
@@ -103,7 +89,7 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
                         }
                     }());
 
-                color.amount.serialize(builder, mode);
+                color.amount->serialize(builder, mode);
                 builder.append(')');
             },
             [&](CSS::URL const& url) {
@@ -178,29 +164,10 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolut
                 });
             },
             [&](FilterOperation::Color const& color) {
-                Optional<double> resolved_value;
-
-                if (color.amount.is_calculated()) {
-                    auto const& calc = color.amount.calculated();
-                    if (calc->resolves_to_number()) {
-                        resolved_value = calc->resolve_number(resolution_context);
-                    } else if (calc->resolves_to_percentage()) {
-                        if (auto resolved = calc->resolve_percentage(resolution_context); resolved.has_value())
-                            resolved_value = resolved->as_fraction();
-                    }
-                } else if (color.amount.is_percentage()) {
-                    resolved_value = color.amount.percentage().as_fraction();
-                }
-
-                if (resolved_value.has_value()) {
-                    absolutized_filter_values.append(FilterOperation::Color {
-                        .operation = color.operation,
-                        .amount = NumberPercentage { Number { Number::Type::Number, resolved_value.value() } },
-                    });
-                    return;
-                }
-
-                absolutized_filter_values.append(color);
+                absolutized_filter_values.append(FilterOperation::Color {
+                    .operation = color.operation,
+                    .amount = NumberStyleValue::create(number_from_style_value(color.amount->absolutized(computation_context), 1)),
+                });
             },
             [&](CSS::URL const& url) {
                 absolutized_filter_values.append(url);

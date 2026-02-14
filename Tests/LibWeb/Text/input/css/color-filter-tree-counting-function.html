@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+    <style>
+        #foo {
+            filter: brightness(sibling-count());
+        }
+    </style>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            println(getComputedStyle(foo).filter);
+        });
+    </script>
+</html>
