@@ -667,7 +667,7 @@ ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::I
         TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.time_style_string()), seen_objects));
     }
 
-    auto result = JS::Intl::for_each_calendar_field(date_time_format.vm(), date_time_format.date_time_format(), [&](auto& option, auto const& property, auto const&) -> JS::ThrowCompletionOr<void> {
+    auto result = JS::Intl::for_each_calendar_field(date_time_format.vm(), date_time_format.date_time_format(), [&](auto, auto& option, auto const& property, auto const&) -> JS::ThrowCompletionOr<void> {
         using ValueType = typename RemoveReference<decltype(option)>::ValueType;
 
         if (!option.has_value())

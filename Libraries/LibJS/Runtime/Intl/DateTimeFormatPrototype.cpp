@@ -94,7 +94,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::resolved_options)
     }
 
     if (!date_time_format->has_date_style() && !date_time_format->has_time_style()) {
-        MUST(for_each_calendar_field(vm, date_time_format->date_time_format(), [&](auto& option, auto const& property, auto const&) -> ThrowCompletionOr<void> {
+        MUST(for_each_calendar_field(vm, date_time_format->date_time_format(), [&](auto, auto& option, auto const& property, auto const&) -> ThrowCompletionOr<void> {
             using ValueType = typename RemoveReference<decltype(option)>::ValueType;
 
             if (!option.has_value())

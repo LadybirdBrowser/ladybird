@@ -147,7 +147,7 @@ ThrowCompletionOr<Utf16String> format_date_time_range(VM&, DateTimeFormat&, Form
 ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
 
 Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern const& options, OptionRequired, OptionDefaults, OptionInherit);
-Unicode::CalendarPattern adjust_date_time_style_format(Unicode::CalendarPattern const& base_format, ReadonlySpan<Unicode::CalendarPattern::Field> allowed_options);
+Unicode::CalendarPattern adjust_date_time_style_format(VM&, Unicode::CalendarPattern& base_format, ReadonlySpan<Unicode::CalendarPattern::Field> allowed_options);
 ThrowCompletionOr<FormattableDateTime> to_date_time_formattable(VM&, Value);
 bool is_temporal_object(FormattableDateTime const&);
 bool same_temporal_type(FormattableDateTime const&, FormattableDateTime const&);
@@ -168,18 +168,20 @@ ThrowCompletionOr<void> for_each_calendar_field(VM& vm, Unicode::CalendarPattern
     constexpr auto two_digit_numeric_narrow_short_long = AK::Array { "2-digit"sv, "numeric"sv, "narrow"sv, "short"sv, "long"sv };
     constexpr auto time_zone = AK::Array { "short"sv, "long"sv, "shortOffset"sv, "longOffset"sv, "shortGeneric"sv, "longGeneric"sv };
 
+    using enum Unicode::CalendarPattern::Field;
+
     // Table 16: Components of date and time formats, https://tc39.es/ecma402/#table-datetimeformat-components
-    TRY(callback(pattern.weekday, vm.names.weekday, narrow_short_long));
-    TRY(callback(pattern.era, vm.names.era, narrow_short_long));
-    TRY(callback(pattern.year, vm.names.year, two_digit_numeric));
-    TRY(callback(pattern.month, vm.names.month, two_digit_numeric_narrow_short_long));
-    TRY(callback(pattern.day, vm.names.day, two_digit_numeric));
-    TRY(callback(pattern.day_period, vm.names.dayPeriod, narrow_short_long));
-    TRY(callback(pattern.hour, vm.names.hour, two_digit_numeric));
-    TRY(callback(pattern.minute, vm.names.minute, two_digit_numeric));
-    TRY(callback(pattern.second, vm.names.second, two_digit_numeric));
-    TRY(callback(pattern.fractional_second_digits, vm.names.fractionalSecondDigits, Empty {}));
-    TRY(callback(pattern.time_zone_name, vm.names.timeZoneName, time_zone));
+    TRY(callback(Weekday, pattern.weekday, vm.names.weekday, narrow_short_long));
+    TRY(callback(Era, pattern.era, vm.names.era, narrow_short_long));
+    TRY(callback(Year, pattern.year, vm.names.year, two_digit_numeric));
+    TRY(callback(Month, pattern.month, vm.names.month, two_digit_numeric_narrow_short_long));
+    TRY(callback(Day, pattern.day, vm.names.day, two_digit_numeric));
+    TRY(callback(DayPeriod, pattern.day_period, vm.names.dayPeriod, narrow_short_long));
+    TRY(callback(Hour, pattern.hour, vm.names.hour, two_digit_numeric));
+    TRY(callback(Minute, pattern.minute, vm.names.minute, two_digit_numeric));
+    TRY(callback(Second, pattern.second, vm.names.second, two_digit_numeric));
+    TRY(callback(FractionalSecondDigits, pattern.fractional_second_digits, vm.names.fractionalSecondDigits, Empty {}));
+    TRY(callback(TimeZoneName, pattern.time_zone_name, vm.names.timeZoneName, time_zone));
 
     return {};
 }
