@@ -1249,7 +1249,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
                         : new_filter;
                 },
                 [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                    float angle = hue_rotate.angle_degrees(*layout_node);
+                    float angle = hue_rotate.angle_degrees();
                     auto new_filter = Gfx::Filter::hue_rotate(angle);
 
                     drawing_state().filter = drawing_state().filter.has_value()

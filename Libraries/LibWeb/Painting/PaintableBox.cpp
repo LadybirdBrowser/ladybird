@@ -1299,7 +1299,7 @@ void PaintableBox::resolve_paint_properties()
                 },
                 [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
                     result.operations.empend(ResolvedCSSFilter::HueRotate {
-                        .angle_degrees = hue_rotate.angle_degrees(layout_node_with_style_and_box_metrics()),
+                        .angle_degrees = hue_rotate.angle_degrees(),
                     });
                 },
                 [&](CSS::URL const& css_url) {

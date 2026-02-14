@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibGfx/Filter.h>
-#include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -35,12 +34,8 @@ struct DropShadow {
 };
 
 struct HueRotate {
-    struct Zero {
-        bool operator==(Zero const&) const = default;
-    };
-    using AngleOrZero = Variant<AngleOrCalculated, Zero>;
-    AngleOrZero angle { Angle::make_degrees(0) };
-    float angle_degrees(Layout::Node const&) const;
+    ValueComparingNonnullRefPtr<StyleValue const> angle;
+    float angle_degrees() const;
     bool operator==(HueRotate const&) const = default;
 };
 
