@@ -37,9 +37,10 @@ public:
             return "Out of memory"sv;
         case ParseError::UnsupportedMethod:
             return "Unsupported method"sv;
-        default:
-            VERIFY_NOT_REACHED();
+        case ParseError::InvalidURL:
+            return "Invalid URL"sv;
         }
+        VERIFY_NOT_REACHED();
     }
 
     enum Method {
