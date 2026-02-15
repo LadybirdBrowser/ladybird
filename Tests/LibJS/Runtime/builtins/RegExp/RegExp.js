@@ -434,3 +434,124 @@ test("RegExp modifiers", () => {
         ["es\n", true],
     ]);
 });
+
+test("Unicode case-insensitive matching", () => {
+    const testMatch = (pattern, string, expected) => {
+        const result = string.match(pattern);
+        expect(result).toEqual(expected);
+    };
+
+    // U+017F - Latin Small Letter Long S (ſ)
+    testMatch(/\w/iv, "\u017F", ["\u017F"]);
+    testMatch(/\W/iv, "\u017F", null);
+
+    // U+212A - Kelvin Sign (K)
+    testMatch(/\b/i, "\u017F", null);
+    testMatch(/\b/iv, "\u017F", [""]);
+    testMatch(/\b/i, "\u212A", null);
+    testMatch(/\b/iv, "\u212A", [""]);
+
+    // ß shouldn't expand to SS
+    testMatch(/ss/i, "ß", null);
+    testMatch(/ss/iv, "ß", null);
+
+    // Greek Sigma has three case forms (Σ, σ, ς)
+    testMatch(/ς/i, "Σ", ["Σ"]);
+    testMatch(/ς/i, "σ", ["σ"]);
+    testMatch(/ς/i, "ς", ["ς"]);
+    testMatch(/Σ/i, "Σ", ["Σ"]);
+    testMatch(/Σ/i, "σ", ["σ"]);
+    testMatch(/Σ/i, "ς", ["ς"]);
+
+    // Accented characters
+    testMatch(/Ï/, "ï", null);
+    testMatch(/Ï/i, "ï", ["ï"]);
+    testMatch(/á/i, "Á", ["Á"]);
+    testMatch(/[á]/i, "Á", ["Á"]);
+    testMatch(/[á-á]/i, "Á", ["Á"]);
+    testMatch(/être/i, "ÊTRE", ["ÊTRE"]);
+    testMatch(/[être]/i, "ÊTRE", ["Ê"]);
+
+    // Uppercase (Lu) and Lowercase (Ll)
+    testMatch(/\p{Lu}/v, "ẞ", ["ẞ"]);
+    testMatch(/\p{Lu}/iv, "ẞ", ["ẞ"]);
+    testMatch(/\p{Ll}/v, "ẞ", null);
+    testMatch(/\p{Ll}/iv, "ẞ", ["ẞ"]);
+
+    testMatch(/\p{Lu}/v, "ß", null);
+    testMatch(/\p{Lu}/iv, "ß", ["ß"]);
+    testMatch(/\p{Ll}/v, "ß", ["ß"]);
+    testMatch(/\p{Ll}/iv, "ß", ["ß"]);
+
+    testMatch(/\p{Lu}/v, "Σ", ["Σ"]);
+    testMatch(/\p{Lu}/iv, "Σ", ["Σ"]);
+    testMatch(/\p{Lu}/v, "σ", null);
+    testMatch(/\p{Lu}/iv, "σ", ["σ"]);
+    testMatch(/\p{Lu}/v, "ς", null);
+    testMatch(/\p{Lu}/iv, "ς", ["ς"]);
+
+    testMatch(/\p{Lu}/gv, "Áá", ["Á"]);
+    testMatch(/\p{Lu}/giv, "Áá", ["Á", "á"]);
+    testMatch(/\p{Ll}/gv, "Áá", ["á"]);
+    testMatch(/\p{Ll}/giv, "Áá", ["Á", "á"]);
+    testMatch(/\p{Lu}/gv, "i\u0307", null);
+    testMatch(/\p{Lu}/giv, "i\u0307", ["i"]);
+
+    testMatch(/\p{Ll}/giu, "Aa", ["A", "a"]);
+    testMatch(/[^\P{Ll}]/giu, "Aa", null);
+
+    testMatch(/[\p{Ll}]/giv, "Aa", ["A", "a"]);
+    testMatch(/[^\P{Ll}]/giv, "Aa", ["A", "a"]);
+
+    testMatch(/\P{Ll}/giu, "Aa", ["A", "a"]);
+    testMatch(/\P{Ll}/giv, "Aa", null);
+    testMatch(/\P{Lu}/giu, "Aa", ["A", "a"]);
+    testMatch(/\P{Lu}/giv, "Aa", null);
+
+    testMatch(/[[\p{Ll}&&\p{Lu}]á]/i, "Á", null);
+    testMatch(/[[\p{Ll}&&\p{Lu}]á]/iv, "Á", ["Á"]);
+
+    // Binary properties
+    testMatch(/\p{Uppercase}/gv, "Áá", ["Á"]);
+    testMatch(/\p{Uppercase}/giv, "Áá", ["Á", "á"]);
+    testMatch(/\p{Lowercase}/gv, "Áá", ["á"]);
+    testMatch(/\p{Lowercase}/giv, "Áá", ["Á", "á"]);
+
+    // String literals
+    testMatch(/[á\q{ábc}]/giv, "ÁÁBC", ["Á", "ÁBC"]);
+    testMatch(/[á\q{ábc}]/giv, "áBC", ["áBC"]);
+
+    // U+FB05 - Latin Small Ligature Long S T (ﬅ)
+    testMatch(/[\ufb05]/i, "\ufb06", null);
+    testMatch(/[\ufb05]/v, "\ufb06", null);
+    testMatch(/[\ufb05]/iv, "\ufb06", ["ﬆ"]);
+
+    // U+FB06 - Latin Small Ligature ST (ﬆ)
+    testMatch(/[\ufb06]/i, "\ufb05", null);
+    testMatch(/[\ufb06]/v, "\ufb05", null);
+    testMatch(/[\ufb06]/iv, "\ufb05", ["ﬅ"]);
+
+    // Greek lowercase letters
+    testMatch(/[\u0390]/iv, "\u1fd3", ["\u1fd3"]);
+    testMatch(/[\u1fd3]/iv, "\u0390", ["\u0390"]);
+    testMatch(/[\u03b0]/iv, "\u1fe3", ["\u1fe3"]);
+    testMatch(/[\u1fe3]/iv, "\u03b0", ["\u03b0"]);
+
+    // U+017F - Latin Small Letter Long S (ſ)
+    testMatch(/[a-z]/i, "\u017F", null);
+    testMatch(/[a-z]/iv, "\u017F", ["\u017F"]);
+    testMatch(/s/i, "\u017F", null);
+    testMatch(/s/iv, "\u017F", ["\u017F"]);
+
+    // U+212A - Kelvin Sign (K)
+    testMatch(/[a-z]/i, "\u212A", null);
+    testMatch(/[a-z]/iv, "\u212A", ["\u212A"]);
+    testMatch(/k/i, "\u212A", null);
+    testMatch(/k/iv, "\u212A", ["\u212A"]);
+
+    // U+2126 - Ohm Sign (Ω)
+    testMatch(/[ω]/i, "\u2126", null);
+    testMatch(/[ω]/iv, "\u2126", ["\u2126"]);
+    testMatch(/[\u03A9]/i, "\u2126", null);
+    testMatch(/[\u03A9]/iv, "\u2126", ["\u2126"]);
+});

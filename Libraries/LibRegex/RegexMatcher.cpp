@@ -11,6 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <LibRegex/RegexMatcher.h>
 #include <LibRegex/RegexParser.h>
+#include <LibUnicode/CharacterTypes.h>
 
 #if REGEX_DEBUG
 #    include <LibRegex/RegexDebug.h>
@@ -548,7 +549,7 @@ Matcher<Parser>::ExecuteResult Matcher<Parser>::execute(MatchInput const& input,
                 haystack = input_view.substring_view(state.string_position_in_code_units, needle_view.length_in_code_units());
 
             if (is_insensitive) {
-                if (!haystack.equals_ignoring_ascii_case(needle_view))
+                if (!Unicode::ranges_equal_ignoring_case(haystack, needle_view, input.view.unicode()))
                     return ExecuteResult::DidNotMatch;
             } else {
                 if (haystack != needle_view)
