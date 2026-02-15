@@ -1,0 +1,17 @@
+<svg width="340" height="140"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:html="http://www.w3.org/1999/xhtml">
+  <title>Circle coordinates and radius specified by percentage</title>
+  <html:link rel="help" href="https://svgwg.org/svg2-draft/geometry.html"/>
+  <html:link rel="match" href="../../../../../expected/wpt-import/svg/geometry/reftests/circle-ref.svg" />
+  <html:meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-2" />
+  <style>
+    circle {
+      cx: 60%; /* 60% of width 340 */
+      cy: 40%; /* 40% of height 140 */
+      r: 25%; /* 25% of normalized diagonal 260 */
+      fill: blue;
+    }
+  </style>
+  <circle />
+</svg>
