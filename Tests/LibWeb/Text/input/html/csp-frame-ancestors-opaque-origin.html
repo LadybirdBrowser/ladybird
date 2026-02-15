@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const server = httpTestServer();
+
+        const innerURL = await server.createEcho("GET", "/csp-frame-ancestors-inner", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Content-Security-Policy": "frame-ancestors 'self'",
+            },
+            body: "<html><body>inner</body></html>",
+        });
+
+        const middleURL = await server.createEcho("GET", "/csp-frame-ancestors-middle", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+            body: `<html><body><iframe src="${innerURL}"></iframe></body></html>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts";
+        iframe.src = middleURL;
+        iframe.onload = () => {
+            println("PASS");
+            done();
+        };
+        document.body.appendChild(iframe);
+    });
+</script>

@@ -57,8 +57,10 @@ Directive::Result FrameAncestorsDirective::navigation_response_check(GC::Ref<Fet
         // 2. Let origin be the result of executing the URL parser on the ASCII serialization of document’s origin.
         auto origin = DOMURL::parse(document->origin().serialize());
 
-        // FIXME: What do we do if origin is invalid here?
-        VERIFY(origin.has_value());
+        // AD-HOC: If the origin is opaque, serialization produces "null" which fails URL parsing.
+        //         All major engines block in this case, as an opaque origin can never match any source expression.
+        if (!origin.has_value())
+            return Result::Blocked;
 
         // 3. If § 6.7.2.7 Does url match source list in origin with redirect count? returns Does Not Match when
         //    executed upon origin, this directive’s value, policy’s self-origin, and 0, return "Blocked".
