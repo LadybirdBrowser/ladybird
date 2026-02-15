@@ -7,6 +7,7 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibUnicode/CharacterTypes.h>
 
 TEST_CASE(general_category)
@@ -99,6 +100,26 @@ TEST_CASE(general_category)
         EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_cn));
         EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_ll));
     }
+
+    for (u32 code_point = 0x61; code_point <= 0x7a; ++code_point) {
+        EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_lu, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_general_category(code_point, general_category_lu, CaseSensitivity::CaseInsensitive));
+    }
+
+    for (u32 code_point = 0x41; code_point <= 0x5a; ++code_point) {
+        EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_ll, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_general_category(code_point, general_category_ll, CaseSensitivity::CaseInsensitive));
+    }
+
+    for (u32 code_point = 0x0410; code_point <= 0x042F; ++code_point) {
+        EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_ll, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_general_category(code_point, general_category_ll, CaseSensitivity::CaseInsensitive));
+    }
+
+    for (u32 code_point = 0x0430; code_point <= 0x044F; ++code_point) {
+        EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_lu, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_general_category(code_point, general_category_lu, CaseSensitivity::CaseInsensitive));
+    }
 }
 
 BENCHMARK_CASE(general_category_performance)
@@ -134,6 +155,8 @@ TEST_CASE(property)
     auto property_any = property("Any"sv);
     auto property_assigned = property("Assigned"sv);
     auto property_ascii = property("ASCII"sv);
+    auto property_uppercase = property("Uppercase"sv);
+    auto property_lowercase = property("Lowercase"sv);
 
     auto property_white_space = property("White_Space"sv);
     auto property_wspace = property("WSpace"sv);
@@ -190,6 +213,26 @@ TEST_CASE(property)
 
         EXPECT(!Unicode::code_point_has_property(code_point, property_ascii));
         EXPECT(!Unicode::code_point_has_property(code_point, property_white_space));
+    }
+
+    for (u32 code_point = 0x61; code_point <= 0x7a; ++code_point) {
+        EXPECT(!Unicode::code_point_has_property(code_point, property_uppercase, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_property(code_point, property_uppercase, CaseSensitivity::CaseInsensitive));
+    }
+
+    for (u32 code_point = 0x41; code_point <= 0x5a; ++code_point) {
+        EXPECT(!Unicode::code_point_has_property(code_point, property_lowercase, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_property(code_point, property_lowercase, CaseSensitivity::CaseInsensitive));
+    }
+
+    for (u32 code_point = 0x0430; code_point <= 0x044F; ++code_point) {
+        EXPECT(!Unicode::code_point_has_property(code_point, property_uppercase, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_property(code_point, property_uppercase, CaseSensitivity::CaseInsensitive));
+    }
+
+    for (u32 code_point = 0x0410; code_point <= 0x042F; ++code_point) {
+        EXPECT(!Unicode::code_point_has_property(code_point, property_lowercase, CaseSensitivity::CaseSensitive));
+        EXPECT(Unicode::code_point_has_property(code_point, property_lowercase, CaseSensitivity::CaseInsensitive));
     }
 }
 
@@ -308,4 +351,139 @@ TEST_CASE(code_point_bidirectional_character_type)
     EXPECT_EQ(Unicode::bidirectional_class(' '), Unicode::BidiClass::WhiteSpaceNeutral);
     // Arabic right-to-left (U+FEB4 ARABIC LETTER SEEN MEDIAL FORM)
     EXPECT_EQ(Unicode::bidirectional_class(0xFEB4), Unicode::BidiClass::RightToLeftArabic);
+}
+
+TEST_CASE(canonicalize)
+{
+    constexpr u32 LATIN_CAPITAL_A_GRAVE = 0x00C0;   // À
+    constexpr u32 LATIN_SMALL_A_GRAVE = 0x00E0;     // à
+    constexpr u32 LATIN_CAPITAL_SHARP_S = 0x1E9E;   // ẞ
+    constexpr u32 LATIN_SMALL_SHARP_S = 0x00DF;     // ß
+    constexpr u32 LATIN_CAPITAL_OE = 0x0152;        // Œ
+    constexpr u32 LATIN_SMALL_OE = 0x0153;          // œ
+    constexpr u32 GREEK_CAPITAL_SIGMA = 0x03A3;     // Σ
+    constexpr u32 GREEK_SMALL_SIGMA = 0x03C3;       // σ
+    constexpr u32 GREEK_SMALL_FINAL_SIGMA = 0x03C2; // ς
+    constexpr u32 KELVIN_SIGN = 0x212A;             // K
+
+    EXPECT_EQ(Unicode::canonicalize('A', true), static_cast<u32>('a'));
+    EXPECT_EQ(Unicode::canonicalize('a', false), static_cast<u32>('A'));
+
+    EXPECT_EQ(Unicode::canonicalize(KELVIN_SIGN, true), static_cast<u32>('k'));
+    EXPECT_EQ(Unicode::canonicalize(KELVIN_SIGN, false), KELVIN_SIGN);
+
+    EXPECT_EQ(Unicode::canonicalize(LATIN_CAPITAL_A_GRAVE, true), LATIN_SMALL_A_GRAVE);
+    EXPECT_EQ(Unicode::canonicalize(LATIN_SMALL_A_GRAVE, false), LATIN_CAPITAL_A_GRAVE);
+
+    EXPECT_EQ(Unicode::canonicalize(LATIN_CAPITAL_SHARP_S, true), LATIN_SMALL_SHARP_S);
+    EXPECT_EQ(Unicode::canonicalize(LATIN_SMALL_SHARP_S, false), LATIN_SMALL_SHARP_S);
+
+    EXPECT_EQ(Unicode::canonicalize(GREEK_CAPITAL_SIGMA, true), GREEK_SMALL_SIGMA);
+    EXPECT_EQ(Unicode::canonicalize(GREEK_SMALL_FINAL_SIGMA, true), GREEK_SMALL_SIGMA);
+
+    EXPECT_EQ(Unicode::canonicalize(LATIN_CAPITAL_OE, true), LATIN_SMALL_OE);
+    EXPECT_EQ(Unicode::canonicalize(LATIN_SMALL_OE, false), LATIN_CAPITAL_OE);
+}
+
+TEST_CASE(expand_range_case_insensitive)
+{
+    auto latin_ranges = Unicode::expand_range_case_insensitive('a', 'z');
+    EXPECT_EQ(latin_ranges.size(), 4uz);
+
+    EXPECT(any_of(latin_ranges, [](auto const& range) {
+        return range.from == 'a' && range.to == 'z';
+    }));
+
+    EXPECT(any_of(latin_ranges, [](auto const& range) {
+        return range.from == 'A' && range.to == 'Z';
+    }));
+
+    // LATIN SMALL LETTER LONG S (ſ)
+    EXPECT(any_of(latin_ranges, [](auto const& range) {
+        return range.from == 0x017F && range.to == 0x017F;
+    }));
+
+    // KELVIN SIGN (K)
+    EXPECT(any_of(latin_ranges, [](auto const& range) {
+        return range.from == 0x212A && range.to == 0x212A;
+    }));
+
+    auto k_ranges = Unicode::expand_range_case_insensitive('k', 'k');
+    EXPECT_EQ(k_ranges.size(), 3uz);
+
+    // KELVIN SIGN (K)
+    EXPECT(any_of(k_ranges, [](auto const& range) {
+        return range.from == 0x212A && range.to == 0x212A;
+    }));
+}
+
+TEST_CASE(for_each_case_folded_code_point)
+{
+    constexpr u32 GREEK_SMALL_SIGMA = 0x03C3;       // σ
+    constexpr u32 GREEK_SMALL_FINAL_SIGMA = 0x03C2; // ς
+    constexpr u32 GREEK_CAPITAL_SIGMA = 0x03A3;     // Σ
+    constexpr u32 KELVIN_SIGN = 0x212A;             // K
+
+    Vector<u32> folded_A;
+    Unicode::for_each_case_folded_code_point('A', [&](u32 cp) {
+        folded_A.append(cp);
+        return IterationDecision::Continue;
+    });
+    EXPECT(folded_A.contains_slow('A'));
+    EXPECT(folded_A.contains_slow('a'));
+
+    Vector<u32> folded_sigma;
+    Unicode::for_each_case_folded_code_point(GREEK_CAPITAL_SIGMA, [&](u32 cp) {
+        folded_sigma.append(cp);
+        return IterationDecision::Continue;
+    });
+    EXPECT(folded_sigma.contains_slow(GREEK_CAPITAL_SIGMA));
+    EXPECT(folded_sigma.contains_slow(GREEK_SMALL_SIGMA));
+    EXPECT(folded_sigma.contains_slow(GREEK_SMALL_FINAL_SIGMA));
+
+    Vector<u32> folded_kelvin;
+    Unicode::for_each_case_folded_code_point(KELVIN_SIGN, [&](u32 cp) {
+        folded_kelvin.append(cp);
+        return IterationDecision::Continue;
+    });
+    EXPECT(folded_kelvin.contains_slow(KELVIN_SIGN));
+    EXPECT(folded_kelvin.contains_slow('K'));
+    EXPECT(folded_kelvin.contains_slow('k'));
+}
+
+TEST_CASE(code_point_matches_range_ignoring_case)
+{
+    constexpr u32 LATIN_CAPITAL_A_GRAVE = 0x00C0;   // À
+    constexpr u32 LATIN_SMALL_A_GRAVE = 0x00E0;     // à
+    constexpr u32 GREEK_SMALL_SIGMA = 0x03C3;       // σ
+    constexpr u32 GREEK_SMALL_FINAL_SIGMA = 0x03C2; // ς
+    constexpr u32 MICRO_SIGN = 0x00B5;              // µ
+    constexpr u32 GREEK_SMALL_MU = 0x03BC;          // μ
+    constexpr u32 KELVIN_SIGN = 0x212A;             // K
+
+    EXPECT(Unicode::code_point_matches_range_ignoring_case('B', 'a', 'z', true));
+    EXPECT(Unicode::code_point_matches_range_ignoring_case('b', 'A', 'Z', true));
+
+    EXPECT(Unicode::code_point_matches_range_ignoring_case(KELVIN_SIGN, 'a', 'z', true));
+    EXPECT(!Unicode::code_point_matches_range_ignoring_case(KELVIN_SIGN, 'a', 'z', false));
+
+    EXPECT(Unicode::code_point_matches_range_ignoring_case(LATIN_SMALL_A_GRAVE, LATIN_CAPITAL_A_GRAVE, LATIN_CAPITAL_A_GRAVE, true));
+    EXPECT(Unicode::code_point_matches_range_ignoring_case(LATIN_CAPITAL_A_GRAVE, LATIN_SMALL_A_GRAVE, LATIN_SMALL_A_GRAVE, true));
+
+    EXPECT(Unicode::code_point_matches_range_ignoring_case(GREEK_SMALL_FINAL_SIGMA, GREEK_SMALL_SIGMA, GREEK_SMALL_SIGMA, true));
+    EXPECT(Unicode::code_point_matches_range_ignoring_case(MICRO_SIGN, GREEK_SMALL_MU, GREEK_SMALL_MU, true));
+}
+
+TEST_CASE(ranges_equal_ignoring_case)
+{
+    EXPECT(Unicode::ranges_equal_ignoring_case(Utf8View("Hello"sv), Utf16View("HELLO"sv), true));
+    EXPECT(Unicode::ranges_equal_ignoring_case(Utf16View("Hello"sv), Utf8View("hello"sv), true));
+
+    EXPECT(Unicode::ranges_equal_ignoring_case(Utf8View("Σσς"sv), Utf8View("ΣΣΣ"sv), true));
+    EXPECT(Unicode::ranges_equal_ignoring_case(Utf8View("straße"sv), Utf8View("STRAẞE"sv), true));
+    EXPECT(Unicode::ranges_equal_ignoring_case(Utf8View("CAFÉ"sv), Utf8View("café"sv), true));
+    EXPECT(Unicode::ranges_equal_ignoring_case(Utf8View("Œ"sv), Utf8View("œ"sv), true));
+
+    EXPECT(Unicode::ranges_equal_ignoring_case(Utf8View("K"sv), Utf8View("K"sv), true));
+    EXPECT(!Unicode::ranges_equal_ignoring_case(Utf8View("K"sv), Utf8View("K"sv), false));
 }

@@ -7,6 +7,8 @@
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
+#include <AK/HashMap.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/Traits.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/ICU.h>
@@ -51,6 +53,9 @@ static constexpr GeneralCategory GENERAL_CATEGORY_SEPARATOR = U_CHAR_CATEGORY_CO
 static constexpr GeneralCategory GENERAL_CATEGORY_OTHER = U_CHAR_CATEGORY_COUNT + 8;
 static constexpr GeneralCategory GENERAL_CATEGORY_LIMIT = U_CHAR_CATEGORY_COUNT + 9;
 
+static HashMap<GeneralCategory, NonnullOwnPtr<icu::UnicodeSet>> s_category_sets_with_case_closure;
+static HashMap<Property, NonnullOwnPtr<icu::UnicodeSet>> s_property_sets_with_case_closure;
+
 Optional<GeneralCategory> general_category_from_string(StringView general_category)
 {
     static auto general_category_names = []() {
@@ -85,29 +90,49 @@ Optional<GeneralCategory> general_category_from_string(StringView general_catego
     return {};
 }
 
-bool code_point_has_general_category(u32 code_point, GeneralCategory general_category)
+static uint32_t get_icu_mask(GeneralCategory general_category)
+{
+    if (general_category == GENERAL_CATEGORY_CASED_LETTER)
+        return U_GC_LC_MASK;
+    if (general_category == GENERAL_CATEGORY_LETTER)
+        return U_GC_L_MASK;
+    if (general_category == GENERAL_CATEGORY_MARK)
+        return U_GC_M_MASK;
+    if (general_category == GENERAL_CATEGORY_NUMBER)
+        return U_GC_N_MASK;
+    if (general_category == GENERAL_CATEGORY_PUNCTUATION)
+        return U_GC_P_MASK;
+    if (general_category == GENERAL_CATEGORY_SYMBOL)
+        return U_GC_S_MASK;
+    if (general_category == GENERAL_CATEGORY_SEPARATOR)
+        return U_GC_Z_MASK;
+    if (general_category == GENERAL_CATEGORY_OTHER)
+        return U_GC_C_MASK;
+
+    return U_MASK(static_cast<UCharCategory>(general_category.value()));
+}
+
+bool code_point_has_general_category(u32 code_point, GeneralCategory general_category, CaseSensitivity case_sensitivity)
 {
     auto icu_code_point = static_cast<UChar32>(code_point);
-    auto icu_general_category = static_cast<UCharCategory>(general_category.value());
+    auto category_mask = get_icu_mask(general_category);
 
-    if (general_category == GENERAL_CATEGORY_CASED_LETTER)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_LC_MASK) != 0;
-    if (general_category == GENERAL_CATEGORY_LETTER)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_L_MASK) != 0;
-    if (general_category == GENERAL_CATEGORY_MARK)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_M_MASK) != 0;
-    if (general_category == GENERAL_CATEGORY_NUMBER)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_N_MASK) != 0;
-    if (general_category == GENERAL_CATEGORY_PUNCTUATION)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_P_MASK) != 0;
-    if (general_category == GENERAL_CATEGORY_SYMBOL)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_S_MASK) != 0;
-    if (general_category == GENERAL_CATEGORY_SEPARATOR)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_Z_MASK) != 0;
-    if (general_category == GENERAL_CATEGORY_OTHER)
-        return (U_GET_GC_MASK(icu_code_point) & U_GC_C_MASK) != 0;
+    if ((U_GET_GC_MASK(icu_code_point) & category_mask) != 0)
+        return true;
 
-    return u_charType(icu_code_point) == icu_general_category;
+    if (case_sensitivity == CaseSensitivity::CaseSensitive)
+        return false;
+
+    auto& set = s_category_sets_with_case_closure.ensure(general_category, [&] {
+        UErrorCode status = U_ZERO_ERROR;
+        auto new_set = make<icu::UnicodeSet>();
+        new_set->applyIntPropertyValue(UCHAR_GENERAL_CATEGORY_MASK, static_cast<int32_t>(category_mask), status);
+        new_set->closeOver(USET_CASE_INSENSITIVE);
+        new_set->freeze();
+        return new_set;
+    });
+
+    return set->contains(icu_code_point);
 }
 
 bool code_point_is_printable(u32 code_point)
@@ -188,19 +213,34 @@ Optional<Property> property_from_string(StringView property)
     return {};
 }
 
-bool code_point_has_property(u32 code_point, Property property)
+bool code_point_has_property(u32 code_point, Property property, CaseSensitivity case_sensitivity)
 {
     auto icu_code_point = static_cast<UChar32>(code_point);
-    auto icu_property = static_cast<UProperty>(property.value());
 
     if (property == PROPERTY_ANY)
         return is_unicode(code_point);
     if (property == PROPERTY_ASCII)
         return is_ascii(code_point);
     if (property == PROPERTY_ASSIGNED)
-        return u_isdefined(icu_code_point);
+        return u_isdefined(icu_code_point) != 0;
 
-    return static_cast<bool>(u_hasBinaryProperty(icu_code_point, icu_property));
+    auto icu_property = static_cast<UProperty>(property.value());
+    if (u_hasBinaryProperty(icu_code_point, icu_property))
+        return true;
+
+    if (case_sensitivity == CaseSensitivity::CaseSensitive)
+        return false;
+
+    auto& set = s_property_sets_with_case_closure.ensure(property, [&] {
+        UErrorCode status = U_ZERO_ERROR;
+        auto new_set = make<icu::UnicodeSet>();
+        new_set->applyIntPropertyValue(icu_property, 1, status);
+        new_set->closeOver(USET_CASE_INSENSITIVE);
+        new_set->freeze();
+        return new_set;
+    });
+
+    return set->contains(icu_code_point);
 }
 
 bool code_point_has_emoji_property(u32 code_point)
@@ -487,6 +527,107 @@ LineBreakClass line_break_class(u32 code_point)
     default:
         return LineBreakClass::Other;
     }
+}
+
+// 22.2.2.7.3 Canonicalize ( rer, ch ), https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch
+u32 canonicalize(u32 code_point, bool unicode_mode)
+{
+    // 1. If HasEitherUnicodeFlag(rer) is true and rer.[[IgnoreCase]] is true, then
+    //    a. If the file CaseFolding.txt of the Unicode Character Database provides a simple or common case folding mapping for ch, return the result of applying that mapping to ch.
+    //    b. Return ch.
+    if (unicode_mode)
+        return u_foldCase(static_cast<UChar32>(code_point), U_FOLD_CASE_DEFAULT);
+
+    // 2. If rer.[[IgnoreCase]] is false, return ch.
+    // NOTE: This is handled by the caller.
+
+    // 3. Assert: ch is a UTF-16 code unit.
+    // 4. Let cp be the code point whose numeric value is the numeric value of ch.
+    // NOTE: We already have a code point.
+
+    // 5. Let u be toUppercase(« cp »), according to the Unicode Default Case Conversion algorithm.
+    // 6. Let uStr be CodePointsToString(u).
+    auto code_point_string = String::from_code_point(code_point);
+    auto uppercased = code_point_string.to_uppercase();
+    if (uppercased.is_error())
+        return code_point;
+
+    auto code_points = uppercased.value().code_points();
+
+    // 7. If the length of uStr ≠ 1, return ch.
+    if (code_points.length() != 1)
+        return code_point;
+
+    // 8. Let cu be uStr's single code unit element.
+    auto it = code_points.begin();
+    auto uppercased_code_point = *it;
+
+    // 9. If the numeric value of ch ≥ 128 and the numeric value of cu < 128, return ch.
+    if (code_point >= 128 && uppercased_code_point < 128)
+        return code_point;
+
+    // 10. Return cu.
+    return uppercased_code_point;
+}
+
+Vector<CodePointRange> expand_range_case_insensitive(u32 from, u32 to)
+{
+    icu::UnicodeSet set(static_cast<UChar32>(from), static_cast<UChar32>(to));
+    set.closeOver(USET_CASE_INSENSITIVE);
+
+    Vector<CodePointRange> result;
+    auto range_count = set.getRangeCount();
+    result.ensure_capacity(range_count);
+
+    for (int32_t i = 0; i < range_count; ++i)
+        result.unchecked_append({ static_cast<u32>(set.getRangeStart(i)), static_cast<u32>(set.getRangeEnd(i)) });
+
+    return result;
+}
+
+void for_each_case_folded_code_point(u32 code_point, Function<IterationDecision(u32)> callback)
+{
+    u32 canonical = canonicalize(code_point, true);
+
+    icu::UnicodeSet closure(static_cast<UChar32>(canonical), static_cast<UChar32>(canonical));
+    closure.closeOver(USET_CASE_INSENSITIVE);
+
+    auto range_count = closure.getRangeCount();
+    for (int32_t i = 0; i < range_count; ++i) {
+        auto start = closure.getRangeStart(i);
+        auto end = closure.getRangeEnd(i);
+        for (auto cp = start; cp <= end; ++cp) {
+            if (callback(static_cast<u32>(cp)) == IterationDecision::Break)
+                return;
+        }
+    }
+}
+
+bool code_point_matches_range_ignoring_case(u32 code_point, u32 from, u32 to, bool unicode_mode)
+{
+    if (code_point >= from && code_point <= to)
+        return true;
+
+    icu::UnicodeSet candidates(static_cast<UChar32>(code_point), static_cast<UChar32>(code_point));
+    candidates.closeOver(USET_CASE_INSENSITIVE);
+    candidates.retain(static_cast<UChar32>(from), static_cast<UChar32>(to));
+
+    if (candidates.isEmpty())
+        return false;
+
+    auto canonical_ch = canonicalize(code_point, unicode_mode);
+    auto range_count = candidates.getRangeCount();
+    for (auto i = 0; i < range_count; ++i) {
+        auto start = candidates.getRangeStart(i);
+        auto end = candidates.getRangeEnd(i);
+
+        for (auto candidate_cp = start; candidate_cp <= end; ++candidate_cp) {
+            if (canonicalize(candidate_cp, unicode_mode) == canonical_ch)
+                return true;
+        }
+    }
+
+    return false;
 }
 
 }
