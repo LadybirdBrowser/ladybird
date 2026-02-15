@@ -40,15 +40,15 @@ body {
     });
 
     test(() => {
-        internals.movePointerTo(150, 150);
+        internals.mouseMove(150, 150);
 
         println("> move pointer over #inner");
-        internals.movePointerTo(10, 10);
+        internals.mouseMove(10, 10);
 
         println("> move pointer over #outer (leaving #inner)");
-        internals.movePointerTo(60, 60);
+        internals.mouseMove(60, 60);
 
         println("> move pointer outside (leaving #outer)");
-        internals.movePointerTo(150, 150);
+        internals.mouseMove(150, 150);
     });
 </script>
