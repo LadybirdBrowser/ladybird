@@ -480,6 +480,19 @@ String Internals::dump_layout_tree(GC::Ref<DOM::Node> node)
     return builder.to_string_without_validation();
 }
 
+String Internals::dump_paintable_tree(GC::Ref<DOM::Node> node)
+{
+    node->document().update_layout(DOM::UpdateLayoutReason::Debugging);
+
+    auto* paintable = node->paintable();
+    if (!paintable)
+        return "(no paintable)"_string;
+
+    StringBuilder builder;
+    Web::dump_tree(builder, *paintable);
+    return builder.to_string_without_validation();
+}
+
 String Internals::dump_stacking_context_tree()
 {
     return window().associated_document().dump_stacking_context_tree();
