@@ -1148,6 +1148,8 @@ class SVGFEBlendElement;
 class SVGFEColorMatrixElement;
 class SVGFEComponentTransferElement;
 class SVGFECompositeElement;
+class SVGFEDisplacementMapElement;
+class SVGFEDropShadowElement;
 class SVGFEFloodElement;
 class SVGFEFuncAElement;
 class SVGFEFuncBElement;

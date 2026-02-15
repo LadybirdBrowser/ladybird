@@ -19,6 +19,7 @@
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
 #include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
+#include <LibWeb/SVG/SVGFEDisplacementMapElement.h>
 #include <LibWeb/SVG/SVGFEDropShadowElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEFuncAElement.h>
@@ -393,6 +394,32 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             root_filter = Gfx::Filter::turbulence(type, base_frequency_x, base_frequency_y, num_octaves, seed, tile_stitch_size);
             update_result_map(*turbulence);
+        } else if (auto* displacement_map = as_if<SVGFEDisplacementMapElement>(node)) {
+            auto input = resolve_input_filter(displacement_map->in1()->base_val());
+            auto displacement = resolve_input_filter(displacement_map->in2()->base_val());
+
+            float scale = displacement_map->scale()->base_val();
+
+            auto selector_to_channel = [](SVGFEDisplacementMapElement::ChannelSelector selector) {
+                switch (selector) {
+                case SVGFEDisplacementMapElement::ChannelSelector::R:
+                    return Gfx::ColorChannel::R;
+                case SVGFEDisplacementMapElement::ChannelSelector::G:
+                    return Gfx::ColorChannel::G;
+                case SVGFEDisplacementMapElement::ChannelSelector::B:
+                    return Gfx::ColorChannel::B;
+                case SVGFEDisplacementMapElement::ChannelSelector::A:
+                    return Gfx::ColorChannel::A;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            };
+
+            auto x_channel = selector_to_channel(displacement_map->x_channel_selector());
+            auto y_channel = selector_to_channel(displacement_map->y_channel_selector());
+
+            root_filter = Gfx::Filter::displacement_map(scale, x_channel, y_channel, input, displacement);
+            update_result_map(*displacement_map);
         } else {
             dbgln("SVGFilterElement::gfx_filter(): Unknown or unsupported filter element '{}'", node.debug_description());
         }
