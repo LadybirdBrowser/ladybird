@@ -1238,7 +1238,7 @@ CSS::UserSelect Node::user_select_used_value() const
     // textual content, such as textarea.
     auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(dom_node());
     // FIXME: Check if this needs to exclude input elements with types such as color or range, and if so, which ones exactly.
-    if ((dom_node() && dom_node()->is_editing_host()) || (form_control && form_control->is_mutable())) {
+    if ((dom_node() && dom_node()->is_editing_host()) || (form_control && form_control->text_control_to_html_element().is_mutable())) {
         return CSS::UserSelect::Contain;
     } else if (computed_value == CSS::UserSelect::Auto) {
         // The used value of 'auto' is determined as follows:

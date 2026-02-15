@@ -8,8 +8,6 @@
 
 #include <LibCore/Forward.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
-#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/ImageProvider.h>
 
@@ -17,11 +15,9 @@ namespace Web::HTML {
 
 class HTMLObjectElement final
     : public NavigableContainer
-    , public FormAssociatedElement
     , public Layout::ImageProvider {
     WEB_PLATFORM_OBJECT(HTMLObjectElement, NavigableContainer)
     GC_DECLARE_ALLOCATOR(HTMLObjectElement);
-    FORM_ASSOCIATED_ELEMENT(NavigableContainer, HTMLObjectElement)
 
     enum class Representation {
         Unknown,
@@ -40,6 +36,9 @@ public:
     void set_data(String const& data);
 
     String type() const { return get_attribute_value(HTML::AttributeNames::type); }
+
+    // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed

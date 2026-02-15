@@ -1817,7 +1817,7 @@ Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView elem
 
             // -> otherwise
             //    True if its value IDL attribute is an empty string, and false otherwise.
-            return form_associated_element.value().is_empty();
+            return form_associated_element.form_value().is_empty();
         }();
 
         // 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true,

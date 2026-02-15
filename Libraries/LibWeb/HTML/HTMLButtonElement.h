@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/PopoverTargetAttributes.h>
 
@@ -21,11 +20,9 @@ namespace Web::HTML {
 
 class HTMLButtonElement final
     : public HTMLElement
-    , public FormAssociatedElement
     , public PopoverTargetAttributes {
     WEB_PLATFORM_OBJECT(HTMLButtonElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLButtonElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLButtonElement)
 
 public:
     virtual ~HTMLButtonElement() override;
@@ -52,6 +49,9 @@ public:
     virtual bool is_focusable() const override;
 
     // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
+
+    // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
     virtual bool is_listed() const override { return true; }
 
@@ -74,7 +74,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-button
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::button; }
 
-    virtual Utf16String value() const override;
+    Utf16String value() const;
+    virtual Utf16String form_value() const override { return value(); }
     virtual Optional<String> optional_value() const override;
 
     virtual bool has_activation_behavior() const override;

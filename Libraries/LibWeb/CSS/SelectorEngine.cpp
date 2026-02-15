@@ -1023,13 +1023,13 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
                 if (input_element->checked_applies() && input_element->has_attribute(HTML::AttributeNames::checked))
                     return true;
             }
-        }
-        // - option elements that have a selected attribute
-        else if (auto const* option_element = as_if<Web::HTML::HTMLOptionElement>(element)) {
-            if (option_element->has_attribute(HTML::AttributeNames::selected))
-                return true;
-        }
 
+            // - option elements that have a selected attribute
+            if (auto const* option_element = as_if<Web::HTML::HTMLOptionElement>(form_associated_element)) {
+                if (option_element->has_attribute(HTML::AttributeNames::selected))
+                    return true;
+            }
+        }
         return false;
     }
     case CSS::PseudoClass::Autofill: {

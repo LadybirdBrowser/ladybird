@@ -45,6 +45,30 @@ static SelectionDirection string_to_selection_direction(Optional<String> value)
     return SelectionDirection::None;
 }
 
+// https://html.spec.whatwg.org/multipage/forms.html#form-associated-element
+bool FormAssociatedElement::is_form_associated_element() const
+{
+    return form_associated_element_to_html_element().is_form_associated_custom_element();
+}
+
+// https://html.spec.whatwg.org/multipage/forms.html#category-listed
+bool FormAssociatedElement::is_listed() const
+{
+    return form_associated_element_to_html_element().is_form_associated_custom_element();
+}
+
+// https://html.spec.whatwg.org/multipage/forms.html#category-submit
+bool FormAssociatedElement::is_submittable() const
+{
+    return form_associated_element_to_html_element().is_form_associated_custom_element();
+}
+
+// https://html.spec.whatwg.org/multipage/forms.html#category-reset
+bool FormAssociatedElement::is_resettable() const
+{
+    return form_associated_element_to_html_element().is_form_associated_custom_element();
+}
+
 void FormAssociatedElement::set_form(HTMLFormElement* form)
 {
     if (m_form)
@@ -479,7 +503,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::select()
 {
     // 1. If this element is an input element, and either select() does not apply to this element
     //    or the corresponding control has no selectable text, return.
-    auto& html_element = form_associated_element_to_html_element();
+    auto& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.select_applies() || !input_element.has_selectable_text())
@@ -495,7 +519,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::select()
 Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_start_binding() const
 {
     // 1. If this element is an input element, and selectionStart does not apply to this element, return null.
-    auto const& html_element = form_associated_element_to_html_element();
+    auto const& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
         if (!input_element.selection_or_range_applies())
@@ -523,7 +547,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start_
 {
     // 1. If this element is an input element, and selectionStart does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
-    auto& html_element = form_associated_element_to_html_element();
+    auto& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
@@ -548,7 +572,7 @@ Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_end_b
 {
     // 1. If this element is an input element, and selectionEnd does not apply to this element, return
     //    null.
-    auto const& html_element = form_associated_element_to_html_element();
+    auto const& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
         if (!input_element.selection_or_range_applies())
@@ -576,7 +600,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end_bi
 {
     // 1. If this element is an input element, and selectionEnd does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
-    auto& html_element = form_associated_element_to_html_element();
+    auto& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
@@ -594,7 +618,7 @@ Optional<String> FormAssociatedTextControlElement::selection_direction() const
 {
     // 1. If this element is an input element, and selectionDirection does not apply to this
     //    element, return null.
-    auto const& html_element = form_associated_element_to_html_element();
+    auto const& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
         if (!input_element.selection_or_range_applies())
@@ -629,7 +653,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
 {
     // 1. If this element is an input element, and selectionDirection does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
-    auto const& html_element = form_associated_element_to_html_element();
+    auto const& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
         if (!input_element.selection_direction_applies())
@@ -649,7 +673,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_bindi
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
 WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
 {
-    auto& html_element = form_associated_element_to_html_element();
+    auto& html_element = text_control_to_html_element();
 
     // 1. If this element is an input element, and setRangeText() does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
@@ -662,7 +686,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_bindi
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
 WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
 {
-    auto& html_element = form_associated_element_to_html_element();
+    auto& html_element = text_control_to_html_element();
 
     // 2. Set this element's dirty value flag to true.
     set_dirty_value_flag(true);
@@ -778,7 +802,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
 {
     // 1. If this element is an input element, and setSelectionRange() does not apply to this
     //    element, throw an "InvalidStateError" DOMException.
-    auto& html_element = form_associated_element_to_html_element();
+    auto& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
         return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionRange does not apply to this input type"_utf16);
 
@@ -830,7 +854,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     //    given the element to fire an event named select at the element, with the bubbles attribute
     //    initialized to true.
     if (was_modified) {
-        auto& html_element = form_associated_element_to_html_element();
+        auto& html_element = text_control_to_html_element();
 
         // AD-HOC: We don't fire the event if the user moves the cursor without selecting any text.
         //         This is not in the spec but matches how other browsers behave.
@@ -848,7 +872,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
 void FormAssociatedTextControlElement::handle_insert(FlyString const& input_type, Utf16String const& data)
 {
     auto text_node = form_associated_element_to_text_node();
-    if (!text_node || !is_mutable())
+    if (!text_node || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())
         return;
 
     auto data_for_insertion = data;
@@ -878,7 +902,7 @@ void FormAssociatedTextControlElement::handle_insert(FlyString const& input_type
 void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type)
 {
     auto text_node = form_associated_element_to_text_node();
-    if (!text_node || !is_mutable())
+    if (!text_node || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())
         return;
 
     auto selection_start = this->selection_start();
@@ -921,7 +945,7 @@ void FormAssociatedTextControlElement::collapse_selection_to_offset(size_t posit
 
 void FormAssociatedTextControlElement::scroll_cursor_into_view()
 {
-    auto& element = form_associated_element_to_html_element();
+    auto& element = text_control_to_html_element();
     element.document().update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
     auto text_node = form_associated_element_to_text_node();
@@ -937,7 +961,7 @@ void FormAssociatedTextControlElement::scroll_cursor_into_view()
 
 void FormAssociatedTextControlElement::selection_was_changed(SelectionSource source)
 {
-    auto& element = form_associated_element_to_html_element();
+    auto& element = text_control_to_html_element();
     if (auto* input_element = as_if<HTMLInputElement>(element)) {
         schedule_a_selectionchange_event(*input_element, element.document());
     } else if (auto* text_area_element = as_if<HTMLTextAreaElement>(element)) {
@@ -983,7 +1007,7 @@ void FormAssociatedTextControlElement::select_all()
 
 void FormAssociatedTextControlElement::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset)
 {
-    auto editing_host_manager = form_associated_element_to_html_element().document().editing_host_manager();
+    auto editing_host_manager = text_control_to_html_element().document().editing_host_manager();
     editing_host_manager->set_selection_anchor(anchor_node, anchor_offset);
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || anchor_node != text_node)
@@ -994,7 +1018,7 @@ void FormAssociatedTextControlElement::set_selection_anchor(GC::Ref<DOM::Node> a
 
 void FormAssociatedTextControlElement::set_selection_focus(GC::Ref<DOM::Node> focus_node, size_t focus_offset)
 {
-    auto editing_host_manager = form_associated_element_to_html_element().document().editing_host_manager();
+    auto editing_host_manager = text_control_to_html_element().document().editing_host_manager();
     editing_host_manager->set_selection_focus(focus_node, focus_offset);
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || focus_node != text_node)
@@ -1163,7 +1187,7 @@ GC::Ptr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const
 
 GC::Ref<JS::Cell> FormAssociatedTextControlElement::as_cell()
 {
-    return form_associated_element_to_html_element();
+    return text_control_to_html_element();
 }
 
 }

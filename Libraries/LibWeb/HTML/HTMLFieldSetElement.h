@@ -8,17 +8,14 @@
 
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/HTMLCollection.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::HTML {
 
 class HTMLFieldSetElement final
-    : public HTMLElement
-    , public FormAssociatedElement {
+    : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLFieldSetElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLFieldSetElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLFieldSetElement)
 
 public:
     virtual ~HTMLFieldSetElement() override;
@@ -32,6 +29,9 @@ public:
     bool is_disabled() const;
 
     GC::Ptr<DOM::HTMLCollection> const& elements();
+
+    // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed

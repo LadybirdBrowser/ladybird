@@ -14,7 +14,6 @@
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/SourceSet.h>
@@ -24,19 +23,20 @@ namespace Web::HTML {
 
 class HTMLImageElement final
     : public HTMLElement
-    , public FormAssociatedElement
     , public LazyLoadingElement<HTMLImageElement>
     , public Layout::ImageProvider
     , public DOM::ViewportClient {
     WEB_PLATFORM_OBJECT(HTMLImageElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLImageElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLImageElement);
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     virtual ~HTMLImageElement() override;
+
+    // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 

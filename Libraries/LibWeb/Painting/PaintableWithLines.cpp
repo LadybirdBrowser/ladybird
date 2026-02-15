@@ -465,7 +465,7 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
 
     auto active_element_is_editable = false;
     if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document().active_element()))
-        active_element_is_editable = text_control->is_mutable();
+        active_element_is_editable = text_control->text_control_to_html_element().is_mutable();
     if (!active_element_is_editable && !dom_node->is_editable_or_editing_host())
         return;
 

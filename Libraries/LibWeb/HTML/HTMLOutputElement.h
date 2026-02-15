@@ -8,17 +8,14 @@
 #pragma once
 
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::HTML {
 
 class HTMLOutputElement final
-    : public HTMLElement
-    , public FormAssociatedElement {
+    : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLOutputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOutputElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLOutputElement)
 
 public:
     virtual ~HTMLOutputElement() override;
@@ -34,8 +31,12 @@ public:
     Utf16String default_value() const;
     void set_default_value(Utf16String const&);
 
-    Utf16String value() const override;
+    Utf16String value() const;
+    virtual Utf16String form_value() const override { return value(); }
     void set_value(Utf16String const&);
+
+    // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed

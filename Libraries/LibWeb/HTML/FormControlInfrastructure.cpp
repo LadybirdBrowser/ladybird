@@ -131,6 +131,8 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
         }
 
         // FIXME: 3. If the field is a form-associated custom element, then perform the entry construction algorithm given field and entry list, then continue.
+        if (control_as_form_associated_element.form_associated_element_to_html_element().is_form_associated_custom_element())
+            continue;
 
         // 4. If either the field element does not have a name attribute specified, or its name attribute's value is the empty string, then continue.
         if (!control->name().has_value() || control->name()->is_empty())
@@ -185,7 +187,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
         }
         // 10. Otherwise, create an entry with name and the value of the field element, and append it to entry list.
         else {
-            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element.value().to_utf8_but_should_be_ported_to_utf16())));
+            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element.form_value().to_utf8_but_should_be_ported_to_utf16())));
         }
 
         // 11. If the element has a dirname attribute, that attribute's value is not the empty string, and the element is an auto-directionality form-associated element:

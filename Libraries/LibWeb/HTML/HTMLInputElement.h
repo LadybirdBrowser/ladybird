@@ -59,7 +59,6 @@ class WEB_API HTMLInputElement final
     , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLInputElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLInputElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLInputElement);
 
 public:
@@ -81,7 +80,8 @@ public:
 
     String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
 
-    virtual Utf16String value() const override;
+    Utf16String value() const;
+    virtual Utf16String form_value() const override { return value(); }
     virtual Optional<String> optional_value() const override;
     WebIDL::ExceptionOr<void> set_value(Utf16String const&);
 
@@ -170,6 +170,8 @@ public:
     virtual bool is_focusable() const override;
 
     // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
+
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
     virtual bool is_listed() const override { return true; }
 
@@ -235,6 +237,7 @@ public:
     Optional<String> selection_direction_binding() { return selection_direction(); }
 
     // ^FormAssociatedTextControlElement
+    virtual HTMLElement& text_control_to_html_element() override { return *this; }
     virtual void did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data) override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
     virtual GC::Ptr<DOM::Element> text_control_scroll_container() override { return m_inner_text_element; }

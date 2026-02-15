@@ -602,6 +602,7 @@ protected:
     virtual bool id_reference_exists(String const&) const override;
 
     CustomElementState custom_element_state() const { return m_custom_element_state; }
+    GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const { return m_custom_element_definition; }
 
     void play_or_cancel_animations_after_display_property_change();
 

@@ -17,49 +17,6 @@
 
 namespace Web::HTML {
 
-// Form-associated elements should invoke this macro to inject overridden FormAssociatedElement and HTMLElement
-// methods as needed. If your class wished to override an HTMLElement method that is overridden here, use the
-// following methods instead:
-//
-//    HTMLElement::inserted() -> Use form_associated_element_was_inserted()
-//    HTMLElement::removed_from() -> Use form_associated_element_was_removed()
-//
-#define FORM_ASSOCIATED_ELEMENT(ElementBaseClass, ElementClass)                                                                                                             \
-private:                                                                                                                                                                    \
-    virtual HTMLElement& form_associated_element_to_html_element() override                                                                                                 \
-    {                                                                                                                                                                       \
-        static_assert(IsBaseOf<HTMLElement, ElementClass>);                                                                                                                 \
-        return *this;                                                                                                                                                       \
-    }                                                                                                                                                                       \
-                                                                                                                                                                            \
-    virtual void inserted() override                                                                                                                                        \
-    {                                                                                                                                                                       \
-        ElementBaseClass::inserted();                                                                                                                                       \
-        form_node_was_inserted();                                                                                                                                           \
-        form_associated_element_was_inserted();                                                                                                                             \
-    }                                                                                                                                                                       \
-                                                                                                                                                                            \
-    virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override                                                                                          \
-    {                                                                                                                                                                       \
-        ElementBaseClass::removed_from(old_parent, old_root);                                                                                                               \
-        form_node_was_removed();                                                                                                                                            \
-        form_associated_element_was_removed(old_parent);                                                                                                                    \
-    }                                                                                                                                                                       \
-                                                                                                                                                                            \
-    virtual void moved_from(GC::Ptr<DOM::Node> old_parent) override                                                                                                         \
-    {                                                                                                                                                                       \
-        ElementBaseClass::moved_from(old_parent);                                                                                                                           \
-        form_node_was_moved();                                                                                                                                              \
-        form_associated_element_was_moved(old_parent);                                                                                                                      \
-    }                                                                                                                                                                       \
-                                                                                                                                                                            \
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override \
-    {                                                                                                                                                                       \
-        ElementBaseClass::attribute_changed(name, old_value, value, namespace_);                                                                                            \
-        form_node_attribute_changed(name, value);                                                                                                                           \
-        form_associated_element_attribute_changed(name, old_value, value, namespace_);                                                                                      \
-    }
-
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
 enum class SelectionDirection {
     Forward,
@@ -69,6 +26,8 @@ enum class SelectionDirection {
 
 class WEB_API FormAssociatedElement {
 public:
+    virtual bool is_form_associated_element() const;
+
     HTMLFormElement* form() { return m_form; }
     HTMLFormElement const* form() const { return m_form; }
 
@@ -82,13 +41,13 @@ public:
     void set_parser_inserted(Badge<HTMLParser>);
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
-    virtual bool is_listed() const { return false; }
+    virtual bool is_listed() const;
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-submit
-    virtual bool is_submittable() const { return false; }
+    virtual bool is_submittable() const;
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-reset
-    virtual bool is_resettable() const { return false; }
+    virtual bool is_resettable() const;
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-autocapitalize
     virtual bool is_autocapitalize_and_autocorrect_inheriting() const { return false; }
@@ -126,7 +85,7 @@ public:
     virtual bool suffering_from_bad_input() const { return false; }
     bool suffering_from_a_custom_error() const;
 
-    virtual Utf16String value() const { return {}; }
+    virtual Utf16String form_value() const { return {}; }
     virtual Optional<String> optional_value() const { VERIFY_NOT_REACHED(); }
 
     virtual HTMLElement& form_associated_element_to_html_element() = 0;
@@ -193,8 +152,7 @@ enum class SelectionSource {
 };
 
 class WEB_API FormAssociatedTextControlElement
-    : public FormAssociatedElement
-    , public InputEventsTarget {
+    : public InputEventsTarget {
 public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     virtual Utf16String relevant_value() const = 0;
@@ -236,6 +194,9 @@ public:
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
     void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
+
+    virtual HTMLElement& text_control_to_html_element() = 0;
+    HTMLElement const& text_control_to_html_element() const { return const_cast<FormAssociatedTextControlElement&>(*this).text_control_to_html_element(); }
 
     virtual void did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data) = 0;
 

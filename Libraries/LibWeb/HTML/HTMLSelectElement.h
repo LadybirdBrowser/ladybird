@@ -11,7 +11,6 @@
 
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/AutocompleteElement.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
 #include <LibWeb/HTML/SelectItem.h>
@@ -21,11 +20,9 @@ namespace Web::HTML {
 
 class WEB_API HTMLSelectElement final
     : public HTMLElement
-    , public FormAssociatedElement
     , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLSelectElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSelectElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLSelectElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLSelectElement);
 
 public:
@@ -56,7 +53,8 @@ public:
     WebIDL::Long selected_index() const;
     WebIDL::ExceptionOr<void> set_selected_index(WebIDL::Long);
 
-    virtual Utf16String value() const override;
+    Utf16String value() const;
+    virtual Utf16String form_value() const override { return value(); }
     WebIDL::ExceptionOr<void> set_value(Utf16String const&);
 
     bool is_open() const { return m_is_open; }
@@ -71,6 +69,9 @@ public:
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
     // https://html.spec.whatwg.org/multipage/semantics-other.html#concept-element-disabled
     virtual bool is_focusable() const override;
+
+    // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed

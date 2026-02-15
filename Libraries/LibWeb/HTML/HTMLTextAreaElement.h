@@ -26,7 +26,6 @@ class WEB_API HTMLTextAreaElement final
     , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTextAreaElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLTextAreaElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLTextAreaElement);
 
 public:
@@ -48,6 +47,9 @@ public:
 
     virtual void did_lose_focus() override;
     virtual void did_receive_focus() override;
+
+    // ^FormAssociatedElement
+    virtual bool is_form_associated_element() const override { return true; }
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
@@ -81,7 +83,8 @@ public:
     Utf16String default_value() const;
     void set_default_value(Utf16String const&);
 
-    Utf16String value() const override;
+    Utf16String value() const;
+    virtual Utf16String form_value() const override { return value(); }
     void set_value(Utf16String const&);
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
@@ -125,6 +128,7 @@ public:
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
     // ^FormAssociatedTextControlElement
+    virtual HTMLElement& text_control_to_html_element() override { return *this; }
     virtual void did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data) override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
     virtual GC::Ptr<DOM::Element> text_control_scroll_container() override { return this; }
