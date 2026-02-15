@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
+#include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
@@ -67,6 +68,19 @@ bool FormAssociatedElement::is_submittable() const
 bool FormAssociatedElement::is_resettable() const
 {
     return form_associated_element_to_html_element().is_form_associated_custom_element();
+}
+
+// https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts%3Aconcept-form-reset-control
+void FormAssociatedElement::reset_algorithm()
+{
+    // The reset algorithm for form-associated custom elements is to enqueue a custom element callback reaction with
+    // the element, callback name "formResetCallback", and « ».
+    auto& html_element = form_associated_element_to_html_element();
+    if (!html_element.is_form_associated_custom_element())
+        return;
+
+    GC::RootVector<JS::Value> empty_arguments { html_element.heap() };
+    html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formResetCallback, move(empty_arguments));
 }
 
 void FormAssociatedElement::set_form(HTMLFormElement* form)
