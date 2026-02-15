@@ -26,7 +26,6 @@
 
 namespace RequestServer {
 
-extern Optional<HTTP::DiskCache> g_disk_cache;
 OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 }
@@ -88,6 +87,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Core::Platform::register_with_mach_server(mach_server_name);
 #endif
 
+    Optional<HTTP::DiskCache> disk_cache;
+
     if (http_disk_cache_mode != "disabled"sv) {
         auto mode = TRY([&]() -> ErrorOr<HTTP::DiskCache::Mode> {
             if (http_disk_cache_mode == "enabled"sv)
@@ -102,17 +103,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto cache = HTTP::DiskCache::create(mode); cache.is_error())
             warnln("Unable to create disk cache: {}", cache.error());
         else
-            RequestServer::g_disk_cache = cache.release_value();
+            disk_cache = cache.release_value();
     }
 
-    // Connections are stored on the stack to ensure they are destroyed before
-    // static destruction begins. This prevents crashes from notifiers trying to
-    // unregister from already-destroyed thread data during process exit.
-    HashMap<int, NonnullRefPtr<RequestServer::ConnectionFromClient>> connections;
-    RequestServer::ConnectionFromClient::set_connections(connections);
+    // Connections are stored on the stack to ensure they are destroyed before static destruction begins. This prevents
+    // crashes from notifiers trying to unregister from already-destroyed thread data during process exit.
+    RequestServer::ConnectionFromClient::ConnectionMap connections;
 
-    auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>());
-    client->mark_as_primary_connection();
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>(
+        RequestServer::ConnectionFromClient::IsPrimaryConnection::Yes, connections, disk_cache));
 
     return event_loop.exec();
 }
