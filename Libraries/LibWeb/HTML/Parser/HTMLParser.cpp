@@ -877,23 +877,25 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // FIXME: 13. If element has an xmlns attribute in the XMLNS namespace whose value is not exactly the same as the element's namespace, that is a parse error.
     //            Similarly, if element has an xmlns:xlink attribute in the XMLNS namespace whose value is not the XLink Namespace, that is a parse error.
 
-    // FIXME: 14. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm. (This initializes the element's value and checkedness based on the element's attributes.)
+    if (auto* html_element = as_if<HTML::HTMLElement>(*element)) {
+        if (html_element->is_form_associated_element() && !html_element->is_form_associated_custom_element()) {
+            // 14. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm.
+            //     (This initializes the element's value and checkedness based on the element's attributes.)
+            if (html_element->is_resettable())
+                html_element->reset_algorithm();
 
-    // 15. If element is a form-associated element and not a form-associated custom element, the form element pointer
-    //     is not null, there is no template element on the stack of open elements, element is either not listed or
-    //     doesn't have a form attribute, and the intendedParent is in the same tree as the element pointed to by the
-    //     form element pointer, then associate element with the form element pointed to by the form element pointer
-    //     and set element's parser inserted flag.
-    // FIXME: Check if the element is not a form-associated custom element.
-    if (auto* form_associated_element = as_if<FormAssociatedElement>(*element)) {
-        auto& html_element = form_associated_element->form_associated_element_to_html_element();
-
-        if (m_form_element.ptr()
-            && !m_stack_of_open_elements.contains_template_element()
-            && (!form_associated_element->is_listed() || !html_element.has_attribute(HTML::AttributeNames::form))
-            && &intended_parent.root() == &m_form_element->root()) {
-            form_associated_element->set_form(m_form_element.ptr());
-            form_associated_element->set_parser_inserted({});
+            // 15. If element is a form-associated element and not a form-associated custom element, the form element pointer
+            //     is not null, there is no template element on the stack of open elements, element is either not listed or
+            //     doesn't have a form attribute, and the intendedParent is in the same tree as the element pointed to by the
+            //     form element pointer, then associate element with the form element pointed to by the form element pointer
+            //     and set element's parser inserted flag.
+            if (m_form_element.ptr()
+                && !m_stack_of_open_elements.contains_template_element()
+                && (!html_element->is_listed() || !html_element->has_attribute(HTML::AttributeNames::form))
+                && &intended_parent.root() == &m_form_element->root()) {
+                html_element->set_form(m_form_element.ptr());
+                html_element->set_parser_inserted({});
+            }
         }
     }
 
