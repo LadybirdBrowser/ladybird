@@ -762,10 +762,10 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         return result;
     };
 
-    clear_computation_context_caches();
-
+    VERIFY(computation_context_cache_is_empty());
     HashMap<PropertyID, RefPtr<StyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
     HashMap<PropertyID, RefPtr<StyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
+    clear_computation_context_caches();
     auto to_composite_operation = [&](Bindings::CompositeOperationOrAuto composite_operation_or_auto) {
         switch (composite_operation_or_auto) {
         case Bindings::CompositeOperationOrAuto::Accumulate:
@@ -1387,6 +1387,7 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
 
 void StyleComputer::compute_property_values(ComputedProperties& style, Optional<DOM::AbstractElement> abstract_element) const
 {
+    VERIFY(computation_context_cache_is_empty());
     // NOTE: This doesn't necessarily return the specified value if we have already computed this property but that
     //       doesn't matter as a computed value is always valid as a specified value.
     Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
@@ -1403,6 +1404,8 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
 
         style.set_property_without_modifying_flags(property_id, computed_value);
     }
+
+    clear_computation_context_caches();
 
     if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element()))
         m_root_element_font_metrics = calculate_root_element_font_metrics(style);
@@ -1705,7 +1708,6 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     }
 
     compute_property_values(style, {});
-    clear_computation_context_caches();
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
@@ -1948,6 +1950,8 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
 GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties) const
 {
+    VERIFY(computation_context_cache_is_empty());
+
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
     auto new_font_size = recascade_font_size_if_needed(abstract_element, cascaded_properties);

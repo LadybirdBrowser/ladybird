@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+    <style>
+        :root {
+            font-size: 50%;
+        }
+
+        #foo {
+            font-weight: inherit;
+        }
+    </style>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest(done => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.style.fontWeight = "bold";
+                    getComputedStyle(document.documentElement).fontSize;
+
+                    document.documentElement.style.fontWeight = "normal";
+                    println(getComputedStyle(document.documentElement).fontSize);
+
+                    done();
+                });
+            });
+        });
+    </script>
+</html>
