@@ -310,6 +310,9 @@ void LayoutState::commit(Box& root)
         auto& used_values = *it.value;
         auto& node = used_values.node();
 
+        if (m_subtree_root && !m_subtree_root->is_inclusive_ancestor_of(node))
+            continue;
+
         GC::Ptr<Painting::Paintable> paintable;
 
         // Try to reuse cached paintable for Box nodes
