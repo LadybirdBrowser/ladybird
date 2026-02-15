@@ -74,6 +74,7 @@ private:
     void delete_entry(u64 cache_key, u64 vary_key);
 
     Mode m_mode;
+    Optional<String> m_partitioned_cache_key;
 
     NonnullRefPtr<Database::Database> m_database;
 

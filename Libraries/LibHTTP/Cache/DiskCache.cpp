@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
@@ -18,16 +19,16 @@ namespace HTTP {
 
 static constexpr auto INDEX_DATABASE = "INDEX"sv;
 
-static ByteString cache_directory_for_mode(DiskCache::Mode mode)
+static constexpr StringView cache_directory_for_mode(DiskCache::Mode mode)
 {
     switch (mode) {
     case DiskCache::Mode::Normal:
         return "Cache"sv;
     case DiskCache::Mode::Partitioned:
-        // FIXME: Ideally, we could support multiple RequestServer processes using the same database by enabling the
-        //        WAL and setting a reasonable busy timeout. We would also have to prevent multiple processes writing
-        //        to the same cache entry file at the same time with some locking mechanism.
-        return ByteString::formatted("PartitionedCache-{}", Core::System::getpid());
+        // FIXME: Ideally, we could support multiple RequestServer processes using the same database by setting a
+        //        reasonable busy timeout. We would also have to prevent multiple processes writing to the same cache
+        //        entry file at the same time with some interprocess locking mechanism.
+        return "PartitionedCache"sv;
     case DiskCache::Mode::Testing:
         return "TestCache"sv;
     }
@@ -37,9 +38,13 @@ static ByteString cache_directory_for_mode(DiskCache::Mode mode)
 ErrorOr<DiskCache> DiskCache::create(Mode mode)
 {
     auto cache_directory = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, cache_directory_for_mode(mode));
+    TRY(Core::Directory::create(cache_directory, Core::Directory::CreateDirectories::Yes));
 
-    auto database = TRY(Database::Database::create(cache_directory.string(), INDEX_DATABASE));
-    auto index = TRY(CacheIndex::create(database));
+    auto database = mode == DiskCache::Mode::Normal
+        ? TRY(Database::Database::create(cache_directory.string(), INDEX_DATABASE))
+        : TRY(Database::Database::create_memory_backed());
+
+    auto index = TRY(CacheIndex::create(database, cache_directory));
 
     return DiskCache { mode, move(database), move(cache_directory), move(index) };
 }
@@ -50,9 +55,8 @@ DiskCache::DiskCache(Mode mode, NonnullRefPtr<Database::Database> database, Lexi
     , m_cache_directory(move(cache_directory))
     , m_index(move(index))
 {
-    // Start with a clean slate in non-normal modes.
-    if (m_mode != Mode::Normal)
-        remove_entries_accessed_since(UnixDateTime::earliest());
+    if (m_mode == Mode::Partitioned)
+        m_partitioned_cache_key = String::number(Core::System::getpid());
 }
 
 DiskCache::DiskCache(DiskCache&&) = default;
@@ -60,12 +64,9 @@ DiskCache& DiskCache::operator=(DiskCache&&) = default;
 
 DiskCache::~DiskCache()
 {
-    if (m_mode != Mode::Partitioned)
-        return;
-
-    // Clean up partitioned cache directories to prevent endless growth of disk usage.
-    if (auto const& cache_directory = m_cache_directory.string(); !cache_directory.is_empty())
-        (void)FileSystem::remove(cache_directory, FileSystem::RecursionMode::Allowed);
+    // Clean up cache directories in testing modes to prevent endless growth of disk usage.
+    if (m_mode != Mode::Normal)
+        remove_entries_accessed_since(UnixDateTime::earliest());
 }
 
 Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::create_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time)
@@ -79,7 +80,7 @@ Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::cr
     }
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
 
     if (check_if_cache_has_open_entry(request, cache_key, url, CheckReaderEntries::Yes))
         return CacheHasOpenEntry {};
@@ -109,7 +110,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         return Optional<CacheEntryReader&> {};
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
 
     if (check_if_cache_has_open_entry(request, cache_key, url, open_mode == OpenMode::Read ? CheckReaderEntries::No : CheckReaderEntries::Yes))
         return CacheHasOpenEntry {};

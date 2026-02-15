@@ -49,7 +49,7 @@ static NonnullRefPtr<HeaderList> deserialize_headers(StringView serialized_heade
     return headers;
 }
 
-ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
+ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath const& cache_directory)
 {
     auto create_cache_metadata_table = TRY(database.prepare_statement(R"#(
         CREATE TABLE IF NOT EXISTS CacheMetadata (
@@ -129,9 +129,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
         WHERE last_access_time >= ?;
     )#"sv));
 
-    auto database_path = database.database_path();
-    VERIFY(database_path.has_value()); // We assume a disk backed database for CacheIndex.
-    auto disk_space = TRY(FileSystem::compute_disk_space(database.database_path().value().parent()));
+    auto disk_space = TRY(FileSystem::compute_disk_space(cache_directory));
     auto maximum_disk_cache_size = compute_maximum_disk_cache_size(disk_space.free_bytes);
 
     Limits limits {

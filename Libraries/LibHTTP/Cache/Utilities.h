@@ -27,7 +27,7 @@ u64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache
 u64 compute_maximum_disk_cache_entry_size(u64 maximum_disk_cache_size);
 
 String serialize_url_for_cache_storage(URL::URL const&);
-u64 create_cache_key(StringView url, StringView method);
+u64 create_cache_key(StringView url, StringView method, Optional<String const&> extra_cache_key = {});
 u64 create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key);
 
