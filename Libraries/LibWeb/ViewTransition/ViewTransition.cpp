@@ -612,6 +612,8 @@ void ViewTransition::call_the_update_callback()
     if (m_phase != Phase::Done)
         m_phase = Phase::UpdateCallbackCalled;
 
+    HTML::TemporaryExecutionContext execution_context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
     // 3. Let callbackPromise be null.
     WebIDL::Promise* callback_promise;
 
@@ -674,7 +676,6 @@ void ViewTransition::call_the_update_callback()
     });
 
     // 8. React to callbackPromise with fulfillSteps and rejectSteps.
-    HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
     WebIDL::react_to_promise(*callback_promise, fulfill_steps, reject_steps);
 
     // 9. To skip a transition after a timeout, the user agent may perform the following steps in parallel:
@@ -730,11 +731,11 @@ void ViewTransition::skip_the_view_transition(JS::Value reason)
     m_phase = Phase::Done;
 
     // 7. Reject transition’s ready promise with reason.
+    HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
     WebIDL::reject_promise(realm, m_ready_promise, reason);
 
     // 8. Resolve transition’s finished promise with the result of reacting to transition’s update callback done promise:
     //    - If the promise was fulfilled, then return undefined.
-    HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
     WebIDL::resolve_promise(realm, m_finished_promise, WebIDL::react_to_promise(m_update_callback_done_promise, GC::create_function(realm.heap(), [](JS::Value) -> WebIDL::ExceptionOr<JS::Value> { return JS::js_undefined(); }), nullptr)->promise());
 }
 
