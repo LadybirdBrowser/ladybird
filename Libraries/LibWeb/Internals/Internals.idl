@@ -71,6 +71,7 @@ interface Internals {
 
     DOMString dumpDisplayList();
     DOMString dumpLayoutTree(Node node);
+    DOMString dumpPaintableTree(Node node);
     DOMString dumpStackingContextTree();
     DOMString dumpGCGraph();
 

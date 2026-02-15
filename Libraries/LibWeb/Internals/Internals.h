@@ -90,6 +90,7 @@ public:
 
     String dump_display_list();
     String dump_layout_tree(GC::Ref<DOM::Node>);
+    String dump_paintable_tree(GC::Ref<DOM::Node>);
     String dump_stacking_context_tree();
     String dump_gc_graph();
 
