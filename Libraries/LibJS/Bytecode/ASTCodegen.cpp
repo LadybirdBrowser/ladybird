@@ -1631,6 +1631,14 @@ static void generate_array_binding_pattern_bytecode(Bytecode::Generator& generat
         if (is_rest) {
             VERIFY(!initializer);
 
+            // 13.15.5.3 AssignmentRestElement : ... DestructuringAssignmentTarget
+            // Step 1: If DestructuringAssignmentTarget is not ObjectLiteral or ArrayLiteral,
+            //         let lref be ? Evaluation of DestructuringAssignmentTarget.
+            // The reference must be evaluated BEFORE iterating the remaining elements.
+            Optional<Bytecode::Generator::ReferenceOperands> lref;
+            if (auto const* member_expr = alias.get_pointer<NonnullRefPtr<MemberExpression const>>())
+                lref = generator.emit_evaluate_reference(**member_expr);
+
             auto value = generator.allocate_register();
 
             if (first) {
@@ -1659,8 +1667,20 @@ static void generate_array_binding_pattern_bytecode(Bytecode::Generator& generat
                 generator.switch_to_basic_block(continuation_block);
             }
 
-            return assign_value_to_alias(alias, value);
+            if (lref.has_value())
+                generator.emit_store_to_reference(*lref, value);
+            else
+                assign_value_to_alias(alias, value);
+            return;
         }
+
+        // 13.15.5.5 AssignmentElement : DestructuringAssignmentTarget Initializer(opt)
+        // Step 1: If DestructuringAssignmentTarget is not ObjectLiteral or ArrayLiteral,
+        //         let lref be ? Evaluation of DestructuringAssignmentTarget.
+        // The reference must be evaluated BEFORE calling IteratorStepValue.
+        Optional<Bytecode::Generator::ReferenceOperands> lref;
+        if (auto const* member_expr = alias.get_pointer<NonnullRefPtr<MemberExpression const>>())
+            lref = generator.emit_evaluate_reference(**member_expr);
 
         auto& iterator_is_exhausted_block = generator.make_block();
 
@@ -1723,7 +1743,10 @@ static void generate_array_binding_pattern_bytecode(Bytecode::Generator& generat
             generator.switch_to_basic_block(value_is_not_undefined_block);
         }
 
-        assign_value_to_alias(alias, value);
+        if (lref.has_value())
+            generator.emit_store_to_reference(*lref, value);
+        else
+            assign_value_to_alias(alias, value);
 
         first = false;
     }
