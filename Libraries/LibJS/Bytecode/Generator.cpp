@@ -376,10 +376,22 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
 
         block_offsets.set(block.ptr(), bytecode.size());
 
-        for (auto const& entry : block->source_map()) {
-            VERIFY(bytecode.size() <= NumericLimits<u32>::max());
-            source_map.append({ static_cast<u32>(bytecode.size()) + entry.bytecode_offset, entry.source_record });
-        }
+        // NB: Source map entries are added inline with instruction emission
+        //     to avoid phantom entries from skipped/replaced instructions.
+        //     When a block has multiple source map entries at the same offset
+        //     (due to rewind in fuse_compare_and_jump), we use the last one.
+        auto find_source_record = [&block](size_t block_offset) -> SourceRecord {
+            auto const& sm = block->source_map();
+            for (size_t i = sm.size(); i > 0; --i) {
+                if (sm[i - 1].bytecode_offset == static_cast<u32>(block_offset))
+                    return sm[i - 1].source_record;
+            }
+            return {};
+        };
+
+        auto emit_source_map_entry = [&](size_t block_offset) {
+            source_map.append({ static_cast<u32>(bytecode.size()), find_source_record(block_offset) });
+        };
 
         Bytecode::InstructionStreamIterator it(block->instruction_stream());
         while (!it.at_end()) {
@@ -407,6 +419,7 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
                     if (target_instruction.type() == Instruction::Type::Return) {
                         auto& return_instruction = static_cast<Bytecode::Op::Return const&>(target_instruction);
                         Op::Return return_op(return_instruction.value());
+                        emit_source_map_entry(it.offset());
                         bytecode.append(reinterpret_cast<u8 const*>(&return_op), return_op.length());
                         ++it;
                         continue;
@@ -415,6 +428,7 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
                     if (target_instruction.type() == Instruction::Type::End) {
                         auto& return_instruction = static_cast<Bytecode::Op::End const&>(target_instruction);
                         Op::End end_op(return_instruction.value());
+                        emit_source_map_entry(it.offset());
                         bytecode.append(reinterpret_cast<u8 const*>(&end_op), end_op.length());
                         ++it;
                         continue;
@@ -431,6 +445,7 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
                     auto& label = jump_false.target();
                     size_t label_offset = bytecode.size() + (bit_cast<FlatPtr>(&label) - bit_cast<FlatPtr>(&jump_false));
                     label_offsets.append(label_offset);
+                    emit_source_map_entry(it.offset());
                     bytecode.append(reinterpret_cast<u8 const*>(&jump_false), jump_false.length());
                     ++it;
                     continue;
@@ -440,6 +455,7 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
                     auto& label = jump_true.target();
                     size_t label_offset = bytecode.size() + (bit_cast<FlatPtr>(&label) - bit_cast<FlatPtr>(&jump_true));
                     label_offsets.append(label_offset);
+                    emit_source_map_entry(it.offset());
                     bytecode.append(reinterpret_cast<u8 const*>(&jump_true), jump_true.length());
                     ++it;
                     continue;
@@ -450,6 +466,7 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
                 size_t label_offset = bytecode.size() + (bit_cast<FlatPtr>(&label) - bit_cast<FlatPtr>(&instruction));
                 label_offsets.append(label_offset);
             });
+            emit_source_map_entry(it.offset());
             bytecode.append(reinterpret_cast<u8 const*>(&instruction), instruction.length());
             ++it;
         }
