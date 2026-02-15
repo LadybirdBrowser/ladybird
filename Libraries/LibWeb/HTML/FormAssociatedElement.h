@@ -120,14 +120,18 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#mutability
     virtual bool is_mutable() const { return true; }
 
+    void reset_form_owner();
+
+    void update_face_disabled_state();
+
 protected:
     FormAssociatedElement() = default;
     virtual ~FormAssociatedElement() = default;
 
-    virtual void form_associated_element_was_inserted() { }
-    virtual void form_associated_element_was_removed(DOM::Node*) { }
-    virtual void form_associated_element_was_moved(GC::Ptr<DOM::Node>) { }
-    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&) { }
+    virtual void form_associated_element_was_inserted();
+    virtual void form_associated_element_was_removed(DOM::Node*);
+    virtual void form_associated_element_was_moved(GC::Ptr<DOM::Node>);
+    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&);
 
     void form_node_was_inserted();
     void form_node_was_removed();
@@ -135,12 +139,14 @@ protected:
     void form_node_attribute_changed(FlyString const&, Optional<String> const&);
 
 private:
-    void reset_form_owner();
-
     GC::Weak<HTMLFormElement> m_form;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
+
+    // AD-HOC: Cached disabled state for form-associated custom elements, used to detect changes
+    //         and enqueue formDisabledCallback. Only meaningful for FACEs.
+    bool m_face_disabled_state { false };
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#custom-validity-error-message
     String m_custom_validity_error_message;

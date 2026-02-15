@@ -104,8 +104,7 @@ bool FormAssociatedElement::enabled() const
 
     // A form control is disabled if any of the following are true:
     // - The element is a button, input, select, textarea, or form-associated custom element, and the disabled attribute is specified on this element (regardless of its value); or
-    // FIXME: This doesn't check for form-associated custom elements.
-    if ((is<HTMLButtonElement>(html_element) || is<HTMLInputElement>(html_element) || is<HTMLSelectElement>(html_element) || is<HTMLTextAreaElement>(html_element)) && html_element.has_attribute(HTML::AttributeNames::disabled))
+    if ((is<HTMLButtonElement>(html_element) || is<HTMLInputElement>(html_element) || is<HTMLSelectElement>(html_element) || is<HTMLTextAreaElement>(html_element) || form_associated_element_to_html_element().is_form_associated_custom_element()) && html_element.has_attribute(HTML::AttributeNames::disabled))
         return false;
 
     // - The element is a descendant of a fieldset element whose disabled attribute is specified, and is not a descendant of that fieldset element's first legend element child, if any.
@@ -206,6 +205,14 @@ void FormAssociatedElement::reset_form_owner()
         return;
     }
 
+    // AD-HOC: The spec states:
+    //         - When the user agent resets the form owner of a form-associated custom element and doing so changes the
+    //           form owner, its formAssociatedCallback is called, given the new form owner (or null if no owner) as an
+    //           argument.
+    //         However, this is not specified as algorithmic steps, so we have to do this ourselves.
+    //         Spec issue: https://github.com/whatwg/html/issues/12169
+    GC::Ptr<HTMLFormElement> old_form { m_form.ptr() };
+
     // 3. Set element's form owner to null.
     set_form(nullptr);
 
@@ -230,6 +237,55 @@ void FormAssociatedElement::reset_form_owner()
         if (form_ancestor)
             set_form(form_ancestor);
     }
+
+    // See the AD-HOC comment above.
+    if (m_form != old_form && html_element.is_form_associated_custom_element()) {
+        GC::RootVector<JS::Value> arguments { html_element.heap() };
+        arguments.append(JS::Value(m_form.ptr()));
+        html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formAssociatedCallback, move(arguments));
+    }
+}
+
+void FormAssociatedElement::form_associated_element_was_inserted()
+{
+    update_face_disabled_state();
+}
+
+void FormAssociatedElement::form_associated_element_was_removed(DOM::Node*)
+{
+    update_face_disabled_state();
+}
+
+void FormAssociatedElement::form_associated_element_was_moved(GC::Ptr<DOM::Node>)
+{
+    update_face_disabled_state();
+}
+
+void FormAssociatedElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&)
+{
+    if (name == HTML::AttributeNames::disabled)
+        update_face_disabled_state();
+}
+
+// AD-HOC: The specification states that when the disabled state of a form-associated custom element is changed,
+//         its formDisabledCallback should be enqueued. However, there are no explicit algorithmic steps for this
+//         outside of "upgrade an element". We track the disabled state and enqueue the callback when it changes.
+//         See: https://github.com/whatwg/html/issues/12169
+void FormAssociatedElement::update_face_disabled_state()
+{
+    auto& html_element = form_associated_element_to_html_element();
+    if (!html_element.is_form_associated_custom_element())
+        return;
+
+    bool is_disabled = !enabled();
+    if (is_disabled == m_face_disabled_state)
+        return;
+
+    m_face_disabled_state = is_disabled;
+
+    GC::RootVector<JS::Value> arguments { html_element.heap() };
+    arguments.append(JS::Value(is_disabled));
+    html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formDisabledCallback, move(arguments));
 }
 
 // https://w3c.github.io/webdriver/#dfn-clear-algorithm

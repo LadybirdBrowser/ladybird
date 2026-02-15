@@ -59,6 +59,19 @@ bool HTMLFieldSetElement::is_disabled() const
     return false;
 }
 
+void HTMLFieldSetElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    if (name == HTML::AttributeNames::disabled) {
+        for_each_in_subtree_of_type<HTMLElement>([](auto& element) {
+            if (element.is_form_associated_custom_element())
+                element.update_face_disabled_state();
+            return TraversalDecision::Continue;
+        });
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-fieldset-elements
 GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
 {

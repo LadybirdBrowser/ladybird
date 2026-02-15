@@ -52,6 +52,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual void attribute_changed(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&) override;
+
     virtual bool is_html_fieldset_element() const override { return true; }
 
     GC::Ptr<DOM::HTMLCollection> m_elements;
