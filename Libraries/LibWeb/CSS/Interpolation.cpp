@@ -152,10 +152,9 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
 
             CalculationContext blur_calculation_context = calculation_context;
             blur_calculation_context.accepted_type_ranges.set(ValueType::Length, { 0, NumericLimits<float>::max() });
-            if (auto interpolated_style_value = interpolate_value(element, blur_calculation_context, from_value.radius.as_style_value(), to_value.radius.as_style_value(), delta, allow_discrete)) {
-                LengthOrCalculated interpolated_radius = interpolated_style_value->is_length() ? LengthOrCalculated { interpolated_style_value->as_length().length() } : LengthOrCalculated { interpolated_style_value->as_calculated() };
+            if (auto interpolated_style_value = interpolate_value(element, blur_calculation_context, from_value.radius, to_value.radius, delta, allow_discrete)) {
                 return FilterOperation::Blur {
-                    .radius = interpolated_radius
+                    .radius = interpolated_style_value.release_nonnull()
                 };
             }
             return {};
@@ -258,7 +257,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
     };
 
     auto initial_value_for = [&](FilterValue value) {
-        return value.visit([&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur {}; },
+        return value.visit([&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) }; },
             [&](FilterOperation::DropShadow const&) -> FilterValue {
                 return FilterOperation::DropShadow {
                     .offset_x = Length::make_px(0),
@@ -2129,7 +2128,7 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
 
     auto initial_value_for = [](FilterValue const& value) {
         return value.visit(
-            [&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur {}; },
+            [&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) }; },
             [&](FilterOperation::DropShadow const&) -> FilterValue {
                 return FilterOperation::DropShadow {
                     .offset_x = Length::make_px(0),
@@ -2169,11 +2168,8 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                 if (!animated.has<FilterOperation::Blur>())
                     return {};
                 auto const& animated_blur = animated.get<FilterOperation::Blur>();
-                if (underlying_blur.radius.is_calculated() || animated_blur.radius.is_calculated())
-                    return {};
-                auto underlying_px = underlying_blur.radius.value().raw_value();
-                auto animated_px = animated_blur.radius.value().raw_value();
-                return FilterOperation::Blur { .radius = Length::make_px(underlying_px + animated_px) };
+
+                return FilterOperation::Blur { .radius = LengthStyleValue::create(Length::make_px(underlying_blur.resolved_radius() + animated_blur.resolved_radius())) };
             },
             [&](FilterOperation::HueRotate const& underlying_rotate) -> Optional<FilterValue> {
                 if (!animated.has<FilterOperation::HueRotate>())

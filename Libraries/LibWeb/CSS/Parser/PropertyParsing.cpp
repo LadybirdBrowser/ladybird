@@ -5751,12 +5751,12 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
         if (filter_token == FilterToken::Blur) {
             // blur( <length>? )
             if (!tokens.has_next_token())
-                return FilterOperation::Blur {};
-            auto blur_radius = parse_length(tokens);
+                return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) };
+            auto blur_radius = parse_length_value(tokens);
             tokens.discard_whitespace();
-            if (!blur_radius.has_value() || (!blur_radius->is_calculated() && blur_radius->value().raw_value() < 0))
+            if (!blur_radius || (blur_radius->is_length() && blur_radius->as_length().raw_value() < 0))
                 return {};
-            return if_no_more_tokens_return(FilterOperation::Blur { blur_radius.value() });
+            return if_no_more_tokens_return(FilterOperation::Blur { blur_radius.release_nonnull() });
         } else if (filter_token == FilterToken::DropShadow) {
             if (!tokens.has_next_token())
                 return {};

@@ -11,7 +11,6 @@
 
 #include <LibGfx/Filter.h>
 #include <LibWeb/CSS/CalculatedOr.h>
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -20,8 +19,8 @@ namespace Web::CSS {
 namespace FilterOperation {
 
 struct Blur {
-    LengthOrCalculated radius { Length::make_px(0) };
-    float resolved_radius(Layout::Node const&) const;
+    ValueComparingNonnullRefPtr<StyleValue const> radius;
+    float resolved_radius() const;
     bool operator==(Blur const&) const = default;
 };
 

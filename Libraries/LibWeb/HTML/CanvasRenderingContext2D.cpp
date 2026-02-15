@@ -1233,7 +1233,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
             // FIXME: Add support for SVG filters when they get implement by the CSS parser.
             item.visit(
                 [&](CSS::FilterOperation::Blur const& blur_filter) {
-                    float radius = blur_filter.resolved_radius(*layout_node);
+                    float radius = blur_filter.resolved_radius();
                     auto new_filter = Gfx::Filter::blur(radius, radius);
 
                     drawing_state().filter = drawing_state().filter.has_value()
