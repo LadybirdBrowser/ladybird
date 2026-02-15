@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html, body { margin: 0; }
+</style>
+<svg id="outer" width="300" height="200">
+    <g id="ancestor" transform="translate(10, 20)">
+        <svg id="inner" width="200" height="100">
+            <rect id="target" width="50" height="40" fill="blue"></rect>
+        </svg>
+    </g>
+</svg>
+<script>
+    function countAncestorPaintables() {
+        const dump = internals.dumpPaintableTree(document.getElementById("ancestor"));
+        const matches = dump.match(/SVGGraphicsPaintable \(SVGGraphicsBox<g>#ancestor\)/g);
+        return matches ? matches.length : 0;
+    }
+
+    asyncTest(done => {
+        const target = document.getElementById("target");
+        document.body.offsetWidth;
+
+        const before = countAncestorPaintables();
+
+        // Keep DOM writes and relayout triggers isolated from println(), since println()
+        // itself mutates the DOM and can force a full relayout.
+        let iteration = 0;
+        const iteration_count = 4;
+        const mutate_and_wait = () => {
+            if (iteration >= iteration_count) {
+                const after = countAncestorPaintables();
+                println(`before=${before}`);
+                println(`after=${after}`);
+                println(`stable=${after === before}`);
+                done();
+                return;
+            }
+
+            ++iteration;
+            target.setAttribute("transform", `translate(${iteration}, ${iteration})`);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(mutate_and_wait);
+            });
+        };
+
+        mutate_and_wait();
+    });
+</script>
