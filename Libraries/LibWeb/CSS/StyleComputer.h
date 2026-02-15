@@ -204,6 +204,11 @@ private:
         const_cast<StyleComputer*>(this)->m_cached_generic_computation_context = {};
     }
 
+    bool computation_context_cache_is_empty() const
+    {
+        return !m_cached_font_computation_context.has_value() && !m_cached_line_height_computation_context.has_value() && !m_cached_generic_computation_context.has_value();
+    }
+
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
