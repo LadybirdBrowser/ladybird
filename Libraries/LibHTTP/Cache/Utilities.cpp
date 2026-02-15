@@ -76,11 +76,14 @@ static u64 serialize_hash(Crypto::Hash::SHA1& hasher)
     return result;
 }
 
-u64 create_cache_key(StringView url, StringView method)
+u64 create_cache_key(StringView url, StringView method, Optional<String const&> extra_cache_key)
 {
     auto hasher = Crypto::Hash::SHA1::create();
     hasher->update(url);
     hasher->update(method);
+
+    if (extra_cache_key.has_value())
+        hasher->update(*extra_cache_key);
 
     return serialize_hash(*hasher);
 }
