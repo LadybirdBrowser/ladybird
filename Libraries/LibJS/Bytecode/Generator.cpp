@@ -813,7 +813,7 @@ Generator::ReferenceOperands Generator::emit_super_reference(MemberExpression co
     };
 }
 
-Generator::ReferenceOperands Generator::emit_load_from_reference(JS::ASTNode const& node, Optional<ScopedOperand> preferred_dst)
+Generator::ReferenceOperands Generator::emit_load_from_reference(JS::ASTNode const& node, Optional<ScopedOperand> preferred_dst, ReferenceMode mode)
 {
     if (is<Identifier>(node)) {
         auto& identifier = static_cast<Identifier const&>(node);
@@ -864,10 +864,15 @@ Generator::ReferenceOperands Generator::emit_load_from_reference(JS::ASTNode con
 
     if (expression.is_computed()) {
         auto property = expression.property().generate_bytecode(*this).value();
-        auto saved_property = allocate_register();
-        emit<Bytecode::Op::Mov>(saved_property, property);
         auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
         emit_get_by_value(dst, base, property, move(base_identifier));
+        if (mode == ReferenceMode::LoadOnly) {
+            return ReferenceOperands {
+                .loaded_value = dst,
+            };
+        }
+        auto saved_property = allocate_register();
+        emit<Bytecode::Op::Mov>(saved_property, property);
         return ReferenceOperands {
             .base = base,
             .referenced_name = saved_property,

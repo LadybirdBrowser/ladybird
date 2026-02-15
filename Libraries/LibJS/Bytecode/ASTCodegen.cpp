@@ -1435,7 +1435,7 @@ Optional<ScopedOperand> ArrayExpression::generate_bytecode(Bytecode::Generator& 
 Optional<ScopedOperand> MemberExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto reference = generator.emit_load_from_reference(*this, preferred_dst);
+    auto reference = generator.emit_load_from_reference(*this, preferred_dst, Bytecode::Generator::ReferenceMode::LoadOnly);
     return reference.loaded_value;
 }
 
