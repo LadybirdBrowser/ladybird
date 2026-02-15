@@ -587,9 +587,10 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
 
             for (auto it = compares.ranges.begin(); it != compares.ranges.end(); ++it) {
                 parser_result.optimization_data.starting_ranges.append({ it.key(), *it });
-                parser_result.optimization_data.starting_ranges_insensitive.append({ to_ascii_lowercase(it.key()), to_ascii_lowercase(*it) });
-                quick_sort(parser_result.optimization_data.starting_ranges_insensitive, [](CharRange a, CharRange b) { return a.from < b.from; });
+                for (auto range : Unicode::expand_range_case_insensitive(it.key(), *it))
+                    parser_result.optimization_data.starting_ranges_insensitive.append({ range.from, range.to });
             }
+            quick_sort(parser_result.optimization_data.starting_ranges_insensitive, [](CharRange a, CharRange b) { return a.from < b.from; });
             return;
         }
         case OpCodeId::CompareSimple: {
@@ -608,9 +609,10 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
 
             for (auto it = compares.ranges.begin(); it != compares.ranges.end(); ++it) {
                 parser_result.optimization_data.starting_ranges.append({ it.key(), *it });
-                parser_result.optimization_data.starting_ranges_insensitive.append({ to_ascii_lowercase(it.key()), to_ascii_lowercase(*it) });
-                quick_sort(parser_result.optimization_data.starting_ranges_insensitive, [](CharRange a, CharRange b) { return a.from < b.from; });
+                for (auto range : Unicode::expand_range_case_insensitive(it.key(), *it))
+                    parser_result.optimization_data.starting_ranges_insensitive.append({ range.from, range.to });
             }
+            quick_sort(parser_result.optimization_data.starting_ranges_insensitive, [](CharRange a, CharRange b) { return a.from < b.from; });
             return;
         }
         case OpCodeId::CheckBegin:
@@ -812,7 +814,7 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             auto start = it.key();
             auto end = *it;
             for (u32 ch = start; ch <= end; ++ch) {
-                if (OpCode_Compare<ByteCode>::matches_character_class(value, ch, false))
+                if (OpCode_Compare<ByteCode>::matches_character_class(value, ch, false, false))
                     return true;
             }
         }
@@ -2686,6 +2688,27 @@ void Optimizer::append_character_class(ByteCode& target, Vector<CompareTypeAndVa
         bool is_currently_inverted = false;
 
         auto flush_tables = [&] {
+            auto merge_overlapping_ranges = [](auto& source) {
+                Optional<CharRange> active_range;
+                Vector<ByteCodeValueType> result;
+                for (auto& range : source) {
+                    if (!active_range.has_value()) {
+                        active_range = CharRange(range);
+                        continue;
+                    }
+                    CharRange char_range(range);
+                    if (char_range.from <= active_range->to + 1 && char_range.to + 1 >= active_range->from) {
+                        active_range = CharRange { min(char_range.from, active_range->from), max(char_range.to, active_range->to) };
+                    } else {
+                        result.append(active_range.release_value());
+                        active_range = char_range;
+                    }
+                }
+                if (active_range.has_value())
+                    result.append(active_range.release_value());
+                return result;
+            };
+
             auto append_table = [&](auto& table) {
                 ++argument_count;
                 arguments.append(to_underlying(CharacterCompareType::LookupTable));
@@ -2694,36 +2717,20 @@ void Optimizer::append_character_class(ByteCode& target, Vector<CompareTypeAndVa
                 arguments.append(0);
                 arguments.append(0);
 
-                Optional<CharRange> active_range;
-                Vector<ByteCodeValueType> range_data;
-                for (auto& range : table) {
-                    if (!active_range.has_value()) {
-                        active_range = range;
-                        continue;
-                    }
-
-                    if (range.from <= active_range->to + 1 && range.to + 1 >= active_range->from) {
-                        active_range = CharRange { min(range.from, active_range->from), max(range.to, active_range->to) };
-                    } else {
-                        range_data.append(active_range.release_value());
-                        active_range = range;
-                    }
-                }
-                if (active_range.has_value())
-                    range_data.append(active_range.release_value());
+                auto range_data = merge_overlapping_ranges(table);
                 arguments.extend(range_data);
                 arguments[sensitive_size_index] = range_data.size();
 
-                if (!all_of(range_data, [](CharRange range) { return range.from == to_ascii_lowercase(range.from) && range.to == to_ascii_lowercase(range.to); })) {
-                    Vector<ByteCodeValueType> insensitive_data;
-                    insensitive_data.ensure_capacity(range_data.size());
-                    for (CharRange range : range_data)
-                        insensitive_data.append(CharRange { to_ascii_lowercase(range.from), to_ascii_lowercase(range.to) });
-                    quick_sort(insensitive_data, [](CharRange a, CharRange b) { return a.from < b.from; });
-
-                    arguments.extend(insensitive_data);
-                    arguments[insensitive_size_index] = insensitive_data.size();
+                Vector<ByteCodeValueType> insensitive_data;
+                for (CharRange range : range_data) {
+                    for (auto expanded : Unicode::expand_range_case_insensitive(range.from, range.to))
+                        insensitive_data.append(CharRange { expanded.from, expanded.to });
                 }
+                quick_sort(insensitive_data, [](CharRange a, CharRange b) { return a.from < b.from; });
+
+                auto merged_data = merge_overlapping_ranges(insensitive_data);
+                arguments.extend(merged_data);
+                arguments[insensitive_size_index] = merged_data.size();
             };
 
             auto contains_regular_table = !table.is_empty();

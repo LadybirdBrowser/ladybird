@@ -153,6 +153,20 @@ static bool restore_string_position(MatchInput const& input, MatchState& state)
     return true;
 }
 
+static bool is_word_character(u32 code_point, bool case_insensitive, bool unicode_mode)
+{
+    if (is_ascii_alphanumeric(code_point) || code_point == '_')
+        return true;
+
+    if (case_insensitive && unicode_mode) {
+        auto canonical = Unicode::canonicalize(code_point, unicode_mode);
+        if (is_ascii_alphanumeric(canonical) || canonical == '_')
+            return true;
+    }
+
+    return false;
+}
+
 OwnPtr<OpCode<ByteCode>> ByteCode::s_opcodes[(size_t)OpCodeId::Last + 1];
 bool ByteCode::s_opcodes_initialized { false };
 
@@ -475,7 +489,9 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBegin<ByteCode>::execute(MatchInput co
 template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
-    auto isword = [](auto ch) { return is_ascii_alphanumeric(ch) || ch == '_'; };
+    auto isword = [&](auto ch) {
+        return is_word_character(ch, state.current_options & AllFlags::Insensitive, input.view.unicode());
+    };
     auto is_word_boundary = [&] {
         if (state.string_position == input.view.length()) {
             return (state.string_position > 0 && isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
@@ -951,12 +967,12 @@ ALWAYS_INLINE ExecutionResult CompareInternals<ByteCode, IsSimple>::execute(Matc
         }
         case CharacterCompareType::Property: {
             auto property = static_cast<Unicode::Property>(bytecode_data[offset++]);
-            compare_property(input, state, property, current_inversion_state(), inverse_matched);
+            compare_property(input, state, property, current_inversion_state(), temporary_inverse && inverse, inverse_matched);
             break;
         }
         case CharacterCompareType::GeneralCategory: {
             auto general_category = static_cast<Unicode::GeneralCategory>(bytecode_data[offset++]);
-            compare_general_category(input, state, general_category, current_inversion_state(), inverse_matched);
+            compare_general_category(input, state, general_category, current_inversion_state(), temporary_inverse && inverse, inverse_matched);
             break;
         }
         case CharacterCompareType::Script: {
@@ -1001,7 +1017,7 @@ ALWAYS_INLINE ExecutionResult CompareInternals<ByteCode, IsSimple>::execute(Matc
                     if (state.current_options & AllFlags::Insensitive) {
                         bool found_child = false;
                         for (auto const& [key, child] : current->children()) {
-                            if (to_ascii_lowercase(key) == to_ascii_lowercase(value)) {
+                            if (Unicode::canonicalize(key, input.view.unicode()) == Unicode::canonicalize(value, input.view.unicode())) {
                                 current = static_cast<StringSetTrie const*>(child.ptr());
                                 current_code_unit_offset++;
                                 found_child = true;
@@ -1235,14 +1251,7 @@ ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_char(MatchInput
 
     bool equal;
     if (state.current_options & AllFlags::Insensitive) {
-        if (input.view.unicode()) {
-            auto lhs = String::from_code_point(input_view);
-            auto rhs = String::from_code_point(ch1);
-
-            equal = lhs.equals_ignoring_case(rhs);
-        } else {
-            equal = to_ascii_lowercase(input_view) == to_ascii_lowercase(ch1);
-        }
+        equal = Unicode::canonicalize(input_view, input.view.unicode()) == Unicode::canonicalize(ch1, input.view.unicode());
     } else {
         equal = input_view == ch1;
     }
@@ -1280,7 +1289,7 @@ ALWAYS_INLINE bool CompareInternals<ByteCode, IsSimple>::compare_string(MatchInp
     auto subject = input.view.substring_view(state.string_position, str.length());
     bool equals;
     if (state.current_options & AllFlags::Insensitive)
-        equals = subject.equals_ignoring_case(str);
+        equals = subject.equals_ignoring_case(str, input.view.unicode());
     else
         equals = subject.equals(str);
 
@@ -1293,7 +1302,7 @@ ALWAYS_INLINE bool CompareInternals<ByteCode, IsSimple>::compare_string(MatchInp
 template<typename ByteCode, bool IsSimple>
 ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_character_class(MatchInput const& input, MatchState& state, CharClass character_class, u32 ch, bool inverse, bool& inverse_matched)
 {
-    if (matches_character_class(character_class, ch, input.regex_options & AllFlags::Insensitive)) {
+    if (matches_character_class(character_class, ch, state.current_options & AllFlags::Insensitive, input.view.unicode())) {
         if (inverse)
             inverse_matched = true;
         else
@@ -1302,7 +1311,7 @@ ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_character_class
 }
 
 template<typename ByteCode, bool IsSimple>
-bool CompareInternals<ByteCode, IsSimple>::matches_character_class(CharClass character_class, u32 ch, bool insensitive)
+bool CompareInternals<ByteCode, IsSimple>::matches_character_class(CharClass character_class, u32 ch, bool insensitive, bool unicode_mode)
 {
     constexpr auto is_space_or_line_terminator = [](u32 code_point) {
         if ((code_point == 0x0a) || (code_point == 0x0d) || (code_point == 0x2028) || (code_point == 0x2029))
@@ -1336,7 +1345,7 @@ bool CompareInternals<ByteCode, IsSimple>::matches_character_class(CharClass cha
     case CharClass::Upper:
         return is_ascii_upper_alpha(ch) || (insensitive && is_ascii_lower_alpha(ch));
     case CharClass::Word:
-        return is_ascii_alphanumeric(ch) || ch == '_';
+        return is_word_character(ch, insensitive, unicode_mode);
     case CharClass::Xdigit:
         return is_ascii_hex_digit(ch);
     }
@@ -1347,13 +1356,14 @@ bool CompareInternals<ByteCode, IsSimple>::matches_character_class(CharClass cha
 template<typename ByteCode, bool IsSimple>
 ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_character_range(MatchInput const& input, MatchState& state, u32 from, u32 to, u32 ch, bool inverse, bool& inverse_matched)
 {
-    if (input.regex_options & AllFlags::Insensitive) {
-        from = to_ascii_lowercase(from);
-        to = to_ascii_lowercase(to);
-        ch = to_ascii_lowercase(ch);
+    bool matched = false;
+    if (state.current_options & AllFlags::Insensitive) {
+        matched = Unicode::code_point_matches_range_ignoring_case(ch, from, to, input.view.unicode());
+    } else {
+        matched = (ch >= from && ch <= to);
     }
 
-    if (ch >= from && ch <= to) {
+    if (matched) {
         if (inverse)
             inverse_matched = true;
         else
@@ -1362,36 +1372,85 @@ ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_character_range
 }
 
 template<typename ByteCode, bool IsSimple>
-ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_property(MatchInput const& input, MatchState& state, Unicode::Property property, bool inverse, bool& inverse_matched)
+ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_property(MatchInput const& input, MatchState& state, Unicode::Property property, bool inverse, bool is_double_negation, bool& inverse_matched)
 {
     if (state.string_position == input.view.length())
         return;
 
     u32 code_point = input.view.code_point_at(state.string_position_in_code_units);
-    bool equal = Unicode::code_point_has_property(code_point, property);
+    bool case_insensitive = (state.current_options & AllFlags::Insensitive) && input.view.unicode();
+    bool is_unicode_sets_mode = state.current_options.has_flag_set(AllFlags::UnicodeSets);
 
-    if (equal) {
-        if (inverse)
-            inverse_matched = true;
-        else
+    // In /u mode, case folding happens after complementing: \P{x} matches caseFold(allChars - charsWithX).
+    // This means a code point matches the inverted property if ANY of its case variants lacks the property.
+    // In /v mode, case folding happens before complementing: \P{x} matches caseFold(allChars) - caseFold(charsWithX),
+    // so we can just use normal case-insensitive matching and invert the result.
+    if ((inverse || is_double_negation) && case_insensitive && !is_unicode_sets_mode) {
+        bool any_variant_lacks_property = false;
+        Unicode::for_each_case_folded_code_point(code_point, [&](u32 variant) {
+            if (!Unicode::code_point_has_property(variant, property)) {
+                any_variant_lacks_property = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+
+        if (is_double_negation) {
+            if (any_variant_lacks_property)
+                return;
             advance_string_position(state, input.view, code_point);
+        } else if (!any_variant_lacks_property) {
+            inverse_matched = true;
+            return;
+        }
+    } else {
+        auto case_sensitivity = case_insensitive && (is_unicode_sets_mode || !inverse) ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
+        if (Unicode::code_point_has_property(code_point, property, case_sensitivity)) {
+            if (inverse)
+                inverse_matched = true;
+            else
+                advance_string_position(state, input.view, code_point);
+        }
     }
 }
 
 template<typename ByteCode, bool IsSimple>
-ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_general_category(MatchInput const& input, MatchState& state, Unicode::GeneralCategory general_category, bool inverse, bool& inverse_matched)
+ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_general_category(MatchInput const& input, MatchState& state, Unicode::GeneralCategory general_category, bool inverse, bool is_double_negation, bool& inverse_matched)
 {
     if (state.string_position == input.view.length())
         return;
 
     u32 code_point = input.view.code_point_at(state.string_position_in_code_units);
-    bool equal = Unicode::code_point_has_general_category(code_point, general_category);
+    bool case_insensitive = (state.current_options & AllFlags::Insensitive) && input.view.unicode();
+    bool is_unicode_sets_mode = state.current_options.has_flag_set(AllFlags::UnicodeSets);
 
-    if (equal) {
-        if (inverse)
-            inverse_matched = true;
-        else
+    // See comment in compare_property for /u vs /v mode case folding semantics.
+    if ((inverse || is_double_negation) && case_insensitive && !is_unicode_sets_mode) {
+        bool any_variant_lacks_category = false;
+        Unicode::for_each_case_folded_code_point(code_point, [&](u32 variant) {
+            if (!Unicode::code_point_has_general_category(variant, general_category)) {
+                any_variant_lacks_category = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+
+        if (is_double_negation) {
+            if (any_variant_lacks_category)
+                return;
             advance_string_position(state, input.view, code_point);
+        } else if (!any_variant_lacks_category) {
+            inverse_matched = true;
+            return;
+        }
+    } else {
+        auto case_sensitivity = case_insensitive && (is_unicode_sets_mode || !inverse) ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
+        if (Unicode::code_point_has_general_category(code_point, general_category, case_sensitivity)) {
+            if (inverse)
+                inverse_matched = true;
+            else
+                advance_string_position(state, input.view, code_point);
+        }
     }
 }
 
