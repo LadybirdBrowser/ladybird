@@ -78,14 +78,10 @@ GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
     // The elements IDL attribute must return an HTMLCollection rooted at the fieldset element, whose filter matches listed elements.
     if (!m_elements) {
         m_elements = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [](DOM::Element const& element) {
-            // FIXME: Form-associated custom elements return also true
-            return is<HTMLButtonElement>(element)
-                || is<HTMLFieldSetElement>(element)
-                || is<HTMLInputElement>(element)
-                || is<HTMLObjectElement>(element)
-                || is<HTMLOutputElement>(element)
-                || is<HTMLSelectElement>(element)
-                || is<HTMLTextAreaElement>(element);
+            if (auto const* form_associated_element = as_if<FormAssociatedElement>(element); form_associated_element && form_associated_element->is_listed())
+                return true;
+
+            return false;
         });
     }
     return m_elements;

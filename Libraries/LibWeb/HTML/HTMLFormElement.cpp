@@ -507,38 +507,12 @@ HTMLFormElement::EncodingTypeAttributeState HTMLFormElement::encoding_type_state
     return EncodingTypeAttributeState::FormUrlEncoded;
 }
 
-// https://html.spec.whatwg.org/multipage/forms.html#category-listed
-static bool is_listed_element(DOM::Element const& element)
-{
-    // Denotes elements that are listed in the form.elements and fieldset.elements APIs.
-    // These elements also have a form content attribute, and a matching form IDL attribute,
-    // that allow authors to specify an explicit form owner.
-    // => button, fieldset, input, object, output, select, textarea, form-associated custom elements
-
-    if (is<HTMLButtonElement>(element)
-        || is<HTMLFieldSetElement>(element)
-        || is<HTMLInputElement>(element)
-        || is<HTMLObjectElement>(element)
-        || is<HTMLOutputElement>(element)
-        || is<HTMLSelectElement>(element)
-        || is<HTMLTextAreaElement>(element)) {
-        return true;
-    }
-
-    // FIXME: Form-associated custom elements return also true
-
-    return false;
-}
-
 static bool is_form_control(DOM::Element const& element, HTMLFormElement const& form)
 {
     // The elements IDL attribute must return an HTMLFormControlsCollection rooted at the form element's root,
     // whose filter matches listed elements whose form owner is the form element,
     // with the exception of input elements whose type attribute is in the Image Button state, which must,
     // for historical reasons, be excluded from this particular collection.
-
-    if (!is_listed_element(element))
-        return false;
 
     if (is<HTMLInputElement>(element)
         && static_cast<HTMLInputElement const&>(element).type_state() == HTMLInputElement::TypeAttributeState::ImageButton) {
@@ -547,6 +521,9 @@ static bool is_form_control(DOM::Element const& element, HTMLFormElement const& 
 
     auto const& form_associated_element = as<FormAssociatedElement>(element);
     if (form_associated_element.form() != &form)
+        return false;
+
+    if (!form_associated_element.is_listed())
         return false;
 
     return true;
