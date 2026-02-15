@@ -715,9 +715,8 @@ void dump_tree(Painting::Paintable const& paintable)
 
 void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, bool colorize, int indent)
 {
-    for (int i = 0; i < indent; ++i)
-        builder.append("  "sv);
-
+    // Dump all paintables attached to this layout node at every level.
+    // This makes detached/disconnected paintables visible across the full subtree.
     StringView paintable_with_lines_color_on = ""sv;
     StringView paintable_box_color_on = ""sv;
     StringView text_paintable_color_on = ""sv;
@@ -732,29 +731,39 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
         color_off = "\033[0m"sv;
     }
 
-    if (is<Painting::PaintableWithLines>(paintable))
-        builder.append(paintable_with_lines_color_on);
-    else if (is<Painting::PaintableBox>(paintable))
-        builder.append(paintable_box_color_on);
-    else if (is<Painting::TextPaintable>(paintable))
-        builder.append(text_paintable_color_on);
-    else
-        builder.append(paintable_color_on);
+    bool dumped_any = false;
+    for (auto const& node_paintable : paintable.layout_node().paintables()) {
+        if (dumped_any)
+            builder.append("\n"sv);
 
-    builder.appendff("{}{} ({})", paintable.class_name(), color_off, paintable.layout_node().debug_description());
+        for (int i = 0; i < indent; ++i)
+            builder.append("  "sv);
 
-    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
-        builder.appendff(" {}", paintable_box->absolute_border_box_rect());
+        if (is<Painting::PaintableWithLines>(node_paintable))
+            builder.append(paintable_with_lines_color_on);
+        else if (is<Painting::PaintableBox>(node_paintable))
+            builder.append(paintable_box_color_on);
+        else if (is<Painting::TextPaintable>(node_paintable))
+            builder.append(text_paintable_color_on);
+        else
+            builder.append(paintable_color_on);
 
-        if (paintable_box->has_scrollable_overflow())
-            builder.appendff(" overflow: {}", paintable_box->scrollable_overflow_rect());
+        builder.appendff("{}{} ({})", node_paintable.class_name(), color_off, node_paintable.layout_node().debug_description());
 
-        if (!paintable_box->scroll_offset().is_zero())
-            builder.appendff(" scroll-offset: {}", paintable_box->scroll_offset());
-    }
-    builder.append("\n"sv);
-    for (auto const* child = paintable.first_child(); child; child = child->next_sibling()) {
-        dump_tree(builder, *child, colorize, indent + 1);
+        if (auto const* paintable_box = as_if<Painting::PaintableBox>(node_paintable)) {
+            builder.appendff(" {}", paintable_box->absolute_border_box_rect());
+
+            if (paintable_box->has_scrollable_overflow())
+                builder.appendff(" overflow: {}", paintable_box->scrollable_overflow_rect());
+
+            if (!paintable_box->scroll_offset().is_zero())
+                builder.appendff(" scroll-offset: {}", paintable_box->scroll_offset());
+        }
+        builder.append("\n"sv);
+
+        for (auto const* child = node_paintable.first_child(); child; child = child->next_sibling())
+            dump_tree(builder, *child, colorize, indent + 1);
+        dumped_any = true;
     }
 }
 

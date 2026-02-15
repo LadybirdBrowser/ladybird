@@ -30,6 +30,15 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1216]
           TextPaintable (TextNode<#text>)
           ImagePaintable (ImageBox(anonymous)) [8,408 400x400]
           TextPaintable (TextNode<#text>)
+
+        PaintableWithLines (InlineNode(anonymous)) [8,408 427.203125x400]
+        PaintableWithLines (InlineNode(anonymous)) [8,394 454.796875x400]
+          TextPaintable (TextNode<#text>)
+          ImagePaintable (ImageBox(anonymous)) [35.15625,8 400x400]
+          TextPaintable (TextNode<#text>)
+          ImagePaintable (ImageBox(anonymous)) [8,408 400x400]
+          TextPaintable (TextNode<#text>)
+
         PaintableWithLines (InlineNode(anonymous)) [8,408 427.203125x400]
         ImagePaintable (ImageBox<IMG>) [8,808 400x400]
 
