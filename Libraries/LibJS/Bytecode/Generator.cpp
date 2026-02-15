@@ -1129,6 +1129,9 @@ static Optional<Utf16String> expression_identifier(Expression const& expression)
         return Utf16String::formatted("'{}'", literal.value());
     }
 
+    if (is<ThisExpression>(expression))
+        return "this"_utf16;
+
     if (expression.is_member_expression()) {
         auto const& member_expression = static_cast<MemberExpression const&>(expression);
         StringBuilder builder(StringBuilder::Mode::UTF16);
