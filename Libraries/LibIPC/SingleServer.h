@@ -11,11 +11,11 @@
 
 namespace IPC {
 
-template<typename ConnectionFromClientType>
-ErrorOr<NonnullRefPtr<ConnectionFromClientType>> take_over_accepted_client_from_system_server()
+template<typename ConnectionFromClientType, typename... Args>
+ErrorOr<NonnullRefPtr<ConnectionFromClientType>> take_over_accepted_client_from_system_server(Args&&... args)
 {
     auto socket = TRY(Core::take_over_socket_from_system_server());
-    return IPC::new_client_connection<ConnectionFromClientType>(make<IPC::Transport>(move(socket)));
+    return IPC::new_client_connection<ConnectionFromClientType>(make<IPC::Transport>(move(socket)), forward<Args>(args)...);
 }
 
 }
