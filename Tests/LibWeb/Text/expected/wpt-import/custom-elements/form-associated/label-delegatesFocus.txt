@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Clicking on a label for a form associated custom element with delegatesFocus should focus the custom element's focus delegate.
+Fail	Clicking on a span in a label for a form associated custom element with delegatesFocus should focus the custom element's focus delegate.

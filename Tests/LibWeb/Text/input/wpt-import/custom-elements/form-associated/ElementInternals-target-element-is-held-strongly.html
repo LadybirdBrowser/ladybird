@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Target element of ElementsInternals is held strongly and doesn't get GCed if there are no other references</title>
+<meta name="timeout" content="long">
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../common/gc.js"></script>
+
+<script>
+customElements.define("x-foo", class extends HTMLElement {});
+
+promise_test(async t => {
+    const elementInternals = [];
+
+    for (let i = 0; i < 1e5; i++) {
+        const targetElement = document.createElement("x-foo");
+        targetElement.attachShadow({ mode: "open" });
+        elementInternals.push(targetElement.attachInternals());
+    }
+
+    await garbageCollect();
+    await new Promise(r => t.step_timeout(r, 100));
+
+    const allShadowRootsAreAlive = elementInternals.every(eI => eI.shadowRoot instanceof ShadowRoot);
+    assert_true(allShadowRootsAreAlive);
+});
+</script>

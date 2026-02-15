@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<title>formDisabledCallback, and :disabled :enabled pseudo classes</title>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../html/semantics/forms/form-submission-0/resources/targetted-form.js"></script>
+<script>
+class MyControl extends HTMLElement {
+  static get formAssociated() { return true; }
+
+  constructor() {
+    super();
+    this.internals_ = this.attachInternals();
+    this.internals_.setFormValue('my-control-value');
+    this.disabledHistory_ = [];
+  }
+
+  formDisabledCallback(isDisabled) {
+    this.disabledHistory_.push(isDisabled);
+  }
+  disabledHistory() {
+    return this.disabledHistory_;
+  }
+}
+customElements.define('my-control', MyControl);
+
+test(() => {
+  const control = new MyControl();
+  assert_true(control.matches(':enabled'));
+  assert_false(control.matches(':disabled'));
+
+  control.setAttribute('disabled', '');
+  assert_false(control.matches(':enabled'));
+  assert_true(control.matches(':disabled'));
+
+  control.removeAttribute('disabled', '');
+  assert_true(control.matches(':enabled'));
+  assert_false(control.matches(':disabled'));
+
+  assert_array_equals(control.disabledHistory(), [true, false]);
+}, 'Adding/removing disabled content attribute');
+
+test(() => {
+  const container = document.createElement('fieldset');
+  container.innerHTML = '<fieldset><fieldset><my-control></my-control></fieldset></fieldset>';
+  const middleFieldset = container.firstChild;
+  const control = container.querySelector('my-control');
+
+  assert_true(control.matches(':enabled'));
+  assert_false(control.matches(':disabled'));
+
+  middleFieldset.disabled = true;
+  assert_false(control.matches(':enabled'));
+  assert_true(control.matches(':disabled'));
+
+  middleFieldset.disabled = false;
+  assert_true(control.matches(':enabled'));
+  assert_false(control.matches(':disabled'));
+
+  container.disabled = true;
+  assert_false(control.matches(':enabled'));
+  assert_true(control.matches(':disabled'));
+  control.remove();
+  assert_true(control.matches(':enabled'));
+  assert_false(control.matches(':disabled'));
+
+  middleFieldset.appendChild(control);
+  assert_false(control.matches(':enabled'));
+  assert_true(control.matches(':disabled'));
+
+  assert_array_equals(control.disabledHistory(), [true, false, true, false, true]);
+}, 'Relationship with FIELDSET');
+
+test(() => {
+  const form = document.createElement('form');
+  document.body.appendChild(form);
+  form.innerHTML = '<my-control name="n1" disabled></my-control><input name="n2">'
+  const formData = new FormData(form);
+  assert_equals(formData.get('n1'), null);
+}, 'A disabled form-associated custom element should not provide an entry for it');
+
+promise_test(async t => {
+  let form = populateForm('<my-control name=d disabled></my-control>' +
+      '<my-control name=e></my-control>');
+  let query = await submitPromise(form, form.previousSibling);
+  assert_equals(query.indexOf('d=my-control-value'), -1);
+  assert_not_equals(query.indexOf('e=my-control-value'), -1);
+}, 'A disabled form-associated custom element should not submit an entry for it');
+
+test(() => {
+  const control = new MyControl();
+  document.body.appendChild(control);
+  control.setAttribute('tabindex', '0');
+  control.setAttribute('disabled', '');
+  control.focus();
+  assert_not_equals(document.activeElement, control);
+
+  control.removeAttribute('disabled');
+  control.focus();
+  assert_equals(document.activeElement, control);
+}, 'Disabled attribute affects focus-capability');
+
+test(() => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  // inneHTML upgrades my-control at its CEReacions timing.
+  container.innerHTML = '<my-control disabled>';
+  assert_array_equals(container.firstChild.disabledHistory(), [true]);
+
+  container.innerHTML = '<fieldset disabled><my-control>';
+  assert_array_equals(container.querySelector('my-control').disabledHistory(), [true]);
+}, 'Upgrading an element with disabled content attribute');
+
+test(() => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  container.innerHTML = '<fieldset disabled><my-control></my-control></fieldset>';
+
+  const control = container.querySelector('my-control');
+  control.setAttribute('disabled', '');
+  control.removeAttribute('disabled');
+  assert_array_equals(control.disabledHistory(), [true]);
+}, 'Toggling "disabled" attribute on a custom element inside disabled <fieldset> does not trigger a callback');
+
+test(() => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  container.innerHTML = '<fieldset><my-control disabled></my-control></fieldset>';
+
+  const fieldset = container.firstElementChild;
+  fieldset.disabled = true;
+  fieldset.disabled = false;
+  assert_array_equals(container.querySelector('my-control').disabledHistory(), [true]);
+}, 'Toggling "disabled" attribute on a <fieldset> does not trigger a callback on disabled custom element descendant');
+
+test(() => {
+  const template = document.createElement('template');
+  template.innerHTML = '<my-control></my-control>';
+  const container = document.createElement('fieldset');
+  document.body.appendChild(container);
+  container.disabled = true;
+  container.appendChild(template.content.cloneNode(true));
+  assert_array_equals(container.querySelector('my-control').disabledHistory(), [true]);
+}, 'Callback triggered during a clone/append operation, with disabled state provided by ancestor');
+
+test(() => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  container.innerHTML = '<fieldset disabled><my-control></my-control></fieldset>';
+  const clone = container.cloneNode(true);
+  assert_array_equals(container.querySelector('my-control').disabledHistory(), [true]);
+}, 'Callback triggered during a clone operation, with disabled state provided by ancestor');
+</script>
+</body>

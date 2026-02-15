@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=1300587">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<form>
+  <label for=custom>label</label>
+  <my-custom-element id=custom></my-custom-element>
+</form>
+
+<form>
+  <label for=custom2><span>label</span></label>
+  <my-custom-element id=custom2></my-custom-element>
+</form>
+
+<script>
+class MyCustomElement extends HTMLElement {
+  static formAssociated = true;
+  constructor() {
+    super();
+    const root = this.attachShadow({
+      delegatesFocus: true,
+      mode: 'open'
+    });
+    root.appendChild(document.createElement('input'));
+  }
+};
+customElements.define('my-custom-element', MyCustomElement);
+
+window.onload = () => {
+  promise_test(async () => {
+    const label = document.querySelector('label');
+    const customElement = document.getElementById('custom');
+    const input = customElement.shadowRoot.querySelector('input');
+    let focused = false;
+    input.addEventListener("focus", evt => { focused = true; }, {once: true});
+    await test_driver.click(label);
+    assert_true(focused, "should have received focus");
+    assert_equals(document.activeElement, customElement);
+    assert_equals(customElement.shadowRoot.activeElement, input);
+  }, `Clicking on a label for a form associated custom element with delegatesFocus should focus the custom element's focus delegate.`);
+  promise_test(async () => {
+    const span = document.querySelector('span');
+    const customElement = document.getElementById('custom2');
+    const input = customElement.shadowRoot.querySelector('input');
+    let focused = false;
+    input.addEventListener("focus", evt => { focused = true; }, {once: true});
+    await test_driver.click(span);
+    assert_true(focused, "should have received focus");
+    assert_equals(document.activeElement, customElement);
+    assert_equals(customElement.shadowRoot.activeElement, input);
+  }, `Clicking on a span in a label for a form associated custom element with delegatesFocus should focus the custom element's focus delegate.`);
+};
+</script>

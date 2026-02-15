@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>Focusability of form-associated custom elements</title>
+<link rel="author" title="Michael[tm] Smith" href="mailto:mike@w3.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<x-foo></x-foo>
+<x-bar tabindex=0></x-bar>
+<x-baz tabindex=0 disabled></x-baz>
+<script>
+  test(() => {
+    customElements.define(
+        'x-foo',
+        class Foo extends HTMLElement {
+            static formAssociated = true;
+        }
+    );
+    const foo = document.querySelector('x-foo');
+    foo.focus();
+    assert_false(document.activeElement === foo,
+      "FACE without tabindex is not focusable.");
+    customElements.define(
+        'x-bar',
+        class bar extends HTMLElement {
+            static formAssociated = true;
+        }
+    );
+    const bar = document.querySelector('x-bar');
+    bar.focus();
+    assert_true(document.activeElement === bar,
+      "FACE with tabindex is focusable.");
+    customElements.define(
+        'x-baz',
+        class baz extends HTMLElement {
+            static formAssociated = true;
+        }
+    );
+    const baz = document.querySelector('x-baz');
+    baz.focus();
+    assert_false(document.activeElement === baz,
+      "Disabled FACE with tabindex is not focusable.");
+  });
+</script>
+</html>

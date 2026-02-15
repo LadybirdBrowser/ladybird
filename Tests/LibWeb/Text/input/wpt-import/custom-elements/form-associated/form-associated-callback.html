@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<title>formAssociatedCallback, and form IDL attribute of ElementInternals</title>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+class PreDefined extends HTMLElement {
+  static get formAssociated() { return true; }
+
+  constructor() {
+    super();
+    this.internals_ = this.attachInternals();
+    this.formHistory_ = [];
+  }
+
+  formAssociatedCallback(nullableForm) {
+    this.formHistory_.push(nullableForm);
+  }
+  formHistory() {
+    return this.formHistory_;
+  }
+
+  get form() {
+    return this.internals_.form;
+  }
+}
+customElements.define('pre-defined', PreDefined);
+</script>
+<div id="container">
+
+<fieldset id="fs1">
+<form id="form1">
+<input>
+<pre-defined id="pd1"></pre-defined>
+<select></select>
+</form>
+</fieldset>
+
+<fieldset id="fs2">
+<pre-defined id="pd2" form="form2"></pre-defined>
+<form id="form2">
+<input>
+<select></select>
+</form>
+</fieldset>
+<pre-defined id="pd3" form="form2"></pre-defined>
+
+<table>
+<fieldset id="fs3">
+<form id="form3">
+<tr><td><select></select></tr>
+<tr><td><pre-defined id="pd4"></pre-defined></tr>
+<tr><td><input></tr>
+</form>  <!-- The end tag is bogus. -->
+</fieldset>  <!-- The end tag is bogus. -->
+<table>
+
+</div>
+
+<script>
+const $ = document.querySelector.bind(document);
+
+test(() => {
+  let controls = $('#form1').elements;
+  assert_equals(controls.length, 3);
+  assert_equals(controls[1], $('#pd1'), 'form.elements');
+  assert_equals($('#pd1').form, $('#form1'));
+  assert_array_equals($('#pd1').formHistory(), [$('#form1')]);
+  assert_equals($('#fs1').elements[1], $('#pd1'), 'fieldset.elements');
+
+  controls = $('#form2').elements;
+  assert_equals(controls.length, 4);
+  assert_equals(controls[0], $('#pd2'), 'form.elements');
+  assert_equals(controls[3], $('#pd3'));
+  assert_equals($('#pd2').form, $('#form2'));
+  assert_equals($('#pd3').form, $('#form2'));
+  assert_array_equals($('#pd2').formHistory(), [$('#form2')]);
+  assert_array_equals($('#pd3').formHistory(), [$('#form2')]);
+  controls = $('#fs2').elements;
+  assert_equals(controls.length, 3);
+  assert_equals(controls[0], $('#pd2'), 'fieldset.elements');
+
+  controls = $('#form3').elements;
+  assert_equals(controls.length, 2);
+  assert_not_equals(controls[1], $('#pd4'));
+  assert_equals($('#fs3').elements.length, 0);
+}, 'Associate by parser, customized at element creation');
+
+test(() => {
+  $('#container').innerHTML = '<fieldset id="fs1"><form id="form1"><input><will-be-defined id="wbd1">' +
+      '</will-be-defined><select></select></form></fieldset>' +
+      '<fieldset id="fs2"><will-be-defined id="wbd2" form="form2"></will-be-defined>' +
+      '<form id="form2"></form></fieldset><will-be-defined id="wbd3" form="form2"></will-be-defined>';
+  let controls = $('#form1').elements;
+  assert_equals(controls.length, 2);
+  assert_not_equals(controls[1], $('#wbd1'));
+  controls = $('#fs1').elements;
+  assert_equals(controls.length, 2);
+  assert_not_equals(controls[1], $('#wbd1'));
+
+  assert_equals($('#form2').elements.length, 0);
+  assert_equals($('#fs2').elements.length, 0);
+
+  class WillBeDefined extends HTMLElement {
+    static get formAssociated() { return true; }
+
+    constructor() {
+      super();
+      this.internals_ = this.attachInternals();
+      this.formHistory_ = [];
+    }
+
+    formAssociatedCallback(nullableForm) {
+      this.formHistory_.push(nullableForm);
+    }
+    formHistory() {
+      return this.formHistory_;
+    }
+
+    get form() {
+      return this.internals_.form;
+    }
+  }
+  customElements.define('will-be-defined', WillBeDefined);
+  customElements.upgrade($('#container'));
+
+  controls = $('#form1').elements;
+  assert_equals(controls.length, 3, 'form.elements.length');
+  assert_equals(controls[1], $('#wbd1'));
+  assert_equals($('#wbd1').form, $('#form1'));
+  controls = $('#fs1').elements;
+  assert_equals(controls.length, 3, 'fieldset.elements.length');
+  assert_equals(controls[1], $('#wbd1'));
+
+  controls = $('#form2').elements;
+  assert_equals($('#wbd2').form, $('#form2'));
+  assert_equals($('#wbd3').form, $('#form2'));
+  assert_array_equals($('#wbd2').formHistory(), [$('#form2')]);
+  assert_array_equals($('#wbd3').formHistory(), [$('#form2')]);
+  assert_equals(controls.length, 2, 'form.elements.length');
+  assert_equals(controls[0], $('#wbd2'));
+  assert_equals(controls[1], $('#wbd3'));
+  controls = $('#fs2').elements;
+  assert_equals(controls.length, 1, 'fieldset.elements.length');
+  assert_equals(controls[0], $('#wbd2'));
+}, 'Parsed, connected, then upgraded');
+
+test(() => {
+  $('#container').innerHTML = '<fieldset id="fs1"><form id="form1"><input><pre-defined id="pd1">' +
+      '</pre-defined><select></select></form></fieldset>' +
+      '<fieldset id="fs2"><pre-defined id="pd2" form="form2"></pre-defined>' +
+      '<form id="form2"></form></fieldset><pre-defined id="pd3" form="form2"></pre-defined>';
+
+  const pd1 = $('#pd1');
+  assert_equals($('#form1').elements.length, 3, 'form.elements.length before removal');
+  assert_equals($('#fs1').elements.length, 3, 'fildset.elements.length before removal');
+  pd1.remove();
+  assert_equals(pd1.form, null);
+  assert_array_equals(pd1.formHistory(), [$('#form1'), null]);
+  assert_equals($('#form1').elements.length, 2, 'form.elements.length after removal');
+  assert_equals($('#fs1').elements.length, 2, 'fildset.elements.length after removal');
+
+  const pd2 = $('#pd2');
+  const pd3 = $('#pd3');
+  assert_equals($('#form2').elements.length, 2, 'form.elements.length before removal');
+  assert_equals($('#fs2').elements.length, 1, 'fieldset.elements.length before removal');
+  pd2.remove();
+  pd3.remove();
+  assert_equals(pd2.form, null);
+  assert_equals(pd3.form, null);
+  assert_array_equals(pd2.formHistory(), [$('#form2'), null]);
+  assert_array_equals(pd3.formHistory(), [$('#form2'), null]);
+  assert_equals($('#form2').elements.length, 0, 'form.elements.length after removal');
+  assert_equals($('#fs2').elements.length, 0, 'fieldset.elements.length after removal');
+}, 'Disassociation');
+
+test(() => {
+  $('#container').innerHTML = '<form id="form1"></form>' +
+      '<pre-defined id="pd1"></pre-defined><form id="form2">' +
+      '</form><form id="form3"></form>';
+  const pd1 = $('#pd1');
+  const form1 = $('#form1');
+  const form2 = $('#form2');
+  const form3 = $('#form3');
+  assert_equals(pd1.form, null);
+  assert_array_equals(pd1.formHistory(), []);
+
+  pd1.setAttribute('form', 'form1');
+  assert_equals(pd1.form, form1);
+  assert_array_equals(pd1.formHistory(), [form1]);
+
+  pd1.setAttribute('form', 'invalid');
+  assert_equals(pd1.form, null);
+  assert_array_equals(pd1.formHistory(), [form1, null]);
+
+  pd1.setAttribute('form', 'form2');
+  assert_equals(pd1.form, form2);
+  assert_array_equals(pd1.formHistory(), [form1, null, form2]);
+
+  pd1.setAttribute('form', 'form3');
+  assert_equals(pd1.form, form3);
+  assert_array_equals(pd1.formHistory(), [form1, null, form2, form3]);
+
+  $('#container').innerHTML = '';
+  assert_equals(pd1.form, null);
+  assert_array_equals(pd1.formHistory(), [form1, null, form2, form3, null]);
+}, 'Updating "form" content attribute');
+
+test(() => {
+  $('#container').innerHTML = '<form></form>' +
+      '<pre-defined id="pd1" form="target"></pre-defined>' +
+      '<form></form><form></form>';
+  const pd1 = $('#pd1');
+  const [form1, form2, form3] = document.forms;
+  assert_equals(pd1.form, null);
+  assert_array_equals(pd1.formHistory(), []);
+
+  // The form1 is the only form element with id='target'.
+  form1.setAttribute('id', 'target');
+  assert_equals(pd1.form, form1);
+  assert_array_equals(pd1.formHistory(), [form1]);
+
+  // The first form element with id='target' is still form1.
+  form3.setAttribute('id', 'target');
+  assert_equals(pd1.form, form1);
+  assert_array_equals(pd1.formHistory(), [form1]);
+
+  // The form3 is the only form element with id='target'.
+  form1.removeAttribute('id');
+  assert_equals(pd1.form, form3);
+  assert_array_equals(pd1.formHistory(), [form1, form3]);
+
+  // The first form element with id='target' is form2 now.
+  form2.setAttribute('id', 'target');
+  assert_equals(pd1.form, form2);
+  assert_array_equals(pd1.formHistory(), [form1, form3, form2]);
+
+  // The form2 is the only form element with id='target'.
+  form3.removeAttribute('id');
+  assert_equals(pd1.form, form2);
+  assert_array_equals(pd1.formHistory(), [form1, form3, form2]);
+
+  // No form element has id='target'.
+  form2.removeAttribute('id');
+  assert_equals(pd1.form, null);
+  assert_array_equals(pd1.formHistory(), [form1, form3, form2, null]);
+}, 'Updating "id" attribute of form element');
+</script>
+</body>
