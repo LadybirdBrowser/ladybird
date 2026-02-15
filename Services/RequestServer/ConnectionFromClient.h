@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
+#include <LibHTTP/Forward.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
@@ -23,20 +24,24 @@ class ConnectionFromClient final
     C_OBJECT(ConnectionFromClient);
 
 public:
+    enum class IsPrimaryConnection {
+        No,
+        Yes,
+    };
+
+    using ConnectionMap = HashMap<int, NonnullRefPtr<ConnectionFromClient>>;
+
     ~ConnectionFromClient() override;
 
     virtual void die() override;
 
-    static void set_connections(HashMap<int, NonnullRefPtr<ConnectionFromClient>>&);
-
     static Optional<ConnectionFromClient&> primary_connection();
-    void mark_as_primary_connection();
 
     void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials, Core::ProxyData proxy_data);
     void request_complete(Badge<Request>, Request const&);
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, ConnectionMap&, Optional<HTTP::DiskCache&>);
 
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
@@ -66,7 +71,10 @@ private:
     static int on_timeout_callback(void*, long timeout_ms, void* user_data);
     void check_active_requests();
 
-    static ErrorOr<IPC::File> create_client_socket();
+    ErrorOr<IPC::File> create_client_socket();
+
+    ConnectionMap& m_connections;
+    Optional<HTTP::DiskCache&> m_disk_cache;
 
     void* m_curl_multi { nullptr };
 

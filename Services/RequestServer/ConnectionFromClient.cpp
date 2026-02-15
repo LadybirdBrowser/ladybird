@@ -23,26 +23,23 @@
 
 namespace RequestServer {
 
-static HashMap<int, NonnullRefPtr<ConnectionFromClient>>* g_connections;
 static ConnectionFromClient* g_primary_connection = nullptr;
 static IDAllocator s_client_ids;
 
-Optional<HTTP::DiskCache> g_disk_cache;
-
-void ConnectionFromClient::set_connections(HashMap<int, NonnullRefPtr<ConnectionFromClient>>& connections)
-{
-    g_connections = &connections;
-}
-
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, ConnectionMap& connections, Optional<HTTP::DiskCache&> disk_cache)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
+    , m_connections(connections)
+    , m_disk_cache(disk_cache)
+    , m_curl_multi(curl_multi_init())
     , m_resolver(Resolver::default_resolver())
+    , m_alt_svc_cache_path(ByteString::formatted("{}/Ladybird/alt-svc-cache.txt", Core::StandardPaths::cache_directory()))
 {
-    g_connections->set(client_id(), *this);
+    if (is_primary_connection == IsPrimaryConnection::Yes) {
+        VERIFY(g_primary_connection == nullptr);
+        g_primary_connection = this;
+    }
 
-    m_alt_svc_cache_path = ByteString::formatted("{}/Ladybird/alt-svc-cache.txt", Core::StandardPaths::cache_directory());
-
-    m_curl_multi = curl_multi_init();
+    m_connections.set(client_id(), *this);
 
     auto set_option = [this](auto option, auto value) {
         auto result = curl_multi_setopt(m_curl_multi, option, value);
@@ -76,12 +73,6 @@ Optional<ConnectionFromClient&> ConnectionFromClient::primary_connection()
     return {};
 }
 
-void ConnectionFromClient::mark_as_primary_connection()
-{
-    VERIFY(g_primary_connection == nullptr);
-    g_primary_connection = this;
-}
-
 void ConnectionFromClient::request_complete(Badge<Request>, Request const& request)
 {
     Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id = request.request_id(), type = request.type()] {
@@ -100,10 +91,10 @@ void ConnectionFromClient::die()
         g_primary_connection = nullptr;
 
     auto client_id = this->client_id();
-    g_connections->remove(client_id);
+    m_connections.remove(client_id);
     s_client_ids.deallocate(client_id);
 
-    if (g_connections->is_empty())
+    if (m_connections.is_empty())
         Core::EventLoop::current().quit(0);
 }
 
@@ -159,16 +150,16 @@ ErrorOr<IPC::File> ConnectionFromClient::create_client_socket()
         return client_socket.release_error();
     }
 
-    // Note: A ref is stored in the g_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(client_socket.release_value())));
+    // Note: A ref is stored in the m_connections map
+    auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(client_socket.release_value()), IsPrimaryConnection::No, m_connections, m_disk_cache));
 
     return IPC::File::adopt_fd(socket_fds[1]);
 }
 
 void ConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)
 {
-    if (g_disk_cache.has_value())
-        g_disk_cache->set_maximum_disk_cache_size(disk_cache_settings.maximum_size);
+    if (m_disk_cache.has_value())
+        m_disk_cache->set_maximum_disk_cache_size(disk_cache_settings.maximum_size);
 }
 
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
@@ -219,7 +210,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
 {
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
 
-    auto request = Request::fetch(request_id, g_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data);
+    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data);
     m_active_requests.set(request_id, move(request));
 }
 
@@ -229,7 +220,7 @@ void ConnectionFromClient::start_revalidation_request(Badge<Request>, ByteString
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_revalidation_request({}, {})", request_id, url);
 
-    auto request = Request::revalidate(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data);
+    auto request = Request::revalidate(request_id, m_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data);
     m_active_revalidation_requests.set(request_id, move(request));
 }
 
@@ -346,7 +337,7 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
 
 void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, String cookie)
 {
-    if (auto connection = g_connections->get(client_id); connection.has_value()) {
+    if (auto connection = m_connections.get(client_id); connection.has_value()) {
         if (auto request = (*connection)->m_active_requests.get(request_id); request.has_value())
             (*request)->notify_retrieved_http_cookie({}, cookie);
     }
@@ -356,16 +347,16 @@ void ConnectionFromClient::estimate_cache_size_accessed_since(u64 cache_size_est
 {
     Requests::CacheSizes sizes;
 
-    if (g_disk_cache.has_value())
-        sizes = g_disk_cache->estimate_cache_size_accessed_since(since);
+    if (m_disk_cache.has_value())
+        sizes = m_disk_cache->estimate_cache_size_accessed_since(since);
 
     async_estimated_cache_size(cache_size_estimation_id, sizes);
 }
 
 void ConnectionFromClient::remove_cache_entries_accessed_since(UnixDateTime since)
 {
-    if (g_disk_cache.has_value())
-        g_disk_cache->remove_entries_accessed_since(since);
+    if (m_disk_cache.has_value())
+        m_disk_cache->remove_entries_accessed_since(since);
 }
 
 void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
