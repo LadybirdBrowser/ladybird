@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Setting property for key 9 on sessionStorage
+Pass	Setting property with toString for key 9 on sessionStorage
+Pass	Setting property for key 9 on sessionStorage with data property on prototype
+Pass	Setting property for key 9 on sessionStorage with data property on prototype and existing item
+Pass	Setting property for key 9 on sessionStorage with accessor property on prototype
+Pass	Setting property for key x on sessionStorage
+Pass	Setting property with toString for key x on sessionStorage
+Pass	Setting property for key x on sessionStorage with data property on prototype
+Pass	Setting property for key x on sessionStorage with data property on prototype and existing item
+Pass	Setting property for key x on sessionStorage with accessor property on prototype

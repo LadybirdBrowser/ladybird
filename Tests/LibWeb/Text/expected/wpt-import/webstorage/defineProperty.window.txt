@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+3 Pass
+3 Fail
+Fail	Defining data property for key 9 on sessionStorage
+Fail	Defining data property for key 9 on sessionStorage twice
+Fail	Defining data property with toString for key 9 on sessionStorage
+Pass	Defining data property for key x on sessionStorage
+Pass	Defining data property for key x on sessionStorage twice
+Pass	Defining data property with toString for key x on sessionStorage
