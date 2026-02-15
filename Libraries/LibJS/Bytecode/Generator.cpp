@@ -900,6 +900,44 @@ Generator::ReferenceOperands Generator::emit_load_from_reference(JS::ASTNode con
     VERIFY_NOT_REACHED();
 }
 
+Generator::ReferenceOperands Generator::emit_evaluate_reference(MemberExpression const& expression)
+{
+    // https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
+    if (is<SuperExpression>(expression.object())) {
+        return emit_super_reference(expression);
+    }
+
+    auto base = expression.object().generate_bytecode(*this).value();
+
+    if (expression.is_computed()) {
+        auto property = expression.property().generate_bytecode(*this).value();
+        auto saved_property = allocate_register();
+        emit<Bytecode::Op::Mov>(saved_property, property);
+        return ReferenceOperands {
+            .base = base,
+            .referenced_name = saved_property,
+            .this_value = base,
+        };
+    }
+    if (expression.property().is_identifier()) {
+        auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
+        return ReferenceOperands {
+            .base = base,
+            .referenced_identifier = property_key_table_index,
+            .this_value = base,
+        };
+    }
+    if (expression.property().is_private_identifier()) {
+        auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
+        return ReferenceOperands {
+            .base = base,
+            .referenced_private_identifier = identifier_table_ref,
+            .this_value = base,
+        };
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void Generator::emit_store_to_reference(JS::ASTNode const& node, ScopedOperand value)
 {
     if (is<Identifier>(node)) {
