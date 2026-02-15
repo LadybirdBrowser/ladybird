@@ -234,9 +234,10 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
         }
 
         // 2. If O implements an interface with a named property setter and P is a String, then:
-        if (m_legacy_platform_object_flags->has_named_property_setter && property_name.is_string()) {
+        // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
+        if (m_legacy_platform_object_flags->has_named_property_setter && (property_name.is_string() || property_name.is_number())) {
             // 1. Invoke the named property setter on O with P and V.
-            TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name.as_string().view().to_utf8_but_should_be_ported_to_utf16(), value); }));
+            TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name.to_string().to_utf8_but_should_be_ported_to_utf16(), value); }));
 
             // 2. Return true.
             return true;
@@ -280,9 +281,10 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
     }
 
     // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, P is a String, and P is not an unforgeable property name of O, then:
+    // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
     // FIXME: Check if P is not an unforgeable property name of O
-    if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && property_name.is_string()) {
-        auto const property_name_as_string = property_name.as_string().view().to_utf8_but_should_be_ported_to_utf16();
+    if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && (property_name.is_string() || property_name.is_number())) {
+        auto const property_name_as_string = property_name.to_string().to_utf8_but_should_be_ported_to_utf16();
 
         // 1. Let creating be true if P is not a supported property name, and false otherwise.
         bool creating = !is_supported_property_name(property_name_as_string);
@@ -429,8 +431,9 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     }
 
     // 4. For each P of O’s own property keys that is a String, in ascending chronological order of property creation, append P to keys.
+    // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
     for (auto& it : shape().property_table()) {
-        if (it.key.is_string())
+        if (it.key.is_string() || it.key.is_number())
             keys.append(it.key.to_value(vm));
     }
 
