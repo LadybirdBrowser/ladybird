@@ -1,0 +1,14 @@
+<!doctype html>
+<style>
+    #foo {
+        filter: blur(calc(-10px));
+    }
+</style>
+<div id="foo"></div>
+<pre id="out"></pre>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(foo).filter);
+    });
+</script>

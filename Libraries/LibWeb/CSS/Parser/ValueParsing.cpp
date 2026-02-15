@@ -4776,6 +4776,9 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 if (function.name.is_one_of_ignoring_ascii_case("brightness"sv, "contrast"sv, "saturate"sv)) {
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, NumericLimits<float>::max() } } } };
                 }
+                if (function.name.equals_ignoring_ascii_case("blur"sv)) {
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
+                }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
             },
