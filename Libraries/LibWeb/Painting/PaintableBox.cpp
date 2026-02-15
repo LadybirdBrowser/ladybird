@@ -1267,7 +1267,7 @@ void PaintableBox::resolve_paint_properties()
         for (auto const& filter_operation : computed_filter.filters()) {
             filter_operation.visit(
                 [&](CSS::FilterOperation::Blur const& blur) {
-                    auto resolved_radius = blur.resolved_radius(layout_node_with_style_and_box_metrics());
+                    auto resolved_radius = blur.resolved_radius();
                     result.operations.empend(ResolvedCSSFilter::Blur {
                         .radius = CSSPixels::nearest_value_for(resolved_radius),
                     });
