@@ -76,7 +76,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
     return true;
 }
 
-// https://webidl.spec.whatwg.org/#PlatformObjectGetOwnProperty
+// https://webidl.spec.whatwg.org/#LegacyPlatformObjectGetOwnProperty
 JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_platform_object_get_own_property(JS::PropertyKey const& property_name, IgnoreNamedProps ignore_named_props) const
 {
     // 1. If O supports indexed properties and P is an array index, then:
