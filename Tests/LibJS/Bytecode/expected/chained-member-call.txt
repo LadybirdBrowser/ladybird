@@ -1,0 +1,45 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Jump target:@48
+[  10]    1: Catch dst:reg5
+[  18]       SetLexicalEnvironment environment:reg4
+[  20]       Mov dst:reg6, src:Undefined
+[  30]       Mov dst:reg7, src:reg6
+[  40]    2: Jump target:@f8
+[  48]    3: Mov dst:reg5, src:Undefined
+[  58]       GetGlobal dst:reg8, identifier:chained_computed_call
+[  68]       Call dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
+[  98]       Mov dst:reg5, src:reg6
+[  a8]       Mov dst:reg6, src:reg5
+[  b8]       Jump target:@40
+[  c0]    4: Catch dst:reg5
+[  c8]       SetLexicalEnvironment environment:reg4
+[  d0]       Mov dst:reg7, src:Undefined
+[  e0]       Mov dst:reg8, src:reg7
+[  f0]    5: End value:reg7
+[  f8]    6: Mov dst:reg5, src:Undefined
+[ 108]       GetGlobal dst:reg9, identifier:chained_dot_call
+[ 118]       Call dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
+[ 140]       Mov dst:reg5, src:reg7
+[ 150]       Mov dst:reg7, src:reg5
+[ 160]       End value:reg7
+
+Exception handlers:
+    from   48 to   c0 handler   10
+    from   f8 to  168 handler   c0
+
+JS bytecode executable "chained_computed_call"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetByValue dst:reg6, base:arg0, property:arg1, base_identifier:a
+[  20]       GetByValue dst:reg7, base:reg6, property:arg2, base_identifier:a[j]
+[  38]       GetById dst:reg6, base:reg7, property:foo, base_identifier:a[j][k]
+[  50]       Call dst:reg5, callee:reg6, this_value:reg7, a[j][k].foo
+[  70]       Return value:reg5
+
+JS bytecode executable "chained_dot_call"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetById dst:reg6, base:arg0, property:b, base_identifier:a
+[  20]       GetById dst:reg7, base:reg6, property:c, base_identifier:a.b
+[  38]       GetById dst:reg6, base:reg7, property:bar, base_identifier:a.b.c
+[  50]       Call dst:reg5, callee:reg6, this_value:reg7, a.b.c.bar
+[  70]       Return value:reg5

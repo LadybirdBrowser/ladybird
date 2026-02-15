@@ -151,17 +151,38 @@ ThrowCompletionOr<void> UsingDeclaration::for_each_bound_identifier(ThrowComplet
     return {};
 }
 
+static Utf16String expression_to_string_approximation(Expression const& expression)
+{
+    if (is<Identifier>(expression))
+        return as<Identifier>(expression).string().to_utf16_string();
+
+    if (is<MemberExpression>(expression)) {
+        auto const& member = as<MemberExpression>(expression);
+        auto object_string = expression_to_string_approximation(member.object());
+        if (member.is_computed()) {
+            auto property_string = expression_to_string_approximation(member.property());
+            return Utf16String::formatted("{}[{}]", object_string, property_string);
+        }
+        if (is<PrivateIdentifier>(member.property()))
+            return Utf16String::formatted("{}.{}", object_string, as<PrivateIdentifier>(member.property()).string());
+        return Utf16String::formatted("{}.{}", object_string, as<Identifier>(member.property()).string());
+    }
+
+    if (is<StringLiteral>(expression))
+        return Utf16String::formatted("'{}'", as<StringLiteral>(expression).value());
+
+    if (is<NumericLiteral>(expression))
+        return Utf16String::formatted("{}", as<NumericLiteral>(expression).value().as_double());
+
+    if (is<ThisExpression>(expression))
+        return "this"_utf16;
+
+    return "<object>"_utf16;
+}
+
 Utf16String MemberExpression::to_string_approximation() const
 {
-    Utf16View object_string = "<object>"sv;
-    if (is<Identifier>(*m_object))
-        object_string = static_cast<Identifier const&>(*m_object).string().view();
-
-    if (is_computed())
-        return Utf16String::formatted("{}[<computed>]", object_string);
-    if (is<PrivateIdentifier>(*m_property))
-        return Utf16String::formatted("{}.{}", object_string, as<PrivateIdentifier>(*m_property).string());
-    return Utf16String::formatted("{}.{}", object_string, as<Identifier>(*m_property).string());
+    return expression_to_string_approximation(*this);
 }
 
 bool MemberExpression::ends_in_private_name() const

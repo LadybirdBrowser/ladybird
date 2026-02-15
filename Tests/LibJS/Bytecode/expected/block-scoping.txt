@@ -33,10 +33,10 @@ JS bytecode executable "closureOverBlockScope"
 [ 160]       SetLexicalEnvironment environment:reg4
 [ 168]       GetByValue dst:reg6, base:fns~0, property:Int32(0)
 [ 180]       Mov dst:reg7, src:fns~0
-[ 190]       Call dst:reg5, callee:reg6, this_value:reg7, fns[<computed>]
+[ 190]       Call dst:reg5, callee:reg6, this_value:reg7, fns[0]
 [ 1b0]       GetByValue dst:reg7, base:fns~0, property:Int32(1)
 [ 1c8]       Mov dst:reg8, src:fns~0
-[ 1d8]       Call dst:reg6, callee:reg7, this_value:reg8, fns[<computed>]
+[ 1d8]       Call dst:reg6, callee:reg7, this_value:reg8, fns[1]
 [ 1f8]       Add dst:reg7, lhs:reg5, rhs:reg6
 [ 208]       Return value:reg7
 
