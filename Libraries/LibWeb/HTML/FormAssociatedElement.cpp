@@ -483,6 +483,11 @@ bool FormAssociatedElement::is_candidate_for_constraint_validation() const
             return false;
     }
 
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts:barred-from-constraint-validation-2
+    // If the readonly attribute is specified on a form-associated custom element, the element is barred from constraint validation.
+    if (html_element.is_form_associated_custom_element() && html_element.has_attribute(HTML::AttributeNames::readonly))
+        return false;
+
     return true;
 }
 
