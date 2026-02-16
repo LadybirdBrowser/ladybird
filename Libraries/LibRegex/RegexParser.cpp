@@ -112,6 +112,7 @@ ALWAYS_INLINE Optional<u32> Parser::consume_escaped_code_point(bool unicode)
     }
 
     m_parser_state.lexer.retreat(2 + !done()); // Go back to just before '\u' (+1 char, because we will have consumed an extra character)
+    auto position_before_escape = m_parser_state.lexer.tell();
 
     if (auto code_point_or_error = m_parser_state.lexer.consume_escaped_code_point(unicode); !code_point_or_error.is_error()) {
         m_parser_state.current_token = m_parser_state.lexer.next();
@@ -120,6 +121,8 @@ ALWAYS_INLINE Optional<u32> Parser::consume_escaped_code_point(bool unicode)
 
     if (!unicode) {
         // '\u' is allowed in non-unicode mode, just matches 'u'.
+        m_parser_state.lexer.retreat(m_parser_state.lexer.tell() - (position_before_escape + 2));
+        m_parser_state.current_token = m_parser_state.lexer.next();
         return static_cast<u32>('u');
     }
 
@@ -1245,8 +1248,11 @@ StringView ECMA262Parser::read_digits_as_string(ReadDigitsInitialZeroState initi
         ++count;
     }
 
-    if (count < min_count)
+    if (count < min_count) {
+        if (offset > 0)
+            back(offset + (done() ? 0 : 1));
         return {};
+    }
 
     return StringView { start_token.value().characters_without_null_termination(), offset };
 }

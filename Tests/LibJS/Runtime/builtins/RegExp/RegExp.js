@@ -566,3 +566,34 @@ test("surrogate pairs", () => {
     expect(eval(`/[\\uD83D\uDC38]/`).exec("\u{1F438}")?.[0]).toBe("\uD83D");
     expect(eval(`/[\uD83D\\uDC38]/`).exec("\u{1F438}")?.[0]).toBe("\uD83D");
 });
+
+test("incomplete \\u and \\x escapes", () => {
+    expect("u".match(/^\u$/)).toEqual(["u"]);
+    expect("\\u\u0000".match(/[\u]+/)).toEqual(["u"]);
+    expect("\\uy\u0000".match(/[\uy]+/)).toEqual(["uy"]);
+    expect("\\u0\u0000".match(/[\u0]+/)).toEqual(["u0"]);
+    expect("\\u0\u0000".match(/[\u00]+/)).toEqual(["u0"]);
+    expect("\\u0\u0000".match(/[\u000]+/)).toEqual(["u0"]);
+    expect("\\u0y\u0000".match(/[\u0y]+/)).toEqual(["u0y"]);
+    expect("\\u0y\u0000".match(/[\u00y]+/)).toEqual(["u0y"]);
+    expect("\\u0y\u0000".match(/[\u000y]+/)).toEqual(["u0y"]);
+
+    expect("uy".match(/^\uy$/)).toEqual(["uy"]);
+    expect("u0".match(/^\u0$/)).toEqual(["u0"]);
+    expect("u00".match(/^\u00$/)).toEqual(["u00"]);
+    expect("u000".match(/^\u000$/)).toEqual(["u000"]);
+    expect("u0y".match(/^\u0y$/)).toEqual(["u0y"]);
+    expect("u00y".match(/^\u00y$/)).toEqual(["u00y"]);
+    expect("u000y".match(/^\u000y$/)).toEqual(["u000y"]);
+
+    expect("x".match(/^\x$/)).toEqual(["x"]);
+    expect("xy".match(/^\xy$/)).toEqual(["xy"]);
+    expect("x0".match(/^\x0$/)).toEqual(["x0"]);
+    expect("x0y".match(/^\x0y$/)).toEqual(["x0y"]);
+    expect("\\x\u0000".match(/[\x]+/)).toEqual(["x"]);
+    expect("\\xy\u0000".match(/[\xy]+/)).toEqual(["xy"]);
+    expect("\\x0\u0000".match(/[\x0]+/)).toEqual(["x0"]);
+    expect("\\x0y\u0000".match(/[\x0y]+/)).toEqual(["x0y"]);
+    expect("\\x\u0000".match(/[\x00]+/)).toEqual(["\u0000"]);
+    expect("0\u0000".match(/[\x000]+/)).toEqual(["0\u0000"]);
+});
