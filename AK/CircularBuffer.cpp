@@ -7,6 +7,7 @@
 #include <AK/CircularBuffer.h>
 #include <AK/MemMem.h>
 #include <AK/Stream.h>
+#include <AK/Vector.h>
 
 namespace AK {
 
