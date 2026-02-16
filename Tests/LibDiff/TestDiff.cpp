@@ -5,6 +5,7 @@
  */
 
 #include <AK/MemoryStream.h>
+#include <AK/NonnullOwnPtr.h>
 #include <LibDiff/Format.h>
 #include <LibDiff/Generator.h>
 #include <LibTest/TestCase.h>
