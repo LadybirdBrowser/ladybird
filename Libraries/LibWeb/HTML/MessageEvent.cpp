@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +11,7 @@
 #include <LibWeb/Bindings/MessageEventPrototype.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/WindowProxy.h>
 
 namespace Web::HTML {
 
@@ -25,12 +27,20 @@ WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(JS::Real
     return create(realm, event_name, event_init);
 }
 
+MessageEvent::MessageEventSourceInternal MessageEvent::to_message_event_source_internal(Optional<MessageEventSource> const& source)
+{
+    if (!source.has_value())
+        return Empty {};
+
+    return source->visit([](auto const& root) -> MessageEventSourceInternal { return GC::Ref { *root }; });
+}
+
 MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_data(event_init.data)
     , m_origin(event_init.origin)
     , m_last_event_id(event_init.last_event_id)
-    , m_source(event_init.source)
+    , m_source(to_message_event_source_internal(event_init.source))
 {
     m_ports.ensure_capacity(event_init.ports.size());
     for (auto const& port : event_init.ports) {
@@ -53,14 +63,16 @@ void MessageEvent::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_data);
     visitor.visit(m_ports_array);
     visitor.visit(m_ports);
+    m_source.visit(
+        [](Empty) {},
+        [&](auto const& ref) { visitor.visit(ref); });
 }
 
-Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>, Empty> MessageEvent::source() const
+MessageEvent::SourceResult MessageEvent::source() const
 {
-    if (!m_source.has_value())
-        return Empty {};
-
-    return m_source.value().downcast<GC::Root<WindowProxy>, GC::Root<MessagePort>>();
+    return m_source.visit(
+        [](Empty) -> SourceResult { return Empty {}; },
+        [](auto const& ref) -> SourceResult { return GC::Root { *ref }; });
 }
 
 GC::Ref<JS::Object> MessageEvent::ports() const
@@ -93,7 +105,7 @@ void MessageEvent::init_message_event(String const& type, bool bubbles, bool can
     m_data = data;
     m_origin = origin;
     m_last_event_id = last_event_id;
-    m_source = source;
+    m_source = to_message_event_source_internal(source);
 
     m_ports_array = nullptr;
     m_ports.clear();
