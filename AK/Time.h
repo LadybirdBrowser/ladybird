@@ -8,7 +8,6 @@
 
 #include <AK/Array.h>
 #include <AK/Assertions.h>
-#include <AK/Badge.h>
 #include <AK/Checked.h>
 #include <AK/Platform.h>
 #include <AK/String.h>
