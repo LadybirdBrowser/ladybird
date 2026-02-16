@@ -6,7 +6,6 @@
 
 #include <AK/Base64.h>
 #include <AK/Types.h>
-#include <AK/Vector.h>
 
 #include <simdutf.h>
 
