@@ -1273,11 +1273,8 @@ void PaintableBox::resolve_paint_properties()
                     });
                 },
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
-                    CSS::CalculationResolutionContext resolution_context {
-                        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node_with_style_and_box_metrics()),
-                    };
-                    auto to_css_px = [&](CSS::LengthOrCalculated const& length) {
-                        return CSSPixels::nearest_value_for(length.resolved(resolution_context).map([&](auto&& it) { return it.to_px(layout_node_with_style_and_box_metrics()).to_double(); }).value_or(0.0));
+                    auto to_css_px = [&](NonnullRefPtr<CSS::StyleValue const> const& length) {
+                        return CSS::Length::from_style_value(length, {}).absolute_length_to_px();
                     };
                     auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node_with_style_and_box_metrics());
                     auto resolved_color = drop_shadow.color
@@ -1287,7 +1284,7 @@ void PaintableBox::resolve_paint_properties()
                     result.operations.empend(ResolvedCSSFilter::DropShadow {
                         .offset_x = to_css_px(drop_shadow.offset_x),
                         .offset_y = to_css_px(drop_shadow.offset_y),
-                        .radius = drop_shadow.radius.has_value() ? to_css_px(*drop_shadow.radius) : CSSPixels(0),
+                        .radius = drop_shadow.radius ? to_css_px(*drop_shadow.radius) : CSSPixels(0),
                         .color = resolved_color,
                     });
                 },

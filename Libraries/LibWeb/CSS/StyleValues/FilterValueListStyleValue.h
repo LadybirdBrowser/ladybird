@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibGfx/Filter.h>
-#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -24,10 +23,11 @@ struct Blur {
     bool operator==(Blur const&) const = default;
 };
 
+// FIXME: It would be nice if we could use a ShadowStyleValue here
 struct DropShadow {
-    LengthOrCalculated offset_x;
-    LengthOrCalculated offset_y;
-    Optional<LengthOrCalculated> radius;
+    ValueComparingNonnullRefPtr<StyleValue const> offset_x;
+    ValueComparingNonnullRefPtr<StyleValue const> offset_y;
+    ValueComparingRefPtr<StyleValue const> radius;
     ValueComparingRefPtr<StyleValue const> color;
     bool operator==(DropShadow const&) const = default;
 };

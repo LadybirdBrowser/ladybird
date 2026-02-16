@@ -1257,18 +1257,12 @@ void CanvasRenderingContext2D::set_filter(String filter)
                         : new_filter;
                 },
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
-                    auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(*layout_node);
-                    CSS::CalculationResolutionContext calculation_context {
-                        .length_resolution_context = resolution_context,
-                    };
-                    auto zero_px = CSS::Length::make_px(0);
-
-                    float offset_x = static_cast<float>(drop_shadow.offset_x.resolved(calculation_context).value_or(zero_px).to_px(resolution_context));
-                    float offset_y = static_cast<float>(drop_shadow.offset_y.resolved(calculation_context).value_or(zero_px).to_px(resolution_context));
+                    float offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x, {}).absolute_length_to_px());
+                    float offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y, {}).absolute_length_to_px());
 
                     float radius = 0.0f;
-                    if (drop_shadow.radius.has_value()) {
-                        radius = static_cast<float>(drop_shadow.radius->resolved(calculation_context).value_or(zero_px).to_px(resolution_context));
+                    if (drop_shadow.radius) {
+                        radius = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius, {}).absolute_length_to_px());
                     };
 
                     auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(*layout_node);

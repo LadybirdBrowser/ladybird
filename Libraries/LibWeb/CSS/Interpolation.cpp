@@ -202,9 +202,9 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
                 return ShadowStyleValue::create(
                     ShadowStyleValue::ShadowType::Normal,
                     drop_shadow.color,
-                    drop_shadow.offset_x.as_style_value(),
-                    drop_shadow.offset_y.as_style_value(),
-                    drop_shadow.radius.has_value() ? drop_shadow.radius->as_style_value() : LengthStyleValue::create(Length::make_px(0)),
+                    drop_shadow.offset_x,
+                    drop_shadow.offset_y,
+                    drop_shadow.radius,
                     LengthStyleValue::create(Length::make_px(0)),
                     ShadowPlacement::Outer);
             };
@@ -220,21 +220,16 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
 
             auto const& result_shadow = result->as_value_list().value_at(0, false)->as_shadow();
 
-            auto to_length_or_calculated = [](StyleValue const& style_value) -> LengthOrCalculated {
-                if (style_value.is_length())
-                    return LengthOrCalculated { style_value.as_length().length() };
-                return LengthOrCalculated { style_value.as_calculated() };
-            };
-
-            Optional<LengthOrCalculated> result_radius;
-            auto radius_has_value = delta >= 0.5f ? to_value.radius.has_value() : from_value.radius.has_value();
+            RefPtr<StyleValue const> result_radius;
+            auto radius_has_value = delta >= 0.5f ? to_value.radius : from_value.radius;
             if (radius_has_value)
-                result_radius = to_length_or_calculated(result_shadow.blur_radius());
+                result_radius = result_shadow.blur_radius();
 
             return FilterOperation::DropShadow {
-                .offset_x = to_length_or_calculated(result_shadow.offset_x()),
-                .offset_y = to_length_or_calculated(result_shadow.offset_y()),
+                .offset_x = result_shadow.offset_x(),
+                .offset_y = result_shadow.offset_y(),
                 .radius = result_radius,
+                // FIXME: We shouldn't apply the default color here
                 .color = result_shadow.color()
             };
         },
@@ -260,9 +255,9 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
         return value.visit([&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) }; },
             [&](FilterOperation::DropShadow const&) -> FilterValue {
                 return FilterOperation::DropShadow {
-                    .offset_x = Length::make_px(0),
-                    .offset_y = Length::make_px(0),
-                    .radius = Length::make_px(0),
+                    .offset_x = LengthStyleValue::create(Length::make_px(0)),
+                    .offset_y = LengthStyleValue::create(Length::make_px(0)),
+                    .radius = LengthStyleValue::create(Length::make_px(0)),
                     .color = ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy)
                 };
             },
@@ -2131,9 +2126,9 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
             [&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) }; },
             [&](FilterOperation::DropShadow const&) -> FilterValue {
                 return FilterOperation::DropShadow {
-                    .offset_x = Length::make_px(0),
-                    .offset_y = Length::make_px(0),
-                    .radius = Length::make_px(0),
+                    .offset_x = LengthStyleValue::create(Length::make_px(0)),
+                    .offset_y = LengthStyleValue::create(Length::make_px(0)),
+                    .radius = LengthStyleValue::create(Length::make_px(0)),
                     .color = nullptr
                 };
             },
@@ -2215,25 +2210,20 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                     return {};
                 auto const& animated_shadow = animated.get<FilterOperation::DropShadow>();
 
-                auto add_lengths = [](LengthOrCalculated const& a, LengthOrCalculated const& b) -> Optional<LengthOrCalculated> {
-                    if (a.is_calculated() || b.is_calculated())
-                        return {};
-                    return LengthOrCalculated { Length::make_px(a.value().raw_value() + b.value().raw_value()) };
+                auto add_lengths = [](NonnullRefPtr<StyleValue const> const& a, NonnullRefPtr<StyleValue const> const& b) -> NonnullRefPtr<StyleValue const> {
+                    auto a_value = Length::from_style_value(a, {}).absolute_length_to_px_without_rounding();
+                    auto b_value = Length::from_style_value(b, {}).absolute_length_to_px_without_rounding();
+
+                    return LengthStyleValue::create(Length::make_px(a_value + b_value));
                 };
 
                 auto offset_x = add_lengths(underlying_shadow.offset_x, animated_shadow.offset_x);
                 auto offset_y = add_lengths(underlying_shadow.offset_y, animated_shadow.offset_y);
-                if (!offset_x.has_value() || !offset_y.has_value())
-                    return {};
-
-                Optional<LengthOrCalculated> accumulated_radius;
-                if (underlying_shadow.radius.has_value() || animated_shadow.radius.has_value()) {
-                    auto underlying_radius = underlying_shadow.radius.value_or(LengthOrCalculated { Length::make_px(0) });
-                    auto animated_radius = animated_shadow.radius.value_or(LengthOrCalculated { Length::make_px(0) });
-                    auto sum = add_lengths(underlying_radius, animated_radius);
-                    if (!sum.has_value())
-                        return {};
-                    accumulated_radius = sum.release_value();
+                RefPtr<StyleValue const> accumulated_radius;
+                if (underlying_shadow.radius || animated_shadow.radius) {
+                    auto underlying_radius = underlying_shadow.radius ? Length::from_style_value(*underlying_shadow.radius, {}).absolute_length_to_px_without_rounding() : 0;
+                    auto animated_radius = animated_shadow.radius ? Length::from_style_value(*animated_shadow.radius, {}).absolute_length_to_px_without_rounding() : 0;
+                    accumulated_radius = LengthStyleValue::create(Length::make_px(underlying_radius + animated_radius));
                 }
 
                 RefPtr<StyleValue const> accumulated_color = animated_shadow.color;
@@ -2252,8 +2242,8 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                 }
 
                 return FilterOperation::DropShadow {
-                    .offset_x = offset_x.release_value(),
-                    .offset_y = offset_y.release_value(),
+                    .offset_x = offset_x,
+                    .offset_y = offset_y,
                     .radius = accumulated_radius,
                     .color = accumulated_color
                 };
