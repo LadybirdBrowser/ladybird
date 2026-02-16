@@ -12,7 +12,6 @@
 #include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/Optional.h>
-#include <AK/RefCounted.h>
 #include <AK/Span.h>
 #include <AK/StringBase.h>
 #include <AK/StringBuilder.h>

@@ -7,7 +7,6 @@
 
 #include <AK/Array.h>
 #include <AK/Checked.h>
-#include <AK/Endian.h>
 #include <AK/Enumerate.h>
 #include <AK/FlyString.h>
 #include <AK/Format.h>
