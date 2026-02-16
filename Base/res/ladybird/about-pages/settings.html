@@ -145,6 +145,7 @@
                 font-size: 14px;
             }
 
+            input[type="number"],
             input[type="text"],
             input[type="url"],
             select {
@@ -154,11 +155,13 @@
                 border: 1px solid var(--border-color);
             }
 
+            input[type="number"].success,
             input[type="text"].success,
             input[type="url"].success {
                 border: 1px solid green;
             }
 
+            input[type="number"].error,
             input[type="text"].error,
             input[type="url"].error {
                 border: 1px solid red;
@@ -390,7 +393,7 @@
             <div class="card-body">
                 <div class="card-group inline-container">
                     <span>Browsing Data</span>
-                    <button id="clear-browsing-data" class="secondary-button">Clear...</button>
+                    <button id="browsing-data-settings" class="secondary-button">Settings...</button>
                 </div>
 
                 <hr />
@@ -518,17 +521,34 @@
             </div>
         </dialog>
 
-        <dialog id="clear-browsing-data-dialog">
+        <dialog id="browsing-data-settings-dialog">
             <div class="dialog-header">
-                <h3 id="clear-browsing-data-title" class="dialog-title">Clear Browsing Data</h3>
-                <button id="clear-browsing-data-close" class="close-button dialog-button">&times;</button>
+                <h3 class="dialog-title">Browsing Data Settings</h3>
+                <button id="browsing-data-settings-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body">
-                <p id="clear-browsing-data-total-size" class="description"></p>
+                <p id="browsing-data-total-size" class="description"></p>
                 <hr />
 
                 <div class="input-field-container">
-                    <p>From:</p>
+                    <label for="browsing-data-settings-max-disk-cache-size">
+                        Maximum&nbsp;disk&nbsp;cache&nbsp;size:
+                    </label>
+                    <input id="browsing-data-settings-max-disk-cache-size" type="number" min="1" />
+                    <select id="browsing-data-settings-max-disk-cache-unit">
+                        <option value="MiB">MiB</option>
+                        <option value="GiB">GiB</option>
+                    </select>
+                </div>
+                <p class="description" style="margin-top: 10px">
+                    Limit the amount of space used for the HTTP disk cache. This may be further limited by the browser,
+                    depending on the amount of disk space available.
+                </p>
+
+                <hr />
+
+                <div class="input-field-container">
+                    <p>Remove&nbsp;browsing&nbsp;data&nbsp;from:</p>
                     <select id="clear-browsing-data-time-range">
                         <option value="lastHour">Last hour</option>
                         <option value="last4Hours">Last 4 hours</option>
@@ -536,7 +556,6 @@
                         <option value="all" selected>All time</option>
                     </select>
                 </div>
-
                 <div class="input-field-container">
                     <input id="clear-browsing-data-cached-files" type="checkbox" value="" checked />
                     <label for="clear-browsing-data-cached-files">
@@ -551,9 +570,9 @@
                         <p class="description">Remove items that may sign you out of most sites</p>
                     </label>
                 </div>
-            </div>
-            <div class="dialog-footer">
-                <button id="clear-browsing-data-remove-data" class="secondary-button">Remove Data</button>
+                <div class="button-container">
+                    <button id="clear-browsing-data-remove-data" class="secondary-button">Remove Data</button>
+                </div>
             </div>
         </dialog>
 
@@ -585,8 +604,7 @@
                 ladybird.sendMessage("restoreDefaultSettings");
             });
 
-            // FIXME: This should be replaced once we support popover light dismissal.
-            document.querySelectorAll("dialog").forEach(dialog =>
+            document.querySelectorAll("dialog").forEach(dialog => {
                 dialog.addEventListener("click", event => {
                     const rect = dialog.getBoundingClientRect();
 
@@ -598,8 +616,14 @@
                     ) {
                         dialog.close();
                     }
-                })
-            );
+                });
+
+                dialog.addEventListener("keydown", event => {
+                    if (event.key === "Escape") {
+                        dialog.close();
+                    }
+                });
+            });
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadCurrentSettings");
