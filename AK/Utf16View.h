@@ -11,7 +11,6 @@
 #include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/IterationDecision.h>
-#include <AK/MemMem.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/String.h>
