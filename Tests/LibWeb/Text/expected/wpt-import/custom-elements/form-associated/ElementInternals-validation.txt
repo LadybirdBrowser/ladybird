@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 14 tests
 
-6 Pass
-8 Fail
-Fail	willValidate
-Fail	willValidate after upgrade
+8 Pass
+6 Fail
+Pass	willValidate
+Pass	willValidate after upgrade
 Pass	willValidate after upgrade (document.createElement)
 Pass	willValidate should throw NotSupportedError if the target element is not a form-associated custom element
 Fail	validity and setValidity()

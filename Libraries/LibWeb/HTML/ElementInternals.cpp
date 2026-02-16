@@ -132,8 +132,7 @@ WebIDL::ExceptionOr<bool> ElementInternals::will_validate() const
     if (!m_target_element->is_form_associated_custom_element())
         return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
-    dbgln("FIXME: ElementInternals::will_validate()");
-    return true;
+    return m_target_element->is_candidate_for_constraint_validation();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-elementinternals-validity
