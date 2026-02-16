@@ -6,7 +6,6 @@
  */
 
 #include <AK/Assertions.h>
-#include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/Utf8View.h>
 
