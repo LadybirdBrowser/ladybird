@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div style="font-size:20px">
+    super<span style="user-select:none">califragilistic</span>expialidocious
+</div>
+<script>
+    test(() => {
+        internals.click(80, 20, 2);
+        println(`double-click selected: "${window.getSelection()}"`);
+
+        internals.click(80, 20, 3);
+        println(`triple-click selected: "${window.getSelection()}"`);
+    });
+</script>

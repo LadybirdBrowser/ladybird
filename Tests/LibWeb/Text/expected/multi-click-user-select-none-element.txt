@@ -1,0 +1,2 @@
+double-click selected: ""
+triple-click selected: ""
