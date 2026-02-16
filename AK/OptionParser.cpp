@@ -5,6 +5,7 @@
  */
 
 #include <AK/OptionParser.h>
+#include <AK/Vector.h>
 
 namespace AK {
 
