@@ -7,6 +7,7 @@
 #include <AK/Assertions.h>
 #include <AK/NumberFormat.h>
 #include <AK/NumericLimits.h>
+#include <AK/Time.h>
 
 namespace AK {
 

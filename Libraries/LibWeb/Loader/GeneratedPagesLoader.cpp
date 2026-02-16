@@ -7,6 +7,7 @@
 #include <AK/NumberFormat.h>
 #include <AK/QuickSort.h>
 #include <AK/SourceGenerator.h>
+#include <AK/Time.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
