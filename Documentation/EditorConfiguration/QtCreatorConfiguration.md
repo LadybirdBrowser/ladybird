@@ -24,6 +24,7 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
     ./
     Libraries/
     Services/
+    Build/release/Lagom/
     Build/release/Lagom/Libraries/
     Build/release/Lagom/Services/
     Build/release/vcpkg_installed/x64-linux/include/skia/
