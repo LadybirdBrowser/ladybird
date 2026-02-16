@@ -191,10 +191,8 @@ WebIDL::ExceptionOr<bool> ElementInternals::report_validity() const
     if (!element->is_form_associated_custom_element())
         return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
-    // FIXME: 3. Run the report validity steps on element.
-
-    dbgln("FIXME: ElementInternals::report_validity()");
-    return true;
+    // 3. Run the report validity steps on element.
+    return element->report_validity_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-elementinternals-labels
