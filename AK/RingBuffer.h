@@ -8,6 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/Concepts.h>
+#include <AK/CpuBackoff.h>
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
 #include <AK/StdLibExtraDetails.h>
@@ -72,7 +73,7 @@ public:
                     return true;
                 }
                 // The head was updated by another thread, try again
-                atomic_pause();
+                cpu_pause();
             } else if (diff < 0) {
                 // Buffer full
                 return false;
