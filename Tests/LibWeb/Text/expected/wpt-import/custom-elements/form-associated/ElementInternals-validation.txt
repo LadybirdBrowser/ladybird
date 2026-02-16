@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 14 tests
 
-12 Pass
-2 Fail
+14 Pass
 Pass	willValidate
 Pass	willValidate after upgrade
 Pass	willValidate after upgrade (document.createElement)
 Pass	willValidate should throw NotSupportedError if the target element is not a form-associated custom element
-Fail	validity and setValidity()
-Fail	validity.customError should be false if not explicitly set via setValidity()
+Pass	validity and setValidity()
+Pass	validity.customError should be false if not explicitly set via setValidity()
 Pass	"anchor" argument of setValidity()
 Pass	"anchor" argument of setValidity(): passing self
 Pass	checkValidity() should throw NotSupportedError if the target element is not a form-associated custom element

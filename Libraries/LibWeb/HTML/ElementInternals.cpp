@@ -164,10 +164,8 @@ WebIDL::ExceptionOr<String> ElementInternals::validation_message() const
     if (!element->is_form_associated_custom_element())
         return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
-    // FIXME: 3. Return element's validation message.
-
-    dbgln("FIXME: ElementInternals::validation_message()");
-    return "FIXME: ElementInternals::validation_message()"_string;
+    // 3. Return element's validation message.
+    return element->face_validation_message();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-elementinternals-checkvalidity
