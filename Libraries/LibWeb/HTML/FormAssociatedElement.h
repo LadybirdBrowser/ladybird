@@ -269,7 +269,7 @@ private:
 
     void collapse_selection_to_offset(size_t);
     void scroll_cursor_into_view();
-    void selection_was_changed();
+    void selection_was_changed(SelectionSource);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection
     WebIDL::UnsignedLong m_selection_start { 0 };

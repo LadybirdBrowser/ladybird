@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    textarea {
+        font-size: 16px;
+        width: 100px;
+        height: 1.5em;
+        padding: 2px;
+        border: 1px solid;
+        resize: none;
+        white-space: nowrap;
+    }
+    div[contenteditable] {
+        font-size: 16px;
+        width: 100px;
+        height: 1.5em;
+        overflow: auto;
+        white-space: nowrap;
+    }
+</style>
+<textarea>foobarbazloremipsum foobarbazloremipsum</textarea>
+<div contenteditable>foobarbazloremipsum foobarbazloremipsum</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const textarea = document.querySelector("textarea");
+    const div = document.querySelector("div[contenteditable]");
+    textarea.offsetWidth;
+
+    textarea.focus();
+    internals.sendKey(textarea, "End");
+    println(`textarea scrollLeft: ${textarea.scrollLeft}`);
+
+    div.focus();
+    internals.sendKey(div, "End");
+    println(`div scrollLeft: ${div.scrollLeft}`);
+});
+</script>

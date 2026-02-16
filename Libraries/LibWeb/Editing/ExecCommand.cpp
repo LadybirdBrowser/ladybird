@@ -132,6 +132,10 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
         affected_editing_host->dispatch_event(event);
     }
 
+    // AD-HOC: Scroll the cursor into view after executing a command.
+    if (auto selection = get_selection())
+        selection->scroll_focus_into_view();
+
     // 8. Return true.
     return true;
 }

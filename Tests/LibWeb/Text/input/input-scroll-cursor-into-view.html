@@ -22,9 +22,8 @@
         internals.click(x, y);
         println(`before: ${input.selectionStart}`);
 
-        // Move cursor to the end, which should scroll the input.
-        input.setSelectionRange(39, 39);
-        input.offsetWidth;
+        // Move cursor to the end via keyboard, which should scroll the input.
+        internals.sendKey(input, "End");
 
         // Click in the same spot after scrolling.
         internals.click(x, y);
