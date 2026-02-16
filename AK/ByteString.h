@@ -9,7 +9,7 @@
 #include <AK/ByteStringImpl.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
-#include <AK/RefPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
 #include <AK/Traits.h>

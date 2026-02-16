@@ -8,6 +8,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 
 struct Object : public RefCounted<Object> {
     int x;

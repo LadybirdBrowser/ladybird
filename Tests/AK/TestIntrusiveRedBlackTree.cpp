@@ -9,6 +9,7 @@
 #include <AK/IntrusiveRedBlackTree.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Random.h>
+#include <AK/RefPtr.h>
 #include <AK/Vector.h>
 
 class IntrusiveTest {
