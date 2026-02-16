@@ -1217,11 +1217,16 @@ void CanvasRenderingContext2D::set_filter(String filter)
     auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
 
     if (style_value && style_value->is_filter_value_list()) {
-        auto filter_value_list = style_value->as_filter_value_list().filter_value_list();
-
         // Note: The layout must be updated to make sure the canvas's layout node isn't null.
         canvas_element().document().update_layout(DOM::UpdateLayoutReason::CanvasRenderingContext2DSetFilter);
         auto layout_node = canvas_element().layout_node();
+
+        CSS::ComputationContext computation_context {
+            .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*layout_node),
+            .abstract_element = DOM::AbstractElement { canvas_element() },
+            .color_scheme = layout_node->computed_values().color_scheme(),
+        };
+        auto filter_value_list = style_value->absolutized(computation_context)->as_filter_value_list().filter_value_list();
 
         // 4. Set this's current filter to the given value.
         for (auto& item : filter_value_list) {
