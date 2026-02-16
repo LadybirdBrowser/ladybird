@@ -380,17 +380,17 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
         //     to avoid phantom entries from skipped/replaced instructions.
         //     When a block has multiple source map entries at the same offset
         //     (due to rewind in fuse_compare_and_jump), we use the last one.
-        auto find_source_record = [&block](size_t block_offset) -> SourceRecord {
-            auto const& sm = block->source_map();
-            for (size_t i = sm.size(); i > 0; --i) {
-                if (sm[i - 1].bytecode_offset == static_cast<u32>(block_offset))
-                    return sm[i - 1].source_record;
-            }
-            return {};
-        };
+        auto const& source_map_entries = block->source_map();
+        size_t source_map_cursor = 0;
 
         auto emit_source_map_entry = [&](size_t block_offset) {
-            source_map.append({ static_cast<u32>(bytecode.size()), find_source_record(block_offset) });
+            SourceRecord record = {};
+            while (source_map_cursor < source_map_entries.size() && source_map_entries[source_map_cursor].bytecode_offset <= static_cast<u32>(block_offset)) {
+                if (source_map_entries[source_map_cursor].bytecode_offset == static_cast<u32>(block_offset))
+                    record = source_map_entries[source_map_cursor].source_record;
+                ++source_map_cursor;
+            }
+            source_map.append({ static_cast<u32>(bytecode.size()), record });
         };
 
         Bytecode::InstructionStreamIterator it(block->instruction_stream());
