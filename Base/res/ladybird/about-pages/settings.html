@@ -145,7 +145,6 @@
                 font-size: 14px;
             }
 
-            input[type="number"],
             input[type="text"],
             input[type="url"],
             select {
@@ -155,13 +154,11 @@
                 border: 1px solid var(--border-color);
             }
 
-            input[type="number"].success,
             input[type="text"].success,
             input[type="url"].success {
                 border: 1px solid green;
             }
 
-            input[type="number"].error,
             input[type="text"].error,
             input[type="url"].error {
                 border: 1px solid red;
@@ -329,12 +326,12 @@
             <div class="card-header">General</div>
             <div class="card-body">
                 <div class="card-group">
-                    <label for="new-tab-page-url">New Tab Page URL</label>
+                    <label for="new-tab-page-url">New tab page URL</label>
                     <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
                 </div>
 
                 <div class="card-group">
-                    <label for="default-zoom-level">Default Zoom Level</label>
+                    <label for="default-zoom-level">Default zoom level</label>
                     <select id="default-zoom-level"></select>
                 </div>
 
@@ -352,7 +349,7 @@
             <div class="card-body">
                 <div class="card-group">
                     <div class="inline-container">
-                        <label for="search-engine">Default Search Engine</label>
+                        <label for="search-engine">Default search engine</label>
                         <button id="search-settings" class="secondary-button">Settings...</button>
                     </div>
                     <p class="description">Select the search engine to use in the address bar.</p>
@@ -365,7 +362,7 @@
                 <hr />
 
                 <div class="card-group">
-                    <label for="autocomplete-engine">Search Suggestions</label>
+                    <label for="autocomplete-engine">Search suggestions</label>
                     <p class="description">Select the engine that will provide search suggestions.</p>
                     <select id="autocomplete-engine">
                         <option value="">Disable search suggestions</option>
@@ -393,14 +390,14 @@
             <div class="card-body">
                 <div class="card-group inline-container">
                     <span>Browsing Data</span>
-                    <button id="browsing-data-settings" class="secondary-button">Settings...</button>
+                    <button id="clear-browsing-data" class="secondary-button">Clear...</button>
                 </div>
 
                 <hr />
 
                 <div class="card-group">
                     <div class="inline-container">
-                        <label for="global-privacy-control-toggle">Enable Global Privacy Control</label>
+                        <label for="global-privacy-control-toggle">Enable global privacy control</label>
                         <input id="global-privacy-control-toggle" type="checkbox" switch />
                     </div>
                     <p class="description">Tell websites not to sell or share your data.</p>
@@ -420,10 +417,10 @@
                     </div>
                     <div id="dns-settings-container" class="card-body">
                         <div class="card-group">
-                            <label for="dns-upstream">DNS Upstream</label>
+                            <label for="dns-upstream">DNS upstream</label>
                             <select id="dns-upstream">
                                 <option value="system">System DNS</option>
-                                <option value="custom">Custom DNS Server</option>
+                                <option value="custom">Custom DNS server</option>
                             </select>
                         </div>
                         <div id="custom-dns-settings" class="hidden">
@@ -435,11 +432,11 @@
                                 </select>
                             </div>
                             <div class="card-group">
-                                <label for="dnssec-toggle">Validate DNSSEC Locally</label>
+                                <label for="dnssec-toggle">Validate DNSSEC locally</label>
                                 <input id="dnssec-toggle" type="checkbox" switch />
                             </div>
                             <div class="card-group">
-                                <label for="dns-server">DNS Server (IP or hostname)</label>
+                                <label for="dns-server">DNS server (IP or hostname)</label>
                                 <input id="dns-server" type="text" />
                             </div>
                             <div class="card-group">
@@ -484,7 +481,7 @@
             </div>
             <div class="dialog-form">
                 <div class="form-group">
-                    <label for="search-custom-name">Search Engine Name</label>
+                    <label for="search-custom-name">Search engine name</label>
                     <input id="search-custom-name" type="text" placeholder="Example" />
                 </div>
                 <div class="form-group">
@@ -521,34 +518,17 @@
             </div>
         </dialog>
 
-        <dialog id="browsing-data-settings-dialog">
+        <dialog id="clear-browsing-data-dialog">
             <div class="dialog-header">
-                <h3 class="dialog-title">Browsing Data Settings</h3>
-                <button id="browsing-data-settings-close" class="close-button dialog-button">&times;</button>
+                <h3 id="clear-browsing-data-title" class="dialog-title">Clear Browsing Data</h3>
+                <button id="clear-browsing-data-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body">
-                <p id="browsing-data-total-size" class="description"></p>
+                <p id="clear-browsing-data-total-size" class="description"></p>
                 <hr />
 
                 <div class="input-field-container">
-                    <label for="browsing-data-settings-max-disk-cache-size">
-                        Maximum&nbsp;disk&nbsp;cache&nbsp;size:
-                    </label>
-                    <input id="browsing-data-settings-max-disk-cache-size" type="number" min="1" />
-                    <select id="browsing-data-settings-max-disk-cache-unit">
-                        <option value="MiB">MiB</option>
-                        <option value="GiB">GiB</option>
-                    </select>
-                </div>
-                <p class="description" style="margin-top: 10px">
-                    Limit the amount of space used for the HTTP disk cache. This may be further limited by the browser,
-                    depending on the amount of disk space available.
-                </p>
-
-                <hr />
-
-                <div class="input-field-container">
-                    <p>Remove&nbsp;browsing&nbsp;data&nbsp;from:</p>
+                    <p>From:</p>
                     <select id="clear-browsing-data-time-range">
                         <option value="lastHour">Last hour</option>
                         <option value="last4Hours">Last 4 hours</option>
@@ -556,6 +536,7 @@
                         <option value="all" selected>All time</option>
                     </select>
                 </div>
+
                 <div class="input-field-container">
                     <input id="clear-browsing-data-cached-files" type="checkbox" value="" checked />
                     <label for="clear-browsing-data-cached-files">
@@ -570,9 +551,9 @@
                         <p class="description">Remove items that may sign you out of most sites</p>
                     </label>
                 </div>
-                <div class="button-container">
-                    <button id="clear-browsing-data-remove-data" class="secondary-button">Remove Data</button>
-                </div>
+            </div>
+            <div class="dialog-footer">
+                <button id="clear-browsing-data-remove-data" class="secondary-button">Remove Data</button>
             </div>
         </dialog>
 
@@ -604,7 +585,8 @@
                 ladybird.sendMessage("restoreDefaultSettings");
             });
 
-            document.querySelectorAll("dialog").forEach(dialog => {
+            // FIXME: This should be replaced once we support popover light dismissal.
+            document.querySelectorAll("dialog").forEach(dialog =>
                 dialog.addEventListener("click", event => {
                     const rect = dialog.getBoundingClientRect();
 
@@ -616,14 +598,8 @@
                     ) {
                         dialog.close();
                     }
-                });
-
-                dialog.addEventListener("keydown", event => {
-                    if (event.key === "Escape") {
-                        dialog.close();
-                    }
-                });
-            });
+                })
+            );
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadCurrentSettings");
