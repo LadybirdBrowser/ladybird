@@ -150,6 +150,7 @@ public:
     int max_row_index() const { return m_max_row_index; }
 
     bool is_occupied(int column_index, int row_index) const;
+    bool is_area_occupied(int column_start, int row_start, int column_span, int row_span) const;
 
     FoundUnoccupiedPlace find_unoccupied_place(GridDimension dimension, int& column_index, int& row_index, int column_span, int row_span) const;
 
@@ -330,12 +331,13 @@ private:
         size_t span { 1 };
     };
     PlacementPosition resolve_grid_position(Box const& child_box, GridDimension dimension);
+    size_t resolve_grid_span(Box const& child_box, GridDimension dimension) const;
 
     void place_grid_items();
     void place_item_with_row_and_column_position(Box const& child_box);
     void place_item_with_row_position(Box const& child_box);
-    void place_item_with_column_position(Box const& child_box, int& auto_placement_cursor_x, int& auto_placement_cursor_y);
-    void place_item_with_no_declared_position(Box const& child_box, int& auto_placement_cursor_x, int& auto_placement_cursor_y);
+    void place_item_with_column_position(Box const& child_box, int& auto_placement_cursor_row);
+    void place_item_with_no_declared_position(Box const& child_box, int& auto_placement_cursor_column, int& auto_placement_cursor_row);
     void record_grid_placement(GridItem);
 
     void initialize_grid_tracks_from_definition(GridDimension);

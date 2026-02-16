@@ -369,6 +369,21 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     return result;
 }
 
+size_t GridFormattingContext::resolve_grid_span(Box const& child_box, GridDimension dimension) const
+{
+    auto const& computed_values = child_box.computed_values();
+    auto const& placement_start = dimension == GridDimension::Row ? computed_values.grid_row_start() : computed_values.grid_column_start();
+    auto const& placement_end = dimension == GridDimension::Row ? computed_values.grid_row_end() : computed_values.grid_column_end();
+
+    CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
+
+    if (placement_start.is_span())
+        return placement_start.span().resolved(resolution_context).value();
+    if (placement_end.is_span())
+        return placement_end.span().resolved(resolution_context).value();
+    return 1;
+}
+
 void GridFormattingContext::place_item_with_row_and_column_position(Box const& child_box)
 {
     auto row_placement_position = resolve_grid_position(child_box, GridDimension::Row);
@@ -394,20 +409,19 @@ void GridFormattingContext::place_item_with_row_position(Box const& child_box)
     auto row_start = placement_position.start;
     size_t row_span = placement_position.span;
 
-    auto const& grid_column_start = child_box.computed_values().grid_column_start();
     int column_start = 0;
-    size_t column_span = grid_column_start.is_span() ? grid_column_start.span().resolved({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) }).value() : 1;
+    auto column_span = resolve_grid_span(child_box, GridDimension::Column);
 
     bool found_available_column = false;
-    for (size_t column_index = column_start; column_index < m_occupation_grid.column_count(); column_index++) {
-        if (!m_occupation_grid.is_occupied(column_index, row_start)) {
+    for (int column_index = column_start; column_index <= m_occupation_grid.max_column_index(); column_index++) {
+        if (!m_occupation_grid.is_area_occupied(column_index, row_start, column_span, row_span)) {
             found_available_column = true;
             column_start = column_index;
             break;
         }
     }
     if (!found_available_column) {
-        column_start = m_occupation_grid.column_count();
+        column_start = m_occupation_grid.max_column_index() + 1;
     }
 
     record_grid_placement(GridItem {
@@ -419,36 +433,26 @@ void GridFormattingContext::place_item_with_row_position(Box const& child_box)
         .column_span = column_span });
 }
 
-void GridFormattingContext::place_item_with_column_position(Box const& child_box, int& auto_placement_cursor_x, int& auto_placement_cursor_y)
+void GridFormattingContext::place_item_with_column_position(Box const& child_box, int& auto_placement_cursor_row)
 {
     auto placement_position = resolve_grid_position(child_box, GridDimension::Column);
     auto column_start = placement_position.start;
     size_t column_span = placement_position.span;
 
-    auto const& grid_row_start = child_box.computed_values().grid_row_start();
-    size_t row_span = grid_row_start.is_span() ? grid_row_start.span().resolved({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) }).value() : 1;
+    auto row_span = resolve_grid_span(child_box, GridDimension::Row);
 
-    // 4.1.1.1. Set the column position of the cursor to the grid item's column-start line. If this is
-    // less than the previous column position of the cursor, increment the row position by 1.
-    if (column_start < auto_placement_cursor_x)
-        auto_placement_cursor_y++;
-    auto_placement_cursor_x = column_start;
-
-    // 4.1.1.2. Increment the cursor's row position until a value is found where the grid item does not
+    // Increment the cursor's row position until a value is found where the grid item does not
     // overlap any occupied grid cells (creating new rows in the implicit grid as necessary).
     while (true) {
-        if (!m_occupation_grid.is_occupied(column_start, auto_placement_cursor_y)) {
+        if (!m_occupation_grid.is_area_occupied(column_start, auto_placement_cursor_row, column_span, row_span))
             break;
-        }
-        auto_placement_cursor_y++;
+        auto_placement_cursor_row++;
     }
-    // 4.1.1.3. Set the item's row-start line to the cursor's row position, and set the item's row-end
-    // line according to its span from that position.
 
     record_grid_placement(GridItem {
         .box = child_box,
         .used_values = m_state.get_mutable(child_box),
-        .row = auto_placement_cursor_y,
+        .row = auto_placement_cursor_row,
         .row_span = row_span,
         .column = column_start,
         .column_span = column_span });
@@ -457,10 +461,11 @@ void GridFormattingContext::place_item_with_column_position(Box const& child_box
 FoundUnoccupiedPlace OccupationGrid::find_unoccupied_place(GridDimension dimension, int& column_index, int& row_index, int column_span, int row_span) const
 {
     if (dimension == GridDimension::Column) {
+        // Row-flow: columns are the inner (minor) axis, rows are the outer (major) axis.
         while (row_index <= max_row_index()) {
             while (column_index <= max_column_index()) {
-                auto enough_span_for_span = column_index + column_span - 1 <= max_column_index();
-                if (enough_span_for_span && !is_occupied(column_index, row_index))
+                auto minor_axis_fits = column_index + column_span - 1 <= max_column_index();
+                if (minor_axis_fits && !is_area_occupied(column_index, row_index, column_span, row_span))
                     return FoundUnoccupiedPlace::Yes;
                 column_index++;
             }
@@ -468,10 +473,11 @@ FoundUnoccupiedPlace OccupationGrid::find_unoccupied_place(GridDimension dimensi
             column_index = min_column_index();
         }
     } else {
+        // Column-flow: rows are the inner (minor) axis, columns are the outer (major) axis.
         while (column_index <= max_column_index()) {
             while (row_index <= max_row_index()) {
-                auto enough_span_for_span = row_index + row_span - 1 <= max_row_index();
-                if (enough_span_for_span && !is_occupied(column_index, row_index))
+                auto minor_axis_fits = row_index + row_span - 1 <= max_row_index();
+                if (minor_axis_fits && !is_area_occupied(column_index, row_index, column_span, row_span))
                     return FoundUnoccupiedPlace::Yes;
                 row_index++;
             }
@@ -483,28 +489,12 @@ FoundUnoccupiedPlace OccupationGrid::find_unoccupied_place(GridDimension dimensi
     return FoundUnoccupiedPlace::No;
 }
 
-void GridFormattingContext::place_item_with_no_declared_position(Box const& child_box, int& auto_placement_cursor_x, int& auto_placement_cursor_y)
+void GridFormattingContext::place_item_with_no_declared_position(Box const& child_box, int& auto_placement_cursor_column, int& auto_placement_cursor_row)
 {
-    auto const& computed_values = child_box.computed_values();
-    auto const& grid_row_start = computed_values.grid_row_start();
-    auto const& grid_row_end = computed_values.grid_row_end();
-    auto const& grid_column_start = computed_values.grid_column_start();
-    auto const& grid_column_end = computed_values.grid_column_end();
-
-    CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
-
     auto column_start = 0;
-    size_t column_span = 1;
-    if (grid_column_start.is_span())
-        column_span = grid_column_start.span().resolved(resolution_context).value();
-    else if (grid_column_end.is_span())
-        column_span = grid_column_end.span().resolved(resolution_context).value();
+    auto column_span = resolve_grid_span(child_box, GridDimension::Column);
     auto row_start = 0;
-    size_t row_span = 1;
-    if (grid_row_start.is_span())
-        row_span = grid_row_start.span().resolved(resolution_context).value();
-    else if (grid_row_end.is_span())
-        row_span = grid_row_end.span().resolved(resolution_context).value();
+    auto row_span = resolve_grid_span(child_box, GridDimension::Row);
 
     auto const& auto_flow = grid_container().computed_values().grid_auto_flow();
     auto dimension = auto_flow.row ? GridDimension::Column : GridDimension::Row;
@@ -513,32 +503,26 @@ void GridFormattingContext::place_item_with_no_declared_position(Box const& chil
     // area does not overlap any occupied grid cells, or the cursor's column position, plus the item's
     // column span, overflow the number of columns in the implicit grid, as determined earlier in this
     // algorithm.
-    auto found_unoccupied_area = m_occupation_grid.find_unoccupied_place(dimension, auto_placement_cursor_x, auto_placement_cursor_y, column_span, row_span);
+    auto found_unoccupied_area = m_occupation_grid.find_unoccupied_place(dimension, auto_placement_cursor_column, auto_placement_cursor_row, column_span, row_span);
 
     // 4.1.2.2. If a non-overlapping position was found in the previous step, set the item's row-start
     // and column-start lines to the cursor's position. Otherwise, increment the auto-placement cursor's
     // row position (creating new rows in the implicit grid as necessary), set its column position to the
     // start-most column line in the implicit grid, and return to the previous step.
+    column_start = auto_placement_cursor_column;
+    row_start = auto_placement_cursor_row;
+
+    auto_placement_cursor_column += column_span - 1;
+    auto_placement_cursor_row += row_span - 1;
+
     if (found_unoccupied_area == FoundUnoccupiedPlace::Yes) {
-        column_start = auto_placement_cursor_x;
-        row_start = auto_placement_cursor_y;
-
-        auto_placement_cursor_x += column_span - 1;
-        auto_placement_cursor_y += row_span - 1;
-
         if (dimension == GridDimension::Column) {
-            auto_placement_cursor_x++;
-            auto_placement_cursor_y = m_occupation_grid.min_row_index();
+            auto_placement_cursor_column++;
+            auto_placement_cursor_row = m_occupation_grid.min_row_index();
         } else {
-            auto_placement_cursor_y++;
-            auto_placement_cursor_x = m_occupation_grid.min_column_index();
+            auto_placement_cursor_row++;
+            auto_placement_cursor_column = m_occupation_grid.min_column_index();
         }
-    } else {
-        column_start = auto_placement_cursor_x;
-        row_start = auto_placement_cursor_y;
-
-        auto_placement_cursor_x += column_span - 1;
-        auto_placement_cursor_y += row_span - 1;
     }
 
     record_grid_placement(GridItem {
@@ -1523,7 +1507,6 @@ void GridFormattingContext::place_grid_items()
     }
 
     // 2. Process the items locked to a given row.
-    // FIXME: Do "dense" packing
     for (auto key : keys) {
         auto& boxes_to_place = order_item_bucket.get(key).value();
         for (size_t i = 0; i < boxes_to_place.size(); i++) {
@@ -1556,18 +1539,10 @@ void GridFormattingContext::place_grid_items()
     for (auto key : keys) {
         auto& boxes_to_place = order_item_bucket.get(key).value();
         for (auto const& child_box : boxes_to_place) {
-            auto const& grid_column_start = child_box->computed_values().grid_column_start();
-            auto const& grid_column_end = child_box->computed_values().grid_column_end();
+            auto column_span = resolve_grid_span(child_box, GridDimension::Column);
+            auto max_column_index = static_cast<size_t>(m_occupation_grid.max_column_index());
 
-            CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
-
-            int column_span = 1;
-            if (grid_column_start.is_span())
-                column_span = grid_column_start.span().resolved(resolution_context).value();
-            else if (grid_column_end.is_span())
-                column_span = grid_column_end.span().resolved(resolution_context).value();
-
-            if (column_span - 1 > m_occupation_grid.max_column_index())
+            if (column_span - 1 > max_column_index)
                 m_occupation_grid.set_max_column_index(column_span - 1);
         }
     }
@@ -1575,28 +1550,44 @@ void GridFormattingContext::place_grid_items()
     // 4. Position the remaining grid items.
     // For each grid item that hasn't been positioned by the previous steps, in order-modified document
     // order:
-    auto auto_placement_cursor_x = 0;
-    auto auto_placement_cursor_y = 0;
+    auto auto_placement_cursor_column = 0;
+    auto auto_placement_cursor_row = 0;
+    auto const& auto_flow = grid_container().computed_values().grid_auto_flow();
+
     for (auto key : keys) {
         auto& boxes_to_place = order_item_bucket.get(key).value();
         for (size_t i = 0; i < boxes_to_place.size(); i++) {
             auto const& child_box = boxes_to_place[i];
             auto const& computed_values = child_box->computed_values();
-            // 4.1. For sparse packing:
-            // FIXME: no distinction made. See #4.2
 
-            // 4.1.1. If the item has a definite column position:
-            if (!is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end()))
-                place_item_with_column_position(child_box, auto_placement_cursor_x, auto_placement_cursor_y);
+            if (!is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end())) {
+                // 4.1.1 / 4.2.1: Item with definite column position.
+                auto column_start = resolve_grid_position(child_box, GridDimension::Column).start;
 
-            // 4.1.2. If the item has an automatic grid position in both axes:
-            else
-                place_item_with_no_declared_position(child_box, auto_placement_cursor_x, auto_placement_cursor_y);
+                if (auto_flow.dense) {
+                    // Dense: reset row cursor to start of implicit grid.
+                    auto_placement_cursor_row = m_occupation_grid.min_row_index();
+                } else {
+                    // Sparse: if column moved backward, bump row.
+                    if (column_start < auto_placement_cursor_column)
+                        auto_placement_cursor_row++;
+                }
+                auto_placement_cursor_column = column_start;
+
+                place_item_with_column_position(child_box, auto_placement_cursor_row);
+            } else {
+                // 4.1.2 / 4.2.2: Item with auto position in both axes.
+                if (auto_flow.dense) {
+                    // Dense: reset cursor to start of implicit grid.
+                    auto_placement_cursor_column = m_occupation_grid.min_column_index();
+                    auto_placement_cursor_row = m_occupation_grid.min_row_index();
+                }
+
+                place_item_with_no_declared_position(child_box, auto_placement_cursor_column, auto_placement_cursor_row);
+            }
 
             boxes_to_place.remove(i);
             i--;
-
-            // FIXME: 4.2. For dense packing:
         }
     }
 
@@ -2367,6 +2358,17 @@ void OccupationGrid::set_occupied(int column_start, int column_end, int row_star
 bool OccupationGrid::is_occupied(int column_index, int row_index) const
 {
     return m_occupation_grid.contains(GridPosition { row_index, column_index });
+}
+
+bool OccupationGrid::is_area_occupied(int column_start, int row_start, int column_span, int row_span) const
+{
+    for (int row = row_start; row < row_start + row_span; row++) {
+        for (int column = column_start; column < column_start + column_span; column++) {
+            if (is_occupied(column, row))
+                return true;
+        }
+    }
+    return false;
 }
 
 int GridItem::gap_adjusted_row() const
