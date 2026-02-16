@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefPtr.h>
 #include <AK/Stream.h>
 #include <AK/TypedTransfer.h>
 #include <AK/Utf16StringData.h>

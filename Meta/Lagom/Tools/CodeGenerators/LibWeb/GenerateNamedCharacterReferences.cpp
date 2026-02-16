@@ -8,6 +8,7 @@
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/FixedArray.h>
+#include <AK/RefPtr.h>
 #include <AK/SourceGenerator.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>

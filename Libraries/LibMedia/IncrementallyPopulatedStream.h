@@ -11,6 +11,7 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/RedBlackTree.h>
+#include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>

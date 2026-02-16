@@ -17,6 +17,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
+#include <AK/RefPtr.h>
 #include <LibIDL/ExposedTo.h>
 #include <LibIDL/Types.h>
 
