@@ -769,6 +769,10 @@ TEST_CASE(ECMA262_match)
         { "^\\w*[\\u212A]"sv, "K"sv, true, combine_flags(ECMAScriptFlags::Insensitive, ECMAScriptFlags::Unicode) },
         // Optimizer bug: case-insensitive matching was not considered during atomic rewrite.
         { "^a*A\\d"sv, "aaaa5"sv, true, ECMAScriptFlags::Insensitive },
+        // Quantified lookahead assertions should not affect match_length_minimum.
+        { "[a-e](?!Z){2}"sv, "aZZZZ bZZZ cZZ dZ e"sv, true, combine_flags(ECMAScriptFlags::Global, ECMAScriptFlags::BrowserExtended) },
+        { "[a-e](?!Z){2,}"sv, "aZZZZ bZZZ cZZ dZ e"sv, true, combine_flags(ECMAScriptFlags::Global, ECMAScriptFlags::BrowserExtended) },
+        { "[a-e](?!Z){2,3}"sv, "aZZZZ bZZZ cZZ dZ e"sv, true, combine_flags(ECMAScriptFlags::Global, ECMAScriptFlags::BrowserExtended) },
     };
 
     for (auto& test : tests) {
