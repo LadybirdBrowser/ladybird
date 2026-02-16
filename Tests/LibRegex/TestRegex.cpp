@@ -762,6 +762,11 @@ TEST_CASE(ECMA262_match)
         { "ab|a(?:^|x)"sv, "ab"sv, true },
         // Optimizer bug: process rseekto candidates in the correct order.
         { "(.*)/client-(.*)\\.js$"sv, "/client-abc.js"sv, true },
+        // Optimizer bug: overlapping character classes and ranges not detected.
+        { "^a*\\w"sv, "aa"sv, true },
+        { "^a*[a-z]"sv, "aa"sv, true },
+        { "^\\w*\\d"sv, "1"sv, true },
+        { "^\\w*[\\u212A]"sv, "K"sv, true, combine_flags(ECMAScriptFlags::Insensitive, ECMAScriptFlags::Unicode) },
     };
 
     for (auto& test : tests) {
