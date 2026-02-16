@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Associate by parser, customized at element creation
+3 Pass
+2 Fail
+Pass	Associate by parser, customized at element creation
 Fail	Parsed, connected, then upgraded
-Fail	Disassociation
-Fail	Updating "form" content attribute
+Pass	Disassociation
+Pass	Updating "form" content attribute
 Fail	Updating "id" attribute of form element
