@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <AK/Forward.h>
 #include <AK/String.h>
-#include <AK/Time.h>
 
 namespace AK {
 
