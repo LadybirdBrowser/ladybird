@@ -5,7 +5,6 @@
  */
 
 #include <AK/ByteStringImpl.h>
-#include <AK/CharacterTypes.h>
 #include <AK/StringHash.h>
 #include <AK/kmalloc.h>
 

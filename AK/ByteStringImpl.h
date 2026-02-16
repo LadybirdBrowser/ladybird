@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
-#include <AK/Badge.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
 #include <AK/Types.h>
