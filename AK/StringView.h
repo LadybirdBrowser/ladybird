@@ -9,7 +9,6 @@
 #include <AK/Assertions.h>
 #include <AK/Checked.h>
 #include <AK/Concepts.h>
-#include <AK/EnumBits.h>
 #include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
