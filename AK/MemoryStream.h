@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/OwnPtr.h>
 #include <AK/Stream.h>
 #include <AK/Vector.h>
 

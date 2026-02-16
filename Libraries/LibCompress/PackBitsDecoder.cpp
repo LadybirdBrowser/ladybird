@@ -6,6 +6,7 @@
 
 #include "PackBitsDecoder.h"
 #include <AK/MemoryStream.h>
+#include <AK/NonnullOwnPtr.h>
 
 namespace Compress::PackBits {
 
