@@ -285,15 +285,15 @@ static GC::Ref<DOM::Range> find_paragraph_range(DOM::Text& text_node, WebIDL::Un
 static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
 {
     // https://drafts.csswg.org/css-ui/#valdef-user-select-contain
-    // NOTE: This is clamping the focus node to any node with user-select: contain that stands between it and the anchor node.
+    // NB: This is clamping the focus node to any node with user-select: contain that stands between it and the anchor node.
     if (focus_node != anchor_node) {
         // UAs must not allow a selection which is started in this element to be extended outside of this element.
         auto potential_contain_node = anchor_node;
 
-        // NOTE: The way we do this is searching up the tree from the anchor, to find 'this element', i.e. its nearest contain ancestor.
-        //       We stop the search early when we reach an element that contains both the anchor and the focus node, as this means they
-        //       are inside the same contain element, or not in a contain element at all.
-        //       This takes care of the "selection trying to escape from a contain" case.
+        // NB: The way we do this is searching up the tree from the anchor, to find 'this element', i.e. its nearest
+        //     contain ancestor. We stop the search early when we reach an element that contains both the anchor and the
+        //     focus node, as this means they are inside the same contain element, or not in a contain element at all.
+        //     This takes care of the "selection trying to escape from a contain" case.
         while (
             (!potential_contain_node->is_element() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
             potential_contain_node = potential_contain_node->parent();
@@ -307,17 +307,16 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
                 focus_offset = potential_contain_node->length();
             }
             focus_node = potential_contain_node;
-            // NOTE: Prevents this from being handled again further down
+            // NB: Prevents this from being handled again further down
             user_select = CSS::UserSelect::Contain;
         } else {
-            // A selection started outside of this element must not end in this element. If the user attempts to create such a
-            // selection, the UA must instead end the selection range at the element boundary.
+            // A selection started outside of this element must not end in this element. If the user attempts to create
+            // such a selection, the UA must instead end the selection range at the element boundary.
 
-            // NOTE: This branch takes care of the "selection trying to intrude into a contain" case.
-            //       This is done by searching up the tree from the focus node, to see if there is a
-            //       contain element between it and the common ancestor that also includes the anchor.
-            //       We stop once reaching target_node, which is the common ancestor identified in step 1.
-            //       If target_node wasn't a common ancestor, we would not be here.
+            // NB: This branch takes care of the "selection trying to intrude into a contain" case. This is done by
+            //     searching up the tree from the focus node, to see if there is a contain element between it and the
+            //     common ancestor that also includes the anchor. We stop once reaching target_node, which is the common
+            //     ancestor identified in step 1. If target_node wasn't a common ancestor, we would not be here.
             auto target_node = potential_contain_node;
             potential_contain_node = focus_node;
             while (
@@ -339,7 +338,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
                     }
                     focus_offset = focus_node->length();
                 }
-                // NOTE: Prevents this from being handled again further down
+                // NB: Prevents this from being handled again further down
                 user_select = CSS::UserSelect::Contain;
             }
         }
@@ -354,8 +353,8 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
             return;
         }
 
-        // A selection started outside of this element must not end in this element. If the user attempts to create such a
-        // selection, the UA must instead end the selection range at the element boundary.
+        // A selection started outside of this element must not end in this element. If the user attempts to create such
+        // a selection, the UA must instead end the selection range at the element boundary.
         while (focus_node->parent() && focus_node->parent()->layout_node()->user_select_used_value() == CSS::UserSelect::None) {
             focus_node = focus_node->parent();
         }
@@ -399,11 +398,10 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         }
         break;
     case CSS::UserSelect::Contain:
-        // NOTE: This is handled at the start of this function
+        // NB: This is handled at the start of this function
         break;
     case CSS::UserSelect::Text:
         // https://drafts.csswg.org/css-ui/#valdef-user-select-text
-
         // The element imposes no constraint on the selection.
         break;
     case CSS::UserSelect::Auto:
@@ -614,7 +612,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                     return EventResult::Handled;
             }
 
-            // Search for the first parent of the hit target that's an element.
+            // NB: Search for the first parent of the hit target that's an element.
             GC::Ptr<Layout::Node> layout_node;
             if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
                 return EventResult::Dropped;
@@ -688,9 +686,14 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
                 return EventResult::Dropped;
             }
 
-            // Search for the first parent of the hit target that's an element.
-            // "The click event type MUST be dispatched on the topmost event target indicated by the pointer." (https://www.w3.org/TR/uievents/#event-type-click)
-            // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
+            // NB: Search for the first parent of the hit target that's an element.
+            //
+            // https://www.w3.org/TR/uievents/#event-type-click
+            // The click event type MUST be dispatched on the topmost event target indicated by the pointer.
+            //
+            // https://www.w3.org/TR/uievents/#topmost-event-target
+            // The topmost event target MUST be the element highest in the rendering order which is capable of being an
+            // event target.
             GC::Ptr<Layout::Node> layout_node;
             if (!parent_element_for_event_dispatch(*paintable, node, layout_node)) {
                 // FIXME: This is pretty ugly but we need to bail out here.
@@ -723,14 +726,10 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
             }
 
             if (run_activation_behavior) {
-                // FIXME: Currently cannot spawn a new top-level
-                //        browsing context for new tab operations, because the new
-                //        top-level browsing context would be in another process. To
-                //        fix this, there needs to be some way to be able to
-                //        communicate with browsing contexts in remote WebContent
-                //        processes, and then step 8 of this algorithm needs to be
-                //        implemented in Navigable::choose_a_navigable:
-                //
+                // FIXME: Currently cannot spawn a new top-level browsing context for new tab operations, because the
+                //        new top-level browsing context would be in another process. To fix this, there needs to be
+                //        some way to be able to communicate with browsing contexts in remote WebContent processes, and
+                //        then step 8 of this algorithm needs to be implemented in Navigable::choose_a_navigable:
                 //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 
                 auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
@@ -845,9 +844,14 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
         m_navigable->page().set_focused_navigable({}, m_navigable);
 
-        // Search for the first parent of the hit target that's an element.
-        // "The click event type MUST be dispatched on the topmost event target indicated by the pointer." (https://www.w3.org/TR/uievents/#event-type-click)
-        // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
+        // NB: Search for the first parent of the hit target that's an element.
+        //
+        // https://www.w3.org/TR/uievents/#event-type-click
+        // The click event type MUST be dispatched on the topmost event target indicated by the pointer.
+        //
+        // https://www.w3.org/TR/uievents/#topmost-event-target
+        // The topmost event target MUST be the element highest in the rendering order which is capable of being an
+        // event target.
         GC::Ptr<Layout::Node> layout_node;
         if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
             return EventResult::Dropped;
@@ -892,8 +896,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
                 ;
     }
 
-    // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the focusable area with focus trigger set to "click".
-    // Spec Note: Note that programmatic click is not an activation behavior, i.e. calling the click() method on an element or dispatching a synthetic click event on it won't cause the element to get focused.
+    // https://html.spec.whatwg.org/multipage/interaction.html#data-model:click-focusable-5
+    // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the
+    // focusable area with focus trigger set to "click".
+    // Note: Note that programmatic click is not an activation behavior, i.e. calling the click() method on an
+    // element or dispatching a synthetic click event on it won't cause the element to get focused.
     if (focus_candidate) {
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
     } else if (auto focused_area = document->focused_area()) {
@@ -1046,9 +1053,14 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         // FIXME: Handle other values for pointer-events.
         VERIFY(pointer_events != CSS::PointerEvents::None);
 
-        // Search for the first parent of the hit target that's an element.
-        // "The click event type MUST be dispatched on the topmost event target indicated by the pointer." (https://www.w3.org/TR/uievents/#event-type-click)
-        // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
+        // NB: Search for the first parent of the hit target that's an element.
+        //
+        // https://www.w3.org/TR/uievents/#event-type-click
+        // The click event type MUST be dispatched on the topmost event target indicated by the pointer.
+        //
+        // https://www.w3.org/TR/uievents/#topmost-event-target
+        // The topmost event target MUST be the element highest in the rendering order which is capable of being an
+        // event target.
         GC::Ptr<Layout::Node> layout_node;
         bool found_parent_element = parent_element_for_event_dispatch(*paintable, node, layout_node);
         hovered_node_changed = node.ptr() != document.hovered_node();
@@ -1083,7 +1095,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             if (!continue_)
                 return EventResult::Cancelled;
 
-            // NOTE: Dispatching an event may have disturbed the world.
+            // NB: Dispatching an event may have disturbed the world.
             if (!paint_root() || paint_root() != node->document().paintable_box())
                 return EventResult::Accepted;
         }
@@ -1178,8 +1190,11 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
         return EventResult::Dropped;
     }
 
-    // Search for the first parent of the hit target that's an element.
-    // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
+    // NB: Search for the first parent of the hit target that's an element.
+    //
+    // https://www.w3.org/TR/uievents/#topmost-event-target
+    // The topmost event target MUST be the element highest in the rendering order which is capable of being an
+    // event target.
     GC::Ptr<Layout::Node> layout_node;
     if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
         return EventResult::Dropped;
@@ -1190,7 +1205,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
     auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
     node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::dblclick, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
 
-    // NOTE: Dispatching an event may have disturbed the world.
+    // NB: Dispatching an event may have disturbed the world.
     if (!paint_root() || paint_root() != node->document().paintable_box())
         return EventResult::Accepted;
 
@@ -1203,7 +1218,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
             if (result->paintable->layout_node().user_select_used_value() == CSS::UserSelect::None)
                 return EventResult::Accepted;
 
-            auto& hit_paintable = static_cast<Painting::TextPaintable const&>(*result->paintable);
+            auto const& hit_paintable = static_cast<Painting::TextPaintable const&>(*result->paintable);
             auto& hit_dom_node = const_cast<DOM::Text&>(as<DOM::Text>(*hit_paintable.dom_node()));
 
             size_t previous_boundary = 0;
@@ -1452,7 +1467,7 @@ EventResult EventHandler::focus_previous_element()
     return EventResult::Handled;
 }
 
-constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
+static constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
 {
     if (modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Super))
         return true;
@@ -1720,7 +1735,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
                 else
                     selection->move_offset_to_next_character(false);
                 return EventResult::Handled;
-            } else if (key == UIEvents::KeyCode::Key_Left) {
+            }
+            if (key == UIEvents::KeyCode::Key_Left) {
                 if (modifiers & UIEvents::Mod_PlatformWordJump)
                     selection->move_offset_to_previous_word(false);
                 else
@@ -1814,7 +1830,7 @@ void EventHandler::handle_gamepad_connected(SDL_JoystickID sdl_joystick_id)
     if (active_document)
         active_document->window()->navigator()->handle_gamepad_connected(sdl_joystick_id);
 
-    for (auto child_navigable : m_navigable->child_navigables())
+    for (auto const& child_navigable : m_navigable->child_navigables())
         child_navigable->event_handler().handle_gamepad_connected(sdl_joystick_id);
 }
 
@@ -1824,7 +1840,7 @@ void EventHandler::handle_gamepad_updated(SDL_JoystickID sdl_joystick_id)
     if (active_document)
         active_document->window()->navigator()->handle_gamepad_updated({}, sdl_joystick_id);
 
-    for (auto child_navigable : m_navigable->child_navigables())
+    for (auto const& child_navigable : m_navigable->child_navigables())
         child_navigable->event_handler().handle_gamepad_updated(sdl_joystick_id);
 }
 
@@ -1834,7 +1850,7 @@ void EventHandler::handle_gamepad_disconnected(SDL_JoystickID sdl_joystick_id)
     if (active_document)
         active_document->window()->navigator()->handle_gamepad_disconnected({}, sdl_joystick_id);
 
-    for (auto child_navigable : m_navigable->child_navigables())
+    for (auto const& child_navigable : m_navigable->child_navigables())
         child_navigable->event_handler().handle_gamepad_disconnected(sdl_joystick_id);
 }
 
@@ -1871,7 +1887,8 @@ void EventHandler::set_element_resize_in_progress(DOM::Element& element, CSSPixe
 CSSPixelPoint EventHandler::compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const
 {
     // https://w3c.github.io/csswg-drafts/cssom-view/#dom-mouseevent-pagex
-    // FIXME: 1. If the event’s dispatch flag is set, return the horizontal coordinate of the position where the event occurred relative to the origin of the initial containing block and terminate these steps.
+    // FIXME: 1. If the event’s dispatch flag is set, return the horizontal coordinate of the position where the event occurred
+    //           relative to the origin of the initial containing block and terminate these steps.
 
     // 2. Let offset be the value of the scrollX attribute of the event’s associated Window object, if there is one, or zero otherwise.
     auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
@@ -1883,14 +1900,16 @@ CSSPixelPoint EventHandler::compute_mouse_event_page_offset(CSSPixelPoint event_
 CSSPixelPoint EventHandler::compute_mouse_event_movement(CSSPixelPoint screen_position) const
 {
     // https://w3c.github.io/pointerlock/#dom-mouseevent-movementx
-    // The attributes movementX movementY must provide the change in position of the pointer,
-    // as if the values of screenX, screenY, were stored between two subsequent mousemove events eNow and ePrevious and the difference taken movementX = eNow.screenX-ePrevious.screenX.
+    // The attributes movementX movementY must provide the change in position of the pointer, as if the values of
+    // screenX, screenY, were stored between two subsequent mousemove events eNow and ePrevious and the difference taken
+    // movementX = eNow.screenX-ePrevious.screenX.
 
     if (!m_mousemove_previous_screen_position.has_value())
-        // When unlocked, the system cursor can exit and re-enter the user agent window.
-        // If it does so and the user agent was not the target of operating system mouse move events
-        // then the most recent pointer position will be unknown to the user agent and movementX/movementY can not be computed and must be set to zero.
-        // FIXME: For this to actually work, m_mousemove_previous_client_offset needs to be cleared when the mouse leaves the window
+        // When unlocked, the system cursor can exit and re-enter the user agent window. If it does so and the user agent
+        // was not the target of operating system mouse move events then the most recent pointer position will be unknown
+        // to the user agent and movementX/movementY can not be computed and must be set to zero.
+        // FIXME: For this to actually work, m_mousemove_previous_client_offset needs to be cleared when the mouse leaves
+        //        the window.
         return { 0, 0 };
 
     return { screen_position.x() - m_mousemove_previous_screen_position.value().x(), screen_position.y() - m_mousemove_previous_screen_position.value().y() };
