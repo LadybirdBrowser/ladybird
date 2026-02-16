@@ -177,9 +177,6 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             break;
         }
 
-        if (background_positioning_area.is_empty())
-            continue;
-
         image_rect.set_left(background_positioning_area.left() + layer.position_x);
         image_rect.set_top(background_positioning_area.top() + layer.position_y);
 
@@ -364,10 +361,9 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
             { image.natural_width(), image.natural_height(), image.natural_aspect_ratio() },
             background_positioning_area.size());
 
-        // If any of these are zero, the NaNs will pop up in the painting code.
-        if (background_positioning_area.is_empty() || concrete_image_size.is_empty()) {
+        // If the image has no size, there's nothing to paint.
+        if (concrete_image_size.is_empty())
             continue;
-        }
 
         // Size
         CSSPixelRect image_rect;
@@ -392,9 +388,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         }
 
         // If after sizing we have a 0px image, we're done. Attempting to paint this would be an infinite loop.
-        if (image_rect.is_empty()) {
+        if (image_rect.is_empty())
             continue;
-        }
 
         // If background-repeat is round for one (or both) dimensions, there is a second step.
         // The UA must scale the image in that dimension (or both dimensions) so that it fits a
@@ -430,6 +425,10 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
                 }
             }
         }
+
+        // If after round adjustments we have a 0px image, we're done.
+        if (image_rect.is_empty())
+            continue;
 
         CSSPixels space_x = background_positioning_area.width() - image_rect.width();
         CSSPixels space_y = background_positioning_area.height() - image_rect.height();
