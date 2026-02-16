@@ -8,6 +8,7 @@
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
+#include <LibGC/HeapVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -325,7 +326,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
         seen.append(input);
 
         // 3. Let keys be a new empty list.
-        Vector<GC::Root<Key>> keys;
+        auto keys = realm.heap().allocate<GC::HeapVector<GC::Ref<Key>>>();
 
         // 4. Let index be 0.
         u64 index = 0;
@@ -351,7 +352,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
                 return key;
 
             // 7. Append key to keys.
-            keys.append(key);
+            keys->elements().append(key);
 
             // 8. Increase index by 1.
             index++;
@@ -882,7 +883,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm
         Vector<JS::Value> seen { value };
 
         // 3. Let keys be a new empty list.
-        Vector<GC::Root<Key>> keys;
+        auto keys = realm.heap().allocate<GC::HeapVector<GC::Ref<Key>>>();
 
         // 4. Let index be 0.
         u64 index = 0;
@@ -903,8 +904,8 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm
                 if (!completion_key.is_error()) {
                     auto key = completion_key.release_value();
 
-                    if (!key->is_invalid() && !keys.contains_slow(key))
-                        keys.append(key);
+                    if (!key->is_invalid() && !keys->elements().contains_slow(key))
+                        keys->elements().append(key);
                 }
             }
 
