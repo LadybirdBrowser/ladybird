@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Badge.h>
-#include <AK/FlyString.h>
 #include <AK/StringBase.h>
 #include <AK/StringData.h>
 
