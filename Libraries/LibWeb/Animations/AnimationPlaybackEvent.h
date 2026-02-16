@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2023, Matthew Olsson <mattco@serenityos.org>.
+ * Copyright (c) 2023, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,26 +30,24 @@ public:
 
     virtual ~AnimationPlaybackEvent() override = default;
 
-    NullableCSSNumberish current_time() const
-    {
-        return m_current_time.map([](auto const& value) { return NullableCSSNumberish { value }; }).value_or(Empty {});
-    }
-
-    NullableCSSNumberish timeline_time() const
-    {
-        return m_timeline_time.map([](auto const& value) { return NullableCSSNumberish { value }; }).value_or(Empty {});
-    }
+    NullableCSSNumberish current_time() const;
+    NullableCSSNumberish timeline_time() const;
 
 private:
     AnimationPlaybackEvent(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
+
+    using CSSNumberishInternal = Variant<Empty, double, GC::Ref<CSS::CSSNumericValue>>;
+    static CSSNumberishInternal to_numberish_internal(Optional<CSS::CSSNumberish> const&);
+    static NullableCSSNumberish to_nullable_numberish(CSSNumberishInternal const&);
 
     // https://drafts.csswg.org/web-animations-2/#dom-animationplaybackevent-currenttime
-    Optional<CSS::CSSNumberish> m_current_time;
+    CSSNumberishInternal m_current_time;
 
     // https://drafts.csswg.org/web-animations-2/#dom-animationplaybackevent-timelinetime
-    Optional<CSS::CSSNumberish> m_timeline_time;
+    CSSNumberishInternal m_timeline_time;
 };
 
 }
