@@ -106,9 +106,10 @@ void EditingHostManager::move_cursor_to_start(CollapseSelection collapse)
     if (collapse == CollapseSelection::Yes) {
         MUST(selection->collapse(node, 0));
         m_document->reset_cursor_blink_cycle();
-        return;
+    } else {
+        MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, 0));
     }
-    MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, 0));
+    selection->scroll_focus_into_view();
 }
 
 void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
@@ -121,9 +122,10 @@ void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
     if (collapse == CollapseSelection::Yes) {
         m_document->reset_cursor_blink_cycle();
         MUST(selection->collapse(node, node->length()));
-        return;
+    } else {
+        MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, node->length()));
     }
-    MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, node->length()));
+    selection->scroll_focus_into_view();
 }
 
 void EditingHostManager::increment_cursor_position_offset(CollapseSelection collapse)

@@ -65,6 +65,7 @@ public:
     GC::Ptr<DOM::Position> cursor_position() const;
 
     // Non-standard
+    void scroll_focus_into_view();
     void move_offset_to_next_character(bool collapse_selection);
     void move_offset_to_previous_character(bool collapse_selection);
     void move_offset_to_next_word(bool collapse_selection);
@@ -81,7 +82,6 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     void set_range(GC::Ptr<DOM::Range>);
-    void scroll_focus_into_view();
 
     // https://w3c.github.io/selection-api/#dfn-empty
     GC::Ptr<DOM::Range> m_range;

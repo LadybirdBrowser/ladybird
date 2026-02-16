@@ -1,0 +1,2 @@
+textarea scrollLeft: 249.28125
+div scrollLeft: 251.28125

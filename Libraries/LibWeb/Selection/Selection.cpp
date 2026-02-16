@@ -15,8 +15,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
-#include <LibWeb/HTML/Navigable.h>
-#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -579,12 +577,6 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
             HTML::run_focusing_steps(new_editing_host, nullptr, HTML::FocusTrigger::Other);
         }
     }
-
-    // AD-HOC: Scroll the focus position into view within the nearest scrollable ancestor.
-    //         Skip this during mouse selection, since the user controls the viewport.
-    auto navigable = m_document->cached_navigable();
-    if (range && !(navigable && navigable->event_handler().is_handling_mouse_selection()))
-        scroll_focus_into_view();
 }
 
 GC::Ptr<DOM::Position> Selection::cursor_position() const
@@ -612,6 +604,7 @@ void Selection::move_offset_to_next_character(bool collapse_selection)
         } else {
             MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
         }
+        scroll_focus_into_view();
     }
 }
 
@@ -628,6 +621,7 @@ void Selection::move_offset_to_previous_character(bool collapse_selection)
         } else {
             MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
         }
+        scroll_focus_into_view();
     }
 }
 
@@ -640,7 +634,7 @@ void Selection::move_offset_to_next_word(bool collapse_selection)
     while (true) {
         auto focus_offset = this->focus_offset();
         if (focus_offset == text_node->data().length_in_code_units())
-            return;
+            break;
 
         if (auto offset = text_node->word_segmenter().next_boundary(focus_offset); offset.has_value()) {
             auto word = text_node->data().substring_view(focus_offset, *offset - focus_offset);
@@ -655,6 +649,7 @@ void Selection::move_offset_to_next_word(bool collapse_selection)
         }
         break;
     }
+    scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_previous_word(bool collapse_selection)
@@ -678,6 +673,7 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
         }
         break;
     }
+    scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_next_line(bool collapse_selection)
@@ -696,6 +692,7 @@ void Selection::move_offset_to_next_line(bool collapse_selection)
     } else {
         MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *new_offset));
     }
+    scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_previous_line(bool collapse_selection)
@@ -714,6 +711,7 @@ void Selection::move_offset_to_previous_line(bool collapse_selection)
     } else {
         MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *new_offset));
     }
+    scroll_focus_into_view();
 }
 
 void Selection::scroll_focus_into_view()
@@ -722,7 +720,7 @@ void Selection::scroll_focus_into_view()
     if (!focus)
         return;
 
-    m_document->update_layout(DOM::UpdateLayoutReason::ScrollFocusIntoView);
+    m_document->update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
     auto* paintable = focus->paintable();
     if (!paintable)

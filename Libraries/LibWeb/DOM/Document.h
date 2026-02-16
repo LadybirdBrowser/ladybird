@@ -121,8 +121,8 @@ enum class InvalidateLayoutTreeReason {
     X(RangeGetClientRects)                    \
     X(ResolvedCSSStyleDeclarationProperty)    \
     X(SVGDecodedImageDataRender)              \
+    X(ScrollCursorIntoView)                   \
     X(SVGGraphicsElementGetBBox)              \
-    X(ScrollFocusIntoView)                    \
     X(SourceSetNormalizeSourceDensities)      \
     X(WindowScroll)
 

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    .row {
+        display: flex;
+        align-items: center;
+        padding: 4px;
+    }
+</style>
+<input id="inp" />
+<div id="app"></div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const input = document.querySelector("#inp");
+        const app = document.querySelector("#app");
+
+        for (let i = 0; i < 2000; i++) {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.innerHTML = `<input type="checkbox"><span>${i}</span><button>x</button>`;
+            app.appendChild(row);
+        }
+        input.focus();
+        input.offsetWidth;
+
+        // Performance test: setting input.value must not synchronously trigger a full layout.
+        const values = ["a", "ab"];
+        const start = performance.now();
+        for (let i = 0; i < 2000; i++) {
+            app.children[i % 2000].style.padding = (4 + (i % 2)) + "px";
+            input.value = values[i % 2];
+        }
+        const elapsed = performance.now() - start;
+
+        println(elapsed < 5000 ? "PASS" : `FAIL: took ${elapsed.toFixed(0)}ms`);
+    });
+</script>

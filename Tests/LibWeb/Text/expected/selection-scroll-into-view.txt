@@ -1,2 +1,0 @@
-vertical scrollTop: 80
-horizontal scrollLeft: 603.171875
