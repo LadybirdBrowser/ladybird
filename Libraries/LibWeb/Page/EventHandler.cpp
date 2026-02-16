@@ -1200,6 +1200,8 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
                 return EventResult::Accepted;
             if (!is<Painting::TextPaintable>(*result->paintable))
                 return EventResult::Accepted;
+            if (result->paintable->layout_node().user_select_used_value() == CSS::UserSelect::None)
+                return EventResult::Accepted;
 
             auto& hit_paintable = static_cast<Painting::TextPaintable const&>(*result->paintable);
             auto& hit_dom_node = const_cast<DOM::Text&>(as<DOM::Text>(*hit_paintable.dom_node()));
@@ -1280,6 +1282,8 @@ EventResult EventHandler::handle_tripleclick(CSSPixelPoint visual_viewport_posit
             if (!hit->paintable->dom_node())
                 return EventResult::Accepted;
             if (!is<DOM::Text>(*hit->paintable->dom_node()))
+                return EventResult::Accepted;
+            if (hit->paintable->layout_node().user_select_used_value() == CSS::UserSelect::None)
                 return EventResult::Accepted;
 
             auto& hit_dom_node = const_cast<DOM::Text&>(as<DOM::Text>(*hit->paintable->dom_node()));
