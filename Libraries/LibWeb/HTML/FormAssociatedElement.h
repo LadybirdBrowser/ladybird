@@ -17,6 +17,24 @@
 
 namespace Web::HTML {
 
+struct ValidityStateFlags {
+    bool value_missing = false;
+    bool type_mismatch = false;
+    bool pattern_mismatch = false;
+    bool too_long = false;
+    bool too_short = false;
+    bool range_underflow = false;
+    bool range_overflow = false;
+    bool step_mismatch = false;
+    bool bad_input = false;
+    bool custom_error = false;
+
+    bool has_one_or_more_true_values() const
+    {
+        return value_missing || type_mismatch || pattern_mismatch || too_long || too_short || range_underflow || range_overflow || step_mismatch || bad_input || custom_error;
+    }
+};
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
 enum class SelectionDirection {
     Forward,
@@ -74,15 +92,15 @@ public:
     bool novalidate_state() const;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure/#definitions
-    virtual bool suffering_from_being_missing() const { return false; }
-    virtual bool suffering_from_a_type_mismatch() const { return false; }
-    virtual bool suffering_from_a_pattern_mismatch() const { return false; }
-    bool suffering_from_being_too_long() const;
-    bool suffering_from_being_too_short() const;
-    virtual bool suffering_from_an_underflow() const { return false; }
-    virtual bool suffering_from_an_overflow() const { return false; }
-    virtual bool suffering_from_a_step_mismatch() const { return false; }
-    virtual bool suffering_from_bad_input() const { return false; }
+    virtual bool suffering_from_being_missing() const;
+    virtual bool suffering_from_a_type_mismatch() const;
+    virtual bool suffering_from_a_pattern_mismatch() const;
+    virtual bool suffering_from_being_too_long() const;
+    virtual bool suffering_from_being_too_short() const;
+    virtual bool suffering_from_an_underflow() const;
+    virtual bool suffering_from_an_overflow() const;
+    virtual bool suffering_from_a_step_mismatch() const;
+    virtual bool suffering_from_bad_input() const;
     bool suffering_from_a_custom_error() const;
 
     virtual Utf16String form_value() const { return {}; }
@@ -124,6 +142,16 @@ public:
 
     void update_face_disabled_state();
 
+    ValidityStateFlags const& face_validity_flags() const { return m_face_validity_flags; }
+    void set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value);
+
+    String const& face_validation_message() const { return m_face_validation_message; }
+    void set_face_validation_message(Badge<ElementInternals>, String const& value);
+
+    void set_face_validation_anchor(Badge<ElementInternals>, GC::Ptr<HTMLElement> value);
+
+    void set_custom_validity_error_message(Badge<ElementInternals>, String const& value) { m_custom_validity_error_message = value; }
+
 protected:
     FormAssociatedElement() = default;
     virtual ~FormAssociatedElement() = default;
@@ -143,6 +171,18 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
+
+    // N.B.: FACE stands for form-associated custom element.
+
+    ValidityStateFlags m_face_validity_flags {};
+
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-message
+    // Each form-associated custom element has a validation message string. It is the empty string initially.
+    String m_face_validation_message;
+
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-anchor
+    // Each form-associated custom element has a validation anchor element. It is null initially.
+    GC::Weak<HTMLElement> m_face_validation_anchor;
 
     // AD-HOC: Cached disabled state for form-associated custom elements, used to detect changes
     //         and enqueue formDisabledCallback. Only meaningful for FACEs.

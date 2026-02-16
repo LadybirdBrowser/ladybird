@@ -519,18 +519,69 @@ bool FormAssociatedElement::novalidate_state() const
     return false;
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#limiting-user-input-length%3A-the-maxlength-attribute%3Asuffering-from-being-too-long
-bool FormAssociatedElement::suffering_from_being_too_long() const
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing
+bool FormAssociatedElement::suffering_from_being_missing() const
 {
-    // FIXME: Implement this.
-    return false;
+    // When the setValidity() method sets valueMissing flag to true for a form-associated custom element.
+    return m_face_validity_flags.value_missing;
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements%3A-the-minlength-attribute%3Asuffering-from-being-too-short
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-type-mismatch
+bool FormAssociatedElement::suffering_from_a_type_mismatch() const
+{
+    // When the setValidity() method sets typeMismatch flag to true for a form-associated custom element.
+    return m_face_validity_flags.type_mismatch;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-pattern-mismatch
+bool FormAssociatedElement::suffering_from_a_pattern_mismatch() const
+{
+    // When the setValidity() method sets patternMismatch flag to true for a form-associated custom element.
+    return m_face_validity_flags.pattern_mismatch;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-too-long
+bool FormAssociatedElement::suffering_from_being_too_long() const
+{
+    // When the setValidity() method sets tooLong flag to true for a form-associated custom element.
+    // FIXME: Implement this for non-FACEs.
+    return m_face_validity_flags.too_long;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-too-short
 bool FormAssociatedElement::suffering_from_being_too_short() const
 {
-    // FIXME: Implement this.
-    return false;
+    // When the setValidity() method sets tooShort flag to true for a form-associated custom element.
+    // FIXME: Implement this for non-FACEs.
+    return m_face_validity_flags.too_short;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-overflow
+bool FormAssociatedElement::suffering_from_an_underflow() const
+{
+    // When the setValidity() method sets rangeUnderflow flag to true for a form-associated custom element.
+    return m_face_validity_flags.range_underflow;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-overflow
+bool FormAssociatedElement::suffering_from_an_overflow() const
+{
+    // When the setValidity() method sets rangeOverflow flag to true for a form-associated custom element.
+    return m_face_validity_flags.range_overflow;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-step-mismatch
+bool FormAssociatedElement::suffering_from_a_step_mismatch() const
+{
+    // When the setValidity() method sets stepMismatch flag to true for a form-associated custom element.
+    return m_face_validity_flags.step_mismatch;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-bad-input
+bool FormAssociatedElement::suffering_from_bad_input() const
+{
+    // When the setValidity() method sets badInput flag to true for a form-associated custom element.
+    return m_face_validity_flags.bad_input;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-custom-error
@@ -539,6 +590,21 @@ bool FormAssociatedElement::suffering_from_a_custom_error() const
     // When a control's custom validity error message (as set by the element's setCustomValidity() method or ElementInternals's setValidity() method) is not the empty
     // string.
     return !m_custom_validity_error_message.is_empty();
+}
+
+void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value)
+{
+    m_face_validity_flags = value;
+}
+
+void FormAssociatedElement::set_face_validation_message(Badge<ElementInternals>, String const& value)
+{
+    m_face_validation_message = value;
+}
+
+void FormAssociatedElement::set_face_validation_anchor(Badge<ElementInternals>, GC::Ptr<HTMLElement> value)
+{
+    m_face_validation_anchor = value;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

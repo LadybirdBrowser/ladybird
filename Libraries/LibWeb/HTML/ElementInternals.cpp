@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> ElementInternals::form() const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setvalidity
-WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags const& flags, Optional<String> message, Optional<GC::Ptr<HTMLElement>> anchor)
+WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor)
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;
@@ -101,24 +101,32 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags cons
         };
     }
 
-    // FIXME: 4. For each entry flag → value of flags, set element's validity flag with the name flag to value.
+    // 4. For each entry flag → value of flags, set element's validity flag with the name flag to value.
+    element->set_face_validity_flags({}, flags);
 
-    // FIXME: 5. Set element's validation message to the empty string if message is not given or all of element's validity flags are false, or to message otherwise.
+    // 5. Set element's validation message to the empty string if message is not given or all of element's validity flags are false, or to message otherwise.
+    String validation_message;
+    if (message.has_value() && flags.has_one_or_more_true_values())
+        validation_message = message.release_value();
 
-    // FIXME: 6. If element's customError validity flag is true, then set element's custom validity error message to element's validation message. Otherwise, set element's custom validity error message to the empty string.
+    element->set_face_validation_message({}, validation_message);
+
+    // 6. If element's customError validity flag is true, then set element's custom validity error message to element's
+    //    validation message. Otherwise, set element's custom validity error message to the empty string.
+    element->set_custom_validity_error_message({}, flags.custom_error ? validation_message : ""_string);
 
     // 7. If anchor is not given, then set it to element.
-    if (!anchor.has_value() || !anchor.value().ptr()) {
+    if (!anchor) {
         anchor = element;
     }
 
     // 8. Otherwise, if anchor is not a shadow-including inclusive descendant of element, then throw a "NotFoundError" DOMException.
-    else if (!anchor.value()->is_shadow_including_inclusive_descendant_of(element)) {
+    else if (!anchor->is_shadow_including_inclusive_descendant_of(element)) {
         return WebIDL::NotFoundError::create(realm(), "Anchor is not a shadow-including descendant of element"_utf16);
     }
 
-    // FIXME: 9. Set element's validation anchor to anchor.
-    dbgln("FIXME: ElementInternals::set_validity()");
+    // 9. Set element's validation anchor to anchor.
+    element->set_face_validation_anchor({}, anchor);
     return {};
 }
 
