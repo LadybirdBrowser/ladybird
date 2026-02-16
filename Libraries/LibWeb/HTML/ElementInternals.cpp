@@ -199,8 +199,7 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> ElementInternals::labels()
     if (!m_target_element->is_form_associated_custom_element())
         return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
-    dbgln("FIXME: ElementInternals::labels()");
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: ElementInternals::labels()"_utf16);
+    return m_target_element->labels();
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-states
