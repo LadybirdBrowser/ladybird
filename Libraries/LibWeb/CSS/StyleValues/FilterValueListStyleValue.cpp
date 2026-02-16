@@ -48,8 +48,10 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
                     drop_shadow.color->serialize(builder, mode);
                     builder.append(' ');
                 }
-                builder.appendff("{} {}", drop_shadow.offset_x, drop_shadow.offset_y);
-                if (drop_shadow.radius.has_value()) {
+                drop_shadow.offset_x->serialize(builder, mode);
+                builder.append(' ');
+                drop_shadow.offset_y->serialize(builder, mode);
+                if (drop_shadow.radius) {
                     builder.append(' ');
                     drop_shadow.radius->serialize(builder, mode);
                 }
@@ -104,20 +106,6 @@ bool FilterValueListStyleValue::contains_url() const
 
 ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
-    auto const& length_resolution_context = computation_context.length_resolution_context;
-
-    auto absolutize_length = [&](LengthOrCalculated const& length) -> LengthOrCalculated {
-        if (length.is_calculated()) {
-            if (auto resolved = length.resolved(resolution_context); resolved.has_value())
-                return LengthOrCalculated { Length::make_px(resolved->to_px(length_resolution_context)) };
-            return length;
-        }
-        if (auto absolutized = length.value().absolutize(length_resolution_context); absolutized.has_value())
-            return LengthOrCalculated { absolutized.release_value() };
-        return length;
-    };
-
     Vector<FilterValue> absolutized_filter_values;
     absolutized_filter_values.ensure_capacity(m_filter_value_list.size());
 
@@ -130,9 +118,9 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolut
             },
             [&](FilterOperation::DropShadow const& drop_shadow) {
                 absolutized_filter_values.append(FilterOperation::DropShadow {
-                    .offset_x = absolutize_length(drop_shadow.offset_x),
-                    .offset_y = absolutize_length(drop_shadow.offset_y),
-                    .radius = drop_shadow.radius.map([&](auto const& r) { return absolutize_length(r); }),
+                    .offset_x = drop_shadow.offset_x->absolutized(computation_context),
+                    .offset_y = drop_shadow.offset_y->absolutized(computation_context),
+                    .radius = drop_shadow.radius ? ValueComparingRefPtr<StyleValue const> { drop_shadow.radius->absolutized(computation_context) } : nullptr,
                     .color = drop_shadow.color ? ValueComparingRefPtr<StyleValue const> { drop_shadow.color->absolutized(computation_context) } : nullptr,
                 });
             },
