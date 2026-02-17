@@ -15,7 +15,7 @@
 #include <AK/Diagnostics.h>
 #include <AK/Platform.h>
 
-#ifdef AK_OS_WINDOWS // needed for Swift
+#ifdef AK_OS_WINDOWS
 #    define timeval dummy_timeval
 #    include <ntstatus.h>
 #    include <winsock2.h>

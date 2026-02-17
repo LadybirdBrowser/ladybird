@@ -99,7 +99,6 @@ Here’s a short timeline:
 
 ## Do you have some general details about the code and basic architecture?
 
-- C++ while selectively migrating parts to Swift and while keeping an eye on things like Sean Baxter’s [Circle](https://github.com/seanbaxter/circle) & [Safe C++](https://safecpp.org/draft.html).
 - Some use of third-party libraries (e.g., Harfbuzz, Skia, [simdutf](https://github.com/simdutf/simdutf), libcurl).
 - Performance optimizing is not yet a super-high priority (but performance-boosting changes are regularly getting made).
 - Code size:

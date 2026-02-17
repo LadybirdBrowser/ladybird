@@ -66,11 +66,7 @@ jobs:
         id: 'build-parameters'
         run: |
           CMAKE_OPTIONS="-DENABLE_CI_BASELINE_CPU=ON"
-          if ${{ inputs.toolchain == 'Swift' }} ; then
-            echo "host_cc=$(swiftly use --print-location)/usr/bin/clang" >> "$GITHUB_OUTPUT"
-            echo "host_cxx=$(swiftly use --print-location)/usr/bin/clang++" >> "$GITHUB_OUTPUT"
-            CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_SWIFT=ON"
-          elif ${{ inputs.os_name == 'Linux' }} ; then
+          if ${{ inputs.os_name == 'Linux' }} ; then
             # FIXME: https://github.com/WebAssembly/wabt/issues/2533
             #        wabt doesn't have binary releases for arm64 Linux
             if ${{ inputs.arch == 'arm64' }} ; then

@@ -1,9 +1,7 @@
 # Finds the BlocksRuntime library
 # On Apple platforms, this does not exist and is folded into other System libraries
 
-find_library(BLOCKS_RUNTIME NAMES BlocksRuntime
-    PATHS ${SWIFT_LIBRARY_SEARCH_PATHS}
-)
+find_library(BLOCKS_RUNTIME NAMES BlocksRuntime)
 if (BLOCKS_RUNTIME)
     if (NOT TARGET BlocksRuntime::BlocksRuntime)
         add_library(BlocksRuntime::BlocksRuntime IMPORTED UNKNOWN)
@@ -12,7 +10,7 @@ if (BLOCKS_RUNTIME)
         set_target_properties(BlocksRuntime::BlocksRuntime PROPERTIES
                 IMPORTED_LOCATION "${BLOCKS_RUNTIME}"
                 INTERFACE_LINK_DIRECTORIES "${_BLOCKS_RUNTIME_DIR}"
-                INTERFACE_COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:C,CXX>:-fblocks>;SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xcc -fblocks>"
+                INTERFACE_COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:C,CXX>:-fblocks>"
         )
     endif()
     set(BlocksRuntime_FOUND TRUE)

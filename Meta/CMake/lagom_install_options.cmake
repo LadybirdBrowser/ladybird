@@ -15,10 +15,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAK
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_LIBDIR}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_LIBDIR}")
 
-# FIXME: Stop setting this when we have a good way to retrieve the directory that has the swift module
-#        file for use by the swift frontend's header generator
-set(CMAKE_Swift_MODULE_DIRECTORY  "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}swift")
-
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 
 if ("${VCPKG_INSTALLED_DIR}" STREQUAL "")

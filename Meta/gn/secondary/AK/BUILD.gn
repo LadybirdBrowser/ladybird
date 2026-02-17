@@ -177,7 +177,6 @@ shared_library("AK") {
     "StringUtils.h",
     "StringView.cpp",
     "StringView.h",
-    "Swift.h",
     "TemporaryChange.h",
     "Time.cpp",
     "Time.h",

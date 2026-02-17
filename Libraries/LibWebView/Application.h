@@ -9,7 +9,6 @@
 #include <AK/ByteString.h>
 #include <AK/LexicalPath.h>
 #include <AK/Optional.h>
-#include <AK/Swift.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
 #include <LibDatabase/Forward.h>
@@ -268,7 +267,7 @@ private:
     OwnPtr<DevTools::DevToolsServer> m_devtools;
 
     mutable HashMap<u64, u64> m_navigation_listener_ids;
-} SWIFT_IMMORTAL_REFERENCE;
+};
 
 }
 

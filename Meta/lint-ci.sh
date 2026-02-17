@@ -52,11 +52,4 @@ else
     ((FAILURES+=1))
 fi
 
-if Meta/lint-swift.sh "$@" && git diff --exit-code -- ':*.swift'; then
-    echo -e "[${GREEN}OK${NC}]: Meta/lint-swift.sh"
-else
-    echo -e "[${BOLD_RED}FAIL${NC}]: Meta/lint-swift.sh"
-    ((FAILURES+=1))
-fi
-
 exit "${FAILURES}"

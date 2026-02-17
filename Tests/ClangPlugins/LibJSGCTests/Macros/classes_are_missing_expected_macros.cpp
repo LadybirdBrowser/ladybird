@@ -6,16 +6,11 @@
 
 // RUN: %clang++ -Xclang -verify %plugin_opts% -c %s -o %t 2>&1
 
-#include <LibGC/ForeignCell.h>
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 // expected-error@+1 {{Expected record to have a GC_CELL macro invocation}}
 class TestCellClass : JS::Cell {
-};
-
-// expected-error@+1 {{Expected record to have a FOREIGN_CELL macro invocation}}
-class TestForeignCellClass : GC::ForeignCell {
 };
 
 // expected-error@+1 {{Expected record to have a JS_OBJECT macro invocation}}

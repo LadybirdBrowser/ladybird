@@ -1210,23 +1210,3 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
 
 generate_js_bindings(LibWeb)
-
-if (ENABLE_SWIFT)
-    include(collections)
-
-    set(generated_headers ${GENERATED_SOURCES})
-    list(FILTER generated_headers INCLUDE REGEX "\\.h$")
-    list(TRANSFORM generated_headers PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-    list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${generated_headers})
-
-    generate_clang_module_map(LibWeb GENERATED_FILES ${LIBWEB_ALL_GENERATED_HEADERS})
-
-    target_sources(LibWeb PRIVATE
-        HTML/Parser/HTMLToken.swift
-        HTML/Parser/HTMLTokenizer.swift
-        HTML/Parser/HTMLTokenizerHelpers.cpp
-        HTML/Parser/SpeculativeHTMLParser.swift
-    )
-    target_link_libraries(LibWeb PRIVATE AK Collections)
-    add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx LibGC)
-endif()

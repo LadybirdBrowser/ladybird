@@ -757,9 +757,6 @@ static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRe
             if (base_name == "GC::Cell")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::GCCell };
 
-            if (base_name == "GC::ForeignCell")
-                return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::ForeignCell };
-
             if (base_name == "JS::Object")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::JSObject };
 
@@ -782,9 +779,6 @@ static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRe
 
 LibJSGCVisitor::CellMacroExpectation LibJSGCVisitor::get_record_cell_macro_expectation(clang::CXXRecordDecl const& record)
 {
-    if (record.getQualifiedNameAsString() == "GC::ForeignCell")
-        return { LibJSCellMacro::Type::ForeignCell, "Cell" };
-
     auto origin = find_cell_type_with_origin(record);
     assert(origin.has_value());
 
@@ -921,8 +915,6 @@ char const* LibJSCellMacro::type_name(Type type)
     switch (type) {
     case Type::GCCell:
         return "GC_CELL";
-    case Type::ForeignCell:
-        return "FOREIGN_CELL";
     case Type::JSObject:
         return "JS_OBJECT";
     case Type::JSEnvironment:
@@ -951,7 +943,6 @@ void LibJSPPCallbacks::MacroExpands(clang::Token const& name_token, clang::Macro
     if (auto* ident_info = name_token.getIdentifierInfo()) {
         static llvm::StringMap<LibJSCellMacro::Type> libjs_macro_types {
             { "GC_CELL", LibJSCellMacro::Type::GCCell },
-            { "FOREIGN_CELL", LibJSCellMacro::Type::ForeignCell },
             { "JS_OBJECT", LibJSCellMacro::Type::JSObject },
             { "JS_ENVIRONMENT", LibJSCellMacro::Type::JSEnvironment },
             { "JS_PROTOTYPE_OBJECT", LibJSCellMacro::Type::JSPrototypeObject },

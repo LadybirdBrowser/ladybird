@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Swift.h>
 #include <LibGC/Heap.h>
 
 namespace GC {
@@ -26,6 +25,6 @@ public:
 
 private:
     Heap& m_heap;
-} SWIFT_NONCOPYABLE;
+};
 
 }
