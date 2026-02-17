@@ -8,7 +8,7 @@
 
 #include <AK/RefPtr.h>
 
-namespace Web::CSS {
+namespace AK {
 
 template<typename T>
 struct ValueComparingNonnullRefPtr : public NonnullRefPtr<T> {
