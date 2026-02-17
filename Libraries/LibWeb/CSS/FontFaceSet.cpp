@@ -229,6 +229,10 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
     //    faces that match the font style, and add them to matched font faces. The use of the unicodeRange attribute means
     //    that this may be more than just a single font face.
     for (auto const& font_family : font_family_list.values()) {
+        // NB: Skip generic font family keywords
+        if (font_family->is_keyword())
+            continue;
+
         // FIXME: The matching below is super basic. We currently just match font family names by their string value.
         auto font_family_name = string_from_style_value(font_family);
 

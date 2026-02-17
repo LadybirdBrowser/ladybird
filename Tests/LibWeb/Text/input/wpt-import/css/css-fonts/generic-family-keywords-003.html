@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>Test quotes vs. no-quotes matchings of generic font family keywords in a CanvasRenderingContext2D</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#family-name-syntax">
+<link rel="author" title="Frédéric Wang" href="mailto:fwang@igalia.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-fonts/support/font-family-keywords.js"></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css"/>
+<body>
+<canvas id="canvas" width="400" height="150"></canvas>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { document.fonts.load("25px Ahem").then(runTests); });
+  function runTests() {
+    const measured_text = "|||||";
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = `25px Ahem`;
+    let ahem_expected_width = ctx.measureText(measured_text).width;
+
+    kGenericFontFamilyKeywords.forEach(keyword => {
+      promise_test(async function() {
+         ctx.font = `25px ${keyword}`;
+         let expected_width = ctx.measureText(measured_text).width;
+
+        // Insert the @font-face rules for quoted and unquoted keywords.
+        document.documentElement.insertAdjacentHTML('beforeend', `
+<style>
+@font-face {
+  font-family: ${keyword};
+  src: local(Ahem), url('../../fonts/Ahem.ttf');
+}
+</style>
+<style>
+@font-face {
+  font-family: "${keyword}";
+  src: local(Ahem), url('../../fonts/Ahem.ttf');
+}
+</style>`);
+
+        await document.fonts.load(`25px ${keyword}`);
+        ctx.font = `25px ${keyword}`;
+        let unquoted_width = ctx.measureText(measured_text).width;
+        assert_equals(unquoted_width, expected_width, `unquoted ${keyword} does not match @font-face rule`);
+
+        await document.fonts.load(`25px "${keyword}"`);
+        ctx.font = `25px "${keyword}"`;
+        let quoted_width = ctx.measureText(measured_text).width;
+        assert_equals(quoted_width, ahem_expected_width, `quoted ${keyword} matches  @font-face rule`);
+      }, `@font-face matching for quoted and unquoted ${keyword} (drawing text in a canvas)`);
+    });
+    done();
+  }
+</script>
+</body>
