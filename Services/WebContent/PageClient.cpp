@@ -181,6 +181,11 @@ void PageClient::set_is_scripting_enabled(bool is_scripting_enabled)
     page().set_is_scripting_enabled(is_scripting_enabled);
 }
 
+void PageClient::set_max_touch_points(int max_touch_points)
+{
+    m_max_touch_points = max(0, max_touch_points);
+}
+
 void PageClient::set_window_position(Web::DevicePixelPoint position)
 {
     page().set_window_position(position);
