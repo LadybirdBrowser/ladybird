@@ -163,8 +163,6 @@ void ScopeCollector::add_declaration(NonnullRefPtr<Declaration const> declaratio
                 VERIFY(scope->parent != nullptr);
                 scope = scope->parent;
             }
-            VERIFY(scope->is_top_level() && scope->ast_node);
-            scope->ast_node->add_var_scoped_declaration(declaration);
         }));
 
         VERIFY(m_current->top_level);
