@@ -292,6 +292,7 @@ set(SOURCES
     CSS/StyleValues/TextUnderlinePositionStyleValue.cpp
     CSS/StyleValues/TransformationStyleValue.cpp
     CSS/StyleValues/TreeCountingFunctionStyleValue.cpp
+    CSS/StyleValues/TupleStyleValue.cpp
     CSS/StyleValues/UnicodeRangeStyleValue.cpp
     CSS/StyleValues/UnresolvedStyleValue.cpp
     CSS/StyleValues/ViewFunctionStyleValue.cpp

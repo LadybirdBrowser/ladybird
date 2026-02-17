@@ -403,6 +403,7 @@ class TimePercentage;
 class TimeStyleValue;
 class TransformationStyleValue;
 class TreeCountingFunctionStyleValue;
+class TupleStyleValue;
 class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
 class URL;
@@ -474,6 +475,7 @@ struct TransitionProperties;
 using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
 using PaintOrderList = Array<PaintOrder, 3>;
 using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
+using StyleValueTuple = Vector<ValueComparingRefPtr<StyleValue const>>;
 
 using FilterValue = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color, URL>;
 

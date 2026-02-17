@@ -1,0 +1,40 @@
+/*
+ * Copyright (c) 2026, Callum Law <callumlaw1709@outlook.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
+
+namespace Web::CSS {
+
+class TupleStyleValue final : public StyleValueWithDefaultOperators<TupleStyleValue> {
+public:
+    static ValueComparingNonnullRefPtr<TupleStyleValue const> create(StyleValueTuple values)
+    {
+        return adopt_ref(*new (nothrow) TupleStyleValue(move(values)));
+    }
+    virtual ~TupleStyleValue() override = default;
+
+    StyleValueTuple const& tuple() const { return m_tuple; }
+
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+
+    // FIXME: Support tokenization and reification
+
+    bool properties_equal(TupleStyleValue const& other) const { return m_tuple == other.m_tuple; }
+
+private:
+    explicit TupleStyleValue(StyleValueTuple values)
+        : StyleValueWithDefaultOperators(Type::Tuple)
+        , m_tuple(move(values))
+    {
+    }
+
+    StyleValueTuple m_tuple;
+};
+
+}

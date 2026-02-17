@@ -96,6 +96,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Time, time, TimeStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue)                        \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(TreeCountingFunction, tree_counting_function, TreeCountingFunctionStyleValue)    \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Tuple, tuple, TupleStyleValue)                                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(UnicodeRange, unicode_range, UnicodeRangeStyleValue)                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Unresolved, unresolved, UnresolvedStyleValue)                                    \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                         \
