@@ -144,12 +144,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
     font_provider.load_all_fonts_from_uri("resource://fonts"sv);
 
-    // Test mode implies internals object is exposed and the Skia CPU backend is used
-    if (enable_test_mode) {
-        expose_internals_object = true;
-        force_cpu_painting = true;
-    }
-
     Web::set_browser_process_command_line(command_line);
     Web::set_browser_process_executable_path(executable_path);
 
