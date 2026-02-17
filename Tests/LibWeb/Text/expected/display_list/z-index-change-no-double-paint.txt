@@ -1,0 +1,19 @@
+Before z-index change:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+Restore@0
+
+After z-index change:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+  FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+Restore@0
+
