@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+p {
+    font-size: 48px;
+    line-height: 0.8;
+    margin: 0;
+}
+</style>
+<p>Spying glyph</p>
+<script>
+test(() => {
+    const p = document.querySelector("p");
+    const text = p.firstChild;
+    p.offsetWidth;
+
+    const elementRect = p.getBoundingClientRect();
+
+    const fullRange = document.createRange();
+    fullRange.selectNodeContents(p);
+    const fullRangeRect = fullRange.getBoundingClientRect();
+
+    const partialRange = document.createRange();
+    partialRange.setStart(text, 1);
+    partialRange.setEnd(text, 3);
+    const partialRangeRect = partialRange.getBoundingClientRect();
+
+    println(`element height: ${elementRect.height}`);
+    println(`full range height: ${fullRangeRect.height}`);
+    println(`partial range height: ${partialRangeRect.height}`);
+    println(`range taller than element: ${fullRangeRect.height > elementRect.height}`);
+    println(`full and partial same height: ${fullRangeRect.height === partialRangeRect.height}`);
+});
+</script>
