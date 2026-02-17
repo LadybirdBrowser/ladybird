@@ -72,16 +72,32 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         .length_resolution_context = Length::ResolutionContext::for_document(*descriptors.parent_rule()->parent_style_sheet()->owning_document())
     };
 
-    Optional<int> weight;
+    Optional<FontWeightRange> weight;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWeight)) {
         // https://drafts.csswg.org/css-fonts-4/#font-prop-desc
         // The auto values for these three descriptors have the following effects:
         //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
         //  - FIXME: For variation axis clamping, clamping does not occur
         if (value->to_keyword() == Keyword::Auto) {
-            weight = 400;
+            weight = { 400, 400 };
         } else {
-            weight = StyleComputer::compute_font_weight(value->absolutized(computation_context), {})->as_number().number();
+            auto absolutized = value->absolutized(computation_context);
+            auto& weight_values = absolutized->as_value_list().values();
+            if (weight_values.size() == 1) {
+                auto one_weight = static_cast<int>(StyleComputer::compute_font_weight(weight_values[0], {})->as_number().number());
+                weight = { one_weight, one_weight };
+            } else if (weight_values.size() == 2) {
+                // https://w3c.github.io/csswg-drafts/css-fonts/#font-prop-desc
+                // User agents must swap the computed value of the startpoint and endpoint of the range in order to forbid decreasing ranges.
+                auto first_weight = static_cast<int>(StyleComputer::compute_font_weight(weight_values[0], {})->as_number().number());
+                auto second_weight = static_cast<int>(StyleComputer::compute_font_weight(weight_values[1], {})->as_number().number());
+                weight = {
+                    min(first_weight, second_weight),
+                    max(first_weight, second_weight)
+                };
+            } else {
+                VERIFY_NOT_REACHED();
+            }
         }
     }
 
@@ -207,11 +223,11 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 }
 
-ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
+ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
     : m_parent_rule(parent_rule)
     , m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))
-    , m_weight(weight)
+    , m_weight(move(weight))
     , m_slope(slope)
     , m_width(width)
     , m_sources(move(sources))

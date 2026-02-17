@@ -1,0 +1,15 @@
+No weight defined: auto
+Two numbers: 100 200
+Two numbers reversed: 200 100
+Two keywords: bold normal
+Two keywords reversed: normal bold
+Number and keyword: normal 700
+Number and keyword reversed: 700 normal
+Number and keyword again: bold 300
+Number and keyword again reversed: 300 bold
+Two numbers filling the range: 1 1000
+Invalid too many: auto
+Invalid relative lighter: auto
+Invalid relative bolder: auto
+Invalid relative: auto
+Invalid out of range: auto

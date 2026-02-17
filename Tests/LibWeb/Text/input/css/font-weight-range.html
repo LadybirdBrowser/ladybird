@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: No weight defined;
+        src: local('not-a-real-font-i-promise');
+    }
+    @font-face {
+        font-family: Two numbers;
+        src: local('not-a-real-font-i-promise');
+        font-weight: 100 200;
+    }
+    @font-face {
+        font-family: Two numbers reversed;
+        src: local('not-a-real-font-i-promise');
+        font-weight: 200 100;
+    }
+    @font-face {
+        font-family: Two keywords;
+        src: local('not-a-real-font-i-promise');
+        font-weight: bold normal;
+    }
+    @font-face {
+        font-family: Two keywords reversed;
+        src: local('not-a-real-font-i-promise');
+        font-weight: normal bold;
+    }
+    @font-face {
+        font-family: Number and keyword;
+        src: local('not-a-real-font-i-promise');
+        font-weight: normal 700;
+    }
+    @font-face {
+        font-family: Number and keyword reversed;
+        src: local('not-a-real-font-i-promise');
+        font-weight: 700 normal;
+    }
+    @font-face {
+        font-family: Number and keyword again;
+        src: local('not-a-real-font-i-promise');
+        font-weight: bold 300;
+    }
+    @font-face {
+        font-family: Number and keyword again reversed;
+        src: local('not-a-real-font-i-promise');
+        font-weight: 300 bold;
+    }
+    @font-face {
+        font-family: Two numbers filling the range;
+        src: local('not-a-real-font-i-promise');
+        font-weight: 1 1000;
+    }
+    
+    /* The following are invalid, and should return 'normal' */
+    @font-face {
+        font-family: Invalid too many;
+        src: local('not-a-real-font-i-promise');
+        font-weight: 100 100 100;
+    }
+    @font-face {
+        font-family: Invalid relative lighter;
+        src: local('not-a-real-font-i-promise');
+        font-weight: lighter;
+    }
+    @font-face {
+        font-family: Invalid relative bolder;
+        src: local('not-a-real-font-i-promise');
+        font-weight: bolder;
+    }
+    @font-face {
+        font-family: Invalid relative;
+        src: local('not-a-real-font-i-promise');
+        font-weight: lighter bolder;
+    }
+    @font-face {
+        font-family: Invalid out of range;
+        src: local('not-a-real-font-i-promise');
+        font-weight: 0 20000;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        document.fonts.forEach(font => {
+            println(`${font.family}: ${font.weight}`);
+        });
+    });
+</script>

@@ -628,11 +628,9 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         return {};
     }
 
-    auto weight = font_face.weight().value_or(0);
-
     FontFaceKey key {
         .family_name = font_face.font_family(),
-        .weight = { weight, weight },
+        .weight = font_face.weight().value_or({ 0, 0 }),
         .slope = font_face.slope().value_or(0),
     };
 

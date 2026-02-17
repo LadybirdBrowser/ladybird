@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<head>
+<link rel="match" href="../../expected/css/font-weight-range-ref.html" />
+<style>
+    @font-face {
+        font-family: 'Test';
+        src: url('../../data/fonts/Ahem.ttf');
+        font-weight: 400 600;
+    }
+    @font-face {
+        font-family: 'Test';
+        src: url('../../../../../Base/res/fonts/SerenitySans-Regular.ttf');
+        font-weight: 1 399;
+    }
+    @font-face {
+        font-family: 'Test';
+        src: url('../../../../../Base/res/fonts/SerenitySans-Regular.ttf');
+        font-weight: 601 999;
+    }
+    span {
+        font-family: 'Test', sans-serif;
+    }
+</style>
+</head>
+<body>
+    <p>
+        <span style="font-weight:100">100</span>
+        <span style="font-weight:200">200</span>
+        <span style="font-weight:300">300</span>
+        <span style="font-weight:400">400</span>
+        <span style="font-weight:500">500</span>
+        <span style="font-weight:600">600</span>
+        <span style="font-weight:700">700</span>
+        <span style="font-weight:800">800</span>
+        <span style="font-weight:900">900</span>
+        <span style="font-weight:1000">1000</span>
+    </p>
+</body>

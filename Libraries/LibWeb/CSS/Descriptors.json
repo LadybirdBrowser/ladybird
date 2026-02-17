@@ -70,10 +70,9 @@
       },
       "font-weight": {
         "initial": "auto",
-        "FIXME": "Support multiple font-weight values; disallow relative font-weights",
         "syntax": [
           "auto",
-          "<'font-weight'>"
+          "<font-weight-absolute>{1,2}"
         ]
       },
       "font-width": {

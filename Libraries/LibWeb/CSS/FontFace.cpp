@@ -582,7 +582,8 @@ GC::Ref<WebIDL::Promise> FontFace::load()
             ParsedFontFace parsed_font_face {
                 font_face_rule,
                 m_family,
-                m_weight.to_number<int>(),
+                // FIXME: Actually parse this as we're supposed to.
+                m_weight.to_number<int>().map([](auto weight) { return FontWeightRange { weight, weight }; }),
                 0,                      // FIXME: slope
                 Gfx::FontWidth::Normal, // FIXME: width
                 m_urls,
