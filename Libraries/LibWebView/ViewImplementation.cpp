@@ -17,6 +17,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/ReservedBrowserShortcuts.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -228,8 +229,17 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>
 {
     auto event = m_pending_input_events.dequeue();
 
-    if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
-        return;
+    if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled) {
+        bool reserved_shortcut = false;
+        event.visit(
+            [&](Web::KeyEvent const& key_event) {
+                reserved_shortcut = is_reserved_browser_shortcut(key_event);
+            },
+            [](auto const&) {});
+
+        if (!reserved_shortcut)
+            return;
+    }
 
     // Here we handle events that were not consumed or cancelled by the WebContent. Propagate the event back
     // to the concrete view implementation.
