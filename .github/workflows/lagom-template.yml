@@ -54,6 +54,7 @@ jobs:
 
       - name: Set Up Environment
         uses: ./.github/actions/setup
+        id: 'setup'
         with:
           os: ${{ inputs.os_name }}
           arch: ${{ inputs.arch }}
@@ -75,11 +76,11 @@ jobs:
             fi
 
             if ${{ inputs.toolchain == 'Clang' }} ; then
-              echo "host_cc=clang-20" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=clang++-20" >> "$GITHUB_OUTPUT"
+              echo "host_cc=clang-${{ steps.setup.outputs.llvm_version }}" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=clang++-${{ steps.setup.outputs.llvm_version }}" >> "$GITHUB_OUTPUT"
             elif ${{ inputs.toolchain == 'GNU' }} ; then
-              echo "host_cc=gcc-14" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=g++-14" >> "$GITHUB_OUTPUT"
+              echo "host_cc=gcc-${{ steps.setup.outputs.gcc_version }}" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=g++-${{ steps.setup.outputs.gcc_version }}" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
             echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
