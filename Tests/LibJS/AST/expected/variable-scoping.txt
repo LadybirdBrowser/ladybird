@@ -4,13 +4,13 @@ Program (script) @1:1
 │     └─ FunctionBody @2:5
 │        ├─ ExpressionStatement @2:5
 │        │  └─ AssignmentExpression (=) @2:7
-│        │     ├─ Identifier "x" [variable:0] @2:5
+│        │     ├─ Identifier "x" [variable:0] (var) @2:5
 │        │     └─ NumericLiteral 1 @2:9
 │        ├─ VariableDeclaration (var) @3:5
 │        │  └─ VariableDeclarator @3:5
-│        │     └─ Identifier "x" [variable:0] @3:9
+│        │     └─ Identifier "x" [variable:0] (var) @3:9
 │        └─ ReturnStatement @4:5
-│           └─ Identifier "x" [variable:0] @4:12
+│           └─ Identifier "x" [variable:0] (var) @4:12
 ├─ FunctionDeclaration "let_in_block" @7:1
 │  └─ body
 │     └─ FunctionBody @8:5

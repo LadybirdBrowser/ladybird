@@ -208,6 +208,8 @@ void ScopeCollector::register_identifier(NonnullRefPtr<Identifier> id, Optional<
 {
     if (auto maybe_identifier_group = m_current->identifier_groups.get(id->string()); maybe_identifier_group.has_value()) {
         maybe_identifier_group.value().identifiers.append(id);
+        if (declaration_kind.has_value() && !maybe_identifier_group.value().declaration_kind.has_value())
+            maybe_identifier_group.value().declaration_kind = declaration_kind;
     } else {
         m_current->identifier_groups.set(id->string(), IdentifierGroup {
                                                            .captured_by_nested_function = false,
