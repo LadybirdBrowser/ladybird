@@ -484,6 +484,19 @@
             margin-top: 8px;
         }
 
+        .diff-stats {
+            padding: 8px 16px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .diff-stats strong {
+            color: var(--accent-red);
+        }
+
         .loading {
             display: flex;
             align-items: center;
@@ -629,7 +642,7 @@
                 tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
                 tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
             } else if (test.mode === 'Ref') {
-                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, type: 'imageDiff' });
+                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
             }
 
             if (test.hasStdout) tabs.push({ id: 'stdout', label: 'stdout', file: `${test.name}.stdout.txt`, type: 'text' });
@@ -672,11 +685,11 @@
             } else if (tab.type === 'image') {
                 container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
             } else if (tab.type === 'imageDiff') {
-                initImageDiffViewer(container, tab.expected, tab.actual);
+                initImageDiffViewer(container, tab.expected, tab.actual, tab.pixelErrors, tab.maxChannelDiff);
             }
         }
 
-        function initImageDiffViewer(container, expectedSrc, actualSrc) {
+        function initImageDiffViewer(container, expectedSrc, actualSrc, pixelErrors, maxChannelDiff) {
             const viewerId = 'diff-' + Math.random().toString(36).substr(2, 9);
 
             container.innerHTML = `
@@ -691,6 +704,7 @@
                             <input type="range" class="diff-slider" id="${viewerId}-slider" min="0" max="100" value="50">
                         </div>
                     </div>
+                    <div class="diff-stats" id="${viewerId}-stats" style="display: none;"></div>
                     <div class="diff-image-wrapper">
                         <div class="diff-image-container" id="${viewerId}-container">
                             <div class="loading">Loading images...</div>
@@ -706,6 +720,7 @@
             const slider = document.getElementById(`${viewerId}-slider`);
             const sliderValue = document.getElementById(`${viewerId}-slider-value`);
             const toggleLabel = document.getElementById(`${viewerId}-label`);
+            const statsEl = document.getElementById(`${viewerId}-stats`);
 
             let expectedImg = new Image();
             let actualImg = new Image();
@@ -735,6 +750,13 @@
                 imageContainer.innerHTML = '';
                 imageContainer.style.width = width + 'px';
                 imageContainer.style.height = height + 'px';
+
+                if (pixelErrors !== undefined) {
+                    const totalPixels = width * height;
+                    const pct = (pixelErrors / totalPixels * 100).toFixed(2);
+                    statsEl.innerHTML = `Pixel errors: <strong>${pixelErrors}</strong> / ${totalPixels} (${pct}%) &middot; Max channel difference: <strong>${maxChannelDiff}</strong>`;
+                    statsEl.style.display = 'block';
+                }
 
                 renderToggleMode();
             }
