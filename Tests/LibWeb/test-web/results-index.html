@@ -642,7 +642,7 @@
                 tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
                 tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
             } else if (test.mode === 'Ref') {
-                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
+                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, diff: `${test.name}.diff.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
             }
 
             if (test.hasStdout) tabs.push({ id: 'stdout', label: 'stdout', file: `${test.name}.stdout.txt`, type: 'text' });
@@ -685,11 +685,11 @@
             } else if (tab.type === 'image') {
                 container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
             } else if (tab.type === 'imageDiff') {
-                initImageDiffViewer(container, tab.expected, tab.actual, tab.pixelErrors, tab.maxChannelDiff);
+                initImageDiffViewer(container, tab.expected, tab.actual, tab.diff, tab.pixelErrors, tab.maxChannelDiff);
             }
         }
 
-        function initImageDiffViewer(container, expectedSrc, actualSrc, pixelErrors, maxChannelDiff) {
+        function initImageDiffViewer(container, expectedSrc, actualSrc, diffSrc, pixelErrors, maxChannelDiff) {
             const viewerId = 'diff-' + Math.random().toString(36).substr(2, 9);
 
             container.innerHTML = `
@@ -724,17 +724,20 @@
 
             let expectedImg = new Image();
             let actualImg = new Image();
+            let diffImg = new Image();
             let currentMode = 'toggle';
             let showingExpected = true;
             let imagesLoaded = 0;
             let width, height;
 
-            expectedImg.onload = actualImg.onload = function() {
+            function onImageLoad() {
                 imagesLoaded++;
                 if (imagesLoaded === 2) {
                     setupDiffViewer();
                 }
-            };
+            }
+
+            expectedImg.onload = actualImg.onload = onImageLoad;
 
             expectedImg.onerror = actualImg.onerror = function() {
                 imageContainer.innerHTML = '<div class="loading">Failed to load image</div>';
@@ -742,6 +745,8 @@
 
             expectedImg.src = expectedSrc;
             actualImg.src = actualSrc;
+            if (diffSrc)
+                diffImg.src = diffSrc;
 
             function setupDiffViewer() {
                 width = Math.max(expectedImg.naturalWidth, actualImg.naturalWidth);
@@ -872,22 +877,16 @@
                 imageContainer.style.cursor = 'default';
                 imageContainer.onclick = null;
 
-                // Use CSS difference blend mode with contrast boost
-                imageContainer.style.filter = 'brightness(5) contrast(5)';
-
-                const expectedClone = expectedImg.cloneNode();
-                expectedClone.style.display = 'block';
-                imageContainer.appendChild(expectedClone);
-
-                const actualClone = actualImg.cloneNode();
-                actualClone.style.position = 'absolute';
-                actualClone.style.top = '0';
-                actualClone.style.left = '0';
-                actualClone.style.mixBlendMode = 'difference';
-                imageContainer.appendChild(actualClone);
+                if (diffImg.src) {
+                    const img = diffImg.cloneNode();
+                    img.style.display = 'block';
+                    imageContainer.appendChild(img);
+                } else {
+                    imageContainer.innerHTML = '<div class="loading">No diff image available</div>';
+                }
 
                 toggleLabel.style.display = 'block';
-                toggleLabel.textContent = 'Difference mode: black = identical, colored = different';
+                toggleLabel.textContent = 'Difference mode: black = identical, red = different';
             }
 
             function cleanupCurrentMode() {
