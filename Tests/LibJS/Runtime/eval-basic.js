@@ -70,3 +70,25 @@ test("global eval evaluates as non-strict", function () {
     "use strict";
     expect(globalThis.eval("01"));
 });
+
+test("indirect eval can be called multiple times", function () {
+    function f() {
+        return (0, eval)("1 + 2");
+    }
+    expect(f()).toBe(3);
+    expect(f()).toBe(3);
+});
+
+test("indirect eval with syntax error can be called multiple times", function () {
+    function f() {
+        (0, eval)("@@@");
+    }
+    expect(f).toThrowWithMessage(
+        SyntaxError,
+        "Unexpected token Invalid. Expected statement or declaration (line: 1, column: 1)"
+    );
+    expect(f).toThrowWithMessage(
+        SyntaxError,
+        "Unexpected token Invalid. Expected statement or declaration (line: 1, column: 1)"
+    );
+});

@@ -1,0 +1,7 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       InitializeLexicalBinding identifier:a, src:Double(nan)
+[  20]       InitializeLexicalBinding identifier:b, src:Double(nan)
+[  38]       InitializeLexicalBinding identifier:c, src:Double(nan)
+[  50]       InitializeLexicalBinding identifier:d, src:Int32(1024)
+[  68]       End value:Undefined

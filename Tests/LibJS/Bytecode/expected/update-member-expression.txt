@@ -1,0 +1,23 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:postfix_increment
+[  18]       NewObject dst:reg7
+[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, postfix_increment, arguments:[reg7]
+[  50]       GetGlobal dst:reg7, identifier:prefix_decrement
+[  60]       NewObject dst:reg8
+[  70]       Call dst:reg6, callee:reg7, this_value:Undefined, prefix_decrement, arguments:[reg8]
+[  98]       End value:reg6
+
+JS bytecode executable "postfix_increment"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetById dst:reg5, base:arg0, property:count, base_identifier:obj
+[  20]       PostfixIncrement dst:reg6, src:reg5
+[  30]       PutNormalById base:arg0, property:count, src:reg5
+[  48]       End value:Undefined
+
+JS bytecode executable "prefix_decrement"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetById dst:reg5, base:arg0, property:count, base_identifier:obj
+[  20]       Decrement dst:reg5
+[  28]       PutNormalById base:arg0, property:count, src:reg5
+[  40]       End value:Undefined

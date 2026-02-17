@@ -1,0 +1,67 @@
+Program (script) @2:1
+├─ FunctionDeclaration "for_expression_init" @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        └─ ForStatement @3:5
+│           ├─ init
+│           │  └─ AssignmentExpression (=) @3:12
+│           │     ├─ Identifier "x" [global] @3:10
+│           │     └─ NumericLiteral 0 @3:14
+│           ├─ test
+│           │  └─ BinaryExpression (<) @3:19
+│           │     ├─ Identifier "x" [global] @3:17
+│           │     └─ NumericLiteral 10 @3:21
+│           ├─ update
+│           │  └─ UpdateExpression (++, postfix) @3:26
+│           │     └─ Identifier "x" [global] @3:25
+│           └─ body
+│              └─ BlockStatement @3:30
+├─ FunctionDeclaration "for_declaration_init" @7:1
+│  └─ body
+│     └─ FunctionBody @8:5
+│        └─ ForStatement @8:5
+│           ├─ init
+│           │  └─ VariableDeclaration (var) @8:10
+│           │     └─ VariableDeclarator @8:10
+│           │        ├─ Identifier "i" [variable:0] (var) @8:14
+│           │        └─ NumericLiteral 0 @8:18
+│           ├─ test
+│           │  └─ BinaryExpression (<) @8:23
+│           │     ├─ Identifier "i" [variable:0] (var) @8:21
+│           │     └─ NumericLiteral 10 @8:25
+│           ├─ update
+│           │  └─ UpdateExpression (++, postfix) @8:30
+│           │     └─ Identifier "i" [variable:0] (var) @8:29
+│           └─ body
+│              └─ BlockStatement @8:34
+├─ FunctionDeclaration "for_let_init" @12:1
+│  └─ body
+│     └─ FunctionBody @13:5
+│        └─ ForStatement @13:5
+│           ├─ init
+│           │  └─ VariableDeclaration (let) @13:10
+│           │     └─ VariableDeclarator @13:10
+│           │        ├─ Identifier "i" [variable:0] (let) @13:14
+│           │        └─ NumericLiteral 0 @13:18
+│           ├─ test
+│           │  └─ BinaryExpression (<) @13:23
+│           │     ├─ Identifier "i" [variable:0] (let) @13:21
+│           │     └─ NumericLiteral 10 @13:25
+│           ├─ update
+│           │  └─ UpdateExpression (++, postfix) @13:30
+│           │     └─ Identifier "i" [variable:0] (let) @13:29
+│           └─ body
+│              └─ BlockStatement @13:34
+└─ FunctionDeclaration "for_no_init" @17:1
+   └─ body
+      └─ FunctionBody @18:5
+         └─ ForStatement @18:5
+            ├─ test
+            │  └─ BinaryExpression (<) @18:14
+            │     ├─ Identifier "x" [global] @18:12
+            │     └─ NumericLiteral 10 @18:16
+            ├─ update
+            │  └─ UpdateExpression (++, postfix) @18:21
+            │     └─ Identifier "x" [global] @18:20
+            └─ body
+               └─ BlockStatement @18:25

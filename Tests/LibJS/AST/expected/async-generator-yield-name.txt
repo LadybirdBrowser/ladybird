@@ -1,0 +1,7 @@
+Program (script) @2:1
+└─ VariableDeclaration (var) @2:1
+   └─ VariableDeclarator @2:1
+      ├─ Identifier "f" [global] (var) @2:5
+      └─ FunctionExpression async* "foo" @2:9
+         └─ body
+            └─ FunctionBody @2:32

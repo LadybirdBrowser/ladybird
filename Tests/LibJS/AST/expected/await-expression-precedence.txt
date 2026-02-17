@@ -1,0 +1,10 @@
+Program (script) @1:1
+└─ FunctionDeclaration async "f" @1:1
+   └─ body
+      └─ FunctionBody @2:5
+         └─ ReturnStatement @2:5
+            └─ BinaryExpression (+) @2:22
+               ├─ AwaitExpression @2:13
+               │  └─ NumericLiteral 1 @2:19
+               └─ AwaitExpression @2:25
+                  └─ NumericLiteral 2 @2:31

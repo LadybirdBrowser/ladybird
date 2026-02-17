@@ -1,0 +1,32 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       NewObject dst:reg7
+[  28]       InitObjectLiteralProperty object:reg7, property:x, src:Int32(1), shape_cache_index:0, property_slot:0
+[  40]       CacheObjectShape object:reg7
+[  50]       NewObject dst:reg8
+[  60]       InitObjectLiteralProperty object:reg8, property:y, src:Int32(2), shape_cache_index:1, property_slot:0
+[  78]       CacheObjectShape object:reg8
+[  88]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
+[  b0]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Yield continuation_label:@18, value:Undefined
+[  18]    1: GetById dst:reg8, base:arg0, property:x, base_identifier:a
+[  30]       Yield continuation_label:@40, value:reg8
+[  40]    2: Mov dst:reg5, src:reg0
+[  50]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[  60]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@78, false_target:@a0
+[  78]    3: GetById dst:reg8, base:arg1, property:y, base_identifier:b
+[  90]       Yield continuation_label:@d0, value:reg8
+[  a0]    4: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@b8, false_target:@c0
+[  b8]    5: Throw src:reg7
+[  c0]    6: Yield value:reg7
+[  d0]    7: Mov dst:reg7, src:reg0
+[  e0]       GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
+[  f0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@108, false_target:@118
+[ 108]    8: Yield value:Undefined
+[ 118]    9: JumpStrictlyEquals lhs:reg5, rhs:Int32(5), true_target:@130, false_target:@138
+[ 130]   10: Throw src:reg6
+[ 138]   11: Yield value:reg6

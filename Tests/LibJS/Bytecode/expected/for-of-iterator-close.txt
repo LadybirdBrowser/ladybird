@@ -124,4 +124,3 @@ JS bytecode executable "forAwaitOfBreak"
 Exception handlers:
     from  150 to  1a0 handler   80
     from  2a0 to  338 handler  290
-

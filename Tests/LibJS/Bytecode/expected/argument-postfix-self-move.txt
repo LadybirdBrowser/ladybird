@@ -1,0 +1,11 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(10)]
+[  40]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       PostfixDecrement dst:reg5, src:arg0
+[  18]       Mov dst:arg0, src:arg0
+[  28]       Return value:arg0

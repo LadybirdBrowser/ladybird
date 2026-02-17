@@ -1,0 +1,35 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:Base, is_immutable:true, is_global:false, is_strict:false
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
+[  50]       InitializeLexicalBinding identifier:Base, src:reg6
+[  68]       CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
+[  78]       CreateVariable identifier:Derived, is_immutable:true, is_global:false, is_strict:false
+[  88]       GetGlobal dst:reg5, identifier:Base
+[  98]       SetLexicalEnvironment environment:reg4
+[  a0]       NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("test")]
+[  c8]       InitializeLexicalBinding identifier:Derived, src:reg7
+[  e0]       GetGlobal dst:reg5, identifier:Derived
+[  f0]       CallConstruct dst:reg6, callee:reg5, Derived
+[ 108]       GetById dst:reg5, base:reg6, property:test
+[ 120]       Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
+[ 140]       End value:reg7
+
+JS bytecode executable "Derived"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewArray dst:reg5
+[  18]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+[  28]       End value:Undefined
+
+JS bytecode executable "Base"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg5
+[  18]       GetByValueWithThis dst:reg6, base:reg5, property:Int32(0), this_value:this
+[  30]       Return value:reg6

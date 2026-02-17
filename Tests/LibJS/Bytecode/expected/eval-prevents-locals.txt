@@ -42,4 +42,3 @@ JS bytecode executable "inner"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:y~0, src:Int32(2)
 [  18]       Return value:y~0
-

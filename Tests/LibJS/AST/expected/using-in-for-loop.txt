@@ -1,0 +1,16 @@
+Program (script) @1:1
+└─ FunctionDeclaration "fn" @1:1
+   └─ body
+      └─ FunctionBody @2:5
+         └─ ForStatement @2:5
+            ├─ init
+            │  └─ UsingDeclaration @2:10
+            │     └─ VariableDeclarator @2:10
+            │        ├─ Identifier "x" [global] @2:16
+            │        └─ NullLiteral @2:20
+            ├─ test
+            │  └─ BinaryExpression (===) @2:28
+            │     ├─ Identifier "x" [global] @2:26
+            │     └─ NullLiteral @2:32
+            └─ body
+               └─ BlockStatement @2:40

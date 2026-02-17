@@ -1,0 +1,28 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:x, is_immutable:false, is_global:false, is_strict:false
+[  28]       NewObject dst:reg6
+[  38]       InitObjectLiteralProperty object:reg6, property:i, src:Int32(0), shape_cache_index:0, property_slot:0
+[  50]       CacheObjectShape object:reg6
+[  60]       SetLexicalEnvironment environment:reg4
+[  68]       JumpNullish condition:reg6, true_target:@a8, false_target:@b0
+[  78]    1: End value:reg6
+[  80]    2: IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg5, iterator_next:reg7, iterator_done:reg8
+[  98]       JumpIf condition:reg10, true_target:@78, false_target:@e0
+[  a8]    3: End value:reg6
+[  b0]    4: GetObjectPropertyIterator dst_iterator_object:reg5, dst_iterator_next:reg7, dst_iterator_done:reg8, object:reg6
+[  c8]       Mov dst:reg6, src:Undefined
+[  d8]       Jump target:@80
+[  e0]    5: CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:0
+[  f0]       CreateVariable identifier:x, is_immutable:false, is_global:false, is_strict:false
+[ 100]       InitializeLexicalBinding identifier:x, src:reg9
+[ 118]       CreateLexicalEnvironment dst:reg12, parent:reg11, capacity:0
+[ 128]       CreateMutableBinding environment:reg12, identifier:probeDecl, can_be_deleted:false
+[ 138]       NewFunction dst:reg13, shared_function_data_index:0
+[ 150]       InitializeLexicalBinding identifier:probeDecl, src:reg13
+[ 168]       GetBinding dst:reg13, identifier:probeDecl
+[ 180]       SetVariableBinding identifier:probeDecl, src:reg13
+[ 198]       SetLexicalEnvironment environment:reg11
+[ 1a0]       SetLexicalEnvironment environment:reg4
+[ 1a8]       Jump target:@80

@@ -1,0 +1,20 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:isect
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, isect
+[  38]       End value:reg5
+
+JS bytecode executable "isect"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:i~0, src:Undefined
+[  18]       Mov dst:i~0, src:Int32(0)
+[  28]       Jump target:@48
+[  30]    1: ThrowIfTDZ src:i~0
+[  38]       PostfixIncrement dst:reg5, src:i~0
+[  48]    2: ThrowIfTDZ src:i~0
+[  50]       JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@30, false_target:@68
+[  68]    3: Mov dst:i~0, src:Int32(0)
+[  78]       Jump target:@90
+[  80]    4: PostfixIncrement dst:reg5, src:i~0
+[  90]    5: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@80, false_target:@a8
+[  a8]    6: End value:Undefined

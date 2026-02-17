@@ -1,0 +1,39 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+[  40]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Yield continuation_label:@18, value:Undefined
+[  18]    1: Mov dst:reg8, src:reg0
+[  28]       Await continuation_label:@38, argument:arg0
+[  38]    2: Mov dst:reg8, src:reg0
+[  48]       GetCompletionFields type_dst:reg9, value_dst:reg10, completion:reg8
+[  58]       JumpStrictlyEquals lhs:reg9, rhs:Int32(1), true_target:@70, false_target:@80
+[  70]    3: Await continuation_label:@c0, argument:reg10
+[  80]    4: Throw src:reg10
+[  88]    5: Mov dst:reg5, src:reg0
+[  98]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[  a8]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@1c8, false_target:@1d8
+[  c0]    6: Mov dst:reg5, src:reg0
+[  d0]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[  e0]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@f8, false_target:@108
+[  f8]    7: Yield continuation_label:@110, value:reg7
+[ 108]    8: Throw src:reg7
+[ 110]    9: Mov dst:reg5, src:reg0
+[ 120]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[ 130]       JumpStrictlyInequals lhs:reg6, rhs:Int32(4), true_target:@88, false_target:@148
+[ 148]   10: Await continuation_label:@158, argument:reg7
+[ 158]   11: Mov dst:reg5, src:reg0
+[ 168]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[ 178]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@190, false_target:@1a8
+[ 190]   12: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@88, false_target:@1b0
+[ 1a8]   13: Throw src:reg7
+[ 1b0]   14: SetCompletionType completion:reg5
+[ 1c0]       Jump target:@88
+[ 1c8]   15: Yield value:Undefined
+[ 1d8]   16: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@1f0, false_target:@1f8
+[ 1f0]   17: Throw src:reg7
+[ 1f8]   18: Yield value:reg7

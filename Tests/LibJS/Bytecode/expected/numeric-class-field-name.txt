@@ -1,0 +1,23 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:Int32(42)]
+[  58]       InitializeLexicalBinding identifier:C, src:reg6
+[  70]       GetGlobal dst:reg5, identifier:C
+[  80]       CallConstruct dst:reg6, callee:reg5, C
+[  98]       GetByValue dst:reg5, base:reg6, property:Int32(42)
+[  b0]       GetById dst:reg6, base:reg5, property:name, base_identifier:[42]
+[  c8]       End value:reg6
+
+JS bytecode executable "C"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "field"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       SetLexicalEnvironment environment:reg4
+[  20]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, lhs_name:42
+[  40]       Return value:reg6

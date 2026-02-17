@@ -1,0 +1,28 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:compound_computed
+[  18]       NewObject dst:reg7
+[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
+[  50]       GetGlobal dst:reg7, identifier:compound_then_assign
+[  60]       NewObject dst:reg8
+[  70]       InitObjectLiteralProperty object:reg8, property:x, src:Int32(1), shape_cache_index:0, property_slot:0
+[  88]       CacheObjectShape object:reg8
+[  98]       Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
+[  c0]       End value:reg6
+
+JS bytecode executable "compound_computed"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetByValue dst:reg5, base:arg0, property:arg1, base_identifier:obj
+[  20]       Mov dst:reg6, src:arg1
+[  30]       Add dst:reg7, lhs:reg5, rhs:Int32(1)
+[  40]       PutNormalByValue base:arg0, property:reg6, src:reg7
+[  58]       End value:Undefined
+
+JS bytecode executable "compound_then_assign"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetByValue dst:reg5, base:arg0, property:arg1, base_identifier:imag
+[  20]       Mov dst:reg6, src:arg1
+[  30]       Add dst:reg7, lhs:reg5, rhs:Int32(0)
+[  40]       PutNormalByValue base:arg0, property:reg6, src:reg7
+[  58]       PutNormalByValue base:arg0, property:arg1, src:arg1, base_identifier:imag
+[  70]       End value:Undefined

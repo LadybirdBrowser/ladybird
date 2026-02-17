@@ -1,0 +1,13 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+[  40]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       JumpUndefined condition:arg0, true_target:@18, false_target:@40
+[  18]    1: Mov dst:arg0, src:<Empty>
+[  28]       ThrowIfTDZ src:arg0
+[  30]       Mov dst:arg0, src:arg0
+[  40]    2: End value:Undefined

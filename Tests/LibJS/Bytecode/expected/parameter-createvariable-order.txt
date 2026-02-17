@@ -1,0 +1,29 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
+[  48]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateVariable identifier:c, is_immutable:false, is_global:false, is_strict:false
+[  18]       CreateVariable identifier:a, is_immutable:false, is_global:false, is_strict:false
+[  28]       CreateVariable identifier:b, is_immutable:false, is_global:false, is_strict:false
+[  38]       InitializeLexicalBinding identifier:a, src:arg0
+[  50]       InitializeLexicalBinding identifier:b, src:arg1
+[  68]       InitializeLexicalBinding identifier:c, src:arg2
+[  80]       Mov dst:inner~0, src:Undefined
+[  90]       NewFunction dst:reg5, shared_function_data_index:0, lhs_name:inner
+[  a8]       Mov dst:inner~0, src:reg5
+[  b8]       Mov dst:reg6, src:inner~0
+[  c8]       Call dst:reg5, callee:reg6, this_value:Undefined, inner
+[  e8]       Return value:reg5
+
+JS bytecode executable "inner"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetBinding dst:reg5, identifier:a
+[  20]       GetBinding dst:reg6, identifier:b
+[  38]       Add dst:reg7, lhs:reg5, rhs:reg6
+[  48]       GetBinding dst:reg5, identifier:c
+[  60]       Add dst:reg6, lhs:reg7, rhs:reg5
+[  70]       Return value:reg6

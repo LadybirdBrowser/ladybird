@@ -1,0 +1,27 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:test
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, test
+[  38]       End value:reg5
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:i~0, src:Undefined
+[  18]       Mov dst:i~0, src:Int32(0)
+[  28]       GetGlobal dst:reg6, identifier:foo
+[  38]       NewArray dst:reg7
+[  48]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+[  70]    1: GetGlobal dst:reg7, identifier:bar
+[  80]       Mov dst:reg8, src:i~0
+[  90]       Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
+[  b8]       PostfixIncrement dst:reg6, src:i~0
+[  c8]    2: JumpLessThan lhs:i~0, rhs:Int32(7), true_target:@70, false_target:@e0
+[  e0]    3: End value:Undefined
+
+JS bytecode executable "foo"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:arg0
+
+JS bytecode executable "bar"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:arg0

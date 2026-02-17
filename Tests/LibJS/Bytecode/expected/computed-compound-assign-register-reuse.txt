@@ -1,0 +1,21 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:subVector
+[  18]       NewPrimitiveArray dst:reg7, elements:[1, 2]
+[  38]       NewPrimitiveArray dst:reg8, elements:[3, 4]
+[  58]       Call dst:reg5, callee:reg6, this_value:Undefined, subVector, arguments:[reg7, reg8]
+[  80]       End value:reg5
+
+JS bytecode executable "subVector"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetByValue dst:reg5, base:arg0, property:Int32(0), base_identifier:self
+[  20]       Mov dst:reg6, src:Int32(0)
+[  30]       GetByValue dst:reg7, base:arg1, property:Int32(0), base_identifier:v
+[  48]       Sub dst:reg8, lhs:reg5, rhs:reg7
+[  58]       PutNormalByValue base:arg0, property:reg6, src:reg8
+[  70]       GetByValue dst:reg8, base:arg0, property:Int32(1), base_identifier:self
+[  88]       Mov dst:reg6, src:Int32(1)
+[  98]       GetByValue dst:reg5, base:arg1, property:Int32(1), base_identifier:v
+[  b0]       Sub dst:reg7, lhs:reg8, rhs:reg5
+[  c0]       PutNormalByValue base:arg0, property:reg6, src:reg7
+[  d8]       End value:Undefined

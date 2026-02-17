@@ -1,0 +1,20 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:test
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, test
+[  38]       End value:reg5
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateVariable identifier:f, is_immutable:false, is_global:false, is_strict:false
+[  18]       InitializeVariableBinding identifier:f, src:Undefined
+[  30]       SetLexicalBinding identifier:f, src:Int32(123)
+[  48]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  58]       CreateMutableBinding environment:reg5, identifier:f, can_be_deleted:false
+[  68]       NewFunction dst:reg6, shared_function_data_index:0
+[  80]       InitializeLexicalBinding identifier:f, src:reg6
+[  98]       GetBinding dst:reg6, identifier:f
+[  b0]       SetVariableBinding identifier:f, src:reg6
+[  c8]       SetLexicalEnvironment environment:reg4
+[  d0]       GetInitializedBinding dst:reg5, identifier:f
+[  e8]       Return value:reg5

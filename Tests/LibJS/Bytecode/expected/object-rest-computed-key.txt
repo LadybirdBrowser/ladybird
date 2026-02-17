@@ -1,0 +1,14 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       SetGlobal identifier:a, src:String("foo")
+[  18]       NewObject dst:reg5
+[  28]       InitObjectLiteralProperty object:reg5, property:foo, src:Int32(1), shape_cache_index:0, property_slot:0
+[  40]       InitObjectLiteralProperty object:reg5, property:bar, src:Int32(2), shape_cache_index:0, property_slot:1
+[  58]       CacheObjectShape object:reg5
+[  68]       ThrowIfNullish src:reg5
+[  70]       GetGlobal dst:reg7, identifier:a
+[  80]       GetByValue dst:reg6, base:reg5, property:reg7
+[  98]       SetGlobal identifier:b, src:reg6
+[  a8]       CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
+[  c8]       SetGlobal identifier:rest, src:reg6
+[  d8]       End value:Undefined

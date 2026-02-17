@@ -1,0 +1,43 @@
+Program (script) @1:1
+└─ ClassDeclaration @1:1
+   └─ ClassExpression "C" @1:1
+      ├─ constructor
+      │  └─ FunctionExpression "C" [strict] [uses-this] [uses-this-from-environment] @1:1
+      │     └─ body
+      │        └─ BlockStatement @1:1
+      └─ elements
+         ├─ ClassField @1:1
+         │  ├─ PrivateIdentifier "#x" @1:1
+         │  └─ initializer
+         │     └─ NumericLiteral 1 @2:10
+         ├─ ClassMethod (getter) @1:1
+         │  ├─ PrivateIdentifier "#y" @1:1
+         │  └─ FunctionExpression "" [strict] [uses-this] @3:5
+         │     └─ body
+         │        └─ FunctionBody @4:9
+         │           └─ ReturnStatement @4:9
+         │              └─ MemberExpression @4:20
+         │                 ├─ ThisExpression @4:16
+         │                 └─ PrivateIdentifier "#x" @4:20
+         ├─ ClassMethod (setter) @1:1
+         │  ├─ PrivateIdentifier "#y" @1:1
+         │  └─ FunctionExpression "" [strict] [uses-this] @6:5
+         │     ├─ parameters
+         │     │  └─ Identifier "v" [argument:0] @6:12
+         │     └─ body
+         │        └─ FunctionBody @7:9
+         │           └─ ExpressionStatement @7:9
+         │              └─ AssignmentExpression (=) @7:17
+         │                 ├─ MemberExpression @7:13
+         │                 │  ├─ ThisExpression @7:9
+         │                 │  └─ PrivateIdentifier "#x" @7:13
+         │                 └─ Identifier "v" [argument:0] @7:19
+         └─ ClassMethod @1:1
+            ├─ StringLiteral "method" @1:1
+            └─ FunctionExpression "" [strict] [uses-this] @9:5
+               └─ body
+                  └─ FunctionBody @10:9
+                     └─ ReturnStatement @10:9
+                        └─ MemberExpression @10:20
+                           ├─ ThisExpression @10:16
+                           └─ PrivateIdentifier "#x" @10:20

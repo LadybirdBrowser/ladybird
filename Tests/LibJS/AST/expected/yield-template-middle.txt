@@ -1,0 +1,13 @@
+Program (script) @1:1
+└─ FunctionDeclaration* "g" @1:1
+   └─ body
+      └─ FunctionBody @2:5
+         └─ VariableDeclaration (var) @2:5
+            └─ VariableDeclarator @2:5
+               ├─ Identifier "str" [variable:0] (var) @2:9
+               └─ TemplateLiteral @2:15
+                  ├─ StringLiteral "1" @2:17
+                  ├─ YieldExpression @2:19
+                  ├─ StringLiteral "3" @2:26
+                  ├─ NumericLiteral 4 @2:28
+                  └─ StringLiteral "5" @2:31

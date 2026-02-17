@@ -1,0 +1,35 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:get_string_prop
+[  18]       NewObject dst:reg7
+[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, get_string_prop, arguments:[reg7]
+[  50]       GetGlobal dst:reg7, identifier:set_string_prop
+[  60]       NewObject dst:reg8
+[  70]       Call dst:reg6, callee:reg7, this_value:Undefined, set_string_prop, arguments:[reg8]
+[  98]       GetGlobal dst:reg7, identifier:get_index_prop
+[  a8]       NewArray dst:reg8
+[  b8]       Call dst:reg5, callee:reg7, this_value:Undefined, get_index_prop, arguments:[reg8]
+[  e0]       GetGlobal dst:reg7, identifier:get_length_prop
+[  f0]       NewArray dst:reg8
+[ 100]       Call dst:reg6, callee:reg7, this_value:Undefined, get_length_prop, arguments:[reg8]
+[ 128]       End value:reg6
+
+JS bytecode executable "get_string_prop"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetById dst:reg5, base:arg0, property:hello, base_identifier:o
+[  20]       Return value:reg5
+
+JS bytecode executable "set_string_prop"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       PutNormalById base:arg0, property:hello, src:Int32(42), base_identifier:o
+[  20]       End value:Undefined
+
+JS bytecode executable "get_index_prop"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetByValue dst:reg5, base:arg0, property:String("0"), base_identifier:o
+[  20]       Return value:reg5
+
+JS bytecode executable "get_length_prop"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetLength dst:reg5, base:arg0, base_identifier:o
+[  20]       Return value:reg5

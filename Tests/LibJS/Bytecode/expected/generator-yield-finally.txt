@@ -1,0 +1,50 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f
+[  38]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Yield continuation_label:@18, value:Undefined
+[  18]    1: Jump target:@60
+[  20]    2: Catch dst:reg6
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       Mov dst:reg5, src:Int32(1)
+[  40]    3: Mov dst:reg10, src:reg1
+[  50]       Yield continuation_label:@198, value:Int32(3)
+[  60]    4: Yield continuation_label:@70, value:Int32(1)
+[  70]    5: Mov dst:reg7, src:reg0
+[  80]       GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+[  90]       JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@a8, false_target:@b8
+[  a8]    6: Yield continuation_label:@100, value:Int32(2)
+[  b8]    7: JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:@d0, false_target:@d8
+[  d0]    8: Throw src:reg9
+[  d8]    9: Mov dst:reg6, src:reg9
+[  e8]       Mov dst:reg5, src:Int32(2)
+[  f8]       Jump target:@40
+[ 100]   10: Mov dst:reg9, src:reg0
+[ 110]       GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg9
+[ 120]       JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:@138, false_target:@150
+[ 138]   11: Mov dst:reg5, src:Int32(0)
+[ 148]       Jump target:@40
+[ 150]   12: JumpStrictlyEquals lhs:reg7, rhs:Int32(5), true_target:@168, false_target:@170
+[ 168]   13: Throw src:reg8
+[ 170]   14: Mov dst:reg6, src:reg8
+[ 180]       Mov dst:reg5, src:Int32(2)
+[ 190]       Jump target:@40
+[ 198]   15: Mov dst:reg1, src:reg10
+[ 1a8]       Mov dst:reg8, src:reg0
+[ 1b8]       GetCompletionFields type_dst:reg9, value_dst:reg7, completion:reg8
+[ 1c8]       JumpStrictlyEquals lhs:reg9, rhs:Int32(1), true_target:@1e0, false_target:@1f8
+[ 1e0]   16: JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@228, false_target:@238
+[ 1f8]   17: JumpStrictlyEquals lhs:reg9, rhs:Int32(5), true_target:@210, false_target:@218
+[ 210]   18: Throw src:reg7
+[ 218]   19: Yield value:reg7
+[ 228]   20: Yield value:Undefined
+[ 238]   21: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@250, false_target:@260
+[ 250]   22: Yield value:reg6
+[ 260]   23: Throw src:reg6
+
+Exception handlers:
+    from   60 to  198 handler   20

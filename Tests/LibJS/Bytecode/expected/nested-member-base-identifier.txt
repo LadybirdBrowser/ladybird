@@ -1,0 +1,16 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:assign_nested
+[  18]       NewObject dst:reg7
+[  28]       InitObjectLiteralProperty object:reg7, property:shader, src:Int32(1), shape_cache_index:0, property_slot:0
+[  40]       CacheObjectShape object:reg7
+[  50]       NewArray dst:reg8, elements:[reg7]
+[  68]       Call dst:reg5, callee:reg6, this_value:Undefined, assign_nested, arguments:[reg8, Int32(1)]
+[  90]       End value:reg5
+
+JS bytecode executable "assign_nested"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Sub dst:reg5, lhs:arg1, rhs:Int32(1)
+[  18]       GetByValue dst:reg6, base:arg0, property:reg5, base_identifier:arr
+[  30]       PutNormalById base:reg6, property:shader, src:Int32(0), base_identifier:arr
+[  48]       End value:Undefined

@@ -66,10 +66,10 @@ def test(file: Path, rebaseline: bool) -> bool:
     expected_file = AST_TEST_DIR / "expected" / file.with_suffix(".txt")
     output_file = AST_TEST_DIR / "output" / file.with_suffix(".txt")
 
-    output_file.write_text(stdout, encoding="utf8")
+    output_file.write_text(stdout + "\n", encoding="utf8")
 
     if rebaseline:
-        expected_file.write_text(stdout, encoding="utf8")
+        expected_file.write_text(stdout + "\n", encoding="utf8")
         return False
 
     expected = expected_file.read_text(encoding="utf8").strip()

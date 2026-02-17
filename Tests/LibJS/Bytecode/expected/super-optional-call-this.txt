@@ -1,0 +1,51 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:Base, is_immutable:true, is_global:false, is_strict:false
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
+[  58]       InitializeLexicalBinding identifier:Base, src:reg6
+[  70]       CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
+[  80]       CreateVariable identifier:Foo, is_immutable:true, is_global:false, is_strict:false
+[  90]       GetGlobal dst:reg5, identifier:Base
+[  a0]       SetLexicalEnvironment environment:reg4
+[  a8]       NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
+[  d0]       InitializeLexicalBinding identifier:Foo, src:reg7
+[  e8]       GetGlobal dst:reg5, identifier:Foo
+[  f8]       CallConstruct dst:reg6, callee:reg5, Foo
+[ 110]       GetById dst:reg5, base:reg6, property:method
+[ 128]       Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
+[ 148]       End value:reg7
+
+JS bytecode executable "Foo"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateVariable identifier:args, is_immutable:false, is_global:false, is_strict:false
+[  18]       CreateRestParams dst:arg0, rest_index:0
+[  28]       InitializeLexicalBinding identifier:args, src:arg0
+[  40]       GetBinding dst:reg5, identifier:args
+[  58]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+[  68]       Return value:reg6
+
+JS bytecode executable "Base"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "method"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:Undefined
+[  18]       ResolveThisBinding
+[  20]       ResolveSuperBase dst:reg7
+[  28]       GetByIdWithThis dst:reg8, base:reg7, property:method, this_value:this
+[  40]       Mov dst:reg5, src:this
+[  50]       Mov dst:reg6, src:reg8
+[  60]       JumpNullish condition:reg6, true_target:@70, false_target:@88
+[  70]    1: Mov dst:reg6, src:Undefined
+[  80]    2: Return value:reg6
+[  88]    3: NewArray dst:reg7
+[  98]       CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+[  b0]       Mov dst:reg5, src:Undefined
+[  c0]       Return value:reg6
+
+JS bytecode executable "method"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined

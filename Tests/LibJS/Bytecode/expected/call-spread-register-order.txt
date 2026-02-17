@@ -1,0 +1,13 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Mov dst:reg8, src:Int32(42)
+[  28]       NewArray dst:reg7, elements:[reg8]
+[  40]       NewPrimitiveArray dst:reg9, elements:[1]
+[  58]       ArrayAppend dst:reg7, src:reg9, is_spread:true
+[  68]       CallWithArgumentArray dst:reg5, callee:reg6, this_value:Undefined, arguments:reg7, f
+[  80]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined

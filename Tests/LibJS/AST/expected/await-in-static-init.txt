@@ -1,0 +1,42 @@
+Program (script) @2:1
+├─ VariableDeclaration (var) @2:1
+│  └─ VariableDeclarator @2:1
+│     ├─ Identifier "await" [global] (var) @2:5
+│     └─ NumericLiteral 0 @2:13
+├─ VariableDeclaration (var) @3:1
+│  └─ VariableDeclarator @3:1
+│     └─ Identifier "result" [global] (var) @3:5
+├─ ClassDeclaration @5:1
+│  └─ ClassExpression "C" @5:1
+│     ├─ constructor
+│     │  └─ FunctionExpression "C" [strict] [uses-this] [uses-this-from-environment] @5:1
+│     │     └─ body
+│     │        └─ BlockStatement @5:1
+│     └─ elements
+│        └─ StaticInitializer @6:12
+│           └─ FunctionBody @5:1
+│              └─ ExpressionStatement @7:9
+│                 └─ CallExpression @9:11
+│                    └─ FunctionExpression "" [strict] @7:10
+│                       └─ body
+│                          └─ FunctionBody @8:13
+│                             └─ ExpressionStatement @8:13
+│                                └─ AssignmentExpression (=) @8:20
+│                                   ├─ Identifier "result" [global] (var) @8:13
+│                                   └─ Identifier "await" [global] (var) @8:22
+└─ ClassDeclaration @14:1
+   └─ ClassExpression "D" @14:1
+      ├─ constructor
+      │  └─ FunctionExpression "D" [strict] [uses-this] [uses-this-from-environment] @14:1
+      │     └─ body
+      │        └─ BlockStatement @14:1
+      └─ elements
+         └─ StaticInitializer @15:12
+            └─ FunctionBody @14:1
+               └─ ExpressionStatement @16:9
+                  └─ CallExpression @18:11
+                     └─ FunctionExpression "" [strict] [might-need-arguments] @16:10
+                        └─ body
+                           └─ FunctionBody @17:13
+                              └─ ReturnStatement @17:13
+                                 └─ Identifier "arguments" [variable:0] @17:20

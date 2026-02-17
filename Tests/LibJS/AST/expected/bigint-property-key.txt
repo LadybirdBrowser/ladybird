@@ -1,0 +1,15 @@
+Program (script) @1:1
+└─ VariableDeclaration (let) @1:1
+   └─ VariableDeclarator @1:1
+      ├─ Identifier "obj" [global] (let) @1:5
+      └─ ObjectExpression @1:11
+         ├─ ObjectProperty @1:11
+         │  ├─ BigIntLiteral 0n @2:5
+         │  └─ StringLiteral "zero" @2:15
+         ├─ ObjectProperty @1:11
+         │  ├─ BigIntLiteral 1n @3:5
+         │  └─ StringLiteral "one" @3:14
+         └─ ObjectProperty @1:11
+            ├─ UnaryExpression (-) @4:6
+            │  └─ BigIntLiteral 1n @4:7
+            └─ StringLiteral "minus one" @4:23

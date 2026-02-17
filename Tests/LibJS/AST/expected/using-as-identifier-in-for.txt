@@ -1,0 +1,23 @@
+Program (script) @1:1
+├─ ForInStatement @1:12
+│  ├─ lhs
+│  │  └─ Identifier "using" [global] @1:6
+│  ├─ rhs
+│  │  └─ ArrayExpression @1:15
+│  │     ├─ NumericLiteral 1 @1:16
+│  │     └─ NumericLiteral 2 @1:19
+│  └─ body
+│     └─ BlockStatement @1:23
+│        └─ ExpressionStatement @2:5
+│           └─ Identifier "using" [global] @2:5
+└─ ForOfStatement @5:12
+   ├─ lhs
+   │  └─ Identifier "using" [global] @5:6
+   ├─ rhs
+   │  └─ ArrayExpression @5:15
+   │     ├─ NumericLiteral 1 @5:16
+   │     └─ NumericLiteral 2 @5:19
+   └─ body
+      └─ BlockStatement @5:23
+         └─ ExpressionStatement @6:5
+            └─ Identifier "using" [global] @6:5

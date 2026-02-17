@@ -1,0 +1,15 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Jump target:@68
+[  10]    1: Catch dst:reg5
+[  18]       SetLexicalEnvironment environment:reg4
+[  20]       Mov dst:e~0, src:reg5
+[  30]       Mov dst:reg6, src:Undefined
+[  40]       Mov dst:reg6, src:Int32(42)
+[  50]       Mov dst:reg7, src:reg6
+[  60]    2: End value:reg7
+[  68]    3: Mov dst:reg5, src:Undefined
+[  78]       Throw src:Null
+
+Exception handlers:
+    from   68 to   80 handler   10

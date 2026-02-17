@@ -1,0 +1,20 @@
+Program (script) @1:1
+├─ VariableDeclaration (var) @1:1
+│  ├─ VariableDeclarator @1:1
+│  │  └─ Identifier "x" [global] (var) @1:5
+│  └─ VariableDeclarator @1:1
+│     └─ Identifier "y" [global] (var) @1:8
+└─ ExpressionStatement @2:1
+   └─ AssignmentExpression (=) @2:33
+      ├─ BindingPattern (object)
+      │  ├─ entry
+      │  │  ├─ name
+      │  │  │  └─ Identifier "__proto__" [global] @2:3
+      │  │  └─ alias
+      │  │     └─ Identifier "x" [global] (var) @2:16
+      │  └─ entry
+      │     ├─ name
+      │     │  └─ Identifier "__proto__" [global] @2:3
+      │     └─ alias
+      │        └─ Identifier "y" [global] (var) @2:30
+      └─ ObjectExpression @2:35

@@ -1,0 +1,19 @@
+Program (script) @1:1
+├─ DoWhileStatement @1:1
+│  ├─ body
+│  │  └─ BreakStatement @1:4
+│  └─ test
+│     └─ NumericLiteral 0 @2:8
+├─ ExpressionStatement @3:1
+│  └─ AssignmentExpression (=) @3:3
+│     ├─ Identifier "x" [global] @3:1
+│     └─ NumericLiteral 42 @3:5
+├─ DoWhileStatement @4:1
+│  ├─ body
+│  │  └─ EmptyStatement @4:3
+│  └─ test
+│     └─ NumericLiteral 0 @5:8
+└─ ExpressionStatement @6:1
+   └─ AssignmentExpression (=) @6:3
+      ├─ Identifier "x" [global] @6:1
+      └─ NumericLiteral 1 @6:5
