@@ -88,6 +88,7 @@ public:
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
 
     Main::Arguments const& command_line_arguments() const { return m_arguments; }
+    virtual void open_url_in_new_window(URL::URL const& url);
 
     void add_child_process(Process&&);
 

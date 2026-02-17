@@ -150,6 +150,11 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return tab.view();
 }
 
+void Application::open_url_in_new_window(URL::URL const& url)
+{
+    this->new_window({ url });
+}
+
 Optional<ByteString> Application::ask_user_for_download_path(StringView file) const
 {
     auto default_path = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
