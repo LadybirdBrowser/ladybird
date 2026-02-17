@@ -299,6 +299,13 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     };
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
+
+    // Test mode implies internals object is exposed and the Skia CPU backend is used
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
+        m_web_content_options.expose_internals_object = ExposeInternalsObject::Yes;
+        m_web_content_options.force_cpu_painting = ForceCPUPainting::Yes;
+    }
+
     initialize_actions();
 
     m_event_loop = create_platform_event_loop();
