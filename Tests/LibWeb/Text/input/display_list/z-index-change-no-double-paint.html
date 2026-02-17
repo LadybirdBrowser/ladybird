@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .container { position: relative; width: 200px; height: 200px; }
+    .target {
+        position: absolute;
+        z-index: 0;
+        width: 50px;
+        height: 50px;
+        background: blue;
+    }
+</style>
+<div class="container">
+    <div class="target" id="target"></div>
+</div>
+<script>
+    test(() => {
+        // NOTE: Display lists are captured first and printed later because println() modifies
+        // the DOM tree, causing layout updates that invalidate the accumulated visual context
+        // tree, which would affect the captured display lists.
+        const dlBefore = internals.dumpDisplayList();
+        document.getElementById("target").style.zIndex = "10";
+        const dlAfter = internals.dumpDisplayList();
+
+        println("Before z-index change:");
+        println(dlBefore);
+        println("After z-index change:");
+        println(dlAfter);
+    });
+</script>
