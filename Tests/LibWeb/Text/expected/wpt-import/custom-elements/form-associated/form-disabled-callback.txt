@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 10 tests
 
-6 Pass
-4 Fail
-Fail	Adding/removing disabled content attribute
+7 Pass
+3 Fail
+Pass	Adding/removing disabled content attribute
 Fail	Relationship with FIELDSET
 Pass	A disabled form-associated custom element should not provide an entry for it
 Fail	A disabled form-associated custom element should not submit an entry for it

@@ -1656,7 +1656,8 @@ bool Element::affected_by_pseudo_class(CSS::PseudoClass pseudo_class) const
 bool Element::matches_enabled_pseudo_class() const
 {
     // The :enabled pseudo-class must match any button, input, select, textarea, optgroup, option, fieldset element, or form-associated custom element that is not actually disabled.
-    return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this))
+    auto is_form_associated_custom_element = is<HTML::HTMLElement>(*this) && static_cast<HTML::HTMLElement const&>(*this).is_form_associated_custom_element();
+    return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this) || is_form_associated_custom_element)
         && !is_actually_disabled();
 }
 
@@ -2284,7 +2285,10 @@ bool Element::is_actually_disabled() const
     if (is<HTML::HTMLFieldSetElement>(this))
         return static_cast<HTML::HTMLFieldSetElement const&>(*this).is_disabled();
 
-    // FIXME: - a form-associated custom element that is disabled
+    // - a form-associated custom element that is disabled
+    if (auto const* html_element = as_if<HTML::HTMLElement>(this); html_element && html_element->is_form_associated_custom_element())
+        return !html_element->enabled();
+
     return false;
 }
 
