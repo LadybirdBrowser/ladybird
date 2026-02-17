@@ -228,7 +228,7 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>
 {
     auto event = m_pending_input_events.dequeue();
 
-    if (event_result == Web::EventResult::Handled)
+    if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
         return;
 
     // Here we handle events that were not consumed or cancelled by the WebContent. Propagate the event back
