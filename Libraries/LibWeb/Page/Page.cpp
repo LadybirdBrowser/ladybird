@@ -164,6 +164,11 @@ CSS::PreferredMotion Page::preferred_motion() const
     return m_client->preferred_motion();
 }
 
+int Page::max_touch_points() const
+{
+    return m_client->max_touch_points();
+}
+
 CSSPixelPoint Page::device_to_css_point(DevicePixelPoint point) const
 {
     return {

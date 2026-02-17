@@ -66,6 +66,7 @@ public:
     void set_preferred_motion(Web::CSS::PreferredMotion);
     void set_has_focus(bool);
     void set_is_scripting_enabled(bool);
+    void set_max_touch_points(int max_touch_points);
     void set_window_position(Web::DevicePixelPoint);
     void set_window_size(Web::DevicePixelSize);
 
@@ -99,6 +100,7 @@ public:
     virtual double zoom_level() const override { return m_zoom_level; }
     virtual double device_pixel_ratio() const override { return m_device_pixel_ratio; }
     virtual double device_pixels_per_css_pixel() const override { return m_device_pixel_ratio * m_zoom_level; }
+    virtual int max_touch_points() const override { return m_max_touch_points; }
 
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
 
@@ -209,6 +211,7 @@ private:
     double m_device_pixel_ratio { 1.0 };
     double m_zoom_level { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
+    int m_max_touch_points { 0 };
     u64 m_id { 0 };
     bool m_has_focus { false };
 

@@ -116,6 +116,7 @@ private:
     virtual void set_enable_global_privacy_control(u64 page_id, bool) override;
     virtual void set_has_focus(u64 page_id, bool) override;
     virtual void set_is_scripting_enabled(u64 page_id, bool) override;
+    virtual void set_max_touch_points(u64 page_id, i32 max_touch_points) override;
     virtual void set_zoom_level(u64 page_id, double zoom_level) override;
     virtual void set_device_pixel_ratio(u64 page_id, double device_pixel_ratio) override;
     virtual void set_maximum_frames_per_second(u64 page_id, double) override;

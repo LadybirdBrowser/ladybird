@@ -216,6 +216,8 @@ public:
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 
+    int max_touch_points() const;
+
     void clear_selection();
 
     enum class WrapAround {
@@ -421,6 +423,8 @@ public:
 
     virtual void page_did_set_browser_zoom([[maybe_unused]] double factor) { }
     virtual void page_did_set_device_pixel_ratio_for_testing([[maybe_unused]] double ratio) { }
+
+    virtual int max_touch_points() const { return 0; }
 
     virtual void page_did_change_theme_color(Gfx::Color) { }
 

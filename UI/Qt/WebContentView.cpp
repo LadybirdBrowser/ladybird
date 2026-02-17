@@ -38,6 +38,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPalette>
+#include <QPointingDevice>
 #include <QScrollBar>
 #include <QTextEdit>
 #include <QTimer>
@@ -664,6 +665,20 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
 
     update_palette();
     update_screen_rects();
+
+    int max_touch_points = 0;
+    for (auto const* input_device : QInputDevice::devices()) {
+        if (!input_device)
+            continue;
+
+        if (input_device->type() != QInputDevice::DeviceType::TouchScreen) {
+            continue;
+        }
+
+        auto const* pointing_device = static_cast<QPointingDevice const*>(input_device);
+        max_touch_points = max(max_touch_points, pointing_device->maximumPoints());
+    }
+    set_max_touch_points(max_touch_points);
 }
 
 void WebContentView::update_cursor(Gfx::Cursor cursor)

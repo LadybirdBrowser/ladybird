@@ -1195,6 +1195,12 @@ void ConnectionFromClient::set_is_scripting_enabled(u64 page_id, bool is_scripti
         page->set_is_scripting_enabled(is_scripting_enabled);
 }
 
+void ConnectionFromClient::set_max_touch_points(u64 page_id, i32 max_touch_points)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_max_touch_points(max_touch_points);
+}
+
 void ConnectionFromClient::set_device_pixel_ratio(u64 page_id, double device_pixel_ratio)
 {
     if (auto page = this->page(page_id); page.has_value())
