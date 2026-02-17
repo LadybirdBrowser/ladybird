@@ -13,7 +13,7 @@ on:
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
-  VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
+  VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
 
 jobs:
   build-and-package:
@@ -64,6 +64,7 @@ jobs:
 
       - name: "Set up environment"
         uses: ./.github/actions/setup
+        id: 'setup'
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
@@ -83,8 +84,8 @@ jobs:
       - name: Create build directory Ubuntu
         run: |
           cmake --preset Distribution \
-            -DCMAKE_C_COMPILER=clang-20 \
-            -DCMAKE_CXX_COMPILER=clang++-20 \
+            -DCMAKE_C_COMPILER=clang-${{ steps.setup.outputs.llvm_version }} \
+            -DCMAKE_CXX_COMPILER=clang++-${{ steps.setup.outputs.llvm_version }} \
             -DENABLE_CI_BASELINE_CPU=ON \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'Linux' }}

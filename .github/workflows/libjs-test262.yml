@@ -6,6 +6,7 @@ on:
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  LLVM_VERSION: 20
   VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
 
 jobs:
@@ -50,10 +51,37 @@ jobs:
           repository: tc39/test262-parser-tests
           path: test262-parser-tests
 
+      # FIXME: Use the setup action from .github/actions/setup/action.yml.
       - name: Install dependencies
         run: |
+          UBUNTU_RELEASE=$(lsb_release -cs)
+
+          LLVM_LIST="/etc/apt/sources.list.d/llvm.list"
+          LLVM_TOOLCHAIN="llvm-toolchain-${UBUNTU_RELEASE}-${LLVM_VERSION}"
+
+          if [ ! -f "${LLVM_LIST}" ] || ! grep -q "${LLVM_TOOLCHAIN}" "${LLVM_LIST}" ; then
+            curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
+            echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
+          fi
+
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync libtool
+          sudo apt-get install -y \
+              autoconf \
+              autoconf-archive \
+              automake \
+              clang++-${LLVM_VERSION} \
+              clang-${LLVM_VERSION} \
+              curl \
+              jq \
+              libgl1-mesa-dev \
+              libtool \
+              nasm \
+              ninja-build \
+              pkg-config \
+              rsync \
+              tar \
+              unzip \
+              zip
 
           # We are currently limited to CMake 3.28 in Ubuntu 24.04. Our build requires CMake 3.30 or later.
           CMAKE_VERSION=4.2.3
@@ -112,11 +140,11 @@ jobs:
           export HOME=${{ github.workspace }}/home
           mkdir -p $HOME
 
-          env CC=clang-20 \
-            CXX=clang++-20 \
+          env CC=clang-${LLVM_VERSION} \
+            CXX=clang++-${LLVM_VERSION} \
             cmake --preset Release -B libjs-test262/Build \
-              -DCMAKE_C_COMPILER=clang-20 \
-              -DCMAKE_CXX_COMPILER=clang++-20 \
+              -DCMAKE_C_COMPILER=clang-${LLVM_VERSION} \
+              -DCMAKE_CXX_COMPILER=clang++-${LLVM_VERSION} \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
               -DINCLUDE_WASM_SPEC_TESTS=ON \
               -DENABLE_GUI_TARGETS=OFF

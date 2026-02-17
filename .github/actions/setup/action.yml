@@ -14,6 +14,23 @@ inputs:
     description: 'Toolchain to set up'
     required: true
     default: 'Clang'
+  gcc_version:
+    description: 'GCC version to install'
+    required: false
+    default: '14'
+  llvm_version:
+    description: 'LLVM version to install'
+    required: false
+    default: '20'
+
+outputs:
+  gcc_version:
+    description: 'The installed GCC version'
+    value: ${{ steps.export-versions.outputs.gcc_version }}
+  llvm_version:
+    description: 'The installed LLVM version'
+    value: ${{ steps.export-versions.outputs.llvm_version }}
+
 runs:
   using: "composite"
   steps:
@@ -34,25 +51,58 @@ runs:
 
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
-        if [ ! -f /etc/apt/sources.list.d/llvm.list ]; then
+        UBUNTU_RELEASE=$(lsb_release -cs)
+
+        LLVM_LIST="/etc/apt/sources.list.d/llvm.list"
+        LLVM_TOOLCHAIN="llvm-toolchain-${UBUNTU_RELEASE}-${{ inputs.llvm_version }}"
+
+        if [ ! -f "${LLVM_LIST}" ] || ! grep -q "${LLVM_TOOLCHAIN}" "${LLVM_LIST}" ; then
           curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
-          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
         fi
 
         sudo apt-get update -y
-        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 \
-            gcc-14 g++-14 libcurl4-openssl-dev libdrm-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
-            libstdc++-14-dev lld-20 llvm-20 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
+        sudo apt-get install -y \
+            autoconf \
+            autoconf-archive \
+            automake \
+            build-essential \
+            ccache \
+            cmake \
+            curl \
+            fonts-liberation2 \
+            g++-${{ inputs.gcc_version }} \
+            gcc-${{ inputs.gcc_version }} \
+            libcurl4-openssl-dev \
+            libdrm-dev \
+            libegl1-mesa-dev \
+            libgl1-mesa-dev \
+            libpulse-dev \
+            libssl-dev \
+            libstdc++-${{ inputs.gcc_version }}-dev \
+            lld-${{ inputs.llvm_version }} \
+            llvm-${{ inputs.llvm_version }} \
+            nasm \
+            ninja-build \
+            qt6-base-dev \
+            qt6-tools-dev-tools \
+            tar \
+            unzip \
+            zip
 
         if ${{ inputs.toolchain == 'Clang' }} ; then
-          sudo apt-get install -y clang-20 clang++-20 clang-tools-20
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
+          sudo apt-get install -y \
+              clang-${{ inputs.llvm_version }} \
+              clang++-${{ inputs.llvm_version }} \
+              clang-tools-${{ inputs.llvm_version }}
+
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ inputs.llvm_version }} 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ inputs.llvm_version }} 100
         fi
 
-        sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-20 100
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+        sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-${{ inputs.llvm_version }} 100
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ inputs.gcc_version }} 100
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${{ inputs.gcc_version }} 100
 
     - name: Ensure clang-cl is available
       if: ${{ inputs.os == 'Windows' && inputs.toolchain == 'ClangCL' }}
@@ -80,7 +130,21 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils libtool llvm@20 nasm ninja pkg-config qt unzip
+
+        brew install \
+            autoconf \
+            autoconf-archive \
+            automake \
+            bash \
+            ccache \
+            coreutils \
+            libtool \
+            llvm@${{ inputs.llvm_version }} \
+            nasm \
+            ninja \
+            pkg-config \
+            qt \
+            unzip
 
     - name: 'Install wasm-tools'
       shell: bash
@@ -122,3 +186,10 @@ runs:
     - name: 'Install vcpkg'
       shell: bash
       run: ./Toolchain/BuildVcpkg.py
+
+    - name: 'Export installed versions'
+      id: 'export-versions'
+      shell: bash
+      run: |
+        echo "gcc_version=${{ inputs.gcc_version }}" >> "$GITHUB_OUTPUT"
+        echo "llvm_version=${{ inputs.llvm_version }}" >> "$GITHUB_OUTPUT"
