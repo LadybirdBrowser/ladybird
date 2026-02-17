@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const xhr = new XMLHttpRequest();
+        xhr.responseType = "document";
+        xhr.open(
+            "GET",
+            "data:text/xml,<root xmlns:h='http://www.w3.org/1999/xhtml'><h:script>void 0</h:script></root>",
+            true
+        );
+
+        xhr.addEventListener("load", () => {
+            queueMicrotask(() => {
+                void xhr.responseXML;
+
+                println("PASS (didn't crash)");
+                done();
+            });
+        });
+
+        xhr.send();
+    });
+</script>
