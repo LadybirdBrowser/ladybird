@@ -105,12 +105,27 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     }
 
     if (CSS::property_affects_stacking_context(property_id)) {
-        // OPTIMIZATION: Only rebuild stacking context tree when property crosses from a neutral value (doesn't create
-        //               stacking context) to a creating value or vice versa.
-        bool old_creates = is_stacking_context_creating_value(property_id, old_value);
-        bool new_creates = is_stacking_context_creating_value(property_id, new_value);
-        if (old_creates != new_creates) {
+        // z-index changes always require rebuilding the stacking context tree because
+        // the value determines painting order within the tree, not just whether a
+        // stacking context is created. During tree construction, elements with
+        // z-index 0/auto are placed in m_positioned_descendants_and_stacking_contexts_
+        // with_stack_level_0, while elements with non-zero z-index are painted from
+        // m_children (negative z-index at step 3, positive at step 9 of CSS 2.1
+        // Appendix E). If z-index changes between non-auto values (e.g. 0 -> 10),
+        // both old and new values create stacking contexts, so the generic optimization
+        // below would skip the rebuild. But the element remains in the wrong list,
+        // causing it to be painted from both step 8 (m_positioned_descendants) and
+        // step 9 (m_children with z >= 1), resulting in double painting.
+        if (property_id == CSS::PropertyID::ZIndex) {
             invalidation.rebuild_stacking_context_tree = true;
+        } else {
+            // OPTIMIZATION: Only rebuild stacking context tree when property crosses from a neutral value (doesn't create
+            //               stacking context) to a creating value or vice versa.
+            bool old_creates = is_stacking_context_creating_value(property_id, old_value);
+            bool new_creates = is_stacking_context_creating_value(property_id, new_value);
+            if (old_creates != new_creates) {
+                invalidation.rebuild_stacking_context_tree = true;
+            }
         }
     }
     invalidation.repaint = true;
