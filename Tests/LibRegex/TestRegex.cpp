@@ -767,6 +767,8 @@ TEST_CASE(ECMA262_match)
         { "^a*[a-z]"sv, "aa"sv, true },
         { "^\\w*\\d"sv, "1"sv, true },
         { "^\\w*[\\u212A]"sv, "K"sv, true, combine_flags(ECMAScriptFlags::Insensitive, ECMAScriptFlags::Unicode) },
+        // Optimizer bug: case-insensitive matching was not considered during atomic rewrite.
+        { "^a*A\\d"sv, "aaaa5"sv, true, ECMAScriptFlags::Insensitive },
     };
 
     for (auto& test : tests) {
@@ -910,6 +912,10 @@ TEST_CASE(ECMA262_unicode_match)
             true,
         },
         { "(?<before>\\w*)\\s*(?<emoji>\\p{Emoji}+)\\s*(?<after>\\w*)"sv, "Hey 🎉 there! I love 🍕 pizza"sv, true, ECMAScriptFlags::Unicode },
+        // Optimizer bug: case-insensitive matching was not considered during atomic rewrite.
+        { "^\\u{017f}*s"sv, "\u017fs"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "^\\u{212A}*k"sv, "\u212Ak"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "^\\u{03C3}*\\u{03A3}"sv, "\u03C3\u03A3"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
     };
 
     for (auto& test : tests) {

@@ -804,6 +804,18 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
                 return true;
         }
 
+        if (insensitive) {
+            auto expanded_ranges = Unicode::expand_range_case_insensitive(start, end);
+            for (auto const& expanded : expanded_ranges) {
+                for (auto it = lhs_ranges.begin(); it != lhs_ranges.end(); ++it) {
+                    auto lhs_start = it.key();
+                    auto lhs_end = *it;
+                    if (lhs_start <= expanded.to && expanded.from <= lhs_end)
+                        return true;
+                }
+            }
+        }
+
         return false;
     };
 
@@ -1070,7 +1082,7 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
     return current_lhs_inversion_state();
 }
 
-static bool has_overlap(StaticallyInterpretedCompares const& lhs, StaticallyInterpretedCompares const& rhs)
+static bool has_overlap(StaticallyInterpretedCompares const& lhs, StaticallyInterpretedCompares const& rhs, bool insensitive = false)
 {
     if (lhs.has_any_unicode_property || rhs.has_any_unicode_property || !lhs.negated_ranges.is_empty() || !rhs.negated_ranges.is_empty() || !lhs.negated_char_classes.is_empty() || !rhs.negated_char_classes.is_empty())
         return true;
@@ -1084,8 +1096,15 @@ static bool has_overlap(StaticallyInterpretedCompares const& lhs, StaticallyInte
             auto rhs_end = *it_rhs;
 
             // Check if ranges overlap
-            if (lhs_start <= rhs_end && rhs_start <= lhs_end) {
+            if (lhs_start <= rhs_end && rhs_start <= lhs_end)
                 return true;
+
+            if (insensitive) {
+                auto expanded_ranges = Unicode::expand_range_case_insensitive(rhs_start, rhs_end);
+                for (auto const& expanded : expanded_ranges) {
+                    if (lhs_start <= expanded.to && expanded.from <= lhs_end)
+                        return true;
+                }
             }
         }
     }
