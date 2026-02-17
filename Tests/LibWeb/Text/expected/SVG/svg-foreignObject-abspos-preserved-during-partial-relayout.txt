@@ -1,11 +1,11 @@
 Before SVG relayout:
-  abspos width: 50
-  abspos height: 50
+  abspos width: 25
+  abspos height: 25
   abspos x: 18
   abspos y: 18
 After SVG relayout:
-  abspos width: 50
-  abspos height: 50
+  abspos width: 25
+  abspos height: 25
   abspos x: 18
   abspos y: 18
 Abspos preserved after SVG relayout:
