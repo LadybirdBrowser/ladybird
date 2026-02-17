@@ -47,7 +47,7 @@ GC::Ptr<DOM::ShadowRoot> ElementInternals::shadow_root() const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setformvalue
-WebIDL::ExceptionOr<void> ElementInternals::set_form_value(Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>> value, Optional<Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>>> state)
+WebIDL::ExceptionOr<void> ElementInternals::set_form_value(Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>, Empty> value, Optional<Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>, Empty>> state)
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;

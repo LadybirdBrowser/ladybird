@@ -20,10 +20,11 @@
 namespace Web::IndexedDB {
 
 using KeyPath = Variant<String, Vector<String>>;
+using NullableKeyPath = Variant<String, Vector<String>, Empty>;
 
 // https://w3c.github.io/IndexedDB/#dictdef-idbobjectstoreparameters
 struct IDBObjectStoreParameters {
-    Optional<KeyPath> key_path;
+    NullableKeyPath key_path { Empty {} };
     bool auto_increment { false };
 };
 

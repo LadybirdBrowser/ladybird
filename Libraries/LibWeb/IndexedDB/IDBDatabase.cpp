@@ -118,7 +118,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating object store"_utf16);
 
     // 4. Let keyPath be options’s keyPath member if it is not undefined or null, or null otherwise.
-    auto key_path = options.key_path;
+    auto const& nullable_key_path = options.key_path;
+    Optional<KeyPath> key_path;
+    if (!nullable_key_path.has<Empty>())
+        key_path = nullable_key_path.downcast<String, Vector<String>>();
 
     // 5. If keyPath is not null and is not a valid key path, throw a "SyntaxError" DOMException.
     if (key_path.has_value() && !is_valid_key_path(key_path.value()))

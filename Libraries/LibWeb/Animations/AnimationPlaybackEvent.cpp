@@ -25,11 +25,10 @@ WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> AnimationPlaybackEvent::con
     return create(realm, type, event_init);
 }
 
-AnimationPlaybackEvent::CSSNumberishInternal AnimationPlaybackEvent::to_numberish_internal(Optional<CSS::CSSNumberish> const& numberish_root)
+AnimationPlaybackEvent::CSSNumberishInternal AnimationPlaybackEvent::to_numberish_internal(NullableCSSNumberish const& numberish_root)
 {
-    if (!numberish_root.has_value())
-        return Empty {};
-    return numberish_root->visit(
+    return numberish_root.visit(
+        [](Empty) -> CSSNumberishInternal { return Empty {}; },
         [](GC::Root<CSS::CSSNumericValue> const& root) -> CSSNumberishInternal { return GC::Ref { *root }; },
         [](auto const& other) -> CSSNumberishInternal { return other; });
 }

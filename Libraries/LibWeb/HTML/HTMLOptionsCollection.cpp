@@ -119,7 +119,7 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-add
-WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement element, Optional<HTMLElementOrElementIndex> before)
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement element, NullableHTMLElementOrElementIndex before)
 {
     auto resolved_element = element.visit(
         [](auto& e) -> GC::Root<HTMLElement> {
@@ -127,8 +127,8 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement
         });
 
     GC::Ptr<DOM::Node> before_element;
-    if (before.has_value() && before->has<GC::Root<HTMLElement>>())
-        before_element = before->get<GC::Root<HTMLElement>>().ptr();
+    if (before.has<GC::Root<HTMLElement>>())
+        before_element = before.get<GC::Root<HTMLElement>>().ptr();
 
     // 1. If element is an ancestor of the select element on which the HTMLOptionsCollection is rooted, then throw a "HierarchyRequestError" DOMException.
     if (resolved_element->is_ancestor_of(root()))
@@ -147,8 +147,8 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement
 
     if (before_element)
         reference = move(before_element);
-    else if (before.has_value() && before->has<i32>())
-        reference = item(before->get<i32>());
+    else if (before.has<i32>())
+        reference = item(before.get<i32>());
 
     // 5. If reference is not null, let parent be the parent node of reference. Otherwise, let parent be the select element on which the HTMLOptionsCollection is rooted.
     DOM::Node* parent = reference ? reference->parent() : root().ptr();

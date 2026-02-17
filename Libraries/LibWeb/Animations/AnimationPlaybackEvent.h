@@ -15,8 +15,8 @@ namespace Web::Animations {
 
 // https://www.w3.org/TR/web-animations-1/#dictdef-animationplaybackeventinit
 struct AnimationPlaybackEventInit : public DOM::EventInit {
-    Optional<CSS::CSSNumberish> current_time;
-    Optional<CSS::CSSNumberish> timeline_time;
+    NullableCSSNumberish current_time { Empty {} };
+    NullableCSSNumberish timeline_time { Empty {} };
 };
 
 // https://www.w3.org/TR/web-animations-1/#animationplaybackevent
@@ -40,7 +40,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     using CSSNumberishInternal = Variant<Empty, double, GC::Ref<CSS::CSSNumericValue>>;
-    static CSSNumberishInternal to_numberish_internal(Optional<CSS::CSSNumberish> const&);
+    static CSSNumberishInternal to_numberish_internal(NullableCSSNumberish const&);
     static NullableCSSNumberish to_nullable_numberish(CSSNumberishInternal const&);
 
     // https://drafts.csswg.org/web-animations-2/#dom-animationplaybackevent-currenttime

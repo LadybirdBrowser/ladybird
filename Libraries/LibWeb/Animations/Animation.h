@@ -52,7 +52,7 @@ public:
         return NullableCSSNumberish::from_optional_css_numberish_time(realm(), start_time());
     }
     Optional<TimeValue> start_time() const { return m_start_time; }
-    WebIDL::ExceptionOr<void> set_start_time_for_bindings(Optional<CSS::CSSNumberish> const&);
+    WebIDL::ExceptionOr<void> set_start_time_for_bindings(NullableCSSNumberish const&);
 
     void calculate_auto_aligned_start_time();
 
@@ -62,7 +62,7 @@ public:
         return NullableCSSNumberish::from_optional_css_numberish_time(realm(), current_time());
     }
     Optional<TimeValue> current_time() const;
-    WebIDL::ExceptionOr<void> set_current_time_for_bindings(Optional<CSS::CSSNumberish> const&);
+    WebIDL::ExceptionOr<void> set_current_time_for_bindings(NullableCSSNumberish const&);
 
     double playback_rate() const { return m_playback_rate; }
     WebIDL::ExceptionOr<void> set_playback_rate(double value);
@@ -163,7 +163,7 @@ private:
 
     double effective_playback_rate() const;
 
-    WebIDL::ExceptionOr<Optional<TimeValue>> validate_a_css_numberish_time(Optional<CSS::CSSNumberish> const&) const;
+    WebIDL::ExceptionOr<Optional<TimeValue>> validate_a_css_numberish_time(NullableCSSNumberish const&) const;
 
     void apply_any_pending_playback_rate();
     WebIDL::ExceptionOr<void> silently_set_current_time(Optional<TimeValue>);

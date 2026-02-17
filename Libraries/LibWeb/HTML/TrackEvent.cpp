@@ -26,15 +26,11 @@ WebIDL::ExceptionOr<GC::Ref<TrackEvent>> TrackEvent::construct_impl(JS::Realm& r
     return create(realm, event_name, move(event_init));
 }
 
-TrackEvent::TrackTypeInternal TrackEvent::to_track_type_internal(TrackEventInit::TrackType const& track_type)
+TrackEvent::TrackTypeInternal TrackEvent::to_track_type_internal(NullableTrackType const& track_type)
 {
-    if (!track_type.has_value())
-        return Empty {};
-
-    return track_type->visit(
-        [](GC::Root<VideoTrack> const& root) -> TrackTypeInternal { return GC::Ref { *root }; },
-        [](GC::Root<AudioTrack> const& root) -> TrackTypeInternal { return GC::Ref { *root }; },
-        [](GC::Root<TextTrack> const& root) -> TrackTypeInternal { return GC::Ref { *root }; });
+    return track_type.visit(
+        [](Empty) -> TrackTypeInternal { return Empty {}; },
+        [](auto const& root) -> TrackTypeInternal { return GC::Ref { *root }; });
 }
 
 TrackEvent::TrackEvent(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
@@ -57,11 +53,11 @@ void TrackEvent::visit_edges(Visitor& visitor)
         [&](auto const& ref) { visitor.visit(ref); });
 }
 
-TrackEvent::TrackReturnType TrackEvent::track() const
+NullableTrackType TrackEvent::track() const
 {
     return m_track.visit(
-        [](Empty) -> TrackReturnType { return Empty {}; },
-        [](auto const& ref) -> TrackReturnType { return GC::Root { *ref }; });
+        [](Empty) -> NullableTrackType { return Empty {}; },
+        [](auto const& ref) -> NullableTrackType { return GC::Root { *ref }; });
 }
 
 }

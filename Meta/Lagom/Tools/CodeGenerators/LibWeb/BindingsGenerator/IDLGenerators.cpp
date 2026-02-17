@@ -268,7 +268,7 @@ static ByteString union_type_to_variant(UnionType const& union_type, Interface c
         builder.append(cpp_type.name);
     }
 
-    if (union_type.includes_undefined())
+    if (union_type.includes_undefined() || union_type.includes_nullable_type())
         builder.append(", Empty"sv);
 
     builder.append('>');
@@ -1369,9 +1369,12 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
 
-        // FIXME: 2. If the union type includes a nullable type and V is null or undefined, then return the IDL value null.
+        // 2. If the union type includes a nullable type and V is null or undefined, then return the IDL value null.
         if (union_type.includes_nullable_type()) {
-            // Implement me
+            union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_nullish())
+            return Empty {};
+)~~~");
         } else if (dictionary_type) {
             // 4. If V is null or undefined, then
             //    4.1 If types includes a dictionary type, then return the result of converting V to that dictionary type.
@@ -1794,7 +1797,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
             } else {
                 if (!optional_default_value.has_value()) {
-                    union_generator.set("nullish_or_undefined", union_type.is_nullable() ? "nullish" : "undefined");
+                    union_generator.set("nullish_or_undefined", "undefined");
                     union_generator.append(R"~~~(
     Optional<@union_type@> @cpp_name@;
     if (!@js_name@@js_suffix@.is_@nullish_or_undefined@())
@@ -1802,11 +1805,17 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
                 } else {
                     if (optional_default_value == "null"sv) {
-                        union_generator.append(R"~~~(
+                        if (union_type.includes_nullable_type()) {
+                            union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @union_type@ { Empty {} } : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                        } else {
+                            union_generator.append(R"~~~(
     Optional<@union_type@> @cpp_name@;
     if (!@js_name@@js_suffix@.is_nullish())
         @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
+                        }
                     } else if (optional_default_value == "\"\"") {
                         union_generator.append(R"~~~(
     @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, String {})))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
@@ -2182,8 +2191,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             generate_wrap_statement(union_generator, ByteString::formatted("visited_union_value{}", recursion_depth), current_union_type, interface, "return"sv, recursion_depth + 1);
 
             // End of current visit lambda.
-            // The last lambda cannot have a trailing comma on the closing brace, unless the type is nullable, where an extra lambda will be generated for the Empty case.
-            if (current_union_type_index != union_types.size() - 1 || type.is_nullable()) {
+            // The last lambda cannot have a trailing comma on the closing brace, unless the type includes a nullable type, where an extra lambda will be generated for the Empty case.
+            if (current_union_type_index != union_types.size() - 1 || union_type.includes_nullable_type()) {
                 union_generator.append(R"~~~(
         },
 )~~~");
@@ -2194,7 +2203,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             }
         }
 
-        if (type.is_nullable()) {
+        if (union_type.includes_nullable_type()) {
             union_generator.append(R"~~~(
         [](Empty) -> JS::Value {
             return JS::js_null();

@@ -45,7 +45,7 @@ public:
 
     GC::Ptr<DOM::ShadowRoot> shadow_root() const;
 
-    WebIDL::ExceptionOr<void> set_form_value(Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>> value, Optional<Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>>> state);
+    WebIDL::ExceptionOr<void> set_form_value(Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>, Empty> value, Optional<Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>, Empty>> state);
 
     WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> form() const;
 

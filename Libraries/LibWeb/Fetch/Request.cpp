@@ -449,16 +449,16 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         input_body = input.get<GC::Root<Request>>()->request()->body();
 
     // 35. If either init["body"] exists and is non-null or inputBody is non-null, and request’s method is `GET` or `HEAD`, then throw a TypeError.
-    if (((init.body.has_value() && (*init.body).has_value()) || (input_body.has_value() && !input_body.value().has<Empty>())) && request->method().is_one_of("GET"sv, "HEAD"sv))
+    if (((init.body.has_value() && !init.body->has<Empty>()) || (input_body.has_value() && !input_body.value().has<Empty>())) && request->method().is_one_of("GET"sv, "HEAD"sv))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be GET or HEAD when body is provided"sv };
 
     // 36. Let initBody be null.
     Optional<Infrastructure::Request::BodyType> init_body;
 
     // 37. If init["body"] exists and is non-null, then:
-    if (init.body.has_value() && (*init.body).has_value()) {
-        // 1. Let bodyWithType be the result of extracting init["body"], with keepalive set to request’s keepalive.
-        auto body_with_type = TRY(extract_body(realm, (*init.body).value(), request->keepalive()));
+    if (init.body.has_value() && !init.body->has<Empty>()) {
+        // 1. Let bodyWithType be the result of extracting init["body"], with keepalive set to request's keepalive.
+        auto body_with_type = TRY(extract_body(realm, init.body->downcast<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String>(), request->keepalive()));
 
         // 2. Set initBody to bodyWithType’s body.
         init_body = body_with_type.body;

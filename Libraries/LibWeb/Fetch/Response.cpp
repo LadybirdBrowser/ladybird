@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
 }
 
 // https://fetch.spec.whatwg.org/#dom-response
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm, Optional<BodyInit> const& body, ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm, NullableBodyInit const& body, ResponseInit const& init)
 {
     auto& vm = realm.vm();
 
@@ -155,8 +155,8 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm
     Optional<Infrastructure::BodyWithType> body_with_type;
 
     // 4. If body is non-null, then set bodyWithType to the result of extracting body.
-    if (body.has_value())
-        body_with_type = TRY(extract_body(realm, *body));
+    if (!body.has<Empty>())
+        body_with_type = TRY(extract_body(realm, body.downcast<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String>()));
 
     // 5. Perform initialize a response given this, init, and bodyWithType.
     TRY(response_object->initialize_response(init, body_with_type));

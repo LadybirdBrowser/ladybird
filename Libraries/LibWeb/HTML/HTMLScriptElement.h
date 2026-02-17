@@ -66,7 +66,7 @@ public:
     WebIDL::ExceptionOr<void> set_src(TrustedTypes::TrustedScriptURLOrString);
 
     Variant<GC::Root<TrustedTypes::TrustedScript>, Utf16String, Empty> text_content() const;
-    WebIDL::ExceptionOr<void> set_text_content(TrustedTypes::TrustedScriptOrString);
+    WebIDL::ExceptionOr<void> set_text_content(TrustedTypes::NullableTrustedScriptOrString);
 
     TrustedTypes::TrustedScriptOrString inner_text();
     WebIDL::ExceptionOr<void> set_inner_text(TrustedTypes::TrustedScriptOrString);

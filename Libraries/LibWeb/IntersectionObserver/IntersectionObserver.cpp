@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
     return realm.create<IntersectionObserver>(realm, callback, options.root, move(root_margin.value()), move(scroll_margin.value()), move(thresholds), move(delay), move(options.track_visibility));
 }
 
-IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, Optional<Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>>> const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
+IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, NullableIntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
     : PlatformObject(realm)
     , m_callback(callback)
     , m_root_margin(root_margin)
@@ -93,7 +93,7 @@ IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::Cal
     , m_delay(delay)
     , m_track_visibility(track_visibility)
 {
-    m_root = root.has_value() ? root->visit([](auto& value) -> GC::Ptr<DOM::Node> { return *value; }) : nullptr;
+    m_root = root.has<Empty>() ? nullptr : root.visit([](GC::Root<DOM::Element> const& value) -> GC::Ptr<DOM::Node> { return *value; }, [](GC::Root<DOM::Document> const& value) -> GC::Ptr<DOM::Node> { return *value; }, [](Empty) -> GC::Ptr<DOM::Node> { return nullptr; });
     intersection_root().visit([this](auto& node) {
         m_document = node->document();
     });
@@ -191,7 +191,7 @@ Vector<GC::Root<IntersectionObserverEntry>> IntersectionObserver::take_records()
     return queue;
 }
 
-Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>, Empty> IntersectionObserver::root() const
+NullableIntersectionObserverRoot IntersectionObserver::root() const
 {
     if (!m_root)
         return Empty {};

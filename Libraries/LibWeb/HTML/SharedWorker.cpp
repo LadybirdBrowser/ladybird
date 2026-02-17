@@ -151,7 +151,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
                 MessageEventInit init;
                 init.data = JS::PrimitiveString::create(realm.vm(), String {});
                 init.ports.append(inside_port);
-                init.source = inside_port;
+                init.source = NullableMessageEventSource { inside_port };
 
                 worker_global_scope->dispatch_event(MessageEvent::create(realm, EventNames::connect, init));
             }));

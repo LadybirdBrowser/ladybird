@@ -535,7 +535,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
-WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequestBodyInit> body)
+WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestBodyInit body)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
@@ -550,23 +550,23 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
     // 3. If this’s request method is `GET` or `HEAD`, then set body to null.
     if (m_request_method.is_one_of("GET"sv, "HEAD"sv))
-        body = {};
+        body = Empty {};
 
     // 4. If body is not null, then:
-    if (body.has_value()) {
+    if (!body.has<Empty>()) {
         // 1. Let extractedContentType be null.
         Optional<ByteString> extracted_content_type;
 
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
-        if (body->has<GC::Root<DOM::Document>>()) {
-            auto string_serialized_document = TRY(body->get<GC::Root<DOM::Document>>().cell()->serialize_fragment(HTML::RequireWellFormed::No));
+        if (body.has<GC::Root<DOM::Document>>()) {
+            auto string_serialized_document = TRY(body.get<GC::Root<DOM::Document>>().cell()->serialize_fragment(HTML::RequireWellFormed::No));
             auto string_serialized_document_utf8 = string_serialized_document.to_utf8();
             m_request_body = Fetch::Infrastructure::byte_sequence_as_body(realm, string_serialized_document_utf8.bytes());
         }
         // 3. Otherwise:
         else {
             // 1. Let bodyWithType be the result of safely extracting body.
-            auto body_with_type = Fetch::safely_extract_body(realm, body->downcast<Fetch::BodyInitOrReadableBytes>());
+            auto body_with_type = Fetch::safely_extract_body(realm, body.downcast<Fetch::BodyInitOrReadableBytes>());
 
             // 2. Set this’s request body to bodyWithType’s body.
             m_request_body = body_with_type.body;
@@ -581,7 +581,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         // 5. If originalAuthorContentType is non-null, then:
         if (original_author_content_type.has_value()) {
             // 1. If body is a Document or a USVString, then:
-            if (body->has<GC::Root<DOM::Document>>() || body->has<String>()) {
+            if (body.has<GC::Root<DOM::Document>>() || body.has<String>()) {
                 // 1. Let contentTypeRecord be the result of parsing originalAuthorContentType.
                 auto content_type_record = MimeSniff::MimeType::parse(original_author_content_type.value());
 
@@ -604,8 +604,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         }
         // 6. Otherwise:
         else {
-            if (body->has<GC::Root<DOM::Document>>()) {
-                auto document = body->get<GC::Root<DOM::Document>>();
+            if (body.has<GC::Root<DOM::Document>>()) {
+                auto document = body.get<GC::Root<DOM::Document>>();
 
                 // NOTE: A document can only be an HTML document or XML document.
                 // 1. If body is an HTML document, then set (`Content-Type`, `text/html;charset=UTF-8`) in this’s author request headers.

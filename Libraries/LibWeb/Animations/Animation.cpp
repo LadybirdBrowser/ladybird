@@ -211,7 +211,7 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
 }
 
 // https://drafts.csswg.org/web-animations-2/#validating-a-css-numberish-time
-WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_time(Optional<CSS::CSSNumberish> const& time) const
+WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_time(NullableCSSNumberish const& time) const
 {
     // The procedure to validate a CSSNumberish time for an input value of time is based on the first condition that matches:
 
@@ -221,7 +221,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
         m_timeline && m_timeline->is_progress_based() &&
 
         // time is not a CSSNumeric value with percent units:
-        (!time.has_value() || !time->has<GC::Root<CSS::CSSNumericValue>>() || !time->get<GC::Root<CSS::CSSNumericValue>>()->type().matches_percentage())) {
+        (!time.has<GC::Root<CSS::CSSNumericValue>>() || !time.get<GC::Root<CSS::CSSNumericValue>>()->type().matches_percentage())) {
         // throw a TypeError.
         // return false;
         return WebIDL::SimpleException {
@@ -236,14 +236,14 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
         (!m_timeline || !m_timeline->is_progress_based()) &&
 
         // time is a CSSNumericValue, and
-        time.has_value() && time->has<GC::Root<CSS::CSSNumericValue>>() &&
+        time.has<GC::Root<CSS::CSSNumericValue>>() &&
 
         // the units of time are not duration units:
-        !time->get<GC::Root<CSS::CSSNumericValue>>()->type().matches_time({}) &&
+        !time.get<GC::Root<CSS::CSSNumericValue>>()->type().matches_time({}) &&
 
         // AD-HOC: While it's not mentioned in the spec WPT also expects us to support CSSNumericValue number value, see
         //         https://github.com/w3c/csswg-drafts/issues/13196
-        !time->get<GC::Root<CSS::CSSNumericValue>>()->type().matches_number({})) {
+        !time.get<GC::Root<CSS::CSSNumericValue>>()->type().matches_number({})) {
         // throw a TypeError.
         // return false.
         return WebIDL::SimpleException {
@@ -257,19 +257,19 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
 
     // AD-HOC: The spec doesn't say when we should absolutize the validated value so we do it here and return the
     //         absolutized value instead of a boolean
-    if (!time.has_value())
+    if (time.has<Empty>())
         return OptionalNone {};
 
     // FIXME: Figure out which element we should use for this, for now we just use the document element of the current
     //        window
-    return TimeValue::from_css_numberish(time.value(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
+    return TimeValue::from_css_numberish(time.downcast<double, GC::Root<CSS::CSSNumericValue>>(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
 
     VERIFY_NOT_REACHED();
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-starttime
 // https://www.w3.org/TR/web-animations-1/#set-the-start-time
-WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(Optional<CSS::CSSNumberish> const& raw_new_start_time)
+WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(NullableCSSNumberish const& raw_new_start_time)
 {
     // Setting this attribute updates the start time using the procedure to set the start time of this object to the new
     // value.
@@ -400,7 +400,7 @@ Optional<TimeValue> Animation::current_time() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-current-time
-WebIDL::ExceptionOr<void> Animation::set_current_time_for_bindings(Optional<CSS::CSSNumberish> const& raw_seek_time)
+WebIDL::ExceptionOr<void> Animation::set_current_time_for_bindings(NullableCSSNumberish const& raw_seek_time)
 {
     // AD-HOC: We validate here instead of within silently_set_current_time so we have access to the `TimeValue`
     //         value within this function.
@@ -655,7 +655,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         //    not associated with an active timeline, let timeline time be an unresolved time value.
         // 9. Set cancelEvent’s timelineTime to timeline time. If timeline time is unresolved, set it to null.
         AnimationPlaybackEventInit init;
-        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time().map([&](auto const& value) { return value.as_css_numberish(realm); }) : Optional<CSS::CSSNumberish> {};
+        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? NullableCSSNumberish { m_timeline->current_time()->as_css_numberish(realm) } : NullableCSSNumberish { Empty {} };
         auto cancel_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::cancel, init);
 
         // 10. If animation has a document for timing, then append cancelEvent to its document for timing's pending
@@ -1329,7 +1329,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             AnimationPlaybackEventInit init;
             init.current_time = current_time()->as_css_numberish(realm);
             if (m_timeline && !m_timeline->is_inactive())
-                init.timeline_time = m_timeline->current_time().map([&](auto const& value) { return value.as_css_numberish(realm); });
+                init.timeline_time = m_timeline->current_time()->as_css_numberish(realm);
 
             auto finish_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::finish, init);
 

@@ -28,6 +28,7 @@ namespace Web::XHR {
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
 using DocumentOrXMLHttpRequestBodyInit = Variant<GC::Root<Web::DOM::Document>, GC::Root<Web::FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<Web::DOMURL::URLSearchParams>, AK::String>;
+using NullableDocumentOrXMLHttpRequestBodyInit = Variant<GC::Root<Web::DOM::Document>, GC::Root<Web::FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<Web::DOMURL::URLSearchParams>, AK::String, Empty>;
 
 class XMLHttpRequest final : public XMLHttpRequestEventTarget {
     WEB_PLATFORM_OBJECT(XMLHttpRequest, XMLHttpRequestEventTarget);
@@ -59,7 +60,7 @@ public:
 
     WebIDL::ExceptionOr<void> open(String const& method, String const& url);
     WebIDL::ExceptionOr<void> open(String const& method, String const& url, bool async, Optional<String> const& username = Optional<String> {}, Optional<String> const& password = Optional<String> {});
-    WebIDL::ExceptionOr<void> send(Optional<DocumentOrXMLHttpRequestBodyInit> body);
+    WebIDL::ExceptionOr<void> send(NullableDocumentOrXMLHttpRequestBodyInit body);
 
     WebIDL::ExceptionOr<void> set_request_header(String const& name, String const& value);
     WebIDL::ExceptionOr<void> set_response_type(Bindings::XMLHttpRequestResponseType);

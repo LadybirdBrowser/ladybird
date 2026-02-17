@@ -16,6 +16,7 @@ namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#bodyinit
 using BodyInit = Variant<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String>;
+using NullableBodyInit = Variant<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String, Empty>;
 
 using BodyInitOrReadableBytes = Variant<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String, ReadonlyBytes>;
 WEB_API Infrastructure::BodyWithType safely_extract_body(JS::Realm&, BodyInitOrReadableBytes const&);

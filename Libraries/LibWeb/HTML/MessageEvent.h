@@ -17,13 +17,14 @@ namespace Web::HTML {
 // FIXME: Include ServiceWorker
 // https://html.spec.whatwg.org/multipage/comms.html#messageeventsource
 using MessageEventSource = Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>>;
+using NullableMessageEventSource = Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>, Empty>;
 
 // https://html.spec.whatwg.org/multipage/comms.html#messageeventinit
 struct MessageEventInit : public DOM::EventInit {
     JS::Value data { JS::js_null() };
     Variant<URL::Origin, String, Empty> origin {};
     String last_event_id {};
-    Optional<MessageEventSource> source;
+    NullableMessageEventSource source { Empty {} };
     Vector<GC::Root<MessagePort>> ports;
 };
 
@@ -44,19 +45,18 @@ public:
     String const& last_event_id() const { return m_last_event_id; }
     GC::Ref<JS::Object> ports() const;
 
-    using SourceResult = Variant<Empty, GC::Root<WindowProxy>, GC::Root<MessagePort>>;
-    SourceResult source() const;
+    NullableMessageEventSource source() const;
 
     virtual Optional<URL::Origin> extract_an_origin() const override;
 
-    void init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, Optional<MessageEventSource> source, Vector<GC::Root<MessagePort>> const& ports);
+    void init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, NullableMessageEventSource source, Vector<GC::Root<MessagePort>> const& ports);
 
 private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     using MessageEventSourceInternal = Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<MessagePort>>;
-    static MessageEventSourceInternal to_message_event_source_internal(Optional<MessageEventSource> const&);
+    static MessageEventSourceInternal to_message_event_source_internal(NullableMessageEventSource const&);
 
     JS::Value m_data;
 

@@ -276,7 +276,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                 Web::HTML::MessageEventInit event_init {};
                 event_init.data = GC::Ref { vm.empty_string() };
                 event_init.ports = { inside_port };
-                event_init.source = inside_port;
+                event_init.source = Web::HTML::NullableMessageEventSource { inside_port };
 
                 auto message_event = Web::HTML::MessageEvent::create(realm, Web::HTML::EventNames::connect, event_init);
                 worker_global_scope->dispatch_event(message_event);

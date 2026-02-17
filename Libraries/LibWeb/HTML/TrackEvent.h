@@ -15,9 +15,10 @@
 
 namespace Web::HTML {
 
+using NullableTrackType = Variant<GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>, Empty>;
+
 struct TrackEventInit : public DOM::EventInit {
-    using TrackType = Optional<Variant<GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>>>;
-    TrackType track;
+    NullableTrackType track { Empty {} };
 };
 
 class TrackEvent : public DOM::Event {
@@ -29,8 +30,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<TrackEvent>> construct_impl(JS::Realm&, FlyString const& event_name, TrackEventInit);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-trackevent-track
-    using TrackReturnType = Variant<Empty, GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>>;
-    TrackReturnType track() const;
+    NullableTrackType track() const;
 
 private:
     TrackEvent(JS::Realm&, FlyString const& event_name, TrackEventInit event_init);
@@ -39,7 +39,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     using TrackTypeInternal = Variant<Empty, GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>>;
-    static TrackTypeInternal to_track_type_internal(TrackEventInit::TrackType const&);
+    static TrackTypeInternal to_track_type_internal(NullableTrackType const&);
 
     TrackTypeInternal m_track;
 };

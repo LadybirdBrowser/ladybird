@@ -35,7 +35,7 @@ class Response final
 
 public:
     [[nodiscard]] static GC::Ref<Response> create(JS::Realm&, GC::Ref<Infrastructure::Response>, Headers::Guard);
-    static WebIDL::ExceptionOr<GC::Ref<Response>> construct_impl(JS::Realm&, Optional<BodyInit> const& body = {}, ResponseInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Response>> construct_impl(JS::Realm&, NullableBodyInit const& body = { Empty {} }, ResponseInit const& init = {});
 
     virtual ~Response() override;
 

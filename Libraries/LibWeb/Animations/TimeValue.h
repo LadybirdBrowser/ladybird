@@ -74,9 +74,7 @@ struct TimeValue {
     CSS::CSSNumberish as_css_numberish(JS::Realm& realm) const;
 };
 
-// FIXME: This struct is required since our IDL generator requires us to return nullable union types as
-//        Variant<Empty, Ts...> rather than Optional<Variant<Ts...>> (although setters are forced to be
-//        Optional<Variant<Ts...>>)
+// Nullable CSSNumberish is Variant<double, GC::Root<CSSNumericValue>, Empty> where Empty represents null.
 struct NullableCSSNumberish : FlattenVariant<Variant<Empty>, CSS::CSSNumberish> {
     using Variant::Variant;
 

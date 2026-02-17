@@ -26,7 +26,7 @@ using RequestInfo = Variant<GC::Root<Request>, String>;
 struct RequestInit {
     Optional<String> method;
     Optional<HeadersInit> headers;
-    Optional<Optional<BodyInit>> body;
+    Optional<NullableBodyInit> body;
     Optional<String> referrer;
     Optional<Bindings::ReferrerPolicy> referrer_policy;
     Optional<Bindings::RequestMode> mode;

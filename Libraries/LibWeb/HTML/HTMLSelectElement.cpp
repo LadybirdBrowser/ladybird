@@ -179,7 +179,7 @@ HTMLOptionElement* HTMLSelectElement::named_item(FlyString const& name)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-add
-WebIDL::ExceptionOr<void> HTMLSelectElement::add(HTMLOptionOrOptGroupElement element, Optional<HTMLElementOrElementIndex> before)
+WebIDL::ExceptionOr<void> HTMLSelectElement::add(HTMLOptionOrOptGroupElement element, NullableHTMLElementOrElementIndex before)
 {
     // Similarly, the add(element, before) method must act like its namesake method on that same options collection.
     TRY(const_cast<HTMLOptionsCollection&>(*options()).add(move(element), move(before)));

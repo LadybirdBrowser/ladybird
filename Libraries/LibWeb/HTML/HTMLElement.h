@@ -108,8 +108,8 @@ public:
     GC::Ptr<Element> offset_parent() const;
     GC::Ptr<Element> scroll_parent() const;
 
-    Variant<bool, double, String> hidden() const;
-    void set_hidden(Variant<bool, double, String> const&);
+    Variant<bool, double, String, Empty> hidden() const;
+    void set_hidden(Variant<bool, double, String, Empty> const&);
 
     void click();
 

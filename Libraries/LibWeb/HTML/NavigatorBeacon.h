@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class NavigatorBeaconPartial {
 public:
-    WebIDL::ExceptionOr<bool> send_beacon(String const& url, Optional<Fetch::BodyInit> const& data = {});
+    WebIDL::ExceptionOr<bool> send_beacon(String const& url, Fetch::NullableBodyInit const& data = { Empty {} });
 
 private:
     virtual ~NavigatorBeaconPartial() = default;
