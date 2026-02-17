@@ -510,12 +510,15 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
         bool has_stdout = FileSystem::exists(ByteString::formatted("{}.stdout.txt", base_path));
         bool has_stderr = FileSystem::exists(ByteString::formatted("{}.stderr.txt", base_path));
 
-        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasStdout\": {}, \"hasStderr\": {} }}",
+        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasStdout\": {}, \"hasStderr\": {}",
             test.safe_relative_path,
             test_result_to_string(result.result),
             test_mode_to_string(test.mode),
             has_stdout ? "true" : "false",
             has_stderr ? "true" : "false");
+        if (test.mode == TestMode::Ref && test.diff_pixel_error_count > 0)
+            js.appendff(", \"pixelErrors\": {}, \"maxChannelDiff\": {}", test.diff_pixel_error_count, test.diff_maximum_error);
+        js.append(" }"sv);
     }
 
     js.append("\n  ]\n};\n"sv);
@@ -857,6 +860,8 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
             return TestResult::Pass;
 
         auto& app = Application::the();
+        auto const& actual = *test.actual_screenshot;
+        auto const& expected = *test.expectation_screenshot;
 
         auto dump_screenshot = [](Gfx::Bitmap const& bitmap, StringView path) -> ErrorOr<void> {
             auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
@@ -869,8 +874,15 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
         TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
 
         auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
-        TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("{}.actual.png", base_path)));
-        TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("{}.expected.png", base_path)));
+        TRY(dump_screenshot(actual, ByteString::formatted("{}.actual.png", base_path)));
+        TRY(dump_screenshot(expected, ByteString::formatted("{}.expected.png", base_path)));
+
+        // Generate diff stats.
+        if (actual.width() == expected.width() && actual.height() == expected.height()) {
+            auto diff = actual.diff(expected);
+            test.diff_pixel_error_count = diff.pixel_error_count;
+            test.diff_maximum_error = diff.maximum_error;
+        }
 
         return TestResult::Fail;
     };

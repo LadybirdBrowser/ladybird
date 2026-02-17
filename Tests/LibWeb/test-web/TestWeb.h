@@ -65,6 +65,9 @@ struct Test {
     RefPtr<Gfx::Bitmap const> actual_screenshot {};
     RefPtr<Gfx::Bitmap const> expectation_screenshot {};
 
+    u64 diff_pixel_error_count { 0 };
+    u8 diff_maximum_error { 0 };
+
     RefPtr<Core::Timer> timeout_timer {};
 };
 
