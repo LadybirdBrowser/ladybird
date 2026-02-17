@@ -87,19 +87,22 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
     auto paint_into_isolated_group = any_of(resolved_background.layers, [](auto const& layer) {
         return layer.blend_mode != CSS::MixBlendMode::Normal;
     });
-    if (paint_into_isolated_group) {
-        display_list_recorder.save_layer();
-    }
 
     bool is_root_element = paintable_box.layout_node().is_root_element();
     bool needs_text_clip = resolved_background.needs_text_clip && !is_root_element;
 
+    RefPtr<DisplayList> text_clip_display_list;
+    Gfx::IntRect text_clip_rect;
     if (needs_text_clip) {
+        text_clip_display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
+        text_clip_rect = context.rounded_device_rect(resolved_background.background_rect).to_type<int>();
         display_list_recorder.save();
-        auto display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
-        auto rect = context.rounded_device_rect(resolved_background.background_rect);
-        display_list_recorder.add_mask(move(display_list), rect.to_type<int>(), Gfx::MaskKind::Alpha);
+        display_list_recorder.add_clip_rect(text_clip_rect);
+        display_list_recorder.save_layer();
     }
+
+    if (paint_into_isolated_group)
+        display_list_recorder.save_layer();
 
     BackgroundBox border_box {
         resolved_background.background_rect,
@@ -323,10 +326,14 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
         }
     }
 
-    if (needs_text_clip) {
+    if (paint_into_isolated_group)
         display_list_recorder.restore();
-    }
-    if (paint_into_isolated_group) {
+
+    if (needs_text_clip) {
+        display_list_recorder.apply_effects(1.0f, Gfx::CompositingAndBlendingOperator::DestinationIn);
+        display_list_recorder.paint_nested_display_list(move(text_clip_display_list), text_clip_rect);
+        display_list_recorder.restore();
+        display_list_recorder.restore();
         display_list_recorder.restore();
     }
 }
