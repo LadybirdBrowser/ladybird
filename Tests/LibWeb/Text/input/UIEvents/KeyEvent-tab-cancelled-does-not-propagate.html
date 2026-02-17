@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<input id="input1" />
+<input id="input2" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let input1 = document.getElementById("input1");
+
+        input1.focus();
+
+        let shouldCancelTab = true;
+        input1.addEventListener("keydown", e => {
+            println(`input1 keydown ${e.key}`);
+
+            if (shouldCancelTab && e.key === "Tab") {
+                println("cancel keydown Tab");
+                e.preventDefault();
+            }
+        });
+
+        internals.sendKey(input1, "Tab");
+        printElement(document.activeElement);
+
+        shouldCancelTab = false;
+        internals.sendKey(input1, "Tab");
+        printElement(document.activeElement);
+    });
+</script>
