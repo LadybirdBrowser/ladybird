@@ -1,0 +1,9 @@
+Program (script) @1:1
+└─ FunctionDeclaration "check" [uses-this] [uses-this-from-environment] @1:1
+   ├─ parameters
+   │  ├─ Identifier "expected" [argument:0] @1:16
+   │  └─ Identifier "actual" [argument:1] @1:16
+   │     └─ default
+   │        └─ MetaProperty new.target @1:35
+   └─ body
+      └─ FunctionBody @1:48

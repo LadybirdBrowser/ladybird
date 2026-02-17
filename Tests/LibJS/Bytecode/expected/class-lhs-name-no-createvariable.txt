@@ -1,0 +1,7 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       SetLexicalEnvironment environment:reg4
+[  20]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, lhs_name:x, element_keys:[element_keys:String("method")]
+[  48]       SetGlobal identifier:x, src:reg6
+[  58]       End value:Undefined

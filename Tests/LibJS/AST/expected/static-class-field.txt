@@ -1,0 +1,33 @@
+Program (script) @2:1
+├─ VariableDeclaration (var) @2:1
+│  └─ VariableDeclarator @2:1
+│     ├─ Identifier "C" [global] (var) @2:5
+│     └─ ClassExpression "" @2:9
+│        ├─ constructor
+│        │  └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @2:9
+│        │     └─ body
+│        │        └─ BlockStatement @2:9
+│        └─ elements
+│           ├─ ClassField static @2:9
+│           │  ├─ StringLiteral "x" @2:9
+│           │  └─ initializer
+│           │     └─ NumericLiteral 1 @3:16
+│           └─ ClassField static @2:9
+│              ├─ StringLiteral "y" @2:9
+│              └─ initializer
+│                 └─ NumericLiteral 2 @4:16
+└─ VariableDeclaration (var) @8:1
+   └─ VariableDeclarator @8:1
+      ├─ Identifier "D" [global] (var) @8:5
+      └─ ClassExpression "" @8:9
+         ├─ constructor
+         │  └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @8:9
+         │     └─ body
+         │        └─ BlockStatement @8:9
+         └─ elements
+            └─ StaticInitializer @9:12
+               └─ FunctionBody @8:9
+                  └─ VariableDeclaration (var) @10:9
+                     └─ VariableDeclarator @10:9
+                        ├─ Identifier "x" [variable:0] (var) @10:13
+                        └─ NumericLiteral 1 @10:17

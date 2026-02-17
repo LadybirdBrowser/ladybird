@@ -1,0 +1,17 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+[  40]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateArguments dst:arguments~1, is_immutable:false
+[  18]       Mov dst:x~0, src:Undefined
+[  28]       Mov dst:x~0, src:Bool(false)
+[  38]       Mov dst:reg5, src:x~0
+[  48]       JumpTrue condition:x~0, target:@78
+[  58]    1: DeleteByValue dst:reg6, base:arguments~1, property:Int32(0)
+[  68]       Mov dst:reg5, src:reg6
+[  78]    2: Mov dst:x~0, src:reg5
+[  88]       Return value:x~0

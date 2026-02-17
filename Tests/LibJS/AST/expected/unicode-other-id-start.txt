@@ -1,0 +1,29 @@
+Program (script) @2:1
+├─ VariableDeclaration (var) @2:1
+│  └─ VariableDeclarator @2:1
+│     ├─ Identifier "℘" [global] (var) @2:5
+│     └─ NumericLiteral 1 @2:9
+├─ VariableDeclaration (var) @3:1
+│  └─ VariableDeclarator @3:1
+│     ├─ Identifier "℮" [global] (var) @3:5
+│     └─ NumericLiteral 2 @3:9
+├─ VariableDeclaration (var) @4:1
+│  └─ VariableDeclarator @4:1
+│     ├─ Identifier "゛a" [global] (var) @4:5
+│     └─ NumericLiteral 3 @4:10
+├─ VariableDeclaration (var) @5:1
+│  └─ VariableDeclarator @5:1
+│     ├─ Identifier "゜b" [global] (var) @5:5
+│     └─ NumericLiteral 4 @5:10
+├─ VariableDeclaration (var) @8:1
+│  └─ VariableDeclarator @8:1
+│     ├─ Identifier "a゛" [global] (var) @8:5
+│     └─ NumericLiteral 5 @8:10
+├─ VariableDeclaration (var) @9:1
+│  └─ VariableDeclarator @9:1
+│     ├─ Identifier "b゜" [global] (var) @9:5
+│     └─ NumericLiteral 6 @9:10
+└─ VariableDeclaration (var) @10:1
+   └─ VariableDeclarator @10:1
+      ├─ Identifier "c·" [global] (var) @10:5
+      └─ NumericLiteral 7 @10:10

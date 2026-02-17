@@ -1,0 +1,11 @@
+Program (script) @1:1
+└─ FunctionDeclaration "f" @1:1
+   ├─ parameters
+   │  └─ Identifier "x" [argument:0] @1:12
+   └─ body
+      └─ FunctionBody @2:5
+         └─ ReturnStatement @2:5
+            └─ ObjectExpression @2:12
+               └─ ObjectProperty @2:12
+                  ├─ StringLiteral "x" @2:12
+                  └─ Identifier "x" [argument:0] @2:12

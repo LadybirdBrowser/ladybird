@@ -1,0 +1,10 @@
+Program (script) @1:1
+├─ LabelledStatement "label" @1:1
+│  └─ FunctionDeclaration "g" @1:8
+│     └─ body
+│        └─ FunctionBody @1:22
+└─ LabelledStatement "label1" @2:1
+   └─ LabelledStatement "label2" @2:9
+      └─ FunctionDeclaration "f" @2:17
+         └─ body
+            └─ FunctionBody @2:31

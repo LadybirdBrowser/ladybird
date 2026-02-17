@@ -1,0 +1,17 @@
+Program (script) @1:1
+└─ VariableDeclaration (var) @1:1
+   └─ VariableDeclarator @1:1
+      ├─ Identifier "f" [global] (var) @1:5
+      └─ FunctionExpression "" [arrow] @1:9
+         ├─ parameters
+         │  ├─ BindingPattern (array)
+         │  │  └─ entry
+         │  │     └─ alias
+         │  │        └─ Identifier "a" [variable:0] @1:10
+         │  └─ Identifier "b" [argument:1] @1:10
+         └─ body
+            └─ FunctionBody @1:9
+               └─ ReturnStatement @1:9
+                  └─ BinaryExpression (+) @1:23
+                     ├─ Identifier "a" [variable:0] @1:21
+                     └─ Identifier "b" [argument:1] @1:25

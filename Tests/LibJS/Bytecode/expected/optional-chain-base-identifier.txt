@@ -1,0 +1,20 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       NewObject dst:reg6
+[  28]       InitObjectLiteralProperty object:reg6, property:b, src:Int32(44), shape_cache_index:1, property_slot:0
+[  40]       CacheObjectShape object:reg6
+[  50]       InitObjectLiteralProperty object:reg5, property:a, src:reg6, shape_cache_index:0, property_slot:0
+[  68]       CacheObjectShape object:reg5
+[  78]       SetGlobal identifier:obj, src:reg5
+[  88]       Mov dst:reg5, src:Undefined
+[  98]       GetGlobal dst:reg7, identifier:obj
+[  a8]       GetById dst:reg8, base:reg7, property:a, base_identifier:obj
+[  c0]       Mov dst:reg5, src:reg7
+[  d0]       Mov dst:reg6, src:reg8
+[  e0]       JumpNullish condition:reg6, true_target:@f0, false_target:@108
+[  f0]    1: Mov dst:reg6, src:Undefined
+[ 100]    2: End value:reg6
+[ 108]    3: Mov dst:reg5, src:reg6
+[ 118]       GetById dst:reg6, base:reg6, property:b
+[ 130]       End value:reg6

@@ -1,0 +1,21 @@
+Program (script) @1:1
+└─ VariableDeclaration (let) @1:1
+   └─ VariableDeclarator @1:1
+      ├─ BindingPattern (object)
+      │  ├─ entry
+      │  │  ├─ name
+      │  │  │  └─ Identifier "foo" [global] @1:5
+      │  │  └─ alias
+      │  │     └─ Identifier "a" [global] @1:5
+      │  └─ entry
+      │     ├─ name
+      │     │  └─ Identifier "1" [global] @1:5
+      │     └─ alias
+      │        └─ Identifier "b" [global] @1:5
+      └─ ObjectExpression @1:24
+         ├─ ObjectProperty @1:24
+         │  ├─ StringLiteral "foo" @1:24
+         │  └─ NumericLiteral 1 @1:31
+         └─ ObjectProperty @1:24
+            ├─ NumericLiteral 1 @1:34
+            └─ NumericLiteral 2 @1:37

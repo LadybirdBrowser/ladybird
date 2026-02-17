@@ -1,0 +1,14 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       ToPrimitiveWithStringHint dst:Int32(0), value:Int32(0)
+[  28]       NewFunction dst:reg6, shared_function_data_index:0, home_object:reg5
+[  40]       PutGetterByValue base:reg5, property:Int32(0), src:reg6
+[  58]       SetGlobal identifier:obj, src:reg5
+[  68]       GetGlobal dst:reg5, identifier:obj
+[  78]       GetByValue dst:reg6, base:reg5, property:Int32(0), base_identifier:obj
+[  90]       End value:reg6
+
+JS bytecode executable "get 0"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:Int32(42)

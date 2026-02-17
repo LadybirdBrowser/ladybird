@@ -1,0 +1,19 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:foo
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, foo
+[  38]       End value:reg5
+
+JS bytecode executable "foo"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewFunction dst:reg6, shared_function_data_index:0
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined
+[  40]       Return value:reg5
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       GetById dst:reg5, base:this, property:x, base_identifier:this
+[  28]       GetById dst:reg6, base:this, property:y, base_identifier:this
+[  40]       Add dst:reg7, lhs:reg5, rhs:reg6
+[  50]       Return value:reg7

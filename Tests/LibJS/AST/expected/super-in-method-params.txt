@@ -1,0 +1,43 @@
+Program (script) @1:1
+├─ ClassDeclaration @1:1
+│  └─ ClassExpression "Base" @1:1
+│     ├─ constructor
+│     │  └─ FunctionExpression "Base" [strict] [uses-this] [uses-this-from-environment] @1:1
+│     │     └─ body
+│     │        └─ BlockStatement @1:1
+│     └─ elements
+│        └─ ClassMethod (getter) @1:1
+│           ├─ StringLiteral "name" @1:1
+│           └─ FunctionExpression "" [strict] @2:5
+│              └─ body
+│                 └─ FunctionBody @3:9
+│                    └─ ReturnStatement @3:9
+│                       └─ StringLiteral "base" @3:22
+└─ ClassDeclaration @6:1
+   └─ ClassExpression "Derived" @6:1
+      ├─ super class
+      │  └─ Identifier "Base" [global] @6:23
+      ├─ constructor
+      │  └─ FunctionExpression "Derived" [strict] [uses-this] [uses-this-from-environment] @6:1
+      │     ├─ parameters
+      │     │  └─ rest
+      │     │     └─ Identifier "args" @6:1
+      │     └─ body
+      │        └─ BlockStatement @6:1
+      │           └─ ReturnStatement @6:1
+      │              └─ SuperCall @6:1
+      │                 └─ Identifier "args" @6:1
+      └─ elements
+         └─ ClassMethod @6:1
+            ├─ StringLiteral "method" @6:1
+            └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @7:5
+               ├─ parameters
+               │  └─ Identifier "x" [argument:0] @7:12
+               │     └─ default
+               │        └─ MemberExpression @7:21
+               │           ├─ SuperExpression @7:16
+               │           └─ Identifier "name" @7:21
+               └─ body
+                  └─ FunctionBody @8:9
+                     └─ ReturnStatement @8:9
+                        └─ Identifier "x" [argument:0] @8:16

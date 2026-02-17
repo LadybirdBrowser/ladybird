@@ -1,0 +1,14 @@
+Program (script) @1:1
+└─ FunctionDeclaration "fn" @1:1
+   └─ body
+      └─ FunctionBody @2:5
+         └─ ExpressionStatement @2:5
+            └─ AssignmentExpression (=) @2:15
+               ├─ BindingPattern (object)
+               │  └─ entry
+               │     └─ name
+               │        └─ Identifier "eval" [global] @2:7
+               └─ ObjectExpression @2:17
+                  └─ ObjectProperty @2:17
+                     ├─ StringLiteral "eval" @2:17
+                     └─ NumericLiteral 1 @2:25

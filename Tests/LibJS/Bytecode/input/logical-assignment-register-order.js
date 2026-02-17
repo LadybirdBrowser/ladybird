@@ -1,0 +1,2 @@
+var value;
+value &&= function () {};

@@ -1,0 +1,10 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:isect
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, isect
+[  38]       End value:reg5
+
+JS bytecode executable "isect"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:arg0, src:arg1
+[  18]       End value:Undefined

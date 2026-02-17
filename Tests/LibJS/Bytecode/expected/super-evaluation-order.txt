@@ -1,0 +1,53 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:A, is_immutable:true, is_global:false, is_strict:false
+[  28]       GetGlobal dst:reg6, identifier:Object
+[  38]       SetLexicalEnvironment environment:reg4
+[  40]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
+[  70]       InitializeLexicalBinding identifier:A, src:reg7
+[  88]       GetGlobal dst:reg6, identifier:A
+[  98]       CallConstruct dst:reg5, callee:reg6, A
+[  b0]       GetById dst:reg6, base:reg5, property:read
+[  c8]       Call dst:reg7, callee:reg6, this_value:reg5, <object>.read
+[  e8]       GetGlobal dst:reg8, identifier:A
+[  f8]       CallConstruct dst:reg5, callee:reg8, A
+[ 110]       GetById dst:reg8, base:reg5, property:write
+[ 128]       Call dst:reg6, callee:reg8, this_value:reg5, <object>.write
+[ 148]       GetGlobal dst:reg5, identifier:A
+[ 158]       CallConstruct dst:reg8, callee:reg5, A
+[ 170]       GetById dst:reg5, base:reg8, property:update
+[ 188]       Call dst:reg7, callee:reg5, this_value:reg8, <object>.update
+[ 1a8]       End value:reg7
+
+JS bytecode executable "A"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateVariable identifier:args, is_immutable:false, is_global:false, is_strict:false
+[  18]       CreateRestParams dst:arg0, rest_index:0
+[  28]       InitializeLexicalBinding identifier:args, src:arg0
+[  40]       GetBinding dst:reg5, identifier:args
+[  58]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+[  68]       Return value:reg6
+
+JS bytecode executable "read"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg5
+[  18]       GetByIdWithThis dst:reg6, base:reg5, property:x, this_value:this
+[  30]       Return value:reg6
+
+JS bytecode executable "write"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg5
+[  18]       PutNormalByIdWithThis base:reg5, this_value:this, property:x, src:Int32(42)
+[  30]       End value:Undefined
+
+JS bytecode executable "update"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg5
+[  18]       GetByIdWithThis dst:reg6, base:reg5, property:x, this_value:this
+[  30]       PostfixIncrement dst:reg7, src:reg6
+[  40]       PutNormalByIdWithThis base:reg5, this_value:this, property:x, src:reg6
+[  58]       End value:Undefined

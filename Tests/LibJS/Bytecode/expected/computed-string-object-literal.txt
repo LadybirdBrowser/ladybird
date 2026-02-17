@@ -1,0 +1,31 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:simple_computed
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
+[  38]       GetGlobal dst:reg7, identifier:mixed
+[  48]       Call dst:reg6, callee:reg7, this_value:Undefined, mixed
+[  68]       GetGlobal dst:reg7, identifier:dynamic
+[  78]       Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
+[  a0]       End value:reg5
+
+JS bytecode executable "simple_computed"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       InitObjectLiteralProperty object:reg5, property:x, src:Int32(1), shape_cache_index:0, property_slot:0
+[  30]       CacheObjectShape object:reg5
+[  40]       Return value:reg5
+
+JS bytecode executable "mixed"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       InitObjectLiteralProperty object:reg5, property:a, src:Int32(1), shape_cache_index:0, property_slot:0
+[  30]       InitObjectLiteralProperty object:reg5, property:b, src:Int32(2), shape_cache_index:0, property_slot:1
+[  48]       CacheObjectShape object:reg5
+[  58]       Return value:reg5
+
+JS bytecode executable "dynamic"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       ToPrimitiveWithStringHint dst:arg0, value:arg0
+[  28]       PutOwnByValue base:reg5, property:arg0, src:Int32(1)
+[  40]       Return value:reg5

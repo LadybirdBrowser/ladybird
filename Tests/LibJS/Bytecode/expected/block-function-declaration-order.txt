@@ -1,0 +1,15 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateMutableBinding environment:reg5, identifier:f1, can_be_deleted:false
+[  28]       NewFunction dst:reg6, shared_function_data_index:0
+[  40]       InitializeLexicalBinding identifier:f1, src:reg6
+[  58]       CreateMutableBinding environment:reg5, identifier:f2, can_be_deleted:false
+[  68]       NewFunction dst:reg6, shared_function_data_index:1
+[  80]       InitializeLexicalBinding identifier:f2, src:reg6
+[  98]       GetBinding dst:reg6, identifier:f1
+[  b0]       SetVariableBinding identifier:f1, src:reg6
+[  c8]       GetBinding dst:reg6, identifier:f2
+[  e0]       SetVariableBinding identifier:f2, src:reg6
+[  f8]       SetLexicalEnvironment environment:reg4
+[ 100]       End value:Undefined

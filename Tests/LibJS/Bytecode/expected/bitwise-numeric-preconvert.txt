@@ -1,0 +1,10 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:test
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[Int32(1)]
+[  40]       End value:reg5
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       RightShift dst:reg5, lhs:Int32(-2147483648), rhs:arg0
+[  18]       Return value:reg5

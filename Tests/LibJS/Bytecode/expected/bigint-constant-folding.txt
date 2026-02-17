@@ -1,0 +1,12 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       SetGlobal identifier:a, src:BigInt(3n)
+[  18]       SetGlobal identifier:b, src:BigInt(7n)
+[  28]       SetGlobal identifier:c, src:BigInt(6n)
+[  38]       SetGlobal identifier:d, src:BigInt(3n)
+[  48]       SetGlobal identifier:e, src:BigInt(1n)
+[  58]       SetGlobal identifier:f, src:BigInt(8n)
+[  68]       SetGlobal identifier:g, src:Bool(true)
+[  78]       SetGlobal identifier:h, src:Bool(true)
+[  88]       SetGlobal identifier:i, src:BigInt(-2n)
+[  98]       End value:Undefined

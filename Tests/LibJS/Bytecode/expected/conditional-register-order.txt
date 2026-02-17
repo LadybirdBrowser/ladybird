@@ -1,0 +1,13 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:foo
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, foo
+[  38]       End value:reg5
+
+JS bytecode executable "foo"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       JumpFalse condition:arg0, target:@30
+[  18]    1: Mov dst:reg5, src:Int32(1)
+[  28]       Return value:reg5
+[  30]    2: Mov dst:reg5, src:Int32(2)
+[  40]    3: Return value:reg5

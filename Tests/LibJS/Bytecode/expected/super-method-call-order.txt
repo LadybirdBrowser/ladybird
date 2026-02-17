@@ -1,0 +1,54 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       NewFunction dst:reg6, shared_function_data_index:0, lhs_name:m, home_object:reg5
+[  30]       InitObjectLiteralProperty object:reg5, property:m, src:reg6, shape_cache_index:0, property_slot:0
+[  48]       CacheObjectShape object:reg5
+[  58]       SetGlobal identifier:proto, src:reg5
+[  68]       NewObject dst:reg5
+[  78]       GetGlobal dst:reg6, identifier:proto
+[  88]       PutPrototypeById base:reg5, property:__proto__, src:reg6
+[  a0]       NewFunction dst:reg6, shared_function_data_index:1, lhs_name:test, home_object:reg5
+[  b8]       PutOwnById base:reg5, property:test, src:reg6
+[  d0]       NewFunction dst:reg6, shared_function_data_index:2, lhs_name:get x, home_object:reg5
+[  e8]       PutGetterById base:reg5, property:x, src:reg6
+[ 100]       NewFunction dst:reg6, shared_function_data_index:3, lhs_name:test2, home_object:reg5
+[ 118]       PutOwnById base:reg5, property:test2, src:reg6
+[ 130]       SetGlobal identifier:obj, src:reg5
+[ 140]       GetGlobal dst:reg6, identifier:obj
+[ 150]       GetById dst:reg7, base:reg6, property:test, base_identifier:obj
+[ 168]       Call dst:reg5, callee:reg7, this_value:reg6, obj.test
+[ 188]       GetGlobal dst:reg7, identifier:obj
+[ 198]       GetById dst:reg6, base:reg7, property:x, base_identifier:obj
+[ 1b0]       GetGlobal dst:reg7, identifier:obj
+[ 1c0]       GetById dst:reg8, base:reg7, property:test2, base_identifier:obj
+[ 1d8]       Call dst:reg5, callee:reg8, this_value:reg7, obj.test2
+[ 1f8]       End value:reg5
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg6
+[  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
+[  30]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
+[  50]       Return value:reg5
+
+JS bytecode executable "m"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "get x"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg6
+[  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
+[  30]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
+[  50]       Return value:reg5
+
+JS bytecode executable "test2"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg6
+[  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
+[  30]       Call dst:reg5, callee:reg7, this_value:this, <object>['m']
+[  50]       Return value:reg5

@@ -1,0 +1,15 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:blocked
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+[  40]       End value:reg5
+
+JS bytecode executable "blocked"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]    1: Mov dst:reg5, src:arg0
+[  18]       JumpIf condition:arg0, true_target:@40, false_target:@30
+[  28]    2: End value:Undefined
+[  30]    3: GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
+[  40]    4: JumpFalse condition:reg5, target:@58
+[  50]    5: Jump target:@8
+[  58]    6: Jump target:@28

@@ -1,0 +1,7 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       ToPrimitiveWithStringHint dst:Int32(20), value:Int32(20)
+[  28]       PutOwnByValue base:reg5, property:Int32(20), src:Int32(3)
+[  40]       SetGlobal identifier:obj, src:reg5
+[  50]       End value:Undefined

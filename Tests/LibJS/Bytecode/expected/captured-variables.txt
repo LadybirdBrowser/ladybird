@@ -19,4 +19,3 @@ JS bytecode executable "inner"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetBinding dst:reg5, identifier:captured
 [  20]       Return value:reg5
-

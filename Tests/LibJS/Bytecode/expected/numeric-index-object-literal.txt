@@ -1,0 +1,16 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:test
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, test
+[  38]       End value:reg5
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewObject dst:reg5
+[  18]       ToPrimitiveWithStringHint dst:Int32(100), value:Int32(100)
+[  28]       PutOwnByValue base:reg5, property:Int32(100), src:Int32(1)
+[  40]       ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
+[  50]       PutOwnByValue base:reg5, property:Int32(200), src:Int32(2)
+[  68]       ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
+[  78]       PutOwnByValue base:reg5, property:Int32(300), src:Int32(3)
+[  90]       Return value:reg5

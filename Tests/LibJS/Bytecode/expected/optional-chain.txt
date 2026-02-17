@@ -1,0 +1,98 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:member
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, member, arguments:[Null]
+[  40]       GetGlobal dst:reg7, identifier:nested_member
+[  50]       Call dst:reg6, callee:reg7, this_value:Undefined, nested_member, arguments:[Null]
+[  78]       GetGlobal dst:reg7, identifier:call_no_args
+[  88]       Call dst:reg5, callee:reg7, this_value:Undefined, call_no_args, arguments:[Null]
+[  b0]       GetGlobal dst:reg7, identifier:call_with_args
+[  c0]       Call dst:reg6, callee:reg7, this_value:Undefined, call_with_args, arguments:[Null]
+[  e8]       GetGlobal dst:reg7, identifier:computed
+[  f8]       Call dst:reg5, callee:reg7, this_value:Undefined, computed, arguments:[Null]
+[ 120]       GetGlobal dst:reg7, identifier:member_then_call
+[ 130]       Call dst:reg6, callee:reg7, this_value:Undefined, member_then_call, arguments:[Null]
+[ 158]       End value:reg6
+
+JS bytecode executable "member"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:Undefined
+[  18]       Mov dst:reg6, src:arg0
+[  28]       JumpNullish condition:reg6, true_target:@38, false_target:@50
+[  38]    1: Mov dst:reg6, src:Undefined
+[  48]    2: Return value:reg6
+[  50]    3: Mov dst:reg5, src:reg6
+[  60]       GetById dst:reg6, base:reg6, property:x
+[  78]       Return value:reg6
+
+JS bytecode executable "nested_member"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:Undefined
+[  18]       Mov dst:reg6, src:arg0
+[  28]       JumpNullish condition:reg6, true_target:@38, false_target:@50
+[  38]    1: Mov dst:reg6, src:Undefined
+[  48]    2: Return value:reg6
+[  50]    3: Mov dst:reg5, src:reg6
+[  60]       GetById dst:reg6, base:reg6, property:x
+[  78]       JumpNullish condition:reg6, true_target:@38, false_target:@88
+[  88]    4: Mov dst:reg5, src:reg6
+[  98]       GetById dst:reg6, base:reg6, property:y
+[  b0]       Return value:reg6
+
+JS bytecode executable "call_no_args"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:Undefined
+[  18]       Mov dst:reg6, src:arg0
+[  28]       JumpNullish condition:reg6, true_target:@38, false_target:@50
+[  38]    1: Mov dst:reg6, src:Undefined
+[  48]    2: Return value:reg6
+[  50]    3: Mov dst:reg5, src:reg6
+[  60]       GetById dst:reg6, base:reg6, property:foo
+[  78]       NewArray dst:reg7
+[  88]       CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+[  a0]       Mov dst:reg5, src:Undefined
+[  b0]       Return value:reg6
+
+JS bytecode executable "call_with_args"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:Undefined
+[  18]       Mov dst:reg6, src:arg0
+[  28]       JumpNullish condition:reg6, true_target:@38, false_target:@50
+[  38]    1: Mov dst:reg6, src:Undefined
+[  48]    2: Return value:reg6
+[  50]    3: Mov dst:reg5, src:reg6
+[  60]       GetById dst:reg6, base:reg6, property:foo
+[  78]       Mov dst:reg8, src:Int32(1)
+[  88]       Mov dst:reg9, src:Int32(2)
+[  98]       Mov dst:reg10, src:Int32(3)
+[  a8]       NewArray dst:reg7, elements:[reg8, reg9, reg10]
+[  c8]       CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+[  e0]       Mov dst:reg5, src:Undefined
+[  f0]       Return value:reg6
+
+JS bytecode executable "computed"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:Undefined
+[  18]       Mov dst:reg6, src:arg0
+[  28]       JumpNullish condition:reg6, true_target:@38, false_target:@50
+[  38]    1: Mov dst:reg6, src:Undefined
+[  48]    2: Return value:reg6
+[  50]    3: Mov dst:reg5, src:reg6
+[  60]       GetById dst:reg6, base:reg6, property:hello
+[  78]       Return value:reg6
+
+JS bytecode executable "member_then_call"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:reg5, src:Undefined
+[  18]       Mov dst:reg6, src:arg0
+[  28]       JumpNullish condition:reg6, true_target:@38, false_target:@50
+[  38]    1: Mov dst:reg6, src:Undefined
+[  48]    2: Return value:reg6
+[  50]    3: Mov dst:reg5, src:reg6
+[  60]       GetById dst:reg6, base:reg6, property:x
+[  78]       Mov dst:reg5, src:reg6
+[  88]       GetById dst:reg6, base:reg6, property:foo
+[  a0]       NewArray dst:reg7
+[  b0]       CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+[  c8]       Mov dst:reg5, src:Undefined
+[  d8]       Return value:reg6

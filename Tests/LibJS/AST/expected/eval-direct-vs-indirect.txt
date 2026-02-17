@@ -1,0 +1,17 @@
+Program (script) @1:1
+├─ FunctionDeclaration "direct" [direct-eval] [uses-this] [might-need-arguments] @1:1
+│  └─ body
+│     └─ FunctionBody @2:5
+│        └─ ExpressionStatement @2:5
+│           └─ CallExpression @2:9
+│              ├─ Identifier "eval" [in-eval-scope] @2:5
+│              └─ StringLiteral "1" @2:13
+└─ FunctionDeclaration "indirect" [might-need-arguments] @4:1
+   └─ body
+      └─ FunctionBody @5:5
+         └─ ExpressionStatement @5:5
+            └─ CallExpression @5:14
+               ├─ SequenceExpression @5:6
+               │  ├─ NumericLiteral 0 @5:6
+               │  └─ Identifier "eval" [global] @5:9
+               └─ StringLiteral "1" @5:18

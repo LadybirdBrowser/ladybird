@@ -1,0 +1,10 @@
+Program (script) @1:1
+└─ FunctionDeclaration* "gen" @1:1
+   └─ body
+      └─ FunctionBody @2:5
+         └─ ExpressionStatement @2:5
+            └─ SequenceExpression @2:6
+               ├─ YieldExpression @2:6
+               │  └─ NumericLiteral 1 @2:12
+               └─ YieldExpression @2:15
+                  └─ NumericLiteral 2 @2:21

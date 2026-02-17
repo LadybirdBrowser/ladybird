@@ -1,0 +1,30 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Jump target:@d0
+[  10]    1: Catch dst:reg6
+[  18]       SetLexicalEnvironment environment:reg4
+[  20]       Mov dst:reg5, src:Int32(1)
+[  30]    2: Mov dst:reg9, src:Undefined
+[  40]       Mov dst:reg9, src:Int32(3)
+[  50]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@118, false_target:@120
+[  68]    3: Catch dst:reg7
+[  70]       SetLexicalEnvironment environment:reg4
+[  78]       Mov dst:e~0, src:reg7
+[  88]       Mov dst:reg8, src:Undefined
+[  98]       Mov dst:reg8, src:Int32(2)
+[  a8]       Mov dst:reg9, src:reg8
+[  b8]       Mov dst:reg5, src:Int32(0)
+[  c8]       Jump target:@30
+[  d0]    4: Mov dst:reg7, src:Undefined
+[  e0]       Mov dst:reg7, src:Int32(1)
+[  f0]       Mov dst:reg8, src:reg7
+[ 100]       Mov dst:reg5, src:Int32(0)
+[ 110]       Jump target:@30
+[ 118]    5: End value:reg8
+[ 120]    6: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@138, false_target:@140
+[ 138]    7: Return value:reg6
+[ 140]    8: Throw src:reg6
+
+Exception handlers:
+    from   68 to   d0 handler   10
+    from   d0 to  118 handler   68

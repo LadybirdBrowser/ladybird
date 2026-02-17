@@ -1,0 +1,16 @@
+Program (script) @1:1
+├─ VariableDeclaration (var) @1:1
+│  └─ VariableDeclarator @1:1
+│     └─ Identifier "let" [global] (var) @1:5
+├─ ForStatement @2:1
+│  ├─ init
+│  │  └─ Identifier "let" [global] (var) @2:6
+│  └─ body
+│     └─ BreakStatement @2:15
+└─ ForInStatement @3:10
+   ├─ lhs
+   │  └─ Identifier "let" [global] (var) @3:6
+   ├─ rhs
+   │  └─ ArrayExpression @3:13
+   └─ body
+      └─ BlockStatement @3:17
