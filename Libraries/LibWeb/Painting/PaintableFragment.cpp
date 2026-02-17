@@ -136,7 +136,7 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
     if (m_has_trailing_whitespace && offsets->include_trailing_whitespace && offsets->start != offsets->end)
         pixel_width += CSSPixels { font.glyph_width(' ') };
 
-    rect.set_primary_offset_for_orientation(orientation(), rect.primary_offset_for_orientation(orientation()) + pixel_offset);
+    rect.translate_primary_offset_for_orientation(orientation(), pixel_offset);
     rect.set_primary_size_for_orientation(orientation(), pixel_width);
     return rect;
 }
