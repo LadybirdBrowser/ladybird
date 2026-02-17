@@ -35,7 +35,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<JS::Map> m_map_entries;
-    size_t m_max_value_count;
+    size_t m_max_value_count { 0 };
 };
 
 }
