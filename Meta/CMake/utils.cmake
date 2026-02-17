@@ -203,8 +203,3 @@ function(add_lagom_library_install_rules target_name)
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 endfunction()
-
-if (NOT COMMAND swizzle_target_properties_for_swift)
-    function(swizzle_target_properties_for_swift target)
-    endfunction()
-endif()

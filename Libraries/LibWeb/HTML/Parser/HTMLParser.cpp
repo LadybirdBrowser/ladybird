@@ -51,10 +51,6 @@
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/TagNames.h>
 
-#ifdef LIBWEB_USE_SWIFT
-#    include <LibWeb-Swift.h>
-#endif
-
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLParser);
@@ -205,10 +201,6 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
 void HTMLParser::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-
-#if defined(LIBWEB_USE_SWIFT)
-    m_speculative_parser = GC::ForeignRef<Web::SpeculativeHTMLParser>::allocate(realm.heap(), this);
-#endif
 }
 
 void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)

@@ -6,7 +6,6 @@
 
 // RUN: %clang++ -Xclang -verify %plugin_opts% -c %s -o %t 2>&1
 
-#include <LibGC/ForeignCell.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrototypeObject.h>
 
@@ -33,16 +32,6 @@ class ObjectWithCellMacro : JS::Object {
 class ObjectWithEnvironmentMacro : JS::Object {
     // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected JS_OBJECT}}
     JS_ENVIRONMENT(ObjectWithEnvironmentMacro, JS::Object);
-};
-
-class CellWithForeignCellMacro : GC::Cell {
-    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected GC_CELL}}
-    FOREIGN_CELL(CellWithForeignCellMacro, GC::Cell);
-};
-
-class ObjectWithForeignCellMacro : JS::Object {
-    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected JS_OBJECT}}
-    FOREIGN_CELL(ObjectWithForeignCellMacro, JS::Object);
 };
 
 // JS_PROTOTYPE_OBJECT can only be used in the JS namespace

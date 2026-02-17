@@ -7,16 +7,11 @@
 // RUN: %clang++ -Xclang -verify %plugin_opts% -c %s -o %t 2>&1
 // expected-no-diagnostics
 
-#include <LibGC/ForeignCell.h>
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 class TestCellClass : JS::Cell {
     GC_CELL(TestCellClass, JS::Cell);
-};
-
-class TestForeignCellClass : GC::ForeignCell {
-    FOREIGN_CELL(TestForeignCellClass, GC::ForeignCell);
 };
 
 class TestObjectClass : JS::Object {

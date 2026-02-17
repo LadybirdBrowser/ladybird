@@ -10,7 +10,6 @@
 #include <AK/ByteString.h>
 #include <AK/Optional.h>
 #include <AK/StringConversions.h>
-#include <AK/Swift.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
@@ -18,10 +17,6 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <ctype.h>
-
-#ifdef LIBGFX_USE_SWIFT
-#    include <LibGfx-Swift.h>
-#endif
 
 namespace Gfx {
 
@@ -355,15 +350,6 @@ Optional<Color> Color::from_named_css_color_string(StringView string)
     return {};
 }
 
-#if defined(LIBGFX_USE_SWIFT)
-static Optional<Color> hex_string_to_color(StringView string)
-{
-    auto color = parseHexString(string);
-    if (color.getCount() == 0)
-        return {};
-    return color[0];
-}
-#else
 static Optional<Color> hex_string_to_color(StringView string)
 {
     auto hex_nibble_to_u8 = [](char nibble) -> Optional<u8> {
@@ -414,7 +400,6 @@ static Optional<Color> hex_string_to_color(StringView string)
 
     return Color(r.value(), g.value(), b.value(), a.value());
 }
-#endif
 
 Optional<Color> Color::from_string(StringView string)
 {

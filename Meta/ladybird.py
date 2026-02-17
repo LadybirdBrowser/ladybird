@@ -18,7 +18,6 @@ from typing import Optional
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Meta.find_compiler import pick_host_compiler
-from Meta.find_compiler import pick_swift_compilers
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
@@ -194,14 +193,9 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
-    swiftc: Optional[str] = None
     validate_cmake_version()
 
-    if "Swift" in preset:
-        compilers = pick_swift_compilers(platform, ladybird_source_dir)
-        (cc, cxx, swiftc) = tuple(map(str, compilers))
-    else:
-        (cc, cxx) = pick_host_compiler(platform, cc, cxx)
+    (cc, cxx) = pick_host_compiler(platform, cc, cxx)
 
     config_args = [
         "cmake",
@@ -214,9 +208,6 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
     ]
-
-    if swiftc:
-        config_args.append(f"-DCMAKE_Swift_COMPILER={swiftc}")
 
     if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
         config_args.extend(configure_skia_jemalloc())
@@ -273,7 +264,6 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
-        "Swift_Release": build_root_dir / "swift",
     }
 
     build_preset_dir = known_presets.get(preset, None)

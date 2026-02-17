@@ -12,7 +12,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StackInfo.h>
-#include <AK/Swift.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -90,7 +89,6 @@ private:
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
     friend class DeferGC;
-    friend class ForeignCell;
 
     void defer_gc();
     void undefer_gc();
@@ -179,7 +177,7 @@ private:
 
     WeakBlock::List m_usable_weak_blocks;
     WeakBlock::List m_full_weak_blocks;
-} SWIFT_IMMORTAL_REFERENCE;
+};
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)
 {

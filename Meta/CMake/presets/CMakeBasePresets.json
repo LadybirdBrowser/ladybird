@@ -96,25 +96,6 @@
         "ENABLE_FUZZERS_LIBFUZZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON"
       }
-    },
-    {
-      "hidden": true,
-      "name": "Swift_Release_base",
-      "displayName": "Swift Release Config",
-      "description": "Swift-enabled release build",
-      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/swift",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/release-triplets",
-        "ENABLE_SWIFT": "ON",
-        "CMAKE_C_COMPILER": "MustBeSetManually",
-        "CMAKE_CXX_COMPILER": "MustBeSetManually++"
-      },
-      "vendor": {
-        "jetbrains.com/clion": {
-          "toolchain": "Swift"
-        }
-      }
     }
   ],
   "buildPresets": [

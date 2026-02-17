@@ -3,12 +3,6 @@ if (POLICY CMP0116)
     cmake_policy(SET CMP0116 NEW)
 endif()
 
-# Enable better flags for configuring swift compilation mode
-if (POLICY CMP0157)
-    cmake_policy(SET CMP0157 NEW)
-    set(CMAKE_Swift_COMPILATION_MODE "$<IF:$<CONFIG:Release>,wholemodule,incremental>")
-endif()
-
 # Check arguments to return()
 if (POLICY CMP0140)
     cmake_policy(SET CMP0140 NEW)
@@ -39,17 +33,12 @@ endif()
 ladybird_option(ENABLE_GUI_TARGETS ON CACHE BOOL "Enable building GUI targets")
 ladybird_option(ENABLE_INSTALL_HEADERS ON CACHE BOOL "Enable installing headers")
 ladybird_option(ENABLE_INSTALL_FREEDESKTOP_FILES ${freedesktop_files_default} CACHE BOOL "Enable installing .desktop and .service files")
-ladybird_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 ladybird_option(LADYBIRD_ENABLE_CPPTRACE ON CACHE BOOL "Enable use of cpptrace as the default library for stacktraces. If not available falls back to backtrace.h")
 ladybird_option(ENABLE_CI_BASELINE_CPU OFF CACHE BOOL "Use a baseline CPU target for improved ccache sharing")
 
 if (ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)
-endif()
-
-if (ENABLE_SWIFT)
-    include(${CMAKE_CURRENT_LIST_DIR}/Swift/swift-settings.cmake)
 endif()
 
 include(CheckCXXSourceCompiles)

@@ -9,7 +9,6 @@
 #include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
-#include <AK/Swift.h>
 #include <LibWeb/Export.h>
 
 namespace Web {
@@ -24,6 +23,6 @@ public:
 
 private:
     ByteString m_path {};
-} SWIFT_UNSAFE_REFERENCE; // FIXME: This type is actually move-only, not unsafe
+};
 
 }

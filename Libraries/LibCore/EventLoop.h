@@ -13,7 +13,6 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Swift.h>
 #include <AK/Time.h>
 #include <LibCore/Event.h>
 #include <LibCore/Forward.h>
@@ -99,7 +98,7 @@ public:
 private:
     NonnullOwnPtr<EventLoopImplementation> m_impl;
     RefPtr<WeakEventLoopReference> m_weak;
-} SWIFT_UNSAFE_REFERENCE;
+};
 
 class StrongEventLoopReference;
 

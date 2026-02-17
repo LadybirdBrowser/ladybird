@@ -61,14 +61,6 @@ set(SOURCES
     YUVData.cpp
 )
 
-set(SWIFT_EXCLUDE_HEADERS
-    FilterImpl.h
-    GlobalFontConfig.h
-    MetalContext.h
-    VulkanContext.h
-    SkiaUtils.h
-)
-
 if (APPLE)
     list(APPEND SOURCES MetalContext.mm)
 endif()
@@ -155,15 +147,6 @@ else()
     find_package(libjxl REQUIRED)
     find_package(hwy REQUIRED)
     target_link_libraries(LibGfx PRIVATE libjxl::libjxl hwy::hwy)
-endif()
-
-if (ENABLE_SWIFT)
-    generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers} EXCLUDE_FILES ${SWIFT_EXCLUDE_HEADERS})
-    target_sources(LibGfx PRIVATE
-        Color.swift
-    )
-    target_link_libraries(LibGfx PRIVATE AK)
-    add_swift_target_properties(LibGfx LAGOM_LIBRARIES AK)
 endif()
 
 if (APPLE)
