@@ -309,8 +309,9 @@ public:
         : m_value(color)
     {
     }
-    SVGPaint(URL const& url)
+    SVGPaint(URL const& url, Optional<Color> fallback_color = {})
         : m_value(url)
+        , m_fallback_color(fallback_color)
     {
     }
 
@@ -318,9 +319,11 @@ public:
     bool is_url() const { return m_value.has<URL>(); }
     Color as_color() const { return m_value.get<Color>(); }
     URL const& as_url() const { return m_value.get<URL>(); }
+    Optional<Color> const& fallback_color() const { return m_fallback_color; }
 
 private:
     Variant<URL, Color> m_value;
+    Optional<Color> m_fallback_color;
 };
 
 // https://drafts.fxtf.org/css-masking-1/#typedef-mask-reference
