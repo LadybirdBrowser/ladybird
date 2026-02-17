@@ -238,7 +238,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
         glyph_run.unchecked_append({
             .position = position,
             .length_in_code_units = glyph_length_in_code_units(i),
-            .glyph_width = positions[i].x_advance / text_shaping_resolution,
+            .glyph_width = positions[i].x_advance / text_shaping_resolution + letter_spacing,
             .glyph_id = glyph_info[i].codepoint,
         });
 
@@ -252,7 +252,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
 }
 
-float measure_text_width(Utf16View const& string, Font const& font)
+float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
 {
     auto* buffer = setup_text_shaping(string, font, GlyphRun::TextType::Common);
 
@@ -264,7 +264,7 @@ float measure_text_width(Utf16View const& string, Font const& font)
         point_x += positions[i].x_advance;
 
     hb_buffer_destroy(buffer);
-    return point_x / text_shaping_resolution;
+    return point_x / text_shaping_resolution + glyph_count * letter_spacing;
 }
 
 }

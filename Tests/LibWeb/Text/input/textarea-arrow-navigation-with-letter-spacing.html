@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+textarea {
+    font-size: 16px;
+    letter-spacing: 5px;
+}
+</style>
+<textarea id="text">iiiii
+WWWWW</textarea>
+<script>
+test(() => {
+    document.body.offsetWidth;
+
+    text.setSelectionRange(3, 3);
+    internals.sendKey(text, "Down");
+    println(`Down from offset 3: position=${text.selectionStart}`);
+
+    text.setSelectionRange(9, 9);
+    internals.sendKey(text, "Up");
+    println(`Up from offset 9: position=${text.selectionStart}`);
+});
+</script>

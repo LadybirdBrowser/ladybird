@@ -1,0 +1,2 @@
+firstHalf + secondHalf: 391.6875
+fullWidth: 391.6875

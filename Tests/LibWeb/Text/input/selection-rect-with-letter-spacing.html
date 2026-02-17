@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+p {
+    font-size: 48px;
+    letter-spacing: -.045em;
+    margin: 0;
+}
+</style>
+<p>Stop writing CSS</p>
+<script>
+test(() => {
+    const p = document.querySelector("p");
+    const text = p.firstChild;
+
+    function rangeWidth(start, end) {
+        var range = document.createRange();
+        range.setStart(text, start);
+        range.setEnd(text, end);
+        return range.getBoundingClientRect().width;
+    }
+
+    var fullWidth = rangeWidth(0, text.length);
+    var firstHalf = rangeWidth(0, 8);
+    var secondHalf = rangeWidth(8, text.length);
+
+    println(`firstHalf + secondHalf: ${firstHalf + secondHalf}`);
+    println(`fullWidth: ${fullWidth}`);
+});
+</script>

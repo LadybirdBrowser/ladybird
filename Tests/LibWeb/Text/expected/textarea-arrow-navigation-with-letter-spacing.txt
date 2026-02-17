@@ -1,0 +1,2 @@
+Down from offset 3: position=8
+Up from offset 9: position=5

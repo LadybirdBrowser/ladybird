@@ -120,13 +120,14 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         pixel_offset = 0;
         pixel_width = rect.primary_size_for_orientation(orientation());
     } else {
-        pixel_offset = CSSPixels::nearest_value_for(font.width(text().substring_view(0, offsets->start)));
+        auto letter_spacing = layout_node().computed_values().letter_spacing().to_float();
+        pixel_offset = CSSPixels::nearest_value_for(Gfx::measure_text_width(text().substring_view(0, offsets->start), font, letter_spacing));
 
         // When start equals end, this is a cursor position.
         if (offsets->start == offsets->end) {
             pixel_width = 1;
         } else {
-            pixel_width = CSSPixels::nearest_value_for(font.width(text().substring_view(offsets->start, offsets->end - offsets->start)));
+            pixel_width = CSSPixels::nearest_value_for(Gfx::measure_text_width(text().substring_view(offsets->start, offsets->end - offsets->start), font, letter_spacing));
         }
     }
 
