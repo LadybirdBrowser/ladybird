@@ -130,6 +130,9 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         }
     }
 
+    // Include an additional space at the end if we remembered that this fragment contained trailing whitespace. This
+    // shows the user that at least one whitespace character was present when selecting text, even though we don't store
+    // that whitespace in the glyph run or text fragment.
     if (m_has_trailing_whitespace && offsets->include_trailing_whitespace && offsets->start != offsets->end)
         pixel_width += CSSPixels::nearest_value_for(font.glyph_width(' '));
 
