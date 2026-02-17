@@ -342,6 +342,22 @@ public:
     ALWAYS_INLINE void set_primary_size_for_orientation(Orientation orientation, T value) { m_size.set_primary_size_for_orientation(orientation, value); }
     ALWAYS_INLINE void set_secondary_size_for_orientation(Orientation orientation, T value) { m_size.set_secondary_size_for_orientation(orientation, value); }
 
+    void inflate_primary_for_orientation(Orientation orientation, T before, T after)
+    {
+        if (orientation == Orientation::Horizontal)
+            inflate(0, after, 0, before);
+        else
+            inflate(before, 0, after, 0);
+    }
+
+    void inflate_secondary_for_orientation(Orientation orientation, T before, T after)
+    {
+        if (orientation == Orientation::Horizontal)
+            inflate(before, 0, after, 0);
+        else
+            inflate(0, after, 0, before);
+    }
+
     [[nodiscard]] T first_edge_for_orientation(Orientation orientation) const
     {
         if (orientation == Orientation::Vertical)
