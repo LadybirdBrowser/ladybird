@@ -84,6 +84,54 @@ public:
         }
     }
 
+    // Spins until pushing is possible
+    ALWAYS_INLINE void push(T value)
+    {
+        return emplace(move(value));
+    }
+
+    // Spins until pushing is possible
+    template<typename U>
+    requires(IsConvertible<U, T> && !IsSame<RemoveCVReference<U>, T>)
+    ALWAYS_INLINE void push(U&& value)
+    {
+        return emplace(forward<U>(value));
+    }
+
+    // Spins until emplacing is possible
+    template<typename... Args>
+    requires(IsConstructible<T, Args...>)
+    ALWAYS_INLINE void emplace(Args&&... args)
+    {
+        u32 head = m_head.load(MemoryOrder::memory_order_relaxed);
+        Backoff backoff;
+
+        while (true) {
+            Node& slot = m_data[get_offset(head)];
+            u32 sequence = slot.sequence.load(MemoryOrder::memory_order_acquire);
+            i32 diff = static_cast<i32>(sequence - head);
+
+            if (diff == 0) {
+                // Slot is free
+                if (m_head.compare_exchange_weak(head, head + 1, MemoryOrder::memory_order_acq_rel)) {
+                    // We now own the slot
+                    // No need to launder here as nothing accesses the pointer given to new
+                    new (slot.data) T(forward<Args>(args)...);
+                    slot.sequence.store(head + 1, MemoryOrder::memory_order_release);
+                    break;
+                }
+                // The head was updated by another thread, try again
+                cpu_pause();
+            } else if (diff < 0) {
+                // Buffer full
+                backoff.tick();
+            } else {
+                //  Our head is stale
+                head = m_head.load(MemoryOrder::memory_order_relaxed);
+            }
+        }
+    }
+
     [[nodiscard]] ALWAYS_INLINE bool try_pop(T& value)
     {
         Node& slot = m_data[get_offset(m_tail)];
@@ -104,6 +152,33 @@ public:
         // In this case either the write wasn't finished ( sequence == read_index ) so diff == -1,
         // or the queue is empty and no write is happening, so diff == -Size
         return false;
+    }
+
+    // Spin until pop succeeds
+    ALWAYS_INLINE void pop(T& value)
+    {
+        Backoff backoff;
+        // we are the only ones accessing tail
+        Node& slot = m_data[get_offset(m_tail)];
+        while (true) {
+            // We need to recheck the state of the sequence each loop
+            u32 sequence = slot.sequence.load(MemoryOrder::memory_order_acquire);
+
+            i32 diff = static_cast<i32>(sequence - (m_tail + 1));
+
+            if (diff == 0) {
+                // The slot is ready for reading
+                T* ptr = reinterpret_cast<T*>(slot.data);
+                value = move(*ptr);
+                ptr->~T();
+                slot.sequence.store(m_tail + Size, MemoryOrder::memory_order_release);
+                m_tail += 1;
+                break;
+            }
+            // In this case either the write wasn't finished ( sequence == read_index ) so diff == -1,
+            // or the queue is empty and no write is happening, so diff == -Size
+            backoff.tick();
+        }
     }
 
 private:
@@ -142,7 +217,6 @@ public:
     // Handle initializer list and copy construction
     [[nodiscard]] ALWAYS_INLINE bool try_push(T value)
     {
-
         return try_emplace(move(value));
     }
 
@@ -169,6 +243,44 @@ public:
         return true;
     }
 
+    // Spins until pushing is possible
+    ALWAYS_INLINE void push(T value)
+    {
+        return emplace(move(value));
+    }
+
+    // Spins until pushing is possible
+    template<typename U>
+    requires(IsConvertible<U, T> && !IsSame<RemoveCVReference<U>, T>)
+    ALWAYS_INLINE void push(U&& value)
+    {
+        return emplace(forward<U>(value));
+    }
+
+    // Spins until emplacing is possible
+    template<typename... Args>
+    requires(IsConstructible<T, Args...>)
+    ALWAYS_INLINE void emplace(Args&&... args)
+    {
+        u64 head = m_head.load(MemoryOrder::memory_order_relaxed);
+
+        if (head - m_cached_tail == Size) {
+            Backoff backoff;
+            while (true) {
+                m_cached_tail = m_tail.load(MemoryOrder::memory_order_acquire);
+                if (head - m_cached_tail == Size) {
+                    backoff.tick();
+                    continue;
+                }
+                break;
+            }
+        }
+
+        // No need to launder here as nothing accesses the pointer given to new
+        new (m_data[get_offset(head)]) T(forward<Args>(args)...);
+        m_head.store(head + 1, MemoryOrder::memory_order_release);
+    }
+
     [[nodiscard]] ALWAYS_INLINE bool try_pop(T& value)
     {
         u64 tail = m_tail.load(MemoryOrder::memory_order_relaxed);
@@ -182,6 +294,27 @@ public:
         ptr->~T();
         m_tail.store(tail + 1, MemoryOrder::memory_order_release);
         return true;
+    }
+
+    ALWAYS_INLINE void pop(T& value)
+    {
+        u64 tail = m_tail.load(MemoryOrder::memory_order_relaxed);
+        if (tail == m_cached_head) {
+            Backoff backoff;
+            while (true) {
+                m_cached_head = m_head.load(MemoryOrder::memory_order_acquire);
+                if (tail == m_cached_head) {
+                    backoff.tick();
+                    continue;
+                }
+                break;
+            }
+        }
+
+        T* ptr = reinterpret_cast<T*>(m_data[get_offset(tail)]);
+        value = move(*ptr);
+        ptr->~T();
+        m_tail.store(tail + 1, MemoryOrder::memory_order_release);
     }
 
     [[nodiscard]] ALWAYS_INLINE bool is_empty() const

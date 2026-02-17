@@ -113,6 +113,75 @@ TEST_CASE(mpsc_complex_object)
     EXPECT_EQ(val.y, 4);
 }
 
+TEST_CASE(mpsc_blocking_push_pop)
+{
+    MPSCRingBuffer<int, 4> buffer;
+    int value = 0;
+
+    buffer.push(1);
+    buffer.push(2);
+    buffer.push(3);
+
+    buffer.pop(value);
+    EXPECT_EQ(value, 1);
+
+    buffer.pop(value);
+    EXPECT_EQ(value, 2);
+
+    buffer.pop(value);
+    EXPECT_EQ(value, 3);
+}
+
+TEST_CASE(mpsc_blocking_threaded)
+{
+    static constexpr size_t NUM_PRODUCERS = 4;
+    static constexpr size_t ITEMS_PER_PRODUCER = 10000;
+    static constexpr size_t BUFFER_SIZE = 64;
+
+    using RingBufferType = MPSCRingBuffer<int, BUFFER_SIZE>;
+    auto buffer = make<RingBufferType>();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<size_t> producer_done_count { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<size_t> total_consumed { 0 };
+
+    Vector<NonnullRefPtr<Threading::Thread>> producers;
+
+    for (size_t i = 0; i < NUM_PRODUCERS; ++i) {
+        auto thread = Threading::Thread::construct(ByteString::formatted("Producer_{}", i), [buffer = buffer.ptr(), id = i, &producer_done_count] {
+            for (size_t k = 0; k < ITEMS_PER_PRODUCER; ++k) {
+                buffer->push(static_cast<int>((id * ITEMS_PER_PRODUCER) + k));
+            }
+            producer_done_count.fetch_add(1);
+            return 0;
+        });
+        producers.append(thread);
+    }
+
+    auto consumer = Threading::Thread::construct("Consumer"sv, [buffer = buffer.ptr(), &total_consumed, &producer_done_count] {
+        size_t consumed = 0;
+        while (producer_done_count.load() < NUM_PRODUCERS || consumed < (NUM_PRODUCERS * ITEMS_PER_PRODUCER)) {
+            int value;
+            if (buffer->try_pop(value)) {
+                consumed++;
+            } else {
+                cpu_pause();
+            }
+        }
+        total_consumed.store(consumed);
+        return 0;
+    });
+
+    consumer->start();
+    for (auto& t : producers)
+        t->start();
+
+    for (auto& t : producers)
+        (void)t->join();
+    (void)consumer->join();
+
+    EXPECT_EQ(total_consumed.load(), NUM_PRODUCERS * ITEMS_PER_PRODUCER);
+}
+
 TEST_CASE(mpsc_threaded)
 {
     static constexpr size_t NUM_PRODUCERS = 4;
@@ -201,9 +270,7 @@ BENCHMARK_CASE(mpsc_throughput_threaded)
     for (size_t i = 0; i < NUM_PRODUCERS; ++i) {
         auto thread = Threading::Thread::construct(ByteString::formatted("Producer_{}", i), [buffer = buffer.ptr(), &producer_done_count] {
             for (size_t k = 0; k < ITEMS_PER_PRODUCER; ++k) {
-                while (!buffer->try_push(1)) {
-                    cpu_pause();
-                }
+                buffer->push(1);
             }
             producer_done_count.fetch_add(1);
             return 0;
@@ -325,6 +392,94 @@ TEST_CASE(spsc_complex_object)
     EXPECT(buffer.try_pop(val));
     EXPECT_EQ(val.x, 3);
     EXPECT_EQ(val.y, 4);
+}
+
+TEST_CASE(spsc_blocking_push_pop)
+{
+    SPSCRingBuffer<int, 4> buffer;
+    int value = 0;
+
+    buffer.push(1);
+    buffer.push(2);
+    buffer.push(3);
+
+    buffer.pop(value);
+    EXPECT_EQ(value, 1);
+
+    buffer.pop(value);
+    EXPECT_EQ(value, 2);
+
+    buffer.pop(value);
+    EXPECT_EQ(value, 3);
+}
+
+TEST_CASE(spsc_blocking_emplace)
+{
+    struct Complex {
+        int a;
+        int b;
+        Complex(int a, int b)
+            : a(a)
+            , b(b)
+        {
+        }
+        Complex()
+            : a(0)
+            , b(0)
+        {
+        }
+    };
+
+    SPSCRingBuffer<Complex, 4> buffer;
+    buffer.emplace(1, 2);
+
+    Complex val;
+    buffer.pop(val);
+    EXPECT_EQ(val.a, 1);
+    EXPECT_EQ(val.b, 2);
+}
+
+TEST_CASE(spsc_blocking_threaded)
+{
+    static constexpr size_t ITEMS_COUNT = 100000;
+    static constexpr size_t BUFFER_SIZE = 128;
+
+    using RingBufferType = SPSCRingBuffer<int, BUFFER_SIZE>;
+    auto buffer = make<RingBufferType>();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<size_t> total_consumed { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> producer_done { false };
+
+    auto producer = Threading::Thread::construct("Producer"sv, [buffer = buffer.ptr(), &producer_done] {
+        for (size_t k = 0; k < ITEMS_COUNT; ++k) {
+            buffer->push(static_cast<int>(k));
+        }
+        producer_done.store(true);
+        return 0;
+    });
+
+    auto consumer = Threading::Thread::construct("Consumer"sv, [buffer = buffer.ptr(), &total_consumed, &producer_done] {
+        size_t consumed = 0;
+        while (!producer_done.load() || consumed < ITEMS_COUNT) {
+            int value;
+            if (buffer->try_pop(value)) {
+                EXPECT_EQ(value, static_cast<int>(consumed));
+                consumed++;
+            } else {
+                cpu_pause();
+            }
+        }
+        total_consumed.store(consumed);
+        return 0;
+    });
+
+    consumer->start();
+    producer->start();
+
+    (void)producer->join();
+    (void)consumer->join();
+
+    EXPECT_EQ(total_consumed.load(), ITEMS_COUNT);
 }
 
 TEST_CASE(spsc_convertible_push)
