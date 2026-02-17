@@ -555,17 +555,8 @@ Optional<ScopedOperand> Identifier::generate_bytecode(Bytecode::Generator& gener
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
     if (is_local()) {
-        auto local_index = this->local_index();
-        auto local = generator.local(local_index);
-        if (!generator.is_local_initialized(local_index)) {
-            if (local_index.is_argument()) {
-                // Arguments are initialized to undefined by default, so here we need to replace it with the empty value to
-                // trigger the TDZ check.
-                generator.emit<Bytecode::Op::Mov>(local, generator.add_constant(js_special_empty_value()));
-            }
-            generator.emit<Bytecode::Op::ThrowIfTDZ>(local);
-        }
-        return local;
+        generator.emit_tdz_check_if_needed(*this);
+        return generator.local(local_index());
     }
 
     if (is_global()) {
@@ -731,13 +722,8 @@ Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Genera
                 // e. Perform ? PutValue(lref, rval).
                 if (is<Identifier>(*lhs)) {
                     auto& identifier = static_cast<Identifier const&>(*lhs);
-                    if (identifier.is_local()) {
-                        auto is_initialized = generator.is_local_initialized(identifier.local_index());
-                        auto is_lexically_declared = generator.is_local_lexically_declared(identifier.local_index());
-                        if (is_lexically_declared && !is_initialized) {
-                            generator.emit<Bytecode::Op::ThrowIfTDZ>(generator.local(identifier.local_index()));
-                        }
-                    }
+                    if (identifier.is_local())
+                        generator.emit_tdz_check_if_needed(identifier);
                     generator.emit_set_variable(identifier, rval);
                 } else if (is<MemberExpression>(*lhs)) {
                     auto& expression = static_cast<MemberExpression const&>(*lhs);
@@ -1933,11 +1919,8 @@ Optional<ScopedOperand> CallExpression::generate_bytecode(Bytecode::Generator& g
             call_type = Bytecode::Op::CallType::DirectEval;
         }
         if (identifier.is_local()) {
-            auto local = generator.local(identifier.local_index());
-            if (!generator.is_local_initialized(local.operand().index())) {
-                generator.emit<Bytecode::Op::ThrowIfTDZ>(local);
-            }
-            original_callee = local;
+            generator.emit_tdz_check_if_needed(identifier);
+            original_callee = generator.local(identifier.local_index());
         } else if (identifier.is_global()) {
             original_callee = m_callee->generate_bytecode(generator).value();
         } else {

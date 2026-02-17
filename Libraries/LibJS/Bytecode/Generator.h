@@ -59,6 +59,8 @@ public:
     [[nodiscard]] bool is_local_initialized(Identifier::Local const&) const;
     [[nodiscard]] bool is_local_lexically_declared(Identifier::Local const& local) const;
 
+    void emit_tdz_check_if_needed(Identifier const&);
+
     class SourceLocationScope {
     public:
         SourceLocationScope(Generator&, ASTNode const& node);
