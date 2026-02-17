@@ -1556,6 +1556,24 @@ bool Generator::is_local_lexically_declared(Identifier::Local const& local) cons
     return m_local_variables[local.index].declaration_kind == LocalVariable::DeclarationKind::LetOrConst;
 }
 
+void Generator::emit_tdz_check_if_needed(Identifier const& identifier)
+{
+    VERIFY(identifier.is_local());
+    auto local_index = identifier.local_index();
+    bool needs_tdz_check = local_index.is_argument()
+        ? !is_local_initialized(local_index)
+        : is_local_lexically_declared(local_index) && !is_local_initialized(local_index);
+    if (needs_tdz_check) {
+        auto operand = local(local_index);
+        if (local_index.is_argument()) {
+            // Arguments are initialized to undefined by default, so here we need to replace it
+            // with the empty value to trigger the TDZ check.
+            emit<Bytecode::Op::Mov>(operand, add_constant(js_special_empty_value()));
+        }
+        emit<Bytecode::Op::ThrowIfTDZ>(operand);
+    }
+}
+
 ScopedOperand Generator::get_this(Optional<ScopedOperand> preferred_dst)
 {
     if (m_current_basic_block->has_resolved_this())

@@ -42,9 +42,8 @@ JS bytecode executable "forLetClosure"
 
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ThrowIfTDZ src:arg0
-[  10]       Call dst:reg5, callee:arg0, this_value:Undefined, f
-[  30]       Return value:reg5
+[   8]       Call dst:reg5, callee:arg0, this_value:Undefined, f
+[  28]       Return value:reg5
 
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
