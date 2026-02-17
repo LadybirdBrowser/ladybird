@@ -24,17 +24,25 @@ namespace Web::CSS {
 
 struct FontFaceKey;
 
+struct FontWeightRange {
+    int min { 0 };
+    int max { 0 };
+    [[nodiscard]] u32 hash() const { return pair_int_hash(min, max); }
+    [[nodiscard]] bool operator==(FontWeightRange const&) const = default;
+    [[nodiscard]] bool contains_inclusive(int weight) const { return min <= weight && weight <= max; }
+};
+
 struct OwnFontFaceKey {
     explicit OwnFontFaceKey(FontFaceKey const& other);
 
     operator FontFaceKey() const;
 
-    [[nodiscard]] u32 hash() const { return pair_int_hash(family_name.hash(), pair_int_hash(weight, slope)); }
+    [[nodiscard]] u32 hash() const { return pair_int_hash(family_name.hash(), pair_int_hash(weight.hash(), slope)); }
     [[nodiscard]] bool operator==(OwnFontFaceKey const& other) const = default;
     [[nodiscard]] bool operator==(FontFaceKey const& other) const;
 
     FlyString family_name;
-    int weight { 0 };
+    FontWeightRange weight;
     int slope { 0 };
 };
 

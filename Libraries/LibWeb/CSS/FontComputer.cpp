@@ -38,7 +38,7 @@ GC_DEFINE_ALLOCATOR(FontLoader);
 
 struct FontFaceKey {
     NonnullRawPtr<FlyString const> family_name;
-    int weight { 0 };
+    FontWeightRange weight;
     int slope { 0 };
 };
 
@@ -57,7 +57,7 @@ inline constexpr bool IsHashCompatible<Web::CSS::OwnFontFaceKey, Web::CSS::FontF
 
 template<>
 struct Traits<Web::CSS::FontFaceKey> : public DefaultTraits<Web::CSS::FontFaceKey> {
-    static unsigned hash(Web::CSS::FontFaceKey const& key) { return pair_int_hash(key.family_name->hash(), pair_int_hash(key.weight, key.slope)); }
+    static unsigned hash(Web::CSS::FontFaceKey const& key) { return pair_int_hash(key.family_name->hash(), pair_int_hash(key.weight.hash(), key.slope)); }
 };
 
 template<>
@@ -271,8 +271,8 @@ void FontComputer::visit_edges(Visitor& visitor)
 RefPtr<Gfx::FontCascadeList const> FontComputer::find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, bool inclusive)
 {
     using Fn = AK::Function<bool(MatchingFontCandidate const&)>;
-    auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= target_weight; })
-                          : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight > target_weight; });
+    auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight.min >= target_weight; })
+                          : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight.min > target_weight; });
     auto it = find_if(candidates.begin(), candidates.end(), pred);
     for (; it != candidates.end(); ++it) {
         if (auto found_font = it->font_with_point_size(font_size_in_pt, variations, font_feature_data))
@@ -284,8 +284,8 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::find_matching_font_weight_ascen
 RefPtr<Gfx::FontCascadeList const> FontComputer::find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, bool inclusive)
 {
     using Fn = AK::Function<bool(MatchingFontCandidate const&)>;
-    auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight <= target_weight; })
-                          : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight < target_weight; });
+    auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight.max <= target_weight; })
+                          : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight.max < target_weight; });
     auto it = find_if(candidates.rbegin(), candidates.rend(), pred);
     for (; it != candidates.rend(); ++it) {
         if (auto found_font = it->font_with_point_size(font_size_in_pt, variations, font_feature_data))
@@ -309,7 +309,8 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
         matching_family_fonts.empend(
             FontFaceKey {
                 .family_name = typeface.family(),
-                .weight = static_cast<int>(typeface.weight()),
+                // FIXME: Support system fonts that have a range of weights, etc.
+                .weight = { static_cast<int>(typeface.weight()), static_cast<int>(typeface.weight()) },
                 .slope = typeface.slope(),
             },
             &typeface);
@@ -319,7 +320,7 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
         return {};
 
     quick_sort(matching_family_fonts, [](auto const& a, auto const& b) {
-        return a.key.weight < b.key.weight;
+        return a.key.weight.min < b.key.weight.min;
     });
     // FIXME: 1. font-stretch is tried first.
     // FIXME: 2. font-style is tried next.
@@ -333,14 +334,32 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
         });
     }
     // 3. font-weight is matched next.
-    // If the desired weight is inclusively between 400 and 500, weights greater than or equal to the target weight
-    // are checked in ascending order until 500 is hit and checked, followed by weights less than the target weight
-    // in descending order, followed by weights greater than 500, until a match is found.
+    // If a font does not have any concept of varying strengths of weights, its weight is mapped according list in the
+    // property definition. If bolder/lighter relative weights are used, the effective weight is calculated based on
+    // the inherited weight value, as described in the definition of the font-weight property.
+    // FIXME: "varying strengths of weights"
+    // If the matching set after performing the steps above includes faces with weight values containing the
+    // font-weight desired value, faces with weight values which do not include the desired font-weight value are
+    // removed from the matching set.
 
+    // FIXME: This whole function currently just returns the first match instead of progressing further, so we'll do that here too.
+    auto matching_weight_it = matching_family_fonts.find_if([weight](auto const& candidate) {
+        return candidate.key.weight.contains_inclusive(weight);
+    });
+    for (; matching_weight_it != matching_family_fonts.end(); ++matching_weight_it) {
+        if (auto found_font = matching_weight_it->font_with_point_size(font_size_in_pt, variations, font_feature_data))
+            return found_font;
+    }
+
+    // If there is no face which contains the desired value, a weight value is chosen using the rules below:
+
+    // - If the desired weight is inclusively between 400 and 500, weights greater than or equal to the target weight
+    //   are checked in ascending order until 500 is hit and checked, followed by weights less than the target weight
+    //   in descending order, followed by weights greater than 500, until a match is found.
     if (weight >= 400 && weight <= 500) {
         auto it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
-            [&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= weight; });
-        for (; it != matching_family_fonts.end() && it->key.weight <= 500; ++it) {
+            [&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight.min >= weight; });
+        for (; it != matching_family_fonts.end() && it->key.weight.min <= 500; ++it) {
             if (auto found_font = it->font_with_point_size(font_size_in_pt, variations, font_feature_data))
                 return found_font;
         }
@@ -351,16 +370,16 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
                 return found_font;
         }
     }
-    // If the desired weight is less than 400, weights less than or equal to the desired weight are checked in descending order
-    // followed by weights above the desired weight in ascending order until a match is found.
+    // - If the desired weight is less than 400, weights less than or equal to the desired weight are checked in
+    //   descending order followed by weights above the desired weight in ascending order until a match is found.
     if (weight < 400) {
         if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, variations, font_feature_data, true))
             return found_font;
         if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, variations, font_feature_data, false))
             return found_font;
     }
-    // If the desired weight is greater than 500, weights greater than or equal to the desired weight are checked in ascending order
-    // followed by weights below the desired weight in descending order until a match is found.
+    // - If the desired weight is greater than 500, weights greater than or equal to the desired weight are checked in
+    //   ascending order followed by weights below the desired weight in descending order until a match is found.
     if (weight > 500) {
         if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, variations, font_feature_data, true))
             return found_font;
@@ -426,7 +445,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         // FIXME: Respect the other font-* descriptors
         FontFaceKey key {
             .family_name = family,
-            .weight = weight,
+            .weight = { weight, weight },
             .slope = slope,
         };
         if (auto it = m_loaded_fonts.find(key); it != m_loaded_fonts.end()) {
@@ -609,9 +628,11 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         return {};
     }
 
+    auto weight = font_face.weight().value_or(0);
+
     FontFaceKey key {
         .family_name = font_face.font_family(),
-        .weight = font_face.weight().value_or(0),
+        .weight = { weight, weight },
         .slope = font_face.slope().value_or(0),
     };
 
