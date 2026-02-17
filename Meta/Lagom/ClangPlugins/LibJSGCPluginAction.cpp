@@ -607,7 +607,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
                     "OwnPtr", "NonnullOwnPtr", "RefPtr", "NonnullRefPtr",
                     "ValueComparingRefPtr", "ValueComparingNonnullRefPtr",
                     "AK::OwnPtr", "AK::NonnullOwnPtr", "AK::RefPtr", "AK::NonnullRefPtr",
-                    "Web::CSS::ValueComparingRefPtr", "Web::CSS::ValueComparingNonnullRefPtr"
+                    "AK::ValueComparingRefPtr", "AK::ValueComparingNonnullRefPtr"
                 };
                 if (smart_pointer_types.contains(template_name)) {
                     auto const& args = specialization->template_arguments();

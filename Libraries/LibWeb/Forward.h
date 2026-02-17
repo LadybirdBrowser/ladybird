@@ -469,8 +469,6 @@ struct RandomCachingKey;
 struct RequiredInvalidationAfterStyleChange;
 struct StyleSheetIdentifier;
 struct TransitionProperties;
-template<typename T>
-struct ValueComparingNonnullRefPtr;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
 using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;

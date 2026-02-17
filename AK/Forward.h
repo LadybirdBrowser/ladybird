@@ -153,6 +153,12 @@ template<typename T, typename TDeleter = DefaultDelete<T>>
 class OwnPtr;
 
 template<typename T>
+struct ValueComparingNonnullRefPtr;
+
+template<typename T>
+struct ValueComparingRefPtr;
+
+template<typename T>
 class WeakPtr;
 
 enum class FastLastAccess : u8 {
@@ -227,6 +233,8 @@ using AK::Utf32CodePointIterator;
 using AK::Utf32View;
 using AK::Utf8CodePointIterator;
 using AK::Utf8View;
+using AK::ValueComparingNonnullRefPtr;
+using AK::ValueComparingRefPtr;
 using AK::Vector;
 
 #endif

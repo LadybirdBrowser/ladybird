@@ -626,7 +626,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         auto& old_values = value_list.values();
 
         auto new_values = old_values;
-        auto was_removed = new_values.remove_all_matching([&](CSS::ValueComparingNonnullRefPtr<CSS::StyleValue const> const& value) {
+        auto was_removed = new_values.remove_all_matching([&](ValueComparingNonnullRefPtr<CSS::StyleValue const> const& value) {
             return value->is_keyword() && value->as_keyword().keyword() == keyword_to_delete;
         });
         if (!was_removed)
