@@ -7,10 +7,20 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/NonnullRefPtr.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/PaintStyle.h>
+#include <LibGfx/Rect.h>
 
 namespace Web::Painting {
+
+class DisplayList;
+
+class SVGPaintServerPaintStyle : public AtomicRefCounted<SVGPaintServerPaintStyle> {
+public:
+    virtual ~SVGPaintServerPaintStyle() = default;
+};
 
 struct ColorStop {
     Color color;
@@ -18,7 +28,7 @@ struct ColorStop {
     Optional<float> transition_hint = {};
 };
 
-class SVGGradientPaintStyle : public AtomicRefCounted<SVGGradientPaintStyle> {
+class SVGGradientPaintStyle : public SVGPaintServerPaintStyle {
 public:
     enum class SpreadMethod {
         Pad,
@@ -50,7 +60,7 @@ public:
     Gfx::InterpolationColorSpace color_space() const { return m_color_space; }
     void set_color_space(Gfx::InterpolationColorSpace color_space) { m_color_space = color_space; }
 
-    virtual ~SVGGradientPaintStyle() { }
+    virtual ~SVGGradientPaintStyle() override { }
 
 protected:
     Vector<ColorStop, 4> m_color_stops;
@@ -115,6 +125,24 @@ private:
     float m_start_radius { 0.0f };
     Gfx::FloatPoint m_end_center;
     float m_end_radius { 0.0f };
+};
+
+class SVGPatternPaintStyle final : public SVGPaintServerPaintStyle {
+public:
+    static NonnullRefPtr<SVGPatternPaintStyle> create(NonnullRefPtr<DisplayList> tile_display_list, Gfx::FloatRect tile_rect, Optional<Gfx::AffineTransform> pattern_transform);
+
+    virtual ~SVGPatternPaintStyle() override;
+
+    NonnullRefPtr<DisplayList> const& tile_display_list() const { return m_tile_display_list; }
+    Gfx::FloatRect const& tile_rect() const { return m_tile_rect; }
+    Optional<Gfx::AffineTransform> const& pattern_transform() const { return m_pattern_transform; }
+
+private:
+    SVGPatternPaintStyle(NonnullRefPtr<DisplayList> tile_display_list, Gfx::FloatRect tile_rect, Optional<Gfx::AffineTransform> pattern_transform);
+
+    NonnullRefPtr<DisplayList> m_tile_display_list;
+    Gfx::FloatRect m_tile_rect;
+    Optional<Gfx::AffineTransform> m_pattern_transform;
 };
 
 }

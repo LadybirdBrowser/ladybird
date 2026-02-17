@@ -20,6 +20,7 @@
 #include <LibWeb/Layout/SVGGeometryBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
+#include <LibWeb/Layout/SVGPatternBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
@@ -202,8 +203,11 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
 
     auto* dom_node = context_box().dom_node();
     VERIFY(dom_node);
-    auto& svg_graphics_element = as<SVG::SVGGraphicsElement>(*dom_node);
-    auto active_view_box = svg_graphics_element.active_view_box();
+    Optional<SVG::ViewBox> active_view_box;
+    if (auto* svg_graphics_element = as_if<SVG::SVGGraphicsElement>(*dom_node))
+        active_view_box = svg_graphics_element->active_view_box();
+    else if (auto* svg_fit_to_view_box = as_if<SVG::SVGFitToViewBox>(*dom_node))
+        active_view_box = svg_fit_to_view_box->view_box();
     // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
     if (active_view_box.has_value()) {
         if (active_view_box->width < 0 || active_view_box->height < 0) {
@@ -451,7 +455,7 @@ Gfx::AffineTransform SVGFormattingContext::get_parent_svg_transform(SVGGraphicsB
 {
     // Mask/clip boxes are transform boundaries — the target's transform is applied separately at paint time.
     for (auto* ancestor = box.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (is<SVGMaskBox>(*ancestor) || is<SVGClipBox>(*ancestor))
+        if (is<SVGMaskBox>(*ancestor) || is<SVGClipBox>(*ancestor) || is<SVGPatternBox>(*ancestor))
             return {};
         if (auto const* svg_graphics_ancestor = as_if<SVGGraphicsBox>(*ancestor)) {
             auto const& ancestor_state = m_state.get(*svg_graphics_ancestor);
@@ -486,6 +490,11 @@ void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphic
 
     if (auto* clip_box = graphics_box.first_child_of_type<SVGClipBox>())
         layout_mask_or_clip(*clip_box);
+
+    graphics_box.for_each_child_of_type<SVGPatternBox>([&](auto const& pattern_box) {
+        layout_mask_or_clip(pattern_box);
+        return IterationDecision::Continue;
+    });
 }
 
 void SVGFormattingContext::layout_image_element(SVGImageBox const& image_box)
@@ -513,12 +522,41 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
         content_units = static_cast<SVGMaskBox const&>(mask_or_clip).dom_node().mask_content_units();
     else if (is<SVGClipBox>(mask_or_clip))
         content_units = static_cast<SVGClipBox const&>(mask_or_clip).dom_node().clip_path_units();
+    else if (is<SVGPatternBox>(mask_or_clip))
+        content_units = static_cast<SVGPatternBox const&>(mask_or_clip).dom_node().pattern_content_units();
     else
         VERIFY_NOT_REACHED();
     // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
     auto& layout_state = m_state.get_mutable(mask_or_clip);
     auto parent_viewbox_transform = m_current_viewbox_transform;
-    if (content_units == SVG::SVGUnits::ObjectBoundingBox) {
+
+    if (is<SVGPatternBox>(mask_or_clip)) {
+        auto const& pattern = static_cast<SVGPatternBox const&>(mask_or_clip).dom_node();
+        if (pattern.view_box().has_value()) {
+            if (pattern.pattern_units() == SVG::SVGUnits::UserSpaceOnUse) {
+                layout_state.set_content_width(CSSPixels::nearest_value_for(pattern.pattern_width().resolve_relative_to(m_viewport_size.width().to_float())));
+                layout_state.set_content_height(CSSPixels::nearest_value_for(pattern.pattern_height().resolve_relative_to(m_viewport_size.height().to_float())));
+            } else {
+                auto* parent_node = mask_or_clip.parent();
+                auto& parent_node_state = m_state.get(*parent_node);
+                layout_state.set_content_width(CSSPixels::nearest_value_for(pattern.pattern_width().value() * parent_node_state.content_width().to_double()));
+                layout_state.set_content_height(CSSPixels::nearest_value_for(pattern.pattern_height().value() * parent_node_state.content_height().to_double()));
+                parent_viewbox_transform = Gfx::AffineTransform {}.translate(parent_node_state.offset.to_type<float>());
+            }
+        } else if (content_units == SVG::SVGUnits::ObjectBoundingBox) {
+            auto* parent_node = mask_or_clip.parent();
+            auto& parent_node_state = m_state.get(*parent_node);
+            layout_state.set_content_width(parent_node_state.content_width());
+            layout_state.set_content_height(parent_node_state.content_height());
+            // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternContentUnitsAttribute
+            parent_viewbox_transform = Gfx::AffineTransform {}
+                                           .translate(parent_node_state.offset.to_type<float>())
+                                           .scale(parent_node_state.content_width().to_float(), parent_node_state.content_height().to_float());
+        } else {
+            layout_state.set_content_width(m_viewport_size.width());
+            layout_state.set_content_height(m_viewport_size.height());
+        }
+    } else if (content_units == SVG::SVGUnits::ObjectBoundingBox) {
         auto* parent_node = mask_or_clip.parent();
         auto& parent_node_state = m_state.get(*parent_node);
         layout_state.set_content_width(parent_node_state.content_width());
@@ -540,8 +578,8 @@ void SVGFormattingContext::layout_container_element(SVGBox const& container)
     auto& box_state = m_state.get_mutable(container);
     Gfx::BoundingBox<CSSPixels> bounding_box;
     container.for_each_child_of_type<Box>([&](Box const& child) {
-        // Masks/clips do not change the bounding box of their parents.
-        if (is<SVGMaskBox>(child) || is<SVGClipBox>(child))
+        // Masks/clips/patterns do not change the bounding box of their parents.
+        if (is<SVGMaskBox>(child) || is<SVGClipBox>(child) || is<SVGPatternBox>(child))
             return IterationDecision::Continue;
         layout_svg_element(child);
         auto& child_state = m_state.get(child);

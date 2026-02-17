@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>href - pattern element reference</title>
+<body>
+  <svg width="300" height="300" viewBox="0 0 300 300"
+       xmlns:xlink="http://www.w3.org/1999/xlink">
+    <pattern id="Pattern" x="0" y="0" width=".25" height=".25">
+      <rect x="0" y="0" width="25" height="25" fill="skyblue"/>
+      <circle cx="25" cy="25" r="20" fill="green" fill-opacity="0.5"/>
+    </pattern>
+    <rect fill="url(#Pattern)" stroke="black" x="0" y="0"
+          width="200" height="200"/>
+  </svg>
+</body>

@@ -769,6 +769,7 @@ set(SOURCES
     Layout/SVGGraphicsBox.cpp
     Layout/SVGImageBox.cpp
     Layout/SVGMaskBox.cpp
+    Layout/SVGPatternBox.cpp
     Layout/SVGSVGBox.cpp
     Layout/SVGTextBox.cpp
     Layout/SVGTextPathBox.cpp
@@ -840,6 +841,7 @@ set(SOURCES
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
     Painting/PaintableBox.cpp
+    Painting/PaintStyle.cpp
     Painting/PaintableFragment.cpp
     Painting/PaintableWithLines.cpp
     Painting/RadioButtonPaintable.cpp
@@ -854,6 +856,7 @@ set(SOURCES
     Painting/SVGMaskable.cpp
     Painting/SVGMaskPaintable.cpp
     Painting/SVGPaintable.cpp
+    Painting/SVGPatternPaintable.cpp
     Painting/SVGPathPaintable.cpp
     Painting/SVGSVGPaintable.cpp
     Painting/TableBordersPainting.cpp
@@ -994,6 +997,7 @@ set(SOURCES
     SVG/SVGNumber.cpp
     SVG/SVGNumberList.cpp
     SVG/SVGPathElement.cpp
+    SVG/SVGPatternElement.cpp
     SVG/SVGPolygonElement.cpp
     SVG/SVGPolylineElement.cpp
     SVG/SVGRadialGradientElement.cpp

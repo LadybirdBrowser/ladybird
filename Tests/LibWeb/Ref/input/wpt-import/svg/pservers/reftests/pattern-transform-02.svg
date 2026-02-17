@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>Patterns with non-invertible patternTransforms</title>
+  <h:link rel="help" href="https://svgwg.org/svg2-draft/single-page.html#pservers-PatternElementPatternTransformAttribute"/>
+  <h:link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-function-lists"/>
+  <h:link rel="match" href="../../../../../expected/wpt-import/svg/pservers/reftests/reference/green-100x100.svg"/>
+
+  <pattern id="scale0" width="50" height="100"
+           patternTransform="scale(0)">
+    <rect width="50" height="100" fill="red"/>
+  </pattern>
+  <rect width="50" height="100" fill="url(#scale0) green"/>
+
+  <pattern id="matrix0" width="50" height="100"
+           patternTransform="matrix(0, 0, 0, 0, 0, 0)">
+    <rect width="50" height="100" fill="red"/>
+  </pattern>
+  <rect x="50" width="50" height="100" fill="url(#matrix0) green"/>
+</svg>
