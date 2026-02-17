@@ -138,6 +138,17 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
 
     rect.translate_primary_offset_for_orientation(orientation(), pixel_offset);
     rect.set_primary_size_for_orientation(orientation(), pixel_width);
+
+    // Inflate so the rect covers glyph ascenders and descenders that may extend beyond the line box.
+    auto const& font_metrics = font.pixel_metrics();
+    if (font_metrics.ascent > 0.f || font_metrics.descent > 0.f) {
+        CSSPixels ascent { font_metrics.ascent };
+        CSSPixels descent { font_metrics.descent };
+        auto overflow_top = max<CSSPixels>(0, ascent - m_baseline);
+        auto overflow_bottom = max<CSSPixels>(0, descent - rect.secondary_size_for_orientation(orientation()) + m_baseline);
+        rect.inflate_secondary_for_orientation(orientation(), overflow_top, overflow_bottom);
+    }
+
     return rect;
 }
 

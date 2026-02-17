@@ -1,0 +1,5 @@
+element height: 38.40625
+full range height: 48
+partial range height: 48
+range taller than element: true
+full and partial same height: true
