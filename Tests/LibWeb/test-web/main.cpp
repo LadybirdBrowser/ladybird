@@ -877,11 +877,23 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
         TRY(dump_screenshot(actual, ByteString::formatted("{}.actual.png", base_path)));
         TRY(dump_screenshot(expected, ByteString::formatted("{}.expected.png", base_path)));
 
-        // Generate diff stats.
+        // Generate a diff image and compute stats.
         if (actual.width() == expected.width() && actual.height() == expected.height()) {
             auto diff = actual.diff(expected);
             test.diff_pixel_error_count = diff.pixel_error_count;
             test.diff_maximum_error = diff.maximum_error;
+
+            auto diff_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { actual.width(), actual.height() }));
+            for (int y = 0; y < actual.height(); ++y) {
+                for (int x = 0; x < actual.width(); ++x) {
+                    auto pixel = actual.get_pixel(x, y);
+                    if (pixel != expected.get_pixel(x, y))
+                        diff_bitmap->set_pixel(x, y, Gfx::Color(255, 0, 0));
+                    else
+                        diff_bitmap->set_pixel(x, y, pixel.mixed_with(expected.get_pixel(x, y), 0.5f).mixed_with(Gfx::Color::White, 0.8f));
+                }
+            }
+            TRY(dump_screenshot(*diff_bitmap, ByteString::formatted("{}.diff.png", base_path)));
         }
 
         return TestResult::Fail;
