@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Array.h>
+#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 
@@ -73,6 +74,22 @@ private:
 inline bool is_reserved_browser_shortcut(Web::KeyEvent const& key_event)
 {
     return ReservedBrowserShortcuts::is_reserved(key_event);
+}
+
+inline bool should_redispatch_input_event(Web::InputEvent const& event, Web::EventResult event_result)
+{
+    if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled) {
+        bool reserved_shortcut = false;
+        event.visit(
+            [&](Web::KeyEvent const& key_event) {
+                reserved_shortcut = is_reserved_browser_shortcut(key_event);
+            },
+            [](auto const&) {});
+
+        return reserved_shortcut;
+    }
+
+    return true;
 }
 
 }
