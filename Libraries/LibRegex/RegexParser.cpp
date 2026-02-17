@@ -182,6 +182,7 @@ ALWAYS_INLINE void Parser::reset()
     m_parser_state.error = Error::NoError;
     m_parser_state.error_token = { TokenType::Eof, 0, {} };
     m_parser_state.capture_group_minimum_lengths.clear();
+    m_parser_state.optional_capture_groups.clear();
     m_parser_state.capture_groups_count = 0;
     m_parser_state.named_capture_groups_count = 0;
     m_parser_state.named_capture_groups.clear();
@@ -1011,6 +1012,7 @@ bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_mini
 {
     size_t total_match_length_minimum = NumericLimits<size_t>::max();
     Vector<ByteCode> alternatives;
+    size_t initial_capture_groups_count = m_parser_state.capture_groups_count;
 
     TemporaryChange<size_t> alternative_id_change { m_current_alternative_id, 1 };
 
@@ -1033,6 +1035,7 @@ bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_mini
 
     if (alternatives.size() > 1) {
         m_parser_state.greedy_lookaround = false;
+        mark_capture_groups_as_optional_from(initial_capture_groups_count);
     }
     Optimizer::append_alternation(stack, alternatives.span());
     match_length_minimum = total_match_length_minimum;
@@ -1060,6 +1063,8 @@ bool ECMA262Parser::parse_term(ByteCode& stack, size_t& match_length_minimum, Pa
 
     ByteCode atom_stack;
     size_t minimum_atom_length = 0;
+    size_t initial_capture_groups_count = m_parser_state.capture_groups_count;
+
     auto parse_with_quantifier = [&] {
         bool did_parse_one = false;
         if (m_should_use_browser_extended_grammar)
@@ -1077,6 +1082,9 @@ bool ECMA262Parser::parse_term(ByteCode& stack, size_t& match_length_minimum, Pa
 
     if (!parse_with_quantifier())
         return false;
+
+    if (minimum_atom_length == 0)
+        mark_capture_groups_as_optional_from(initial_capture_groups_count);
 
     stack.extend(move(atom_stack));
     match_length_minimum += minimum_atom_length;
@@ -1128,6 +1136,7 @@ bool ECMA262Parser::parse_assertion(ByteCode& stack, [[maybe_unused]] size_t& ma
         }
         if (should_parse_forward_assertion && try_skip("!"sv)) {
             enter_capture_group_scope();
+            size_t initial_capture_groups_count = m_parser_state.capture_groups_count;
             ScopeGuard quit_scope {
                 [this] {
                     exit_capture_group_scope();
@@ -1137,6 +1146,7 @@ bool ECMA262Parser::parse_assertion(ByteCode& stack, [[maybe_unused]] size_t& ma
                 return false;
             stack.insert_bytecode_lookaround(move(assertion_stack), ByteCode::LookAroundType::NegatedLookAhead);
             clear_all_capture_groups_in_scope(stack);
+            mark_capture_groups_as_optional_from(initial_capture_groups_count);
 
             return true;
         }
@@ -1161,6 +1171,7 @@ bool ECMA262Parser::parse_assertion(ByteCode& stack, [[maybe_unused]] size_t& ma
         }
         if (try_skip("<!"sv)) {
             enter_capture_group_scope();
+            size_t initial_capture_groups_count = m_parser_state.capture_groups_count;
             ScopeGuard quit_scope {
                 [this] {
                     exit_capture_group_scope();
@@ -1170,6 +1181,7 @@ bool ECMA262Parser::parse_assertion(ByteCode& stack, [[maybe_unused]] size_t& ma
                 return false;
             stack.insert_bytecode_lookaround(move(assertion_stack), ByteCode::LookAroundType::NegatedLookBehind, length_dummy);
             clear_all_capture_groups_in_scope(stack);
+            mark_capture_groups_as_optional_from(initial_capture_groups_count);
             return true;
         }
 
@@ -1207,6 +1219,7 @@ bool ECMA262Parser::parse_quantifiable_assertion(ByteCode& stack, size_t&, Parse
     }
     if (try_skip("!"sv)) {
         enter_capture_group_scope();
+        size_t initial_capture_groups_count = m_parser_state.capture_groups_count;
         ScopeGuard quit_scope {
             [this] {
                 exit_capture_group_scope();
@@ -1217,6 +1230,7 @@ bool ECMA262Parser::parse_quantifiable_assertion(ByteCode& stack, size_t&, Parse
 
         stack.insert_bytecode_lookaround(move(assertion_stack), ByteCode::LookAroundType::NegatedLookAhead);
         clear_all_capture_groups_in_scope(stack);
+        mark_capture_groups_as_optional_from(initial_capture_groups_count);
         return true;
     }
 
@@ -1636,7 +1650,8 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
             // See if this is a "back"-reference (we've already parsed the group it refers to)
             auto maybe_length = m_parser_state.capture_group_minimum_lengths.get(escape.value());
             if (maybe_length.has_value()) {
-                match_length_minimum += maybe_length.value();
+                if (!m_parser_state.optional_capture_groups.contains(escape.value()))
+                    match_length_minimum += maybe_length.value();
                 stack.insert_bytecode_compare_values({ { CharacterCompareType::Reference, (ByteCodeValueType)escape.value() } });
                 return true;
             }
@@ -1679,6 +1694,8 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
             auto maybe_length = m_parser_state.capture_group_minimum_lengths.get(group_index);
             if (maybe_length.has_value()) {
                 // Backward reference
+                if (!m_parser_state.optional_capture_groups.contains(group_index))
+                    match_length_minimum += maybe_length.value();
                 stack.insert_bytecode_compare_values({ { CharacterCompareType::NamedReference, static_cast<ByteCodeValueType>(group_index) } });
             } else {
                 // Self-reference or forward reference

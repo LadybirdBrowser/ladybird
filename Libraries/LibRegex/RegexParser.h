@@ -14,6 +14,7 @@
 #include <AK/FlyString.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
@@ -123,6 +124,7 @@ protected:
         bool in_negated_character_class { false };
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
+        HashTable<size_t> optional_capture_groups;
         OrderedHashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;
 
         struct UnresolvedNamedReference {
@@ -321,6 +323,12 @@ private:
     {
         for (auto& index : m_capture_groups_in_scope.last())
             stack.insert_bytecode_clear_capture_group(index);
+    }
+
+    void mark_capture_groups_as_optional_from(size_t first_group)
+    {
+        for (size_t i = first_group + 1; i <= m_parser_state.capture_groups_count; ++i)
+            m_parser_state.optional_capture_groups.set(i);
     }
 
     // ECMA-262's flavour of regex is a bit weird in that it allows backrefs to reference "future" captures, and such backrefs

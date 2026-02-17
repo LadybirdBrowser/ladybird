@@ -1485,6 +1485,23 @@ TEST_CASE(zero_width_backreference)
         EXPECT_EQ(result.matches.first().view.to_byte_string(), "b"sv);
         EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), ""sv);
     }
+    {
+        Regex<ECMA262> re("(x)?\\1y"sv);
+        auto result = re.match("y"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.first().view, "y"sv);
+        EXPECT(result.capture_group_matches.first()[0].view.is_null());
+    }
+    {
+        Regex<ECMA262> re("(?!(y)y)(\\1)z"sv, ECMAScriptFlags::Global);
+        auto result = re.match("xyyz"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.first().view, "z"sv);
+        EXPECT(result.capture_group_matches.first()[0].view.is_null());
+        EXPECT_EQ(result.capture_group_matches.first()[1].view.to_byte_string(), ""sv);
+    }
 }
 
 TEST_CASE(account_for_opcode_size_calculating_incoming_jump_edges)
