@@ -607,6 +607,31 @@ void FormAssociatedElement::set_face_validation_anchor(Badge<ElementInternals>, 
     m_face_validation_anchor = value;
 }
 
+void FormAssociatedElement::set_face_submission_value(Badge<ElementInternals>, FACESubmissionValue const& value)
+{
+    m_face_submission_value = value;
+}
+
+void FormAssociatedElement::set_face_state(Badge<ElementInternals>, FACESubmissionValue const& value)
+{
+    m_face_state = value;
+}
+
+void FormAssociatedElement::visit_edges(JS::Cell::Visitor& visitor)
+{
+    m_face_submission_value.visit(
+        [&visitor](GC::Ref<FileAPI::File> file) {
+            visitor.visit(file);
+        },
+        [](auto&) {});
+
+    m_face_state.visit(
+        [&visitor](GC::Ref<FileAPI::File> file) {
+            visitor.visit(file);
+        },
+        [](auto&) {});
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
 void FormAssociatedTextControlElement::relevant_value_was_changed()
 {

@@ -73,6 +73,7 @@ void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     HTMLOrSVGElement::visit_edges(visitor);
+    FormAssociatedElement::visit_edges(visitor);
     visitor.visit(m_labels);
     visitor.visit(m_attached_internals);
     visitor.visit(m_popover_trigger);

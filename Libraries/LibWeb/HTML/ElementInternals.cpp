@@ -7,8 +7,10 @@
 #include <LibWeb/Bindings/ElementInternalsPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/ElementInternals.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/XHR/FormData.h>
 
 namespace Web::HTML {
 
@@ -47,7 +49,7 @@ GC::Ptr<DOM::ShadowRoot> ElementInternals::shadow_root() const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setformvalue
-WebIDL::ExceptionOr<void> ElementInternals::set_form_value(Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>, Empty> value, Optional<Variant<GC::Root<FileAPI::File>, String, GC::Root<XHR::FormData>, Empty>> state)
+WebIDL::ExceptionOr<void> ElementInternals::set_form_value(ElementInternalsFormValue value, Optional<ElementInternalsFormValue> state)
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;
@@ -56,18 +58,48 @@ WebIDL::ExceptionOr<void> ElementInternals::set_form_value(Variant<GC::Root<File
     if (!element->is_form_associated_custom_element())
         return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
-    (void)value;
-    (void)state;
+    // 3. Set target element's submission value to value if value is not a FormData object, or to a clone of value's entry list otherwise.
+    auto submission_value = value.visit(
+        [](GC::Root<FileAPI::File> const& file) -> FormAssociatedElement::FACESubmissionValue {
+            return GC::Ref { *file };
+        },
+        [](String const& string) -> FormAssociatedElement::FACESubmissionValue {
+            return string;
+        },
+        [](GC::Root<XHR::FormData> const& form_data) -> FormAssociatedElement::FACESubmissionValue {
+            return form_data->entry_list();
+        },
+        [](Empty const& empty) -> FormAssociatedElement::FACESubmissionValue {
+            return empty;
+        });
 
-    // FIXME: 3. Set target element's submission value to value if value is not a FormData object, or to a clone of value's entry list otherwise.
+    element->set_face_submission_value({}, submission_value);
 
-    // FIXME: 4. If the state argument of the function is omitted, set element's state to its submission value.
+    // 4. If the state argument of the function is omitted, set element's state to its submission value.
+    if (!state.has_value()) {
+        element->set_face_state({}, submission_value);
+    }
 
-    // FIXME: 5. Otherwise, if state is a FormData object, set element's state to a clone of state's entry list.
+    // 5. Otherwise, if state is a FormData object, set element's state to a clone of state's entry list.
+    // 6. Otherwise, set element's state to state.
+    else {
+        auto state_value = state.value().visit(
+            [](GC::Root<FileAPI::File> const& file) -> FormAssociatedElement::FACESubmissionValue {
+                return GC::Ref { *file };
+            },
+            [](String const& string) -> FormAssociatedElement::FACESubmissionValue {
+                return string;
+            },
+            [](GC::Root<XHR::FormData> const& form_data) -> FormAssociatedElement::FACESubmissionValue {
+                return form_data->entry_list();
+            },
+            [](Empty const& empty) -> FormAssociatedElement::FACESubmissionValue {
+                return empty;
+            });
 
-    // FIXME: 6. Otherwise, set element's state to state.
+        element->set_face_state({}, state_value);
+    }
 
-    dbgln("FIXME: ElementInternals::set_form_value()");
     return {};
 }
 

@@ -8,12 +8,14 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Bindings/HTMLFormElementPrototype.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
+#include <LibWeb/XHR/FormDataEntry.h>
 
 namespace Web::HTML {
 
@@ -44,6 +46,9 @@ enum class SelectionDirection {
 
 class WEB_API FormAssociatedElement {
 public:
+    // NB: FACE stands for form-associated custom element.
+    using FACESubmissionValue = Variant<GC::Ref<FileAPI::File>, String, GC::ConservativeVector<XHR::FormDataEntry>, Empty>;
+
     virtual bool is_form_associated_element() const;
 
     HTMLFormElement* form() { return m_form; }
@@ -150,6 +155,12 @@ public:
 
     void set_face_validation_anchor(Badge<ElementInternals>, GC::Ptr<HTMLElement> value);
 
+    FACESubmissionValue const& face_submission_value() const { return m_face_submission_value; }
+    void set_face_submission_value(Badge<ElementInternals>, FACESubmissionValue const& value);
+
+    FACESubmissionValue const& face_state() const { return m_face_state; }
+    void set_face_state(Badge<ElementInternals>, FACESubmissionValue const& value);
+
     void set_custom_validity_error_message(Badge<ElementInternals>, String const& value) { m_custom_validity_error_message = value; }
 
 protected:
@@ -166,13 +177,13 @@ protected:
     void form_node_was_moved();
     void form_node_attribute_changed(FlyString const&, Optional<String> const&);
 
+    void visit_edges(JS::Cell::Visitor&);
+
 private:
     GC::Weak<HTMLFormElement> m_form;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
-
-    // N.B.: FACE stands for form-associated custom element.
 
     ValidityStateFlags m_face_validity_flags {};
 
@@ -183,6 +194,16 @@ private:
     // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-anchor
     // Each form-associated custom element has a validation anchor element. It is null initially.
     GC::Weak<HTMLElement> m_face_validation_anchor;
+
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-submission-value
+    // Each form-associated custom element has submission value. It is used to provide one or more entries on form submission.
+    // The initial value of submission value is null, and submission value can be null, a string, a File, or a list of entries.
+    FACESubmissionValue m_face_submission_value;
+
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-state
+    // Each form-associated custom element has state. It is information with which the user agent can restore a user's input
+    // for the element. The initial value of state is null, and state can be null, a string, a File, or a list of entries.
+    FACESubmissionValue m_face_state;
 
     // AD-HOC: Cached disabled state for form-associated custom elements, used to detect changes
     //         and enqueue formDisabledCallback. Only meaningful for FACEs.
