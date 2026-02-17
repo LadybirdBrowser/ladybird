@@ -64,6 +64,8 @@ public:
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
+    // Fallback behavior: platform frontends should override this to open a dedicated window.
+    virtual void open_url_in_new_window(URL::URL const& url) const;
 
     void add_child_process(Process&&);
 
