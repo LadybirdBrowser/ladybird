@@ -5,6 +5,7 @@
  */
 
 #include <AK/Utf16View.h>
+#include <LibGfx/TextLayout.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -41,10 +42,11 @@ static float measure_text_width(Layout::TextNode const& text_node, Utf16View con
     line_segmenter->set_segmented_text(text);
 
     Layout::TextNode::ChunkIterator iterator { text_node, text, *grapheme_segmenter, *line_segmenter, CSS::WordBreak::Normal, false, false };
+    auto letter_spacing = text_node.computed_values().letter_spacing().to_float();
     float width = 0;
 
     for (auto chunk = iterator.next(); chunk.has_value(); chunk = iterator.next())
-        width += chunk->font->width(chunk->view);
+        width += Gfx::measure_text_width(chunk->view, *chunk->font, letter_spacing);
 
     return width;
 }

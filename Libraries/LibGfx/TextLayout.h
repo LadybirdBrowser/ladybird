@@ -69,6 +69,6 @@ private:
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType);
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&);
-float measure_text_width(Utf16View const&, Gfx::Font const& font);
+float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
 
 }
