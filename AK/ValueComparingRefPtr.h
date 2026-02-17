@@ -58,6 +58,11 @@ struct ValueComparingRefPtr : public RefPtr<T> {
         return this->ptr() == other.ptr() || (this->ptr() && other.ptr() && this->ptr()->equals(*other));
     }
 
+    bool operator==(nullptr_t) const
+    {
+        return this->is_null();
+    }
+
 private:
     using RefPtr<T>::operator==;
 };
