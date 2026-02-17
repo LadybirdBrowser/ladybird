@@ -9,15 +9,15 @@ JS bytecode executable "f"
 [   8]       NewPrimitiveArray dst:reg5, elements:[1, 2, 3]
 [  30]       Mov dst:reg6, src:Bool(false)
 [  40]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-[  58]       IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+[  58]       IteratorNextUnpack dst_value:reg10, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
 [  70]       JumpFalse condition:reg6, target:@98
-[  80]    1: Mov dst:reg11, src:Undefined
+[  80]    1: Mov dst:reg10, src:Undefined
 [  90]       Jump target:@98
-[  98]    2: Mov dst:a~0, src:reg11
+[  98]    2: Mov dst:a~0, src:reg10
 [  a8]       JumpFalse condition:reg6, target:@d0
-[  b8]    3: NewArray dst:reg12
+[  b8]    3: NewArray dst:reg11
 [  c8]       Jump target:@e8
-[  d0]    4: IteratorToArray dst:reg12, iterator_object:reg7, iterator_next_method:reg8, iterator_done_property:reg9
-[  e8]    5: Mov dst:b~1, src:reg12
+[  d0]    4: IteratorToArray dst:reg11, iterator_object:reg7, iterator_next_method:reg8, iterator_done_property:reg9
+[  e8]    5: Mov dst:b~1, src:reg11
 [  f8]       ThrowIfTDZ src:b~1
 [ 100]       Return value:b~1

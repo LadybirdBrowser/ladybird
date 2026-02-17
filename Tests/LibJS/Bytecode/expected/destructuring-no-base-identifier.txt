@@ -5,12 +5,12 @@ JS bytecode executable ""
 [  28]       NewPrimitiveArray dst:reg5, elements:[42]
 [  40]       Mov dst:reg6, src:Bool(false)
 [  50]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-[  68]       GetGlobal dst:reg11, identifier:x
-[  78]       IteratorNextUnpack dst_value:reg12, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+[  68]       GetGlobal dst:reg10, identifier:x
+[  78]       IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
 [  90]       JumpFalse condition:reg6, target:@b8
-[  a0]    1: Mov dst:reg12, src:Undefined
+[  a0]    1: Mov dst:reg11, src:Undefined
 [  b0]       Jump target:@b8
-[  b8]    2: PutNormalById base:reg11, property:y, src:reg12
+[  b8]    2: PutNormalById base:reg10, property:y, src:reg11
 [  d0]       JumpFalse condition:reg6, target:@e8
 [  e0]    3: End value:reg5
 [  e8]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
