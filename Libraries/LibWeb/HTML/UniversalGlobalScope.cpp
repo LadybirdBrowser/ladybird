@@ -242,4 +242,16 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
     }));
 }
 
+static bool s_experimental_interfaces_exposed = false;
+
+void UniversalGlobalScopeMixin::set_experimental_interfaces_exposed(bool exposed)
+{
+    s_experimental_interfaces_exposed = exposed;
+}
+
+bool UniversalGlobalScopeMixin::expose_experimental_interfaces()
+{
+    return s_experimental_interfaces_exposed;
+}
+
 }

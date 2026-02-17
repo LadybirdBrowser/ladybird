@@ -86,6 +86,7 @@ WPT_ARGS=(
     "--install-webdriver"
     "--webdriver-arg=--force-cpu-painting"
     "--webdriver-arg=--default-time-zone=UTC"
+    "--webdriver-arg=--expose-experimental-interfaces"
     "--no-pause-after-test"
     "--install-fonts"
     "${EXTRA_WPT_ARGS[@]}"
