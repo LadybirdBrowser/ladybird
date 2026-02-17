@@ -1354,33 +1354,14 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
     if (auto const* paintable = svg_root.paintable_box())
         layout_state.populate_from_paintable(svg_root, *paintable);
 
-    // Pre-populate ancestors outside the subtree:
-    // - SVGGraphicsBox ancestors (up to outer SVG) for get_parent_svg_transform()
-    // - Abspos boxes inside the subtree whose layout is managed by ancestor formatting contexts (not re-laid-out
-    //   during SVG relayout, so their existing paintable state must be preserved)
-    bool found_outer_svg = false;
+    // Pre-populate SVGGraphicsBox ancestors (up to outer SVG) for get_parent_svg_transform().
     for (auto* ancestor = svg_root.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (!found_outer_svg) {
-            if (auto const* svg_graphics_ancestor = as_if<Layout::SVGGraphicsBox>(*ancestor)) {
-                if (auto const* paintable = svg_graphics_ancestor->paintable_box())
-                    layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
-            }
-            if (is<Layout::SVGSVGBox>(*ancestor))
-                found_outer_svg = true;
+        if (auto const* svg_graphics_ancestor = as_if<Layout::SVGGraphicsBox>(*ancestor)) {
+            if (auto const* paintable = svg_graphics_ancestor->paintable_box())
+                layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
         }
-
-        if (auto const* box = as_if<Layout::Box>(*ancestor)) {
-            // Pre-populate abspos boxes that are inside the SVG subtree but whose containing block is outside it.
-            // These boxes are laid out by ancestor formatting contexts (not during SVG relayout), so we must preserve
-            // their existing paintable state to prevent commit() from destroying their paintables.
-            for (auto const& abspos_child : box->contained_abspos_children()) {
-                if (svg_root.is_inclusive_ancestor_of(abspos_child) && is<Layout::Box>(*abspos_child)) {
-                    auto const& abspos_box = static_cast<Layout::Box const&>(*abspos_child);
-                    if (auto const* abspos_paintable = abspos_box.paintable_box())
-                        layout_state.populate_from_paintable(abspos_box, *abspos_paintable);
-                }
-            }
-        }
+        if (is<Layout::SVGSVGBox>(*ancestor))
+            break;
     }
 
     auto const& svg_state = layout_state.get(svg_root);

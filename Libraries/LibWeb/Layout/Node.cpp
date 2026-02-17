@@ -160,6 +160,11 @@ bool Node::establishes_an_absolute_positioning_containing_block() const
     if (is<Viewport>(*this))
         return true;
 
+    // https://github.com/w3c/fxtf-drafts/issues/307#issuecomment-499612420
+    // foreignObject establishes a containing block for absolutely and fixed positioned elements.
+    if (is_svg_foreign_object_box())
+        return true;
+
     return computed_values_establish_absolute_positioning_containing_block();
 }
 
@@ -1467,29 +1472,11 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
         return IterationDecision::Continue;
     });
 
-    auto has_abspos_with_external_containing_block = [](SVGSVGBox const& svg_box) {
-        for (auto const* ancestor = svg_box.parent(); ancestor; ancestor = ancestor->parent()) {
-            auto const* box = as_if<Box>(ancestor);
-            if (!box)
-                continue;
-            for (auto const& abspos_child : box->contained_abspos_children()) {
-                if (svg_box.is_inclusive_ancestor_of(abspos_child))
-                    return true;
-            }
-        }
-        return false;
-    };
-
     for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
         if (ancestor->m_needs_layout_update)
             break;
         ancestor->m_needs_layout_update = true;
         if (auto* svg_box = as_if<SVGSVGBox>(ancestor)) {
-            // Absolutely positioned elements inside the SVG subtree whose containing
-            // block is outside the SVG can't be properly relaid out during partial SVG
-            // relayout — their layout depends on formatting contexts outside the subtree.
-            if (has_abspos_with_external_containing_block(*svg_box))
-                continue;
             document().mark_svg_root_as_needing_relayout(*svg_box);
             break;
         }
