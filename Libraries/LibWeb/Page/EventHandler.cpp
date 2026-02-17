@@ -26,7 +26,6 @@
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
-#include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -69,15 +68,6 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
         if (auto node = parent->dom_node())
             return node;
         parent = parent->parent();
-    }
-    return nullptr;
-}
-
-static GC::Ptr<DOM::Node> input_control_associated_with_ancestor_label_element(Painting::Paintable& paintable)
-{
-    if (auto dom_node = paintable.dom_node()) {
-        if (auto* label = dom_node->first_ancestor_of_type<HTML::HTMLLabelElement>())
-            return label->control();
     }
     return nullptr;
 }
@@ -876,36 +866,15 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (button != UIEvents::MouseButton::Primary)
         return EventResult::Handled;
 
-    // First do an exact hit test for focus management.
-    auto exact_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
-    GC::Ptr<Painting::Paintable> focus_paintable;
-    GC::Ptr<DOM::Node> focus_dom_node;
-    if (exact_hit.has_value()) {
-        focus_paintable = exact_hit->paintable;
-        focus_dom_node = focus_paintable ? focus_paintable->dom_node() : nullptr;
-    }
-
-    GC::Ptr<DOM::Node> focus_candidate;
-    if (focus_paintable && focus_dom_node) {
-        if (auto input_control = input_control_associated_with_ancestor_label_element(*focus_paintable))
-            focus_candidate = input_control;
-        else
-            for (focus_candidate = focus_dom_node;
-                focus_candidate && !focus_candidate->is_focusable();
-                focus_candidate = focus_candidate->parent_or_shadow_host())
-                ;
-    }
-
     // https://html.spec.whatwg.org/multipage/interaction.html#data-model:click-focusable-5
     // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the
     // focusable area with focus trigger set to "click".
     // Note: Note that programmatic click is not an activation behavior, i.e. calling the click() method on an
     // element or dispatching a synthetic click event on it won't cause the element to get focused.
-    if (focus_candidate) {
+    if (auto focus_candidate = focus_candidate_for_position(viewport_position))
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
-    } else if (auto focused_area = document->focused_area()) {
+    else if (auto focused_area = document->focused_area())
         HTML::run_unfocusing_steps(focused_area);
-    }
 
     // Now we can do selection with a cursor hit test.
     auto cursor_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
@@ -932,13 +901,12 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
             active_target->set_selection_focus(*dom_node, index);
         else
             active_target->set_selection_anchor(*dom_node, index);
-    } else if (!focus_candidate) {
+    } else {
         m_selection_mode = SelectionMode::Character;
         m_mouse_selection_target = nullptr;
 
         if (auto selection = document->get_selection()) {
-            auto anchor_node = selection->anchor_node();
-            if (anchor_node && (modifiers & UIEvents::KeyModifier::Mod_Shift))
+            if (auto anchor_node = selection->anchor_node(); anchor_node && (modifiers & UIEvents::KeyModifier::Mod_Shift))
                 set_user_selection(*anchor_node, selection->anchor_offset(), *dom_node, index, selection, user_select);
             else
                 set_user_selection(*dom_node, index, *dom_node, index, selection, user_select);
@@ -1465,6 +1433,20 @@ EventResult EventHandler::focus_previous_element()
 
     HTML::run_focusing_steps(node, nullptr, HTML::FocusTrigger::Key);
     return EventResult::Handled;
+}
+
+GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
+{
+    auto exact_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
+    if (!exact_hit.has_value())
+        return {};
+
+    auto focus_dom_node = exact_hit->paintable ? exact_hit->paintable->dom_node() : nullptr;
+
+    while (focus_dom_node && !focus_dom_node->is_focusable())
+        focus_dom_node = focus_dom_node->parent_or_shadow_host();
+
+    return focus_dom_node;
 }
 
 static constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)

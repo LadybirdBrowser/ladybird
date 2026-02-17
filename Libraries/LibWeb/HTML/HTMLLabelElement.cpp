@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 
 namespace Web::HTML {
@@ -51,6 +52,11 @@ void HTMLLabelElement::activation_behavior(DOM::Event const& event)
 
     auto control_element = control();
     if (!control_element)
+        return;
+
+    // NB: If the click resulted in a selection being made on the label element, do not propagate the click event to the
+    //     input element. This allows the user to e.g. copy the label's text.
+    if (auto selection = document().get_selection(); selection && !selection->is_collapsed())
         return;
 
     if (auto* form_control = as_if<FormAssociatedElement>(*control_element)) {

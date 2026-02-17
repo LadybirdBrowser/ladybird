@@ -72,6 +72,8 @@ private:
     EventResult focus_next_element();
     EventResult focus_previous_element();
 
+    GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;
+
     EventResult fire_keyboard_event(FlyString const& event_name, HTML::Navigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable&, Variant<u32, Utf16String> code_point_or_string);
     CSSPixelPoint compute_mouse_event_client_offset(CSSPixelPoint event_page_position) const;

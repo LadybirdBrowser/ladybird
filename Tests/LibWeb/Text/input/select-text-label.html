@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<label for="input" id="label">This is a label</label>
+<input id="input" value="This is an input" />
+<script>
+    test(() => {
+        let { x, y, width, height } = label.getBoundingClientRect();
+        x += width / 4;
+        y += height / 2;
+
+        internals.mouseDown(x, y);
+
+        x += width / 2;
+        internals.mouseMove(x, y);
+        internals.mouseUp(x, y);
+
+        println(`"${window.getSelection()}"`);
+        printElement(document.activeElement);
+    });
+</script>
