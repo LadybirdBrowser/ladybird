@@ -50,6 +50,9 @@ public:
     ImportMap const& import_map() const { return m_import_map; }
     void set_import_map(ImportMap const& import_map) { m_import_map = import_map; }
 
+    static WEB_API void set_experimental_interfaces_exposed(bool);
+    static WEB_API bool expose_experimental_interfaces();
+
 protected:
     void visit_edges(GC::Cell::Visitor&);
 

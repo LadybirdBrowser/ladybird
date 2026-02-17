@@ -114,6 +114,8 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--enable-idl-tracing"sv);
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
+    if (web_content_options.expose_experimental_interfaces == WebView::ExposeExperimentalInterfaces::Yes)
+        arguments.append("--expose-experimental-interfaces"sv);
     if (web_content_options.expose_internals_object == WebView::ExposeInternalsObject::Yes)
         arguments.append("--expose-internals-object"sv);
     if (web_content_options.force_cpu_painting == WebView::ForceCPUPainting::Yes)
@@ -182,6 +184,8 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
 
     Vector<ByteString> arguments;
 
+    if (web_content_options.expose_experimental_interfaces == WebView::ExposeExperimentalInterfaces::Yes)
+        arguments.append("--expose-experimental-interfaces"sv);
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
 
