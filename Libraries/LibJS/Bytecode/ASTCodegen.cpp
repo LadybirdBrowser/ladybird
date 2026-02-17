@@ -1623,8 +1623,6 @@ static void generate_array_binding_pattern_bytecode(Bytecode::Generator& generat
             });
     };
 
-    auto temp_iterator_result = generator.allocate_register();
-
     for (auto& [name, alias, initializer, is_rest] : pattern.entries) {
         VERIFY(name.has<Empty>());
 
