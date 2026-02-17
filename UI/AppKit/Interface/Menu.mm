@@ -172,6 +172,9 @@ static void initialize_native_control(WebView::Action& action, id control)
     case WebView::ActionID::OpenInNewTab:
         set_control_image(control, @"plus.square.on.square");
         break;
+    case WebView::ActionID::OpenInNewWindow:
+        set_control_image(control, @"macwindow.badge.plus");
+        break;
     case WebView::ActionID::CopyURL:
         set_control_image(control, @"document.on.document");
         break;

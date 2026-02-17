@@ -324,6 +324,13 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
         view->load(url);
 }
 
+void Application::open_url_in_new_window(URL::URL const& url) const
+{
+    // Fallback for platforms that don't provide a window-level override.
+    // Platform UI layers should override this to create a new window.
+    open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
+}
+
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
 {
     auto request_server_socket = TRY(connect_new_request_server_client());
