@@ -62,25 +62,35 @@ double Token::double_value() const
         value = buffer;
     }
 
+    auto parse_integer_digits = [](Utf16View digits, u8 radix) -> double {
+        if (auto v = digits.to_number<u64>(TrimWhitespace::No, radix); v.has_value())
+            return static_cast<double>(v.value());
+        double result = 0.0;
+        for (size_t i = 0; i < digits.length_in_code_units(); ++i) {
+            auto digit = parse_ascii_hex_digit(digits.code_unit_at(i));
+            result = result * radix + digit;
+        }
+        return result;
+    };
+
     if (value.length_in_code_units() >= 2 && value.starts_with('0')) {
-        static constexpr auto fallback = NumericLimits<u64>::max();
         auto next = value.code_unit_at(1);
 
         // hexadecimal
         if (next == 'x' || next == 'X')
-            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 16).value_or(fallback));
+            return parse_integer_digits(value.substring_view(2), 16);
 
         // octal
         if (next == 'o' || next == 'O')
-            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 8).value_or(fallback));
+            return parse_integer_digits(value.substring_view(2), 8);
 
         // binary
         if (next == 'b' || next == 'B')
-            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 2).value_or(fallback));
+            return parse_integer_digits(value.substring_view(2), 2);
 
         // also octal, but syntax error in strict mode
         if (is_ascii_digit(next) && !value.contains_any_of({ { '8', '9' } }))
-            return static_cast<double>(value.substring_view(1).to_number<u64>(TrimWhitespace::No, 8).value_or(fallback));
+            return parse_integer_digits(value.substring_view(1), 8);
     }
 
     // This should always be a valid double

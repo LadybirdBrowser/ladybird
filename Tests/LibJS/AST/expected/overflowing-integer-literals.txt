@@ -1,0 +1,13 @@
+Program (script) @1:1
+├─ VariableDeclaration (var) @1:1
+│  └─ VariableDeclarator @1:1
+│     ├─ Identifier "a" [global] (var) @1:5
+│     └─ NumericLiteral 4.722366482869645e+21 @1:9
+├─ VariableDeclaration (var) @2:1
+│  └─ VariableDeclarator @2:1
+│     ├─ Identifier "b" [global] (var) @2:5
+│     └─ NumericLiteral 590295810358705700000 @2:9
+└─ VariableDeclaration (var) @3:1
+   └─ VariableDeclarator @3:1
+      ├─ Identifier "c" [global] (var) @3:5
+      └─ NumericLiteral 3.777893186295716e+22 @3:9
