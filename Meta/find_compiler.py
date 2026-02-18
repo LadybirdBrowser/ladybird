@@ -25,7 +25,7 @@ XCODE_MINIMUM_VERSION = ("16.3", 17000013)
 COMPILER_VERSION_REGEX = re.compile(r"(\d+)(\.\d+)*")
 
 
-def major_compiler_version_if_supported(platform: Platform, compiler: str) -> Optional[int]:
+def major_compiler_version_if_supported(platform: Platform, compiler: str, clang_only: bool = False) -> Optional[int]:
     if not shutil.which(compiler):
         return None
 
@@ -68,7 +68,7 @@ def major_compiler_version_if_supported(platform: Platform, compiler: str) -> Op
         if major_version >= CLANG_MINIMUM_VERSION:
             return major_version
 
-    else:
+    elif not clang_only:
         if major_version >= GCC_MINIMUM_VERSION:
             return major_version
 
@@ -91,7 +91,7 @@ def find_newest_compiler(platform: Platform, compilers: list[str]) -> Optional[s
     return best_compiler
 
 
-def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]:
+def pick_host_compiler(platform: Platform, cc: str, cxx: str, clang_only: bool) -> tuple[str, str]:
     if platform.host_system == HostSystem.Windows and ("clang-cl" not in cc or "clang-cl" not in cxx):
         print(
             f"clang-cl {CLANG_MINIMUM_VERSION} or higher is required on Windows",
@@ -100,8 +100,11 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
 
         sys.exit(1)
 
+    cc_supported = major_compiler_version_if_supported(platform, cc, clang_only=clang_only)
+    cxx_supported = major_compiler_version_if_supported(platform, cxx, clang_only=clang_only)
+
     # FIXME: Validate that the cc/cxx combination is compatible (e.g. don't allow CC=gcc and CXX=clang++)
-    if major_compiler_version_if_supported(platform, cc) and major_compiler_version_if_supported(platform, cxx):
+    if cc_supported and cxx_supported:
         return (cc, cxx)
 
     if platform.host_system == HostSystem.Windows:
@@ -142,9 +145,10 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
             return (clang, clang)
         return clang, clang.replace("clang", "clang++")
 
-    gcc = find_newest_compiler(platform, gcc_candidates)
-    if gcc:
-        return gcc, gcc.replace("gcc", "g++")
+    if not clang_only:
+        gcc = find_newest_compiler(platform, gcc_candidates)
+        if gcc:
+            return gcc, gcc.replace("gcc", "g++")
 
     if platform.host_system == HostSystem.macOS:
         print(
@@ -154,6 +158,11 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
     elif platform.host_system == HostSystem.Windows:
         print(
             f"Please ensure that clang-cl {CLANG_MINIMUM_VERSION} or higher is installed",
+            file=sys.stderr,
+        )
+    elif clang_only:
+        print(
+            f"Please ensure that clang {CLANG_MINIMUM_VERSION} or higher is installed",
             file=sys.stderr,
         )
     else:
@@ -173,11 +182,12 @@ def main():
 
     parser.add_argument("--cc", required=False, default=default_cc)
     parser.add_argument("--cxx", required=False, default=default_cxx)
+    parser.add_argument("--clang-only", required=False, action="store_true")
 
     args = parser.parse_args()
 
     # The default action when this script is invoked is to provide the caller with content that may be evaluated by bash.
-    (cc, cxx) = pick_host_compiler(platform, args.cc, args.cxx)
+    (cc, cxx) = pick_host_compiler(platform, args.cc, args.cxx, args.clang_only)
     print(f'export CC="{cc}"')
     print(f'export CXX="{cxx}"')
 
