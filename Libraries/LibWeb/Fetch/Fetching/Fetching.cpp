@@ -2156,7 +2156,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     });
 
     auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_complete);
-    fetch_params.controller()->set_pending_request(move(network_request));
+    fetch_params.controller()->set_pending_request(network_request);
 
     return pending_response;
 }

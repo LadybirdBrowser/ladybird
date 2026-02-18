@@ -42,7 +42,8 @@ private:
     NonnullRefPtr<Core::Notifier> m_notifier;
 };
 
-class Request : public RefCounted<Request> {
+class Request : public RefCounted<Request>
+    , public Weakable<Request> {
 public:
     struct CertificateAndKey {
         ByteString certificate;
