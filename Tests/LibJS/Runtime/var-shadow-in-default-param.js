@@ -33,6 +33,28 @@ describe("var shadowing in default parameter expressions", () => {
         expect(f()).toBe(42);
     });
 
+    test("arrow function in default captures outer scope", () => {
+        var v = "outer";
+        function f(x = (() => v)()) {
+            var v = "inner";
+            return x;
+        }
+        expect(f()).toBe("outer");
+    });
+
+    test("function expression in default captures outer scope", () => {
+        var v = "outer";
+        function f(
+            x = (function () {
+                return v;
+            })()
+        ) {
+            var v = "inner";
+            return x;
+        }
+        expect(f()).toBe("outer");
+    });
+
     test("body vars not referenced in defaults stay optimized", () => {
         function f(x = 1) {
             var y = 2;
