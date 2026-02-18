@@ -12,7 +12,10 @@
                         throw Error();
                     } catch (e) {
                         const uuidRegex = /[a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+/g;
-                        globalThis.println("${type}: " + e.stack.replace(uuidRegex, "[flaky-uuid-replaced]"));
+                        const normalizedStack = e.stack
+                            .replace(uuidRegex, "[flaky-uuid-replaced]")
+                            .replace(/blob:(file:\\/\\/\\/|ladybird\\/)/g, "blob:<origin>/");
+                        globalThis.println("${type}: " + normalizedStack);
                     }
                 `;
 
