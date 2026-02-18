@@ -1,0 +1,21 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:test
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, test
+[  38]       End value:reg5
+
+JS bytecode executable "test"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:result~1, src:Undefined
+[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  28]       NewFunction dst:reg6, shared_function_data_index:0
+[  40]       Mov dst:foo~0, src:reg6
+[  50]       Mov dst:reg7, src:foo~0
+[  60]       Call dst:reg6, callee:reg7, this_value:Undefined, foo
+[  80]       Mov dst:result~1, src:reg6
+[  90]       SetLexicalEnvironment environment:reg4
+[  98]       Return value:result~1
+
+JS bytecode executable "foo"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Return value:Int32(42)

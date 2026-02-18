@@ -704,6 +704,7 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
                 auto local_index = function_declaration.name_identifier()->local_index();
                 if (local_index.is_variable()) {
                     emit<Bytecode::Op::Mov>(local(local_index), fo);
+                    set_local_initialized(local_index);
                 } else {
                     VERIFY_NOT_REACHED();
                 }
