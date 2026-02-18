@@ -13,7 +13,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudioServer/SampleSpecification.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/TrackType.h>
 

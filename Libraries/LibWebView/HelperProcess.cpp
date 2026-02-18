@@ -111,6 +111,7 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--enable-idl-tracing"sv);
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
+
     if (web_content_options.expose_experimental_interfaces == WebView::ExposeExperimentalInterfaces::Yes)
         arguments.append("--expose-experimental-interfaces"sv);
     if (web_content_options.expose_internals_object == WebView::ExposeInternalsObject::Yes)
@@ -164,6 +165,17 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
 }
 
+ErrorOr<NonnullRefPtr<Audio::BrokerOfAudioServer>> launch_audio_server_process()
+{
+    Vector<ByteString> arguments;
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process<Audio::BrokerOfAudioServer>("AudioServer"sv, arguments);
+}
+
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type)
 {
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -172,6 +184,7 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
 
     if (web_content_options.expose_experimental_interfaces == WebView::ExposeExperimentalInterfaces::Yes)
         arguments.append("--expose-experimental-interfaces"sv);
+
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
     if (web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
@@ -271,6 +284,11 @@ ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()
     if (handles.size() != 1)
         return Error::from_string_literal("Failed to connect to ImageDecoder");
     return handles.take_last();
+}
+
+ErrorOr<Audio::CreateClientResponse> connect_new_audio_server_client()
+{
+    return Application::audio_server().connect_new_client("*"sv, "*"sv, true);
 }
 
 }

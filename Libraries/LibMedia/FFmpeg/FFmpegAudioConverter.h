@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibAudioServer/SampleSpecification.h>
 #include <LibMedia/Audio/AudioConverter.h>
-#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/FFmpeg/FFmpegForward.h>
 

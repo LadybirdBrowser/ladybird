@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/Span.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudioServer/SampleSpecification.h>
 #include <LibMedia/AudioBlock.h>
 
 namespace Audio {
 
 class AudioConverter {
 public:
-    virtual ErrorOr<void> set_output_sample_specification(SampleSpecification) = 0;
+    virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) = 0;
     virtual ErrorOr<void> convert(Media::AudioBlock& input) = 0;
 
     virtual ~AudioConverter() = default;

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibAudioServer/ChannelMap.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
-#include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>

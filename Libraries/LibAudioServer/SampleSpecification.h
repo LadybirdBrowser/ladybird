@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibMedia/Audio/ChannelMap.h>
+#include <LibAudioServer/ChannelMap.h>
 
 namespace Audio {
 

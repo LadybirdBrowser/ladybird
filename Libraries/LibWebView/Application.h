@@ -10,6 +10,8 @@
 #include <AK/Function.h>
 #include <AK/LexicalPath.h>
 #include <AK/Optional.h>
+#include <LibAudioServer/BrokerOfAudioServer.h>
+#include <LibAudioServer/SessionClientOfAudioServer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
 #include <LibDatabase/Forward.h>
@@ -61,6 +63,7 @@ public:
 
     static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
+    static Audio::BrokerOfAudioServer& audio_server() { return *the().m_audio_server; }
 
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
     void update_bookmark_action_for_current_web_view();
@@ -200,6 +203,7 @@ private:
     void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
+    ErrorOr<void> launch_audio_server();
     ErrorOr<void> launch_devtools_server();
 
     void initialize_actions();
@@ -265,7 +269,7 @@ private:
 
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
-
+    RefPtr<Audio::BrokerOfAudioServer> m_audio_server;
     RefPtr<WebContentClient> m_spare_web_content_process;
     bool m_has_queued_task_to_launch_spare_web_content_process { false };
 

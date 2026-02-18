@@ -32,6 +32,9 @@ public:
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_completely_loaded() const { return m_document_completely_loaded; }
     void set_document_completely_loaded(Function<void()>);
 
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> document_will_unload() const { return m_document_will_unload; }
+    void set_document_will_unload(Function<void()>);
+
     [[nodiscard]] GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>> document_readiness_observer() const { return m_document_readiness_observer; }
     void set_document_readiness_observer(Function<void(HTML::DocumentReadyState)>);
 
@@ -54,6 +57,7 @@ private:
     GC::Ptr<GC::Function<void()>> m_document_became_active;
     GC::Ptr<GC::Function<void()>> m_document_became_inactive;
     GC::Ptr<GC::Function<void()>> m_document_completely_loaded;
+    GC::Ptr<GC::Function<void()>> m_document_will_unload;
     GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>> m_document_readiness_observer;
     GC::Ptr<GC::Function<void(HTML::VisibilityState)>> m_document_visibility_state_observer;
     GC::Ptr<GC::Function<void(bool)>> m_document_page_showing_observer;

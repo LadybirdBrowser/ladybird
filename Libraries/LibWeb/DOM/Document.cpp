@@ -4881,6 +4881,10 @@ void Document::unload(GC::Ptr<Document>)
     // 12. If oldDocument's salvageable state is false, then fire an event named unload at oldDocument's relevant global
     //     object, with legacy target override flag set.
     if (!m_salvageable) {
+        notify_each_document_observer([&](auto const& document_observer) {
+            return document_observer.document_will_unload();
+        });
+
         // then fire an event named unload at document's relevant global object, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
