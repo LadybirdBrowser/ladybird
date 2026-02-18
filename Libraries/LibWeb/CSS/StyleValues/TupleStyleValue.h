@@ -33,6 +33,13 @@ public:
             static constexpr size_t Width = 1;
             static constexpr size_t Ruby = 2;
         };
+
+        struct FontVariantLigatures {
+            static constexpr size_t Common = 0;
+            static constexpr size_t Discretionary = 1;
+            static constexpr size_t Historical = 2;
+            static constexpr size_t Contextual = 3;
+        };
     };
 
 private:

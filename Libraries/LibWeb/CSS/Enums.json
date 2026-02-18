@@ -162,6 +162,10 @@
     "none",
     "all"
   ],
+  "common-lig-value": [
+    "common-ligatures",
+    "no-common-ligatures"
+  ],
   "compositing-operator": [
     "add",
     "subtract",
@@ -182,6 +186,10 @@
     "visible",
     "auto",
     "hidden"
+  ],
+  "contextual-alt-value": [
+    "contextual",
+    "no-contextual"
   ],
   "coord-box": [
     "content-box",
@@ -259,6 +267,10 @@
   "direction": [
     "ltr",
     "rtl"
+  ],
+  "discretionary-lig-value": [
+    "discretionary-ligatures",
+    "no-discretionary-ligatures"
   ],
   "display-box": [
     "contents",
@@ -399,16 +411,6 @@
     "emoji",
     "unicode"
   ],
-  "font-variant-ligatures-keyword": [
-    "common-ligatures",
-    "no-common-ligatures",
-    "discretionary-ligatures",
-    "no-discretionary-ligatures",
-    "historical-ligatures",
-    "no-historical-ligatures",
-    "contextual",
-    "no-contextual"
-  ],
   "font-variant-numeric": [
     "normal",
     "ordinal",
@@ -447,6 +449,10 @@
     "ui-sans-serif",
     "ui-monospace",
     "ui-rounded"
+  ],
+  "historical-lig-value": [
+    "historical-ligatures",
+    "no-historical-ligatures"
   ],
   "hue-interpolation-method": [
     "shorter",

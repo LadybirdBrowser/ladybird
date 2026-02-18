@@ -3770,10 +3770,8 @@ RefPtr<StyleValue const> Parser::parse_font_variant_ligatures_value(TokenStream<
     // <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
     // <historical-lig-values>   = [ historical-ligatures | no-historical-ligatures ]
     // <contextual-alt-values>   = [ contextual | no-contextual ]
-    RefPtr<StyleValue const> common_ligatures_value;
-    RefPtr<StyleValue const> discretionary_ligatures_value;
-    RefPtr<StyleValue const> historical_ligatures_value;
-    RefPtr<StyleValue const> contextual_value;
+    StyleValueTuple tuple;
+    tuple.resize_with_default_value(4, nullptr);
 
     while (tokens.has_next_token()) {
         auto keyword_transaction = tokens.begin_transaction();
@@ -3782,63 +3780,47 @@ RefPtr<StyleValue const> Parser::parse_font_variant_ligatures_value(TokenStream<
         if (!maybe_value)
             break;
 
-        auto font_variant_ligatures = keyword_to_font_variant_ligatures_keyword(maybe_value->to_keyword());
-        if (!font_variant_ligatures.has_value())
-            break;
+        auto const& keyword = maybe_value->to_keyword();
 
-        switch (font_variant_ligatures.value()) {
-        // <common-lig-values>       = [ common-ligatures | no-common-ligatures ]
-        case FontVariantLigaturesKeyword::CommonLigatures:
-        case FontVariantLigaturesKeyword::NoCommonLigatures:
-            if (common_ligatures_value)
+        if (keyword_to_common_lig_value(keyword).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Common])
                 return nullptr;
             keyword_transaction.commit();
-            common_ligatures_value = maybe_value.release_nonnull();
-            break;
-        // <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
-        case FontVariantLigaturesKeyword::DiscretionaryLigatures:
-        case FontVariantLigaturesKeyword::NoDiscretionaryLigatures:
-            if (discretionary_ligatures_value)
-                return nullptr;
-            keyword_transaction.commit();
-            discretionary_ligatures_value = maybe_value.release_nonnull();
-            break;
-        // <historical-lig-values> = [ historical-ligatures | no-historical-ligatures ]
-        case FontVariantLigaturesKeyword::HistoricalLigatures:
-        case FontVariantLigaturesKeyword::NoHistoricalLigatures:
-            if (historical_ligatures_value)
-                return nullptr;
-            keyword_transaction.commit();
-            historical_ligatures_value = maybe_value.release_nonnull();
-            break;
-        // <contextual-alt-values> = [ contextual | no-contextual ]
-        case FontVariantLigaturesKeyword::Contextual:
-        case FontVariantLigaturesKeyword::NoContextual:
-            if (contextual_value)
-                return nullptr;
-            keyword_transaction.commit();
-            contextual_value = maybe_value.release_nonnull();
-            break;
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Common] = maybe_value.release_nonnull();
+            continue;
         }
+
+        if (keyword_to_discretionary_lig_value(keyword).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary])
+                return nullptr;
+            keyword_transaction.commit();
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary] = maybe_value.release_nonnull();
+            continue;
+        }
+
+        if (keyword_to_historical_lig_value(keyword).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical])
+                return nullptr;
+            keyword_transaction.commit();
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical] = maybe_value.release_nonnull();
+            continue;
+        }
+
+        if (keyword_to_contextual_alt_value(keyword).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual])
+                return nullptr;
+            keyword_transaction.commit();
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual] = maybe_value.release_nonnull();
+            continue;
+        }
+
+        break;
     }
 
-    StyleValueVector values;
-    if (common_ligatures_value)
-        values.append(common_ligatures_value.release_nonnull());
-    if (discretionary_ligatures_value)
-        values.append(discretionary_ligatures_value.release_nonnull());
-    if (historical_ligatures_value)
-        values.append(historical_ligatures_value.release_nonnull());
-    if (contextual_value)
-        values.append(contextual_value.release_nonnull());
-
-    if (values.is_empty())
+    if (!any_of(tuple, [](auto& value) { return value != nullptr; }))
         return nullptr;
 
-    if (values.size() == 1)
-        return *values.first();
-
-    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    return TupleStyleValue::create(tuple);
 }
 
 RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
