@@ -78,7 +78,6 @@ jobs:
           arch: ${{ matrix.arch }}
           cache_key_extra: 'LibJS and LibWasm Artifacts'
           ccache_path: ${{ env.CCACHE_DIR }}
-          download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Create build directory Ubuntu

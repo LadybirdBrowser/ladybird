@@ -54,7 +54,6 @@ jobs:
           arch: 'Lagom'
           cache_key_extra: 'Nightly Android'
           ccache_path: ${{ env.CCACHE_DIR }}
-          download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Assign Build Parameters

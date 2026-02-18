@@ -30,10 +30,6 @@ inputs:
     description: 'Path to the ccache directory'
     required: false
     default: ''
-  download_cache_path:
-    description: 'Path to the download cache directory'
-    required: false
-    default: 'caches'
   vcpkg_cache_path:
     description: 'Path to vcpkg binary cache'
     required: false
@@ -87,13 +83,13 @@ runs:
         CCACHE_DIR: ${{ inputs.ccache_path }}
       run: |
         ccache -M 0
-        
+
         # Reset all ccache modification dates to a known epoch. This provides a baseline that we can prune against.
-        Get-ChildItem -Path "${{ inputs.ccache_path }}" -Recurse | Sort-Object FullName -Descending | ForEach-Object { 
+        Get-ChildItem -Path "${{ inputs.ccache_path }}" -Recurse | Sort-Object FullName -Descending | ForEach-Object {
             $_.LastWriteTime = [DateTime]::Parse("2018-10-10T09:53:07Z")
             $_.LastAccessTime = [DateTime]::Parse("2018-10-10T09:53:07Z")
         }
-        
+
         ccache -s
         ccache -z
 
