@@ -223,6 +223,9 @@ void ScopeCollector::set_function_parameters(NonnullRefPtr<FunctionParameters co
 {
     m_current->function_parameters = move(parameters);
     for (auto& parameter : m_current->function_parameters->parameters()) {
+        if (parameter.default_value)
+            m_current->has_parameter_expressions = true;
+
         parameter.binding.visit(
             [&](Identifier const& identifier) {
                 register_identifier(fixme_launder_const_through_pointer_cast(identifier));
@@ -230,6 +233,9 @@ void ScopeCollector::set_function_parameters(NonnullRefPtr<FunctionParameters co
                 var.flags |= ScopeVariable::IsParameterCandidate | ScopeVariable::IsForbiddenLexical;
             },
             [&](NonnullRefPtr<BindingPattern const> const& binding_pattern) {
+                if (binding_pattern->contains_expression())
+                    m_current->has_parameter_expressions = true;
+
                 // NOTE: Nothing in the callback throws an exception.
                 MUST(binding_pattern->for_each_bound_identifier([&](auto const& identifier) {
                     register_identifier(fixme_launder_const_through_pointer_cast(identifier));
@@ -237,6 +243,17 @@ void ScopeCollector::set_function_parameters(NonnullRefPtr<FunctionParameters co
                     var.flags |= ScopeVariable::IsParameterCandidate | ScopeVariable::IsForbiddenLexical;
                 }));
             });
+    }
+
+    // Mark non-parameter names that were referenced during formal parameter
+    // parsing (i.e. in default value expressions). If a body var later
+    // declares the same name, it must not be optimized to a local, since the
+    // default expression needs to resolve it from the outer scope.
+    if (m_current->has_parameter_expressions) {
+        for (auto& [name, group] : m_current->identifier_groups) {
+            if (!m_current->has_variable_with_flags(name, ScopeVariable::IsForbiddenLexical))
+                m_current->variables.ensure(name).flags |= ScopeVariable::IsReferencedInFormalParameters;
+        }
     }
 }
 
@@ -392,6 +409,22 @@ void ScopeCollector::resolve_identifiers(ScopeRecord& scope, bool initiated_by_e
 
         if (scope.type == ScopeRecord::ScopeType::Catch && (var_flags & ScopeVariable::IsCatchParameter)) {
             local_variable_declaration_kind = LocalVariable::DeclarationKind::CatchClauseParameter;
+        }
+
+        // When a function has parameter expressions (default values, etc.), body
+        // var declarations live in a separate Variable Environment from the
+        // parameter scope. If the same name is also referenced in a default
+        // parameter expression, it must not be a local: the default expression
+        // needs to resolve it from the outer scope via the environment chain,
+        // not read the (uninitialized) local.
+        // We also mark the name as captured in the parent scope, so that the
+        // outer binding is not optimized to a local register either.
+        if ((var_flags & ScopeVariable::IsReferencedInFormalParameters)
+            && (var_flags & ScopeVariable::IsVar)
+            && !(var_flags & ScopeVariable::IsForbiddenLexical)) {
+            if (scope.parent)
+                scope.parent->identifier_groups.ensure(identifier_group_name).captured_by_nested_function = true;
+            continue;
         }
 
         bool hoistable_function_declaration = scope.functions_to_hoist.contains([&](auto const& function_declaration) {

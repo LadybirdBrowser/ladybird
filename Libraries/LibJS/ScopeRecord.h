@@ -28,6 +28,7 @@ struct ScopeVariable {
         IsForbiddenVar = 1 << 5,
         IsBound = 1 << 6,
         IsParameterCandidate = 1 << 7,
+        IsReferencedInFormalParameters = 1 << 8,
     };
 
     u16 flags { 0 };
@@ -88,6 +89,7 @@ struct ScopeRecord {
     bool uses_this { false };
     bool is_arrow_function { false };
     bool is_function_declaration { false };
+    bool has_parameter_expressions { false };
 
     ScopeRecord* parent { nullptr };
     ScopeRecord* top_level { nullptr };
