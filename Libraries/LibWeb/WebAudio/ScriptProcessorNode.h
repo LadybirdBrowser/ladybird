@@ -20,8 +20,11 @@ public:
 
     virtual ~ScriptProcessorNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>,
-        WebIDL::Long buffer_size, WebIDL::UnsignedLong number_of_input_channels,
+    static WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> create(
+        JS::Realm&,
+        GC::Ref<BaseAudioContext>,
+        WebIDL::Long buffer_size,
+        WebIDL::UnsignedLong number_of_input_channels,
         WebIDL::UnsignedLong number_of_output_channel);
 
     // ^AudioNode
@@ -38,8 +41,7 @@ public:
     WebIDL::ExceptionOr<void> set_buffer_size(WebIDL::Long buffer_size);
 
 private:
-    ScriptProcessorNode(JS::Realm&, GC::Ref<BaseAudioContext>, u8 number_of_input_channels,
-        u8 number_of_output_channels);
+    ScriptProcessorNode(JS::Realm&, GC::Ref<BaseAudioContext>, u8 number_of_input_channels, u8 number_of_output_channels);
 
     virtual void initialize(JS::Realm&) override;
 

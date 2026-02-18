@@ -19,9 +19,17 @@ class CSSTransition : public Animations::Animation {
     GC_DECLARE_ALLOCATOR(CSSTransition);
 
 public:
-    static GC::Ref<CSSTransition> start_a_transition(DOM::AbstractElement, PropertyID,
-        size_t transition_generation, double delay, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value,
-        NonnullRefPtr<StyleValue const> end_value, NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
+    static GC::Ref<CSSTransition> start_a_transition(
+        DOM::AbstractElement,
+        PropertyID,
+        size_t transition_generation,
+        double delay,
+        double start_time,
+        double end_time,
+        NonnullRefPtr<StyleValue const> start_value,
+        NonnullRefPtr<StyleValue const> end_value,
+        NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
+        double reversing_shortening_factor);
 
     StringView transition_property() const;
 
@@ -49,9 +57,18 @@ public:
     void set_previous_phase(Phase phase) { m_previous_phase = phase; }
 
 private:
-    CSSTransition(JS::Realm&, DOM::AbstractElement, PropertyID, size_t transition_generation,
-        double delay, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value, NonnullRefPtr<StyleValue const> end_value,
-        NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
+    CSSTransition(
+        JS::Realm&,
+        DOM::AbstractElement,
+        PropertyID,
+        size_t transition_generation,
+        double delay,
+        double start_time,
+        double end_time,
+        NonnullRefPtr<StyleValue const> start_value,
+        NonnullRefPtr<StyleValue const> end_value,
+        NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
+        double reversing_shortening_factor);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

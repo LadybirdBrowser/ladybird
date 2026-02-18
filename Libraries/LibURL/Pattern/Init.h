@@ -30,9 +30,16 @@ enum class PatternProcessType {
     URL,
 };
 
-PatternErrorOr<Init> process_a_url_pattern_init(Init const&, PatternProcessType type,
-    Optional<String> const& protocol, Optional<String> const& username, Optional<String> const& password,
-    Optional<String> const& hostname, Optional<String> const& port, Optional<String> const& pathname,
-    Optional<String> const& search, Optional<String> const& hash);
+PatternErrorOr<Init> process_a_url_pattern_init(
+    Init const&,
+    PatternProcessType type,
+    Optional<String> const& protocol,
+    Optional<String> const& username,
+    Optional<String> const& password,
+    Optional<String> const& hostname,
+    Optional<String> const& port,
+    Optional<String> const& pathname,
+    Optional<String> const& search,
+    Optional<String> const& hash);
 
 }

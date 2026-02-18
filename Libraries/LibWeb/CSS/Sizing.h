@@ -21,7 +21,8 @@ struct SizeWithAspectRatio {
 
 // https://drafts.csswg.org/css-images/#default-sizing
 CSSPixelSize run_default_sizing_algorithm(
-    Optional<CSSPixels> specified_width, Optional<CSSPixels> specified_height,
+    Optional<CSSPixels> specified_width,
+    Optional<CSSPixels> specified_height,
     SizeWithAspectRatio const& natural_size,
     CSSPixelSize default_size);
 

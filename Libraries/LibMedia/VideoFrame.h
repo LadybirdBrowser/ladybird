@@ -18,9 +18,12 @@ namespace Media {
 class MEDIA_API VideoFrame final {
 
 public:
-    VideoFrame(AK::Duration timestamp, AK::Duration duration,
+    VideoFrame(
+        AK::Duration timestamp,
+        AK::Duration duration,
         Gfx::Size<u32> size,
-        u8 bit_depth, CodingIndependentCodePoints cicp,
+        u8 bit_depth,
+        CodingIndependentCodePoints cicp,
         NonnullRefPtr<Gfx::ImmutableBitmap> bitmap);
     ~VideoFrame();
 

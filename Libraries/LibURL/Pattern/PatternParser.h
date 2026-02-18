@@ -34,8 +34,12 @@ private:
     PatternErrorOr<void> consume_a_required_token(Token::Type);
     String consume_text();
     PatternErrorOr<void> maybe_add_a_part_from_the_pending_fixed_value();
-    PatternErrorOr<void> add_a_part(String const& prefix, Optional<Token const&> name_token,
-        Optional<Token const&> regexp_or_wildcard_token, String const& suffix, Optional<Token const&> modifier_token);
+    PatternErrorOr<void> add_a_part(
+        String const& prefix,
+        Optional<Token const&> name_token,
+        Optional<Token const&> regexp_or_wildcard_token,
+        String const& suffix,
+        Optional<Token const&> modifier_token);
     bool is_a_duplicate_name(String const&) const;
 
     // https://urlpattern.spec.whatwg.org/#pattern-parser-token-list

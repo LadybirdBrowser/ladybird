@@ -27,8 +27,12 @@ public:
         Second,
     };
 
-    [[nodiscard]] static GC::Ref<SVGAnimatedNumber> create(JS::Realm&, GC::Ref<SVGElement>,
-        DOM::QualifiedName reflected_attribute, float initial_value, SupportsSecondValue = SupportsSecondValue::No,
+    [[nodiscard]] static GC::Ref<SVGAnimatedNumber> create(
+        JS::Realm&,
+        GC::Ref<SVGElement>,
+        DOM::QualifiedName reflected_attribute,
+        float initial_value,
+        SupportsSecondValue = SupportsSecondValue::No,
         ValueRepresented = ValueRepresented::First);
     virtual ~SVGAnimatedNumber() override;
 

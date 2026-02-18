@@ -39,9 +39,14 @@ public:
     String const& url() const { return m_url; }
     GC::Ptr<Storage const> storage_area() const { return m_storage_area; }
 
-    void init_storage_event(String const& type, bool bubbles = false, bool cancelable = false,
-        Optional<String> const& key = {}, Optional<String> const& old_value = {}, Optional<String> const& new_value = {},
-        String const& url = {}, GC::Ptr<Storage> storage_area = {});
+    void init_storage_event(String const& type,
+        bool bubbles = false,
+        bool cancelable = false,
+        Optional<String> const& key = {},
+        Optional<String> const& old_value = {},
+        Optional<String> const& new_value = {},
+        String const& url = {},
+        GC::Ptr<Storage> storage_area = {});
 
 protected:
     virtual void visit_edges(Visitor& visitor) override;

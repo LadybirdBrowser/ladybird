@@ -32,7 +32,9 @@ public:
     }
 
 private:
-    AnchorSizeStyleValue(Optional<FlyString> const& anchor_name, Optional<AnchorSize> const& anchor_size,
+    AnchorSizeStyleValue(
+        Optional<FlyString> const& anchor_name,
+        Optional<AnchorSize> const& anchor_size,
         ValueComparingRefPtr<StyleValue const> const& fallback_value);
 
     struct Properties {

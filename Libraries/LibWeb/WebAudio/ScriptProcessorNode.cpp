@@ -26,8 +26,11 @@ ScriptProcessorNode::ScriptProcessorNode(JS::Realm& realm, GC::Ref<BaseAudioCont
 
 ScriptProcessorNode::~ScriptProcessorNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> ScriptProcessorNode::create(JS::Realm& realm,
-    GC::Ref<BaseAudioContext> context, WebIDL::Long buffer_size, WebIDL::UnsignedLong number_of_input_channels,
+WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> ScriptProcessorNode::create(
+    JS::Realm& realm,
+    GC::Ref<BaseAudioContext> context,
+    WebIDL::Long buffer_size,
+    WebIDL::UnsignedLong number_of_input_channels,
     WebIDL::UnsignedLong number_of_output_channels)
 {
     // https://webaudio.github.io/web-audio-api/#ScriptProcessorNode

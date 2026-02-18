@@ -15,16 +15,25 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedInteger);
 
-GC::Ref<SVGAnimatedInteger> SVGAnimatedInteger::create(JS::Realm& realm, GC::Ref<SVGElement> element,
-    DOM::QualifiedName reflected_attribute, WebIDL::Long initial_value, SupportsSecondValue supports_second_value,
+GC::Ref<SVGAnimatedInteger> SVGAnimatedInteger::create(
+    JS::Realm& realm,
+    GC::Ref<SVGElement> element,
+    DOM::QualifiedName reflected_attribute,
+    WebIDL::Long initial_value,
+    SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
 {
     return realm.create<SVGAnimatedInteger>(realm, element, move(reflected_attribute), initial_value,
         supports_second_value, value_represented);
 }
 
-SVGAnimatedInteger::SVGAnimatedInteger(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute,
-    WebIDL::Long initial_value, SupportsSecondValue supports_second_value, ValueRepresented value_represented)
+SVGAnimatedInteger::SVGAnimatedInteger(
+    JS::Realm& realm,
+    GC::Ref<SVGElement> element,
+    DOM::QualifiedName reflected_attribute,
+    WebIDL::Long initial_value,
+    SupportsSecondValue supports_second_value,
+    ValueRepresented value_represented)
     : PlatformObject(realm)
     , m_element(element)
     , m_reflected_attribute(move(reflected_attribute))

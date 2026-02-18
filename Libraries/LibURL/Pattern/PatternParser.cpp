@@ -93,8 +93,12 @@ bool PatternParser::is_a_duplicate_name(String const& name) const
 }
 
 // https://urlpattern.spec.whatwg.org/#add-a-part
-PatternErrorOr<void> PatternParser::add_a_part(String const& prefix, Optional<Token const&> name_token,
-    Optional<Token const&> regexp_or_wildcard_token, String const& suffix, Optional<Token const&> modifier_token)
+PatternErrorOr<void> PatternParser::add_a_part(
+    String const& prefix,
+    Optional<Token const&> name_token,
+    Optional<Token const&> regexp_or_wildcard_token,
+    String const& suffix,
+    Optional<Token const&> modifier_token)
 {
     // 1. Let modifier be "none".
     auto modifier = Part::Modifier::None;

@@ -24,11 +24,9 @@ public:
 
     static TVGIconEngine* from_file(QString const& path);
 
-    void paint(QPainter* painter, QRect const& rect, QIcon::Mode mode,
-        QIcon::State state) override;
+    void paint(QPainter* painter, QRect const& rect, QIcon::Mode mode, QIcon::State state) override;
     QIconEngine* clone() const override;
-    QPixmap pixmap(QSize const& size, QIcon::Mode mode,
-        QIcon::State state) override;
+    QPixmap pixmap(QSize const& size, QIcon::Mode mode, QIcon::State state) override;
 
     void add_filter(QIcon::Mode mode, Function<Color(Color)> filter);
 

@@ -28,9 +28,15 @@ GC::Ref<StorageEvent> StorageEvent::construct_impl(JS::Realm& realm, FlyString c
 StorageEvent::~StorageEvent() = default;
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storageevent-initstorageevent
-void StorageEvent::init_storage_event(String const& type, bool bubbles, bool cancelable,
-    Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value,
-    String const& url, GC::Ptr<Storage> storage_area)
+void StorageEvent::init_storage_event(
+    String const& type,
+    bool bubbles,
+    bool cancelable,
+    Optional<String> const& key,
+    Optional<String> const& old_value,
+    Optional<String> const& new_value,
+    String const& url,
+    GC::Ptr<Storage> storage_area)
 {
     // The initStorageEvent(type, bubbles, cancelable, key, oldValue, newValue, url, storageArea) method must initialize
     // the event in a manner analogous to the similarly-named initEvent() method. [DOM]
