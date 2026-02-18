@@ -50,12 +50,7 @@ u64 compute_maximum_disk_cache_entry_size(u64 maximum_disk_cache_size)
 
 String serialize_url_for_cache_storage(URL::URL const& url)
 {
-    if (!url.fragment().has_value())
-        return url.serialize();
-
-    auto sanitized = url;
-    sanitized.set_fragment({});
-    return sanitized.serialize();
+    return url.serialize(URL::ExcludeFragment::Yes);
 }
 
 static u64 serialize_hash(Crypto::Hash::SHA1& hasher)
