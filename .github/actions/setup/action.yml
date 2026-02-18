@@ -21,7 +21,7 @@ inputs:
   llvm_version:
     description: 'LLVM version to install'
     required: false
-    default: '20'
+    default: '21'
 
 outputs:
   gcc_version:

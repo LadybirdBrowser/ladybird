@@ -115,6 +115,7 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str, clang_only: bool) 
             "clang",
             "clang-19",
             "clang-20",
+            "clang-21",
         ]
 
         gcc_candidates = [

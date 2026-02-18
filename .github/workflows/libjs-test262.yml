@@ -6,7 +6,7 @@ on:
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
-  LLVM_VERSION: 20
+  LLVM_VERSION: 21
   VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
 
 jobs:

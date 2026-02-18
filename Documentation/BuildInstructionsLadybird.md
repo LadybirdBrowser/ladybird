@@ -4,7 +4,7 @@
 
 Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
 
-We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are not available on your system, see
+We currently use gcc-14 and clang-21 in our CI pipeline. If these versions are not available on your system, see
 [`Meta/find_compiler.py`](../Meta/find_compiler.py) for the minimum compatible version.
 
 CMake 3.30 or newer must be available in $PATH.
@@ -49,10 +49,10 @@ sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm
 # Optional: Verify the GPG key manually
 
 # Use the key to authorize an entry for apt.llvm.org in apt sources list
-echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-21 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
 # Update apt package list and install clang and associated packages
-sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
+sudo apt update -y && sudo apt install clang-21 clangd-21 clang-tools-21 clang-format-21 clang-tidy-21 lld-21 -y
 ```
 
 - Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
@@ -157,7 +157,7 @@ brew install autoconf autoconf-archive automake ccache cmake libtool nasm ninja 
 
 If you wish to use clang from homebrew instead:
 ```
-brew install llvm@20
+brew install llvm@21
 ```
 
 If you also plan to use the Qt UI on macOS:
@@ -173,7 +173,7 @@ brew install qt
 ### Windows:
 
 WSL2 is the supported way to build Ladybird on Windows. A native build is also possible, however it is still experimental,
-and there are several issues. 
+and there are several issues.
 
 #### WSL2
 - Create a WSL2 environment using one of the Linux distros listed above. Ubuntu or Fedora is recommended.
