@@ -105,7 +105,6 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_text_tracks);
     visitor.visit(m_document_observer);
     visitor.visit(m_source_element_selector);
-    visitor.visit(m_fetch_controller);
     visitor.visit(m_pending_play_promises);
     visitor.visit(m_selected_video_track);
 }
