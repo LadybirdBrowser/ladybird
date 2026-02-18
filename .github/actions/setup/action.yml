@@ -41,7 +41,9 @@ runs:
 
     - name: 'Install Python dependencies'
       shell: bash
-      run: pip install pyyaml requests six
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install pyyaml requests six
 
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'Linux' }}
