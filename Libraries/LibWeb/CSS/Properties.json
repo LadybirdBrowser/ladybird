@@ -2139,6 +2139,10 @@
     "inherited": true,
     "initial": "normal",
     "requires-computation": "never",
+    "valid-identifiers": [
+      "normal",
+      "none"
+    ],
     "valid-types": [
       "font-variant-ligatures"
     ]

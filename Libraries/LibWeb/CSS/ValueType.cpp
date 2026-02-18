@@ -41,6 +41,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::Flex;
     if (string.equals_ignoring_ascii_case("font-variant-east-asian"sv))
         return ValueType::FontVariantEastAsian;
+    if (string.equals_ignoring_ascii_case("font-variant-ligatures"sv))
+        return ValueType::FontVariantLigatures;
     if (string.equals_ignoring_ascii_case("frequency"sv))
         return ValueType::Frequency;
     if (string.equals_ignoring_ascii_case("frequency-percentage"sv))
@@ -131,6 +133,8 @@ StringView value_type_to_string(ValueType value_type)
         return "FontStyle"sv;
     case Web::CSS::ValueType::FontVariantEastAsian:
         return "FontVariantEastAsian"sv;
+    case Web::CSS::ValueType::FontVariantLigatures:
+        return "FontVariantLigatures"sv;
     case Web::CSS::ValueType::Frequency:
         return "Frequency"sv;
     case Web::CSS::ValueType::FrequencyPercentage:
