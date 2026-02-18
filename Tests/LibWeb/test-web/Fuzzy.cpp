@@ -14,8 +14,13 @@
 namespace TestWeb {
 
 // https://web-platform-tests.org/writing-tests/reftests.html#fuzzy-matching
-bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference, Gfx::Bitmap const& bitmap_a,
-    Gfx::Bitmap const& bitmap_b, ReadonlySpan<FuzzyMatch> fuzzy_matches, bool should_match)
+bool fuzzy_screenshot_match(
+    URL::URL const& test_url,
+    URL::URL const& reference,
+    Gfx::Bitmap const& bitmap_a,
+    Gfx::Bitmap const& bitmap_b,
+    ReadonlySpan<FuzzyMatch> fuzzy_matches,
+    bool should_match)
 {
     if (bitmap_a.width() != bitmap_b.width() || bitmap_a.height() != bitmap_b.height())
         return false;

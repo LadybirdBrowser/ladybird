@@ -65,8 +65,16 @@ protected:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 private:
-    PullIntoDescriptor(GC::Ref<JS::ArrayBuffer> buffer, u64 buffer_byte_length, u64 byte_offset, u64 byte_length, u64 bytes_filled,
-        u64 minimum_fill, u64 element_size, GC::Ref<JS::NativeFunction> view_constructor, ReaderType reader_type)
+    PullIntoDescriptor(
+        GC::Ref<JS::ArrayBuffer> buffer,
+        u64 buffer_byte_length,
+        u64 byte_offset,
+        u64 byte_length,
+        u64 bytes_filled,
+        u64 minimum_fill,
+        u64 element_size,
+        GC::Ref<JS::NativeFunction> view_constructor,
+        ReaderType reader_type)
         : buffer(buffer)
         , buffer_byte_length(buffer_byte_length)
         , byte_offset(byte_offset)

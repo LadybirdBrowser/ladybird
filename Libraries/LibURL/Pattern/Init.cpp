@@ -166,10 +166,17 @@ static String process_hash_for_init(String const& value, PatternProcessType type
 }
 
 // https://urlpattern.spec.whatwg.org/#process-a-urlpatterninit
-PatternErrorOr<Init> process_a_url_pattern_init(Init const& init, PatternProcessType type,
-    Optional<String> const& protocol, Optional<String> const& username, Optional<String> const& password,
-    Optional<String> const& hostname, Optional<String> const& port, Optional<String> const& pathname,
-    Optional<String> const& search, Optional<String> const& hash)
+PatternErrorOr<Init> process_a_url_pattern_init(
+    Init const& init,
+    PatternProcessType type,
+    Optional<String> const& protocol,
+    Optional<String> const& username,
+    Optional<String> const& password,
+    Optional<String> const& hostname,
+    Optional<String> const& port,
+    Optional<String> const& pathname,
+    Optional<String> const& search,
+    Optional<String> const& hash)
 {
     // 1. Let result be the result of creating a new URLPatternInit.
     Init result;

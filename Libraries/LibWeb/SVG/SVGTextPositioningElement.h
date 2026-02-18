@@ -23,8 +23,7 @@ struct TextPositioning {
     Vector<Position> dy;
     Vector<float> rotate;
 
-    void apply_to_text_position(Layout::Node const& node, CSSPixelSize viewport, Gfx::FloatPoint& current_text_position,
-        size_t character_index) const
+    void apply_to_text_position(Layout::Node const& node, CSSPixelSize viewport, Gfx::FloatPoint& current_text_position, size_t character_index) const
     {
         auto value_for_character = [&](Vector<Position> const& values) -> float {
             if (values.is_empty())

@@ -54,8 +54,11 @@ WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-offlineaudiocontext-numberofchannels-length-samplerate
-WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct_impl(JS::Realm& realm,
-    WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
+WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct_impl(
+    JS::Realm& realm,
+    WebIDL::UnsignedLong number_of_channels,
+    WebIDL::UnsignedLong length,
+    float sample_rate)
 {
     return construct_impl(realm, { number_of_channels, length, sample_rate });
 }

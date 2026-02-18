@@ -595,9 +595,12 @@ struct StorageOperations {
 
     template<bool restore_remainder = false>
     static constexpr void div_mod_internal(
-        StorageSpan<WordType, false> dividend, StorageSpan<WordType, false> divisor,
-        StorageSpan<WordType, false> quotient, StorageSpan<WordType, false> remainder,
-        size_t dividend_len, size_t divisor_len)
+        StorageSpan<WordType, false> dividend,
+        StorageSpan<WordType, false> divisor,
+        StorageSpan<WordType, false> quotient,
+        StorageSpan<WordType, false> remainder,
+        size_t dividend_len,
+        size_t divisor_len)
     {
         // Knuth's algorithm D
         // D1. Normalize

@@ -20,9 +20,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSTransition);
 
-GC::Ref<CSSTransition> CSSTransition::start_a_transition(DOM::AbstractElement abstract_element, PropertyID property_id,
-    size_t transition_generation, double delay, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value,
-    NonnullRefPtr<StyleValue const> end_value, NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor)
+GC::Ref<CSSTransition> CSSTransition::start_a_transition(
+    DOM::AbstractElement abstract_element,
+    PropertyID property_id,
+    size_t transition_generation,
+    double delay,
+    double start_time,
+    double end_time,
+    NonnullRefPtr<StyleValue const> start_value,
+    NonnullRefPtr<StyleValue const> end_value,
+    NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
+    double reversing_shortening_factor)
 {
     auto& realm = abstract_element.element().realm();
     return realm.create<CSSTransition>(realm, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
@@ -81,9 +89,18 @@ int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation>
     return transition_property().compare(other->transition_property());
 }
 
-CSSTransition::CSSTransition(JS::Realm& realm, DOM::AbstractElement abstract_element, PropertyID property_id, size_t transition_generation,
-    double delay, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value, NonnullRefPtr<StyleValue const> end_value,
-    NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor)
+CSSTransition::CSSTransition(
+    JS::Realm& realm,
+    DOM::AbstractElement abstract_element,
+    PropertyID property_id,
+    size_t transition_generation,
+    double delay,
+    double start_time,
+    double end_time,
+    NonnullRefPtr<StyleValue const> start_value,
+    NonnullRefPtr<StyleValue const> end_value,
+    NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
+    double reversing_shortening_factor)
     : Animations::Animation(realm)
     , m_transition_property(property_id)
     , m_transition_generation(transition_generation)

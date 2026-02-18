@@ -18,7 +18,7 @@ struct Tuple {
 template<typename T>
 struct Tuple<T> {
     Tuple(T&& value)
-    requires(!IsSame < T &&, T const& >)
+    requires(!IsSame<T &&, T const&>)
         : value(forward<T>(value))
     {
     }

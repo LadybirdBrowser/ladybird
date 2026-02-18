@@ -15,7 +15,9 @@ ValueComparingNonnullRefPtr<AnchorSizeStyleValue const> AnchorSizeStyleValue::cr
     return adopt_ref(*new (nothrow) AnchorSizeStyleValue(anchor_name, anchor_size, fallback_value));
 }
 
-AnchorSizeStyleValue::AnchorSizeStyleValue(Optional<FlyString> const& anchor_name, Optional<AnchorSize> const& anchor_size,
+AnchorSizeStyleValue::AnchorSizeStyleValue(
+    Optional<FlyString> const& anchor_name,
+    Optional<AnchorSize> const& anchor_size,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
     : StyleValueWithDefaultOperators(Type::AnchorSize)
     , m_properties { .anchor_name = anchor_name, .anchor_size = anchor_size, .fallback_value = fallback_value }
