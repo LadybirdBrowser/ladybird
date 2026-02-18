@@ -27,6 +27,14 @@ public:
 
     bool properties_equal(TupleStyleValue const& other) const { return m_tuple == other.m_tuple; }
 
+    struct Indices {
+        struct FontVariantEastAsian {
+            static constexpr size_t Variant = 0;
+            static constexpr size_t Width = 1;
+            static constexpr size_t Ruby = 2;
+        };
+    };
+
 private:
     explicit TupleStyleValue(StyleValueTuple values)
         : StyleValueWithDefaultOperators(Type::Tuple)

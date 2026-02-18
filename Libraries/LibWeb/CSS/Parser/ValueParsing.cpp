@@ -77,6 +77,7 @@
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -3719,9 +3720,8 @@ RefPtr<StyleValue const> Parser::parse_font_variant_east_asian_value(TokenStream
     // [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
     // <east-asian-variant-values> = [ jis78 | jis83 | jis90 | jis04 | simplified | traditional ]
     // <east-asian-width-values>   = [ full-width | proportional-width ]
-    RefPtr<StyleValue const> ruby_value;
-    RefPtr<StyleValue const> variant_value;
-    RefPtr<StyleValue const> width_value;
+    StyleValueTuple tuple;
+    tuple.resize_with_default_value(3, nullptr);
 
     while (tokens.has_next_token()) {
         auto keyword_transaction = tokens.begin_transaction();
@@ -3729,52 +3729,37 @@ RefPtr<StyleValue const> Parser::parse_font_variant_east_asian_value(TokenStream
         if (!maybe_value)
             break;
 
-        auto font_variant_east_asian = keyword_to_font_variant_east_asian_keyword(maybe_value->to_keyword());
-        if (!font_variant_east_asian.has_value())
-            break;
-
-        switch (font_variant_east_asian.value()) {
-        case FontVariantEastAsianKeyword::Ruby:
-            if (ruby_value)
+        if (maybe_value->to_keyword() == Keyword::Ruby) {
+            if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Ruby])
                 return nullptr;
             keyword_transaction.commit();
-            ruby_value = maybe_value.release_nonnull();
-            break;
-        case FontVariantEastAsianKeyword::FullWidth:
-        case FontVariantEastAsianKeyword::ProportionalWidth:
-            if (width_value)
-                return nullptr;
-            keyword_transaction.commit();
-            width_value = maybe_value.release_nonnull();
-            break;
-        case FontVariantEastAsianKeyword::Jis78:
-        case FontVariantEastAsianKeyword::Jis83:
-        case FontVariantEastAsianKeyword::Jis90:
-        case FontVariantEastAsianKeyword::Jis04:
-        case FontVariantEastAsianKeyword::Simplified:
-        case FontVariantEastAsianKeyword::Traditional:
-            if (variant_value)
-                return nullptr;
-            keyword_transaction.commit();
-            variant_value = maybe_value.release_nonnull();
-            break;
+            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Ruby] = maybe_value.release_nonnull();
+            continue;
         }
+
+        if (keyword_to_east_asian_width(maybe_value->to_keyword()).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width])
+                return nullptr;
+            keyword_transaction.commit();
+            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width] = maybe_value.release_nonnull();
+            continue;
+        }
+
+        if (keyword_to_east_asian_variant(maybe_value->to_keyword()).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant])
+                return nullptr;
+            keyword_transaction.commit();
+            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant] = maybe_value.release_nonnull();
+            continue;
+        }
+
+        break;
     }
 
-    StyleValueVector values;
-    if (variant_value)
-        values.append(variant_value.release_nonnull());
-    if (width_value)
-        values.append(width_value.release_nonnull());
-    if (ruby_value)
-        values.append(ruby_value.release_nonnull());
-
-    if (values.is_empty())
+    if (!any_of(tuple, [](auto& value) { return value != nullptr; }))
         return nullptr;
-    if (values.size() == 1)
-        return *values.first();
 
-    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    return TupleStyleValue::create(tuple);
 }
 
 RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
