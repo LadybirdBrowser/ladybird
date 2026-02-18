@@ -1,26 +1,22 @@
 name: Run test262 and test-wasm
 
-on:
-  push:
-    branches: [master]
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || format('{0}-{1}', github.ref, github.run_number) }}
+  cancel-in-progress: true
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
   VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
 
 jobs:
   run_and_update_results:
-    runs-on: test262-runner
+    runs-on: 'blacksmith-16vcpu-ubuntu-2404'
     if: github.repository == 'LadybirdBrowser/ladybird'
 
-    concurrency: libjs-test262
-
     steps:
-      - name: Cleanup
-        run: |
-          echo "Cleaning up previous run"
-          rm -rf "${{ github.workspace }}/*"
-
       - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v6.0.2
         with:
@@ -56,24 +52,7 @@ jobs:
         with:
           os: 'Linux'
           arch: 'x86_64'
-
-      # We are currently limited to CMake 3.28 in Ubuntu 24.04. Our build requires CMake 3.30 or later.
-      - name: Upgrade CMake
-        run: |
-          CMAKE_VERSION=4.2.3
-          CMAKE_NAME="cmake-${CMAKE_VERSION}-linux-x86_64"
-
-          test -e ${CMAKE_NAME} || (
-            curl -f -L -o "${CMAKE_NAME}.tar.gz" "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_NAME}.tar.gz"
-            tar -xzf "./${CMAKE_NAME}.tar.gz"
-            rm "./${CMAKE_NAME}.tar.gz"
-
-            echo "${{ github.workspace }}/${CMAKE_NAME}/bin" >> $GITHUB_PATH
-          )
-
-      - name: Print CMake version
-        run: |
-          cmake --version
+          toolchain: 'Clang'
 
       - name: Install Python dependencies
         run: |
@@ -81,10 +60,15 @@ jobs:
 
       - name: Restore Caches
         uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
         with:
-          runner_labels: '["test262-runner"]'
+          runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
           os: 'Linux'
-          arch: 'Lagom'
+          arch: 'x86_64'
+          toolchain: 'Clang'
+          cache_key_extra: 'test262'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Get previous results
         run: |
@@ -93,11 +77,6 @@ jobs:
 
       - name: Build test262-runner, test-js, test-wasm and test-js-bytecode
         run: |
-          # FIXME: Why does vcpkg need this?
-          #        Running as a normal user would make this a non-issue though
-          export HOME=${{ github.workspace }}/home
-          mkdir -p $HOME
-
           cmake --preset Release -B libjs-test262/Build \
             -DCMAKE_C_COMPILER=clang-${{ steps.setup.outputs.llvm_version }} \
             -DCMAKE_CXX_COMPILER=clang++-${{ steps.setup.outputs.llvm_version }} \
@@ -105,6 +84,16 @@ jobs:
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DENABLE_GUI_TARGETS=OFF
           ninja -C libjs-test262/Build test262-runner test-js test-wasm test-js-bytecode
+
+      - name: Save Caches
+        uses: ./.github/actions/cache-save
+        with:
+          runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+          arch: 'x86_64'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       - name: Run test262 and test262-parser-tests
         working-directory: libjs-test262
@@ -150,6 +139,7 @@ jobs:
         run: ./libjs-test262/per_file_result_diff.py -o old-libjs-data/wasm/per-file-master.json -n libjs-data/wasm/per-file-master.json
 
       - name: Deploy to GitHub
+        if: ${{ github.ref == 'refs/heads/master' }}
         uses: JamesIves/github-pages-deploy-action@v4.8.0
         with:
           git-config-name: LadybirdBot
