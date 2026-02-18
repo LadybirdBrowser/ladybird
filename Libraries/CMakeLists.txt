@@ -17,6 +17,7 @@ add_subdirectory(LibWebSocket)
 add_subdirectory(LibXML)
 
 if (ENABLE_GUI_TARGETS)
+    add_subdirectory(LibAudioServer)
     add_subdirectory(LibDevTools)
     add_subdirectory(LibGfx)
     add_subdirectory(LibImageDecoderClient)
