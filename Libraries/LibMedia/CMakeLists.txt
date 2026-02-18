@@ -1,5 +1,3 @@
-include(audio)
-
 include(ffmpeg)
 
 set(SOURCES
@@ -20,7 +18,7 @@ set(SOURCES
 )
 
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
+target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode LibAudioServer)
 
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
@@ -37,23 +35,4 @@ else()
     target_include_directories(LibMedia PRIVATE ${FFMPEG_INCLUDE_DIRS})
     target_link_directories(LibMedia PRIVATE ${FFMPEG_LIBRARY_DIRS})
     target_link_libraries(LibMedia PRIVATE ${FFMPEG_LIBRARIES})
-endif()
-
-if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
-    target_sources(LibMedia PRIVATE
-        Audio/PlaybackStreamPulseAudio.cpp
-        Audio/PulseAudioWrappers.cpp
-    )
-    target_link_libraries(LibMedia PRIVATE PkgConfig::PULSEAUDIO)
-elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "AUDIO_UNIT")
-    target_sources(LibMedia PRIVATE Audio/PlaybackStreamAudioUnit.cpp)
-    find_library(AUDIO_TOOLBOX AudioToolbox REQUIRED)
-    target_link_libraries(LibMedia PRIVATE ${AUDIO_TOOLBOX})
-elseif(LADYBIRD_AUDIO_BACKEND STREQUAL "WASAPI")
-    target_sources(LibMedia PRIVATE Audio/PlaybackStreamWasapi.cpp)
-    target_link_libraries(LibMedia PRIVATE ole32 avrt winmm)
-elseif (DEFINED LADYBIRD_AUDIO_BACKEND)
-    message(FATAL_ERROR "Please update ${CMAKE_CURRENT_LIST_FILE} for audio backend ${LADYBIRD_AUDIO_BACKEND}")
-else ()
-    target_sources(LibMedia PRIVATE Audio/PlaybackStream.cpp)
 endif()

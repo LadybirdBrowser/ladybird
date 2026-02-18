@@ -112,6 +112,7 @@ void AudioDataProvider::ThreadData::set_duration_change_handler(BlockEndTimeHand
 
 void AudioDataProvider::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
+    Threading::MutexLocker locker { m_converter_mutex };
     m_converter->set_output_sample_specification(sample_specification).release_value_but_fixme_should_propagate_errors();
 }
 
@@ -291,6 +292,7 @@ DecoderErrorOr<void> AudioDataProvider::ThreadData::retrieve_next_block(AudioBlo
 {
     TRY(m_decoder->write_next_block(block));
 
+    Threading::MutexLocker locker { m_converter_mutex };
     auto convert_result = m_converter->convert(block);
     if (convert_result.is_error())
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "Sample specification conversion failed: {}", convert_result.error().string_literal());

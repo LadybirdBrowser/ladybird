@@ -140,7 +140,7 @@ constexpr StringView audio_channel_to_string(Channel channel)
 {
     switch (channel) {
     case Audio::Channel::Unknown:
-        return "None"sv;
+        return "Unknown"sv;
     case Audio::Channel::FrontLeft:
         return "FrontLeft"sv;
     case Audio::Channel::FrontRight:

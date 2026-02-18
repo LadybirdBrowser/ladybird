@@ -2,6 +2,7 @@ include(audio)
 
 set(TEST_SOURCES
     TestAudioDataProvider.cpp
+    TestAudioMixingSink.cpp
     TestCICP.cpp
     TestDataProviders.cpp
     TestFFmpegAudioNormalization.cpp
@@ -10,11 +11,15 @@ set(TEST_SOURCES
     TestIncrementallyPopulatedStream.cpp
     TestMatroskaDemuxer.cpp
     TestParseMatroska.cpp
-    TestPlaybackStream.cpp
+    TestPlaybackManager.cpp
     TestVorbisDecode.cpp
     TestVP9Decode.cpp
     TestWav.cpp
 )
+
+if (NOT DEFINED LADYBIRD_AUDIO_BACKEND)
+    list(REMOVE_ITEM TEST_SOURCES TestAudioMixingSink.cpp)
+endif()
 
 foreach(source IN LISTS TEST_SOURCES)
     lagom_test("${source}" LibMedia LIBS LibMedia LibFileSystem WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -22,8 +27,6 @@ endforeach()
 
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
-
-if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
-    target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
-    target_link_libraries(TestPlaybackStream PRIVATE PkgConfig::PULSEAUDIO)
+if (TARGET TestAudioMixingSink)
+    target_link_libraries(TestAudioMixingSink PRIVATE LibAudioServer LibIPC)
 endif()
