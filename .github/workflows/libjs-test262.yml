@@ -85,7 +85,6 @@ jobs:
           runner_labels: '["test262-runner"]'
           os: 'Linux'
           arch: 'Lagom'
-          download_cache_path: ${{ github.workspace }}/libjs-test262/Build/caches
 
       - name: Get previous results
         run: |
