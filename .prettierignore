@@ -1,3 +1,5 @@
+Tests/LibJS/AST/
+Tests/LibJS/Bytecode/
 Tests/LibJS/Runtime/invalid-lhs-in-assignment.js
 Tests/LibJS/Runtime/unicode-identifier-escape.js
 Tests/LibJS/Runtime/modules/failing.mjs
