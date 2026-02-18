@@ -25,6 +25,8 @@ ProcessType process_type_from_name(StringView name)
         return ProcessType::RequestServer;
     if (name == "ImageDecoder"sv)
         return ProcessType::ImageDecoder;
+    if (name == "AudioServer"sv)
+        return ProcessType::AudioServer;
 
     dbgln("Unknown process type: '{}'", name);
     VERIFY_NOT_REACHED();
@@ -43,6 +45,8 @@ StringView process_name_from_type(ProcessType type)
         return "RequestServer"sv;
     case ProcessType::ImageDecoder:
         return "ImageDecoder"sv;
+    case ProcessType::AudioServer:
+        return "AudioServer"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -91,6 +95,12 @@ ProcessManager::~ProcessManager()
 Optional<Process&> ProcessManager::find_process(pid_t pid)
 {
     return m_processes.get(pid);
+}
+
+ProcessPolicyRouter const& ProcessManager::policy_router() const
+{
+    static ProcessPolicyRouter s_router;
+    return s_router;
 }
 
 void ProcessManager::add_process(WebView::Process&& process)

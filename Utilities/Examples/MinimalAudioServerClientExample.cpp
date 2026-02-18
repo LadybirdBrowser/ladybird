@@ -21,6 +21,8 @@
 #include <LibIPC/Transport.h>
 #include <LibMain/Main.h>
 
+#include <stdlib.h>
+
 // This example sends a square wave to AudioServer for 5 seconds.
 //
 // The broker process (the UI/browser launches AudioServer
@@ -204,6 +206,16 @@ static ErrorOr<Core::Process> spawn_audioserver_with_takeover(int takeover_fd)
     // reuse the already-open socketpair() fd.
     auto audio_server_path = TRY(find_audioserver_executable_path());
 
+    auto previous_takeover = Core::Environment::get("SOCKET_TAKEOVER"sv).map([](auto value) {
+        return value.to_byte_string();
+    });
+    auto restore_takeover = AK::ArmedScopeGuard([&] {
+        if (previous_takeover.has_value())
+            MUST(Core::Environment::set("SOCKET_TAKEOVER"sv, previous_takeover.value(), Core::Environment::Overwrite::Yes));
+        else
+            VERIFY(unsetenv("SOCKET_TAKEOVER") == 0);
+    });
+
     auto takeover_string = ByteString::formatted("minimal-example:{}", takeover_fd);
     TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, takeover_string, Core::Environment::Overwrite::Yes));
 
@@ -214,8 +226,5 @@ static ErrorOr<Core::Process> spawn_audioserver_with_takeover(int takeover_fd)
         .arguments = {},
     };
 
-    auto audio_server_process = TRY(Core::Process::spawn(options));
-    TRY(Core::Environment::unset("SOCKET_TAKEOVER"sv));
-
-    return audio_server_process;
+    return Core::Process::spawn(options);
 }
