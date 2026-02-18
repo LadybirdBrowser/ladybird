@@ -1,0 +1,9 @@
+#include <AK/ByteString.h>
+#include <AK/Vector.h>
+#include <LibAudioServer/LibAudioServer.h>
+
+endpoint ToBrokerFromAudioServer
+{
+	did_connect_new_clients(u64 request_token, Vector<AudioServer::CreateClientResponse> responses) =|
+	did_fail_to_connect_new_clients(u64 request_token, ByteString error) =|
+}

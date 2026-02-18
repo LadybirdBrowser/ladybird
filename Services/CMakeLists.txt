@@ -1,3 +1,4 @@
+add_subdirectory(AudioServer)
 add_subdirectory(ImageDecoder)
 add_subdirectory(RequestServer)
 add_subdirectory(WebContent)
