@@ -68,11 +68,18 @@ static RefPtr<AccumulatedVisualContext const> find_common_ancestor(RefPtr<Accumu
     return a;
 }
 
-static Gfx::FloatMatrix4x4 scale_matrix_translation(Gfx::FloatMatrix4x4 matrix, float scale)
+// Converts a CSS-pixel-space 4x4 matrix to device-pixel-space.
+// - Translation column (column 3, rows 0-2) is scaled up by DPR
+// - Perspective row (row 3, columns 0-2) is scaled down by DPR
+// - All other elements are unaffected (the scale factors cancel out)
+static FloatMatrix4x4 scale_matrix_for_device_pixels(FloatMatrix4x4 matrix, float scale)
 {
     matrix[0, 3] *= scale;
     matrix[1, 3] *= scale;
     matrix[2, 3] *= scale;
+    matrix[3, 0] /= scale;
+    matrix[3, 1] /= scale;
+    matrix[3, 2] /= scale;
     return matrix;
 }
 
@@ -109,7 +116,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             },
             [&](PerspectiveData const& perspective) {
                 save({});
-                auto matrix = scale_matrix_translation(perspective.matrix, static_cast<float>(device_pixels_per_css_pixel));
+                auto matrix = scale_matrix_for_device_pixels(perspective.matrix, static_cast<float>(device_pixels_per_css_pixel));
                 apply_transform({ 0, 0 }, matrix);
             },
             [&](ScrollData const& scroll) {
@@ -123,7 +130,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             [&](TransformData const& transform) {
                 save({});
                 auto origin = transform.origin.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<float>();
-                auto matrix = scale_matrix_translation(transform.matrix, static_cast<float>(device_pixels_per_css_pixel));
+                auto matrix = scale_matrix_for_device_pixels(transform.matrix, static_cast<float>(device_pixels_per_css_pixel));
                 apply_transform(origin, matrix);
             },
             [&](ClipData const& clip) {
