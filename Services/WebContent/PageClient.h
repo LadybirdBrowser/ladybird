@@ -206,6 +206,7 @@ private:
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Vector<Web::DevicePixelRect> m_all_screen_rects { Web::DevicePixelRect {} };
     size_t m_main_screen_index { 0 };
+    Web::DevicePixelSize m_viewport_size;
     double m_device_pixel_ratio { 1.0 };
     double m_zoom_level { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
