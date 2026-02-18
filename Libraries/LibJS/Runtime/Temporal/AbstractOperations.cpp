@@ -1591,11 +1591,11 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM& 
 
     // 5. If timeZoneResult.[[TimeZoneAnnotation]] is not EMPTY, return ! ParseTimeZoneIdentifier(timeZoneResult.[[TimeZoneAnnotation]]).
     if (time_zone_result.time_zone_annotation.has_value())
-        return MUST(parse_time_zone_identifier(vm, *time_zone_result.time_zone_annotation));
+        return parse_time_zone_identifier(*time_zone_result.time_zone_annotation);
 
     // 6. If timeZoneResult.[[Z]] is true, return ! ParseTimeZoneIdentifier("UTC").
     if (time_zone_result.z_designator)
-        return MUST(parse_time_zone_identifier(vm, UTC_TIME_ZONE));
+        return parse_time_zone_identifier(UTC_TIME_ZONE);
 
     // 7. If timeZoneResult.[[OffsetString]] is not EMPTY, return ? ParseTimeZoneIdentifier(timeZoneResult.[[OffsetString]]).
     if (time_zone_result.offset_string.has_value())
