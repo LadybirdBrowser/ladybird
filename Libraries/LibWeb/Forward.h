@@ -432,6 +432,8 @@ enum class DisplayBox : u8;
 enum class DisplayInside : u8;
 enum class DisplayInternal : u8;
 enum class DisplayOutside : u8;
+enum class EastAsianVariant : u8;
+enum class EastAsianWidth : u8;
 enum class FontDisplay : u8;
 enum class FontKerning : u8;
 enum class FontOpticalSizing : u8;

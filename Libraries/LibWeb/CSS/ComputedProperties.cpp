@@ -1508,7 +1508,7 @@ FontVariantCaps ComputedProperties::font_variant_caps() const
     return keyword_to_font_variant_caps(value.to_keyword()).release_value();
 }
 
-Optional<Gfx::FontVariantEastAsian> ComputedProperties::font_variant_east_asian() const
+Optional<FontVariantEastAsian> ComputedProperties::font_variant_east_asian() const
 {
     auto const& value = property(PropertyID::FontVariantEastAsian);
 
@@ -1517,45 +1517,13 @@ Optional<Gfx::FontVariantEastAsian> ComputedProperties::font_variant_east_asian(
 
     auto const& tuple = value.as_tuple().tuple();
 
-    Gfx::FontVariantEastAsian east_asian {};
+    FontVariantEastAsian east_asian {};
 
-    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant]->to_keyword()) {
-        case Keyword::Jis78:
-            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis78;
-            break;
-        case Keyword::Jis83:
-            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis83;
-            break;
-        case Keyword::Jis90:
-            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis90;
-            break;
-        case Keyword::Jis04:
-            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis04;
-            break;
-        case Keyword::Simplified:
-            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Simplified;
-            break;
-        case Keyword::Traditional:
-            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Traditional;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant])
+        east_asian.variant = keyword_to_east_asian_variant(tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant]->to_keyword()).value();
 
-    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width]->to_keyword()) {
-        case Keyword::FullWidth:
-            east_asian.width = Gfx::FontVariantEastAsian::Width::FullWidth;
-            break;
-        case Keyword::ProportionalWidth:
-            east_asian.width = Gfx::FontVariantEastAsian::Width::Proportional;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width])
+        east_asian.width = keyword_to_east_asian_width(tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width]->to_keyword()).value();
 
     if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Ruby])
         east_asian.ruby = true;
