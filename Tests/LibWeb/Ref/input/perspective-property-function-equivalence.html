@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/perspective-property-function-equivalence-ref.html">
+<script>internals.setDevicePixelRatio(2);</script>
+<style>
+    body { margin: 0; }
+    .parent {
+        width: 200px;
+        height: 200px;
+        perspective: 500px;
+    }
+    .child {
+        width: 200px;
+        height: 200px;
+        background: blue;
+        transform: rotateY(45deg);
+    }
+</style>
+<div class="parent">
+    <div class="child"></div>
+</div>
