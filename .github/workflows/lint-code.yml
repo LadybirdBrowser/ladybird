@@ -15,7 +15,7 @@ jobs:
         run: |
           set -e
 
-          brew install curl llvm@20 ninja optipng ruff shellcheck unzip
+          brew install curl llvm@21 ninja optipng ruff shellcheck unzip
 
           # Note: gn isn't available in homebrew :(
           # Corresponds to https://gn.googlesource.com/gn/+/225e90c5025bf74f41dbee60d9cde4512c846fe7
