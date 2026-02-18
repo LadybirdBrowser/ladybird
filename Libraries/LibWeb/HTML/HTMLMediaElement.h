@@ -351,7 +351,7 @@ private:
 
     GC::Ptr<SourceElementSelector> m_source_element_selector;
 
-    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Weak<Fetch::Infrastructure::FetchController> m_fetch_controller;
     u32 m_current_fetch_generation { 0 };
 
     RefPtr<Media::PlaybackManager> m_playback_manager;
