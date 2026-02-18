@@ -25,7 +25,6 @@
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
-
 #if defined(AK_OS_MACOS)
 #    include <LibWebView/MachPortServer.h>
 #endif
@@ -69,6 +68,15 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+    if (m_audio_server)
+        m_audio_server->on_death = {};
+
+    if (m_image_decoder_client)
+        m_image_decoder_client->on_death = {};
+
+    if (m_request_server_client)
+        m_request_server_client->on_request_server_died = {};
+
     // Explicitly delete the settings observer first, as the observer destructor will refer to Application::the().
     m_settings_observer.clear();
 
@@ -128,7 +136,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_content_filter = false;
     Optional<StringView> resource_substitution_map_path;
     bool enable_autoplay = false;
-    bool expose_experimental_interfaces = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
@@ -180,7 +187,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(disable_content_filter, "Disable content filter", "disable-content-filter");
     args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
-    args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
@@ -291,7 +297,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .disable_site_isolation = disable_site_isolation ? DisableSiteIsolation::Yes : DisableSiteIsolation::No,
         .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
         .enable_http_memory_cache = disable_http_memory_cache ? EnableMemoryHTTPCache::No : EnableMemoryHTTPCache::Yes,
-        .expose_experimental_interfaces = expose_experimental_interfaces ? ExposeExperimentalInterfaces::Yes : ExposeExperimentalInterfaces::No,
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,
         .force_cpu_painting = force_cpu_painting ? ForceCPUPainting::Yes : ForceCPUPainting::No,
         .force_fontconfig = force_fontconfig ? ForceFontconfig::Yes : ForceFontconfig::No,
@@ -311,7 +316,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     }
 
     initialize_actions();
-
     m_event_loop = create_platform_event_loop();
     TRY(launch_services());
 
@@ -328,10 +332,11 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
 {
     auto request_server_socket = TRY(connect_new_request_server_client());
     auto image_decoder_socket = TRY(connect_new_image_decoder_client());
+    auto audio_server_client = TRY(connect_new_audio_server_client());
 
     if (view.has_value())
-        return WebView::launch_web_content_process(*view, move(image_decoder_socket), move(request_server_socket));
-    return WebView::launch_spare_web_content_process(move(image_decoder_socket), move(request_server_socket));
+        return WebView::launch_web_content_process(*view, move(image_decoder_socket), move(request_server_socket), move(audio_server_client.socket), move(audio_server_client.grant_id));
+    return WebView::launch_spare_web_content_process(move(image_decoder_socket), move(request_server_socket), move(audio_server_client.socket), move(audio_server_client.grant_id));
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
@@ -341,20 +346,19 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
         launch_spare_web_content_process();
 
         web_content_client->assign_view({}, view);
+        ProcessPolicyRouter::set_web_content_has_live_audio_connection(web_content_client->pid(), true);
         return web_content_client;
     }
 
     launch_spare_web_content_process();
-    return create_web_content_client(view);
+    auto web_content_client = TRY(create_web_content_client(view));
+    ProcessPolicyRouter::set_web_content_has_live_audio_connection(web_content_client->pid(), true);
+    return web_content_client;
 }
 
 void Application::launch_spare_web_content_process()
 {
-    // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
-    if (browser_options().debug_helper_process == ProcessType::WebContent)
-        return;
-    // Disable spare processes when profiling WebContent. This reduces callgrind logging we are not interested in.
-    if (browser_options().profile_helper_process == ProcessType::WebContent)
+    if (m_process_manager && !ProcessPolicyRouter::should_maintain_spare_web_content_process(browser_options()))
         return;
 
     if (m_has_queued_task_to_launch_spare_web_content_process)
@@ -371,6 +375,7 @@ void Application::launch_spare_web_content_process()
         }
 
         m_spare_web_content_process = web_content_client.release_value();
+        ProcessPolicyRouter::set_web_content_has_live_audio_connection(m_spare_web_content_process->pid(), true);
 
         if (auto process = find_process(m_spare_web_content_process->pid()); process.has_value())
             process->set_title("(spare)"_utf16);
@@ -413,9 +418,23 @@ ErrorOr<void> Application::launch_services()
             };
         }
     }
-
-    TRY(launch_request_server());
-    TRY(launch_image_decoder_server());
+    for (auto type : ProcessPolicyRouter::singleton_services_to_launch()) {
+        switch (type) {
+        case ProcessType::RequestServer:
+            TRY(launch_request_server());
+            break;
+        case ProcessType::ImageDecoder:
+            TRY(launch_image_decoder_server());
+            break;
+        case ProcessType::AudioServer:
+            TRY(launch_audio_server());
+            break;
+        case ProcessType::Browser:
+        case ProcessType::WebContent:
+        case ProcessType::WebWorker:
+            VERIFY_NOT_REACHED();
+        }
+    }
 
     if (m_browser_options.devtools_port.has_value())
         TRY(launch_devtools_server());
@@ -432,6 +451,12 @@ ErrorOr<void> Application::launch_request_server()
     };
 
     m_request_server_client->on_request_server_died = [this]() {
+        // FIXME: This restart + ConnectNewClients + per-WebContent socket redistribution pattern
+        // should be factored into a shared helper and reused by ImageDecoder and AudioServer.
+        // Other helper processes will need the same treatment when they exist.
+        // Proposed direction: keep dependency graphs in the broker and notify only dependents.
+        // Notifications can be of the form "service X, instance Y is now at endpoint Z".
+        // Helpers can then update their cached endpoint to Z if they depend on it.
         m_request_server_client = nullptr;
 
         if (Core::EventLoop::current().was_exit_requested())
@@ -466,6 +491,7 @@ ErrorOr<void> Application::launch_image_decoder_server()
     m_image_decoder_client = TRY(launch_image_decoder_process());
 
     m_image_decoder_client->on_death = [this]() {
+        // FIXME: Share restart + socket redistribution helper with RequestServer/AudioServer.
         m_image_decoder_client = nullptr;
 
         if (Core::EventLoop::current().was_exit_requested())
@@ -485,6 +511,47 @@ ErrorOr<void> Application::launch_image_decoder_server()
 
         WebContentClient::for_each_client([sockets = new_sockets->take_sockets()](WebContentClient& client) mutable {
             client.async_connect_to_image_decoder(sockets.take_last());
+            return IterationDecision::Continue;
+        });
+    };
+
+    return {};
+}
+
+ErrorOr<void> Application::launch_audio_server()
+{
+    m_audio_server = TRY(launch_audio_server_process());
+
+    m_audio_server->on_death = [this]() {
+        // FIXME: Share restart + socket redistribution helper with RequestServer/ImageDecoder.
+        m_audio_server = nullptr;
+
+        if (Core::EventLoop::current().was_exit_requested())
+            return;
+
+        if (auto result = launch_audio_server(); result.is_error()) {
+            dbgln("Failed to restart AudioServer: {}", result.error());
+            VERIFY_NOT_REACHED();
+        }
+
+        Vector<AudioServer::CreateClientRequest> requests;
+        requests.ensure_capacity(WebContentClient::client_count());
+        WebContentClient::for_each_client([&requests](WebContentClient&) {
+            requests.unchecked_append({ .origin = "*"sv, .top_level_origin = "*"sv, .can_use_mic = true });
+            return IterationDecision::Continue;
+        });
+
+        auto new_clients_or_error = m_audio_server->connect_new_clients(move(requests));
+        if (new_clients_or_error.is_error() || new_clients_or_error.value().is_empty()) {
+            dbgln("Failed to connect WebContent clients to AudioServer");
+            VERIFY_NOT_REACHED();
+        }
+
+        WebContentClient::for_each_client([new_clients = new_clients_or_error.release_value()](WebContentClient& client) mutable {
+            auto new_client = new_clients.take_last();
+            // FIXME: This always replaces the WebContent audio session client without checking current state.
+            client.async_connect_to_audio_server(move(new_client.socket), move(new_client.grant_id));
+            ProcessPolicyRouter::set_web_content_has_live_audio_connection(client.pid(), true);
             return IterationDecision::Continue;
         });
     };
@@ -636,11 +703,20 @@ void Application::process_did_exit(Process&& process)
         }
         break;
     case ProcessType::WebContent:
+        ProcessPolicyRouter::forget_web_content(process.pid());
         if (auto client = process.client<WebContentClient>(); client.has_value())
             client->notify_all_views_of_crash();
         break;
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
+        break;
+    case ProcessType::AudioServer:
+        dbgln_if(WEBVIEW_PROCESS_DEBUG, "AudioServer {} died, but I have an idea.", process.pid());
+        ProcessPolicyRouter::clear_all_web_content_audio_connections();
+        if (auto client = process.client<AudioServer::BrokerOfAudioServer>(); client.has_value()) {
+            if (auto on_death = move(client->on_death))
+                on_death();
+        }
         break;
     case ProcessType::Browser:
         dbgln("Invalid process type to be dying: Browser");
@@ -719,7 +795,7 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
             promise->resolve(sizes);
         })
         .when_rejected([promise](Error& error) {
-            promise->reject(move(error));
+            promise->reject(static_cast<Error&&>(error));
         });
 
     return promise;

@@ -145,6 +145,12 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::File image_decoder_sock
         on_image_decoder_connection(image_decoder_socket);
 }
 
+void ConnectionFromClient::connect_to_audio_server(IPC::File socket_file, ByteString grant_id)
+{
+    if (on_audio_server_connection)
+        on_audio_server_connection(socket_file, grant_id);
+}
+
 void ConnectionFromClient::connect_to_request_server(IPC::File request_server_socket)
 {
     if (on_request_server_connection)
