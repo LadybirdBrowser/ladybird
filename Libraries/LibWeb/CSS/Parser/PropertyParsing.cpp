@@ -228,6 +228,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::FontVariantEastAsian); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::FontVariantLigatures); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Position); parsed.has_value())
@@ -610,8 +612,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant(tokens); });
     case PropertyID::FontVariantAlternates:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_alternates_value(tokens); });
-    case PropertyID::FontVariantLigatures:
-        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_ligatures_value(tokens); });
     case PropertyID::FontVariantNumeric:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_numeric_value(tokens); });
     case PropertyID::GridArea:
@@ -2923,10 +2923,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
     //   [ text | emoji | unicode ]
     // ]
 
-    bool has_common_ligatures = false;
-    bool has_discretionary_ligatures = false;
-    bool has_historical_ligatures = false;
-    bool has_contextual = false;
     bool has_numeric_figures = false;
     bool has_numeric_spacing = false;
     bool has_numeric_fractions = false;
@@ -2937,17 +2933,25 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
     RefPtr<StyleValue const> emoji_value {};
     RefPtr<StyleValue const> position_value {};
     RefPtr<StyleValue const> east_asian_value {};
-    StyleValueVector ligatures_values;
+    RefPtr<StyleValue const> ligatures_value {};
     StyleValueVector numeric_values;
 
     if (auto parsed_value = parse_all_as_single_keyword_value(tokens, Keyword::Normal)) {
         // normal, do nothing
     } else if (auto parsed_value = parse_all_as_single_keyword_value(tokens, Keyword::None)) {
         // none
-        ligatures_values.append(parsed_value.release_nonnull());
+        ligatures_value = parsed_value;
     } else {
 
         while (tokens.has_next_token()) {
+            // [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]
+            if (auto maybe_ligature_value = parse_font_variant_ligatures_value(tokens)) {
+                if (ligatures_value)
+                    return nullptr;
+                ligatures_value = maybe_ligature_value.release_nonnull();
+                continue;
+            }
+
             // [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
             if (auto maybe_east_asian_value = parse_font_variant_east_asian_value(tokens)) {
                 if (east_asian_value)
@@ -2967,38 +2971,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
             auto keyword = value->to_keyword();
 
             switch (keyword) {
-            // <common-lig-values>       = [ common-ligatures | no-common-ligatures ]
-            case Keyword::CommonLigatures:
-            case Keyword::NoCommonLigatures:
-                if (has_common_ligatures)
-                    return nullptr;
-                ligatures_values.append(move(value));
-                has_common_ligatures = true;
-                break;
-            // <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
-            case Keyword::DiscretionaryLigatures:
-            case Keyword::NoDiscretionaryLigatures:
-                if (has_discretionary_ligatures)
-                    return nullptr;
-                ligatures_values.append(move(value));
-                has_discretionary_ligatures = true;
-                break;
-            // <historical-lig-values>   = [ historical-ligatures | no-historical-ligatures ]
-            case Keyword::HistoricalLigatures:
-            case Keyword::NoHistoricalLigatures:
-                if (has_historical_ligatures)
-                    return nullptr;
-                ligatures_values.append(move(value));
-                has_historical_ligatures = true;
-                break;
-            // <contextual-alt-values>   = [ contextual | no-contextual ]
-            case Keyword::Contextual:
-            case Keyword::NoContextual:
-                if (has_contextual)
-                    return nullptr;
-                ligatures_values.append(move(value));
-                has_contextual = true;
-                break;
             // historical-forms
             case Keyword::HistoricalForms:
                 if (alternates_value != nullptr)
@@ -3093,9 +3065,8 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
         position_value = normal_value;
     if (!east_asian_value)
         east_asian_value = normal_value;
-
-    quick_sort(ligatures_values, [](auto& left, auto& right) { return *keyword_to_font_variant_ligatures(left->to_keyword()) < *keyword_to_font_variant_ligatures(right->to_keyword()); });
-    auto ligatures_value = resolve_list(ligatures_values);
+    if (!ligatures_value)
+        ligatures_value = normal_value;
 
     quick_sort(numeric_values, [](auto& left, auto& right) { return *keyword_to_font_variant_numeric(left->to_keyword()) < *keyword_to_font_variant_numeric(right->to_keyword()); });
     auto numeric_value = resolve_list(numeric_values);
@@ -3113,7 +3084,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
             caps_value.release_nonnull(),
             east_asian_value.release_nonnull(),
             emoji_value.release_nonnull(),
-            move(ligatures_value),
+            ligatures_value.release_nonnull(),
             move(numeric_value),
             position_value.release_nonnull(),
         });
@@ -3146,90 +3117,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
         .description = "Invalid or not yet implemented"_string,
     });
     return nullptr;
-}
-
-RefPtr<StyleValue const> Parser::parse_font_variant_ligatures_value(TokenStream<ComponentValue>& tokens)
-{
-    // 6.4 https://drafts.csswg.org/css-fonts/#propdef-font-variant-ligatures
-    // normal | none | [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]
-    // <common-lig-values>       = [ common-ligatures | no-common-ligatures ]
-    // <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
-    // <historical-lig-values>   = [ historical-ligatures | no-historical-ligatures ]
-    // <contextual-alt-values>   = [ contextual | no-contextual ]
-
-    // normal
-    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
-        return normal.release_nonnull();
-
-    // none
-    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-        return none.release_nonnull();
-
-    // [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]
-    RefPtr<StyleValue const> common_ligatures_value;
-    RefPtr<StyleValue const> discretionary_ligatures_value;
-    RefPtr<StyleValue const> historical_ligatures_value;
-    RefPtr<StyleValue const> contextual_value;
-
-    while (tokens.has_next_token()) {
-        auto maybe_value = parse_keyword_value(tokens);
-        if (!maybe_value)
-            break;
-        auto font_variant_ligatures = keyword_to_font_variant_ligatures(maybe_value->to_keyword());
-        if (!font_variant_ligatures.has_value())
-            return nullptr;
-
-        switch (font_variant_ligatures.value()) {
-        // <common-lig-values>       = [ common-ligatures | no-common-ligatures ]
-        case FontVariantLigatures::CommonLigatures:
-        case FontVariantLigatures::NoCommonLigatures:
-            if (common_ligatures_value)
-                return nullptr;
-            common_ligatures_value = maybe_value.release_nonnull();
-            break;
-        // <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
-        case FontVariantLigatures::DiscretionaryLigatures:
-        case FontVariantLigatures::NoDiscretionaryLigatures:
-            if (discretionary_ligatures_value)
-                return nullptr;
-            discretionary_ligatures_value = maybe_value.release_nonnull();
-            break;
-        // <historical-lig-values> = [ historical-ligatures | no-historical-ligatures ]
-        case FontVariantLigatures::HistoricalLigatures:
-        case FontVariantLigatures::NoHistoricalLigatures:
-            if (historical_ligatures_value)
-                return nullptr;
-            historical_ligatures_value = maybe_value.release_nonnull();
-            break;
-        // <contextual-alt-values> = [ contextual | no-contextual ]
-        case FontVariantLigatures::Contextual:
-        case FontVariantLigatures::NoContextual:
-            if (contextual_value)
-                return nullptr;
-            contextual_value = maybe_value.release_nonnull();
-            break;
-        case FontVariantLigatures::Normal:
-        case FontVariantLigatures::None:
-            return nullptr;
-        }
-    }
-
-    StyleValueVector values;
-    if (common_ligatures_value)
-        values.append(common_ligatures_value.release_nonnull());
-    if (discretionary_ligatures_value)
-        values.append(discretionary_ligatures_value.release_nonnull());
-    if (historical_ligatures_value)
-        values.append(historical_ligatures_value.release_nonnull());
-    if (contextual_value)
-        values.append(contextual_value.release_nonnull());
-
-    if (values.is_empty())
-        return nullptr;
-    if (values.size() == 1)
-        return *values.first();
-
-    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_font_variant_numeric_value(TokenStream<ComponentValue>& tokens)

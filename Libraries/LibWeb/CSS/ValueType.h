@@ -31,6 +31,7 @@ enum class ValueType : u8 {
     Flex,
     FontStyle,
     FontVariantEastAsian,
+    FontVariantLigatures,
     Frequency,
     FrequencyPercentage,
     Image,
