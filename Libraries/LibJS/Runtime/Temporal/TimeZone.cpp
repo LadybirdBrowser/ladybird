@@ -23,6 +23,8 @@
 
 namespace JS::Temporal {
 
+String UTC_TIME_ZONE = "UTC"_string;
+
 // 11.1.2 GetISOPartsFromEpoch ( epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getisopartsfromepoch
 ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
@@ -77,7 +79,7 @@ ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanos
 }
 
 // 11.1.3 GetNamedTimeZoneNextTransition ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getnamedtimezonenexttransition
-Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(String const& time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
     auto epoch_milliseconds = big_floor(epoch_nanoseconds, NANOSECONDS_PER_MILLISECOND);
     auto time = UnixDateTime::from_milliseconds_since_epoch(clip_bigint_to_sane_time(epoch_milliseconds));
@@ -100,7 +102,7 @@ Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(StringVie
 }
 
 // 11.1.4 GetNamedTimeZonePreviousTransition ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getnamedtimezoneprevioustransition
-Optional<Crypto::SignedBigInteger> get_named_time_zone_previous_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+Optional<Crypto::SignedBigInteger> get_named_time_zone_previous_transition(String const& time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
     auto epoch_milliseconds = big_floor(epoch_nanoseconds, NANOSECONDS_PER_MILLISECOND);
     auto time = UnixDateTime::from_milliseconds_since_epoch(clip_bigint_to_sane_time(epoch_milliseconds));
@@ -239,7 +241,7 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, StringView te
 }
 
 // 11.1.9 GetOffsetNanosecondsFor ( timeZone, epochNs ), https://tc39.es/proposal-temporal/#sec-temporal-getoffsetnanosecondsfor
-i64 get_offset_nanoseconds_for(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+i64 get_offset_nanoseconds_for(String const& time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
     // 1. Let parseResult be ! ParseTimeZoneIdentifier(timeZone).
     auto parse_result = parse_time_zone_identifier(time_zone);
@@ -253,7 +255,7 @@ i64 get_offset_nanoseconds_for(StringView time_zone, Crypto::SignedBigInteger co
 }
 
 // 11.1.10 GetISODateTimeFor ( timeZone, epochNs ), https://tc39.es/proposal-temporal/#sec-temporal-getisodatetimefor
-ISODateTime get_iso_date_time_for(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+ISODateTime get_iso_date_time_for(String const& time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
     // 1. Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
     auto offset_nanoseconds = get_offset_nanoseconds_for(time_zone, epoch_nanoseconds);
@@ -266,7 +268,7 @@ ISODateTime get_iso_date_time_for(StringView time_zone, Crypto::SignedBigInteger
 }
 
 // 11.1.11 GetEpochNanosecondsFor ( timeZone, isoDateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-getepochnanosecondsfor
-ThrowCompletionOr<Crypto::SignedBigInteger> get_epoch_nanoseconds_for(VM& vm, StringView time_zone, ISODateTime const& iso_date_time, Disambiguation disambiguation)
+ThrowCompletionOr<Crypto::SignedBigInteger> get_epoch_nanoseconds_for(VM& vm, String const& time_zone, ISODateTime const& iso_date_time, Disambiguation disambiguation)
 {
     // 1. Let possibleEpochNs be ? GetPossibleEpochNanoseconds(timeZone, isoDateTime).
     auto possible_epoch_ns = TRY(get_possible_epoch_nanoseconds(vm, time_zone, iso_date_time));
@@ -276,7 +278,7 @@ ThrowCompletionOr<Crypto::SignedBigInteger> get_epoch_nanoseconds_for(VM& vm, St
 }
 
 // 11.1.12 DisambiguatePossibleEpochNanoseconds ( possibleEpochNs, timeZone, isoDateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleepochnanoseconds
-ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseconds(VM& vm, Vector<Crypto::SignedBigInteger> possible_epoch_ns, StringView time_zone, ISODateTime const& iso_date_time, Disambiguation disambiguation)
+ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseconds(VM& vm, Vector<Crypto::SignedBigInteger> possible_epoch_ns, String const& time_zone, ISODateTime const& iso_date_time, Disambiguation disambiguation)
 {
     // 1. Let n be the number of elements in possibleEpochNs.
     auto n = possible_epoch_ns.size();
@@ -316,7 +318,7 @@ ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseco
 }
 
 // 11.1.13 GetPossibleEpochNanoseconds ( timeZone, isoDateTime ), https://tc39.es/proposal-temporal/#sec-temporal-getpossibleepochnanoseconds
-ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanoseconds(VM& vm, StringView time_zone, ISODateTime const& iso_date_time)
+ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanoseconds(VM& vm, String const& time_zone, ISODateTime const& iso_date_time)
 {
     Vector<Crypto::SignedBigInteger> possible_epoch_nanoseconds;
 
@@ -364,7 +366,7 @@ ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanosecon
 }
 
 // 11.1.14 GetStartOfDay ( timeZone, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-getstartofday
-ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM& vm, StringView time_zone, ISODate iso_date)
+ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM& vm, String const& time_zone, ISODate iso_date)
 {
     // 1. Let isoDateTime be CombineISODateAndTimeRecord(isoDate, MidnightTimeRecord()).
     auto iso_date_time = combine_iso_date_and_time_record(iso_date, midnight_time_record());
@@ -420,7 +422,7 @@ bool time_zone_equals(StringView one, StringView two)
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
-ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, StringView identifier)
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, String const& identifier)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
     auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
@@ -433,7 +435,7 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, S
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
-ParsedTimeZoneIdentifier parse_time_zone_identifier(StringView identifier)
+ParsedTimeZoneIdentifier parse_time_zone_identifier(String const& identifier)
 {
     // OPTIMIZATION: Some callers can assume that parsing will succeed.
 

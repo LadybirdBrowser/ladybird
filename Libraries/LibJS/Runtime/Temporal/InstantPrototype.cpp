@@ -276,14 +276,12 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::to_string)
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
 
-    String time_zone_buffer;
-    Optional<StringView> time_zone;
+    Optional<String> time_zone;
 
     // 11. If timeZone is not undefined, then
     if (!time_zone_value.is_undefined()) {
         // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
-        time_zone_buffer = TRY(to_temporal_time_zone_identifier(vm, time_zone_value));
-        time_zone = time_zone_buffer;
+        time_zone = TRY(to_temporal_time_zone_identifier(vm, time_zone_value));
     }
 
     // 12. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
