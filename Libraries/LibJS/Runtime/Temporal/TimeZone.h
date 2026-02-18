@@ -35,7 +35,7 @@ ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanosecon
 ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM&, String const& time_zone, ISODate);
 bool time_zone_equals(StringView one, StringView two);
 ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM&, String const& identifier);
-ParsedTimeZoneIdentifier parse_time_zone_identifier(String const& identifier);
+ParsedTimeZoneIdentifier const& parse_time_zone_identifier(String const& identifier);
 ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const&);
 
 }

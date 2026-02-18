@@ -244,7 +244,7 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, StringView te
 i64 get_offset_nanoseconds_for(String const& time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
     // 1. Let parseResult be ! ParseTimeZoneIdentifier(timeZone).
-    auto parse_result = parse_time_zone_identifier(time_zone);
+    auto const& parse_result = parse_time_zone_identifier(time_zone);
 
     // 2. If parseResult.[[OffsetMinutes]] is not empty, return parseResult.[[OffsetMinutes]] × (60 × 10**9).
     if (parse_result.offset_minutes.has_value())
@@ -323,7 +323,7 @@ ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanosecon
     Vector<Crypto::SignedBigInteger> possible_epoch_nanoseconds;
 
     // 1. Let parseResult be ! ParseTimeZoneIdentifier(timeZone).
-    auto parse_result = parse_time_zone_identifier(time_zone);
+    auto const& parse_result = parse_time_zone_identifier(time_zone);
 
     // 2. If parseResult.[[OffsetMinutes]] is not empty, then
     if (parse_result.offset_minutes.has_value()) {
@@ -421,9 +421,15 @@ bool time_zone_equals(StringView one, StringView two)
     return false;
 }
 
+// OPTIMIZATION: The result of parsing a time zone identifier will not change, so we can cache the result.
+static HashMap<String, ParsedTimeZoneIdentifier> s_time_zone_id_cache;
+
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
 ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, String const& identifier)
 {
+    if (auto result = s_time_zone_id_cache.get(identifier); result.has_value())
+        return *result;
+
     // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
     auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
 
@@ -431,19 +437,23 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, S
     if (!parse_result.has_value())
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, identifier);
 
-    return parse_time_zone_identifier(*parse_result);
+    auto result = parse_time_zone_identifier(*parse_result);
+    s_time_zone_id_cache.set(identifier, result);
+
+    return result;
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
-ParsedTimeZoneIdentifier parse_time_zone_identifier(String const& identifier)
+ParsedTimeZoneIdentifier const& parse_time_zone_identifier(String const& identifier)
 {
     // OPTIMIZATION: Some callers can assume that parsing will succeed.
+    return s_time_zone_id_cache.ensure(identifier, [&]() {
+        // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
+        auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
+        VERIFY(parse_result.has_value());
 
-    // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
-    auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
-    VERIFY(parse_result.has_value());
-
-    return parse_time_zone_identifier(*parse_result);
+        return parse_time_zone_identifier(*parse_result);
+    });
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
