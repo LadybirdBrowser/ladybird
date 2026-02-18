@@ -305,6 +305,18 @@
     "ease-out",
     "ease-in-out"
   ],
+  "east-asian-variant": [
+    "jis78",
+    "jis83",
+    "jis90",
+    "jis04",
+    "simplified",
+    "traditional"
+  ],
+  "east-asian-width": [
+    "full-width",
+    "proportional-width"
+  ],
   "empty-cells": [
     "show",
     "hide"
@@ -380,17 +392,6 @@
     "all-petite-caps",
     "unicase",
     "titling-caps"
-  ],
-  "font-variant-east-asian-keyword": [
-    "ruby",
-    "jis78",
-    "jis83",
-    "jis90",
-    "jis04",
-    "simplified",
-    "traditional",
-    "full-width",
-    "proportional-width"
   ],
   "font-variant-emoji": [
     "normal",

@@ -48,6 +48,7 @@
 #include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
@@ -1510,14 +1511,16 @@ FontVariantCaps ComputedProperties::font_variant_caps() const
 Optional<Gfx::FontVariantEastAsian> ComputedProperties::font_variant_east_asian() const
 {
     auto const& value = property(PropertyID::FontVariantEastAsian);
-    Gfx::FontVariantEastAsian east_asian {};
-    bool normal = false;
 
-    auto apply_keyword = [&east_asian, &normal](Keyword keyword) {
-        switch (keyword) {
-        case Keyword::Normal:
-            normal = true;
-            break;
+    if (value.to_keyword() == Keyword::Normal)
+        return {};
+
+    auto const& tuple = value.as_tuple().tuple();
+
+    Gfx::FontVariantEastAsian east_asian {};
+
+    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant]) {
+        switch (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant]->to_keyword()) {
         case Keyword::Jis78:
             east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis78;
             break;
@@ -1536,30 +1539,26 @@ Optional<Gfx::FontVariantEastAsian> ComputedProperties::font_variant_east_asian(
         case Keyword::Traditional:
             east_asian.variant = Gfx::FontVariantEastAsian::Variant::Traditional;
             break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width]) {
+        switch (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width]->to_keyword()) {
         case Keyword::FullWidth:
             east_asian.width = Gfx::FontVariantEastAsian::Width::FullWidth;
             break;
         case Keyword::ProportionalWidth:
             east_asian.width = Gfx::FontVariantEastAsian::Width::Proportional;
             break;
-        case Keyword::Ruby:
-            east_asian.ruby = true;
-            break;
         default:
             VERIFY_NOT_REACHED();
         }
-    };
-
-    if (value.is_keyword()) {
-        apply_keyword(value.to_keyword());
-    } else if (value.is_value_list()) {
-        for (auto& child_value : value.as_value_list().values()) {
-            apply_keyword(child_value->to_keyword());
-        }
     }
 
-    if (normal)
-        return {};
+    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Ruby])
+        east_asian.ruby = true;
 
     return east_asian;
 }
