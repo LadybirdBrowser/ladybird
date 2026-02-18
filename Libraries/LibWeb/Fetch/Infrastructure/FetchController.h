@@ -8,6 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/HashMap.h>
+#include <AK/WeakPtr.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
@@ -52,7 +53,7 @@ public:
 
     void set_fetch_params(Badge<FetchParams>, GC::Ref<FetchParams> fetch_params) { m_fetch_params = fetch_params; }
 
-    void set_pending_request(RefPtr<Requests::Request>);
+    void set_pending_request(RefPtr<Requests::Request> const&);
     void set_inner_fetch_controller(GC::Ref<FetchController>);
 
     void stop_fetch();
@@ -94,7 +95,7 @@ private:
 
     GC::Ptr<FetchParams> m_fetch_params;
 
-    RefPtr<Requests::Request> m_pending_request;
+    WeakPtr<Requests::Request> m_pending_request;
 
     HashMap<u64, HTML::TaskID> m_ongoing_fetch_tasks;
     u64 m_next_fetch_task_id { 0 };
