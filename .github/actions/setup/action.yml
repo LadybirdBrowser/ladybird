@@ -53,9 +53,6 @@ runs:
 
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
-        sudo apt-get update -y
-        sudo apt-get install -y lsb-release
-
         UBUNTU_RELEASE=$(lsb_release -cs)
 
         LLVM_LIST="/etc/apt/sources.list.d/llvm.list"
@@ -64,10 +61,9 @@ runs:
         if [ ! -f "${LLVM_LIST}" ] || ! grep -q "${LLVM_TOOLCHAIN}" "${LLVM_LIST}" ; then
           curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
           echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
-
-          sudo apt-get update -y
         fi
 
+        sudo apt-get update -y
         sudo apt-get install -y \
             autoconf \
             autoconf-archive \
