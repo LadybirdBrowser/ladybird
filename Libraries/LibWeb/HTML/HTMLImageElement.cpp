@@ -656,6 +656,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             m_current_request = ImageRequest::create(realm(), document().page());
             m_current_request->set_image_data(entry->image_data);
             m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
+            m_current_frame_index = 0;
 
             // 5. Prepare the current request for presentation given the img element.
             m_current_request->prepare_for_presentation(*this);
@@ -918,8 +919,9 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 if (!maybe_omit_events || previous_url != url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
 
+                m_current_frame_index = 0;
+                m_animation_timer->stop();
                 if (image_data->is_animated() && image_data->frame_count() > 1) {
-                    m_current_frame_index = 0;
                     m_animation_timer->set_interval(image_data->frame_duration(0));
                     m_animation_timer->start();
                 }
