@@ -473,6 +473,18 @@ void ScopeCollector::resolve_identifiers(ScopeRecord& scope, bool initiated_by_e
             if (hoistable_function_declaration)
                 continue;
 
+            // When a function has parameter expressions and a nested function in a
+            // default expression captures a name that is also a body var, propagate
+            // the capture to the parent scope so the outer binding stays in the
+            // environment (not optimized to a local register).
+            if (scope.has_parameter_expressions
+                && identifier_group.captured_by_nested_function
+                && (var_flags & ScopeVariable::IsVar)
+                && !(var_flags & ScopeVariable::IsForbiddenLexical)
+                && scope.parent) {
+                scope.parent->identifier_groups.ensure(identifier_group_name).captured_by_nested_function = true;
+            }
+
             if (!identifier_group.captured_by_nested_function && !identifier_group.used_inside_with_statement) {
                 if (scope.screwed_by_eval_in_scope_chain)
                     continue;
