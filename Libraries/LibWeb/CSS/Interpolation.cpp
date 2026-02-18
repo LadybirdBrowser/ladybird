@@ -1345,33 +1345,39 @@ Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
     // rgb(), hsl() or hwb() and the equivalent alpha-including forms) in gamma-encoded sRGB space.  This provides
     // Web compatibility; legacy sRGB content interpolates in the sRGB space by default.
 
-    Color result;
+    auto from_alpha = from.alpha() / 255.0f;
+    auto to_alpha = to.alpha() / 255.0f;
+    auto interpolated_alpha = interpolate_raw(from_alpha, to_alpha, delta);
+
+    auto clamped_alpha = clamp(interpolated_alpha, 0.0f, 1.0f);
+    if (clamped_alpha == 0)
+        return Color::Transparent;
+
+    // 5. changing the color components to premultiplied form
+    // 6. linearly interpolating each component of the computed value of the color separately
+    // 7. undoing premultiplication
     if (syntax == ColorSyntax::Modern) {
-        // 5. changing the color components to premultiplied form
         auto from_oklab = from.to_premultiplied_oklab();
         auto to_oklab = to.to_premultiplied_oklab();
-
-        // 6. linearly interpolating each component of the computed value of the color separately
-        // 7. undoing premultiplication
-        auto from_alpha = from.alpha() / 255.0f;
-        auto to_alpha = to.alpha() / 255.0f;
-        auto interpolated_alpha = interpolate_raw(from_alpha, to_alpha, delta);
-
-        result = Color::from_oklab(
-            interpolate_raw(from_oklab.L, to_oklab.L, delta) / interpolated_alpha,
-            interpolate_raw(from_oklab.a, to_oklab.a, delta) / interpolated_alpha,
-            interpolate_raw(from_oklab.b, to_oklab.b, delta) / interpolated_alpha,
-            interpolated_alpha);
-    } else {
-        result = Color {
-            interpolate_raw(from.red(), to.red(), delta),
-            interpolate_raw(from.green(), to.green(), delta),
-            interpolate_raw(from.blue(), to.blue(), delta),
-            interpolate_raw(from.alpha(), to.alpha(), delta)
-        };
+        return Color::from_oklab(
+            interpolate_raw(from_oklab.L, to_oklab.L, delta) / clamped_alpha,
+            interpolate_raw(from_oklab.a, to_oklab.a, delta) / clamped_alpha,
+            interpolate_raw(from_oklab.b, to_oklab.b, delta) / clamped_alpha,
+            clamped_alpha);
     }
 
-    return result;
+    auto premultiply_interpolate_unpremultiply = [&](u8 from_channel, u8 to_channel) -> u8 {
+        auto pre_from = from_channel * from_alpha;
+        auto pre_to = to_channel * to_alpha;
+        auto interpolated = interpolate_raw(pre_from, pre_to, delta);
+        return clamp(lroundf(interpolated / clamped_alpha), 0L, 255L);
+    };
+    return Color {
+        premultiply_interpolate_unpremultiply(from.red(), to.red()),
+        premultiply_interpolate_unpremultiply(from.green(), to.green()),
+        premultiply_interpolate_unpremultiply(from.blue(), to.blue()),
+        static_cast<u8>(lroundf(clamped_alpha * 255.0f)),
+    };
 }
 
 RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
