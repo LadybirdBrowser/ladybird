@@ -2904,19 +2904,24 @@ RefPtr<StyleValue const> Parser::parse_font_variation_settings_value(TokenStream
 RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>& tokens)
 {
     // 6.11 https://drafts.csswg.org/css-fonts/#propdef-font-variant
-    // normal | none |
-    // [ [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]
-    // || [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ] ||
-    // [ FIXME: stylistic(<feature-value-name>) ||
-    // historical-forms ||
-    // FIXME: styleset(<feature-value-name>#) ||
-    // FIXME: character-variant(<feature-value-name>#) ||
-    // FIXME: swash(<feature-value-name>) ||
-    // FIXME: ornaments(<feature-value-name>) ||
-    // FIXME: annotation(<feature-value-name>) ] ||
-    // [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> ||
-    // ordinal || slashed-zero ] || [ <east-asian-variant-values> || <east-asian-width-values> || ruby ] ||
-    // [ sub | super ] || [ text | emoji | unicode ] ]
+    // normal |
+    // none |
+    // [
+    //   [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ] ||
+    //   [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ] ||
+    //   [ FIXME: stylistic(<feature-value-name>) ||
+    //     historical-forms ||
+    //     FIXME: styleset(<feature-value-name>#) ||
+    //     FIXME: character-variant(<feature-value-name>#) ||
+    //     FIXME: swash(<feature-value-name>) ||
+    //     FIXME: ornaments(<feature-value-name>) ||
+    //     FIXME: annotation(<feature-value-name>)
+    //   ] ||
+    //   [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero ] ||
+    //   [ <east-asian-variant-values> || <east-asian-width-values> || ruby ] ||
+    //   [ sub | super ] ||
+    //   [ text | emoji | unicode ]
+    // ]
 
     bool has_common_ligatures = false;
     bool has_discretionary_ligatures = false;
