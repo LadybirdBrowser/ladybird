@@ -1595,7 +1595,7 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM& 
 
     // 6. If timeZoneResult.[[Z]] is true, return ! ParseTimeZoneIdentifier("UTC").
     if (time_zone_result.z_designator)
-        return MUST(parse_time_zone_identifier(vm, "UTC"sv));
+        return MUST(parse_time_zone_identifier(vm, UTC_TIME_ZONE));
 
     // 7. If timeZoneResult.[[OffsetString]] is not EMPTY, return ? ParseTimeZoneIdentifier(timeZoneResult.[[OffsetString]]).
     if (time_zone_result.offset_string.has_value())

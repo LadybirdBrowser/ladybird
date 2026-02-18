@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -146,13 +146,13 @@ i8 time_duration_sign(TimeDuration const&);
 ThrowCompletionOr<double> date_duration_days(VM&, DateDuration const&, PlainDate const&);
 ThrowCompletionOr<TimeDuration> round_time_duration(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, Unit, RoundingMode);
 Crypto::BigFraction total_time_duration(TimeDuration const&, Unit);
-ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, bool additional_shift);
-ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
-ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM&, i8 sign, InternalDuration const&, ISODateTime const&, StringView time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
+ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, ISODateTime const& iso_date_time, Optional<String const&> time_zone, StringView calendar, u64 increment, Unit, bool additional_shift);
+ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<String const&> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
+ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM&, i8 sign, InternalDuration const&, ISODateTime const&, String const& time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
 ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM&, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
-ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM&, i8 sign, InternalDuration, Crypto::SignedBigInteger const& nudged_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit);
-ThrowCompletionOr<InternalDuration> round_relative_duration(VM&, InternalDuration, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
-ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM&, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit);
+ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM&, i8 sign, InternalDuration, Crypto::SignedBigInteger const& nudged_epoch_ns, ISODateTime const&, Optional<String const&> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit);
+ThrowCompletionOr<InternalDuration> round_relative_duration(VM&, InternalDuration, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<String const&> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
+ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM&, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<String const&> time_zone, StringView calendar, Unit);
 String temporal_duration_to_string(Duration const&, Precision);
 ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM&, ArithmeticOperation, Duration const&, Value);
 

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -69,7 +69,7 @@ ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionO
         return vm.throw_completion<TypeError>(ErrorType::NotAString, time_zone_value);
 
     // 5. Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
-    auto time_zone_parse = TRY(parse_time_zone_identifier(vm, time_zone_value.as_string().utf8_string_view()));
+    auto time_zone_parse = TRY(parse_time_zone_identifier(vm, time_zone_value.as_string().utf8_string()));
 
     String time_zone;
 

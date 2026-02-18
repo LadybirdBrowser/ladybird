@@ -201,11 +201,11 @@ Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& 
 }
 
 // 8.5.8 TemporalInstantToString ( instant, timeZone, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporalinstanttostring
-String temporal_instant_to_string(Instant const& instant, Optional<StringView> time_zone, SecondsStringPrecision::Precision precision)
+String temporal_instant_to_string(Instant const& instant, Optional<String const&> time_zone, SecondsStringPrecision::Precision precision)
 {
     // 1. Let outputTimeZone be timeZone.
     // 2. If outputTimeZone is undefined, set outputTimeZone to "UTC".
-    auto output_time_zone = time_zone.value_or("UTC"sv);
+    auto const& output_time_zone = time_zone.value_or(UTC_TIME_ZONE);
 
     // 3. Let epochNs be instant.[[EpochNanoseconds]].
     auto const& epoch_nanoseconds = instant.epoch_nanoseconds()->big_integer();
