@@ -917,8 +917,12 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
                     is_static = true;
                     function_start = position();
                     if (match(TokenType::Async)) {
-                        consume();
-                        is_async = true;
+                        auto lookahead_token = next_token();
+                        if (lookahead_token.type() != TokenType::Semicolon && lookahead_token.type() != TokenType::CurlyClose && lookahead_token.type() != TokenType::ParenOpen
+                            && !lookahead_token.trivia_contains_line_terminator()) {
+                            consume();
+                            is_async = true;
+                        }
                     }
                     if (match(TokenType::Asterisk)) {
                         consume();

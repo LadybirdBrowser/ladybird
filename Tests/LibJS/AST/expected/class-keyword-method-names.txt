@@ -1,0 +1,13 @@
+Program (script) @1:1
+└─ ClassDeclaration @1:1
+   └─ ClassExpression "A" @1:1
+      ├─ constructor
+      │  └─ FunctionExpression "A" [strict] [uses-this] [uses-this-from-environment] @1:1
+      │     └─ body
+      │        └─ BlockStatement @1:1
+      └─ elements
+         └─ ClassMethod static @1:1
+            ├─ StringLiteral "async" @2:12
+            └─ FunctionExpression "" [strict] @2:12
+               └─ body
+                  └─ FunctionBody @2:21
