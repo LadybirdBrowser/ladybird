@@ -91,7 +91,7 @@ def find_newest_compiler(platform: Platform, compilers: list[str]) -> Optional[s
     return best_compiler
 
 
-def pick_host_compiler(platform: Platform, cc: str, cxx: str, clang_only: bool) -> tuple[str, str]:
+def pick_host_compiler(platform: Platform, cc: str, cxx: str, clang_only: bool = False) -> tuple[str, str]:
     if platform.host_system == HostSystem.Windows and ("clang-cl" not in cc or "clang-cl" not in cxx):
         print(
             f"clang-cl {CLANG_MINIMUM_VERSION} or higher is required on Windows",
