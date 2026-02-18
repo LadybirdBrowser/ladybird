@@ -18,29 +18,6 @@ struct FontVariantAlternates {
     bool operator==(FontVariantAlternates const&) const = default;
 };
 
-struct FontVariantEastAsian {
-    enum class Variant {
-        Unset,
-        Jis78,
-        Jis83,
-        Jis90,
-        Jis04,
-        Simplified,
-        Traditional
-    };
-    enum class Width {
-        Unset,
-        Proportional,
-        FullWidth
-    };
-
-    bool ruby = false;
-    Variant variant { Variant::Unset };
-    Width width { Width::Unset };
-
-    bool operator==(FontVariantEastAsian const&) const = default;
-};
-
 struct FontVariantLigatures {
     enum class Common {
         Unset,
@@ -105,17 +82,6 @@ struct Traits<Gfx::FontVariantAlternates> : public DefaultTraits<Gfx::FontVarian
     static unsigned hash(Gfx::FontVariantAlternates const& data)
     {
         u32 hash = data.historical_forms ? 1 : 0;
-        return hash;
-    }
-};
-
-template<>
-struct Traits<Gfx::FontVariantEastAsian> : public DefaultTraits<Gfx::FontVariantEastAsian> {
-    static unsigned hash(Gfx::FontVariantEastAsian const& data)
-    {
-        u32 hash = data.ruby ? 1 : 0;
-        hash = pair_int_hash(hash, to_underlying(data.variant));
-        hash = pair_int_hash(hash, to_underlying(data.width));
         return hash;
     }
 };

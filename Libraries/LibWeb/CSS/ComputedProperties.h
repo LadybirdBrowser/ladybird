@@ -164,7 +164,7 @@ public:
     FontFeatureData font_feature_data() const;
     Optional<Gfx::FontVariantAlternates> font_variant_alternates() const;
     FontVariantCaps font_variant_caps() const;
-    Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const;
+    Optional<FontVariantEastAsian> font_variant_east_asian() const;
     FontVariantEmoji font_variant_emoji() const;
     Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const;
     Optional<Gfx::FontVariantNumeric> font_variant_numeric() const;

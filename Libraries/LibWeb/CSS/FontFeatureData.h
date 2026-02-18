@@ -15,10 +15,18 @@
 
 namespace Web::CSS {
 
+struct FontVariantEastAsian {
+    bool ruby = false;
+    Optional<EastAsianVariant> variant;
+    Optional<EastAsianWidth> width;
+
+    bool operator==(FontVariantEastAsian const&) const = default;
+};
+
 struct FontFeatureData {
     Optional<Gfx::FontVariantAlternates> font_variant_alternates;
     FontVariantCaps font_variant_caps;
-    Optional<Gfx::FontVariantEastAsian> font_variant_east_asian;
+    Optional<FontVariantEastAsian> font_variant_east_asian;
     FontVariantEmoji font_variant_emoji;
     Optional<Gfx::FontVariantLigatures> font_variant_ligatures;
     Optional<Gfx::FontVariantNumeric> font_variant_numeric;
@@ -39,13 +47,24 @@ struct FontFeatureData {
 namespace AK {
 
 template<>
+struct Traits<Web::CSS::FontVariantEastAsian> : public DefaultTraits<Web::CSS::FontVariantEastAsian> {
+    static unsigned hash(Web::CSS::FontVariantEastAsian const& data)
+    {
+        u32 hash = data.ruby ? 1 : 0;
+        hash = pair_int_hash(hash, data.variant.has_value() ? to_underlying(data.variant.value()) : -1);
+        hash = pair_int_hash(hash, data.width.has_value() ? to_underlying(data.width.value()) : -1);
+        return hash;
+    }
+};
+
+template<>
 struct Traits<Web::CSS::FontFeatureData> : public DefaultTraits<Web::CSS::FontFeatureData> {
     static unsigned hash(Web::CSS::FontFeatureData const& data)
     {
         u32 hash = 0;
         hash = pair_int_hash(hash, data.font_variant_alternates.has_value() ? Traits<Gfx::FontVariantAlternates>::hash(data.font_variant_alternates.value()) : -1);
         hash = pair_int_hash(hash, to_underlying(data.font_variant_caps));
-        hash = pair_int_hash(hash, data.font_variant_east_asian.has_value() ? Traits<Gfx::FontVariantEastAsian>::hash(data.font_variant_east_asian.value()) : -1);
+        hash = pair_int_hash(hash, data.font_variant_east_asian.has_value() ? Traits<Web::CSS::FontVariantEastAsian>::hash(data.font_variant_east_asian.value()) : -1);
         hash = pair_int_hash(hash, to_underlying(data.font_variant_emoji));
         hash = pair_int_hash(hash, data.font_variant_ligatures.has_value() ? Traits<Gfx::FontVariantLigatures>::hash(data.font_variant_ligatures.value()) : -1);
         hash = pair_int_hash(hash, data.font_variant_numeric.has_value() ? Traits<Gfx::FontVariantNumeric>::hash(data.font_variant_numeric.value()) : -1);

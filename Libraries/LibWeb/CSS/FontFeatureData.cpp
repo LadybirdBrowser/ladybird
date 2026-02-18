@@ -191,45 +191,45 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features() const
         // 6.10 https://drafts.csswg.org/css-fonts/#font-variant-east-asian-prop
         if (font_variant_east_asian.has_value()) {
             auto east_asian = font_variant_east_asian.value();
-            switch (east_asian.variant) {
-            case Gfx::FontVariantEastAsian::Variant::Jis78:
-                // Enables display of JIS78 forms (OpenType feature: jp78).
-                features.set("jp78"sv, 1);
-                break;
-            case Gfx::FontVariantEastAsian::Variant::Jis83:
-                // Enables display of JIS83 forms (OpenType feature: jp83).
-                features.set("jp83"sv, 1);
-                break;
-            case Gfx::FontVariantEastAsian::Variant::Jis90:
-                // Enables display of JIS90 forms (OpenType feature: jp90).
-                features.set("jp90"sv, 1);
-                break;
-            case Gfx::FontVariantEastAsian::Variant::Jis04:
-                // Enables display of JIS04 forms (OpenType feature: jp04).
-                features.set("jp04"sv, 1);
-                break;
-            case Gfx::FontVariantEastAsian::Variant::Simplified:
-                // Enables display of simplified forms (OpenType feature: smpl).
-                features.set("smpl"sv, 1);
-                break;
-            case Gfx::FontVariantEastAsian::Variant::Traditional:
-                // Enables display of traditional forms (OpenType feature: trad).
-                features.set("trad"sv, 1);
-                break;
-            default:
-                break;
+            if (east_asian.variant.has_value()) {
+                switch (east_asian.variant.value()) {
+                case EastAsianVariant::Jis78:
+                    // Enables display of JIS78 forms (OpenType feature: jp78).
+                    features.set("jp78"sv, 1);
+                    break;
+                case EastAsianVariant::Jis83:
+                    // Enables display of JIS83 forms (OpenType feature: jp83).
+                    features.set("jp83"sv, 1);
+                    break;
+                case EastAsianVariant::Jis90:
+                    // Enables display of JIS90 forms (OpenType feature: jp90).
+                    features.set("jp90"sv, 1);
+                    break;
+                case EastAsianVariant::Jis04:
+                    // Enables display of JIS04 forms (OpenType feature: jp04).
+                    features.set("jp04"sv, 1);
+                    break;
+                case EastAsianVariant::Simplified:
+                    // Enables display of simplified forms (OpenType feature: smpl).
+                    features.set("smpl"sv, 1);
+                    break;
+                case EastAsianVariant::Traditional:
+                    // Enables display of traditional forms (OpenType feature: trad).
+                    features.set("trad"sv, 1);
+                    break;
+                }
             }
-            switch (east_asian.width) {
-            case Gfx::FontVariantEastAsian::Width::FullWidth:
-                // Enables display of full-width forms (OpenType feature: fwid).
-                features.set("fwid"sv, 1);
-                break;
-            case Gfx::FontVariantEastAsian::Width::Proportional:
-                // Enables display of proportional-width forms (OpenType feature: pwid).
-                features.set("pwid"sv, 1);
-                break;
-            default:
-                break;
+            if (east_asian.width.has_value()) {
+                switch (east_asian.width.value()) {
+                case EastAsianWidth::FullWidth:
+                    // Enables display of full-width forms (OpenType feature: fwid).
+                    features.set("fwid"sv, 1);
+                    break;
+                case EastAsianWidth::ProportionalWidth:
+                    // Enables display of proportional-width forms (OpenType feature: pwid).
+                    features.set("pwid"sv, 1);
+                    break;
+                }
             }
             if (east_asian.ruby) {
                 // Enables display of ruby forms (OpenType feature: ruby).
