@@ -208,6 +208,7 @@ void PageClient::report_finished_handling_input_event(u64 page_id, Web::EventRes
 
 void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
 {
+    m_viewport_size = size;
     page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size));
 }
 
@@ -217,15 +218,7 @@ void PageClient::set_device_pixel_ratio(double device_pixel_ratio)
         return;
 
     m_device_pixel_ratio = device_pixel_ratio;
-
-    auto traversable = page().top_level_traversable();
-    traversable->backing_store_manager()
-        .resize_backing_stores_if_needed(Web::Painting::BackingStoreManager::WindowResizingInProgress::No);
-
-    if (auto document = traversable->active_document()) {
-        document->set_needs_media_query_evaluation();
-        document->set_needs_display(Web::InvalidateDisplayList::Yes);
-    }
+    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size));
 }
 
 void PageClient::set_maximum_frames_per_second(u64 maximum_frames_per_second)
