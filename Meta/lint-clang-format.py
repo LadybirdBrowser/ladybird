@@ -19,7 +19,7 @@ from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
 from Meta.utils import run_command
 
-CLANG_FORMAT_MAJOR_VERSION = 20
+CLANG_FORMAT_MAJOR_VERSION = 21
 CLANG_FORMAT_EXECUTABLE = "clang-format"
 
 
