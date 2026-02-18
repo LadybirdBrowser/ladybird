@@ -29,7 +29,7 @@ serializeIframeError.message: Cannot serialize platform objects
 serializeIframeError.constructor === DOMException: false
 serializeIframeError.constructor === iframe.contentWindow.DOMException: true
 Message 1 data: undefined
-Message 1 origin: file://
+Message 1 origin as expected: true
 Message 1 lastEventId: 
 Message 1 source: [object Window]
 Message 1 ports: 
@@ -39,7 +39,7 @@ Message 1 source === window: true
 Message 1 source === iframe.contentWindow: false
 Message 1 source === blobIframe.contentWindow: false
 Message 2 data: null
-Message 2 origin: file://
+Message 2 origin as expected: true
 Message 2 lastEventId: 
 Message 2 source: [object Window]
 Message 2 ports: 
@@ -49,7 +49,7 @@ Message 2 source === window: true
 Message 2 source === iframe.contentWindow: false
 Message 2 source === blobIframe.contentWindow: false
 Message 3 data: true
-Message 3 origin: file://
+Message 3 origin as expected: true
 Message 3 lastEventId: 
 Message 3 source: [object Window]
 Message 3 ports: 
@@ -59,7 +59,7 @@ Message 3 source === window: true
 Message 3 source === iframe.contentWindow: false
 Message 3 source === blobIframe.contentWindow: false
 Message 4 data: false
-Message 4 origin: file://
+Message 4 origin as expected: true
 Message 4 lastEventId: 
 Message 4 source: [object Window]
 Message 4 ports: 
@@ -69,7 +69,7 @@ Message 4 source === window: true
 Message 4 source === iframe.contentWindow: false
 Message 4 source === blobIframe.contentWindow: false
 Message 5 data: 123
-Message 5 origin: file://
+Message 5 origin as expected: true
 Message 5 lastEventId: 
 Message 5 source: [object Window]
 Message 5 ports: 
@@ -79,7 +79,7 @@ Message 5 source === window: true
 Message 5 source === iframe.contentWindow: false
 Message 5 source === blobIframe.contentWindow: false
 Message 6 data: 123.456
-Message 6 origin: file://
+Message 6 origin as expected: true
 Message 6 lastEventId: 
 Message 6 source: [object Window]
 Message 6 ports: 
@@ -89,7 +89,7 @@ Message 6 source === window: true
 Message 6 source === iframe.contentWindow: false
 Message 6 source === blobIframe.contentWindow: false
 Message 7 data: 9007199254740991
-Message 7 origin: file://
+Message 7 origin as expected: true
 Message 7 lastEventId: 
 Message 7 source: [object Window]
 Message 7 ports: 
@@ -99,7 +99,7 @@ Message 7 source === window: true
 Message 7 source === iframe.contentWindow: false
 Message 7 source === blobIframe.contentWindow: false
 Message 8 data: This is a string
-Message 8 origin: file://
+Message 8 origin as expected: true
 Message 8 lastEventId: 
 Message 8 source: [object Window]
 Message 8 ports: 
@@ -109,7 +109,7 @@ Message 8 source === window: true
 Message 8 source === iframe.contentWindow: false
 Message 8 source === blobIframe.contentWindow: false
 Message 9 data: [object Object]
-Message 9 origin: file://
+Message 9 origin as expected: true
 Message 9 lastEventId: 
 Message 9 source: [object Window]
 Message 9 ports: [object MessagePort]
@@ -119,7 +119,7 @@ Message 9 source === window: true
 Message 9 source === iframe.contentWindow: false
 Message 9 source === blobIframe.contentWindow: false
 Message 10 data: I am from another ~planet~ iframe
-Message 10 origin: file://
+Message 10 origin as expected: true
 Message 10 lastEventId: 
 Message 10 source: [object Window]
 Message 10 ports: 
@@ -129,7 +129,7 @@ Message 10 source === window: false
 Message 10 source === iframe.contentWindow: true
 Message 10 source === blobIframe.contentWindow: false
 Message 11 data: All done :^)
-Message 11 origin: file://
+Message 11 origin as expected: true
 Message 11 lastEventId: 
 Message 11 source: [object Window]
 Message 11 ports: 

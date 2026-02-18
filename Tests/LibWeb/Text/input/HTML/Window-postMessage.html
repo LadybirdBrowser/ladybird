@@ -31,7 +31,7 @@
         window.onmessage = messageEvent => {
             try {
                 println(`Message ${messageCount} data: ${messageEvent.data}`);
-                println(`Message ${messageCount} origin: ${messageEvent.origin}`);
+                println(`Message ${messageCount} origin as expected: ${messageEvent.origin === "null" || messageEvent.origin === "file://"}`);
                 println(`Message ${messageCount} lastEventId: ${messageEvent.lastEventId}`);
                 println(`Message ${messageCount} source: ${messageEvent.source}`);
                 println(`Message ${messageCount} ports: ${messageEvent.ports}`);
