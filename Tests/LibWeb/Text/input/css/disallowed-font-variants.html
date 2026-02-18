@@ -1,0 +1,15 @@
+<!doctype html>
+<style>
+    #a {
+        font-variant: jis78 small-caps full-width;
+    }
+</style>
+<script src="../include.js"></script>
+<pre id="out"></pre>
+<script>
+    test(() => {
+        for (const rule of document.styleSheets[0].cssRules) {
+            println(rule.cssText);
+        }
+    });
+</script>

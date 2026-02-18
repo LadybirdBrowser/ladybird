@@ -381,8 +381,7 @@
     "unicase",
     "titling-caps"
   ],
-  "font-variant-east-asian": [
-    "normal",
+  "font-variant-east-asian-keyword": [
     "ruby",
     "jis78",
     "jis83",
