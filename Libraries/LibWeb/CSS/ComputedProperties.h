@@ -166,7 +166,7 @@ public:
     FontVariantCaps font_variant_caps() const;
     Optional<FontVariantEastAsian> font_variant_east_asian() const;
     FontVariantEmoji font_variant_emoji() const;
-    Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const;
+    Optional<FontVariantLigatures> font_variant_ligatures() const;
     Optional<Gfx::FontVariantNumeric> font_variant_numeric() const;
     FontVariantPosition font_variant_position() const;
     FontKerning font_kerning() const;

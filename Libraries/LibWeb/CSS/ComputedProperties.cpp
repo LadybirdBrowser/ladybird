@@ -1537,7 +1537,7 @@ FontVariantEmoji ComputedProperties::font_variant_emoji() const
     return keyword_to_font_variant_emoji(value.to_keyword()).release_value();
 }
 
-Optional<Gfx::FontVariantLigatures> ComputedProperties::font_variant_ligatures() const
+Optional<FontVariantLigatures> ComputedProperties::font_variant_ligatures() const
 {
     auto const& value = property(PropertyID::FontVariantLigatures);
 
@@ -1545,63 +1545,23 @@ Optional<Gfx::FontVariantLigatures> ComputedProperties::font_variant_ligatures()
         return {};
 
     if (value.to_keyword() == Keyword::None)
-        return Gfx::FontVariantLigatures { .none = true };
+        return FontVariantLigatures { .none = true };
 
     auto const& tuple = value.as_tuple().tuple();
 
-    Gfx::FontVariantLigatures ligatures {};
+    FontVariantLigatures ligatures {};
 
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Common]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantLigatures::Common]->to_keyword()) {
-        case Keyword::CommonLigatures:
-            ligatures.common = Gfx::FontVariantLigatures::Common::Common;
-            break;
-        case Keyword::NoCommonLigatures:
-            ligatures.common = Gfx::FontVariantLigatures::Common::NoCommon;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Common])
+        ligatures.common = keyword_to_common_lig_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Common]->to_keyword()).value();
 
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary]->to_keyword()) {
-        case Keyword::DiscretionaryLigatures:
-            ligatures.discretionary = Gfx::FontVariantLigatures::Discretionary::Discretionary;
-            break;
-        case Keyword::NoDiscretionaryLigatures:
-            ligatures.discretionary = Gfx::FontVariantLigatures::Discretionary::NoDiscretionary;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary])
+        ligatures.discretionary = keyword_to_discretionary_lig_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary]->to_keyword()).value();
 
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical]->to_keyword()) {
-        case Keyword::HistoricalLigatures:
-            ligatures.historical = Gfx::FontVariantLigatures::Historical::Historical;
-            break;
-        case Keyword::NoHistoricalLigatures:
-            ligatures.historical = Gfx::FontVariantLigatures::Historical::NoHistorical;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical])
+        ligatures.historical = keyword_to_historical_lig_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical]->to_keyword()).value();
 
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual]->to_keyword()) {
-        case Keyword::Contextual:
-            ligatures.contextual = Gfx::FontVariantLigatures::Contextual::Contextual;
-            break;
-        case Keyword::NoContextual:
-            ligatures.contextual = Gfx::FontVariantLigatures::Contextual::NoContextual;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual])
+        ligatures.contextual = keyword_to_contextual_alt_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual]->to_keyword()).value();
 
     return ligatures;
 }

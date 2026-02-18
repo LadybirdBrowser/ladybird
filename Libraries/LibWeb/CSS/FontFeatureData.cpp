@@ -33,58 +33,57 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features() const
                 // Specifies that all types of ligatures and contextual forms covered by this property are explicitly disabled.
                 disable_all_ligatures();
             } else {
-                switch (ligature.common) {
-                case Gfx::FontVariantLigatures::Common::Common:
-                    // Enables display of common ligatures (OpenType features: liga, clig).
-                    features.set("liga"sv, 1);
-                    features.set("clig"sv, 1);
-                    break;
-                case Gfx::FontVariantLigatures::Common::NoCommon:
-                    // Disables display of common ligatures (OpenType features: liga, clig).
-                    features.set("liga"sv, 0);
-                    features.set("clig"sv, 0);
-                    break;
-                case Gfx::FontVariantLigatures::Common::Unset:
-                    break;
+                if (ligature.common.has_value()) {
+                    switch (ligature.common.value()) {
+                    case CommonLigValue::CommonLigatures:
+                        // Enables display of common ligatures (OpenType features: liga, clig).
+                        features.set("liga"sv, 1);
+                        features.set("clig"sv, 1);
+                        break;
+                    case CommonLigValue::NoCommonLigatures:
+                        // Disables display of common ligatures (OpenType features: liga, clig).
+                        features.set("liga"sv, 0);
+                        features.set("clig"sv, 0);
+                        break;
+                    }
+                }
+                if (ligature.discretionary.has_value()) {
+                    switch (ligature.discretionary.value()) {
+                    case DiscretionaryLigValue::DiscretionaryLigatures:
+                        // Enables display of discretionary ligatures (OpenType feature: dlig).
+                        features.set("dlig"sv, 1);
+                        break;
+                    case DiscretionaryLigValue::NoDiscretionaryLigatures:
+                        // Disables display of discretionary ligatures (OpenType feature: dlig).
+                        features.set("dlig"sv, 0);
+                        break;
+                    }
                 }
 
-                switch (ligature.discretionary) {
-                case Gfx::FontVariantLigatures::Discretionary::Discretionary:
-                    // Enables display of discretionary ligatures (OpenType feature: dlig).
-                    features.set("dlig"sv, 1);
-                    break;
-                case Gfx::FontVariantLigatures::Discretionary::NoDiscretionary:
-                    // Disables display of discretionary ligatures (OpenType feature: dlig).
-                    features.set("dlig"sv, 0);
-                    break;
-                case Gfx::FontVariantLigatures::Discretionary::Unset:
-                    break;
+                if (ligature.historical.has_value()) {
+                    switch (ligature.historical.value()) {
+                    case HistoricalLigValue::HistoricalLigatures:
+                        // Enables display of historical ligatures (OpenType feature: hlig).
+                        features.set("hlig"sv, 1);
+                        break;
+                    case HistoricalLigValue::NoHistoricalLigatures:
+                        // Disables display of historical ligatures (OpenType feature: hlig).
+                        features.set("hlig"sv, 0);
+                        break;
+                    }
                 }
 
-                switch (ligature.historical) {
-                case Gfx::FontVariantLigatures::Historical::Historical:
-                    // Enables display of historical ligatures (OpenType feature: hlig).
-                    features.set("hlig"sv, 1);
-                    break;
-                case Gfx::FontVariantLigatures::Historical::NoHistorical:
-                    // Disables display of historical ligatures (OpenType feature: hlig).
-                    features.set("hlig"sv, 0);
-                    break;
-                case Gfx::FontVariantLigatures::Historical::Unset:
-                    break;
-                }
-
-                switch (ligature.contextual) {
-                case Gfx::FontVariantLigatures::Contextual::Contextual:
-                    // Enables display of contextual ligatures (OpenType feature: calt).
-                    features.set("calt"sv, 1);
-                    break;
-                case Gfx::FontVariantLigatures::Contextual::NoContextual:
-                    // Disables display of contextual ligatures (OpenType feature: calt).
-                    features.set("calt"sv, 0);
-                    break;
-                case Gfx::FontVariantLigatures::Contextual::Unset:
-                    break;
+                if (ligature.contextual.has_value()) {
+                    switch (ligature.contextual.value()) {
+                    case ContextualAltValue::Contextual:
+                        // Enables display of contextual ligatures (OpenType feature: calt).
+                        features.set("calt"sv, 1);
+                        break;
+                    case ContextualAltValue::NoContextual:
+                        // Disables display of contextual ligatures (OpenType feature: calt).
+                        features.set("calt"sv, 0);
+                        break;
+                    }
                 }
             }
         } else if (text_rendering == TextRendering::Optimizespeed) {
