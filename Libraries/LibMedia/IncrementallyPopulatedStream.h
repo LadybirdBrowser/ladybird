@@ -18,8 +18,8 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/MediaStream.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 
 namespace Media {
 
@@ -107,9 +107,9 @@ private:
     bool check_if_data_is_available_or_begin_request_while_locked(MonotonicTime now, u64 position, u64 length);
     size_t read_from_chunks_while_locked(u64 position, Bytes& bytes) const;
 
-    mutable Threading::Mutex m_mutex;
+    mutable Sync::Mutex m_mutex;
     Vector<Cursor&> m_cursors;
-    Threading::ConditionVariable m_state_changed { m_mutex };
+    Sync::ConditionVariable m_state_changed { m_mutex };
 
     Chunks m_chunks;
     Optional<u64> m_expected_size;

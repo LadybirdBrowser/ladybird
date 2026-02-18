@@ -11,7 +11,7 @@
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
 #include <LibMedia/Sinks/AudioSink.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include "AudioDataProvider.h"

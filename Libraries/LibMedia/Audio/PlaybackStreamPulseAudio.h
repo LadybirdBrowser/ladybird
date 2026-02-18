@@ -9,8 +9,8 @@
 #include "PlaybackStream.h"
 #include "PulseAudioWrappers.h"
 #include <AK/Queue.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 
 namespace Audio {
 
@@ -46,8 +46,8 @@ private:
         RefPtr<PulseAudioStream> m_stream { nullptr };
 
         Queue<Function<void()>> m_tasks;
-        Threading::Mutex m_mutex;
-        Threading::ConditionVariable m_wake_condition { m_mutex };
+        Sync::Mutex m_mutex;
+        Sync::ConditionVariable m_wake_condition { m_mutex };
 
         Atomic<bool> m_exit { false };
     };

@@ -9,7 +9,7 @@
 #include <AK/JsonValue.h>
 #include <AK/Types.h>
 #include <LibCore/Platform/ProcessStatistics.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessType.h>
@@ -43,7 +43,7 @@ private:
     Core::Platform::ProcessStatistics m_statistics;
     HashMap<pid_t, Process> m_processes;
     [[maybe_unused]] int m_signal_handle { -1 };
-    Threading::Mutex m_lock;
+    Sync::Mutex m_lock;
 };
 
 }

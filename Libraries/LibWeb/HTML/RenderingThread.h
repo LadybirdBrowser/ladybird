@@ -9,9 +9,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/Queue.h>
 #include <LibCore/Promise.h>
-#include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Forward.h>
-#include <LibThreading/Mutex.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 

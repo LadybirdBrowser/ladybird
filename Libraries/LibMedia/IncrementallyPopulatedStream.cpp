@@ -39,7 +39,7 @@ IncrementallyPopulatedStream::~IncrementallyPopulatedStream() = default;
 
 void IncrementallyPopulatedStream::set_data_request_callback(DataRequestCallback callback)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_callback_event_loop = Core::EventLoop::current_weak();
     m_data_request_callback = move(callback);
 }
@@ -51,7 +51,7 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     auto new_chunk_end = offset + data.size();
     m_last_chunk_end = new_chunk_end;
 
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
 
     auto previous_chunk_iter = m_chunks.find_largest_not_above_iterator(offset);
 
@@ -96,7 +96,7 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
 
 void IncrementallyPopulatedStream::reached_end_of_body()
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_expected_size = m_last_chunk_end;
     m_closed = true;
     m_state_changed.broadcast();
@@ -104,7 +104,7 @@ void IncrementallyPopulatedStream::reached_end_of_body()
 
 u64 IncrementallyPopulatedStream::size()
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     while (!m_expected_size.has_value())
         m_state_changed.wait();
     return m_expected_size.value();
@@ -112,14 +112,14 @@ u64 IncrementallyPopulatedStream::size()
 
 void IncrementallyPopulatedStream::set_expected_size(u64 expected_size)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_expected_size = expected_size;
     m_state_changed.broadcast();
 }
 
 Optional<u64> IncrementallyPopulatedStream::expected_size() const
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     return m_expected_size;
 }
 
@@ -205,7 +205,7 @@ size_t IncrementallyPopulatedStream::read_from_chunks_while_locked(u64 position,
 
 DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, size_t position, Bytes& bytes)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
 
     auto now = MonotonicTime::now_coarse();
     cursor.m_active_timeout = now + CURSOR_ACTIVE_TIME;
@@ -239,13 +239,13 @@ NonnullRefPtr<MediaStreamCursor> IncrementallyPopulatedStream::create_cursor()
 IncrementallyPopulatedStream::Cursor::Cursor(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
     : m_stream(stream)
 {
-    Threading::MutexLocker locker { m_stream->m_mutex };
+    Sync::MutexLocker locker { m_stream->m_mutex };
     m_stream->m_cursors.append(*this);
 }
 
 IncrementallyPopulatedStream::Cursor::~Cursor()
 {
-    Threading::MutexLocker locker { m_stream->m_mutex };
+    Sync::MutexLocker locker { m_stream->m_mutex };
     VERIFY(m_stream->m_cursors.remove_first_matching([&](Cursor const& cursor) { return this == &cursor; }));
 }
 
@@ -278,7 +278,7 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::Cursor::read_into(Bytes byt
 
 void IncrementallyPopulatedStream::Cursor::abort()
 {
-    Threading::MutexLocker locker { m_stream->m_mutex };
+    Sync::MutexLocker locker { m_stream->m_mutex };
     m_aborted = true;
     m_stream->m_state_changed.broadcast();
 }

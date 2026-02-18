@@ -20,7 +20,7 @@
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Track.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Media {
 
@@ -97,18 +97,18 @@ private:
 
         RefPtr<PlaybackManager> take_strong() const
         {
-            Threading::MutexLocker locker { m_mutex };
+            Sync::MutexLocker locker { m_mutex };
             return m_manager;
         }
 
     private:
         void revoke()
         {
-            Threading::MutexLocker locker { m_mutex };
+            Sync::MutexLocker locker { m_mutex };
             m_manager = nullptr;
         }
 
-        mutable Threading::Mutex m_mutex;
+        mutable Sync::Mutex m_mutex;
         PlaybackManager* m_manager { nullptr };
     };
 

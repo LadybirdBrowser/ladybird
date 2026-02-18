@@ -169,7 +169,7 @@ WeakEventLoopReference::WeakEventLoopReference(EventLoop& event_loop)
 
 void WeakEventLoopReference::revoke()
 {
-    Threading::RWLockLocker<Threading::LockMode::Write> locker { m_lock };
+    Sync::RWLockLocker<Sync::LockMode::Write> locker { m_lock };
     m_event_loop = nullptr;
 }
 
@@ -186,7 +186,7 @@ StrongEventLoopReference::StrongEventLoopReference(WeakEventLoopReference& event
 
 StrongEventLoopReference::~StrongEventLoopReference()
 {
-    m_event_loop_weak->m_lock.unlock();
+    m_event_loop_weak->m_lock.unlock_read();
 }
 
 bool StrongEventLoopReference::is_alive() const
