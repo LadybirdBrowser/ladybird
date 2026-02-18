@@ -226,6 +226,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::FontStyle); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::FontVariantEastAsian); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Position); parsed.has_value())
@@ -608,8 +610,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant(tokens); });
     case PropertyID::FontVariantAlternates:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_alternates_value(tokens); });
-    case PropertyID::FontVariantEastAsian:
-        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_east_asian_value(tokens); });
     case PropertyID::FontVariantLigatures:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_ligatures_value(tokens); });
     case PropertyID::FontVariantNumeric:
@@ -2932,14 +2932,11 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
     bool has_numeric_fractions = false;
     bool has_numeric_ordinals = false;
     bool has_numeric_slashed_zero = false;
-    bool has_east_asian_variant = false;
-    bool has_east_asian_width = false;
-    bool has_east_asian_ruby = false;
     RefPtr<StyleValue const> alternates_value {};
     RefPtr<StyleValue const> caps_value {};
     RefPtr<StyleValue const> emoji_value {};
     RefPtr<StyleValue const> position_value {};
-    StyleValueVector east_asian_values;
+    RefPtr<StyleValue const> east_asian_value {};
     StyleValueVector ligatures_values;
     StyleValueVector numeric_values;
 
@@ -2951,6 +2948,14 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
     } else {
 
         while (tokens.has_next_token()) {
+            // [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
+            if (auto maybe_east_asian_value = parse_font_variant_east_asian_value(tokens)) {
+                if (east_asian_value)
+                    return nullptr;
+                east_asian_value = maybe_east_asian_value.release_nonnull();
+                continue;
+            }
+
             auto maybe_value = parse_keyword_value(tokens);
             if (!maybe_value)
                 break;
@@ -3048,33 +3053,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
                 numeric_values.append(move(value));
                 has_numeric_slashed_zero = true;
                 break;
-            // <east-asian-variant-values> = [ jis78 | jis83 | jis90 | jis04 | simplified | traditional ]
-            case Keyword::Jis78:
-            case Keyword::Jis83:
-            case Keyword::Jis90:
-            case Keyword::Jis04:
-            case Keyword::Simplified:
-            case Keyword::Traditional:
-                if (has_east_asian_variant)
-                    return nullptr;
-                east_asian_values.append(move(value));
-                has_east_asian_variant = true;
-                break;
-            // <east-asian-width-values>   = [ full-width | proportional-width ]
-            case Keyword::FullWidth:
-            case Keyword::ProportionalWidth:
-                if (has_east_asian_width)
-                    return nullptr;
-                east_asian_values.append(move(value));
-                has_east_asian_width = true;
-                break;
-            // ruby
-            case Keyword::Ruby:
-                if (has_east_asian_ruby)
-                    return nullptr;
-                east_asian_values.append(move(value));
-                has_east_asian_ruby = true;
-                break;
             // text | emoji | unicode
             case Keyword::Text:
             case Keyword::Emoji:
@@ -3113,9 +3091,8 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
         emoji_value = normal_value;
     if (!position_value)
         position_value = normal_value;
-
-    quick_sort(east_asian_values, [](auto& left, auto& right) { return *keyword_to_font_variant_east_asian(left->to_keyword()) < *keyword_to_font_variant_east_asian(right->to_keyword()); });
-    auto east_asian_value = resolve_list(east_asian_values);
+    if (!east_asian_value)
+        east_asian_value = normal_value;
 
     quick_sort(ligatures_values, [](auto& left, auto& right) { return *keyword_to_font_variant_ligatures(left->to_keyword()) < *keyword_to_font_variant_ligatures(right->to_keyword()); });
     auto ligatures_value = resolve_list(ligatures_values);
@@ -3134,7 +3111,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
         {
             alternates_value.release_nonnull(),
             caps_value.release_nonnull(),
-            move(east_asian_value),
+            east_asian_value.release_nonnull(),
             emoji_value.release_nonnull(),
             move(ligatures_value),
             move(numeric_value),
@@ -3169,73 +3146,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
         .description = "Invalid or not yet implemented"_string,
     });
     return nullptr;
-}
-
-RefPtr<StyleValue const> Parser::parse_font_variant_east_asian_value(TokenStream<ComponentValue>& tokens)
-{
-    // 6.10 https://drafts.csswg.org/css-fonts/#propdef-font-variant-east-asian
-    // normal | [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
-    // <east-asian-variant-values> = [ jis78 | jis83 | jis90 | jis04 | simplified | traditional ]
-    // <east-asian-width-values>   = [ full-width | proportional-width ]
-
-    // normal
-    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
-        return normal.release_nonnull();
-
-    // [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
-    RefPtr<StyleValue const> ruby_value;
-    RefPtr<StyleValue const> variant_value;
-    RefPtr<StyleValue const> width_value;
-
-    while (tokens.has_next_token()) {
-        auto maybe_value = parse_keyword_value(tokens);
-        if (!maybe_value)
-            break;
-        auto font_variant_east_asian = keyword_to_font_variant_east_asian(maybe_value->to_keyword());
-        if (!font_variant_east_asian.has_value())
-            return nullptr;
-
-        switch (font_variant_east_asian.value()) {
-        case FontVariantEastAsian::Ruby:
-            if (ruby_value)
-                return nullptr;
-            ruby_value = maybe_value.release_nonnull();
-            break;
-        case FontVariantEastAsian::FullWidth:
-        case FontVariantEastAsian::ProportionalWidth:
-            if (width_value)
-                return nullptr;
-            width_value = maybe_value.release_nonnull();
-            break;
-        case FontVariantEastAsian::Jis78:
-        case FontVariantEastAsian::Jis83:
-        case FontVariantEastAsian::Jis90:
-        case FontVariantEastAsian::Jis04:
-        case FontVariantEastAsian::Simplified:
-        case FontVariantEastAsian::Traditional:
-            if (variant_value)
-                return nullptr;
-            variant_value = maybe_value.release_nonnull();
-            break;
-        case FontVariantEastAsian::Normal:
-            return nullptr;
-        }
-    }
-
-    StyleValueVector values;
-    if (variant_value)
-        values.append(variant_value.release_nonnull());
-    if (width_value)
-        values.append(width_value.release_nonnull());
-    if (ruby_value)
-        values.append(ruby_value.release_nonnull());
-
-    if (values.is_empty())
-        return nullptr;
-    if (values.size() == 1)
-        return *values.first();
-
-    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_font_variant_ligatures_value(TokenStream<ComponentValue>& tokens)

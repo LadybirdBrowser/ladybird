@@ -3713,6 +3713,70 @@ RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentVal
     return FontStyleStyleValue::create(font_style.release_value());
 }
 
+RefPtr<StyleValue const> Parser::parse_font_variant_east_asian_value(TokenStream<ComponentValue>& tokens)
+{
+    // 6.10 https://drafts.csswg.org/css-fonts/#propdef-font-variant-east-asian
+    // [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
+    // <east-asian-variant-values> = [ jis78 | jis83 | jis90 | jis04 | simplified | traditional ]
+    // <east-asian-width-values>   = [ full-width | proportional-width ]
+    RefPtr<StyleValue const> ruby_value;
+    RefPtr<StyleValue const> variant_value;
+    RefPtr<StyleValue const> width_value;
+
+    while (tokens.has_next_token()) {
+        auto keyword_transaction = tokens.begin_transaction();
+        auto maybe_value = parse_keyword_value(tokens);
+        if (!maybe_value)
+            break;
+
+        auto font_variant_east_asian = keyword_to_font_variant_east_asian_keyword(maybe_value->to_keyword());
+        if (!font_variant_east_asian.has_value())
+            break;
+
+        switch (font_variant_east_asian.value()) {
+        case FontVariantEastAsianKeyword::Ruby:
+            if (ruby_value)
+                return nullptr;
+            keyword_transaction.commit();
+            ruby_value = maybe_value.release_nonnull();
+            break;
+        case FontVariantEastAsianKeyword::FullWidth:
+        case FontVariantEastAsianKeyword::ProportionalWidth:
+            if (width_value)
+                return nullptr;
+            keyword_transaction.commit();
+            width_value = maybe_value.release_nonnull();
+            break;
+        case FontVariantEastAsianKeyword::Jis78:
+        case FontVariantEastAsianKeyword::Jis83:
+        case FontVariantEastAsianKeyword::Jis90:
+        case FontVariantEastAsianKeyword::Jis04:
+        case FontVariantEastAsianKeyword::Simplified:
+        case FontVariantEastAsianKeyword::Traditional:
+            if (variant_value)
+                return nullptr;
+            keyword_transaction.commit();
+            variant_value = maybe_value.release_nonnull();
+            break;
+        }
+    }
+
+    StyleValueVector values;
+    if (variant_value)
+        values.append(variant_value.release_nonnull());
+    if (width_value)
+        values.append(width_value.release_nonnull());
+    if (ruby_value)
+        values.append(ruby_value.release_nonnull());
+
+    if (values.is_empty())
+        return nullptr;
+    if (values.size() == 1)
+        return *values.first();
+
+    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+}
+
 RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
@@ -5598,6 +5662,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_flex_value(tokens);
     case ValueType::FontStyle:
         return parse_font_style_value(tokens);
+    case ValueType::FontVariantEastAsian:
+        return parse_font_variant_east_asian_value(tokens);
     case ValueType::Frequency:
         return parse_frequency_value(tokens);
     case ValueType::FrequencyPercentage:
