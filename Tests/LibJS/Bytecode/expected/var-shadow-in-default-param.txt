@@ -1,0 +1,30 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       SetGlobal identifier:shadow, src:String("outer")
+[  18]       GetGlobal dst:reg6, identifier:shadow_in_default
+[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
+[  48]       GetGlobal dst:reg7, identifier:no_conflict
+[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
+[  78]       End value:reg6
+
+JS bytecode executable "shadow_in_default"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       JumpUndefined condition:arg0, true_target:@18, false_target:@40
+[  18]    1: GetInitializedBinding dst:reg5, identifier:shadow
+[  30]       Mov dst:arg0, src:reg5
+[  40]    2: CreateVariableEnvironment capacity:1
+[  48]       GetLexicalEnvironment dst:reg5
+[  50]       Mov dst:reg6, src:Undefined
+[  60]       CreateVariable identifier:shadow, is_immutable:false, is_global:false, is_strict:false
+[  70]       InitializeVariableBinding identifier:shadow, src:reg6
+[  88]       SetLexicalBinding identifier:shadow, src:String("inner")
+[  a0]       Return value:arg0
+
+JS bytecode executable "no_conflict"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       JumpUndefined condition:arg0, true_target:@18, false_target:@28
+[  18]    1: Mov dst:arg0, src:Int32(1)
+[  28]    2: Mov dst:reg5, src:Undefined
+[  38]       Mov dst:y~0, src:reg5
+[  48]       Mov dst:y~0, src:Int32(2)
+[  58]       Return value:y~0
