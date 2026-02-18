@@ -65,6 +65,16 @@ def major_compiler_version_if_supported(platform: Platform, compiler: str, clang
             return apple_build_version
 
     elif version.find("clang") != -1:
+        # LLVM 21 on macOS interacts poorly with the system libc++. We encounter linker errors referring to a function
+        # that is present in LLVM's libc++, but not in the system libc++ (std::__1::__hash_memory). We would need to set
+        # both LDFLAGS and RPATH flags to link against and run with the LLVM libc++. Attempts to do so work for some
+        # vcpkg ports, but for some reason, skia does not pick up these flags. See:
+        #
+        # https://github.com/llvm/llvm-project/issues/77653
+        # https://github.com/llvm/llvm-project/issues/155531
+        if platform.host_system == HostSystem.macOS and major_version == 21:
+            return None
+
         if major_version >= CLANG_MINIMUM_VERSION:
             return major_version
 
