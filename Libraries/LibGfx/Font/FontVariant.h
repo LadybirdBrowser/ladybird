@@ -18,36 +18,6 @@ struct FontVariantAlternates {
     bool operator==(FontVariantAlternates const&) const = default;
 };
 
-struct FontVariantLigatures {
-    enum class Common {
-        Unset,
-        Common,
-        NoCommon
-    };
-    enum class Discretionary {
-        Unset,
-        Discretionary,
-        NoDiscretionary
-    };
-    enum class Historical {
-        Unset,
-        Historical,
-        NoHistorical
-    };
-    enum class Contextual {
-        Unset,
-        Contextual,
-        NoContextual
-    };
-    bool none = false;
-    Common common { Common::Unset };
-    Discretionary discretionary { Discretionary::Unset };
-    Historical historical { Historical::Unset };
-    Contextual contextual { Contextual::Unset };
-
-    bool operator==(FontVariantLigatures const&) const = default;
-};
-
 struct FontVariantNumeric {
     enum class Figure {
         Unset,
@@ -82,19 +52,6 @@ struct Traits<Gfx::FontVariantAlternates> : public DefaultTraits<Gfx::FontVarian
     static unsigned hash(Gfx::FontVariantAlternates const& data)
     {
         u32 hash = data.historical_forms ? 1 : 0;
-        return hash;
-    }
-};
-
-template<>
-struct Traits<Gfx::FontVariantLigatures> : public DefaultTraits<Gfx::FontVariantLigatures> {
-    static unsigned hash(Gfx::FontVariantLigatures const& data)
-    {
-        u32 hash = data.none ? 1 : 0;
-        hash = pair_int_hash(hash, to_underlying(data.common));
-        hash = pair_int_hash(hash, to_underlying(data.discretionary));
-        hash = pair_int_hash(hash, to_underlying(data.historical));
-        hash = pair_int_hash(hash, to_underlying(data.contextual));
         return hash;
     }
 };
