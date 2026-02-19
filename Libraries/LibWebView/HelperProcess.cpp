@@ -127,6 +127,10 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     if (web_content_options.paint_viewport_scrollbars == PaintViewportScrollbars::No)
         arguments.append("--disable-scrollbar-painting"sv);
 
+    // Propogate this process-wide setting to the child process also.
+    if (URL::file_scheme_urls_have_tuple_origins())
+        arguments.append("--tuple-file-origins"sv);
+
     if (auto const maybe_echo_server_port = web_content_options.echo_server_port; maybe_echo_server_port.has_value()) {
         arguments.append("--echo-server-port"sv);
         arguments.append(ByteString::number(maybe_echo_server_port.value()));
@@ -211,6 +215,10 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
     default:
         VERIFY_NOT_REACHED();
     }
+
+    // Propogate this process-wide setting to the child process also.
+    if (URL::file_scheme_urls_have_tuple_origins())
+        arguments.append("--tuple-file-origins"sv);
 
     return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, move(arguments));
 }
