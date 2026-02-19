@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/SVGFEBlendElementPrototype.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/Blending.h>

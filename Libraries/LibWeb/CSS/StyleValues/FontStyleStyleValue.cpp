@@ -6,6 +6,7 @@
 
 #include "FontStyleStyleValue.h"
 #include <LibGfx/Font/FontStyleMapping.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>

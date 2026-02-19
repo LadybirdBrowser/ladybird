@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
 
 namespace Web::CSS {

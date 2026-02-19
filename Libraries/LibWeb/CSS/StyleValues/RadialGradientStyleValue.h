@@ -10,7 +10,6 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Painting/GradientPainting.h>
 

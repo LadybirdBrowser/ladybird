@@ -16,6 +16,7 @@
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
 #include <LibWeb/CSS/CharacterTypes.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>

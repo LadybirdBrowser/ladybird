@@ -6,6 +6,7 @@
 
 #include "EasingFunction.h"
 #include <AK/BinarySearch.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>

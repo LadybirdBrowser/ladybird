@@ -11,7 +11,6 @@
 
 #include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>

@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/CSSMathSum.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>

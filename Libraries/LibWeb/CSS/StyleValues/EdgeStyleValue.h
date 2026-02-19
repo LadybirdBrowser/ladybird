@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 

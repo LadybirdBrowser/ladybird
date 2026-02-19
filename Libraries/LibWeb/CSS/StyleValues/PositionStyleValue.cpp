@@ -8,8 +8,28 @@
  */
 
 #include "PositionStyleValue.h"
+#include <LibWeb/CSS/Enums.h>
 
 namespace Web::CSS {
+
+ValueComparingNonnullRefPtr<PositionStyleValue const> PositionStyleValue::create(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
+{
+    return adopt_ref(*new (nothrow) PositionStyleValue(move(edge_x), move(edge_y)));
+}
+
+ValueComparingNonnullRefPtr<PositionStyleValue const> PositionStyleValue::create_center()
+{
+    return adopt_ref(*new (nothrow) PositionStyleValue(
+        EdgeStyleValue::create(PositionEdge::Center, {}),
+        EdgeStyleValue::create(PositionEdge::Center, {})));
+}
+
+ValueComparingNonnullRefPtr<PositionStyleValue const> PositionStyleValue::create_computed_center()
+{
+    return adopt_ref(*new (nothrow) PositionStyleValue(
+        EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 })),
+        EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 }))));
+}
 
 bool PositionStyleValue::is_center(SerializationMode mode) const
 {

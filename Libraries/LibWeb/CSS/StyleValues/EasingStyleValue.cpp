@@ -11,6 +11,7 @@
 #include "EasingStyleValue.h"
 #include <AK/BinarySearch.h>
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 

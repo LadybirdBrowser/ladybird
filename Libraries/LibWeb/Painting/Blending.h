@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibGfx/CompositingAndBlendingOperator.h>
-#include <LibWeb/CSS/Enums.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::Painting {
 
@@ -31,18 +31,6 @@ namespace Web::Painting {
     E(PlusDarker)                    \
     E(PlusLighter)
 
-static Gfx::CompositingAndBlendingOperator mix_blend_mode_to_compositing_and_blending_operator(CSS::MixBlendMode blend_mode)
-{
-    switch (blend_mode) {
-#undef __ENUMERATE
-#define __ENUMERATE(blend_mode)         \
-    case CSS::MixBlendMode::blend_mode: \
-        return Gfx::CompositingAndBlendingOperator::blend_mode;
-        ENUMERATE_MIX_BLEND_MODES(__ENUMERATE)
-#undef __ENUMERATE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
+Gfx::CompositingAndBlendingOperator mix_blend_mode_to_compositing_and_blending_operator(CSS::MixBlendMode blend_mode);
 
 }

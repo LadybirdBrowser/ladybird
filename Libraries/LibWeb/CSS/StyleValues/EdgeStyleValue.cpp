@@ -5,6 +5,7 @@
  */
 
 #include "EdgeStyleValue.h"
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>

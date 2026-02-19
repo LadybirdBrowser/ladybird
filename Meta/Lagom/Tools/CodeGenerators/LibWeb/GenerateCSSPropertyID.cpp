@@ -165,7 +165,6 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_p
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/AcceptedTypeRange.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>

@@ -10,8 +10,8 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 

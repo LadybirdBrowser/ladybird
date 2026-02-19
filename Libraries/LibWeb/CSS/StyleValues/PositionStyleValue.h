@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -18,22 +17,9 @@ namespace Web::CSS {
 
 class PositionStyleValue final : public StyleValueWithDefaultOperators<PositionStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<PositionStyleValue const> create(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
-    {
-        return adopt_ref(*new (nothrow) PositionStyleValue(move(edge_x), move(edge_y)));
-    }
-    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_center()
-    {
-        return adopt_ref(*new (nothrow) PositionStyleValue(
-            EdgeStyleValue::create(PositionEdge::Center, {}),
-            EdgeStyleValue::create(PositionEdge::Center, {})));
-    }
-    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_computed_center()
-    {
-        return adopt_ref(*new (nothrow) PositionStyleValue(
-            EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 })),
-            EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 }))));
-    }
+    static ValueComparingNonnullRefPtr<PositionStyleValue const> create(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y);
+    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_center();
+    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_computed_center();
     virtual ~PositionStyleValue() override = default;
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return m_properties.edge_x; }

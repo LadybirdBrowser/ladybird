@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 
 namespace Web::CSS {

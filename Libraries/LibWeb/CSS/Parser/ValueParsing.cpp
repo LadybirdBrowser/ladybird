@@ -18,6 +18,7 @@
 #include <AK/QuickSort.h>
 #include <AK/StringConversions.h>
 #include <AK/TemporaryChange.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
