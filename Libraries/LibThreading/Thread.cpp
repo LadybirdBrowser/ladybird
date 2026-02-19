@@ -10,7 +10,7 @@ namespace Threading {
 
 Thread::Thread(Function<intptr_t()> action, StringView thread_name)
     : m_action(move(action))
-    , m_thread_name(thread_name.is_null() ? ""sv : thread_name)
+    , m_thread_name(thread_name)
 {
 }
 

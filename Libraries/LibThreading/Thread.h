@@ -76,7 +76,7 @@ public:
     bool has_exited() const;
 
 private:
-    explicit Thread(ESCAPING Function<intptr_t()> action, StringView thread_name = {});
+    explicit Thread(ESCAPING Function<intptr_t()> action, StringView thread_name);
     Function<intptr_t()> m_action;
     pthread_t m_tid {};
     ByteString m_thread_name;
