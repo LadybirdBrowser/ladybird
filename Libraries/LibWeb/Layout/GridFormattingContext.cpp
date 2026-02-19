@@ -2431,8 +2431,11 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
 
     if (should_treat_preferred_size_as_auto) {
         CSSPixels min_content_size;
-        // NOTE: This behavior is not defined in the spec, but seems required to match other browsers.
-        if (item.box->is_scroll_container()) {
+        // NOTE: Not defined in spec, but matches other browsers: a scroll container's min-content
+        //       width contribution is 0 because its content can overflow and scroll horizontally.
+        //       This does NOT apply to the row dimension — scroll containers must still contribute
+        //       their content height, otherwise grids with height:min-content collapse rows to 0.
+        if (dimension == GridDimension::Column && item.box->is_scroll_container()) {
             min_content_size = 0;
         } else {
             min_content_size = calculate_min_content_size(item, dimension);
