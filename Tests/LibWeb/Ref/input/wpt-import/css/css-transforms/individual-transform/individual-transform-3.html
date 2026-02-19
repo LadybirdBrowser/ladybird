@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Individual transform: non-invertible matrix</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#individual-transforms">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#ctm">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-1/#transform-function-lists">
+<link rel="help" href="https://github.com/servo/servo/issues/37146">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/individual-transform/../../reference/ref-filled-green-200px-square.html">
+<meta name="assert" content="Tests that the element isn't rendered when
+    the current transformation matrix is non-invertible because of `scale`.">
+
+<style>
+.wrapper {
+  width: 200px;
+  height: 200px;
+  background: green;
+}
+.wrapper > div {
+  width: 200px;
+  height: 20px;
+  background: red;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div class="wrapper">
+  <div style="scale: 0"></div>
+  <div style="scale: 0 0"></div>
+  <div style="scale: 0 1"></div>
+  <div style="scale: 1 0"></div>
+  <div style="scale: 0 0 0"></div>
+  <div style="scale: 0 0 1"></div>
+  <div style="scale: 0 1 0"></div>
+  <div style="scale: 0 1 1"></div>
+  <div style="scale: 1 0 0"></div>
+  <div style="scale: 1 0 1"></div>
+  <div style="scale: 1 1 0"></div>
+</div>

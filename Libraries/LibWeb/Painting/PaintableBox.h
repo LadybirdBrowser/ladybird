@@ -130,6 +130,9 @@ public:
             || computed_values.scale();
     }
 
+    [[nodiscard]] bool has_non_invertible_css_transform() const { return m_has_non_invertible_css_transform; }
+    void set_has_non_invertible_css_transform(bool value) { m_has_non_invertible_css_transform = value; }
+
     [[nodiscard]] bool overflow_property_applies() const;
 
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const
@@ -327,6 +330,7 @@ private:
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
     mutable bool m_draw_enlarged_horizontal_scrollbar { false };
     mutable bool m_draw_enlarged_vertical_scrollbar { false };
+    bool m_has_non_invertible_css_transform { false };
 
     ResolvedBackground m_resolved_background;
 
