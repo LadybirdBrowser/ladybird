@@ -26,6 +26,7 @@
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
@@ -98,6 +99,17 @@ struct DrawRepeatedImmutableBitmap {
     Repeat repeat;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
+    void dump(StringBuilder&) const;
+};
+
+struct DrawExternalContent {
+    static constexpr StringView command_name = "DrawExternalContent"sv;
+
+    Gfx::IntRect dst_rect;
+    NonnullRefPtr<ExternalContentSource> source;
+    Gfx::ScalingMode scaling_mode;
+
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void dump(StringBuilder&) const;
 };
 
@@ -383,6 +395,7 @@ using DisplayListCommand = Variant<
     DrawPaintingSurface,
     DrawScaledImmutableBitmap,
     DrawRepeatedImmutableBitmap,
+    DrawExternalContent,
     Save,
     SaveLayer,
     Restore,

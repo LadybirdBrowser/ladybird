@@ -45,6 +45,7 @@ class DevicePixelConverter;
 class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListRecorder;
+class ExternalContentSource;
 class SVGGradientPaintStyle;
 class ScrollStateSnapshot;
 using PaintStyle = RefPtr<SVGGradientPaintStyle>;

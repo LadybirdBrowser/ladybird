@@ -149,6 +149,21 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
     canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
+void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& command)
+{
+    auto bitmap = command.source->current_bitmap();
+    if (!bitmap)
+        return;
+    if (m_context && !bitmap->ensure_sk_image(*m_context))
+        return;
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    SkRect src_rect = SkRect::MakeIWH(bitmap->width(), bitmap->height());
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    canvas.drawImageRect(bitmap->sk_image(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+}
+
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
     if (m_context && !command.bitmap->ensure_sk_image(*m_context))
