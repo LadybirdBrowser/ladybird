@@ -1566,7 +1566,7 @@ Optional<FontVariantLigatures> ComputedProperties::font_variant_ligatures() cons
     return ligatures;
 }
 
-Optional<Gfx::FontVariantNumeric> ComputedProperties::font_variant_numeric() const
+Optional<FontVariantNumeric> ComputedProperties::font_variant_numeric() const
 {
     auto const& value = property(PropertyID::FontVariantNumeric);
 
@@ -1575,46 +1575,16 @@ Optional<Gfx::FontVariantNumeric> ComputedProperties::font_variant_numeric() con
 
     auto const& tuple = value.as_tuple().tuple();
 
-    Gfx::FontVariantNumeric numeric {};
+    FontVariantNumeric numeric {};
 
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure]->to_keyword()) {
-        case Keyword::LiningNums:
-            numeric.figure = Gfx::FontVariantNumeric::Figure::Lining;
-            break;
-        case Keyword::OldstyleNums:
-            numeric.figure = Gfx::FontVariantNumeric::Figure::Oldstyle;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure])
+        numeric.figure = keyword_to_numeric_figure_value(tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure]->to_keyword()).value();
 
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing]->to_keyword()) {
-        case Keyword::ProportionalNums:
-            numeric.spacing = Gfx::FontVariantNumeric::Spacing::Proportional;
-            break;
-        case Keyword::TabularNums:
-            numeric.spacing = Gfx::FontVariantNumeric::Spacing::Tabular;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing])
+        numeric.spacing = keyword_to_numeric_spacing_value(tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing]->to_keyword()).value();
 
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction]) {
-        switch (tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction]->to_keyword()) {
-        case Keyword::DiagonalFractions:
-            numeric.fraction = Gfx::FontVariantNumeric::Fraction::Diagonal;
-            break;
-        case Keyword::StackedFractions:
-            numeric.fraction = Gfx::FontVariantNumeric::Fraction::Stacked;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction])
+        numeric.fraction = keyword_to_numeric_fraction_value(tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction]->to_keyword()).value();
 
     if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Ordinal])
         numeric.ordinal = true;
