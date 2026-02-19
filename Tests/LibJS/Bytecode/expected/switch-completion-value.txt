@@ -24,8 +24,7 @@ JS bytecode executable "eval"
 [  30]    2: End value:reg5
 [  38]    3: Mov dst:reg5, src:String("hello")
 [  48]       Mov dst:x~0, src:Int32(1)
-[  58]       Mov dst:reg5, src:Undefined
-[  68]    4: End value:reg5
+[  58]    4: End value:reg5
 
 JS bytecode executable "eval"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -46,6 +45,6 @@ JS bytecode executable "eval"
 [  50]    4: Mov dst:reg5, src:String("default")
 [  60]    5: End value:reg5
 
-undefined
+"hello"
 "second"
 "matched"

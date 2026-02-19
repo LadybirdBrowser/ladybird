@@ -3225,8 +3225,6 @@ Optional<ScopedOperand> SwitchStatement::generate_labelled_evaluation(Bytecode::
                 if (generator.must_propagate_completion()) {
                     if (result.has_value())
                         generator.emit_mov(*completion, *result);
-                    else
-                        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
                 }
             }
         }
