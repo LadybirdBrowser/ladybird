@@ -98,7 +98,16 @@ describe("correct behavior", () => {
             [0.1, 1, "0.1"],
             [0.0123, 3, "0.0123"],
             [0.0012345, 3, "0.00123"],
-            [0.0012345, 4, "0.001235"],
+            [0.0012345, 4, "0.001234"],
+        ].forEach(test => {
+            expect(test[0].toPrecision(test[1])).toBe(test[2]);
+        });
+    });
+
+    test("numbers exceeding the limits of a double", () => {
+        [
+            [1 + 11 / 31, 16, "1.354838709677419"],
+            [-1.2345e27, 21, "-1.23449999999999996184e+27"],
         ].forEach(test => {
             expect(test[0].toPrecision(test[1])).toBe(test[2]);
         });
