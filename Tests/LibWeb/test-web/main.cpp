@@ -380,6 +380,9 @@ static ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tes
             continue;
         }
 
+        if (!is_valid_test_name(name))
+            continue;
+
         auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
         tests.append({ TestMode::Ref, input_path, {}, relative_path, relative_path });
     }
@@ -1272,9 +1275,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             // Disconnect child crash handlers so old child crashes don't affect the next test
             view->disconnect_child_crash_handlers();
 
-            // Don't try to reset zoom if WebContent crashed - it's gone
-            if (test_result != TestResult::Crashed)
+            // Don't try to reset state if WebContent crashed - it's gone
+            if (test_result != TestResult::Crashed) {
                 view->reset_zoom();
+                view->reset_viewport_size(window_size);
+            }
 
             auto& test = tests[test_index];
             if (test.timeout_timer) {

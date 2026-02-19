@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	Screen size is unchanged during element fullscreen
+Fail	Screen size is unchanged during tab-capture element fullscreen

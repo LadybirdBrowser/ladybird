@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>:fullscreen pseudo-class</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div><div></div></div>
+<script>
+  promise_test(async (t) => {
+    t.add_cleanup(() => {
+      if (document.fullscreenElement) {
+        return document.exitFullscreen();
+      }
+    });
+    const outer = document.querySelector("div");
+    const inner = outer.firstChild;
+
+    // First request fullscreen for the outer element.
+    await trusted_request(outer);
+    await fullScreenChange();
+    assert_equals(document.fullscreenElement, outer);
+    assert_true(
+      outer.matches(":fullscreen"),
+      "outer:fullscreen in simple fullscreen"
+    );
+    assert_false(
+      inner.matches(":fullscreen"),
+      "inner:fullscreen in simple fullscreen"
+    );
+
+    // Then request fullscreen for the inner element.
+    await trusted_request(inner);
+    // Although inner is the fullscreen element, both elements match the
+    // selector, as both have their fullscreen flag set.
+    assert_equals(document.fullscreenElement, inner);
+    assert_true(
+      inner.matches(":fullscreen"),
+      "inner:fullscreen in nested fullscreen"
+    );
+    assert_true(
+      outer.matches(":fullscreen"),
+      "outer:fullscreen in nested fullscreen"
+    );
+  });
+</script>

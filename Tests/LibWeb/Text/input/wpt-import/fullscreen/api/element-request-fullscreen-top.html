@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>
+    Element#requestFullscreen() for top element in fullscreen element stack
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<div id="top"></div>
+<script>
+    promise_test(async function (t) {
+        const top = document.getElementById("top");
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+
+        await Promise.all([
+            trusted_request(top),
+            new Promise((r) =>
+                document.addEventListener("fullscreenchange", r)
+            ),
+        ]);
+        assert_equals(document.fullscreenElement, top);
+        await trusted_click(top);
+        await top.requestFullscreen();
+        // A fullscreenerror event would be fired after an async section
+        // and an animation frame task, so wait until after that.
+        await new Promise((resolve) => {
+            t.step_timeout(() => {
+                requestAnimationFrame(resolve);
+            });
+        });
+    });
+</script>

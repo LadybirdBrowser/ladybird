@@ -96,6 +96,8 @@ public:
 
     virtual void finalize() override;
 
+    GC::Ptr<Element> fullscreen_element_for_bindings() const;
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 

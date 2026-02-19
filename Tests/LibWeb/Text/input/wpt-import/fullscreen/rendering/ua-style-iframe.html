@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<title>User-agent levels style sheet defaults for iframe</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<style>
+  iframe {
+    border: 1px solid blue;
+    padding: 1px;
+    /* transform is also tested because of https://crbug.com/662393 */
+    transform: scale(0.5);
+  }
+</style>
+<div id="log"></div>
+<div id="ancestor"><iframe></iframe></div>
+<script>
+  function assert_dir_properties(style, propBase, value, state) {
+    for (let dir of ["Top", "Right", "Bottom", "Left"]) {
+      let prop = propBase.replace("{}", dir);
+      assert_equals(style[prop], value, `${state} ${prop} style`);
+    }
+  }
+
+  promise_test(async (t) => {
+    t.add_cleanup(() => {
+      if (document.fullscreenElement) {
+        return document.exitFullscreen();
+      }
+    });
+    const ancestor = document.getElementById("ancestor");
+    const iframe = ancestor.firstChild;
+
+    const initialStyle = getComputedStyle(iframe);
+    assert_dir_properties(initialStyle, "border{}Width", "1px", "initial");
+    assert_dir_properties(initialStyle, "border{}Style", "solid", "initial");
+    assert_dir_properties(
+      initialStyle,
+      "border{}Color",
+      "rgb(0, 0, 255)",
+      "initial"
+    );
+    assert_dir_properties(initialStyle, "padding{}", "1px", "initial");
+    assert_equals(
+      initialStyle.transform,
+      "matrix(0.5, 0, 0, 0.5, 0, 0)",
+      "initial transform style"
+    );
+
+    await trusted_request(iframe);
+    await fullScreenChange();
+
+    const fullscreenStyle = getComputedStyle(iframe);
+    assert_dir_properties(
+      fullscreenStyle,
+      "border{}Width",
+      "0px",
+      "fullscreen"
+    );
+    assert_dir_properties(
+      fullscreenStyle,
+      "border{}Style",
+      "none",
+      "fullscreen"
+    );
+    assert_dir_properties(
+      fullscreenStyle,
+      "border{}Color",
+      "rgb(0, 0, 0)",
+      "fullscreen"
+    );
+    assert_dir_properties(fullscreenStyle, "padding{}", "0px", "fullscreen");
+    assert_equals(
+      fullscreenStyle.transform,
+      "none",
+      "fullscreen transform style"
+    );
+  });
+</script>

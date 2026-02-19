@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+    <title>shadowRoot.fullscreenElement works correctly</title>
+    <link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+    <link rel="help" href="https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement">
+</head>
+<div id="host">
+    <button onclick="document.exitFullscreen()" id="exitButton">Exit fullscreen</button>
+</div>
+<button id="requestButton">Go fullscreen</button>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script>
+promise_test(async function() {
+    let host = document.getElementById("host");
+    host.attachShadow({ mode: "open" }).innerHTML = `
+        <style>
+        #outer { width: 200px; height: 200px; background: blue }
+        </style>
+        <div id="outer">
+        <slot></slot>
+        </div>
+    `;
+    let outer = host.shadowRoot.querySelector("#outer");
+    await new Promise((resolve) => {
+        addEventListener("fullscreenchange", resolve, { once: true });
+        requestButton.addEventListener("click", () => outer.requestFullscreen());
+        test_driver.click(requestButton);
+    });
+
+    assert_equals(outer.getRootNode().fullscreenElement, outer, "Correct shadowRoot.fullscreenElement after entering");
+    assert_equals(document.fullscreenElement, host, "Correct document.fullscreenElement after entering");
+
+    await new Promise((resolve) => {
+        addEventListener("fullscreenchange", resolve, { once: true });
+        test_driver.click(exitButton);
+    });
+
+    assert_equals(outer.getRootNode().fullscreenElement, null, "Correct shadowRoot.fullscreenElement after exiting");
+    assert_equals(document.fullscreenElement, null, "Correct document.fullscreenElement after exiting");
+}, "shadowRoot.fullscreenElement works correctly");
+</script>
+</html>

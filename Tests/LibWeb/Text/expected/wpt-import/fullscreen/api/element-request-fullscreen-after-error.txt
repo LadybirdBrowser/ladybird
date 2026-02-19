@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	requestFullscreen works even if previous requestFullscreen causes an error

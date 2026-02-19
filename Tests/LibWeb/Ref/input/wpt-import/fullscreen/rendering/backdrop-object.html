@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<title>::backdrop for a fullscreen object element</title>
+<link rel=match href="../../../../expected/wpt-import/fullscreen/rendering/backdrop-object-ref.html">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/6939">
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<style>
+object::backdrop {
+  background: blue;
+}
+object {
+  object-position: 0 0;
+}
+</style>
+<object width="200" type="image/svg+xml"></object>
+
+<script>
+const object = document.querySelector("object");
+
+Promise.all([
+  new Promise((resolve) => {
+    object.addEventListener("load", resolve);
+    object.data = "/images/100px-green-rect.svg";
+  }),
+  new Promise((resolve) => {
+    document.addEventListener("fullscreenchange", resolve);
+    test_driver.bless('fullscreen', () => object.requestFullscreen());
+  }),
+]).then(() => document.documentElement.classList.remove('reftest-wait'));
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<title>::backdrop for a fullscreen iframe element</title>
+<link rel=match href="../../../../expected/wpt-import/fullscreen/rendering/backdrop-green-ref.html">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/6939">
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<style>
+iframe::backdrop {
+  background: green;
+}
+</style>
+<iframe></iframe>
+<script>
+document.addEventListener('fullscreenchange', () => {
+  document.documentElement.classList.remove('reftest-wait');
+});
+test_driver.bless('fullscreen', () => {
+  document.querySelector('iframe').requestFullscreen();
+});
+</script>

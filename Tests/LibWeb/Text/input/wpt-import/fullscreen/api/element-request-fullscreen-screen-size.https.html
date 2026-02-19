@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<title>
+    Element#requestFullscreen() does not affect Screen sizes
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<body></body>
+<script>
+    promise_test(async (t) => {
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+
+        if ('onchange' in window.screen) {
+            window.screen.onchange = () => {
+                assert_equals(window.screen.width, screenWidth);
+                assert_equals(window.screen.height, screenHeight);
+            }
+            t.add_cleanup(() => { window.screen.onchange = null; });
+        }
+
+        // Await a test_driver or manual click, fullscreen promise, and change.
+        await Promise.all([trusted_request(), fullScreenChange()]);
+        t.add_cleanup(() => { document.exitFullscreen(); });
+        assert_not_equals(document.fullscreenElement, null);
+
+        // Ensure the screen size is unchanged during fullscreen.
+        assert_equals(window.screen.width, screenWidth);
+        assert_equals(window.screen.height, screenHeight);
+    }, "Screen size is unchanged during element fullscreen");
+
+    promise_test(async (t) => {
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+
+        if ('onchange' in window.screen) {
+            window.screen.onchange = () => {
+                assert_equals(window.screen.width, screenWidth);
+                assert_equals(window.screen.height, screenHeight);
+            }
+            t.add_cleanup(() => { window.screen.onchange = null; });
+        }
+
+        // Await a test_driver or manual click to start tab content capture.
+        await trusted_click();
+        const stream = await navigator.mediaDevices.getDisplayMedia(
+            {video:{displaySurface:"browser"}, selfBrowserSurface:"include"});
+        const capabilities = stream.getVideoTracks()[0].getCapabilities();
+        assert_equals(capabilities.displaySurface, "browser");
+        t.add_cleanup(() => { stream.getTracks().forEach(t => t.stop()) });
+
+        // Await a test_driver or manual click, fullscreen promise, and change.
+        await Promise.all([trusted_request(), fullScreenChange()]);
+        t.add_cleanup(() => { document.exitFullscreen(); });
+        assert_not_equals(document.fullscreenElement, null);
+
+        // Ensure the screen size is unchanged during tab-capture fullscreen.
+        assert_equals(window.screen.width, screenWidth);
+        assert_equals(window.screen.height, screenHeight);
+    }, "Screen size is unchanged during tab-capture element fullscreen");
+</script>

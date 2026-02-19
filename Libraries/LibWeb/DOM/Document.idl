@@ -20,6 +20,7 @@
 #import <DOM/Range.idl>
 #import <DOM/Text.idl>
 #import <DOM/TreeWalker.idl>
+#import <Fullscreen/DocumentExtensions.idl>
 #import <HTML/HTMLAllCollection.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLHeadElement.idl>

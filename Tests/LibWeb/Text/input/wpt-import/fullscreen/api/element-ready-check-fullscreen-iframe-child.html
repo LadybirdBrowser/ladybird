@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<title>Element ready check for child of a fullscreen iframe</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<iframe><!-- script inserts div here --></iframe>
+<script>
+    // Verify that an iframe can itself go fullscreen, and that this doesn't
+    // influence the iframe ancestor test of the element ready check.
+    promise_test(async (t) => {
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+        const iframe = document.querySelector("iframe");
+        await Promise.all([trusted_request(iframe), fullScreenChange()]);
+
+        assert_equals(document.fullscreenElement, iframe, "fullscreen element");
+
+        // This adds the div to the iframe element itself, not to the iframe's
+        // contentDocument. It's done here because the HTML parser treats the
+        // content of iframe as a text node.
+        var div = document.createElement("div");
+        iframe.appendChild(div);
+
+        await Promise.all([
+            trusted_request(div, iframe.contentDocument.body),
+            fullScreenChange(),
+        ]);
+        assert_equals(document.fullscreenElement, div);
+    }, "Element ready check for child of a fullscreen iframe");
+</script>

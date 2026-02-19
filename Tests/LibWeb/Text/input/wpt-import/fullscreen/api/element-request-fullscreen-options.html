@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen({ navigationUI }) support</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body></body>
+<script>
+    // Tests for https://github.com/whatwg/fullscreen/pull/129. Because there are
+    // no normative requirements on what navigationUI should do, just test for
+    // basic support. (One could also check that the three allowed enum valid are
+    // supported and no others, but that would overlap with UA-specific tests.)
+    promise_test(async (t) => {
+        const invalidDict = {
+            get navigationUI() {
+                return "invalid-value";
+            },
+        };
+        await promise_rejects_js(
+            t,
+            TypeError,
+            document.body.requestFullscreen(invalidDict)
+        );
+        await promise_rejects_js(
+            t,
+            TypeError,
+            document.body.requestFullscreen({ navigationUI: "other-invalid-value" })
+        );
+    }, "requestFullscreen() with invalid navigationUI values");
+</script>

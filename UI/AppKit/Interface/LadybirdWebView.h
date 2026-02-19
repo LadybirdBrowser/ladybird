@@ -56,6 +56,7 @@
 - (void)handleResize;
 - (void)handleDevicePixelRatioChange;
 - (void)handleDisplayRefreshRateChange;
+- (void)handleExitFullScreen;
 - (void)handleVisibility:(BOOL)is_visible;
 
 - (void)findInPage:(NSString*)query

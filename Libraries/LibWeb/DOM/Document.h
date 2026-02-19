@@ -168,8 +168,17 @@ enum class PolicyControlledFeature : u8 {
     Autoplay,
     EncryptedMedia,
     FocusWithoutUserActivation,
+    Fullscreen,
     Gamepad,
     WindowManagement,
+};
+
+struct PendingFullscreenEvent {
+    enum class Type {
+        Change,
+        Error,
+    } type;
+    GC::Ref<Element> element;
 };
 
 class WEB_API Document
@@ -905,6 +914,12 @@ public:
     [[nodiscard]] WebIDL::CallbackType* onvisibilitychange();
     void set_onvisibilitychange(WebIDL::CallbackType*);
 
+    // https://fullscreen.spec.whatwg.org/#api
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenchange();
+    void set_onfullscreenchange(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
+    void set_onfullscreenerror(WebIDL::CallbackType*);
+
     // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
     GC::Ptr<ViewTransition::ViewTransition> start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback);
     // https://drafts.csswg.org/css-view-transitions-1/#perform-pending-transition-operations
@@ -966,6 +981,22 @@ public:
 
     ElementByIdMap& element_by_id() const;
 
+    // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
+    void run_fullscreen_steps();
+    void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
+
+    void fullscreen_element_within_doc(GC::Ref<Element> element);
+    GC::Ptr<Element> fullscreen_element() const;
+    GC::Ptr<Element> fullscreen_element_for_bindings() const;
+
+    bool fullscreen() const;
+    bool fullscreen_enabled() const;
+
+    void fully_exit_fullscreen();
+    GC::Ref<WebIDL::Promise> exit_fullscreen();
+
+    void unfullscreen_element(GC::Ref<Element> element);
+
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
 
@@ -1011,6 +1042,9 @@ private:
 
     void evaluate_media_rules();
 
+    bool is_simple_fullscreen_document() const;
+    GC::Ref<GC::HeapVector<GC::Ref<Document>>> collect_documents_to_unfullscreen();
+
     enum class AddLineFeed {
         Yes,
         No,
@@ -1045,6 +1079,8 @@ private:
     void build_registered_properties_cache();
 
     void ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url = {});
+
+    void unfullscreen();
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
@@ -1406,6 +1442,9 @@ private:
 
     // https://drafts.csswg.org/css-values-5/#random-caching
     HashMap<CSS::RandomCachingKey, double> m_element_shared_css_random_base_value_cache;
+
+    // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
+    Vector<PendingFullscreenEvent> m_pending_fullscreen_events;
 };
 
 template<>

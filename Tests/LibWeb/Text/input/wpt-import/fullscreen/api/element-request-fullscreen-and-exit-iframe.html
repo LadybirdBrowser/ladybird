@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<title>
+    Element#requestFullscreen() and Document#exitFullscreen() in iframe
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<iframe allowfullscreen></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    let iframeDoc;
+    let iframeBody;
+
+    promise_setup(async () => {
+        const iframe = document.querySelector("iframe");
+        await new Promise((resolve) => {
+            iframe.onload = resolve;
+            iframe.src = "about:blank";
+        });
+        iframeDoc = iframe.contentDocument;
+        iframeBody = iframeDoc.body;
+    });
+    /**
+     *
+     * @param {Document} doc
+     * @param {HTMLElement} value
+     * @returns {Promise<Event>}
+     */
+    function makeChangeListener(doc) {
+        return new Promise((resolve) => {
+            doc.addEventListener("fullscreenchange", resolve, { once: true });
+        });
+    }
+
+    // Both when entering and exiting, the fullscreenchange event is fired first
+    // on the outer document and then on the iframe's document. This is because
+    // the events are fired in animation frame tasks, which run in "frame tree"
+    // order.
+    promise_test(async (t) => {
+        document.onfullscreenerror = t.unreached_func(
+            "document fullscreenerror event"
+        );
+        iframeDoc.onfullscreenerror = t.unreached_func(
+            "iframe fullscreenerror event"
+        );
+        const outerPromise = makeChangeListener(document);
+        const innerPromise = makeChangeListener(iframeDoc);
+        const request = trusted_request(iframeBody, iframeBody);
+
+        const winningEvent = await Promise.race([outerPromise, innerPromise]);
+        assert_equals(winningEvent.target, iframe);
+
+        await Promise.allSettled([outerPromise, innerPromise, request]);
+
+        assert_equals(
+            document.fullscreenElement,
+            iframe,
+            "outer fullscreenElement"
+        );
+
+        assert_equals(
+            iframeDoc.fullscreenElement,
+            iframeBody,
+            "inner fullscreenElement"
+        );
+    }, "Checks that the fullscreenchange events fire in right order when entering fullscreen");
+
+    promise_test(async (t) => {
+        document.onfullscreenerror = t.unreached_func(
+            "document fullscreenerror event"
+        );
+        iframeDoc.onfullscreenerror = t.unreached_func(
+            "iframe fullscreenerror event"
+        );
+        const outerPromise = makeChangeListener(document);
+        const innerPromise = makeChangeListener(iframeDoc);
+        const exitPromise = iframeDoc.exitFullscreen();
+
+        const winningEvent = await Promise.race([outerPromise, innerPromise]);
+        assert_equals(winningEvent.target, iframe);
+
+        await Promise.allSettled([outerPromise, innerPromise, exitPromise]);
+        assert_equals(
+            document.fullscreenElement,
+            null,
+            "outer fullscreenElement"
+        );
+        assert_equals(
+            iframeDoc.fullscreenElement,
+            null,
+            "inner fullscreenElement"
+        );
+    }, "Checks that the fullscreenchange events fire in right order when exiting fullscreen");
+</script>
