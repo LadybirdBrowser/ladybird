@@ -119,9 +119,6 @@ public:
 
     static Optional<IPv6Address> from_string(StringView string)
     {
-        if (string.is_null())
-            return {};
-
         // NOTE: This supports URI syntax (square brackets) for IPv6 addresses.
         //       See: https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2
         auto const starts_with_bracket = string.starts_with('[');
