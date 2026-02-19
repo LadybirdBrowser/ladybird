@@ -226,6 +226,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::FontStyle); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::FontVariantAlternates); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::FontVariantEastAsian); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::FontVariantLigatures); parsed.has_value())
@@ -612,8 +614,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variation_settings_value(tokens); });
     case PropertyID::FontVariant:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant(tokens); });
-    case PropertyID::FontVariantAlternates:
-        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_alternates_value(tokens); });
     case PropertyID::GridArea:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_area_shorthand_value(tokens); });
     case PropertyID::GridAutoFlow:
@@ -2909,14 +2909,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
     // [
     //   [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ] ||
     //   [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ] ||
-    //   [ FIXME: stylistic(<feature-value-name>) ||
-    //     historical-forms ||
-    //     FIXME: styleset(<feature-value-name>#) ||
-    //     FIXME: character-variant(<feature-value-name>#) ||
-    //     FIXME: swash(<feature-value-name>) ||
-    //     FIXME: ornaments(<feature-value-name>) ||
-    //     FIXME: annotation(<feature-value-name>)
-    //   ] ||
+    //   [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ] ||
     //   [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero ] ||
     //   [ <east-asian-variant-values> || <east-asian-width-values> || ruby ] ||
     //   [ sub | super ] ||
@@ -2947,6 +2940,14 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
                 continue;
             }
 
+            // [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ]
+            if (auto maybe_alternates_value = parse_font_variant_alternates_value(tokens)) {
+                if (alternates_value)
+                    return nullptr;
+                alternates_value = maybe_alternates_value.release_nonnull();
+                continue;
+            }
+
             // [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero ]
             if (auto maybe_numeric_value = parse_font_variant_numeric_value(tokens)) {
                 if (numeric_value)
@@ -2967,19 +2968,12 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
             if (!maybe_value)
                 break;
             auto value = maybe_value.release_nonnull();
-            if (!value->is_keyword()) {
-                // FIXME: alternate functions such as stylistic()
+            if (!value->is_keyword())
                 return nullptr;
-            }
+
             auto keyword = value->to_keyword();
 
             switch (keyword) {
-            // historical-forms
-            case Keyword::HistoricalForms:
-                if (alternates_value != nullptr)
-                    return nullptr;
-                alternates_value = value.ptr();
-                break;
             // [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ]
             case Keyword::SmallCaps:
             case Keyword::AllSmallCaps:
@@ -3045,35 +3039,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
             numeric_value.release_nonnull(),
             position_value.release_nonnull(),
         });
-}
-
-RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream<ComponentValue>& tokens)
-{
-    // 6.8 https://drafts.csswg.org/css-fonts/#font-variant-alternates-prop
-    // normal |
-    // [ FIXME: stylistic(<feature-value-name>) ||
-    //   historical-forms ||
-    //   FIXME: styleset(<feature-value-name>#) ||
-    //   FIXME: character-variant(<feature-value-name>#) ||
-    //   FIXME: swash(<feature-value-name>) ||
-    //   FIXME: ornaments(<feature-value-name>) ||
-    //   FIXME: annotation(<feature-value-name>) ]
-
-    // normal
-    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
-        return normal;
-
-    // historical-forms
-    // FIXME: Support this together with other values when we parse them.
-    if (auto historical_forms = parse_all_as_single_keyword_value(tokens, Keyword::HistoricalForms))
-        return historical_forms;
-
-    ErrorReporter::the().report(InvalidPropertyError {
-        .property_name = "font-variant-alternates"_fly_string,
-        .value_string = tokens.next_token().to_string(),
-        .description = "Invalid or not yet implemented"_string,
-    });
-    return nullptr;
 }
 
 RefPtr<StyleValue const> Parser::parse_list_style_value(TokenStream<ComponentValue>& tokens)

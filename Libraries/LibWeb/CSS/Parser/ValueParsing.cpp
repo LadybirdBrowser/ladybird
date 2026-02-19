@@ -3714,6 +3714,34 @@ RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentVal
     return FontStyleStyleValue::create(font_style.release_value());
 }
 
+RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream<ComponentValue>& tokens)
+{
+    // 6.8 https://drafts.csswg.org/css-fonts/#font-variant-alternates-prop
+    // [ FIXME: stylistic(<feature-value-name>) ||
+    //   historical-forms ||
+    //   FIXME: styleset(<feature-value-name>#) ||
+    //   FIXME: character-variant(<feature-value-name>#) ||
+    //   FIXME: swash(<feature-value-name>) ||
+    //   FIXME: ornaments(<feature-value-name>) ||
+    //   FIXME: annotation(<feature-value-name>) ]
+
+    auto transaction = tokens.begin_transaction();
+
+    // historical-forms
+    // FIXME: Support this together with other values when we parse them.
+    if (auto keyword = parse_keyword_value(tokens); keyword && keyword->to_keyword() == Keyword::HistoricalForms) {
+        transaction.commit();
+        return keyword;
+    }
+
+    ErrorReporter::the().report(InvalidPropertyError {
+        .property_name = "font-variant-alternates"_fly_string,
+        .value_string = tokens.next_token().to_string(),
+        .description = "Invalid or not yet implemented"_string,
+    });
+    return nullptr;
+}
+
 RefPtr<StyleValue const> Parser::parse_font_variant_east_asian_value(TokenStream<ComponentValue>& tokens)
 {
     // 6.10 https://drafts.csswg.org/css-fonts/#propdef-font-variant-east-asian
@@ -5775,6 +5803,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_flex_value(tokens);
     case ValueType::FontStyle:
         return parse_font_style_value(tokens);
+    case ValueType::FontVariantAlternates:
+        return parse_font_variant_alternates_value(tokens);
     case ValueType::FontVariantEastAsian:
         return parse_font_variant_east_asian_value(tokens);
     case ValueType::FontVariantLigatures:
