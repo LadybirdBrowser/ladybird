@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    const printCookies = label => {
+        // There's no specified order for multiple cookies, and it's a bit non-deterministic in our implementation.
+        // Sort the cookies alphabetically here for ease of testing.
+        const cookies = document.cookie.split("; ").sort().join("; ");
+        println(`${label}: "${cookies}"`);
+    };
+
+    const deleteCookie = name => {
+        document.cookie = `${name}=""; max-age=-9999`;
+    };
+
+    const cookieAverseTest = () => {
+        document.cookie = "cookie=value";
+        printCookies("Cookie averse test");
+    };
+
+    test(() => {
+        cookieAverseTest();
+    });
+</script>
