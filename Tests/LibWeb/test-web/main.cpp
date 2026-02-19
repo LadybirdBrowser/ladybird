@@ -188,6 +188,7 @@ static void render_live_display()
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
+static Vector<ByteString> s_loaded_from_http_server;
 static HashMap<WebView::ViewImplementation const*, size_t> s_current_test_index_by_view;
 
 struct TestRunContext {
@@ -330,6 +331,9 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
         if (group == "Skipped"sv) {
             for (auto& key : config->keys(group))
                 s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+        } else if (group == "LoadFromHttpServer"sv) {
+            for (auto& key : config->keys(group))
+                s_loaded_from_http_server.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
@@ -986,9 +990,10 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         auto real_path = MUST(FileSystem::real_path(test.input_path));
         auto headers_path = ByteString::formatted("{}.headers", real_path);
 
-        URL::URL url;
-        if (FileSystem::exists(headers_path)) {
-            // Serve via the echo server so HTTP headers from the .headers file are applied.
+        Optional<URL::URL> url;
+        if (FileSystem::exists(headers_path) || s_loaded_from_http_server.contains_slow(test.input_path)) {
+            // Some tests need to be served via the echo server so, for example, HTTP headers from .headers files are
+            // sent, or so that the resulting HTML document has a HTTP based origin (e.g for testing cookies).
             auto echo_server_port = Application::web_content_options().echo_server_port;
             VERIFY(echo_server_port.has_value());
             auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
@@ -1000,16 +1005,16 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
 
         // Append variant query string if present (variant is "?foo=bar", set_query expects "foo=bar")
         if (test.variant.has_value())
-            url.set_query(MUST(test.variant->substring_from_byte_offset_with_shared_superstring(1)));
+            url->set_query(MUST(test.variant->substring_from_byte_offset_with_shared_superstring(1)));
 
         switch (test.mode) {
         case TestMode::Crash:
         case TestMode::Text:
         case TestMode::Layout:
-            run_dump_test(view, context, test, url, app.per_test_timeout_in_seconds * 1000);
+            run_dump_test(view, context, test, *url, app.per_test_timeout_in_seconds * 1000);
             return;
         case TestMode::Ref:
-            run_ref_test(view, context, test, url, app.per_test_timeout_in_seconds * 1000);
+            run_ref_test(view, context, test, *url, app.per_test_timeout_in_seconds * 1000);
             return;
         }
 
