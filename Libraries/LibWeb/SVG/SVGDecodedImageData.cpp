@@ -223,8 +223,8 @@ void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gf
     if (!surface)
         return;
 
-    Gfx::IntRect src_rect(0, 0, dst_rect.width(), dst_rect.height());
-    context.display_list_recorder().draw_painting_surface(dst_rect, *surface, src_rect, scaling_mode);
+    auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
+    context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *snapshot, scaling_mode);
 }
 
 }
