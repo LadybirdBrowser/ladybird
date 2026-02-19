@@ -2152,6 +2152,9 @@
     "inherited": true,
     "initial": "normal",
     "requires-computation": "never",
+    "valid-identifiers": [
+      "normal"
+    ],
     "valid-types": [
       "font-variant-numeric"
     ]
