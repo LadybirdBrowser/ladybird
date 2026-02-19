@@ -79,9 +79,6 @@ public:
 
     static Optional<IPv4Address> from_string(StringView string)
     {
-        if (string.is_null())
-            return {};
-
         auto const parts = string.split_view('.');
 
         u32 a {};
