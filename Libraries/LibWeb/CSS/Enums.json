@@ -411,8 +411,7 @@
     "emoji",
     "unicode"
   ],
-  "font-variant-numeric": [
-    "normal",
+  "font-variant-numeric-keyword": [
     "ordinal",
     "slashed-zero",
     "lining-nums",

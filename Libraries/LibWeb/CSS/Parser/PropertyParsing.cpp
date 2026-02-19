@@ -230,6 +230,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::FontVariantLigatures); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::FontVariantNumeric); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Position); parsed.has_value())
@@ -612,8 +614,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant(tokens); });
     case PropertyID::FontVariantAlternates:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_alternates_value(tokens); });
-    case PropertyID::FontVariantNumeric:
-        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_numeric_value(tokens); });
     case PropertyID::GridArea:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_area_shorthand_value(tokens); });
     case PropertyID::GridAutoFlow:
@@ -2923,18 +2923,13 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
     //   [ text | emoji | unicode ]
     // ]
 
-    bool has_numeric_figures = false;
-    bool has_numeric_spacing = false;
-    bool has_numeric_fractions = false;
-    bool has_numeric_ordinals = false;
-    bool has_numeric_slashed_zero = false;
     RefPtr<StyleValue const> alternates_value {};
     RefPtr<StyleValue const> caps_value {};
     RefPtr<StyleValue const> emoji_value {};
     RefPtr<StyleValue const> position_value {};
     RefPtr<StyleValue const> east_asian_value {};
     RefPtr<StyleValue const> ligatures_value {};
-    StyleValueVector numeric_values;
+    RefPtr<StyleValue const> numeric_value {};
 
     if (auto parsed_value = parse_all_as_single_keyword_value(tokens, Keyword::Normal)) {
         // normal, do nothing
@@ -2949,6 +2944,14 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
                 if (ligatures_value)
                     return nullptr;
                 ligatures_value = maybe_ligature_value.release_nonnull();
+                continue;
+            }
+
+            // [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero ]
+            if (auto maybe_numeric_value = parse_font_variant_numeric_value(tokens)) {
+                if (numeric_value)
+                    return nullptr;
+                numeric_value = maybe_numeric_value.release_nonnull();
                 continue;
             }
 
@@ -2988,43 +2991,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
                     return nullptr;
                 caps_value = value.ptr();
                 break;
-            // <numeric-figure-values>       = [ lining-nums | oldstyle-nums ]
-            case Keyword::LiningNums:
-            case Keyword::OldstyleNums:
-                if (has_numeric_figures)
-                    return nullptr;
-                numeric_values.append(move(value));
-                has_numeric_figures = true;
-                break;
-            // <numeric-spacing-values>      = [ proportional-nums | tabular-nums ]
-            case Keyword::ProportionalNums:
-            case Keyword::TabularNums:
-                if (has_numeric_spacing)
-                    return nullptr;
-                numeric_values.append(move(value));
-                has_numeric_spacing = true;
-                break;
-            // <numeric-fraction-values>     = [ diagonal-fractions | stacked-fractions]
-            case Keyword::DiagonalFractions:
-            case Keyword::StackedFractions:
-                if (has_numeric_fractions)
-                    return nullptr;
-                numeric_values.append(move(value));
-                has_numeric_fractions = true;
-                break;
-            // ordinal
-            case Keyword::Ordinal:
-                if (has_numeric_ordinals)
-                    return nullptr;
-                numeric_values.append(move(value));
-                has_numeric_ordinals = true;
-                break;
-            case Keyword::SlashedZero:
-                if (has_numeric_slashed_zero)
-                    return nullptr;
-                numeric_values.append(move(value));
-                has_numeric_slashed_zero = true;
-                break;
             // text | emoji | unicode
             case Keyword::Text:
             case Keyword::Emoji:
@@ -3047,14 +3013,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
     }
 
     auto normal_value = KeywordStyleValue::create(Keyword::Normal);
-    auto resolve_list = [&normal_value](StyleValueVector values) -> NonnullRefPtr<StyleValue const> {
-        if (values.is_empty())
-            return normal_value;
-        if (values.size() == 1)
-            return *values.first();
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    };
-
     if (!alternates_value)
         alternates_value = normal_value;
     if (!caps_value)
@@ -3067,9 +3025,8 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
         east_asian_value = normal_value;
     if (!ligatures_value)
         ligatures_value = normal_value;
-
-    quick_sort(numeric_values, [](auto& left, auto& right) { return *keyword_to_font_variant_numeric(left->to_keyword()) < *keyword_to_font_variant_numeric(right->to_keyword()); });
-    auto numeric_value = resolve_list(numeric_values);
+    if (!numeric_value)
+        numeric_value = normal_value;
 
     return ShorthandStyleValue::create(PropertyID::FontVariant,
         { PropertyID::FontVariantAlternates,
@@ -3085,7 +3042,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
             east_asian_value.release_nonnull(),
             emoji_value.release_nonnull(),
             ligatures_value.release_nonnull(),
-            move(numeric_value),
+            numeric_value.release_nonnull(),
             position_value.release_nonnull(),
         });
 }
@@ -3117,91 +3074,6 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
         .description = "Invalid or not yet implemented"_string,
     });
     return nullptr;
-}
-
-RefPtr<StyleValue const> Parser::parse_font_variant_numeric_value(TokenStream<ComponentValue>& tokens)
-{
-    // 6.7 https://drafts.csswg.org/css-fonts/#propdef-font-variant-numeric
-    // normal | [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero]
-    // <numeric-figure-values>       = [ lining-nums | oldstyle-nums ]
-    // <numeric-spacing-values>      = [ proportional-nums | tabular-nums ]
-    // <numeric-fraction-values>     = [ diagonal-fractions | stacked-fractions ]
-
-    // normal
-    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
-        return normal.release_nonnull();
-
-    RefPtr<StyleValue const> figures_value;
-    RefPtr<StyleValue const> spacing_value;
-    RefPtr<StyleValue const> fractions_value;
-    RefPtr<StyleValue const> ordinals_value;
-    RefPtr<StyleValue const> slashed_zero_value;
-
-    // [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero]
-    while (tokens.has_next_token()) {
-        auto maybe_value = parse_keyword_value(tokens);
-        if (!maybe_value)
-            break;
-        auto font_variant_numeric = keyword_to_font_variant_numeric(maybe_value->to_keyword());
-        if (!font_variant_numeric.has_value())
-            return nullptr;
-        switch (font_variant_numeric.value()) {
-        // ... || ordinal
-        case FontVariantNumeric::Ordinal:
-            if (ordinals_value)
-                return nullptr;
-            ordinals_value = maybe_value.release_nonnull();
-            break;
-        // ... || slashed-zero
-        case FontVariantNumeric::SlashedZero:
-            if (slashed_zero_value)
-                return nullptr;
-            slashed_zero_value = maybe_value.release_nonnull();
-            break;
-        // <numeric-figure-values> = [ lining-nums | oldstyle-nums ]
-        case FontVariantNumeric::LiningNums:
-        case FontVariantNumeric::OldstyleNums:
-            if (figures_value)
-                return nullptr;
-            figures_value = maybe_value.release_nonnull();
-            break;
-        // <numeric-spacing-values> = [ proportional-nums | tabular-nums ]
-        case FontVariantNumeric::ProportionalNums:
-        case FontVariantNumeric::TabularNums:
-            if (spacing_value)
-                return nullptr;
-            spacing_value = maybe_value.release_nonnull();
-            break;
-        // <numeric-fraction-values> = [ diagonal-fractions | stacked-fractions ]
-        case FontVariantNumeric::DiagonalFractions:
-        case FontVariantNumeric::StackedFractions:
-            if (fractions_value)
-                return nullptr;
-            fractions_value = maybe_value.release_nonnull();
-            break;
-        case FontVariantNumeric::Normal:
-            return nullptr;
-        }
-    }
-
-    StyleValueVector values;
-    if (figures_value)
-        values.append(figures_value.release_nonnull());
-    if (spacing_value)
-        values.append(spacing_value.release_nonnull());
-    if (fractions_value)
-        values.append(fractions_value.release_nonnull());
-    if (ordinals_value)
-        values.append(ordinals_value.release_nonnull());
-    if (slashed_zero_value)
-        values.append(slashed_zero_value.release_nonnull());
-
-    if (values.is_empty())
-        return nullptr;
-    if (values.size() == 1)
-        return *values.first();
-
-    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_list_style_value(TokenStream<ComponentValue>& tokens)
