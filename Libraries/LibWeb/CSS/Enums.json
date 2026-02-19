@@ -411,16 +411,6 @@
     "emoji",
     "unicode"
   ],
-  "font-variant-numeric-keyword": [
-    "ordinal",
-    "slashed-zero",
-    "lining-nums",
-    "oldstyle-nums",
-    "proportional-nums",
-    "tabular-nums",
-    "diagonal-fractions",
-    "stacked-fractions"
-  ],
   "font-variant-position": [
     "normal",
     "sub",
@@ -577,6 +567,18 @@
     "luminosity",
     "plus-darker",
     "plus-lighter"
+  ],
+  "numeric-figure-value": [
+    "lining-nums",
+    "oldstyle-nums"
+  ],
+  "numeric-fraction-value": [
+    "diagonal-fractions",
+    "stacked-fractions"
+  ],
+  "numeric-spacing-value": [
+    "proportional-nums",
+    "tabular-nums"
   ],
   "object-fit": [
     "fill",

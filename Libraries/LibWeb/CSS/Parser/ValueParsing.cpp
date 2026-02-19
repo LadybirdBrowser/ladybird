@@ -3769,81 +3769,64 @@ RefPtr<StyleValue const> Parser::parse_font_variant_numeric_value(TokenStream<Co
     // <numeric-figure-values>       = [ lining-nums | oldstyle-nums ]
     // <numeric-spacing-values>      = [ proportional-nums | tabular-nums ]
     // <numeric-fraction-values>     = [ diagonal-fractions | stacked-fractions ]
-    RefPtr<StyleValue const> figures_value;
-    RefPtr<StyleValue const> spacing_value;
-    RefPtr<StyleValue const> fractions_value;
-    RefPtr<StyleValue const> ordinals_value;
-    RefPtr<StyleValue const> slashed_zero_value;
+    StyleValueTuple tuple;
+    tuple.resize_with_default_value(5, nullptr);
+
     while (tokens.has_next_token()) {
         auto keyword_transaction = tokens.begin_transaction();
         auto maybe_value = parse_keyword_value(tokens);
         if (!maybe_value)
             break;
-        auto font_variant_numeric = keyword_to_font_variant_numeric_keyword(maybe_value->to_keyword());
-        if (!font_variant_numeric.has_value())
-            break;
-        switch (font_variant_numeric.value()) {
-        // ... || ordinal
-        case FontVariantNumericKeyword::Ordinal:
-            if (ordinals_value)
+
+        auto keyword = maybe_value->to_keyword();
+
+        if (keyword_to_numeric_figure_value(keyword).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure])
                 return nullptr;
             keyword_transaction.commit();
-            ordinals_value = maybe_value.release_nonnull();
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure] = maybe_value.release_nonnull();
             continue;
-        // ... || slashed-zero
-        case FontVariantNumericKeyword::SlashedZero:
-            if (slashed_zero_value)
+        }
+
+        if (keyword_to_numeric_spacing_value(keyword).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing])
                 return nullptr;
             keyword_transaction.commit();
-            slashed_zero_value = maybe_value.release_nonnull();
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing] = maybe_value.release_nonnull();
             continue;
-        // <numeric-figure-values> = [ lining-nums | oldstyle-nums ]
-        case FontVariantNumericKeyword::LiningNums:
-        case FontVariantNumericKeyword::OldstyleNums:
-            if (figures_value)
+        }
+
+        if (keyword_to_numeric_fraction_value(keyword).has_value()) {
+            if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction])
                 return nullptr;
             keyword_transaction.commit();
-            figures_value = maybe_value.release_nonnull();
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction] = maybe_value.release_nonnull();
             continue;
-        // <numeric-spacing-values> = [ proportional-nums | tabular-nums ]
-        case FontVariantNumericKeyword::ProportionalNums:
-        case FontVariantNumericKeyword::TabularNums:
-            if (spacing_value)
+        }
+
+        if (keyword == Keyword::Ordinal) {
+            if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Ordinal])
                 return nullptr;
             keyword_transaction.commit();
-            spacing_value = maybe_value.release_nonnull();
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Ordinal] = maybe_value.release_nonnull();
             continue;
-        // <numeric-fraction-values> = [ diagonal-fractions | stacked-fractions ]
-        case FontVariantNumericKeyword::DiagonalFractions:
-        case FontVariantNumericKeyword::StackedFractions:
-            if (fractions_value)
+        }
+
+        if (keyword == Keyword::SlashedZero) {
+            if (tuple[TupleStyleValue::Indices::FontVariantNumeric::SlashedZero])
                 return nullptr;
             keyword_transaction.commit();
-            fractions_value = maybe_value.release_nonnull();
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::SlashedZero] = maybe_value.release_nonnull();
             continue;
         }
 
         break;
     }
 
-    StyleValueVector values;
-    if (figures_value)
-        values.append(figures_value.release_nonnull());
-    if (spacing_value)
-        values.append(spacing_value.release_nonnull());
-    if (fractions_value)
-        values.append(fractions_value.release_nonnull());
-    if (ordinals_value)
-        values.append(ordinals_value.release_nonnull());
-    if (slashed_zero_value)
-        values.append(slashed_zero_value.release_nonnull());
-
-    if (values.is_empty())
+    if (!any_of(tuple, [](auto& value) { return value != nullptr; }))
         return nullptr;
-    if (values.size() == 1)
-        return *values.first();
 
-    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    return TupleStyleValue::create(tuple);
 }
 
 RefPtr<StyleValue const> Parser::parse_font_variant_ligatures_value(TokenStream<ComponentValue>& tokens)

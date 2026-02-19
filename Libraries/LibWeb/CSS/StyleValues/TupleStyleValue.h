@@ -40,6 +40,14 @@ public:
             static constexpr size_t Historical = 2;
             static constexpr size_t Contextual = 3;
         };
+
+        struct FontVariantNumeric {
+            static constexpr size_t Figure = 0;
+            static constexpr size_t Spacing = 1;
+            static constexpr size_t Fraction = 2;
+            static constexpr size_t Ordinal = 3;
+            static constexpr size_t SlashedZero = 4;
+        };
     };
 
 private:
