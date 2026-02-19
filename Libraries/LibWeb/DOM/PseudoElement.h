@@ -9,7 +9,6 @@
 #include <AK/OwnPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>

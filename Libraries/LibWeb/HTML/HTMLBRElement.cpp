@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLBRElementPrototype.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>

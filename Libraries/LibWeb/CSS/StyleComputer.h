@@ -15,7 +15,6 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleInvalidationData.h>

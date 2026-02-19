@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLTableColElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/Numbers.h>

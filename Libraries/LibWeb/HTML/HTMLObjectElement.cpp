@@ -6,6 +6,7 @@
 
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/HTMLObjectElementPrototype.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>

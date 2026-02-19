@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MathMLElementPrototype.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/AddFunctionStyleValue.h>
