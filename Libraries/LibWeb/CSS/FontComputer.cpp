@@ -677,12 +677,15 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
             continue;
         if (!font_face_rule->is_valid())
             continue;
-        if (auto font_loader = load_font_face(font_face_rule->font_face())) {
-            sheet.add_associated_font_loader(*font_loader);
-        }
-
         auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
         document().fonts()->add_css_connected_font(font_face);
+
+        // NB: Load via FontFace::load(), to satisfy this requirement:
+        // https://drafts.csswg.org/css-font-loading/#font-face-load
+        // User agents can initiate font loads on their own, whenever they determine that a given font face is
+        // necessary to render something on the page. When this happens, they must act as if they had called the
+        // corresponding FontFace’s load() method described here.
+        font_face->load();
     }
 }
 

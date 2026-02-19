@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 15 tests
 
-11 Pass
-4 Fail
+10 Pass
+5 Fail
 Pass	@font-face matching for quoted and unquoted serif (drawing text in a canvas)
 Pass	@font-face matching for quoted and unquoted sans-serif (drawing text in a canvas)
 Pass	@font-face matching for quoted and unquoted cursive (drawing text in a canvas)
 Pass	@font-face matching for quoted and unquoted fantasy (drawing text in a canvas)
 Pass	@font-face matching for quoted and unquoted monospace (drawing text in a canvas)
-Pass	@font-face matching for quoted and unquoted system-ui (drawing text in a canvas)
+Fail	@font-face matching for quoted and unquoted system-ui (drawing text in a canvas)
 Pass	@font-face matching for quoted and unquoted math (drawing text in a canvas)
 Fail	@font-face matching for quoted and unquoted generic(fangsong) (drawing text in a canvas)
 Fail	@font-face matching for quoted and unquoted generic(kai) (drawing text in a canvas)

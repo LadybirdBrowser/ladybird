@@ -86,6 +86,8 @@ public:
     void disconnect_from_css_rule();
     void reparse_connected_css_font_face_rule_descriptors();
 
+    ParsedFontFace parsed_font_face() const;
+
     Bindings::FontFaceLoadStatus status() const { return m_status; }
 
     GC::Ref<WebIDL::Promise> load();

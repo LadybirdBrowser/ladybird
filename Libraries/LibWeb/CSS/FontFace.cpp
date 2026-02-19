@@ -220,6 +220,33 @@ void FontFace::reparse_connected_css_font_face_rule_descriptors()
     set_line_gap_override_impl(*descriptors->descriptor_or_initial_value(DescriptorID::LineGapOverride));
 }
 
+ParsedFontFace FontFace::parsed_font_face() const
+{
+    if (m_css_font_face_rule)
+        return m_css_font_face_rule->font_face();
+
+    // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
+    return ParsedFontFace {
+        // Create a dummy CSSFontFaceRule so that we load relative to the document's base URL
+        CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), {})),
+        m_family,
+        // FIXME: Actually parse this as we're supposed to.
+        m_weight.to_number<int>().map([](auto weight) { return FontWeightRange { weight, weight }; }),
+        0,                      // FIXME: slope
+        Gfx::FontWidth::Normal, // FIXME: width
+        m_urls,
+        m_unicode_ranges,
+        {},                // FIXME: ascent_override
+        {},                // FIXME: descent_override
+        {},                // FIXME: line_gap_override
+        FontDisplay::Auto, // FIXME: font_display
+        {},                // font-named-instance doesn't exist in FontFace
+        {},                // font-language-override doesn't exist in FontFace
+        {},                // FIXME: feature_settings
+        {},                // FIXME: variation_settings
+    };
+}
+
 FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promise)
     : Bindings::PlatformObject(realm)
     , m_font_status_promise(font_status_promise)
@@ -575,39 +602,13 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         if (auto* window = as_if<HTML::Window>(global)) {
             auto& font_computer = const_cast<FontComputer&>(window->document()->font_computer());
 
-            // Use the connected CSSFontFaceRule otherwise create a dummy one so that we load relative to the document's base URL
-            GC::Ref<CSSRule> font_face_rule = m_css_font_face_rule ? *m_css_font_face_rule : *CSS::CSSFontFaceRule::create(realm(), CSS::CSSFontFaceDescriptors::create(realm(), {}));
-
-            // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
-            ParsedFontFace parsed_font_face {
-                font_face_rule,
-                m_family,
-                // FIXME: Actually parse this as we're supposed to.
-                m_weight.to_number<int>().map([](auto weight) { return FontWeightRange { weight, weight }; }),
-                0,                      // FIXME: slope
-                Gfx::FontWidth::Normal, // FIXME: width
-                m_urls,
-                m_unicode_ranges,
-                {},                // FIXME: ascent_override
-                {},                // FIXME: descent_override
-                {},                // FIXME: line_gap_override
-                FontDisplay::Auto, // FIXME: font_display
-                {},                // font-named-instance doesn't exist in FontFace
-                {},                // font-language-override doesn't exist in FontFace
-                {},                // FIXME: feature_settings
-                {},                // FIXME: variation_settings
-            };
-            if (auto loader = font_computer.load_font_face(parsed_font_face, move(on_load)))
+            if (auto loader = font_computer.load_font_face(parsed_font_face(), move(on_load)))
                 loader->start_loading_next_url();
         } else {
             // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer
             dbgln("FIXME: Worker font loading not implemented");
         }
     }));
-
-    // User agents can initiate font loads on their own, whenever they determine that a given font face is necessary
-    // to render something on the page. When this happens, they must act as if they had called the corresponding
-    // FontFace’s load() method described here.
 
     return font_face.loaded();
 }
