@@ -942,7 +942,7 @@ MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Elem
             auto hash_source_parse_result = parse_source_expression(Production::HashSource, expression);
             if (hash_source_parse_result.has_value()) {
                 // 1. Let algorithm be null.
-                StringView algorithm;
+                Optional<StringView> algorithm;
 
                 // 2. If expression’s hash-algorithm part is an ASCII case-insensitive match for "sha256", set
                 //    algorithm to SHA-256.
@@ -963,20 +963,20 @@ MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Elem
                     algorithm = "SHA-512"sv;
 
                 // 5. If algorithm is not null:
-                if (!algorithm.is_null()) {
+                if (algorithm.has_value()) {
                     // 1. Let actual be the result of base64 encoding the result of applying algorithm to source.
                     auto apply_algorithm_to_source = [&] {
-                        if (algorithm == "SHA-256"sv) {
+                        if (*algorithm == "SHA-256"sv) {
                             auto result = ::Crypto::Hash::SHA256::hash(converted_source_bytes);
                             return MUST(encode_base64(result.bytes()));
                         }
 
-                        if (algorithm == "SHA-384"sv) {
+                        if (*algorithm == "SHA-384"sv) {
                             auto result = ::Crypto::Hash::SHA384::hash(converted_source_bytes);
                             return MUST(encode_base64(result.bytes()));
                         }
 
-                        if (algorithm == "SHA-512"sv) {
+                        if (*algorithm == "SHA-512"sv) {
                             auto result = ::Crypto::Hash::SHA512::hash(converted_source_bytes);
                             return MUST(encode_base64(result.bytes()));
                         }
