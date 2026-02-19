@@ -92,7 +92,7 @@ public:
         Upper,
         Lower,
     };
-    [[nodiscard]] static String bijective_base_from(size_t value, Case, unsigned base = 26, StringView map = {});
+    [[nodiscard]] static String bijective_base_from(size_t value, Case, unsigned base = 26, Optional<StringView> map = {});
     [[nodiscard]] static String greek_letter_from(size_t value);
     [[nodiscard]] static String roman_number_from(size_t value, Case);
 

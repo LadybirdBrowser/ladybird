@@ -468,11 +468,12 @@ ErrorOr<String> String::repeated(String const& input, size_t count)
     return result;
 }
 
-String String::bijective_base_from(size_t value, Case target_case, unsigned base, StringView map)
+String String::bijective_base_from(size_t value, Case target_case, unsigned base, Optional<StringView> maybe_map)
 {
     value++;
-    if (map.is_null())
-        map = target_case == Case::Upper ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ"sv : "abcdefghijklmnopqrstuvwxyz"sv;
+    if (!maybe_map.has_value())
+        maybe_map = target_case == Case::Upper ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ"sv : "abcdefghijklmnopqrstuvwxyz"sv;
+    auto map = maybe_map.release_value();
 
     VERIFY(base >= 2 && base <= map.length());
 
