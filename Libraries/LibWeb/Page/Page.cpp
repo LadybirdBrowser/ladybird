@@ -549,6 +549,25 @@ void Page::update_all_media_element_video_sinks()
     });
 }
 
+void Page::register_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id)
+{
+    m_canvas_elements.append(canvas_id);
+}
+
+void Page::unregister_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id)
+{
+    m_canvas_elements.remove_all_matching([&](auto candidate_id) {
+        return candidate_id == canvas_id;
+    });
+}
+
+void Page::present_all_canvas_element_surfaces()
+{
+    for_each_canvas_element([](auto& canvas_element) {
+        canvas_element.present();
+    });
+}
+
 void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu)
 {
     m_media_context_menu_element_id = media_id;

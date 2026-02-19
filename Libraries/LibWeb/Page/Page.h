@@ -36,6 +36,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
@@ -194,6 +195,11 @@ public:
 
     void update_all_media_element_video_sinks();
 
+    void register_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id);
+    void unregister_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id);
+
+    void present_all_canvas_element_surfaces();
+
     struct MediaContextMenu {
         URL::URL media_url;
         bool is_video { false };
@@ -254,6 +260,15 @@ private:
         }
     }
 
+    template<typename Callback>
+    void for_each_canvas_element(Callback&& callback)
+    {
+        for (auto canvas_id : m_canvas_elements) {
+            if (auto* node = DOM::Node::from_unique_id(canvas_id))
+                callback(as<HTML::HTMLCanvasElement>(*node));
+        }
+    }
+
     Vector<GC::Root<DOM::Document>> documents_in_active_window() const;
 
     enum class SearchDirection {
@@ -302,6 +317,7 @@ private:
     u64 m_next_clipboard_request_id { 0 };
 
     Vector<UniqueNodeID> m_media_elements;
+    Vector<UniqueNodeID> m_canvas_elements;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };

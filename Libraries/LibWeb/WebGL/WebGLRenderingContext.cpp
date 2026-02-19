@@ -109,10 +109,6 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
 
 void WebGLRenderingContext::present()
 {
-    if (!m_should_present)
-        return;
-
-    m_should_present = false;
     context().present(m_context_creation_parameters.preserve_drawing_buffer);
 }
 
@@ -123,7 +119,7 @@ GC::Ref<HTML::HTMLCanvasElement> WebGLRenderingContext::canvas_for_binding() con
 
 void WebGLRenderingContext::needs_to_present()
 {
-    m_should_present = true;
+    m_canvas_element->set_canvas_content_dirty();
 
     if (!m_canvas_element->paintable())
         return;

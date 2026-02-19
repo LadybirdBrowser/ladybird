@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/CanvasBox.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
@@ -47,6 +48,13 @@ void HTMLCanvasElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLCanvasElement);
     Base::initialize(realm);
+    document().page().register_canvas_element({}, unique_id());
+}
+
+void HTMLCanvasElement::finalize()
+{
+    Base::finalize();
+    document().page().unregister_canvas_element({}, unique_id());
 }
 
 void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
@@ -131,8 +139,17 @@ WebIDL::UnsignedLong HTMLCanvasElement::height() const
     return 150;
 }
 
+Painting::ExternalContentSource& HTMLCanvasElement::ensure_external_content_source()
+{
+    if (!m_external_content_source)
+        m_external_content_source = Painting::ExternalContentSource::create();
+    return *m_external_content_source;
+}
+
 void HTMLCanvasElement::reset_context_to_default_state()
 {
+    if (m_external_content_source)
+        m_external_content_source->clear();
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>& context) {
             context->reset_to_default_state();
@@ -389,10 +406,16 @@ RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
     return bitmap;
 }
 
+void HTMLCanvasElement::set_canvas_content_dirty()
+{
+    m_canvas_content_dirty = true;
+}
+
 void HTMLCanvasElement::present()
 {
-    if (auto surface = this->surface())
-        surface->flush();
+    if (!m_canvas_content_dirty)
+        return;
+    m_canvas_content_dirty = false;
 
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>&) {
@@ -407,6 +430,12 @@ void HTMLCanvasElement::present()
         [](Empty) {
             // Do nothing.
         });
+
+    if (auto surface = this->surface()) {
+        surface->flush();
+        auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
+        ensure_external_content_source().update(snapshot);
+    }
 }
 
 RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const
