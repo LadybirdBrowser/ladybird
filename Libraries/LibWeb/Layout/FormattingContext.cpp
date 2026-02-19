@@ -884,8 +884,13 @@ void FormattingContext::compute_width_for_absolutely_positioned_replaced_element
 
     auto width = compute_width_for_replaced_element(box, available_space);
     auto width_of_containing_block = available_space.width.to_px_or_zero();
-    auto available = width_of_containing_block - width;
     auto const& computed_values = box.computed_values();
+    auto& box_state = m_state.get_mutable(box);
+    auto const border_left = computed_values.border_left().width;
+    auto const border_right = computed_values.border_right().width;
+    auto const padding_left = box_state.padding_left;
+    auto const padding_right = box_state.padding_right;
+    auto available = width_of_containing_block - width - border_left - padding_left - padding_right - border_right;
     auto left = computed_values.inset().left();
     auto margin_left = computed_values.margin().left();
     auto right = computed_values.inset().right();
@@ -945,7 +950,6 @@ void FormattingContext::compute_width_for_absolutely_positioned_replaced_element
         right = CSS::Length::make_px(available - to_px(left) - to_px(margin_left) - to_px(margin_right));
     }
 
-    auto& box_state = m_state.get_mutable(box);
     box_state.inset_left = to_px(left);
     box_state.inset_right = to_px(right);
     box_state.margin_left = to_px(margin_left);
@@ -1499,8 +1503,13 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
     auto height = compute_height_for_replaced_element(box, available_space);
 
     auto height_of_containing_block = available_space.height.to_px_or_zero();
-    auto available = height_of_containing_block - height;
     auto const& computed_values = box.computed_values();
+    auto& box_state = m_state.get_mutable(box);
+    auto const border_top = computed_values.border_top().width;
+    auto const border_bottom = computed_values.border_bottom().width;
+    auto const padding_top = box_state.padding_top;
+    auto const padding_bottom = box_state.padding_bottom;
+    auto available = height_of_containing_block - height - border_top - padding_top - padding_bottom - border_bottom;
     auto top = computed_values.inset().top();
     auto margin_top = computed_values.margin().top();
     auto bottom = computed_values.inset().bottom();
@@ -1549,7 +1558,6 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
         bottom = CSS::Length::make_px(available - to_px(top) - to_px(margin_top) - to_px(margin_bottom));
     }
 
-    auto& box_state = m_state.get_mutable(box);
     box_state.set_content_height(height);
 
     // do not set calculated insets or margins on the first pass, there will be a second pass

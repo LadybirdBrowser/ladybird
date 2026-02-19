@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+.right { position: absolute; top: 0; right: 0; padding: 15%; background-color: green; }
+.bottom { position: absolute; bottom: 0; left: 0; padding: 15%; background-color: blue; }
+</style>
+<svg class="right"></svg>
+<svg class="bottom"></svg>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        for (const svg of document.querySelectorAll("svg")) {
+            const rect = svg.getBoundingClientRect();
+            println(`x: ${rect.x}`);
+            println(`y: ${rect.y}`);
+            println(`width: ${rect.width}`);
+            println(`height: ${rect.height}`);
+        }
+    });
+</script>
