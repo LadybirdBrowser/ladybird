@@ -1357,8 +1357,8 @@ void FormattingContext::layout_absolutely_positioned_children()
 void FormattingContext::layout_absolutely_positioned_element(Box const& box, AbsposContainingBlockInfo const& containing_block_info)
 {
     if (box.is_svg_box()) {
-        dbgln("FIXME: Implement support for absolutely positioned SVG elements.");
-        return;
+        // SVG elements cannot be absolutely positioned.
+        VERIFY_NOT_REACHED();
     }
 
     auto const available_space = AvailableSpace(AvailableSize::make_definite(containing_block_info.rect.width()), AvailableSize::make_definite(containing_block_info.rect.height()));

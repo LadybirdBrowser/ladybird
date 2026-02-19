@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,8] positioned [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] children: inline
         frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 200x200] baseline: 200
         SVGSVGBox <svg> at [8,8] [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] [SVG] children: not-inline
-          SVGGeometryBox <polygon> at [48,18] positioned [0+0+0 120 0+0+0] [0+0+0 170 0+0+0] [BFC] children: not-inline
+          SVGGeometryBox <polygon> at [48,18] [0+0+0 120 0+0+0] [0+0+0 170 0+0+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
