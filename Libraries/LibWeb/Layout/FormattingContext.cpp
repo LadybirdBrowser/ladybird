@@ -462,6 +462,13 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     table_box_state.padding_left = table_box_computed_values.padding().left().to_px_or_zero(*table_box, width_of_containing_block);
     table_box_state.padding_right = table_box_computed_values.padding().right().to_px_or_zero(*table_box, width_of_containing_block);
 
+    // Propagate the containing block width so percentage table widths can resolve instead of being treated as "auto".
+    if (auto wrapper_containing_block = box.containing_block()) {
+        auto const& containing_block_state = m_state.get(*wrapper_containing_block);
+        if (containing_block_state.has_definite_width())
+            throwaway_state.get_mutable(*wrapper_containing_block).set_content_width(containing_block_state.content_width());
+    }
+
     auto context = make<TableFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, *table_box, this);
     context->run_until_width_calculation(m_state.get(*table_box).available_inner_space_or_constraints_from(available_space));
 
