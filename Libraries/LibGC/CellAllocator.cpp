@@ -12,7 +12,7 @@
 
 namespace GC {
 
-CellAllocator::CellAllocator(size_t cell_size, StringView class_name, bool overrides_must_survive_garbage_collection, bool overrides_finalize)
+CellAllocator::CellAllocator(size_t cell_size, Optional<StringView> class_name, bool overrides_must_survive_garbage_collection, bool overrides_finalize)
     : m_class_name(class_name)
     , m_cell_size(cell_size)
     , m_overrides_must_survive_garbage_collection(overrides_must_survive_garbage_collection)

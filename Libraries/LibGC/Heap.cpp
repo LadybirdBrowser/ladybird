@@ -342,10 +342,10 @@ void Heap::dump_allocators()
         total_in_committed_blocks += blocks.size() * HeapBlock::BLOCK_SIZE;
 
         StringBuilder builder;
-        if (allocator.class_name().is_null())
-            builder.appendff("generic ({}b)", allocator.cell_size());
+        if (allocator.class_name().has_value())
+            builder.appendff("{} ({}b)", allocator.class_name().value(), allocator.cell_size());
         else
-            builder.appendff("{} ({}b)", allocator.class_name(), allocator.cell_size());
+            builder.appendff("generic ({}b)", allocator.cell_size());
 
         builder.appendff(" x {}", total_live_cells);
 
