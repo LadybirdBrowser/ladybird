@@ -23,8 +23,17 @@ enum class FontFeatureValueType : u8 {
     Annotation,
 };
 
+struct FontFeatureValueKey {
+    FontFeatureValueType type;
+    FlyString name;
+
+    bool operator==(FontFeatureValueKey const&) const = default;
+};
+
 struct FontVariantAlternates {
     bool historical_forms = false;
+
+    Vector<FontFeatureValueKey> font_feature_value_entries;
 
     bool operator==(FontVariantAlternates const&) const = default;
 };
@@ -81,10 +90,22 @@ struct FontFeatureData {
 namespace AK {
 
 template<>
+struct Traits<Web::CSS::FontFeatureValueKey> : public DefaultTraits<Web::CSS::FontFeatureValueKey> {
+    static unsigned hash(Web::CSS::FontFeatureValueKey const& data)
+    {
+        return pair_int_hash(to_underlying(data.type), data.name.hash());
+    }
+};
+
+template<>
 struct Traits<Web::CSS::FontVariantAlternates> : public DefaultTraits<Web::CSS::FontVariantAlternates> {
     static unsigned hash(Web::CSS::FontVariantAlternates const& data)
     {
         u32 hash = data.historical_forms ? 1 : 0;
+
+        for (auto const& entry : data.font_feature_value_entries)
+            hash = pair_int_hash(hash, Traits<Web::CSS::FontFeatureValueKey>::hash(entry));
+
         return hash;
     }
 };
