@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', `file://${window.location.pathname}`);
+
+        xhr.onload = () => {
+            println('FAIL: no exception or error was raised');
+            done();
+        };
+
+        xhr.onerror = () => {
+            println("Unable to fetch file://");
+            done();
+        };
+
+        xhr.send();
+    });
+</script>
