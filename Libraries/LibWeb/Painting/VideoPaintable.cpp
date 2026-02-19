@@ -61,7 +61,6 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto const& video_element = as<HTML::HTMLVideoElement>(*dom_node());
     auto mouse_position = MediaPaintable::mouse_position(context, video_element);
 
-    auto const& current_frame = video_element.selected_video_track_sink() != nullptr ? video_element.selected_video_track_sink()->current_frame() : nullptr;
     auto const& poster_frame = video_element.poster_frame();
 
     auto current_playback_position = video_element.current_playback_position();
@@ -128,14 +127,20 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         return Representation::VideoFrame;
     }();
 
-    auto paint_immutable_bitmap = [&](auto const& bitmap) {
+    auto paint_bitmap = [&](auto const& bitmap) {
+        auto immutable = Gfx::ImmutableBitmap::create(*bitmap);
         auto dst_rect = video_rect.to_type<int>();
-        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), bitmap->rect().size(), dst_rect.size());
-        context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *bitmap, scaling_mode);
+        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), immutable->rect().size(), dst_rect.size());
+        context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *immutable, scaling_mode);
     };
 
-    auto paint_bitmap = [&](auto const& bitmap) {
-        paint_immutable_bitmap(Gfx::ImmutableBitmap::create(*bitmap));
+    auto paint_video_frame = [&]() {
+        auto& source = const_cast<HTML::HTMLMediaElement&>(static_cast<HTML::HTMLMediaElement const&>(video_element)).ensure_external_content_source();
+        auto dst_rect = video_rect.to_type<int>();
+        auto current = source.current_bitmap();
+        auto src_size = current ? current->size() : dst_rect.size();
+        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
+        context.display_list_recorder().draw_external_content(dst_rect, source, scaling_mode);
     };
 
     auto paint_transparent_black = [&]() {
@@ -155,8 +160,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     switch (representation) {
     case Representation::VideoFrame:
-        if (current_frame)
-            paint_immutable_bitmap(current_frame);
+        paint_video_frame();
         if (paint_user_agent_controls)
             paint_loaded_video_controls();
         break;
