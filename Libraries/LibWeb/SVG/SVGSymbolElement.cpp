@@ -37,6 +37,8 @@ void SVGSymbolElement::visit_edges(Cell::Visitor& visitor)
 
 void SVGSymbolElement::adjust_computed_style(CSS::ComputedProperties& computed_properties)
 {
+    Base::adjust_computed_style(computed_properties);
+
     if (is_direct_child_of_use_shadow_tree()) {
         // The generated instance of a ‘symbol’ that is the direct referenced element of a ‘use’ element must always have a computed value of inline for the display property.
         computed_properties.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Inline)));
