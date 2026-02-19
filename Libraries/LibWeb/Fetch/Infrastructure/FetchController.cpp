@@ -134,6 +134,9 @@ void FetchController::terminate()
 
 void FetchController::stop_fetch()
 {
+    if (m_state == State::Aborted || m_state == State::Terminated)
+        return;
+
     m_state = State::Stopped;
 
     auto& vm = this->vm();
