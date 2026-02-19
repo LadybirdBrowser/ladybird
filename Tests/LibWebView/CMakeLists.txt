@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestReservedBrowserShortcuts.cpp
     TestWebViewURL.cpp
 )
 
