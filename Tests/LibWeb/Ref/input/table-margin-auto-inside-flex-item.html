@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-margin-auto-inside-flex-item-ref.html" />
+<style>
+    * { margin: 0; padding: 0; }
+    .flex { display: flex; flex-direction: column; }
+    .centering { min-width: 400px; margin: 0 auto; }
+    .table { display: table; width: 100%; margin: 0 auto; background: green; }
+</style>
+<div class="flex">
+    <div class="centering">
+        <div class="table">content</div>
+    </div>
+</div>

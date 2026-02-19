@@ -455,6 +455,13 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
 
     LayoutState throwaway_state;
 
+    // Propagate the containing block's content width into the throwaway state
+    // so that TFC can correctly resolve percentage widths on the table element
+    // (e.g. width: 100% should resolve relative to the wrapper's containing block).
+    if (auto containing_block = box.containing_block()) {
+        throwaway_state.get_mutable(*containing_block).set_content_width(m_state.get(*containing_block).content_width());
+    }
+
     auto& table_box_state = throwaway_state.get_mutable(*table_box);
     auto const& table_box_computed_values = table_box->computed_values();
     table_box_state.border_left = table_box_computed_values.border_left().width;
