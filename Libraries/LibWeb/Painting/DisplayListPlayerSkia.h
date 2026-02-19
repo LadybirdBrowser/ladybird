@@ -25,7 +25,6 @@ private:
     void flush() override;
     void draw_glyph_run(DrawGlyphRun const&) override;
     void fill_rect(FillRect const&) override;
-    void draw_painting_surface(DrawPaintingSurface const&) override;
     void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
     void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
     void draw_external_content(DrawExternalContent const&) override;

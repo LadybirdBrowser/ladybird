@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/TraversableNavigable.h>

@@ -5,6 +5,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
@@ -228,7 +229,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         // clang-format off
         HANDLE_COMMAND(DrawGlyphRun, draw_glyph_run)
         else HANDLE_COMMAND(FillRect, fill_rect)
-        else HANDLE_COMMAND(DrawPaintingSurface, draw_painting_surface)
         else HANDLE_COMMAND(DrawScaledImmutableBitmap, draw_scaled_immutable_bitmap)
         else HANDLE_COMMAND(DrawRepeatedImmutableBitmap, draw_repeated_immutable_bitmap)
         else HANDLE_COMMAND(DrawExternalContent, draw_external_content)

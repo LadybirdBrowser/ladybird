@@ -36,7 +36,6 @@ private:
     virtual void flush() = 0;
     virtual void draw_glyph_run(DrawGlyphRun const&) = 0;
     virtual void fill_rect(FillRect const&) = 0;
-    virtual void draw_painting_surface(DrawPaintingSurface const&) = 0;
     virtual void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) = 0;
     virtual void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) = 0;
     virtual void draw_external_content(DrawExternalContent const&) = 0;

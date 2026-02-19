@@ -40,11 +40,6 @@ void FillRect::dump(StringBuilder& builder) const
     builder.appendff(" rect={} color={}", rect, color);
 }
 
-void DrawPaintingSurface::dump(StringBuilder& builder) const
-{
-    builder.appendff(" dst_rect={} src_rect={}", dst_rect, src_rect);
-}
-
 void DrawScaledImmutableBitmap::dump(StringBuilder& builder) const
 {
     builder.appendff(" dst_rect={} clip_rect={}", dst_rect, clip_rect);
