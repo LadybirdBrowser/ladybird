@@ -846,6 +846,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
     if (match(TokenType::Extends)) {
         consume();
+        auto extends_start = push_start();
         auto primary = parse_primary_expression();
         auto expression = move(primary.result);
         auto should_continue_parsing = primary.should_continue_parsing_as_expression;
@@ -854,7 +855,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
         for (;;) {
             if (match(TokenType::TemplateLiteralStart)) {
                 auto template_literal = parse_template_literal(true);
-                expression = create_ast_node<TaggedTemplateLiteral>({ m_source_code, rule_start.position(), position() }, move(expression), move(template_literal));
+                expression = create_ast_node<TaggedTemplateLiteral>({ m_source_code, extends_start.position(), position() }, move(expression), move(template_literal));
                 continue;
             }
             if (match(TokenType::BracketOpen) || match(TokenType::Period) || match(TokenType::ParenOpen)) {
