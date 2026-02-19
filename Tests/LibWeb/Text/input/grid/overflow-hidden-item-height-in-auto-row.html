@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: 200px 200px;
+    height: min-content;
+}
+.cell {
+    overflow: hidden;
+}
+</style>
+<div class="grid">
+    <div class="cell" id="a"><div style="height:100px"></div></div>
+    <div class="cell"><div style="height:80px"></div></div>
+</div>
+<script>
+test(() => {
+    const a = document.getElementById("a");
+    println(a.getBoundingClientRect().height);
+});
+</script>
