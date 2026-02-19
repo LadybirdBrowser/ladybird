@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+div {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100px;
+    height: 100px;
+}
+</style>
+<div id="target" style="transform: scaleZ(0)"></div>
+<script>
+test(() => {
+    const hit = document.elementFromPoint(50, 50);
+    println(hit.id !== "target" ? "PASS" : "FAIL");
+});
+</script>
