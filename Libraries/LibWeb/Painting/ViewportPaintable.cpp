@@ -364,8 +364,12 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (auto effects = make_effects_data(paintable_box); effects.has_value())
             own_state = append_node(own_state, effects.release_value());
 
-        if (auto transform_data = compute_transform(paintable_box, computed_values); transform_data.has_value())
+        if (auto transform_data = compute_transform(paintable_box, computed_values); transform_data.has_value()) {
+            paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
             own_state = append_node(own_state, *transform_data);
+        } else {
+            paintable_box.set_has_non_invertible_css_transform(false);
+        }
 
         if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value())
             own_state = append_node(own_state, ClipData { effective_css_clip_rect(*css_clip), {} });

@@ -282,6 +282,12 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 
 void StackingContext::paint(DisplayListRecordingContext& context) const
 {
+    // https://drafts.csswg.org/css-transforms-1/#transform-function-lists
+    // If a transform function causes the current transformation matrix of an object to be non-invertible, the object
+    // and its content do not get displayed.
+    if (paintable_box().has_non_invertible_css_transform())
+        return;
+
     if (paintable_box().computed_values().opacity() == 0.0f)
         return;
 
