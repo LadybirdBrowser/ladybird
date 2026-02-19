@@ -1,6 +1,5 @@
 Program (module) [strict] @1:1
 ├─ ImportStatement from "module" @1:1
-├─ EmptyStatement @1:16
 ├─ ImportStatement from "bare" @2:1
 ├─ ExpressionStatement @3:1
 │  └─ BinaryExpression (+) @3:3
@@ -8,7 +7,6 @@ Program (module) [strict] @1:1
 │     └─ NumericLiteral 2 @3:5
 ├─ ImportStatement from "named" @4:1
 │  └─ ImportName: foo, LocalName: foo
-├─ EmptyStatement @4:28
 ├─ ImportStatement from "named-no-semi" @5:1
 │  └─ ImportName: bar, LocalName: bar
 ├─ ExpressionStatement @6:1
@@ -17,7 +15,5 @@ Program (module) [strict] @1:1
 │     └─ NumericLiteral 4 @6:5
 ├─ ImportStatement from "default" @7:1
 │  └─ ImportName: default, LocalName: baz
-├─ EmptyStatement @7:26
-├─ ImportStatement from "namespace" @8:1
-│  └─ ImportName: None, LocalName: ns
-└─ EmptyStatement @8:32
+└─ ImportStatement from "namespace" @8:1
+   └─ ImportName: None, LocalName: ns

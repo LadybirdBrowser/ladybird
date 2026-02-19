@@ -4153,6 +4153,7 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
     if (match(TokenType::StringLiteral)) {
         //  import ModuleSpecifier ;
         auto module_request = parse_module_request();
+        consume_or_insert_semicolon();
         return create_ast_node<ImportStatement>({ m_source_code, rule_start.position(), position() }, move(module_request));
     }
 
@@ -4275,6 +4276,7 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
         syntax_error(MUST(String::formatted("Expected 'from' got {}", from_statement)));
 
     auto module_request = parse_module_request();
+    consume_or_insert_semicolon();
 
     Vector<ImportEntry> entries;
     entries.ensure_capacity(entries_with_location.size());
