@@ -14,6 +14,7 @@
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Fetch.h>
@@ -652,23 +653,27 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
 
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
+    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
     for (auto const& rule : sheet.rules()) {
-        auto* font_face_rule = as_if<CSSFontFaceRule>(*rule);
-        if (!font_face_rule)
-            continue;
-        if (!font_face_rule->is_valid())
-            continue;
-        if (auto font_loader = load_font_face(font_face_rule->font_face())) {
-            sheet.add_associated_font_loader(*font_loader);
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule)) {
+            if (!font_face_rule->is_valid())
+                continue;
+
+            if (auto font_loader = load_font_face(font_face_rule->font_face()))
+                sheet.add_associated_font_loader(*font_loader);
+
+            auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
+            document().fonts()->add_css_connected_font(font_face);
         }
 
-        auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
-        document().fonts()->add_css_connected_font(font_face);
+        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
+            font_feature_values_rule->clear_dependent_caches();
     }
 }
 
 void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
 {
+    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
     for (auto& [_, font_loader_list] : m_loaded_fonts) {
         font_loader_list.remove_all_matching([&](auto& font_loader) {
             return sheet.has_associated_font_loader(*font_loader);
@@ -680,6 +685,9 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     for (auto const& rule : sheet.rules()) {
         if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule))
             font_face_rule->disconnect_font_face();
+
+        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
+            font_feature_values_rule->clear_dependent_caches();
     }
 }
 

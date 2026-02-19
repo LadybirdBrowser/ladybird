@@ -33,6 +33,8 @@ public:
     GC::Ref<CSSFontFeatureValuesMap> styleset() const { return m_styleset; }
     GC::Ref<CSSFontFeatureValuesMap> historical_forms() const { return m_historical_forms; }
 
+    void clear_dependent_caches();
+
     virtual String serialized() const override;
 
 private:

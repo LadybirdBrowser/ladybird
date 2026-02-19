@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSRuleListPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -148,6 +149,11 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     // 8. Insert new rule into list at the zero-indexed position index.
     m_rules.insert(index, *new_rule);
 
+    // FIXME: Load font faces for inserted @font-face rules
+
+    if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(new_rule))
+        font_feature_values_rule->clear_dependent_caches();
+
     // 9. Return index.
     if (on_change)
         on_change();
@@ -179,6 +185,9 @@ WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
     if (auto* font_face_rule = as_if<CSSFontFaceRule>(old_rule))
         font_face_rule->disconnect_font_face();
+
+    if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(old_rule))
+        font_feature_values_rule->clear_dependent_caches();
 
     // 5. Remove rule old rule from list at the zero-indexed position index.
     m_rules.remove(index);

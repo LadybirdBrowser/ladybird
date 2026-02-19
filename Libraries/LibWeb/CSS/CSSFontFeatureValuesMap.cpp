@@ -7,21 +7,23 @@
 #include "CSSFontFeatureValuesMap.h"
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFeatureValuesMap);
 
-GC::Ref<CSSFontFeatureValuesMap> CSSFontFeatureValuesMap::create(JS::Realm& realm, size_t max_value_count)
+GC::Ref<CSSFontFeatureValuesMap> CSSFontFeatureValuesMap::create(JS::Realm& realm, size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule)
 {
-    return realm.create<CSSFontFeatureValuesMap>(realm, max_value_count);
+    return realm.create<CSSFontFeatureValuesMap>(realm, max_value_count, parent_rule);
 }
 
-CSSFontFeatureValuesMap::CSSFontFeatureValuesMap(JS::Realm& realm, size_t max_value_count)
+CSSFontFeatureValuesMap::CSSFontFeatureValuesMap(JS::Realm& realm, size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule)
     : Bindings::PlatformObject(realm)
     , m_map_entries(JS::Map::create(realm))
     , m_max_value_count(max_value_count)
+    , m_parent_rule(parent_rule)
 {
 }
 
@@ -55,14 +57,15 @@ WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(String const& feature_val
         wrapped_values.append(JS::Value { value });
 
     m_map_entries->map_set(JS::PrimitiveString::create(vm(), feature_value_name), JS::Array::create_from(realm(), wrapped_values.span()));
-    // TODO: Clear the relevant caches
+
+    m_parent_rule->clear_dependent_caches();
 
     return {};
 }
 
 void CSSFontFeatureValuesMap::on_map_modified_from_js(Badge<Bindings::CSSFontFeatureValuesMapPrototype>)
 {
-    // TODO: Clear the relevant caches
+    m_parent_rule->clear_dependent_caches();
 }
 
 OrderedHashMap<FlyString, Vector<u32>> CSSFontFeatureValuesMap::to_ordered_hash_map() const
@@ -97,6 +100,7 @@ void CSSFontFeatureValuesMap::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_map_entries);
+    visitor.visit(m_parent_rule);
 }
 
 }
