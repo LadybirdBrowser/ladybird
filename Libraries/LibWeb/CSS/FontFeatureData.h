@@ -7,13 +7,18 @@
 
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
-#include <LibGfx/Font/FontVariant.h>
 #include <LibGfx/ShapeFeature.h>
 #include <LibWeb/Forward.h>
 
 #pragma once
 
 namespace Web::CSS {
+
+struct FontVariantAlternates {
+    bool historical_forms = false;
+
+    bool operator==(FontVariantAlternates const&) const = default;
+};
 
 struct FontVariantEastAsian {
     bool ruby = false;
@@ -44,7 +49,7 @@ struct FontVariantNumeric {
 };
 
 struct FontFeatureData {
-    Optional<Gfx::FontVariantAlternates> font_variant_alternates;
+    Optional<FontVariantAlternates> font_variant_alternates;
     FontVariantCaps font_variant_caps;
     Optional<FontVariantEastAsian> font_variant_east_asian;
     FontVariantEmoji font_variant_emoji;
@@ -65,6 +70,15 @@ struct FontFeatureData {
 }
 
 namespace AK {
+
+template<>
+struct Traits<Web::CSS::FontVariantAlternates> : public DefaultTraits<Web::CSS::FontVariantAlternates> {
+    static unsigned hash(Web::CSS::FontVariantAlternates const& data)
+    {
+        u32 hash = data.historical_forms ? 1 : 0;
+        return hash;
+    }
+};
 
 template<>
 struct Traits<Web::CSS::FontVariantEastAsian> : public DefaultTraits<Web::CSS::FontVariantEastAsian> {
@@ -108,7 +122,7 @@ struct Traits<Web::CSS::FontFeatureData> : public DefaultTraits<Web::CSS::FontFe
     static unsigned hash(Web::CSS::FontFeatureData const& data)
     {
         u32 hash = 0;
-        hash = pair_int_hash(hash, data.font_variant_alternates.has_value() ? Traits<Gfx::FontVariantAlternates>::hash(data.font_variant_alternates.value()) : -1);
+        hash = pair_int_hash(hash, data.font_variant_alternates.has_value() ? Traits<Web::CSS::FontVariantAlternates>::hash(data.font_variant_alternates.value()) : -1);
         hash = pair_int_hash(hash, to_underlying(data.font_variant_caps));
         hash = pair_int_hash(hash, data.font_variant_east_asian.has_value() ? Traits<Web::CSS::FontVariantEastAsian>::hash(data.font_variant_east_asian.value()) : -1);
         hash = pair_int_hash(hash, to_underlying(data.font_variant_emoji));

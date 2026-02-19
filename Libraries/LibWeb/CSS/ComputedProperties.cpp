@@ -1490,14 +1490,14 @@ FontFeatureData ComputedProperties::font_feature_data() const
     };
 }
 
-Optional<Gfx::FontVariantAlternates> ComputedProperties::font_variant_alternates() const
+Optional<FontVariantAlternates> ComputedProperties::font_variant_alternates() const
 {
     auto const& value = property(PropertyID::FontVariantAlternates);
     switch (keyword_to_font_variant_alternates(value.to_keyword()).value()) {
     case FontVariantAlternates::Normal:
         return {};
     case FontVariantAlternates::HistoricalForms:
-        return Gfx::FontVariantAlternates { .historical_forms = true };
+        return FontVariantAlternates { .historical_forms = true };
     }
     VERIFY_NOT_REACHED();
 }
