@@ -171,7 +171,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     TRY(vm.push_execution_context(*script_context, {}));
 
     // 13. If result.[[Type]] is normal, then
-    if (executable) {
+    if (executable && result.type() == Completion::Type::Normal) {
         // a. Set result to Completion(Evaluation of script).
         result = run_executable(*script_context, *executable, {}, {});
 
