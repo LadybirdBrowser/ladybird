@@ -65,6 +65,8 @@ def test(file: Path) -> bool:
         # TODO: allow for dumping bytecode without running script
         # "--parse-only",
     ]
+    if file.suffix == ".mjs":
+        args.append("--as-module")
     process = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     stdout = process.stdout.decode().strip()
@@ -111,7 +113,9 @@ def main() -> int:
     input_dir = BYTECODE_TEST_DIR / "input"
     failed = 0
 
-    js_files = [js_file for js_file in sorted(input_dir.iterdir()) if js_file.is_file() and js_file.suffix == ".js"]
+    js_files = [
+        js_file for js_file in sorted(input_dir.iterdir()) if js_file.is_file() and js_file.suffix in (".js", ".mjs")
+    ]
 
     with ThreadPoolExecutor(max_workers=args.jobs) as executor:
         executables = [executor.submit(test, js_file.relative_to(input_dir)) for js_file in js_files]
