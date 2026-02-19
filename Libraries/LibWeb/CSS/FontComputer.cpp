@@ -14,6 +14,7 @@
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Fetch.h>
@@ -671,26 +672,31 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
 
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
+    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
     for (auto const& rule : sheet.rules()) {
-        auto* font_face_rule = as_if<CSSFontFaceRule>(*rule);
-        if (!font_face_rule)
-            continue;
-        if (!font_face_rule->is_valid())
-            continue;
-        auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
-        document().fonts()->add_css_connected_font(font_face);
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule)) {
+            if (!font_face_rule->is_valid())
+                continue;
 
-        // NB: Load via FontFace::load(), to satisfy this requirement:
-        // https://drafts.csswg.org/css-font-loading/#font-face-load
-        // User agents can initiate font loads on their own, whenever they determine that a given font face is
-        // necessary to render something on the page. When this happens, they must act as if they had called the
-        // corresponding FontFace’s load() method described here.
-        font_face->load();
+            auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
+            document().fonts()->add_css_connected_font(font_face);
+
+            // NB: Load via FontFace::load(), to satisfy this requirement:
+            // https://drafts.csswg.org/css-font-loading/#font-face-load
+            // User agents can initiate font loads on their own, whenever they determine that a given font face is
+            // necessary to render something on the page. When this happens, they must act as if they had called the
+            // corresponding FontFace’s load() method described here.
+            font_face->load();
+        }
+
+        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
+            font_feature_values_rule->clear_caches();
     }
 }
 
 void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
 {
+    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
     for (auto& [_, font_loader_list] : m_loaded_fonts) {
         font_loader_list.remove_all_matching([&](auto& font_loader) {
             return sheet.has_associated_font_loader(*font_loader);
@@ -702,6 +708,9 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     for (auto const& rule : sheet.rules()) {
         if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule))
             font_face_rule->disconnect_font_face();
+
+        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
+            font_feature_values_rule->clear_caches();
     }
 }
 

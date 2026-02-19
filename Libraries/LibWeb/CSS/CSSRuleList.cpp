@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSRuleListPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -147,6 +148,8 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
 
     // 8. Insert new rule into list at the zero-indexed position index.
     m_rules.insert(index, *new_rule);
+
+    // FIXME: Load font faces for inserted @font-face rules
 
     // 9. Return index.
     if (on_change)
