@@ -1,0 +1,1 @@
+TypeError: Request with 'file:' or 'resource:' URL blocked
