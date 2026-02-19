@@ -215,7 +215,6 @@ public:
     WebIDL::ExceptionOr<String> cookie();
     WebIDL::ExceptionOr<void> set_cookie(StringView);
     bool is_cookie_averse() const;
-    void enable_cookies_on_file_domains(Badge<Internals::Internals>) { m_enable_cookies_on_file_domains = true; }
 
     void set_cookie_version_index(Core::SharedVersionIndex cookie_version_index) { m_cookie_version_index = cookie_version_index; }
     void reset_cookie_version() { m_cookie_version = Core::INVALID_SHARED_VERSION; }
@@ -1344,8 +1343,6 @@ private:
     Core::SharedVersion m_cookie_version { Core::INVALID_SHARED_VERSION };
     Optional<Core::SharedVersionIndex> m_cookie_version_index;
     String m_cookie;
-
-    bool m_enable_cookies_on_file_domains { false };
 
     Optional<HTML::PaintConfig> m_cached_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_cached_display_list;

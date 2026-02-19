@@ -3432,11 +3432,8 @@ bool Document::is_cookie_averse() const
         return true;
 
     // * A Document whose URL's scheme is not an HTTP(S) scheme.
-    if (!url().scheme().is_one_of("http"sv, "https"sv)) {
-        // AD-HOC: This allows us to write cookie integration tests.
-        if (!m_enable_cookies_on_file_domains || url().scheme() != "file"sv)
-            return true;
-    }
+    if (!url().scheme().is_one_of("http"sv, "https"sv))
+        return true;
 
     return false;
 }
