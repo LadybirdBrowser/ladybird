@@ -150,28 +150,27 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features() const
         // 6.7 https://drafts.csswg.org/css-fonts/#font-variant-numeric-prop
         if (font_variant_numeric.has_value()) {
             auto numeric = font_variant_numeric.value();
-            if (numeric.figure == Gfx::FontVariantNumeric::Figure::Oldstyle) {
+            if (numeric.figure == NumericFigureValue::OldstyleNums) {
                 // Enables display of old-style numerals (OpenType feature: onum).
                 features.set("onum"sv, 1);
-            } else if (numeric.figure == Gfx::FontVariantNumeric::Figure::Lining) {
+            } else if (numeric.figure == NumericFigureValue::LiningNums) {
                 // Enables display of lining numerals (OpenType feature: lnum).
                 features.set("lnum"sv, 1);
             }
 
-            if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Proportional) {
+            if (numeric.spacing == NumericSpacingValue::ProportionalNums) {
                 // Enables display of proportional numerals (OpenType feature: pnum).
                 features.set("pnum"sv, 1);
-            } else if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Tabular) {
+            } else if (numeric.spacing == NumericSpacingValue::TabularNums) {
                 // Enables display of tabular numerals (OpenType feature: tnum).
                 features.set("tnum"sv, 1);
             }
 
-            if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Diagonal) {
+            if (numeric.fraction == NumericFractionValue::DiagonalFractions) {
                 // Enables display of diagonal fractions (OpenType feature: frac).
                 features.set("frac"sv, 1);
-            } else if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Stacked) {
+            } else if (numeric.fraction == NumericFractionValue::StackedFractions) {
                 // Enables display of stacked fractions (OpenType feature: afrc).
-                features.set("afrc"sv, 1);
                 features.set("afrc"sv, 1);
             }
 

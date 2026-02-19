@@ -33,13 +33,23 @@ struct FontVariantLigatures {
     bool operator==(FontVariantLigatures const&) const = default;
 };
 
+struct FontVariantNumeric {
+    bool ordinal = false;
+    bool slashed_zero = false;
+    Optional<NumericFigureValue> figure {};
+    Optional<NumericSpacingValue> spacing {};
+    Optional<NumericFractionValue> fraction {};
+
+    bool operator==(FontVariantNumeric const&) const = default;
+};
+
 struct FontFeatureData {
     Optional<Gfx::FontVariantAlternates> font_variant_alternates;
     FontVariantCaps font_variant_caps;
     Optional<FontVariantEastAsian> font_variant_east_asian;
     FontVariantEmoji font_variant_emoji;
     Optional<FontVariantLigatures> font_variant_ligatures;
-    Optional<Gfx::FontVariantNumeric> font_variant_numeric;
+    Optional<FontVariantNumeric> font_variant_numeric;
     FontVariantPosition font_variant_position;
 
     HashMap<FlyString, u8> font_feature_settings;
@@ -81,6 +91,19 @@ struct Traits<Web::CSS::FontVariantLigatures> : public DefaultTraits<Web::CSS::F
 };
 
 template<>
+struct Traits<Web::CSS::FontVariantNumeric> : public DefaultTraits<Web::CSS::FontVariantNumeric> {
+    static unsigned hash(Web::CSS::FontVariantNumeric const& data)
+    {
+        u32 hash = data.ordinal ? 1 : 0;
+        hash = pair_int_hash(hash, data.slashed_zero ? 1 : 0);
+        hash = pair_int_hash(hash, data.figure.has_value() ? to_underlying(data.figure.value()) : -1);
+        hash = pair_int_hash(hash, data.spacing.has_value() ? to_underlying(data.spacing.value()) : -1);
+        hash = pair_int_hash(hash, data.fraction.has_value() ? to_underlying(data.fraction.value()) : -1);
+        return hash;
+    }
+};
+
+template<>
 struct Traits<Web::CSS::FontFeatureData> : public DefaultTraits<Web::CSS::FontFeatureData> {
     static unsigned hash(Web::CSS::FontFeatureData const& data)
     {
@@ -90,7 +113,7 @@ struct Traits<Web::CSS::FontFeatureData> : public DefaultTraits<Web::CSS::FontFe
         hash = pair_int_hash(hash, data.font_variant_east_asian.has_value() ? Traits<Web::CSS::FontVariantEastAsian>::hash(data.font_variant_east_asian.value()) : -1);
         hash = pair_int_hash(hash, to_underlying(data.font_variant_emoji));
         hash = pair_int_hash(hash, data.font_variant_ligatures.has_value() ? Traits<Web::CSS::FontVariantLigatures>::hash(data.font_variant_ligatures.value()) : -1);
-        hash = pair_int_hash(hash, data.font_variant_numeric.has_value() ? Traits<Gfx::FontVariantNumeric>::hash(data.font_variant_numeric.value()) : -1);
+        hash = pair_int_hash(hash, data.font_variant_numeric.has_value() ? Traits<Web::CSS::FontVariantNumeric>::hash(data.font_variant_numeric.value()) : -1);
         hash = pair_int_hash(hash, to_underlying(data.font_variant_position));
         hash = pair_int_hash(hash, to_underlying(data.font_kerning));
         hash = pair_int_hash(hash, to_underlying(data.text_rendering));

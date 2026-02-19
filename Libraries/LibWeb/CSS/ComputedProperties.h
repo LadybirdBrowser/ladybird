@@ -167,7 +167,7 @@ public:
     Optional<FontVariantEastAsian> font_variant_east_asian() const;
     FontVariantEmoji font_variant_emoji() const;
     Optional<FontVariantLigatures> font_variant_ligatures() const;
-    Optional<Gfx::FontVariantNumeric> font_variant_numeric() const;
+    Optional<FontVariantNumeric> font_variant_numeric() const;
     FontVariantPosition font_variant_position() const;
     FontKerning font_kerning() const;
     Optional<FlyString> font_language_override() const;

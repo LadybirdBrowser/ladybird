@@ -18,31 +18,6 @@ struct FontVariantAlternates {
     bool operator==(FontVariantAlternates const&) const = default;
 };
 
-struct FontVariantNumeric {
-    enum class Figure {
-        Unset,
-        Lining,
-        Oldstyle
-    };
-    enum class Spacing {
-        Unset,
-        Proportional,
-        Tabular
-    };
-    enum class Fraction {
-        Unset,
-        Diagonal,
-        Stacked
-    };
-    bool ordinal = false;
-    bool slashed_zero = false;
-    Figure figure { Figure::Unset };
-    Spacing spacing { Spacing::Unset };
-    Fraction fraction { Fraction::Unset };
-
-    bool operator==(FontVariantNumeric const&) const = default;
-};
-
 }
 
 namespace AK {
@@ -52,19 +27,6 @@ struct Traits<Gfx::FontVariantAlternates> : public DefaultTraits<Gfx::FontVarian
     static unsigned hash(Gfx::FontVariantAlternates const& data)
     {
         u32 hash = data.historical_forms ? 1 : 0;
-        return hash;
-    }
-};
-
-template<>
-struct Traits<Gfx::FontVariantNumeric> : public DefaultTraits<Gfx::FontVariantNumeric> {
-    static unsigned hash(Gfx::FontVariantNumeric const& data)
-    {
-        u32 hash = data.ordinal ? 1 : 0;
-        hash = pair_int_hash(hash, data.slashed_zero ? 1 : 0);
-        hash = pair_int_hash(hash, to_underlying(data.figure));
-        hash = pair_int_hash(hash, to_underlying(data.spacing));
-        hash = pair_int_hash(hash, to_underlying(data.fraction));
         return hash;
     }
 };
