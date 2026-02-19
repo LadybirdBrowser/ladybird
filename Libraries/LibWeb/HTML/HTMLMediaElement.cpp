@@ -140,6 +140,12 @@ void HTMLMediaElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
     pause_element();
 }
 
+void HTMLMediaElement::cancel_the_fetching_process()
+{
+    if (m_fetch_controller)
+        m_fetch_controller->stop_fetch();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#fatal-decode-error
 void HTMLMediaElement::set_decoder_error(String error_message)
 {
@@ -153,8 +159,7 @@ void HTMLMediaElement::set_decoder_error(String error_message)
         return;
 
     // 1. The user agent should cancel the fetching process.
-    if (m_fetch_controller)
-        m_fetch_controller->stop_fetch();
+    cancel_the_fetching_process();
 
     // 2. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_DECODE.
     m_error = realm.create<MediaError>(realm, MediaError::Code::Decode, move(error_message));
@@ -571,8 +576,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         });
 
         // 2. If a fetching process is in progress for the media element, the user agent should stop it.
-        if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
-            m_fetch_controller->stop_fetch();
+        cancel_the_fetching_process();
 
         // FIXME: 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
 
@@ -1225,8 +1229,7 @@ void HTMLMediaElement::restart_fetch_at_offset(FetchData& fetch_data, u64 offset
 {
     if (!fetch_data.accepts_byte_ranges)
         return;
-    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
-        m_fetch_controller->stop_fetch();
+    cancel_the_fetching_process();
 
     fetch_resource(fetch_data, UntilEnd { offset });
 }
@@ -1525,7 +1528,7 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
             return;
 
         // 1. The user agent should cancel the fetching process.
-        weak_self->m_fetch_controller->stop_fetch();
+        weak_self->cancel_the_fetching_process();
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
         fetch_data->failure_callback(MUST(String::from_utf8(error.description())));

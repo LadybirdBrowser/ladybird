@@ -47,6 +47,8 @@ public:
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     void queue_a_media_element_task(Function<void()>);
 
+    void cancel_the_fetching_process();
+
     GC::Ptr<MediaError> error() const { return m_error; }
     void set_decoder_error(String error_message);
 
