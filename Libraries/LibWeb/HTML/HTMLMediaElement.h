@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -174,6 +175,8 @@ public:
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
     RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
+
+    Painting::ExternalContentSource& ensure_external_content_source();
 
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
@@ -370,6 +373,8 @@ private:
 
     bool m_has_enabled_preferred_audio_track { false };
     bool m_has_selected_preferred_video_track { false };
+
+    RefPtr<Painting::ExternalContentSource> m_external_content_source;
 };
 
 }

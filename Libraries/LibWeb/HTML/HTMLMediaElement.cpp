@@ -39,6 +39,7 @@
 #include <LibWeb/HTML/TrackEvent.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
@@ -1238,6 +1239,13 @@ void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::
         m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
 }
 
+Painting::ExternalContentSource& HTMLMediaElement::ensure_external_content_source()
+{
+    if (!m_external_content_source)
+        m_external_content_source = Painting::ExternalContentSource::create();
+    return *m_external_content_source;
+}
+
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
 {
     set_needs_style_update(true);
@@ -1248,6 +1256,8 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         VERIFY(m_selected_video_track_sink);
         m_playback_manager->remove_the_displaying_video_sink_for_track(m_selected_video_track->track_in_playback_manager());
         m_selected_video_track_sink = nullptr;
+        if (m_external_content_source)
+            m_external_content_source->clear();
     }
 
     m_selected_video_track = video_track;
@@ -1260,10 +1270,13 @@ void HTMLMediaElement::update_video_frame_and_timeline()
     if (!m_playback_manager)
         return;
 
-    auto needs_display = false;
+    auto new_frame_available = false;
     if (m_selected_video_track_sink) {
         auto sink_update_result = m_selected_video_track_sink->update();
-        needs_display = sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
+            ensure_external_content_source().update(m_selected_video_track_sink->current_frame());
+            new_frame_available = true;
+        }
     }
 
     // Wait for the seek to complete before updating the timestamp, otherwise we'll display the timestamp from
@@ -1271,14 +1284,21 @@ void HTMLMediaElement::update_video_frame_and_timeline()
     if (seeking())
         return;
 
+    auto needs_display_list_rebuild = false;
     auto new_position = m_playback_manager->current_time().to_seconds_f64();
     if (new_position != m_current_playback_position) {
         set_current_playback_position(new_position);
-        needs_display = true;
+        needs_display_list_rebuild = true;
     }
 
-    if (needs_display && paintable())
-        paintable()->set_needs_display();
+    if (!paintable())
+        return;
+
+    if (needs_display_list_rebuild) {
+        paintable()->set_needs_display(InvalidateDisplayList::Yes);
+    } else if (new_frame_available) {
+        paintable()->set_needs_display(InvalidateDisplayList::No);
+    }
 }
 
 void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
