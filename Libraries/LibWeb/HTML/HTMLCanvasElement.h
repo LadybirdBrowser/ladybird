@@ -9,6 +9,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
@@ -18,6 +19,8 @@ class HTMLCanvasElement final : public HTMLElement {
     GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     using RenderingContext = Variant<GC::Root<CanvasRenderingContext2D>, GC::Root<WebGL::WebGLRenderingContext>, GC::Root<WebGL::WebGL2RenderingContext>, Empty>;
 
     virtual ~HTMLCanvasElement() override;
@@ -44,14 +47,18 @@ public:
     RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
 
     void present();
+    void set_canvas_content_dirty();
 
     RefPtr<Gfx::PaintingSurface> surface() const;
     void allocate_painting_surface_if_needed();
+
+    Painting::ExternalContentSource& ensure_external_content_source();
 
 private:
     HTMLCanvasElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_presentational_hint(FlyString const&) const override;
@@ -66,6 +73,8 @@ private:
     void notify_context_about_canvas_size_change();
 
     Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
+    RefPtr<Painting::ExternalContentSource> m_external_content_source;
+    bool m_canvas_content_dirty { false };
 };
 
 }
