@@ -6,6 +6,7 @@
 
 #include "FontFeatureData.h"
 #include <AK/HashMap.h>
+#include <LibWeb/CSS/Enums.h>
 
 namespace Web::CSS {
 

@@ -9,7 +9,7 @@
 #include <AK/HashMap.h>
 #include <LibGfx/Font/FontVariant.h>
 #include <LibGfx/ShapeFeature.h>
-#include <LibWeb/CSS/Enums.h>
+#include <LibWeb/Forward.h>
 
 #pragma once
 

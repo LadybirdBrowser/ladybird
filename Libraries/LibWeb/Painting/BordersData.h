@@ -9,7 +9,6 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/PixelUnits.h>
 

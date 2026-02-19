@@ -5,6 +5,7 @@
  */
 
 #include "RadialSizeStyleValue.h"
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PercentageOr.h>
 
 namespace Web::CSS {

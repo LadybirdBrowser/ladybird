@@ -13,7 +13,6 @@
 #include <LibWeb/Bindings/AnimationEffectPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/EasingFunction.h>
-#include <LibWeb/CSS/Enums.h>
 
 namespace Web::Animations {
 

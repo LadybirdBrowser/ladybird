@@ -10,7 +10,6 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <LibGfx/Font/UnicodeRange.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/URL.h>
 

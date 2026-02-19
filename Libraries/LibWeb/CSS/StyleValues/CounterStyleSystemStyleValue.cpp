@@ -5,6 +5,7 @@
  */
 
 #include "CounterStyleSystemStyleValue.h"
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {

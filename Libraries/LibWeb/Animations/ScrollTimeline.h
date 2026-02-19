@@ -9,7 +9,6 @@
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ScrollTimelinePrototype.h>
-#include <LibWeb/CSS/Enums.h>
 
 namespace Web::Animations {
 
