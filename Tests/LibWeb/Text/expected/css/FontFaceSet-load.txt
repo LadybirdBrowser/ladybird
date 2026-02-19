@@ -1,4 +1,5 @@
 Load invalid font: PASS
 Load CSS keyword as font: PASS
 Load non-existent font: PASS
+Load generic font family: PASS
 Load valid font: PASS

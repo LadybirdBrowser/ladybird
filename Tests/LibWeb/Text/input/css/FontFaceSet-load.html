@@ -29,6 +29,14 @@
         }
 
         try {
+            const result = await fontFaceSet.load("16px sans-serif");
+            println(`Load generic font family: ${result.length == 0 ? "PASS" : "FAIL"}`);
+        } catch (e) {
+            println("Load generic font family: FAIL");
+            println(e);
+        }
+
+        try {
             const result = await fontFaceSet.load("1em Hash Sans");
             println(`Load valid font: ${result.length > 0 ? "PASS" : "FAIL"}`);
         } catch (e) {

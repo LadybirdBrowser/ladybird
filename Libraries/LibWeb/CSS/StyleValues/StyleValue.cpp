@@ -213,13 +213,16 @@ double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_valu
     VERIFY_NOT_REACHED();
 }
 
-FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+FlyString string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
 {
     if (style_value->is_string())
         return style_value->as_string().string_value();
 
     if (style_value->is_custom_ident())
         return style_value->as_custom_ident().custom_ident();
+
+    if (style_value->is_keyword())
+        return FlyString::from_utf8_without_validation(string_from_keyword(style_value->as_keyword().keyword()).bytes());
 
     VERIFY_NOT_REACHED();
 }
