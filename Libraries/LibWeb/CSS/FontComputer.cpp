@@ -201,7 +201,7 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
 {
     if (typeface) {
         m_typeface = typeface.release_nonnull();
-        m_font_computer->did_load_font(m_family_name);
+        m_font_computer->clear_computed_font_cache(m_family_name);
         if (m_on_load)
             m_on_load->function()(m_typeface);
     } else {
@@ -552,7 +552,7 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
     return false;
 }
 
-void FontComputer::did_load_font(FlyString const& family_name)
+void FontComputer::clear_computed_font_cache(FlyString const& family_name)
 {
     // Only clear cache entries that reference the loaded font family.
     m_computed_font_cache.remove_all_matching([&](auto const& key, auto const&) {

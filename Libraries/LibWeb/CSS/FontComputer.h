@@ -101,7 +101,7 @@ public:
 
     Gfx::Font const& initial_font() const;
 
-    void did_load_font(FlyString const& family_name);
+    void clear_computed_font_cache(FlyString const& family_name);
 
     GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
