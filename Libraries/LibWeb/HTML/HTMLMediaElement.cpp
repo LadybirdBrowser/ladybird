@@ -1134,8 +1134,8 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
                 fetch_data->stream->add_chunk_at(fetch_data->offset, media_data.bytes());
                 fetch_data->offset += media_data.size();
 
-                weak_self->queue_a_media_element_task([&self = *weak_self] {
-                    self.process_media_data(FetchingStatus::Ongoing).release_value_but_fixme_should_propagate_errors();
+                weak_self->queue_a_media_element_task([self = weak_self.as_nonnull()] {
+                    self->process_media_data(FetchingStatus::Ongoing).release_value_but_fixme_should_propagate_errors();
                 });
             });
 
@@ -1150,8 +1150,8 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
                     return;
 
                 fetch_data->stream->close();
-                weak_self->queue_a_media_element_task([&self = *weak_self] {
-                    self.process_media_data(FetchingStatus::Complete).release_value_but_fixme_should_propagate_errors();
+                weak_self->queue_a_media_element_task([self = weak_self.as_nonnull()] {
+                    self->process_media_data(FetchingStatus::Complete).release_value_but_fixme_should_propagate_errors();
                 });
             });
 
