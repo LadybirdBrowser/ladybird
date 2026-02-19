@@ -1569,32 +1569,42 @@ Optional<FontVariantLigatures> ComputedProperties::font_variant_ligatures() cons
 Optional<Gfx::FontVariantNumeric> ComputedProperties::font_variant_numeric() const
 {
     auto const& value = property(PropertyID::FontVariantNumeric);
-    Gfx::FontVariantNumeric numeric {};
-    bool normal = false;
 
-    auto apply_keyword = [&numeric, &normal](Keyword keyword) {
-        switch (keyword) {
-        case Keyword::Normal:
-            normal = true;
-            break;
-        case Keyword::Ordinal:
-            numeric.ordinal = true;
-            break;
-        case Keyword::SlashedZero:
-            numeric.slashed_zero = true;
+    if (value.to_keyword() == Keyword::Normal)
+        return {};
+
+    auto const& tuple = value.as_tuple().tuple();
+
+    Gfx::FontVariantNumeric numeric {};
+
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure]) {
+        switch (tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure]->to_keyword()) {
+        case Keyword::LiningNums:
+            numeric.figure = Gfx::FontVariantNumeric::Figure::Lining;
             break;
         case Keyword::OldstyleNums:
             numeric.figure = Gfx::FontVariantNumeric::Figure::Oldstyle;
             break;
-        case Keyword::LiningNums:
-            numeric.figure = Gfx::FontVariantNumeric::Figure::Lining;
-            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing]) {
+        switch (tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing]->to_keyword()) {
         case Keyword::ProportionalNums:
             numeric.spacing = Gfx::FontVariantNumeric::Spacing::Proportional;
             break;
         case Keyword::TabularNums:
             numeric.spacing = Gfx::FontVariantNumeric::Spacing::Tabular;
             break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction]) {
+        switch (tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction]->to_keyword()) {
         case Keyword::DiagonalFractions:
             numeric.fraction = Gfx::FontVariantNumeric::Fraction::Diagonal;
             break;
@@ -1604,18 +1614,13 @@ Optional<Gfx::FontVariantNumeric> ComputedProperties::font_variant_numeric() con
         default:
             VERIFY_NOT_REACHED();
         }
-    };
-
-    if (value.is_keyword()) {
-        apply_keyword(value.to_keyword());
-    } else if (value.is_value_list()) {
-        for (auto& child_value : value.as_value_list().values()) {
-            apply_keyword(child_value->to_keyword());
-        }
     }
 
-    if (normal)
-        return {};
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Ordinal])
+        numeric.ordinal = true;
+
+    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::SlashedZero])
+        numeric.slashed_zero = true;
 
     return numeric;
 }
