@@ -322,7 +322,7 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
     quick_sort(matching_family_fonts, [](auto const& a, auto const& b) {
         return a.key.weight.min < b.key.weight.min;
     });
-    // FIXME: 1. font-stretch is tried first.
+    // FIXME: 1. font-width is tried first.
     // FIXME: 2. font-style is tried next.
     // We don't have complete support of italic and oblique fonts, so matching on font-style can be simplified to:
     // If a matching slope is found, all faces which don't have that matching slope are excluded from the matching set.
