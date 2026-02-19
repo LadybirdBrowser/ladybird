@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLPreElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLPreElement.h>

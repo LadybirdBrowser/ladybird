@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLOListElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/DOM/Document.h>

@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/FontComputer.h>

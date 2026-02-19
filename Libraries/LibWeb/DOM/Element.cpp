@@ -24,6 +24,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
