@@ -39,6 +39,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::FitContent;
     if (string.equals_ignoring_ascii_case("flex"sv))
         return ValueType::Flex;
+    if (string.equals_ignoring_ascii_case("font-variant-alternates"sv))
+        return ValueType::FontVariantAlternates;
     if (string.equals_ignoring_ascii_case("font-variant-east-asian"sv))
         return ValueType::FontVariantEastAsian;
     if (string.equals_ignoring_ascii_case("font-variant-ligatures"sv))
@@ -133,6 +135,8 @@ StringView value_type_to_string(ValueType value_type)
         return "Flex"sv;
     case Web::CSS::ValueType::FontStyle:
         return "FontStyle"sv;
+    case Web::CSS::ValueType::FontVariantAlternates:
+        return "FontVariantAlternates"sv;
     case Web::CSS::ValueType::FontVariantEastAsian:
         return "FontVariantEastAsian"sv;
     case Web::CSS::ValueType::FontVariantLigatures:
