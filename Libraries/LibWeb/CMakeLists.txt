@@ -831,6 +831,7 @@ set(SOURCES
     Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
     Painting/DisplayListRecordingContext.cpp
+    Painting/ExternalContentSource.cpp
     Painting/FieldSetPaintable.cpp
     Painting/GradientPainting.cpp
     Painting/ImagePaintable.cpp

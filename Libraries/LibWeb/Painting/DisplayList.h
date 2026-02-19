@@ -39,6 +39,7 @@ private:
     virtual void draw_painting_surface(DrawPaintingSurface const&) = 0;
     virtual void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) = 0;
     virtual void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) = 0;
+    virtual void draw_external_content(DrawExternalContent const&) = 0;
     virtual void save(Save const&) = 0;
     virtual void save_layer(SaveLayer const&) = 0;
     virtual void restore(Restore const&) = 0;

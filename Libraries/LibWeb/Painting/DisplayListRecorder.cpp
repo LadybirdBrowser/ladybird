@@ -177,6 +177,13 @@ void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, No
     });
 }
 
+void DisplayListRecorder::draw_external_content(Gfx::IntRect const& dst_rect, NonnullRefPtr<ExternalContentSource> source, Gfx::ScalingMode scaling_mode)
+{
+    if (dst_rect.is_empty())
+        return;
+    APPEND(DrawExternalContent { .dst_rect = dst_rect, .source = move(source), .scaling_mode = scaling_mode });
+}
+
 void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())

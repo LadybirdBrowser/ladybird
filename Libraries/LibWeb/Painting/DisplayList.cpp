@@ -231,6 +231,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(DrawPaintingSurface, draw_painting_surface)
         else HANDLE_COMMAND(DrawScaledImmutableBitmap, draw_scaled_immutable_bitmap)
         else HANDLE_COMMAND(DrawRepeatedImmutableBitmap, draw_repeated_immutable_bitmap)
+        else HANDLE_COMMAND(DrawExternalContent, draw_external_content)
         else HANDLE_COMMAND(AddClipRect, add_clip_rect)
         else HANDLE_COMMAND(Save, save)
         else HANDLE_COMMAND(SaveLayer, save_layer)
