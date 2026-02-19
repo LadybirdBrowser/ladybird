@@ -354,6 +354,11 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
+    // AD-HOC: Elements with non-invertible transforms are not displayed per the spec,
+    //         so they should not be hit-testable either.
+    if (paintable_box().has_non_invertible_css_transform())
+        return TraversalDecision::Continue;
+
     auto const is_visible = paintable_box().computed_values().visibility() == CSS::Visibility::Visible;
 
     // NOTE: Hit testing basically happens in reverse painting order.
