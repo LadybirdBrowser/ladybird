@@ -2576,6 +2576,16 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (m_viewport_size == size)
         return;
 
+    auto document = active_document();
+
+    // If the document's rendering updates were skipped run_the_resize_steps() will not have initialized
+    // m_last_viewport_size. Seed it with the current viewport size so that the next rendering update detects the change
+    // and fires VisualViewport resize events.
+    if (document) {
+        if (!document->last_viewport_size().has_value())
+            document->set_last_viewport_size(m_viewport_size.to_type<int>());
+    }
+
     m_viewport_size = size;
 
     if (!m_is_svg_page) {
@@ -2584,15 +2594,13 @@ void Navigable::set_viewport_size(CSSPixelSize size)
         m_pending_set_browser_zoom_request = false;
     }
 
-    if (auto document = active_document()) {
+    if (document) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
         document->set_needs_media_query_evaluation();
         if (auto layout_node = document->layout_node())
             layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
-    }
 
-    if (auto document = active_document()) {
         document->set_needs_display(InvalidateDisplayList::No);
 
         document->inform_all_viewport_clients_about_the_current_viewport_rect();

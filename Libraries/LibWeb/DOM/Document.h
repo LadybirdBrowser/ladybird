@@ -565,6 +565,8 @@ public:
     void update_the_visibility_state(HTML::VisibilityState);
 
     void run_the_resize_steps();
+    Optional<Gfx::IntSize> const& last_viewport_size() const { return m_last_viewport_size; }
+    void set_last_viewport_size(Gfx::IntSize size) { m_last_viewport_size = size; }
     void run_the_scroll_steps();
 
     void evaluate_media_queries_and_report_changes();
