@@ -32,6 +32,10 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/FetchLaterResult.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>

@@ -5,6 +5,8 @@
 #import <DOM/Document.idl>
 #import <DOM/EventHandler.idl>
 #import <DOM/EventTarget.idl>
+#import <Fetch/FetchLaterResult.idl>
+#import <Fetch/Request.idl>
 #import <HTML/AnimationFrameProvider.idl>
 #import <HTML/CustomElements/CustomElementRegistry.idl>
 #import <HTML/History.idl>
@@ -121,6 +123,9 @@ interface Window : EventTarget {
 
     // This function is non-standard.
     boolean find(optional DOMString string = "");
+
+    // https://fetch.spec.whatwg.org/#dom-window-fetchlater
+    [SecureContext, NewObject] FetchLaterResult fetchLater(RequestInfo input, optional DeferredRequestInit init = {});
 };
 Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;

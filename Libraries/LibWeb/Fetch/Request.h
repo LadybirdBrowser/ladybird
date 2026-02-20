@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch {
 
@@ -58,6 +59,21 @@ struct RequestInit {
             || duplex.has_value()
             || priority.has_value()
             || window.has_value());
+    }
+};
+
+// https://fetch.spec.whatwg.org/#dictdef-deferredrequestinit
+struct DeferredRequestInit : public RequestInit {
+    Optional<HighResolutionTime::DOMHighResTimeStamp> activate_after;
+
+    bool is_empty() const
+    {
+        return RequestInit::is_empty() && !activate_after.has_value();
+    }
+
+    RequestInit to_request_init() const
+    {
+        return static_cast<RequestInit const&>(*this);
     }
 };
 
