@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 
 namespace Web {
 

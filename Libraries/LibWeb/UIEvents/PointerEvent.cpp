@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/PointerEventPrototype.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
 
