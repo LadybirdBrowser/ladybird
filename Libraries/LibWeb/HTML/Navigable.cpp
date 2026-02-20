@@ -2571,9 +2571,9 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
     return position;
 }
 
-void Navigable::set_viewport_size(CSSPixelSize size)
+void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList invalidate_display_list)
 {
-    if (m_viewport_size == size)
+    if (m_viewport_size == size && invalidate_display_list == InvalidateDisplayList::No)
         return;
 
     m_viewport_size = size;
@@ -2593,7 +2593,7 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     }
 
     if (auto document = active_document()) {
-        document->set_needs_display(InvalidateDisplayList::No);
+        document->set_needs_display(invalidate_display_list);
 
         document->inform_all_viewport_clients_about_the_current_viewport_rect();
 

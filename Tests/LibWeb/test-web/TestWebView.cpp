@@ -58,7 +58,7 @@ void TestWebView::on_test_complete(TestCompletion completion)
     m_pending_screenshot.clear();
     m_pending_dialog = Web::Page::PendingDialog::None;
     m_pending_prompt_text.clear();
-    client().async_set_device_pixel_ratio(m_client_state.page_index, 1.0);
+    client().async_set_viewport(m_client_state.page_index, viewport_size(), 1.0);
 
     m_test_promise->resolve(move(completion));
 }

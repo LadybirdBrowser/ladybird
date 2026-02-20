@@ -37,7 +37,6 @@ WebViewBridge::~WebViewBridge() = default;
 void WebViewBridge::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;
-    client().async_set_device_pixel_ratio(m_client_state.page_index, m_device_pixel_ratio);
 }
 
 void WebViewBridge::set_zoom_level(double zoom_level)
