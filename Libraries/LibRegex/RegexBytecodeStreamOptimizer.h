@@ -11,6 +11,8 @@
 
 namespace regex {
 
+struct RegexIR;
+
 class Optimizer {
 public:
     static void append_alternation(ByteCode& target, ByteCode&& left, ByteCode&& right);

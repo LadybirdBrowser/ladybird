@@ -7,6 +7,7 @@
 #include <AK/BinarySearch.h>
 #include <AK/BumpAllocator.h>
 #include <AK/ByteString.h>
+#include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/StringBuilder.h>
 #include <LibRegex/RegexMatcher.h>
@@ -20,7 +21,7 @@
 namespace regex {
 
 #if REGEX_DEBUG
-static RegexDebug<FlatByteCode> s_regex_dbg(stderr);
+static RegexDebug<ByteCode> s_regex_dbg(stderr);
 #endif
 
 template<class Parser>
@@ -53,12 +54,16 @@ static constexpr auto MaxRegexCachedBytecodeSize = 1 * MiB;
 template<class Parser>
 static void cache_parse_result(regex::Parser::Result const& result, CacheKey<Parser> const& key)
 {
-    auto bytecode_size = result.bytecode.visit([](auto& bytecode) { return bytecode.size() * sizeof(ByteCodeValueType); });
+    struct BytecodeSizeVisitor {
+        size_t operator()(ByteCode const& bc) const { return bc.size() * sizeof(ByteCodeValueType); }
+        size_t operator()(FlatByteCode const& bc) const { return bc.size(); }
+    };
+    auto bytecode_size = result.bytecode.visit(BytecodeSizeVisitor {});
     if (bytecode_size > MaxRegexCachedBytecodeSize)
         return;
 
     while (bytecode_size + s_cached_bytecode_size<Parser> > MaxRegexCachedBytecodeSize)
-        s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.visit([](auto& bytecode) { return bytecode.size() * sizeof(ByteCodeValueType); });
+        s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.visit(BytecodeSizeVisitor {});
 
     s_parser_cache<Parser>.set(key, result);
     s_cached_bytecode_size<Parser> += bytecode_size;
@@ -521,6 +526,38 @@ struct SufficientlyUniformValueTraits : DefaultTraits<u64> {
     }
 };
 
+// U+2028 LINE SEPARATOR
+constexpr static u32 const LineSeparator { 0x2028 };
+// U+2029 PARAGRAPH SEPARATOR
+constexpr static u32 const ParagraphSeparator { 0x2029 };
+
+static void save_string_position(MatchInput const& input, MatchState const& state)
+{
+    input.saved_positions.append(state.string_position);
+    input.saved_forks_since_last_save.append(state.forks_since_last_save);
+    input.saved_code_unit_positions.append(state.string_position_in_code_units);
+}
+
+static bool restore_string_position(MatchInput const& input, MatchState& state)
+{
+    if (input.saved_positions.is_empty())
+        return false;
+    state.string_position = input.saved_positions.take_last();
+    state.string_position_in_code_units = input.saved_code_unit_positions.take_last();
+    state.forks_since_last_save = input.saved_forks_since_last_save.take_last();
+    return true;
+}
+
+static void reverse_string_position(MatchState& state, RegexStringView view, size_t amount)
+{
+    VERIFY(state.string_position >= amount);
+    state.string_position -= amount;
+    if (view.unicode())
+        state.string_position_in_code_units = view.code_unit_offset_of(state.string_position);
+    else
+        state.string_position_in_code_units -= amount;
+}
+
 template<class Parser>
 Matcher<Parser>::ExecuteResult Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
 {
@@ -565,142 +602,586 @@ Matcher<Parser>::ExecuteResult Matcher<Parser>::execute(MatchInput const& input,
         }
     }
 
-    BumpAllocatedLinkedList<MatchState> states_to_try_next;
+    FlatByteCode const& bc = m_pattern->parser_result.bytecode.template get<FlatByteCode>();
+    auto const* bytecode = bc.data();
+    auto const bytecode_size = bc.size();
+
+    BumpAllocatedLinkedList<MatchState> fork_stack;
     HashTable<u64, SufficientlyUniformValueTraits> seen_state_hashes;
-#if REGEX_DEBUG
-    size_t recursion_level = 0;
-#endif
 
-    auto& bytecode = m_pattern->parser_result.bytecode.template get<FlatByteCode>();
+    if (state.repetition_marks.size() < bc.repetition_count())
+        state.repetition_marks.resize(bc.repetition_count());
+    if (state.checkpoints.size() < bc.checkpoint_count())
+        state.checkpoints.resize(bc.checkpoint_count());
 
-    for (;;) {
-        auto& opcode = bytecode.get_opcode(state);
-        auto const opcode_size = opcode.size();
-        ++operations;
+    auto do_backtrack = [&](ExecuteResult no_match_result) -> Optional<ExecuteResult> {
+        while (!fork_stack.is_empty()) {
+            state = fork_stack.take_last();
+            if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry)
+                continue;
+            return {};
+        }
+        return no_match_result;
+    };
 
-#if REGEX_DEBUG
-        s_regex_dbg.print_opcode("VM", opcode, state, recursion_level, false);
-#endif
+    auto handle_fork = [&](bool is_replace, bool is_prio_low, size_t insn_size) {
+        auto fork_ip = state.instruction_position;
+        auto continue_ip = state.instruction_position + insn_size;
+        auto fork_target = state.fork_at_position;
+        auto resume_ip = is_prio_low ? fork_target : continue_ip;
 
-        ExecutionResult result;
-        if (input.fail_counter > 0) {
-            --input.fail_counter;
-            result = ExecutionResult::Failed_ExecuteLowPrioForks;
-        } else {
-            result = opcode.execute(input, state);
+        bool found = false;
+        if (is_replace && input.fork_to_replace.has_value()) {
+            for (auto it = fork_stack.reverse_begin(); it != fork_stack.reverse_end(); ++it) {
+                if (it->initiating_fork.has_value() && *it->initiating_fork == *input.fork_to_replace) {
+                    (*it) = state;
+                    it->instruction_position = resume_ip;
+                    it->initiating_fork = *input.fork_to_replace;
+                    found = true;
+                    break;
+                }
+            }
+            input.fork_to_replace.clear();
         }
 
-#if REGEX_DEBUG
-        s_regex_dbg.print_result(opcode, bytecode, input, state, result);
-#endif
+        if (!found) {
+            fork_stack.append(state);
+            fork_stack.last().instruction_position = resume_ip;
+            fork_stack.last().initiating_fork = Optional<size_t> { fork_ip };
+        }
 
-        state.instruction_position += opcode_size;
-
-        switch (result) {
-        case ExecutionResult::Fork_PrioLow: {
-            bool found = false;
-            if (input.fork_to_replace.has_value()) {
-                for (auto it = states_to_try_next.reverse_begin(); it != states_to_try_next.reverse_end(); ++it) {
-                    if (it->initiating_fork == input.fork_to_replace.value()) {
-                        (*it) = state;
-                        it->instruction_position = state.fork_at_position;
-                        it->initiating_fork = *input.fork_to_replace;
-                        found = true;
-                        break;
-                    }
-                }
-                input.fork_to_replace.clear();
-            }
-            if (!found) {
-                states_to_try_next.append(state);
-                states_to_try_next.last().initiating_fork = state.instruction_position - opcode_size;
-                states_to_try_next.last().instruction_position = state.fork_at_position;
-            }
+        if (is_prio_low) {
+            state.instruction_position = continue_ip;
             state.string_position_before_rseek = NumericLimits<size_t>::max();
             state.string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
-            continue;
+        } else {
+            state.instruction_position = fork_target;
         }
-        case ExecutionResult::Fork_PrioHigh: {
-            bool found = false;
-            if (input.fork_to_replace.has_value()) {
-                for (auto it = states_to_try_next.reverse_begin(); it != states_to_try_next.reverse_end(); ++it) {
-                    if (it->initiating_fork == input.fork_to_replace.value()) {
-                        (*it) = state;
-                        it->initiating_fork = *input.fork_to_replace;
-                        found = true;
-                        break;
-                    }
-                }
-                input.fork_to_replace.clear();
-            }
-            if (!found) {
-                states_to_try_next.append(state);
-                states_to_try_next.last().initiating_fork = state.instruction_position - opcode_size;
-                states_to_try_next.last().string_position_before_rseek = NumericLimits<size_t>::max();
-                states_to_try_next.last().string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
-            }
-            state.instruction_position = state.fork_at_position;
-#if REGEX_DEBUG
-            ++recursion_level;
-#endif
-            continue;
-        }
-        case ExecutionResult::Continue:
-            continue;
-        case ExecutionResult::Succeeded:
+    };
+
+    static void* const dispatch_table[] = {
+#define __ENUMERATE_OPCODE(name) &&handle_##name,
+        ENUMERATE_OPCODES
+#undef __ENUMERATE_OPCODE
+    };
+
+    for (;;) {
+    dispatch:
+        if (state.instruction_position >= bytecode_size) [[unlikely]]
             return ExecuteResult::Matched;
-        case ExecutionResult::Failed: {
-            bool found = false;
-            while (!states_to_try_next.is_empty()) {
-                state = states_to_try_next.take_last();
-                if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry) {
-                    dbgln_if(REGEX_DEBUG, "Already seen state, skipping: {}", hash);
-                    continue;
-                }
-                found = true;
-                break;
+
+        auto& insn = *reinterpret_cast<RegexInstruction const*>(bytecode + state.instruction_position);
+        ++operations;
+
+        if (input.fail_counter > 0) [[unlikely]] {
+            --input.fail_counter;
+            goto do_backtrack_low_prio;
+        }
+
+        goto* dispatch_table[static_cast<size_t>(insn.m_type)];
+
+    handle_Compare: {
+        auto& op = bc.instruction_at<Op_Compare>(state.instruction_position);
+        switch (execute_compare<false>(input, state, op.m_arg_count, op.compare_data(), op.m_compare_size, bc)) {
+        case ExecutionResult::Continue:
+            state.instruction_position += op.total_size();
+            goto dispatch;
+        case ExecutionResult::Failed_ExecuteLowPrioForks:
+            goto do_backtrack_low_prio;
+        default:
+            goto do_backtrack_fail;
+        }
+    }
+
+    handle_CompareSimple: {
+        auto& op = bc.instruction_at<Op_Compare>(state.instruction_position);
+        auto const* data = op.compare_data();
+        // If it's a single chat, just do it inline.
+        if (static_cast<CharacterCompareType>(data[0]) == CharacterCompareType::Char) [[likely]] {
+            if (state.string_position >= input.view.length()) [[unlikely]]
+                goto do_backtrack_low_prio;
+            auto expected = data[1];
+            auto actual = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
+            if (state.current_options & AllFlags::Insensitive) [[unlikely]] {
+                if (Unicode::canonicalize(actual, input.view.unicode()) != Unicode::canonicalize(expected, input.view.unicode()))
+                    goto do_backtrack_low_prio;
+            } else {
+                if (actual != expected)
+                    goto do_backtrack_low_prio;
             }
-            if (found)
-                continue;
-            return ExecuteResult::DidNotMatch;
+            ++state.string_position;
+            if (input.view.unicode())
+                state.string_position_in_code_units += input.view.length_of_code_point(actual);
+            else
+                ++state.string_position_in_code_units;
+            state.string_position_before_match = state.string_position - 1;
+            state.instruction_position += op.total_size();
+            goto dispatch;
         }
-        case ExecutionResult::Failed_ExecuteLowPrioForks: {
-            bool found = false;
-            while (!states_to_try_next.is_empty()) {
-                state = states_to_try_next.take_last();
-                if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry) {
-                    dbgln_if(REGEX_DEBUG, "Already seen state, skipping: {}", hash);
-                    continue;
-                }
-                found = true;
-                break;
+        // It's not just a char, so do the full (simple) compare.
+        switch (execute_compare<true>(input, state, 1, data, op.m_compare_size, bc)) {
+        case ExecutionResult::Continue:
+            state.instruction_position += op.total_size();
+            goto dispatch;
+        case ExecutionResult::Failed_ExecuteLowPrioForks:
+            goto do_backtrack_low_prio;
+        default:
+            goto do_backtrack_fail;
+        }
+    }
+
+    handle_Jump: {
+        auto& op = bc.instruction_at<Op_Jump>(state.instruction_position);
+        state.instruction_position = op.m_target;
+        goto dispatch;
+    }
+
+    handle_ForkJump: {
+        auto& op = bc.instruction_at<Op_Jump>(state.instruction_position);
+        state.fork_at_position = op.m_target;
+        state.forks_since_last_save++;
+        handle_fork(false, false, sizeof(Op_Jump));
+        goto dispatch;
+    }
+
+    handle_ForkStay: {
+        auto& op = bc.instruction_at<Op_Jump>(state.instruction_position);
+        state.fork_at_position = op.m_target;
+        state.forks_since_last_save++;
+        handle_fork(false, true, sizeof(Op_Jump));
+        goto dispatch;
+    }
+
+    handle_ForkReplaceJump: {
+        auto& op = bc.instruction_at<Op_Jump>(state.instruction_position);
+        state.fork_at_position = op.m_target;
+        input.fork_to_replace = state.instruction_position;
+        state.forks_since_last_save++;
+        handle_fork(true, false, sizeof(Op_Jump));
+        goto dispatch;
+    }
+
+    handle_ForkReplaceStay: {
+        auto& op = bc.instruction_at<Op_Jump>(state.instruction_position);
+        state.fork_at_position = op.m_target;
+        input.fork_to_replace = state.instruction_position;
+        handle_fork(true, true, sizeof(Op_Jump));
+        goto dispatch;
+    }
+
+    handle_JumpNonEmpty: {
+        auto& op = bc.instruction_at<Op_JumpNonEmpty>(state.instruction_position);
+        u64 current_position = state.string_position;
+        auto cp = op.m_checkpoint_id;
+        auto checkpoint_position = cp < state.checkpoints.size() ? state.checkpoints.at(cp) : static_cast<u64>(0);
+
+        if (checkpoint_position != 0 && checkpoint_position != current_position + 1) {
+            auto form = static_cast<OpCodeId>(op.m_form);
+            if (form == OpCodeId::Jump) {
+                state.instruction_position = op.m_target;
+                goto dispatch;
             }
-            if (!found)
-                return ExecuteResult::DidNotMatch;
-#if REGEX_DEBUG
-            ++recursion_level;
-#endif
-            continue;
+            state.fork_at_position = op.m_target;
+            auto is_replace = form == OpCodeId::ForkReplaceStay || form == OpCodeId::ForkReplaceJump;
+            auto is_prio_low = form == OpCodeId::ForkStay || form == OpCodeId::ForkReplaceStay;
+            if (is_replace)
+                input.fork_to_replace = state.instruction_position;
+            else
+                state.forks_since_last_save++;
+            handle_fork(is_replace, is_prio_low, sizeof(Op_JumpNonEmpty));
+            goto dispatch;
         }
-        case ExecutionResult::Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches: {
-            bool found = false;
-            while (!states_to_try_next.is_empty()) {
-                state = states_to_try_next.take_last();
-                if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry) {
-                    dbgln_if(REGEX_DEBUG, "Already seen state, skipping: {}", hash);
-                    continue;
-                }
-                found = true;
-                break;
+
+        if (static_cast<OpCodeId>(op.m_form) == OpCodeId::Jump && state.string_position < input.view.length())
+            goto do_backtrack_low_prio;
+        state.instruction_position += sizeof(Op_JumpNonEmpty);
+        goto dispatch;
+    }
+
+    handle_ForkIf: {
+        auto& op = bc.instruction_at<Op_ForkIf>(state.instruction_position);
+        auto form = static_cast<OpCodeId>(op.m_form);
+        auto condition = static_cast<ForkIfCondition>(op.m_condition);
+
+        auto do_fork = false;
+        switch (condition) {
+        case ForkIfCondition::AtStartOfLine:
+            do_fork = !input.in_the_middle_of_a_line;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        if (do_fork) {
+            state.fork_at_position = op.m_target;
+            state.forks_since_last_save++;
+            bool is_replace = (form == OpCodeId::ForkReplaceJump || form == OpCodeId::ForkReplaceStay);
+            if (is_replace)
+                input.fork_to_replace = state.instruction_position;
+            bool is_prio_low = (form == OpCodeId::ForkStay || form == OpCodeId::ForkReplaceStay);
+            handle_fork(is_replace, is_prio_low, sizeof(Op_ForkIf));
+            goto dispatch;
+        }
+
+        // Not forking: for Stay forms, jump to target; for Jump forms, continue.
+        if (form == OpCodeId::ForkStay || form == OpCodeId::ForkReplaceStay) {
+            state.instruction_position = op.m_target;
+            goto dispatch;
+        }
+        state.instruction_position += sizeof(Op_ForkIf);
+        goto dispatch;
+    }
+
+    handle_FailForks: {
+        input.fail_counter += state.forks_since_last_save;
+        goto do_backtrack_low_prio;
+    }
+
+    handle_PopSaved: {
+        if (input.saved_positions.is_empty() || input.saved_code_unit_positions.is_empty())
+            goto do_backtrack_low_prio;
+        input.saved_positions.take_last();
+        input.saved_code_unit_positions.take_last();
+        goto do_backtrack_low_prio;
+    }
+
+    handle_SaveLeftCaptureGroup: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        auto id = op.m_arg0;
+        if (input.match_index >= state.capture_group_matches_size()) {
+            state.flat_capture_group_matches.ensure_capacity((input.match_index + 1) * state.capture_group_count);
+            for (size_t i = state.capture_group_matches_size(); i <= input.match_index; ++i)
+                for (size_t j = 0; j < state.capture_group_count; ++j)
+                    state.flat_capture_group_matches.append({});
+        }
+        state.mutable_capture_group_matches(input.match_index).at(id - 1).left_column = state.string_position;
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_SaveRightCaptureGroup: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        auto id = op.m_arg0;
+        auto& match = state.capture_group_matches(input.match_index).at(id - 1);
+        auto start_position = match.left_column;
+        if (state.string_position < start_position)
+            goto do_backtrack_low_prio;
+        auto length = state.string_position - start_position;
+        if (start_position < match.column && state.step_backs.is_empty()) {
+            state.instruction_position += sizeof(Op_WithArg);
+            goto dispatch;
+        }
+        VERIFY(start_position + length <= input.view.length_in_code_units());
+        auto captured_text = input.view.substring_view(start_position, length);
+        auto& existing_capture = state.mutable_capture_group_matches(input.match_index).at(id - 1);
+        if (length == 0 && !existing_capture.view.is_null() && existing_capture.view.length() > 0) {
+            auto existing_end_position = existing_capture.global_offset - input.global_offset + existing_capture.view.length();
+            if (existing_end_position == state.string_position) {
+                state.instruction_position += sizeof(Op_WithArg);
+                goto dispatch;
             }
-            if (!found)
-                return ExecuteResult::DidNotMatchAndNoFurtherPossibleMatchesInView;
-#if REGEX_DEBUG
-            ++recursion_level;
-#endif
-            continue;
         }
+        state.mutable_capture_group_matches(input.match_index).at(id - 1) = { captured_text, input.line, start_position, input.global_offset + start_position };
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_SaveRightNamedCaptureGroup: {
+        auto& op = bc.instruction_at<Op_SaveRightNamedCapture>(state.instruction_position);
+        auto id = op.m_group_id;
+        auto name_index = op.m_name_index;
+        auto& match = state.capture_group_matches(input.match_index).at(id - 1);
+        auto start_position = match.left_column;
+        if (state.string_position < start_position)
+            goto do_backtrack_low_prio;
+        auto length = state.string_position - start_position;
+        if (start_position < match.column) {
+            state.instruction_position += sizeof(Op_SaveRightNamedCapture);
+            goto dispatch;
         }
+        VERIFY(start_position + length <= input.view.length_in_code_units());
+        auto view = input.view.substring_view(start_position, length);
+        auto& existing_capture = state.mutable_capture_group_matches(input.match_index).at(id - 1);
+        if (length == 0 && !existing_capture.view.is_null() && existing_capture.view.length() > 0) {
+            auto existing_end_position = existing_capture.global_offset - input.global_offset + existing_capture.view.length();
+            if (existing_end_position == state.string_position) {
+                state.instruction_position += sizeof(Op_SaveRightNamedCapture);
+                goto dispatch;
+            }
+        }
+        state.mutable_capture_group_matches(input.match_index).at(id - 1) = { view, name_index, input.line, start_position, input.global_offset + start_position };
+        state.instruction_position += sizeof(Op_SaveRightNamedCapture);
+        goto dispatch;
+    }
+
+    handle_RSeekTo: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        auto ch = op.m_arg0;
+
+        size_t search_from;
+        size_t search_from_in_code_units;
+        auto line_limited = false;
+
+        if (state.string_position_before_rseek == NumericLimits<size_t>::max()) {
+            state.string_position_before_rseek = state.string_position;
+            state.string_position_in_code_units_before_rseek = state.string_position_in_code_units;
+
+            if (!input.regex_options.has_flag_set(AllFlags::SingleLine)) {
+                auto end_of_line = input.view.find_end_of_line(state.string_position, state.string_position_in_code_units);
+                search_from = end_of_line.code_point_index + 1;
+                search_from_in_code_units = end_of_line.code_unit_index + 1;
+                line_limited = true;
+            } else {
+                search_from = NumericLimits<size_t>::max();
+                search_from_in_code_units = NumericLimits<size_t>::max();
+            }
+        } else {
+            search_from = state.string_position;
+            search_from_in_code_units = state.string_position_in_code_units;
+        }
+
+        auto next = input.view.find_index_of_previous(ch, search_from, search_from_in_code_units);
+        if (!next.has_value() || next->code_unit_index < state.string_position_in_code_units_before_rseek) {
+            if (line_limited)
+                goto do_backtrack_low_prio;
+            goto do_backtrack_no_further;
+        }
+        state.string_position = next->code_point_index;
+        state.string_position_in_code_units = next->code_unit_index;
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_CheckBegin: {
+        auto is_at_line_boundary = [&] {
+            if (state.string_position == 0)
+                return true;
+            if (state.current_options.has_flag_set(AllFlags::Multiline) && state.current_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
+                auto ch = input.view.substring_view(state.string_position - 1, 1).code_point_at(0);
+                return ch == '\r' || ch == '\n' || ch == LineSeparator || ch == ParagraphSeparator;
+            }
+            return false;
+        }();
+        if (is_at_line_boundary && (state.current_options & AllFlags::MatchNotBeginOfLine))
+            goto do_backtrack_low_prio;
+        if ((is_at_line_boundary && !(state.current_options & AllFlags::MatchNotBeginOfLine))
+            || (!is_at_line_boundary && (state.current_options & AllFlags::MatchNotBeginOfLine))
+            || (is_at_line_boundary && (state.current_options & AllFlags::Global))) {
+            state.instruction_position += sizeof(RegexInstruction);
+            goto dispatch;
+        }
+        goto do_backtrack_low_prio;
+    }
+
+    handle_CheckEnd: {
+        auto is_at_line_boundary = [&] {
+            if (state.string_position == input.view.length())
+                return true;
+            if (state.current_options.has_flag_set(AllFlags::Multiline) && state.current_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
+                auto ch = input.view.substring_view(state.string_position, 1).code_point_at(0);
+                return ch == '\r' || ch == '\n' || ch == LineSeparator || ch == ParagraphSeparator;
+            }
+            return false;
+        }();
+        if (is_at_line_boundary && (state.current_options & AllFlags::MatchNotEndOfLine))
+            goto do_backtrack_low_prio;
+        if ((is_at_line_boundary && !(state.current_options & AllFlags::MatchNotEndOfLine))
+            || (!is_at_line_boundary && (state.current_options & AllFlags::MatchNotEndOfLine || state.current_options & AllFlags::MatchNotBeginOfLine))) {
+            state.instruction_position += sizeof(RegexInstruction);
+            goto dispatch;
+        }
+        goto do_backtrack_low_prio;
+    }
+
+    handle_CheckBoundary: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        auto type = static_cast<BoundaryCheckType>(op.m_arg0);
+        bool const case_insensitive = state.current_options & AllFlags::Insensitive;
+        bool const unicode = input.view.unicode();
+        auto isword = [case_insensitive, unicode](u32 ch) {
+            if (is_ascii_alphanumeric(ch) || ch == '_')
+                return true;
+            if (case_insensitive && unicode) {
+                auto canonical = Unicode::canonicalize(ch, unicode);
+                if (is_ascii_alphanumeric(canonical) || canonical == '_')
+                    return true;
+            }
+            return false;
+        };
+        auto is_word_boundary = [&] {
+            if (state.string_position == input.view.length())
+                return state.string_position > 0 && isword(input.view.code_point_at(state.string_position_in_code_units - 1));
+            if (state.string_position == 0)
+                return isword(input.view.code_point_at(0));
+            return !!(isword(input.view.code_point_at(state.string_position_in_code_units)) ^ isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
+        };
+        bool boundary = is_word_boundary();
+        if ((type == BoundaryCheckType::Word && boundary) || (type == BoundaryCheckType::NonWord && !boundary)) {
+            state.instruction_position += sizeof(Op_WithArg);
+            goto dispatch;
+        }
+        goto do_backtrack_low_prio;
+    }
+
+    handle_Save: {
+        save_string_position(input, state);
+        state.forks_since_last_save = 0;
+        state.instruction_position += sizeof(RegexInstruction);
+        goto dispatch;
+    }
+
+    handle_Restore: {
+        if (!restore_string_position(input, state))
+            goto do_backtrack_fail;
+        state.instruction_position += sizeof(RegexInstruction);
+        goto dispatch;
+    }
+
+    handle_GoBack: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        if (op.m_arg0 > state.string_position)
+            goto do_backtrack_low_prio;
+        reverse_string_position(state, input.view, op.m_arg0);
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_SetStepBack: {
+        auto& op = bc.instruction_at<Op_SetStepBack>(state.instruction_position);
+        state.step_backs.append(op.m_step);
+        state.instruction_position += sizeof(Op_SetStepBack);
+        goto dispatch;
+    }
+
+    handle_IncStepBack: {
+        if (state.step_backs.is_empty())
+            goto do_backtrack_low_prio;
+        size_t last_step_back = static_cast<size_t>(++state.step_backs[state.step_backs.size() - 1]);
+        if (last_step_back > state.string_position)
+            goto do_backtrack_low_prio;
+        reverse_string_position(state, input.view, last_step_back);
+        state.instruction_position += sizeof(RegexInstruction);
+        goto dispatch;
+    }
+
+    handle_CheckStepBack: {
+        if (state.step_backs.is_empty())
+            goto do_backtrack_low_prio;
+        if (input.saved_positions.is_empty())
+            goto do_backtrack_low_prio;
+        if (static_cast<size_t>(state.step_backs.last()) > input.saved_positions.last())
+            goto do_backtrack_low_prio;
+        state.string_position = input.saved_positions.last();
+        state.string_position_in_code_units = input.saved_code_unit_positions.last();
+        state.instruction_position += sizeof(RegexInstruction);
+        goto dispatch;
+    }
+
+    handle_CheckSavedPosition: {
+        if (input.saved_positions.is_empty())
+            goto do_backtrack_low_prio;
+        if (state.string_position != input.saved_positions.last())
+            goto do_backtrack_low_prio;
+        state.step_backs.take_last();
+        state.instruction_position += sizeof(RegexInstruction);
+        goto dispatch;
+    }
+
+    handle_ClearCaptureGroup: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        if (input.match_index < state.capture_group_matches_size()) {
+            auto group = state.mutable_capture_group_matches(input.match_index);
+            group[op.m_arg0 - 1].reset();
+        }
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_FailIfEmpty: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        u64 current_position = state.string_position + 1;
+        auto cp = op.m_arg0;
+        auto checkpoint_position = cp < state.checkpoints.size() ? state.checkpoints.at(cp) : current_position;
+        if (checkpoint_position == current_position)
+            goto do_backtrack_low_prio;
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_Repeat: {
+        auto& op = bc.instruction_at<Op_Repeat>(state.instruction_position);
+        VERIFY(op.m_count > 0);
+        if (op.m_id >= state.repetition_marks.size())
+            state.repetition_marks.resize(op.m_id + 1);
+        auto& rep = state.repetition_marks[op.m_id];
+        if (rep == op.m_count - 1) {
+            rep = 0;
+            state.instruction_position += sizeof(Op_Repeat);
+            goto dispatch;
+        }
+        state.instruction_position = op.m_target;
+        ++rep;
+        goto dispatch;
+    }
+
+    handle_ResetRepeat: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        auto id = op.m_arg0;
+        if (id >= state.repetition_marks.size())
+            state.repetition_marks.resize(id + 1);
+        state.repetition_marks[id] = 0;
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_Checkpoint: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        auto id = op.m_arg0;
+        if (id >= state.checkpoints.size())
+            state.checkpoints.resize(id + 1);
+        state.checkpoints[id] = state.string_position + 1;
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_SaveModifiers: {
+        auto& op = bc.instruction_at<Op_WithArg>(state.instruction_position);
+        auto current_flags = to_underlying(state.current_options.value());
+        state.modifier_stack.append(current_flags);
+        state.current_options = AllOptions { static_cast<AllFlags>(op.m_arg0) };
+        state.instruction_position += sizeof(Op_WithArg);
+        goto dispatch;
+    }
+
+    handle_RestoreModifiers: {
+        if (state.modifier_stack.is_empty())
+            goto do_backtrack_fail;
+        auto previous_modifiers = state.modifier_stack.take_last();
+        state.current_options = AllOptions { static_cast<AllFlags>(previous_modifiers) };
+        state.instruction_position += sizeof(RegexInstruction);
+        goto dispatch;
+    }
+
+    handle_Exit:
+        return ExecuteResult::Matched;
+
+    do_backtrack_fail: {
+        if (auto r = do_backtrack(ExecuteResult::DidNotMatch); r.has_value())
+            return *r;
+        goto dispatch;
+    }
+
+    do_backtrack_low_prio: {
+        if (auto r = do_backtrack(ExecuteResult::DidNotMatch); r.has_value())
+            return *r;
+        goto dispatch;
+    }
+
+    do_backtrack_no_further: {
+        if (auto r = do_backtrack(ExecuteResult::DidNotMatchAndNoFurtherPossibleMatchesInView); r.has_value())
+            return *r;
+        goto dispatch;
+    }
     }
 
     VERIFY_NOT_REACHED();
