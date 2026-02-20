@@ -76,23 +76,42 @@ void PaintableWithLines::paint_text_fragment_debug_highlight(DisplayListRecordin
 TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     auto const is_visible = computed_values().visibility() == CSS::Visibility::Visible;
+    auto const& scroll_state = document().paintable()->scroll_state_snapshot();
 
-    // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
+    Optional<CSSPixelPoint> local_position;
+    bool acquired_local_position = false;
+
+    auto ensure_local_position = [&]() {
+        if (exchange(acquired_local_position, true))
+            return;
+
+        if (auto state = accumulated_visual_context())
+            local_position = state->transform_point_for_hit_test(position, scroll_state);
+        else
+            local_position = position;
+    };
+
+    // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty.
     if (m_fragments.is_empty()
         && !has_children()
         && type == HitTestType::TextCursor
         && layout_node().dom_node()
-        && layout_node().dom_node()->is_editable()
+        && layout_node().dom_node()->is_editable_or_editing_host()
         && is_visible
         && visible_for_hit_testing()) {
-        HitTestResult const hit_test_result {
-            .paintable = const_cast<PaintableWithLines&>(*this),
-            .index_in_node = 0,
-            .vertical_distance = 0,
-            .horizontal_distance = 0,
-        };
-        if (callback(hit_test_result) == TraversalDecision::Break)
-            return TraversalDecision::Break;
+        ensure_local_position();
+
+        if (local_position.has_value() && absolute_border_box_rect().contains(*local_position)) {
+            HitTestResult const hit_test_result {
+                .paintable = const_cast<PaintableWithLines&>(*this),
+                .index_in_node = 0,
+                .vertical_distance = 0,
+                .horizontal_distance = 0,
+            };
+
+            if (callback(hit_test_result) == TraversalDecision::Break)
+                return TraversalDecision::Break;
+        }
     }
 
     if (!layout_node().children_are_inline())
@@ -111,14 +130,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!is_visible || !visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    auto const& viewport_paintable = *document().paintable();
-    auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
-    Optional<CSSPixelPoint> local_position;
-    if (auto state = accumulated_visual_context())
-        local_position = state->transform_point_for_hit_test(position, scroll_state);
-    else
-        local_position = position;
-
+    ensure_local_position();
     if (!local_position.has_value())
         return TraversalDecision::Continue;
 

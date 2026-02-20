@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="div1" contenteditable></div>
+<div id="div2" contenteditable></div>
+<script>
+    function clickElement(element) {
+        let { x, y, width, height } = element.getBoundingClientRect();
+        x += width / 2;
+        y += height / 2;
+
+        internals.click(x, y);
+    }
+
+    test(() => {
+        clickElement(div1);
+        printElement(document.getSelection().focusNode);
+
+        clickElement(div2);
+        printElement(document.getSelection().focusNode);
+    });
+</script>
