@@ -8,6 +8,7 @@ set(TEST_SOURCES
     TestIncrementallyPopulatedStream.cpp
     TestMatroskaDemuxer.cpp
     TestParseMatroska.cpp
+    TestPlaybackManager.cpp
     TestPlaybackStream.cpp
     TestVorbisDecode.cpp
     TestVP9Decode.cpp
@@ -19,7 +20,6 @@ foreach(source IN LISTS TEST_SOURCES)
 endforeach()
 
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
-
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
     target_link_libraries(TestPlaybackStream PRIVATE PkgConfig::PULSEAUDIO)
