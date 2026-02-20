@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKey, Vector<u32>> const&) const
+Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
 {
     HashMap<FlyString, u8> merged_features;
 
@@ -185,6 +185,7 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
         }
 
         // 6.8 https://drafts.csswg.org/css-fonts/#font-variant-alternates-prop
+        // FIXME: These values never apply to generic font families
         if (font_variant_alternates.has_value()) {
             auto alternates = font_variant_alternates.value();
             if (alternates.historical_forms) {
@@ -192,7 +193,81 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
                 features.set("hist"_fly_string, 1);
             }
 
-            // FIXME: Support function entries
+            for (auto const& key : alternates.font_feature_value_entries) {
+
+                auto const& maybe_values = font_feature_values.get(key);
+
+                if (!maybe_values.has_value())
+                    continue;
+
+                auto const& values = maybe_values.value();
+
+                switch (key.type) {
+                case FontFeatureValueType::Stylistic: {
+                    // Enables display of stylistic alternates (font specific, OpenType feature: salt <feature-index>).
+                    // stylistic(<feature-value-name>)
+                    features.set("salt"_fly_string, values[0]);
+                    break;
+                }
+                case FontFeatureValueType::Styleset: {
+                    // Enables display with stylistic sets (font specific, OpenType feature: ss<feature-index> OpenType
+                    // currently defines ss01 through ss20).
+
+                    // https://drafts.csswg.org/css-fonts/#multi-value-features
+                    // For the styleset() property value and @styleset rule, multiple values indicate the style sets to
+                    // be enabled. Values between 1 and 99 enable OpenType features ss01 through ss99. However, the
+                    // OpenType standard only officially defines ss01 through ss20. For OpenType fonts, values greater
+                    // than 99 or equal to 0 do not generate a syntax error when parsed but enable no OpenType features.
+                    for (auto const& value : values) {
+                        if (value > 99 || value == 0)
+                            continue;
+
+                        features.set(MUST(String::formatted("ss{:02}", value)), 1);
+                    }
+
+                    break;
+                }
+                case FontFeatureValueType::CharacterVariant: {
+                    // Enables display of specific character variants (font specific, OpenType feature:
+                    // cv<feature-index> OpenType currently defines cv01 through cv99).
+
+                    // https://drafts.csswg.org/css-fonts/#multi-value-features
+                    // For <@character-variant>, a single value between 1 and 99 indicates the enabling of OpenType
+                    // feature cv01 through cv99. For OpenType fonts, values greater than 99 or equal to 0 are ignored
+                    // but do not generate a syntax error when parsed but enable no OpenType features. When two values
+                    // are listed, the first value indicates the feature used and the second the value passed for that
+                    // feature.
+                    auto const feature = values[0];
+
+                    if (feature > 99 || feature == 0)
+                        break;
+
+                    auto const value = values.size() > 1 ? values[1] : 1;
+
+                    features.set(MUST(String::formatted("cv{:02}", feature)), value);
+                    break;
+                }
+                case FontFeatureValueType::Swash: {
+                    // Enables display of swash glyphs (font specific, OpenType feature: swsh <feature-index>,
+                    // cswh <feature-index>).
+                    features.set("swsh"_fly_string, values[0]);
+                    features.set("cswh"_fly_string, values[0]);
+                    break;
+                }
+                case FontFeatureValueType::Ornaments: {
+                    // Enables replacement of default glyphs with ornaments, if provided in the font (font specific,
+                    // OpenType feature: ornm <feature-index>).
+                    features.set("ornm"_fly_string, values[0]);
+                    break;
+                }
+                case FontFeatureValueType::Annotation: {
+                    // annotation(<feature-value-name>)
+                    // Enables display of alternate annotation forms (font specific, OpenType feature: nalt <feature-index>).
+                    features.set("nalt"_fly_string, values[0]);
+                    break;
+                }
+                }
+            }
         }
 
         // 6.10 https://drafts.csswg.org/css-fonts/#font-variant-east-asian-prop
