@@ -4489,6 +4489,12 @@ void Document::destroy()
 {
     // FIXME: 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
 
+    // https://fetch.spec.whatwg.org/#process-deferred-fetches
+    // Documents can be destroyed without going through Document::unload() (e.g. iframe removal),
+    // so activate any pending deferred fetches before tearing the document down.
+    if (auto* window = as_if<HTML::Window>(relevant_global_object(*this)); window && &window->associated_document() == this)
+        window->activate_deferred_fetches();
+
     // 2. Abort document.
     abort();
 
@@ -4783,7 +4789,9 @@ void Document::unload(GC::Ptr<Document>)
         m_page_showing = false;
 
         // 2. Fire a page transition event named pagehide at oldDocument's relevant global object with oldDocument's salvageable state.
-        as<HTML::Window>(relevant_global_object(*this)).fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
+        auto& window = as<HTML::Window>(relevant_global_object(*this));
+        window.fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
+        window.activate_deferred_fetches();
 
         // 3. Update the visibility state of oldDocument to "hidden".
         update_the_visibility_state(HTML::VisibilityState::Hidden);

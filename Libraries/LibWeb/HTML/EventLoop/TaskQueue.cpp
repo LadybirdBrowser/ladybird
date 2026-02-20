@@ -47,6 +47,8 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
     if (m_event_loop->execution_paused())
         return nullptr;
 
+    // FIXME: The deferred fetch task source should be prioritized ahead of
+    // script-producing task sources, per Fetch's deferred fetch processing model.
     for (size_t i = 0; i < m_tasks.size(); ++i) {
         if (m_event_loop->running_rendering_task() && m_tasks[i]->source() == Task::Source::Rendering)
             continue;
