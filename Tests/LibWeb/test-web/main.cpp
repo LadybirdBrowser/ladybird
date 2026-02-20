@@ -1084,6 +1084,11 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
             view.on_test_complete({ *index, TestResult::Crashed });
         }
     };
+
+    view.on_web_content_process_change_for_cross_site_navigation = [&view]() {
+        s_output_captures.remove(&view);
+        setup_output_capture_for_view(view);
+    };
 }
 
 static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
