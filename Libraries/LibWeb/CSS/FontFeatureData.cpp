@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-Gfx::ShapeFeatures FontFeatureData::to_shape_features() const
+Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKey, Vector<u32>> const&) const
 {
     HashMap<StringView, u8> merged_features;
 
