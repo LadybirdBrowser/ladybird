@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibWebView/Autocomplete.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -22,7 +23,7 @@
 - (instancetype)init:(id<AutocompleteObserver>)observer
      withToolbarItem:(NSToolbarItem*)toolbar_item;
 
-- (void)showWithSuggestions:(Vector<String>)suggestions;
+- (void)showWithSuggestions:(Vector<WebView::AutocompleteSuggestion>)suggestions;
 - (BOOL)close;
 
 - (Optional<String>)selectedSuggestion;

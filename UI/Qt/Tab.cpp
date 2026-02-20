@@ -143,12 +143,14 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_url_change = [this](auto const& url) {
         m_location_edit->set_url(url);
+        m_location_edit->record_navigation(url.serialize());
     };
 
     QObject::connect(m_location_edit, &QLineEdit::returnPressed, this, &Tab::location_edit_return_pressed);
 
     view().on_title_change = [this](auto const& title) {
         m_title = qstring_from_utf16_string(title);
+        m_location_edit->update_navigation_title(view().url().serialize(), ak_string_from_qstring(m_title));
         emit title_changed(tab_index(), m_title);
     };
 
@@ -526,6 +528,11 @@ void Tab::request_close()
     // If the user has already requested a close, then respect the user's request and just close the tab.
     // For example, the WebContent process may not be responding.
     m_window->definitely_close_tab(tab_index());
+}
+
+void Tab::bookmark_current_page()
+{
+    m_location_edit->record_bookmark(view().url().serialize());
 }
 
 }

@@ -38,6 +38,7 @@ LocationEdit::LocationEdit(QWidget* parent)
         clearFocus();
 
         auto query = ak_string_from_qstring(text());
+        m_autocomplete->record_committed_input(query);
 
         auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
@@ -56,6 +57,7 @@ LocationEdit::LocationEdit(QWidget* parent)
 void LocationEdit::focusInEvent(QFocusEvent* event)
 {
     QLineEdit::focusInEvent(event);
+    m_autocomplete->notify_omnibox_interaction();
     highlight_location();
 
     if (event->reason() != Qt::PopupFocusReason)
@@ -158,6 +160,21 @@ void LocationEdit::set_url(URL::URL url)
         setText(qstring_from_ak_string(m_url.serialize()));
         setCursorPosition(0);
     }
+}
+
+void LocationEdit::record_navigation(String const& text, Optional<String> title)
+{
+    m_autocomplete->record_navigation(text, AK::move(title));
+}
+
+void LocationEdit::update_navigation_title(String const& text, String const& title)
+{
+    m_autocomplete->update_navigation_title(text, title);
+}
+
+void LocationEdit::record_bookmark(String const& text)
+{
+    m_autocomplete->record_bookmark(text);
 }
 
 }

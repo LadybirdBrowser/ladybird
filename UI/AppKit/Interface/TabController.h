@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/Utf16String.h>
 #include <LibURL/URL.h>
 
 #import <Cocoa/Cocoa.h>
@@ -22,10 +23,13 @@
 - (void)loadURL:(URL::URL const&)url;
 
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect;
+- (void)onLoadFinish:(URL::URL const&)url;
 
 - (void)onURLChange:(URL::URL const&)url;
+- (void)onTitleChange:(Utf16String const&)title;
 
 - (void)clearHistory;
+- (void)bookmarkCurrentPage;
 
 - (void)focusLocationToolbarItem;
 

@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
+#include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZoneWatcher.h>
@@ -17,6 +18,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
@@ -587,7 +589,33 @@ ErrorOr<int> Application::execute()
         }
     }
 
-    return m_event_loop->exec();
+    int sigint_handler_id = -1;
+    int sigterm_handler_id = -1;
+
+    auto register_shutdown_signal = [this](int signal_number) {
+        return Core::EventLoop::register_signal(signal_number, [this](int) {
+            m_event_loop->quit(0);
+        });
+    };
+
+    auto is_being_debugged = Core::Process::is_being_debugged();
+    if (is_being_debugged.is_error()) {
+        warnln("Unable to determine debugger status before registering shutdown signal handlers: {}", is_being_debugged.error());
+    } else if (!is_being_debugged.value()) {
+        sigint_handler_id = register_shutdown_signal(SIGINT);
+    }
+
+    sigterm_handler_id = register_shutdown_signal(SIGTERM);
+
+    auto exit_code = m_event_loop->exec();
+
+    if (sigterm_handler_id != -1)
+        Core::EventLoop::unregister_signal(sigterm_handler_id);
+    if (sigint_handler_id != -1)
+        Core::EventLoop::unregister_signal(sigint_handler_id);
+
+    Autocomplete::flush_local_index_to_disk(*m_event_loop);
+    return exit_code;
 }
 
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
@@ -742,6 +770,11 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
     if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
         m_cookie_jar->expire_cookies_accessed_since(options.since);
         m_storage_jar->remove_items_accessed_since(options.since);
+    }
+
+    if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes) {
+        auto sources = Autocomplete::local_index_sources_after_history_deletion(options.since.seconds_since_epoch());
+        Autocomplete::schedule_local_index_rebuild_after_source_removal(move(sources));
     }
 }
 

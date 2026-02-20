@@ -126,6 +126,23 @@
                 margin: 0;
             }
 
+            .stats-grid {
+                display: grid;
+                gap: 10px;
+            }
+
+            .stats-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+            }
+
+            .stats-row strong {
+                font-family: monospace;
+                font-size: 14px;
+            }
+
             .forcibly-enabled {
                 font-size: 14px;
                 opacity: 0.6;
@@ -213,6 +230,13 @@
 
             dialog .dialog-body hr {
                 margin: 8px 4px 10px 4px;
+            }
+
+            #autocomplete-local-index-dialog .dialog-body {
+                height: auto;
+                max-height: min(70vh, 520px);
+                overflow-y: auto;
+                padding-bottom: 20px;
             }
 
             dialog .dialog-form {
@@ -372,6 +396,37 @@
                         <hr />
                     </select>
                 </div>
+
+                <hr />
+
+                <div class="card-group">
+                    <div class="inline-container">
+                        <label for="autocomplete-remote-enabled">Enable Remote Suggestions</label>
+                        <input id="autocomplete-remote-enabled" type="checkbox" switch />
+                    </div>
+                    <p class="description">
+                        Local suggestions are always available. Disable this to avoid fetching suggestions from remote providers.
+                    </p>
+                </div>
+
+                <hr />
+
+                <div class="card-group">
+                    <div class="inline-container">
+                        <label for="autocomplete-local-index-max-entries">OmniBox Suggestions Index Size</label>
+                        <button id="autocomplete-local-index-advanced" class="secondary-button">Advanced...</button>
+                    </div>
+                    <p class="description">
+                        Maximum index size for local OmniBox suggestions. The default (25,000) uses about 50 MB of memory.
+                    </p>
+                    <input
+                        id="autocomplete-local-index-max-entries"
+                        type="number"
+                        min="1000"
+                        max="500000"
+                        step="1000"
+                    />
+                </div>
             </div>
         </div>
 
@@ -498,6 +553,39 @@
             </div>
         </dialog>
 
+        <dialog id="autocomplete-local-index-dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">OmniBox Suggestions Index</h3>
+                <button id="autocomplete-local-index-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p id="autocomplete-local-index-status" class="description"></p>
+                <div class="card-group">
+                    <div class="inline-container">
+                        <label for="autocomplete-search-title-data">Search title data</label>
+                        <input id="autocomplete-search-title-data" type="checkbox" switch />
+                    </div>
+                    <p class="description">Include page titles in local OmniBox matching. Press Rebuild Index to apply.</p>
+                </div>
+                <hr />
+                <div class="stats-grid">
+                    <div class="stats-row"><span>Total entries</span><strong id="autocomplete-local-index-total-entries">-</strong></div>
+                    <div class="stats-row"><span>Navigational entries</span><strong id="autocomplete-local-index-navigational-entries">-</strong></div>
+                    <div class="stats-row"><span>Query entries</span><strong id="autocomplete-local-index-query-entries">-</strong></div>
+                    <div class="stats-row"><span>Bookmark entries</span><strong id="autocomplete-local-index-bookmark-entries">-</strong></div>
+                    <div class="stats-row"><span>History entries</span><strong id="autocomplete-local-index-history-entries">-</strong></div>
+                    <div class="stats-row"><span>Unique tokens</span><strong id="autocomplete-local-index-unique-tokens">-</strong></div>
+                    <div class="stats-row"><span>Phrase prefixes</span><strong id="autocomplete-local-index-phrase-prefixes">-</strong></div>
+                    <div class="stats-row"><span>Token prefixes</span><strong id="autocomplete-local-index-token-prefixes">-</strong></div>
+                    <div class="stats-row"><span>Transition contexts</span><strong id="autocomplete-local-index-transition-contexts">-</strong></div>
+                    <div class="stats-row"><span>Transition edges</span><strong id="autocomplete-local-index-transition-edges">-</strong></div>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button id="autocomplete-local-index-rebuild" class="secondary-button">Rebuild Index</button>
+            </div>
+        </dialog>
+
         <dialog id="site-settings">
             <div class="dialog-header">
                 <h3 id="site-settings-title" class="dialog-title"></h3>
@@ -568,6 +656,13 @@
                     <label for="clear-browsing-data-site-data">
                         Cookies and site data<span id="clear-browsing-data-site-data-size"></span>
                         <p class="description">Remove items that may sign you out of most sites</p>
+                    </label>
+                </div>
+                <div class="input-field-container">
+                    <input id="clear-browsing-data-history" type="checkbox" value="" checked />
+                    <label for="clear-browsing-data-history">
+                        OmniBox Suggestions
+                        <p class="description">Rebuild local suggestion history after a short delay</p>
                     </label>
                 </div>
                 <div class="button-container">

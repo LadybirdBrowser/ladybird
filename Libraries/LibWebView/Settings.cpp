@@ -10,6 +10,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
+#include <AK/StdLibExtras.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/Directory.h>
 #include <LibCore/File.h>
@@ -36,6 +37,14 @@ static constexpr auto search_engine_url_key = "url"sv;
 
 static constexpr auto autocomplete_engine_key = "autocompleteEngine"sv;
 static constexpr auto autocomplete_engine_name_key = "name"sv;
+static constexpr auto autocomplete_remote_enabled_key = "autocompleteRemoteEnabled"sv;
+static constexpr auto autocomplete_local_index_max_entries_key = "autocompleteLocalIndexMaxEntries"sv;
+static constexpr auto autocomplete_search_title_data_key = "autocompleteSearchTitleData"sv;
+
+// Rough default: 25,000 entries is about 50 MiB.
+static constexpr size_t default_autocomplete_local_index_max_entries = 25000;
+static constexpr size_t minimum_autocomplete_local_index_max_entries = 1000;
+static constexpr size_t maximum_autocomplete_local_index_max_entries = 500000;
 
 static constexpr auto site_setting_enabled_globally_key = "enabledGlobally"sv;
 static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
@@ -125,6 +134,16 @@ Settings Settings::create(Badge<Application>)
         }
     }
 
+    if (auto autocomplete_remote_enabled = settings_json.value().get_bool(autocomplete_remote_enabled_key); autocomplete_remote_enabled.has_value())
+        settings.m_autocomplete_remote_enabled = *autocomplete_remote_enabled;
+    if (auto autocomplete_local_index_max_entries = settings_json.value().get_integer<u64>(autocomplete_local_index_max_entries_key); autocomplete_local_index_max_entries.has_value())
+        settings.m_autocomplete_local_index_max_entries = clamp<size_t>(
+            *autocomplete_local_index_max_entries,
+            minimum_autocomplete_local_index_max_entries,
+            maximum_autocomplete_local_index_max_entries);
+    if (auto autocomplete_search_title_data = settings_json.value().get_bool(autocomplete_search_title_data_key); autocomplete_search_title_data.has_value())
+        settings.m_autocomplete_search_title_data = *autocomplete_search_title_data;
+
     auto load_site_setting = [&](SiteSetting& site_setting, StringView key) {
         auto saved_settings = settings_json.value().get_object(key);
         if (!saved_settings.has_value())
@@ -206,6 +225,10 @@ JsonValue Settings::serialize_json() const
         settings.set(autocomplete_engine_key, move(autocomplete_engine));
     }
 
+    settings.set(autocomplete_remote_enabled_key, m_autocomplete_remote_enabled);
+    settings.set(autocomplete_local_index_max_entries_key, m_autocomplete_local_index_max_entries);
+    settings.set(autocomplete_search_title_data_key, m_autocomplete_search_title_data);
+
     auto save_site_setting = [&](SiteSetting const& site_setting, StringView key) {
         JsonArray site_filters;
         site_filters.ensure_capacity(site_setting.site_filters.size());
@@ -266,6 +289,9 @@ void Settings::restore_defaults()
     m_search_engine.clear();
     m_custom_search_engines.clear();
     m_autocomplete_engine.clear();
+    m_autocomplete_remote_enabled = true;
+    m_autocomplete_local_index_max_entries = default_autocomplete_local_index_max_entries;
+    m_autocomplete_search_title_data = false;
     m_autoplay = SiteSetting {};
     m_browsing_data_settings = {};
     m_global_privacy_control = GlobalPrivacyControl::No;
@@ -279,6 +305,9 @@ void Settings::restore_defaults()
         observer.languages_changed();
         observer.search_engine_changed();
         observer.autocomplete_engine_changed();
+        observer.autocomplete_remote_enabled_changed();
+        observer.autocomplete_local_index_max_entries_changed();
+        observer.autocomplete_search_title_data_changed();
         observer.autoplay_settings_changed();
         observer.browsing_data_settings_changed();
         observer.global_privacy_control_changed();
@@ -412,6 +441,39 @@ void Settings::set_autocomplete_engine(Optional<StringView> autocomplete_engine_
 
     for (auto& observer : m_observers)
         observer.autocomplete_engine_changed();
+}
+
+void Settings::set_autocomplete_remote_enabled(bool enabled)
+{
+    m_autocomplete_remote_enabled = enabled;
+
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autocomplete_remote_enabled_changed();
+}
+
+void Settings::set_autocomplete_local_index_max_entries(size_t max_entries)
+{
+    m_autocomplete_local_index_max_entries = clamp(
+        max_entries,
+        minimum_autocomplete_local_index_max_entries,
+        maximum_autocomplete_local_index_max_entries);
+
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autocomplete_local_index_max_entries_changed();
+}
+
+void Settings::set_autocomplete_search_title_data(bool enabled)
+{
+    m_autocomplete_search_title_data = enabled;
+
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autocomplete_search_title_data_changed();
 }
 
 void Settings::set_autoplay_enabled_globally(bool enabled_globally)

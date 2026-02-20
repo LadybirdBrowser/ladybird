@@ -29,6 +29,11 @@ private:
     void add_custom_search_engine(JsonValue const&);
     void remove_custom_search_engine(JsonValue const&);
     void set_autocomplete_engine(JsonValue const&);
+    void set_autocomplete_remote_enabled(JsonValue const&);
+    void set_autocomplete_local_index_max_entries(JsonValue const&);
+    void set_autocomplete_search_title_data(JsonValue const&);
+    void load_autocomplete_local_index_stats();
+    void rebuild_autocomplete_local_index();
 
     void load_forcibly_enabled_site_settings();
     void set_site_setting_enabled_globally(JsonValue const&);

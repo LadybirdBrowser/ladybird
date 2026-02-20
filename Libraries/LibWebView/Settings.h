@@ -10,6 +10,7 @@
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
+#include <AK/Types.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Autocomplete.h>
@@ -45,6 +46,9 @@ public:
     virtual void languages_changed() { }
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
+    virtual void autocomplete_remote_enabled_changed() { }
+    virtual void autocomplete_local_index_max_entries_changed() { }
+    virtual void autocomplete_search_title_data_changed() { }
     virtual void autoplay_settings_changed() { }
     virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
@@ -78,6 +82,12 @@ public:
 
     Optional<AutocompleteEngine> const& autocomplete_engine() const { return m_autocomplete_engine; }
     void set_autocomplete_engine(Optional<StringView> autocomplete_engine_name);
+    bool autocomplete_remote_enabled() const { return m_autocomplete_remote_enabled; }
+    void set_autocomplete_remote_enabled(bool);
+    size_t autocomplete_local_index_max_entries() const { return m_autocomplete_local_index_max_entries; }
+    void set_autocomplete_local_index_max_entries(size_t);
+    bool autocomplete_search_title_data() const { return m_autocomplete_search_title_data; }
+    void set_autocomplete_search_title_data(bool);
 
     SiteSetting const& autoplay_settings() const { return m_autoplay; }
     void set_autoplay_enabled_globally(bool);
@@ -114,6 +124,9 @@ private:
     Optional<SearchEngine> m_search_engine;
     Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
+    bool m_autocomplete_remote_enabled { true };
+    size_t m_autocomplete_local_index_max_entries { 25000 };
+    bool m_autocomplete_search_title_data { false };
     SiteSetting m_autoplay;
     BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };

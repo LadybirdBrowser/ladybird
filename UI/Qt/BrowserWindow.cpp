@@ -134,6 +134,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_hamburger_menu->addAction(open_file_action);
     file_menu->addAction(open_file_action);
 
+    auto* bookmark_current_page_action = new QAction("&Bookmark Current Page", this);
+    bookmark_current_page_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
+    m_hamburger_menu->addAction(bookmark_current_page_action);
+    file_menu->addAction(bookmark_current_page_action);
+
     m_hamburger_menu->addSeparator();
 
     auto* edit_menu = m_hamburger_menu->addMenu("&Edit");
@@ -230,6 +235,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         (void)Application::the().new_window({});
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
+    QObject::connect(bookmark_current_page_action, &QAction::triggered, this, [this] {
+        if (m_current_tab)
+            m_current_tab->bookmark_current_page();
+    });
     QObject::connect(m_tabs_container, &QTabWidget::currentChanged, [this](int index) {
         auto* tab = as<Tab>(m_tabs_container->widget(index));
         if (tab)
