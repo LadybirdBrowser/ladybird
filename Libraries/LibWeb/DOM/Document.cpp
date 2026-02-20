@@ -2131,7 +2131,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
 
     // https://w3c.github.io/uievents/#mouseleave
     if (old_hovered_node && (!m_hovered_node || !m_hovered_node->is_descendant_of(*old_hovered_node))) {
-        for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent()) {
+        for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent_or_shadow_host()) {
             // FIXME: Populate the event with mouse coordinates, etc.
             UIEvents::MouseEventInit mouse_event_init {};
             mouse_event_init.related_target = m_hovered_node;
@@ -2173,7 +2173,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
     // Leave events are dispatched in the opposite order.
     if (m_hovered_node && (!old_hovered_node || !m_hovered_node->is_ancestor_of(*old_hovered_node))) {
         Vector<GC::Ref<Node>> entered_ancestors;
-        for (auto target = m_hovered_node; target && target.ptr() != common_ancestor; target = target->parent())
+        for (auto target = m_hovered_node; target && target.ptr() != common_ancestor; target = target->parent_or_shadow_host())
             entered_ancestors.append(*target);
 
         for (auto target : entered_ancestors.in_reverse()) {
