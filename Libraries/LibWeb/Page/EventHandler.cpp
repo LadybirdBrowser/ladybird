@@ -1036,7 +1036,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         if (found_parent_element) {
             hovered_link_element = node->enclosing_link_element();
             if (hovered_node_cursor == Gfx::StandardCursor::None) {
-                if (paintable->layout_node().is_text_node()) {
+                if (paintable->layout_node().is_text_node() || node->is_editable_or_editing_host()) {
                     hovered_node_cursor = resolve_cursor(*paintable->layout_node().parent(), cursor_data, Gfx::StandardCursor::IBeam);
                 } else if (node->is_element()) {
                     hovered_node_cursor = resolve_cursor(static_cast<Layout::NodeWithStyle&>(*layout_node), cursor_data, Gfx::StandardCursor::Arrow);
