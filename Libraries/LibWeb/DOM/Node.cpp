@@ -1588,6 +1588,25 @@ void Node::set_document(Document& document)
     }
 }
 
+void Node::recompute_editable_subtree_flag()
+{
+    bool new_value;
+    if (is_document()) {
+        new_value = as<Document>(*this).design_mode_enabled_state();
+    } else if (auto const* html_element = as_if<HTML::HTMLElement>(*this)) {
+        auto state = html_element->content_editable_state();
+        if (state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
+            new_value = true;
+        else if (state == HTML::ContentEditableState::False)
+            new_value = false;
+        else
+            new_value = parent() && parent()->m_in_editable_subtree;
+    } else {
+        new_value = parent() && parent()->m_in_editable_subtree;
+    }
+    m_in_editable_subtree = new_value;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#editable
 bool Node::is_editable() const
 {
@@ -1601,7 +1620,7 @@ bool Node::is_editable() const
         return false;
 
     // its parent is an editing host or editable;
-    if (!parent() || !parent()->is_editable_or_editing_host())
+    if (!parent() || !parent()->m_in_editable_subtree)
         return false;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
@@ -1637,7 +1656,7 @@ bool Node::is_editing_host() const
     //         `::editing_host()` to automatically traverse to the top-most editing host.
     auto state = html_element->content_editable_state();
     if ((state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
-        && (!parent() || !parent()->is_editable_or_editing_host())) {
+        && (!parent() || !parent()->m_in_editable_subtree)) {
         return true;
     }
 
@@ -1773,11 +1792,13 @@ void Node::post_connection()
 
 void Node::inserted()
 {
+    recompute_editable_subtree_flag();
     set_needs_style_update(true);
 }
 
 void Node::removed_from(Node*, Node&)
 {
+    m_in_editable_subtree = false;
     m_layout_node = nullptr;
     m_paintable = nullptr;
 }
@@ -1785,6 +1806,7 @@ void Node::removed_from(Node*, Node&)
 // https://dom.spec.whatwg.org/#concept-node-move-ext
 void Node::moved_from(GC::Ptr<Node>)
 {
+    recompute_editable_subtree_flag();
 }
 
 ParentNode* Node::parent_or_shadow_host()
