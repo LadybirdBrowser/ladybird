@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<title>document.fonts.ready resolves after layout depending on loaded fonts</title>
+<link rel="help" href="https://drafts.csswg.org/css-font-loading/#fontfaceset-pending-on-the-environment">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+  #foo {
+      font: 100px/1 Ahem;
+  }
+</style>
+<div id="log"></div>
+<span id="foo">X</span>
+<script>
+  // The purpose of this test is to ensure that testharness.js tests can use
+  // `document.fonts.ready` to wait for a web font to load, without having to
+  // wait for the window load event before or requestAnimationFrame after.
+  //
+  // The spec says that a FontFaceSet is "pending on the environment" if "the
+  // document has pending layout operations which might cause the user agent to
+  // request a font, or which depend on recently-loaded fonts", and both are
+  // assumed to hold true in this test.
+  async_test(t => {
+    assert_equals(document.fonts.size, 1, 'one font is pending');
+    document.fonts.ready.then(t.step_func_done(() => {
+      const span = document.getElementById('foo');
+      const rect = span.getBoundingClientRect();
+      // If Ahem has loaded, the X will be 100px wide.
+      assert_equals(rect.width, 100, 'span is 100px wide');
+    }));
+  });
+</script>
