@@ -7,11 +7,8 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/Function.h>
-#include <AK/IterationDecision.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
-#include <AK/Vector.h>
 
 namespace Core::Environment {
 
