@@ -184,7 +184,16 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKe
             }
         }
 
-        // FIXME: 6.8 https://drafts.csswg.org/css-fonts/#font-variant-alternates-prop
+        // 6.8 https://drafts.csswg.org/css-fonts/#font-variant-alternates-prop
+        if (font_variant_alternates.has_value()) {
+            auto alternates = font_variant_alternates.value();
+            if (alternates.historical_forms) {
+                // Enables display of historical forms (OpenType feature: hist).
+                features.set("hist"sv, 1);
+            }
+
+            // FIXME: Support function entries
+        }
 
         // 6.10 https://drafts.csswg.org/css-fonts/#font-variant-east-asian-prop
         if (font_variant_east_asian.has_value()) {
