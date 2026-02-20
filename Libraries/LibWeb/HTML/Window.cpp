@@ -57,7 +57,6 @@
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
-#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -285,10 +284,6 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
         // 4. If urlRecord matches about:blank, then perform the URL and history update steps given targetNavigable's active document and urlRecord.
         if (url_matches_about_blank(url_record.value())) {
-            // AD-HOC: Mark the initial about:blank for the new window as load complete
-            // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-            HTML::HTMLParser::the_end(*target_navigable->active_document());
-
             perform_url_and_history_update_steps(*target_navigable->active_document(), url_record.release_value());
         }
 
