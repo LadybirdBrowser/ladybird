@@ -23,7 +23,6 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/WebIDL/DOMException.h>
-#include <math.h>
 
 namespace Web::HTML {
 
