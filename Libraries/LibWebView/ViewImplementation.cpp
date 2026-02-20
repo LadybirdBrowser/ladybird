@@ -17,7 +17,6 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Menu.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
@@ -106,6 +105,9 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
 
     initialize_client();
     VERIFY(m_client_state.client);
+
+    if (on_web_content_process_change_for_cross_site_navigation)
+        on_web_content_process_change_for_cross_site_navigation();
 
     // Don't keep a stale backup bitmap around.
     m_backup_bitmap = nullptr;
