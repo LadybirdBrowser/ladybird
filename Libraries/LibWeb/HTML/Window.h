@@ -10,6 +10,7 @@
 #include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/IterationDecision.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -277,6 +278,8 @@ public:
     [[nodiscard]] JS::Value named_item_value(FlyString const&) const override;
 
     bool find(String const& string);
+    WebIDL::ExceptionOr<GC::Ref<Fetch::FetchLaterResult>> fetch_later(Fetch::RequestInfo const& input, Fetch::DeferredRequestInit const& init = {});
+    void activate_deferred_fetches();
 
     static void for_each_active(Function<IterationDecision(Window&)> callback);
 
@@ -305,6 +308,7 @@ private:
     NamedObjects named_objects(StringView name);
 
     WebIDL::ExceptionOr<void> window_post_message_steps(JS::Value, WindowPostMessageOptions const&);
+    void activate_deferred_fetches_if_needed(bool force_all);
 
     // https://html.spec.whatwg.org/multipage/window-object.html#concept-document-window
     GC::Ptr<DOM::Document> m_associated_document;

@@ -614,6 +614,7 @@ class PerformanceEventTiming;
 namespace Web::Fetch {
 
 class BodyMixin;
+class FetchLaterResult;
 class Headers;
 class HeadersIterator;
 class Request;

@@ -101,6 +101,9 @@ interface Window : EventTarget {
 
     // This function is non-standard.
     boolean find(optional DOMString string = "");
+
+    // https://fetch.spec.whatwg.org/#dom-window-fetchlater
+    [SecureContext, NewObject] FetchLaterResult fetchLater(RequestInfo input, optional DeferredRequestInit init = {});
 };
 Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;

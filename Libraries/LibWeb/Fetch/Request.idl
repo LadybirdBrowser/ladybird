@@ -45,6 +45,10 @@ dictionary RequestInit {
     any window; // can only be set to null
 };
 
+dictionary DeferredRequestInit : RequestInit {
+    DOMHighResTimeStamp activateAfter;
+};
+
 enum RequestDestination { "", "audio", "audioworklet", "document", "embed", "font", "frame", "iframe", "image", "json", "manifest", "object", "paintworklet", "report", "script", "sharedworker", "style",  "track", "video", "worker", "xslt" };
 enum RequestMode { "navigate", "same-origin", "no-cors", "cors" };
 enum RequestCredentials { "omit", "same-origin", "include" };
