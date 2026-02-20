@@ -21,7 +21,6 @@ class FontFaceSet final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(FontFaceSet);
 
 public:
-    [[nodiscard]] static GC::Ref<FontFaceSet> construct_impl(JS::Realm&, Vector<GC::Root<FontFace>> const& initial_faces);
     [[nodiscard]] static GC::Ref<FontFaceSet> create(JS::Realm&);
     virtual ~FontFaceSet() override = default;
 
@@ -50,7 +49,7 @@ public:
     void on_set_modified_from_js(Badge<Bindings::FontFaceSetPrototype>) { }
 
 private:
-    FontFaceSet(JS::Realm&, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<JS::Set> set_entries);
+    explicit FontFaceSet(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -62,7 +61,7 @@ private:
     Vector<GC::Ref<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]
     Vector<GC::Ref<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
 
-    Bindings::FontFaceSetLoadStatus m_status { Bindings::FontFaceSetLoadStatus::Loading };
+    Bindings::FontFaceSetLoadStatus m_status { Bindings::FontFaceSetLoadStatus::Loaded };
 };
 
 }

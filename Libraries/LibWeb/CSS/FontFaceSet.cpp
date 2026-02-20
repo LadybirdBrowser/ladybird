@@ -30,30 +30,16 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(FontFaceSet);
 
-// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-fontfaceset
-GC::Ref<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vector<GC::Root<FontFace>> const& initial_faces)
-{
-    HTML::TemporaryExecutionContext temporary_execution_context { realm };
-    auto ready_promise = WebIDL::create_promise(realm);
-    auto set_entries = JS::Set::create(realm);
-
-    // The FontFaceSet constructor, when called, must iterate its initialFaces argument and add each value to its set entries.
-    for (auto const& face : initial_faces)
-        set_entries->set_add(face);
-
-    return realm.create<FontFaceSet>(realm, ready_promise, set_entries);
-}
-
 GC::Ref<FontFaceSet> FontFaceSet::create(JS::Realm& realm)
 {
-    return construct_impl(realm, {});
+    HTML::TemporaryExecutionContext temporary_execution_context { realm };
+    return realm.create<FontFaceSet>(realm);
 }
 
-FontFaceSet::FontFaceSet(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<JS::Set> set_entries)
+FontFaceSet::FontFaceSet(JS::Realm& realm)
     : DOM::EventTarget(realm)
-    , m_set_entries(set_entries)
-    , m_ready_promise(ready_promise)
-    , m_status(Bindings::FontFaceSetLoadStatus::Loaded)
+    , m_set_entries(JS::Set::create(realm))
+    , m_ready_promise(WebIDL::create_promise(realm))
 {
 }
 
