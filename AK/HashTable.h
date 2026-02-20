@@ -9,6 +9,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/Error.h>
+#include <AK/IntegralMath.h>
 #include <AK/ReverseIterator.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Traits.h>
@@ -121,7 +122,6 @@ template<typename T, typename TraitsForT, bool IsOrdered>
 class HashTable {
     static constexpr size_t grow_capacity_at_least = 8;
     static constexpr size_t grow_at_load_factor_percent = 70;
-    static constexpr size_t grow_capacity_increase_percent = 60;
 
     struct StoredHash {
         void set([[maybe_unused]] u32 h)
@@ -183,13 +183,13 @@ public:
             return;
 
         if constexpr (!IsTriviallyDestructible<T>) {
-            for (size_t i = 0; i < m_capacity; ++i) {
+            for (size_t i = 0; i < capacity(); ++i) {
                 if (m_buckets[i].state != BucketState::Free)
                     m_buckets[i].slot()->~T();
             }
         }
 
-        kfree_sized(m_buckets, size_in_bytes(m_capacity));
+        kfree_sized(m_buckets, size_in_bytes(capacity()));
     }
 
     HashTable(HashTable const& other)
@@ -210,10 +210,10 @@ public:
         : m_buckets(other.m_buckets)
         , m_collection_data(other.m_collection_data)
         , m_size(other.m_size)
-        , m_capacity(other.m_capacity)
+        , m_mask(other.m_mask)
     {
         other.m_size = 0;
-        other.m_capacity = 0;
+        other.m_mask = 0;
         other.m_buckets = nullptr;
         if constexpr (IsOrdered)
             other.m_collection_data = { nullptr, nullptr };
@@ -230,7 +230,7 @@ public:
     {
         swap(a.m_buckets, b.m_buckets);
         swap(a.m_size, b.m_size);
-        swap(a.m_capacity, b.m_capacity);
+        swap(a.m_mask, b.m_mask);
 
         if constexpr (IsOrdered)
             swap(a.m_collection_data, b.m_collection_data);
@@ -238,7 +238,7 @@ public:
 
     [[nodiscard]] bool is_empty() const { return m_size == 0; }
     [[nodiscard]] size_t size() const { return m_size; }
-    [[nodiscard]] size_t capacity() const { return m_capacity; }
+    [[nodiscard]] size_t capacity() const { return m_buckets ? m_mask + 1 : 0; }
 
     template<typename U, size_t N>
     ErrorOr<void> try_set_from(U (&from_array)[N])
@@ -259,8 +259,8 @@ public:
         // container without it needing to reallocate. Our definition of "capacity" is the number of
         // buckets we can store, but we reallocate earlier because of `grow_at_load_factor_percent`.
         // This calculates the required internal capacity to store `capacity` number of values.
-        size_t required_capacity = capacity * 100 / grow_at_load_factor_percent + 1;
-        if (required_capacity <= m_capacity)
+        size_t required_capacity = (capacity * 100 / grow_at_load_factor_percent) + 1;
+        if (required_capacity <= this->capacity())
             return {};
         return try_rehash(required_capacity);
     }
@@ -289,7 +289,7 @@ public:
         if constexpr (IsOrdered)
             return Iterator(m_collection_data.head, end_bucket());
 
-        for (size_t i = 0; i < m_capacity; ++i) {
+        for (size_t i = 0; i < capacity(); ++i) {
             if (m_buckets[i].state != BucketState::Free)
                 return Iterator(&m_buckets[i], end_bucket());
         }
@@ -310,7 +310,7 @@ public:
         if constexpr (IsOrdered)
             return ConstIterator(m_collection_data.head, end_bucket());
 
-        for (size_t i = 0; i < m_capacity; ++i) {
+        for (size_t i = 0; i < capacity(); ++i) {
             if (m_buckets[i].state != BucketState::Free)
                 return ConstIterator(&m_buckets[i], end_bucket());
         }
@@ -365,13 +365,14 @@ public:
 
     void clear_with_capacity()
     {
-        if (m_capacity == 0)
+        if (!m_buckets)
             return;
+
         if constexpr (!IsTriviallyDestructible<T>) {
             for (auto& bucket : *this)
                 bucket.~T();
         }
-        __builtin_memset(m_buckets, 0, size_in_bytes(m_capacity));
+        __builtin_memset(m_buckets, 0, size_in_bytes(capacity()));
         m_size = 0;
 
         if constexpr (IsOrdered)
@@ -382,7 +383,7 @@ public:
     ErrorOr<HashSetResult> try_set(U&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace)
     {
         if (should_grow())
-            TRY(try_rehash(m_capacity * (100 + grow_capacity_increase_percent) / 100));
+            TRY(try_rehash(max(capacity() * 2, grow_capacity_at_least)));
 
         return write_value(forward<U>(value), existing_entry_behavior);
     }
@@ -402,7 +403,7 @@ public:
     [[nodiscard]] T& ensure(unsigned hash, TUnaryPredicate predicate, InitializationCallback initialization_callback, HashSetExistingEntryBehavior existing_entry_behavior)
     {
         if (should_grow())
-            rehash(m_capacity * (100 + grow_capacity_increase_percent) / 100);
+            rehash(max(capacity() * 2, grow_capacity_at_least));
 
         auto [result, bucket] = lookup_for_writing<T>(hash, move(predicate), existing_entry_behavior);
         switch (result) {
@@ -503,9 +504,8 @@ public:
     // This invalidates the iterator
     void remove(Iterator& iterator)
     {
-        auto* bucket = iterator.m_bucket;
-        VERIFY(bucket);
-        delete_bucket(*bucket);
+        VERIFY(iterator.m_bucket);
+        delete_bucket(*iterator.m_bucket);
         iterator.m_bucket = nullptr;
     }
 
@@ -513,7 +513,7 @@ public:
     bool remove_all_matching(TUnaryPredicate const& predicate)
     {
         bool has_removed_anything = false;
-        for (size_t i = 0; i < m_capacity; ++i) {
+        for (size_t i = 0; i < capacity(); ++i) {
             auto& bucket = m_buckets[i];
             if (bucket.state == BucketState::Free || !predicate(*bucket.slot()))
                 continue;
@@ -532,7 +532,7 @@ public:
     Vector<T> take_all_matching(TUnaryPredicate const& predicate)
     {
         Vector<T> values;
-        for (size_t i = 0; i < m_capacity; ++i) {
+        for (size_t i = 0; i < capacity(); ++i) {
             auto& bucket = m_buckets[i];
             if (bucket.state == BucketState::Free || !predicate(*bucket.slot()))
                 continue;
@@ -575,7 +575,7 @@ public:
     }
 
 private:
-    bool should_grow() const { return ((m_size + 1) * 100) >= (m_capacity * grow_at_load_factor_percent); }
+    bool should_grow() const { return ((m_size + 1) * 100) >= (capacity() * grow_at_load_factor_percent); }
     static constexpr size_t size_in_bytes(size_t capacity) { return sizeof(BucketType) * capacity; }
 
     BucketType* end_bucket()
@@ -583,7 +583,7 @@ private:
         if constexpr (IsOrdered)
             return m_collection_data.tail;
         else
-            return &m_buckets[m_capacity];
+            return &m_buckets[capacity()];
     }
     BucketType const* end_bucket() const
     {
@@ -592,12 +592,11 @@ private:
 
     ErrorOr<void> try_rehash(size_t new_capacity)
     {
-        new_capacity = max(new_capacity, m_capacity + grow_capacity_at_least);
-        new_capacity = kmalloc_good_size(size_in_bytes(new_capacity)) / sizeof(BucketType);
+        new_capacity = AK::exp2<size_t>(AK::ceil_log2(max(new_capacity, capacity() + 1)));
         VERIFY(new_capacity >= size());
 
         auto* old_buckets = m_buckets;
-        auto old_buckets_size = size_in_bytes(m_capacity);
+        auto old_buckets_size = size_in_bytes(capacity());
         Iterator old_iter = begin();
 
         auto* new_buckets = kcalloc(1, size_in_bytes(new_capacity));
@@ -605,7 +604,7 @@ private:
             return Error::from_errno(ENOMEM);
 
         m_buckets = static_cast<BucketType*>(new_buckets);
-        m_capacity = new_capacity;
+        m_mask = new_capacity - 1;
 
         if constexpr (IsOrdered)
             m_collection_data = { nullptr, nullptr };
@@ -633,15 +632,14 @@ private:
         if (is_empty())
             return nullptr;
 
-        size_t bucket_index = hash % m_capacity;
+        size_t bucket_index = hash & m_mask;
         for (;;) {
             auto* bucket = &m_buckets[bucket_index];
             if (bucket->state == BucketState::Free)
                 return nullptr;
             if (bucket->hash.check(hash) && predicate(*bucket->slot()))
                 return bucket;
-            if (++bucket_index == m_capacity) [[unlikely]]
-                bucket_index = 0;
+            bucket_index = (bucket_index + 1) & m_mask;
         }
     }
 
@@ -650,20 +648,20 @@ private:
         VERIFY(bucket.state != BucketState::Free);
 
         if (bucket.state == BucketState::CalculateLength) {
-            size_t ideal_bucket_index = TraitsForT::hash(*bucket.slot()) % m_capacity;
+            size_t ideal_bucket_index = TraitsForT::hash(*bucket.slot()) & m_mask;
 
             VERIFY(&bucket >= m_buckets);
             size_t actual_bucket_index = &bucket - m_buckets;
 
             if (actual_bucket_index < ideal_bucket_index)
-                return m_capacity + actual_bucket_index - ideal_bucket_index;
+                return capacity() + actual_bucket_index - ideal_bucket_index;
             return actual_bucket_index - ideal_bucket_index;
         }
 
         return static_cast<u8>(bucket.state) - 1;
     }
 
-    ALWAYS_INLINE constexpr BucketState bucket_state_for_probe_length(size_t probe_length)
+    constexpr BucketState bucket_state_for_probe_length(size_t probe_length)
     {
         if (probe_length > 253)
             return BucketState::CalculateLength;
@@ -676,7 +674,8 @@ private:
     };
 
     template<typename U, typename TUnaryPredicate>
-    LookupForWritingResult lookup_for_writing(u32 const hash, TUnaryPredicate predicate, HashSetExistingEntryBehavior existing_entry_behavior)
+    ALWAYS_INLINE LookupForWritingResult lookup_for_writing(u32 const hash, TUnaryPredicate predicate,
+        HashSetExistingEntryBehavior existing_entry_behavior)
     {
         auto update_collection_for_new_bucket = [&](BucketType& bucket) {
             if constexpr (IsOrdered) {
@@ -718,7 +717,7 @@ private:
             }
         };
 
-        auto bucket_index = hash % m_capacity;
+        auto bucket_index = hash & m_mask;
         size_t probe_length = 0;
         for (;;) {
             auto* bucket = &m_buckets[bucket_index];
@@ -760,8 +759,7 @@ private:
 
                 // Find a free bucket, swapping with smaller probe length buckets along the way
                 for (;;) {
-                    if (++bucket_index == m_capacity) [[unlikely]]
-                        bucket_index = 0;
+                    bucket_index = (bucket_index + 1) & m_mask;
                     bucket = &m_buckets[bucket_index];
                     ++probe_length;
 
@@ -785,14 +783,13 @@ private:
             }
 
             // Try next bucket
-            if (++bucket_index == m_capacity) [[unlikely]]
-                bucket_index = 0;
+            bucket_index = (bucket_index + 1) & m_mask;
             ++probe_length;
         }
     }
 
     template<typename U = T>
-    HashSetResult write_value(U&& value, HashSetExistingEntryBehavior existing_entry_behavior)
+    ALWAYS_INLINE HashSetResult write_value(U&& value, HashSetExistingEntryBehavior existing_entry_behavior)
     {
         u32 const hash = TraitsForT::hash(value);
         auto [result, bucket] = lookup_for_writing<U>(hash, [&](auto& candidate) { return TraitsForT::equals(candidate, static_cast<T const&>(value)); }, existing_entry_behavior);
@@ -850,11 +847,10 @@ private:
 
         VERIFY(&bucket >= m_buckets);
         size_t shift_to_index = &bucket - m_buckets;
-        VERIFY(shift_to_index < m_capacity);
+        VERIFY(shift_to_index <= m_mask);
         size_t shift_from_index = shift_to_index;
         for (;;) {
-            if (++shift_from_index == m_capacity) [[unlikely]]
-                shift_from_index = 0;
+            shift_from_index = (shift_from_index + 1) & m_mask;
 
             auto* shift_from_bucket = &m_buckets[shift_from_index];
             if (shift_from_bucket->state == BucketState::Free)
@@ -873,8 +869,7 @@ private:
             shift_to_bucket->state = bucket_state_for_probe_length(shift_from_probe_length - 1);
             update_bucket_neighbors(shift_to_bucket);
 
-            if (++shift_to_index == m_capacity) [[unlikely]]
-                shift_to_index = 0;
+            shift_to_index = (shift_to_index + 1) & m_mask;
         }
 
         // Mark last bucket as free
@@ -885,7 +880,7 @@ private:
 
     NO_UNIQUE_ADDRESS CollectionDataType m_collection_data;
     size_t m_size { 0 };
-    size_t m_capacity { 0 };
+    size_t m_mask { 0 };
 };
 
 }
