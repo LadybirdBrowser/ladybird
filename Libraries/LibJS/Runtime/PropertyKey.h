@@ -215,7 +215,7 @@ struct Traits<JS::PropertyKey> : public DefaultTraits<JS::PropertyKey> {
         if (name.is_symbol())
             return ptr_hash(name.as_symbol());
         if (name.is_number())
-            return int_hash(name.as_number());
+            return u32_hash(name.as_number());
         VERIFY_NOT_REACHED();
     }
 
