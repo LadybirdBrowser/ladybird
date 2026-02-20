@@ -114,6 +114,7 @@ private:
         OwnPtr<AudioDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
+        mutable Threading::Mutex m_converter_mutex;
         i64 m_last_sample { NumericLimits<i64>::min() };
 
         size_t m_queue_max_size { 8 };
