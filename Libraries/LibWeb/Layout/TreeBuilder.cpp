@@ -553,7 +553,7 @@ static bool is_ignorable_whitespace(Layout::Node const& node)
                     contains_only_white_space = false;
                     return TraversalDecision::Break;
                 }
-            } else if (descendant.is_out_of_flow()) {
+            } else if (descendant.is_out_of_flow() || !descendant.is_anonymous()) {
                 contains_only_white_space = false;
                 return TraversalDecision::Break;
             }
