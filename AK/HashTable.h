@@ -120,7 +120,7 @@ private:
 template<typename T, typename TraitsForT, bool IsOrdered>
 class HashTable {
     static constexpr size_t grow_capacity_at_least = 8;
-    static constexpr size_t grow_at_load_factor_percent = 80;
+    static constexpr size_t grow_at_load_factor_percent = 70;
     static constexpr size_t grow_capacity_increase_percent = 60;
 
     struct StoredHash {
