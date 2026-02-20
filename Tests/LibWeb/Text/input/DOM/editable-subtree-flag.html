@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container"></div>
+<script>
+test(() => {
+    const container = document.getElementById("container");
+
+    // 1. Basic: contenteditable makes children editable
+    container.innerHTML = `<div contenteditable><p id="p1">text</p></div>`;
+    println(`1a: ${document.getElementById("p1").isContentEditable}`);
+
+    // 2. Nested contenteditable=false stops editability
+    container.innerHTML = `<div contenteditable><div contenteditable="false"><p id="p2">text</p></div></div>`;
+    println(`2a: ${document.getElementById("p2").isContentEditable}`);
+
+    // 3. Dynamic: add contenteditable attribute
+    container.innerHTML = `<div id="d3"><p id="p3">text</p></div>`;
+    println(`3a: ${document.getElementById("p3").isContentEditable}`);
+    document.getElementById("d3").setAttribute("contenteditable", "true");
+    println(`3b: ${document.getElementById("p3").isContentEditable}`);
+
+    // 4. Dynamic: remove contenteditable attribute
+    container.innerHTML = `<div id="d4" contenteditable><p id="p4">text</p></div>`;
+    println(`4a: ${document.getElementById("p4").isContentEditable}`);
+    document.getElementById("d4").removeAttribute("contenteditable");
+    println(`4b: ${document.getElementById("p4").isContentEditable}`);
+
+    // 5. Dynamic: change contenteditable from true to false
+    container.innerHTML = `<div id="d5" contenteditable><p id="p5">text</p></div>`;
+    println(`5a: ${document.getElementById("p5").isContentEditable}`);
+    document.getElementById("d5").setAttribute("contenteditable", "false");
+    println(`5b: ${document.getElementById("p5").isContentEditable}`);
+
+    // 6. Move node from non-editable to editable subtree
+    container.innerHTML = `<div id="src6"><p id="p6">text</p></div><div id="dst6" contenteditable></div>`;
+    println(`6a: ${document.getElementById("p6").isContentEditable}`);
+    document.getElementById("dst6").appendChild(document.getElementById("p6"));
+    println(`6b: ${document.getElementById("p6").isContentEditable}`);
+
+    // 7. Move node from editable to non-editable subtree
+    container.innerHTML = `<div id="src7" contenteditable><p id="p7">text</p></div><div id="dst7"></div>`;
+    println(`7a: ${document.getElementById("p7").isContentEditable}`);
+    document.getElementById("dst7").appendChild(document.getElementById("p7"));
+    println(`7b: ${document.getElementById("p7").isContentEditable}`);
+
+    // 8. Insert node into editable subtree
+    container.innerHTML = `<div id="d8" contenteditable></div>`;
+    const p8 = document.createElement("p");
+    p8.id = "p8";
+    println(`8a: ${p8.isContentEditable}`);
+    document.getElementById("d8").appendChild(p8);
+    println(`8b: ${p8.isContentEditable}`);
+
+    // 9. Remove node from editable subtree
+    container.innerHTML = `<div contenteditable><p id="p9">text</p></div>`;
+    const p9 = document.getElementById("p9");
+    println(`9a: ${p9.isContentEditable}`);
+    p9.remove();
+    println(`9b: ${p9.isContentEditable}`);
+
+    // 10. Design mode on/off
+    container.innerHTML = `<p id="p10">text</p>`;
+    println(`10a: ${document.getElementById("p10").isContentEditable}`);
+    document.designMode = "on";
+    println(`10b: ${document.getElementById("p10").isContentEditable}`);
+    document.designMode = "off";
+    println(`10c: ${document.getElementById("p10").isContentEditable}`);
+
+    // 11. Deeply nested: contenteditable at root, check deep descendant
+    container.innerHTML = `<div contenteditable><div><div><div><p id="p11">text</p></div></div></div></div>`;
+    println(`11a: ${document.getElementById("p11").isContentEditable}`);
+
+    // 12. Nested contenteditable=false with contenteditable=true inside
+    container.innerHTML = `<div contenteditable><div contenteditable="false"><div contenteditable><p id="p12">text</p></div></div></div>`;
+    println(`12a: ${document.getElementById("p12").isContentEditable}`);
+
+    // 13. Dynamic: toggle intermediate ancestor's contenteditable
+    container.innerHTML = `<div contenteditable><div id="mid13"><p id="p13">text</p></div></div>`;
+    println(`13a: ${document.getElementById("p13").isContentEditable}`);
+    document.getElementById("mid13").setAttribute("contenteditable", "false");
+    println(`13b: ${document.getElementById("p13").isContentEditable}`);
+    document.getElementById("mid13").removeAttribute("contenteditable");
+    println(`13c: ${document.getElementById("p13").isContentEditable}`);
+
+    // 14. Text nodes inherit editability from parent
+    container.innerHTML = `<div contenteditable>hello</div>`;
+    const textNode = container.firstChild.firstChild;
+    println(`14a: ${textNode.parentElement.isContentEditable}`);
+
+    // 15. Move subtree with contenteditable into editable context
+    container.innerHTML = `<div id="d15a"><div contenteditable="false" id="d15b"><p id="p15">text</p></div></div><div id="d15c" contenteditable></div>`;
+    println(`15a: ${document.getElementById("p15").isContentEditable}`);
+    document.getElementById("d15c").appendChild(document.getElementById("d15b"));
+    println(`15b: ${document.getElementById("p15").isContentEditable}`);
+
+    // 16. contenteditable="plaintext-only" makes children editable
+    container.innerHTML = `<div contenteditable="plaintext-only"><p id="p16">text</p></div>`;
+    println(`16a: ${document.getElementById("p16").isContentEditable}`);
+
+    // Clean up
+    container.innerHTML = "";
+});
+</script>
