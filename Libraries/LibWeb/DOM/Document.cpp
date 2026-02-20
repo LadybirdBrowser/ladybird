@@ -501,6 +501,7 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
     , m_style_computer(realm.heap().allocate<CSS::StyleComputer>(*this))
     , m_font_computer(realm.heap().allocate<CSS::FontComputer>(*this))
     , m_url(url)
+    , m_fonts(CSS::FontFaceSet::create(realm))
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing)
     , m_editing_host_manager(EditingHostManager::create(realm, *this))
     , m_dynamic_view_transition_style_sheet(parse_css_stylesheet(CSS::Parser::ParsingParams(realm), ""sv, {}))
@@ -2319,9 +2320,7 @@ GC::Ref<HTML::HTMLAllCollection> Document::all()
 // https://drafts.csswg.org/css-font-loading/#font-source
 GC::Ref<CSS::FontFaceSet> Document::fonts()
 {
-    if (!m_fonts)
-        m_fonts = CSS::FontFaceSet::create(realm());
-    return *m_fonts;
+    return m_fonts;
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-document-clear

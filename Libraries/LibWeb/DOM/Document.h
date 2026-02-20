@@ -1243,7 +1243,7 @@ private:
     GC::Ptr<HTML::HTMLAllCollection> m_all;
 
     // https://drafts.csswg.org/css-font-loading/#font-source
-    GC::Ptr<CSS::FontFaceSet> m_fonts;
+    GC::Ref<CSS::FontFaceSet> m_fonts;
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded-time
     Optional<AK::UnixDateTime> m_completely_loaded_time;
