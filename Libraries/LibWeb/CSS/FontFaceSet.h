@@ -41,12 +41,20 @@ public:
 
     JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> load(String const& font, String const& text);
 
+    Vector<GC::Ref<FontFace>>& loading_fonts() { return m_loading_fonts; }
+    Vector<GC::Ref<FontFace>>& loaded_fonts() { return m_loaded_fonts; }
+    Vector<GC::Ref<FontFace>>& failed_fonts() { return m_failed_fonts; }
+
     GC::Ref<WebIDL::Promise> ready() const;
     Bindings::FontFaceSetLoadStatus status() const { return m_status; }
 
-    void resolve_ready_promise();
-
     void on_set_modified_from_js(Badge<Bindings::FontFaceSetPrototype>) { }
+
+    void fire_a_font_load_event(FlyString name, Vector<GC::Ref<FontFace>> = {});
+    void set_is_pending_on_the_environment(bool);
+
+    void switch_to_loading();
+    void switch_to_loaded();
 
 private:
     explicit FontFaceSet(JS::Realm&);
@@ -62,6 +70,11 @@ private:
     Vector<GC::Ref<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
 
     Bindings::FontFaceSetLoadStatus m_status { Bindings::FontFaceSetLoadStatus::Loaded };
+
+    bool m_is_pending_on_the_environment { true };
+
+    // https://drafts.csswg.org/css-font-loading/#fontfaceset-stuck-on-the-environment
+    bool m_is_stuck_on_the_environment { false };
 };
 
 }

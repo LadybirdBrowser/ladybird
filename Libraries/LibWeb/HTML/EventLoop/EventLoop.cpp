@@ -532,10 +532,13 @@ void EventLoop::update_the_rendering()
     }
 
     for (auto& document : docs) {
-        if (document->readiness() == HTML::DocumentReadyState::Complete && document->font_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
-            HTML::TemporaryExecutionContext context(document->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            document->fonts()->resolve_ready_promise();
-        }
+        // https://drafts.csswg.org/css-font-loading/#fontfaceset-pending-on-the-environment
+        // A FontFaceSet is pending on the environment if any of the following are true:
+        // - the document is still loading
+        // - the document has pending stylesheet requests
+        // FIXME: - the document has pending layout operations which might cause the user agent to request a font, or which depend on recently-loaded fonts
+        TemporaryExecutionContext context(document->realm(), TemporaryExecutionContext::CallbacksEnabled::Yes);
+        document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading);
     }
 }
 
