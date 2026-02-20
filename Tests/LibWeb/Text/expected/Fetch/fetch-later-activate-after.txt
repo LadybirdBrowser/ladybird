@@ -1,0 +1,4 @@
+activated before delay elapsed: false
+activated after timeout: true
+cookie observed: true
+PASS

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function throwsTypeError(fn) {
+        try {
+            fn();
+            return false;
+        } catch (error) {
+            return error instanceof TypeError;
+        }
+    }
+
+    function throwsRangeError(fn) {
+        try {
+            fn();
+            return false;
+        } catch (error) {
+            return error instanceof RangeError;
+        }
+    }
+
+    function doesNotThrow(fn) {
+        try {
+            fn();
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    test(() => {
+        let missingRequestValidation = throwsTypeError(() => fetchLater());
+        println(`require request argument: ${missingRequestValidation}`);
+
+        let schemeValidation = throwsTypeError(() => fetchLater("data:text/plain,hello"));
+        println(`reject data: scheme: ${schemeValidation}`);
+
+        let trustworthinessValidation = throwsTypeError(() => fetchLater("http://example.com/"));
+        println(`reject non-trustworthy http: ${trustworthinessValidation}`);
+
+        let localhostValidation = doesNotThrow(() => fetchLater("http://localhost/"));
+        println(`accept localhost http: ${localhostValidation}`);
+
+        let loopbackValidation = doesNotThrow(() => fetchLater("http://127.0.0.1/"));
+        println(`accept loopback http: ${loopbackValidation}`);
+
+        let negativeActivateAfterValidation = throwsRangeError(() => fetchLater("https://example.com/", { activateAfter: -1 }));
+        println(`reject negative activateAfter: ${negativeActivateAfterValidation}`);
+
+        let abortedSignalValidation = false;
+        try {
+            let controller = new AbortController();
+            controller.abort();
+            fetchLater("https://example.com/", { signal: controller.signal });
+        } catch (error) {
+            abortedSignalValidation = error.name === "AbortError";
+        }
+        println(`reject initially aborted signal: ${abortedSignalValidation}`);
+
+        let baselineSuccess = true;
+        try {
+            fetchLater("https://example.com/", { method: "POST", body: "ok" });
+        } catch (error) {
+            baselineSuccess = false;
+        }
+        println(`accept normal request: ${baselineSuccess}`);
+        println(missingRequestValidation && schemeValidation && trustworthinessValidation && localhostValidation && loopbackValidation && negativeActivateAfterValidation && abortedSignalValidation && baselineSuccess ? "PASS" : "FAIL");
+    });
+</script>

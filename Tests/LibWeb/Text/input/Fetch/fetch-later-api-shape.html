@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            let result = fetchLater("https://example.com/");
+            let activatedIsReadonly = false;
+            try {
+                (function() {
+                    "use strict";
+                    result.activated = true;
+                })();
+            } catch (error) {
+                activatedIsReadonly = error instanceof TypeError;
+            }
+            println(`typeof fetchLater: ${typeof fetchLater}`);
+            println(`result instanceof FetchLaterResult: ${result instanceof FetchLaterResult}`);
+            println(`typeof result.activated: ${typeof result.activated}`);
+            println(`result.activated is readonly: ${activatedIsReadonly}`);
+            println(result.activated === false && activatedIsReadonly ? "PASS" : "FAIL");
+        } catch (error) {
+            println(`FAIL - ${error}`);
+        }
+    });
+</script>

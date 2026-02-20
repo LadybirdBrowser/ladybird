@@ -1,0 +1,4 @@
+all cookies observed after iframe unload: true
+cookies observed before iframe unload: false
+activated count before iframe unload: 0
+PASS

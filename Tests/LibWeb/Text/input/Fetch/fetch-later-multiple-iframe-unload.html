@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="fetch-later-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        try {
+            let server = httpTestServer();
+            let token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            let checkUrl = await server.createEcho("GET", `/fetch-later-multiple-unload-check-${token}`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Allow-Credentials": "true",
+                },
+                reflect_headers_in_body: true,
+            });
+            let urls = [];
+            let cookies = [];
+            for (let i = 1; i <= 3; i++) {
+                let cookieName = `fetchlater_multi_${i}_${token.replace("-", "_")}`;
+                cookies.push(cookieName);
+                urls.push(await server.createEcho("POST", `/fetch-later-multiple-unload-set-${i}-${token}`, {
+                    status: 204,
+                    headers: {
+                        "Access-Control-Allow-Origin": location.origin,
+                        "Access-Control-Allow-Credentials": "true",
+                        "Set-Cookie": `${cookieName}=1; Path=/`,
+                    },
+                }));
+            }
+
+            let iframe = document.createElement("iframe");
+            iframe.srcdoc = `
+<!DOCTYPE html>
+<script>
+    let results = [
+        fetchLater(${JSON.stringify(urls[0])}, { method: "POST", credentials: "include", body: "one", activateAfter: 10000 }),
+        fetchLater(${JSON.stringify(urls[1])}, { method: "POST", credentials: "include", body: "two", activateAfter: 8000 }),
+        fetchLater(${JSON.stringify(urls[2])}, { method: "POST", credentials: "include", body: "three", activateAfter: 6000 }),
+    ];
+    parent.postMessage({ type: "fetch-later-queued", activatedCount: results.filter(result => result.activated).length }, "*");
+<\/script>`;
+            document.body.appendChild(iframe);
+
+            let message = await waitForMessage("fetch-later-queued");
+            let observedBeforeUnload = await waitForCookies(checkUrl, cookies, 500);
+            iframe.remove();
+            let observedCookies = await waitForCookies(checkUrl, cookies);
+            let allObserved = [...observedCookies.values()].every(observed => observed);
+            println(`all cookies observed after iframe unload: ${allObserved}`);
+            println(`cookies observed before iframe unload: ${anyCookiesObserved(observedBeforeUnload)}`);
+            println(`activated count before iframe unload: ${message.activatedCount}`);
+            println(allObserved && !anyCookiesObserved(observedBeforeUnload) && message.activatedCount === 0 ? "PASS" : "FAIL");
+        } catch (error) {
+            println(`FAIL - ${error}`);
+        }
+    });
+</script>
