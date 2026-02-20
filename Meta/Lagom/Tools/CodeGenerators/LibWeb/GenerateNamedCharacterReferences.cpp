@@ -277,7 +277,7 @@ private:
             for (int i = 0; i < 128; i++) {
                 hash ^= ptr_hash(node->m_children[i].ptr());
             }
-            hash ^= int_hash(static_cast<u32>(node->m_is_terminal));
+            hash ^= u32_hash(static_cast<u32>(node->m_is_terminal));
             return hash;
         }
         static bool equals(NonnullRefPtr<Node> const& a, NonnullRefPtr<Node> const& b)

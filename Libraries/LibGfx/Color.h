@@ -749,7 +749,7 @@ class Traits<Color> : public DefaultTraits<Color> {
 public:
     static unsigned hash(Color const& color)
     {
-        return int_hash(color.value());
+        return u32_hash(color.value());
     }
 };
 

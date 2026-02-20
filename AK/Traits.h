@@ -46,7 +46,7 @@ struct Traits<T> : public DefaultTraits<T> {
     static unsigned hash(T value)
     {
         if constexpr (sizeof(T) < 8)
-            return int_hash(value);
+            return u32_hash(value);
         else
             return u64_hash(value);
     }
@@ -60,7 +60,7 @@ struct Traits<T> : public DefaultTraits<T> {
     static unsigned hash(T value)
     {
         if constexpr (sizeof(T) < 8)
-            return int_hash(bit_cast<u32>(value));
+            return u32_hash(bit_cast<u32>(value));
         else
             return u64_hash(bit_cast<u64>(value));
     }

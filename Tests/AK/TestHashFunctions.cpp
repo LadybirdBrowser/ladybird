@@ -9,22 +9,22 @@
 #include <AK/HashFunctions.h>
 #include <AK/Types.h>
 
-TEST_CASE(int_hash)
+TEST_CASE(u32_hash)
 {
-    static_assert(int_hash(42) == 3564735745u);
-    static_assert(int_hash(0) == 1177991625u);
+    static_assert(u32_hash(42) == 142593372u);
+    static_assert(u32_hash(0) == 0u);
 }
 
 TEST_CASE(pair_int_hash)
 {
-    static_assert(pair_int_hash(42, 17) == 339337046u);
-    static_assert(pair_int_hash(0, 0) == 954888656u);
+    static_assert(pair_int_hash(42, 17) == 1110885963u);
+    static_assert(pair_int_hash(0, 0) == 0u);
 }
 
 TEST_CASE(u64_hash)
 {
-    static_assert(u64_hash(42) == 2824066580u);
-    static_assert(u64_hash(0) == 954888656u);
+    static_assert(u64_hash(42) == 2386713036u);
+    static_assert(u64_hash(0) == 0u);
 }
 
 TEST_CASE(ptr_hash)
@@ -32,17 +32,17 @@ TEST_CASE(ptr_hash)
     // These tests are not static_asserts because the values are
     // different and the goal is to bind the behavior.
     if constexpr (sizeof(FlatPtr) == 8) {
-        EXPECT_EQ(ptr_hash(FlatPtr(42)), 2824066580u);
-        EXPECT_EQ(ptr_hash(FlatPtr(0)), 954888656u);
+        EXPECT_EQ(ptr_hash(FlatPtr(42)), 2386713036u);
+        EXPECT_EQ(ptr_hash(FlatPtr(0)), 0u);
 
-        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(42)), 2824066580u);
-        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(0)), 954888656u);
+        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(42)), 2386713036u);
+        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(0)), 0u);
     } else {
-        EXPECT_EQ(ptr_hash(FlatPtr(42)), 3564735745u);
-        EXPECT_EQ(ptr_hash(FlatPtr(0)), 1177991625u);
+        EXPECT_EQ(ptr_hash(FlatPtr(42)), 142593372u);
+        EXPECT_EQ(ptr_hash(FlatPtr(0)), 0u);
 
-        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(42)), 3564735745u);
-        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(0)), 1177991625u);
+        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(42)), 142593372u);
+        EXPECT_EQ(ptr_hash(reinterpret_cast<void const*>(0)), 0u);
     }
 }
 

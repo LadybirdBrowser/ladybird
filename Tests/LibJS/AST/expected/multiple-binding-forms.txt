@@ -87,10 +87,10 @@ Program (script) @4:1
 │        │     ├─ BindingPattern (array)
 │        │     │  ├─ entry
 │        │     │  │  └─ alias
-│        │     │  │     └─ Identifier "a" [variable:2] @28:9
+│        │     │  │     └─ Identifier "a" [variable:1] @28:9
 │        │     │  └─ entry
 │        │     │     └─ alias
-│        │     │        └─ Identifier "b" [variable:3] @28:9
+│        │     │        └─ Identifier "b" [variable:4] @28:9
 │        │     └─ ArrayExpression @28:18
 │        │        ├─ NumericLiteral 1 @28:19
 │        │        └─ NumericLiteral 2 @28:22
@@ -99,10 +99,10 @@ Program (script) @4:1
 │        │     ├─ BindingPattern (object)
 │        │     │  ├─ entry
 │        │     │  │  └─ name
-│        │     │  │     └─ Identifier "c" [variable:1] @29:11
+│        │     │  │     └─ Identifier "c" [variable:3] @29:11
 │        │     │  └─ entry
 │        │     │     └─ name
-│        │     │        └─ Identifier "d" [variable:4] @29:11
+│        │     │        └─ Identifier "d" [variable:2] @29:11
 │        │     └─ ObjectExpression @29:22
 │        │        ├─ ObjectProperty @29:22
 │        │        │  ├─ StringLiteral "c" @29:22
@@ -129,10 +129,10 @@ Program (script) @4:1
 │              │  ├─ BinaryExpression (+) @31:22
 │              │  │  ├─ BinaryExpression (+) @31:18
 │              │  │  │  ├─ BinaryExpression (+) @31:14
-│              │  │  │  │  ├─ Identifier "a" [variable:2] @31:12
-│              │  │  │  │  └─ Identifier "b" [variable:3] @31:16
-│              │  │  │  └─ Identifier "c" [variable:1] @31:20
-│              │  │  └─ Identifier "d" [variable:4] @31:24
+│              │  │  │  │  ├─ Identifier "a" [variable:1] @31:12
+│              │  │  │  │  └─ Identifier "b" [variable:4] @31:16
+│              │  │  │  └─ Identifier "c" [variable:3] @31:20
+│              │  │  └─ Identifier "d" [variable:2] @31:24
 │              │  └─ Identifier "e" [variable:0] @31:28
 │              └─ MemberExpression [computed] @31:33
 │                 ├─ Identifier "f" [variable:5] @31:32
