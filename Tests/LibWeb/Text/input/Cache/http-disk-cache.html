@@ -79,12 +79,23 @@
 
         options.headers[TEST_CACHE_ENABLED_HEADER] = "1";
 
-        return fetch(url, {
+        const response = await fetch(url, {
             method: options.method,
             headers: options.headers,
             cache: options.cache,
             mode: "cors",
         });
+
+        if (response.ok) {
+            const body = await response.text();
+
+            if (body.length === 0) {
+                println(`Expected non-empty response body for ${url}. Did http-test-server.py crash?`);
+                anyTestFailed = true;
+            }
+        }
+
+        return response;
     }
 
     function expectHttpStatus(url, response, status) {
@@ -440,14 +451,12 @@
                 },
             });
 
-            response = await cacheFetch(url, {
-                headers: {
-                    [TEST_CACHE_RESPOND_WITH_INCOMPLETE_RESPONSE]: "1",
-                },
-            });
-
             try {
-                await response.text();
+                response = await cacheFetch(url, {
+                    headers: {
+                        [TEST_CACHE_RESPOND_WITH_INCOMPLETE_RESPONSE]: "1",
+                    },
+                });
 
                 println(`Expected ${url} to result in an error while reading the response body`);
                 anyTestFailed = true;
@@ -470,7 +479,7 @@
 
             response = await cacheFetch(url, {
                 headers: {
-                    Range: "0-10",
+                    Range: "bytes=0-10",
                 },
             });
             expectCacheStatus(url, response, "not-cached");
