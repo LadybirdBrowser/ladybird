@@ -80,7 +80,7 @@ struct FontFeatureData {
     FontKerning font_kerning;
     TextRendering text_rendering;
 
-    Gfx::ShapeFeatures to_shape_features() const;
+    Gfx::ShapeFeatures to_shape_features(HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const;
 
     bool operator==(FontFeatureData const& other) const = default;
 };

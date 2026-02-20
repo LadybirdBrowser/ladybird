@@ -104,6 +104,35 @@ String CSSFontFeatureValuesRule::serialized() const
     return builder.to_string_without_validation();
 }
 
+HashMap<FontFeatureValueKey, Vector<u32>> CSSFontFeatureValuesRule::to_hash_map() const
+{
+    HashMap<FontFeatureValueKey, Vector<u32>> map;
+
+    for (auto const& [key, value] : m_annotation->to_ordered_hash_map())
+        map.set({ FontFeatureValueType::Annotation, key }, value);
+
+    for (auto const& [key, value] : m_ornaments->to_ordered_hash_map())
+        map.set({ FontFeatureValueType::Ornaments, key }, value);
+
+    for (auto const& [key, value] : m_stylistic->to_ordered_hash_map())
+        map.set({ FontFeatureValueType::Stylistic, key }, value);
+
+    for (auto const& [key, value] : m_swash->to_ordered_hash_map())
+        map.set({ FontFeatureValueType::Swash, key }, value);
+
+    for (auto const& [key, value] : m_character_variant->to_ordered_hash_map())
+        map.set({ FontFeatureValueType::CharacterVariant, key }, value);
+
+    for (auto const& [key, value] : m_styleset->to_ordered_hash_map())
+        map.set({ FontFeatureValueType::Styleset, key }, value);
+
+    // NB: We don't include historical-forms since it can't be referenced - it seems like it's inclusion in the syntax
+    //     for @font-feature-values was a mistake and isn't supported by Chrome or Firefox. See
+    //     https://github.com/w3c/csswg-drafts/issues/9926#issuecomment-2017241274
+
+    return map;
+}
+
 void CSSFontFeatureValuesRule::clear_dependent_caches()
 {
     auto const* parent_style_sheet = this->parent_style_sheet();
@@ -118,6 +147,7 @@ void CSSFontFeatureValuesRule::clear_dependent_caches()
 
     for (auto const& family : m_font_families) {
         document->font_computer().clear_computed_font_cache(family);
+        document->font_computer().clear_font_feature_values_cache(family);
     }
 }
 
