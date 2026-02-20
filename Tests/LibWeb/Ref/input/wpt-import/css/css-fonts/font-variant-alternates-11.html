@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test:  font-variant-alternates: character-variant(); low level equivalence</title>
+<link rel="author" title="Chris Lilley" href="chris@w3.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-variant-alternates-11-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-variant-alternates-prop">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-feature-settings-prop">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-feature-values">
+<meta name="assert" content="Enables display of specific character variants (font specific, OpenType feature: cv&lt;feature-index&gt;">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(support/fonts/FontWithFancyFeatures.otf);
+  }
+  @font-feature-values fwf {
+    @character-variant {
+      foo: 1;
+      bar: 2;
+      baz: 3;
+    }
+  }
+  .test {
+	  font-family: fwf;
+	  font-size: 2em;
+	  line-height: 1.1;
+  }
+  .high {
+	 font-variant-alternates: character-variant(baz);
+  }
+  .low {
+   font-feature-settings: "hist" off, "salt" 00, "ss01" off, "ss02" off, "ss03" off,
+    "cv01" off, "cv02" off, "cv03" on,  "swsh" 00, "cswh" 00, "ornm" 00, "nalt" 00;
+  }
+</style>
+<body>
+
+<p>Test passes if the three lines below are identical, with nine crosses (✗), one check mark (✓) followed by ten crosses (✗). </p>
+<section class="test">
+  <p class="high">Xnophijklmqrstuvwxyz</p>
+  <p class="low">Xnophijklmqrstuvwxyz</p>
+  <p class="ref">BBBBBBBBBABBBBBBBBBB</p>
+</section>
