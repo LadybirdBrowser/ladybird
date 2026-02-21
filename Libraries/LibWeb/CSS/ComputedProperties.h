@@ -184,7 +184,7 @@ public:
     GridTrackPlacement grid_row_start() const;
     BorderCollapse border_collapse() const;
     CSS::EmptyCells empty_cells() const;
-    Vector<Vector<String>> grid_template_areas() const;
+    GridTemplateAreas grid_template_areas() const;
     ObjectFit object_fit() const;
     Position object_position() const;
     TableLayout table_layout() const;

@@ -1737,10 +1737,11 @@ EmptyCells ComputedProperties::empty_cells() const
     return keyword_to_empty_cells(value.to_keyword()).release_value();
 }
 
-Vector<Vector<String>> ComputedProperties::grid_template_areas() const
+GridTemplateAreas ComputedProperties::grid_template_areas() const
 {
     auto const& value = property(PropertyID::GridTemplateAreas);
-    return value.as_grid_template_area().grid_template_area();
+    auto const& style_value = value.as_grid_template_area();
+    return { style_value.grid_areas(), style_value.row_count(), style_value.column_count() };
 }
 
 ObjectFit ComputedProperties::object_fit() const
