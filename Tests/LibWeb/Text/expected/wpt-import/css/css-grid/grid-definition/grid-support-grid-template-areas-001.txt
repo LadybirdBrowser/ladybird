@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 45 tests
 
-36 Pass
-9 Fail
+45 Pass
 Pass	'grid' with: grid-template-areas: none;
 Pass	'grid' with: grid-template-areas: "a";
 Pass	'grid' with: grid-template-areas: ".";
@@ -41,12 +40,12 @@ Pass	'grid' with: grid-template-areas: "a b c" "d e";
 Pass	'grid' with: grid-template-areas: "a b"-"c d";
 Pass	'grid' with: grid-template-areas: "a b" - "c d";
 Pass	'grid' with: grid-template-areas: "a b" . "c d";
-Fail	'grid' with: grid-template-areas: "a b a";
-Fail	'grid' with: grid-template-areas: "a" "b" "a";
-Fail	'grid' with: grid-template-areas: "a b" "b b";
-Fail	'grid' with: grid-template-areas: "b a" "b b";
-Fail	'grid' with: grid-template-areas: "a b" "b a";
-Fail	'grid' with: grid-template-areas: "a ." ". a";
-Fail	'grid' with: grid-template-areas: ",";
-Fail	'grid' with: grid-template-areas: "10%";
-Fail	'grid' with: grid-template-areas: "USD$";
+Pass	'grid' with: grid-template-areas: "a b a";
+Pass	'grid' with: grid-template-areas: "a" "b" "a";
+Pass	'grid' with: grid-template-areas: "a b" "b b";
+Pass	'grid' with: grid-template-areas: "b a" "b b";
+Pass	'grid' with: grid-template-areas: "a b" "b a";
+Pass	'grid' with: grid-template-areas: "a ." ". a";
+Pass	'grid' with: grid-template-areas: ",";
+Pass	'grid' with: grid-template-areas: "10%";
+Pass	'grid' with: grid-template-areas: "USD$";

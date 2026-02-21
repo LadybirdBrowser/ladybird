@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/Size.h>
@@ -71,6 +72,24 @@ struct GridLineName {
     bool implicit { false };
 
     bool operator==(GridLineName const& other) const = default;
+};
+
+struct GridArea {
+    size_t row_start { 0 };
+    size_t row_end { 1 };
+    size_t column_start { 0 };
+    size_t column_end { 1 };
+
+    bool operator==(GridArea const& other) const = default;
+};
+
+struct GridTemplateAreas {
+    HashMap<String, GridArea> areas;
+    size_t row_count { 0 };
+    size_t column_count { 0 };
+
+    bool is_empty() const { return row_count == 0; }
+    bool operator==(GridTemplateAreas const& other) const = default;
 };
 
 class GridLineNames {

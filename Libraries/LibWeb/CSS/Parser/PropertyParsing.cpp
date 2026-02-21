@@ -5160,7 +5160,7 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
 {
     // none | <string>+
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-        return GridTemplateAreaStyleValue::create({});
+        return GridTemplateAreaStyleValue::create({}, 0, 0);
 
     auto is_full_stop = [](u32 code_point) {
         return code_point == '.';
@@ -5213,10 +5213,54 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
         tokens.discard_whitespace();
     }
 
-    // FIXME: If a named grid area spans multiple grid cells, but those cells do not form a single filled-in rectangle, the declaration is invalid.
+    // https://www.w3.org/TR/css-grid-2/#grid-template-areas-property
+    // If a named grid area spans multiple grid cells, but those cells do not form a single
+    // filled-in rectangle, the declaration is invalid.
+
+    // Pre-compute occurrence counts for each named area.
+    HashMap<String, size_t> name_counts;
+    for (auto const& row : grid_area_rows) {
+        for (auto const& cell : row) {
+            if (cell != "."sv)
+                name_counts.set(cell, name_counts.get(cell).value_or(0) + 1);
+        }
+    }
+
+    HashMap<String, GridArea> grid_areas;
+    for (size_t y = 0; y < grid_area_rows.size(); y++) {
+        for (size_t x = 0; x < grid_area_rows[y].size(); x++) {
+            auto const& name = grid_area_rows[y][x];
+            if (name == "."sv)
+                continue;
+            if (grid_areas.contains(name))
+                continue;
+
+            size_t x_end = x;
+            while (x_end < grid_area_rows[y].size() && grid_area_rows[y][x_end] == name)
+                x_end++;
+            size_t y_end = y;
+            while (y_end < grid_area_rows.size() && grid_area_rows[y_end][x] == name)
+                y_end++;
+
+            // Verify the bounding rectangle is fully filled with this name.
+            size_t expected_count = (x_end - x) * (y_end - y);
+            for (size_t check_y = y; check_y < y_end; check_y++) {
+                for (size_t check_x = x; check_x < x_end; check_x++) {
+                    if (grid_area_rows[check_y][check_x] != name)
+                        return nullptr;
+                }
+            }
+
+            // Verify there are no occurrences of this name outside the rectangle.
+            if (name_counts.get(name).value_or(0) != expected_count)
+                return nullptr;
+
+            grid_areas.set(name, { y, y_end, x, x_end });
+        }
+    }
 
     transaction.commit();
-    return GridTemplateAreaStyleValue::create(grid_area_rows);
+    return GridTemplateAreaStyleValue::create(move(grid_areas), grid_area_rows.size(), column_count.value_or(0));
 }
 
 RefPtr<StyleValue const> Parser::parse_grid_auto_track_sizes(TokenStream<ComponentValue>& tokens)

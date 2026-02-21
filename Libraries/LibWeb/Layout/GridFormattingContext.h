@@ -209,15 +209,6 @@ private:
         static GridTrack create_gap(CSSPixels size);
     };
 
-    struct GridArea {
-        String name;
-        size_t row_start { 0 };
-        size_t row_end { 1 };
-        size_t column_start { 0 };
-        size_t column_end { 1 };
-        bool invalid { false }; /* FIXME: Ignore ignore invalid areas during layout */
-    };
-
     Vector<Vector<CSS::GridLineName>> m_row_lines;
     Vector<Vector<CSS::GridLineName>> m_column_lines;
 

@@ -1389,47 +1389,15 @@ void GridFormattingContext::run_track_sizing(GridDimension dimension)
 
 void GridFormattingContext::build_grid_areas()
 {
-    // https://www.w3.org/TR/css-grid-2/#grid-template-areas-property
-    // If a named grid area spans multiple grid cells, but those cells do not form a single
-    // filled-in rectangle, the declaration is invalid.
-    auto const& rows = grid_container().computed_values().grid_template_areas();
-
-    HashMap<String, GridArea> grid_areas;
-
-    auto find_area_rectangle = [&](size_t x_start, size_t y_start, String const& name) {
-        bool invalid = false;
-        size_t x_end = x_start;
-        size_t y_end = y_start;
-        while (x_end < rows[y_start].size() && rows[y_start][x_end] == name)
-            x_end++;
-        while (y_end < rows.size() && rows[y_end][x_start] == name)
-            y_end++;
-        for (size_t y = y_start; y < y_end; y++) {
-            for (size_t x = x_start; x < x_end; x++) {
-                if (rows[y][x] != name) {
-                    // If a named grid area spans multiple grid cells, but those cells do not form a single filled-in rectangle, the declaration is invalid.
-                    invalid = true;
-                    break;
-                }
-            }
-        }
-        grid_areas.set(name, { name, y_start, y_end, x_start, x_end, invalid });
-    };
-
-    for (size_t y = 0; y < rows.size(); y++) {
-        for (size_t x = 0; x < rows[y].size(); x++) {
-            auto name = rows[y][x];
-            if (auto grid_area = grid_areas.get(name); grid_area.has_value())
-                continue;
-            find_area_rectangle(x, y, name);
-        }
-    }
+    auto const& grid_template_areas = grid_container().computed_values().grid_template_areas();
+    if (grid_template_areas.is_empty())
+        return;
 
     size_t max_column_line_index_of_area = 0;
     size_t max_row_line_index_of_area = 0;
-    for (auto const& grid_area : grid_areas) {
-        max_column_line_index_of_area = max(max_column_line_index_of_area, grid_area.value.column_end);
-        max_row_line_index_of_area = max(max_row_line_index_of_area, grid_area.value.row_end);
+    for (auto const& [name, area] : grid_template_areas.areas) {
+        max_column_line_index_of_area = max(max_column_line_index_of_area, area.column_end);
+        max_row_line_index_of_area = max(max_row_line_index_of_area, area.row_end);
     }
 
     if (max_column_line_index_of_area >= m_column_lines.size())
@@ -1443,12 +1411,11 @@ void GridFormattingContext::build_grid_areas()
     // template. For each named grid area foo, four implicitly-assigned line names are created: two named foo-start,
     // naming the row-start and column-start lines of the named grid area, and two named foo-end, naming the row-end
     // and column-end lines of the named grid area.
-    for (auto const& it : grid_areas) {
-        auto const& grid_area = it.value;
-        m_column_lines[grid_area.column_start].append({ .name = MUST(String::formatted("{}-start", grid_area.name)), .implicit = true });
-        m_column_lines[grid_area.column_end].append({ .name = MUST(String::formatted("{}-end", grid_area.name)), .implicit = true });
-        m_row_lines[grid_area.row_start].append({ .name = MUST(String::formatted("{}-start", grid_area.name)), .implicit = true });
-        m_row_lines[grid_area.row_end].append({ .name = MUST(String::formatted("{}-end", grid_area.name)), .implicit = true });
+    for (auto const& [name, area] : grid_template_areas.areas) {
+        m_column_lines[area.column_start].append({ .name = MUST(String::formatted("{}-start", name)), .implicit = true });
+        m_column_lines[area.column_end].append({ .name = MUST(String::formatted("{}-end", name)), .implicit = true });
+        m_row_lines[area.row_start].append({ .name = MUST(String::formatted("{}-start", name)), .implicit = true });
+        m_row_lines[area.row_end].append({ .name = MUST(String::formatted("{}-end", name)), .implicit = true });
     }
 }
 
