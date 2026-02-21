@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/LexicalPath.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/File.h>
 #include <LibCore/MimeData.h>
