@@ -8,7 +8,6 @@
 
 #include <AK/HashMap.h>
 #include <AK/IntrusiveList.h>
-#include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapRoot.h>
