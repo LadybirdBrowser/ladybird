@@ -9,10 +9,7 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/Noncopyable.h>
-#include <AK/OwnPtr.h>
 #include <AK/StringView.h>
-#include <AK/Vector.h>
 #include <LibCore/AddressInfoVector.h>
 #include <fcntl.h>
 #include <signal.h>
