@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>

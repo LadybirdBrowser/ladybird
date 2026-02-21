@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/RefCounted.h>
 #include <LibGfx/Font/FontData.h>
