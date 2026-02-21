@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/Noncopyable.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
