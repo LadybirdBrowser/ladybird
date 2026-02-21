@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <AK/RefCounted.h>
