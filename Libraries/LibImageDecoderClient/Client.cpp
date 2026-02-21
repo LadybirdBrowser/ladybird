@@ -16,14 +16,20 @@ Client::Client(NonnullOwnPtr<IPC::Transport> transport)
 
 void Client::die()
 {
-    for (auto& [_, promise] : m_pending_decoded_images) {
+    verify_thread_affinity();
+    Vector<NonnullRefPtr<Core::Promise<DecodedImage>>> pending_promises;
+    pending_promises.ensure_capacity(m_token_promises.size());
+    for (auto& [_, promise] : m_token_promises)
+        pending_promises.unchecked_append(promise);
+    m_token_promises.clear();
+
+    for (auto& promise : pending_promises)
         promise->reject(Error::from_string_literal("ImageDecoder disconnected"));
-    }
-    m_pending_decoded_images.clear();
 }
 
 NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes encoded_data, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
+    verify_thread_affinity();
     auto promise = Core::Promise<DecodedImage>::construct();
     if (on_resolved)
         promise->on_resolution = move(on_resolved);
@@ -45,26 +51,24 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
 
     memcpy(encoded_buffer.data<void>(), encoded_data.data(), encoded_data.size());
 
-    auto response = send_sync_but_allow_failure<Messages::ImageDecoderServer::DecodeImage>(move(encoded_buffer), ideal_size, mime_type);
-    if (!response) {
-        dbgln("ImageDecoder disconnected trying to decode image");
-        promise->reject(Error::from_string_literal("ImageDecoder disconnected"));
-        return promise;
-    }
+    i64 request_token = m_next_request_token++;
+    m_token_promises.set(request_token, promise);
 
-    m_pending_decoded_images.set(response->image_id(), promise);
+    async_decode_image(encoded_buffer, ideal_size, mime_type, request_token);
 
     return promise;
 }
 
-void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id)
+void Client::did_decode_image(i64 request_token, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id)
 {
+    verify_thread_affinity();
     auto bitmaps = move(bitmap_sequence.bitmaps);
     VERIFY(!bitmaps.is_empty());
 
-    auto maybe_promise = m_pending_decoded_images.take(image_id);
+    Optional<NonnullRefPtr<Core::Promise<DecodedImage>>> maybe_promise = m_token_promises.take(request_token);
+
     if (!maybe_promise.has_value()) {
-        dbgln("ImageDecoderClient: No pending image with ID {}", image_id);
+        dbgln("ImageDecoderClient: No pending image with request token {}", request_token);
         return;
     }
     auto promise = maybe_promise.release_value();
@@ -86,7 +90,7 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
 
     for (size_t i = 0; i < bitmaps.size(); ++i) {
         if (!bitmaps[i]) {
-            dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", image_id, i);
+            dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", request_token, i);
             promise->reject(Error::from_string_literal("Invalid bitmap"));
             return;
         }
@@ -98,22 +102,25 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
     promise->resolve(move(image));
 }
 
-void Client::did_fail_to_decode_image(i64 image_id, String error_message)
+void Client::did_fail_to_decode_image(i64 request_token, String error_message)
 {
-    auto maybe_promise = m_pending_decoded_images.take(image_id);
+    verify_thread_affinity();
+    Optional<NonnullRefPtr<Core::Promise<DecodedImage>>> maybe_promise = m_token_promises.take(request_token);
+
     if (!maybe_promise.has_value()) {
-        dbgln("ImageDecoderClient: No pending image with ID {}", image_id);
+        dbgln("ImageDecoderClient: No pending image with request token {}", request_token);
         return;
     }
     auto promise = maybe_promise.release_value();
 
-    dbgln("ImageDecoderClient: Failed to decode image with ID {}: {}", image_id, error_message);
+    dbgln("ImageDecoderClient: Failed to decode image with request token {}: {}", request_token, error_message);
     // FIXME: Include the error message in the Error object when Errors are allowed to hold Strings
     promise->reject(Error::from_string_literal("Image decoding failed or aborted"));
 }
 
 void Client::did_decode_animation_frames(i64 session_id, Gfx::BitmapSequence bitmap_sequence)
 {
+    verify_thread_affinity();
     if (!on_animation_frames_decoded)
         return;
 
@@ -129,17 +136,20 @@ void Client::did_decode_animation_frames(i64 session_id, Gfx::BitmapSequence bit
 
 void Client::did_fail_animation_decode(i64 session_id, String error_message)
 {
+    verify_thread_affinity();
     if (on_animation_decode_failed)
         on_animation_decode_failed(session_id, move(error_message));
 }
 
 void Client::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
 {
+    verify_thread_affinity();
     async_request_animation_frames(session_id, start_frame_index, count);
 }
 
 void Client::stop_animation_decode(i64 session_id)
 {
+    verify_thread_affinity();
     async_stop_animation_decode(session_id);
 }
 
