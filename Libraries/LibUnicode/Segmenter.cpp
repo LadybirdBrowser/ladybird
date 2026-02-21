@@ -155,10 +155,10 @@ public:
 
         UText utext = UTEXT_INITIALIZER;
         utext_openUTF8(&utext, view.characters_without_null_termination(), static_cast<i64>(view.length()), &status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
 
         m_segmenter->setText(&utext, status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
 
         utext_close(&utext);
     }
@@ -334,7 +334,7 @@ NonnullOwnPtr<Segmenter> Segmenter::create(StringView locale, SegmenterGranulari
         VERIFY_NOT_REACHED();
     }());
 
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     return make<SegmenterImpl>(segmenter.release_nonnull(), segmenter_granularity);
 }

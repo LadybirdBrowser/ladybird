@@ -45,7 +45,7 @@ static NonnullOwnPtr<icu::Locale> apply_usage_to_locale(icu::Locale const& local
         break;
     }
 
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
     return result;
 }
 
@@ -97,12 +97,12 @@ static Sensitivity sensitivity_for_collator(icu::Collator const& collator)
     UErrorCode status = U_ZERO_ERROR;
 
     auto attribute = collator.getAttribute(UCOL_STRENGTH, status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     switch (attribute) {
     case UCOL_PRIMARY:
         attribute = collator.getAttribute(UCOL_CASE_LEVEL, status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
 
         return attribute == UCOL_ON ? Sensitivity::Case : Sensitivity::Base;
 
@@ -156,7 +156,7 @@ static bool ignore_punctuation_for_collator(icu::Collator const& collator)
     UErrorCode status = U_ZERO_ERROR;
 
     auto attribute = collator.getAttribute(UCOL_ALTERNATE_HANDLING, status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     return attribute == UCOL_SHIFTED;
 }
@@ -176,7 +176,7 @@ public:
         auto rhs_it = icu_string_iterator(rhs);
 
         auto result = m_collator->compare(lhs_it, rhs_it, status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
 
         switch (result) {
         case UCOL_LESS:
@@ -221,11 +221,11 @@ NonnullOwnPtr<Collator> Collator::create(
     auto locale_with_usage = apply_usage_to_locale(locale_data->locale(), usage, collation);
 
     auto collator = adopt_own(*icu::Collator::createInstance(*locale_with_usage, status));
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     auto set_attribute = [&](UColAttribute attribute, UColAttributeValue value) {
         collator->setAttribute(attribute, value, status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
     };
 
     if (!sensitivity.has_value())

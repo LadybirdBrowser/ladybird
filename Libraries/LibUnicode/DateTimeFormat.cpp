@@ -625,7 +625,7 @@ static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::
     auto time_zone_data = TimeZoneData::for_time_zone(time_zone_identifier);
 
     auto* calendar = icu::Calendar::createInstance(time_zone_data->time_zone(), locale, status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     if (calendar->getDynamicClassID() == icu::GregorianCalendar::getStaticClassID()) {
         // https://tc39.es/ecma262/#sec-time-values-and-time-range
@@ -634,7 +634,7 @@ static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::
 
         auto* gregorian_calendar = static_cast<icu::GregorianCalendar*>(calendar);
         gregorian_calendar->setGregorianChange(ECMA_262_MINIMUM_TIME, status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
     }
 
     formatter.adoptCalendar(calendar);
@@ -903,16 +903,16 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
     formatter->toPattern(pattern);
 
     auto skeleton = icu::DateTimePatternGenerator::staticGetSkeleton(pattern, status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     if (apply_hour_cycle_to_skeleton(skeleton, hour_cycle, hour12)) {
         pattern = locale_data->date_time_pattern_generator().getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
 
         apply_hour_cycle_to_skeleton(pattern, hour_cycle, hour12);
 
         formatter = adopt_own(*new icu::SimpleDateFormat(pattern, locale_data->locale(), status));
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
     }
 
     return adopt_own(*new DateTimeFormatImpl(locale_data->locale(), pattern, time_zone_identifier, move(formatter)));
@@ -930,12 +930,12 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
 
     auto skeleton = icu_string(options.to_pattern());
     auto pattern = locale_data->date_time_pattern_generator().getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     apply_hour_cycle_to_skeleton(pattern, options.hour_cycle, {});
 
     auto formatter = adopt_own(*new icu::SimpleDateFormat(pattern, locale_data->locale(), status));
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     return adopt_own(*new DateTimeFormatImpl(locale_data->locale(), pattern, time_zone_identifier, move(formatter)));
 }
