@@ -40,11 +40,6 @@ GC::Ref<ImportMapParseResult> ImportMapParseResult::create(JS::Realm& realm, Byt
     return result;
 }
 
-void ImportMapParseResult::visit_host_defined_self(Visitor& visitor)
-{
-    visitor.visit(*this);
-}
-
 void ImportMapParseResult::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);

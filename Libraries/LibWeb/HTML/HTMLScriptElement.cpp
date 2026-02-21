@@ -48,8 +48,10 @@ void HTMLScriptElement::initialize(JS::Realm& realm)
 void HTMLScriptElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    if (auto* script = m_result.get_pointer<GC::Ref<Script>>())
-        visitor.visit(*script);
+    m_result.visit(
+        [](ResultState::Uninitialized) {},
+        [](ResultState::Null) {},
+        [&]<typename T>(GC::Ref<T> result) { visitor.visit(result); });
     visitor.visit(m_parser_document);
     visitor.visit(m_preparation_time_document);
 }
