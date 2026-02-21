@@ -8,7 +8,6 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
-#include <LibCrypto/OpenSSLForward.h>
 
 namespace Crypto::Cipher {
 
