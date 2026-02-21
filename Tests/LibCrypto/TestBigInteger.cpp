@@ -209,6 +209,31 @@ TEST_CASE(test_unsigned_bigint_base10_to_string)
     EXPECT_EQ(result, "57195071295721390579057195715793");
 }
 
+TEST_CASE(test_unsigned_bigint_count_digits)
+{
+    constexpr auto count_digits = [](u64 number, u16 base) {
+        u8 digits = 0;
+
+        do {
+            number /= base;
+            ++digits;
+        } while (number > 0);
+
+        return digits;
+    };
+
+    for (auto base : to_array<u16>({ 2, 8, 10, 16 })) {
+        for (auto test : to_array<u64>({ 0, 9, 10, 19, 99, 100, 999, 1000, 9999, 10000, 99999, 10000000000, 99999999999 })) {
+            auto bigint = Crypto::UnsignedBigInteger { test };
+
+            auto result = bigint.count_digits_in_base(base);
+            auto expected = count_digits(test, base);
+
+            EXPECT_EQ(result, expected);
+        }
+    }
+}
+
 static size_t count_leading_zeros(Bytes data)
 {
     auto leading_zeros = 0u;
