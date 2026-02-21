@@ -56,12 +56,12 @@ public:
         };
     }
 
-    DevicePixelRect rounded_device_rect(CSSPixelRect rect) const
+    DevicePixelRect rounded_device_rect(CSSPixelRect const& rect) const
     {
-        auto scaled_rect = rect.to_type<double>().scaled(m_device_pixels_per_css_pixel);
-        auto x = round(scaled_rect.x());
-        auto y = round(scaled_rect.y());
-        return { x, y, round(scaled_rect.right()) - x, round(scaled_rect.bottom()) - y };
+        auto s = m_device_pixels_per_css_pixel;
+        auto x = round(rect.x().to_double() * s);
+        auto y = round(rect.y().to_double() * s);
+        return { x, y, round((rect.x().to_double() + rect.width().to_double()) * s) - x, round((rect.y().to_double() + rect.height().to_double()) * s) - y };
     }
 
     DevicePixelSize enclosing_device_size(CSSPixelSize size) const

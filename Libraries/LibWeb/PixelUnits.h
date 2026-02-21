@@ -142,9 +142,9 @@ public:
         return from_raw(1);
     }
 
-    float to_float() const;
-    double to_double() const;
-    int to_int() const;
+    constexpr float to_float() const { return static_cast<float>(m_value) / fixed_point_denominator; }
+    constexpr double to_double() const { return static_cast<double>(m_value) / fixed_point_denominator; }
+    constexpr int to_int() const { return m_value / fixed_point_denominator; }
 
     constexpr int raw_value() const { return m_value; }
     constexpr void set_raw_value(int value) { m_value = value; }
