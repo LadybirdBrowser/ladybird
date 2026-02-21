@@ -9,7 +9,6 @@
 #include <AK/ByteString.h>
 #include <AK/LexicalPath.h>
 #include <AK/Platform.h>
-#include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
 #include <LibCore/Environment.h>
