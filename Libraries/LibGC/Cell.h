@@ -6,14 +6,12 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
-#include <AK/Weakable.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
 #include <LibGC/NanBoxedValue.h>
