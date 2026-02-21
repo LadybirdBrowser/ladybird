@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Script.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/ImportMap.h>
@@ -16,9 +15,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#import-map-parse-result
-class ImportMapParseResult
-    : public JS::Cell
-    , public JS::Script::HostDefined {
+class ImportMapParseResult : public JS::Cell {
     GC_CELL(ImportMapParseResult, JS::Cell);
     GC_DECLARE_ALLOCATOR(ImportMapParseResult);
 
@@ -41,8 +38,6 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    virtual void visit_host_defined_self(Visitor&) override;
-
     // https://html.spec.whatwg.org/multipage/webappapis.html#impr-import-map
     Optional<ImportMap> m_import_map;
 
