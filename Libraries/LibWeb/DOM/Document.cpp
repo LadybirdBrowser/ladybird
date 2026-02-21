@@ -7410,15 +7410,6 @@ void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL con
     m_cookie_version_index = {};
 }
 
-GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id) const
-{
-    if (auto elements = m_map.get(element_id); elements.has_value() && !elements->is_empty()) {
-        if (auto element = elements->first())
-            return *element;
-    }
-    return {};
-}
-
 StringView to_string(SetNeedsLayoutReason reason)
 {
     switch (reason) {

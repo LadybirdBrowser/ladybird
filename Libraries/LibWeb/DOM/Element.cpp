@@ -1547,6 +1547,9 @@ void Element::removed_from(Node* old_parent, Node& old_root)
 {
     Base::removed_from(old_parent, old_root);
 
+    if (m_id.has_value() && is<ShadowRoot>(old_root))
+        static_cast<ShadowRoot&>(old_root).element_by_id().remove(*m_id, *this);
+
     if (old_root.is_connected()) {
         if (m_id.has_value())
             document().element_with_id_was_removed({}, *this);

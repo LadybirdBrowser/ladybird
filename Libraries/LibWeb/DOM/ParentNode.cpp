@@ -282,11 +282,11 @@ GC::Ptr<Element> ParentNode::get_element_by_id(FlyString const& id) const
         // For connected document and shadow root we have a cache that allows fast lookup.
         if (is_document()) {
             auto const& document = static_cast<Document const&>(*this);
-            return document.element_by_id().get(id);
+            return document.element_by_id().get(id, document);
         }
         if (is_shadow_root()) {
             auto const& shadow_root = static_cast<ShadowRoot const&>(*this);
-            return shadow_root.element_by_id().get(id);
+            return shadow_root.element_by_id().get(id, shadow_root);
         }
     }
 
