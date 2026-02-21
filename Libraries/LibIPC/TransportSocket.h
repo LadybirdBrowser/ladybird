@@ -14,8 +14,6 @@
 #include <LibIPC/File.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Forward.h>
-#include <LibThreading/MutexProtected.h>
-#include <LibThreading/RWLock.h>
 
 namespace IPC {
 
