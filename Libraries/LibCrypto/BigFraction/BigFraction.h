@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 
 namespace Crypto {
