@@ -11,21 +11,6 @@
 
 namespace Web {
 
-float CSSPixels::to_float() const
-{
-    return static_cast<float>(m_value) / fixed_point_denominator;
-}
-
-double CSSPixels::to_double() const
-{
-    return static_cast<double>(m_value) / fixed_point_denominator;
-}
-
-int CSSPixels::to_int() const
-{
-    return m_value / fixed_point_denominator;
-}
-
 }
 
 namespace IPC {
