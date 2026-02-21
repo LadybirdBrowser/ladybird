@@ -4359,19 +4359,8 @@ Optional<ScopedOperand> ExportStatement::generate_bytecode(Bytecode::Generator& 
         return m_statement->generate_bytecode(generator);
     }
 
-    if (is<ClassExpression>(*m_statement)) {
-        auto value = generator.emit_named_evaluation_if_anonymous_function(static_cast<ClassExpression const&>(*m_statement), generator.intern_identifier("default"_utf16_fly_string));
-
-        if (!static_cast<ClassExpression const&>(*m_statement).has_name()) {
-            generator.emit<Bytecode::Op::InitializeLexicalBinding>(
-                generator.intern_identifier(ExportStatement::local_name_for_default),
-                value);
-        }
-
-        return value;
-    }
-
     // ExportDeclaration : export default AssignmentExpression ;
+    // Always initialize the *default* binding per step 5 of the spec.
     VERIFY(is<Expression>(*m_statement));
     auto value = generator.emit_named_evaluation_if_anonymous_function(static_cast<Expression const&>(*m_statement), generator.intern_identifier("default"_utf16_fly_string));
     generator.emit<Bytecode::Op::InitializeLexicalBinding>(

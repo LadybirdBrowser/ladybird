@@ -4436,12 +4436,6 @@ NonnullRefPtr<ExportStatement const> Parser::parse_export_statement(Program& pro
 
             if (!special_case_declaration_without_name)
                 consume_or_insert_semicolon();
-
-            if (is<ClassExpression>(*expression)) {
-                auto const& class_expression = static_cast<ClassExpression const&>(*expression);
-                if (class_expression.has_name())
-                    local_name = class_expression.name();
-            }
         } else {
             expected("Declaration or assignment expression");
             local_name = "!!invalid!!"_utf16_fly_string;
