@@ -63,70 +63,6 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     auto const& poster_frame = video_element.poster_frame();
 
-    auto current_playback_position = video_element.current_playback_position();
-    auto ready_state = video_element.ready_state();
-
-    // NOTE: We combine the values of...
-    //       - The first frame of the video
-    //       - The last frame of the video to have been rendered
-    //       - The frame of video corresponding to the current playback position
-    //       ...into the value of VideoFrame below, as the playback system itself implements
-    //       the details of the selection of a video frame to match the specification in this
-    //       respect.
-    enum class Representation : u8 {
-        VideoFrame,
-        PosterFrame,
-        TransparentBlack,
-    };
-
-    auto representation = [&]() {
-        // https://html.spec.whatwg.org/multipage/media.html#the-video-element:the-video-element-7
-        // A video element represents what is given for the first matching condition in the list below:
-
-        // -> When no video data is available (the element's readyState attribute is either HAVE_NOTHING, or HAVE_METADATA
-        //    but no video data has yet been obtained at all, or the element's readyState attribute is any subsequent value
-        //    but the media resource does not have a video channel)
-        if (ready_state == HTML::HTMLMediaElement::ReadyState::HaveNothing
-            || (ready_state >= HTML::HTMLMediaElement::ReadyState::HaveMetadata && video_element.video_tracks()->length() == 0)) {
-            // The video element represents its poster frame, if any, or else transparent black with no intrinsic dimensions.
-            return poster_frame ? Representation::PosterFrame : Representation::TransparentBlack;
-        }
-
-        // -> When the video element is paused, the current playback position is the first frame of video, and the element's
-        //    show poster flag is set
-        if (video_element.paused() && current_playback_position == 0 && video_element.show_poster()) {
-            // The video element represents its poster frame, if any, or else the first frame of the video.
-            return poster_frame ? Representation::PosterFrame : Representation::VideoFrame;
-        }
-
-        // -> When the video element is paused, and the frame of video corresponding to the current playback position
-        //    is not available (e.g. because the video is seeking or buffering)
-        //
-        //     The video element represents the last frame of the video to have been rendered.
-        //
-        // NOTE: We don't need to check this condition, as seeking is asynchronous, and the last available frame
-        //       will be kept until the seek completes.
-
-        // -> When the video element is neither potentially playing nor paused (e.g. when seeking or stalled)
-        if (!video_element.potentially_playing() && !video_element.paused()) {
-            // The video element represents the last frame of the video to have been rendered.
-            return Representation::VideoFrame;
-        }
-
-        // -> When the video element is paused
-        if (video_element.paused()) {
-            // The video element represents the frame of video corresponding to the current playback position.
-            return Representation::VideoFrame;
-        }
-
-        // -> Otherwise (the video element has a video channel and is potentially playing)
-        //
-        //     The video element represents the frame of video at the continuously increasing "current" position. When the
-        //     current playback position changes such that the last frame rendered is no longer the frame corresponding to
-        //     the current playback position in the video, the new frame must be rendered.
-        return Representation::VideoFrame;
-    }();
-
     auto paint_bitmap = [&](auto const& bitmap) {
         auto immutable = Gfx::ImmutableBitmap::create(*bitmap);
         auto dst_rect = video_rect.to_type<int>();
@@ -158,21 +94,24 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     auto paint_user_agent_controls = video_element.has_attribute(HTML::AttributeNames::controls) || video_element.is_scripting_disabled();
 
+    auto representation = video_element.current_representation();
+
     switch (representation) {
-    case Representation::VideoFrame:
+    case HTML::HTMLVideoElement::Representation::FirstVideoFrame:
+    case HTML::HTMLVideoElement::Representation::VideoFrame:
         paint_video_frame();
         if (paint_user_agent_controls)
             paint_loaded_video_controls();
         break;
 
-    case Representation::PosterFrame:
+    case HTML::HTMLVideoElement::Representation::PosterFrame:
         VERIFY(poster_frame);
         paint_bitmap(poster_frame);
         if (paint_user_agent_controls)
             paint_placeholder_video_controls(context, video_rect, mouse_position);
         break;
 
-    case Representation::TransparentBlack:
+    case HTML::HTMLVideoElement::Representation::TransparentBlack:
         paint_transparent_black();
         if (paint_user_agent_controls)
             paint_placeholder_video_controls(context, video_rect, mouse_position);

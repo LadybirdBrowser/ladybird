@@ -41,6 +41,21 @@ public:
 
     RefPtr<Gfx::Bitmap> const& poster_frame() const { return m_poster_frame; }
 
+    // https://html.spec.whatwg.org/multipage/media.html#the-video-element:the-video-element-7
+    // NB: We combine the values of...
+    //      - The last frame of the video to have been rendered
+    //      - The frame of video corresponding to the current playback position
+    //     ...into the value of VideoFrame below, as the playback system itself implements
+    //     the details of the selection of a video frame to match the specification in this
+    //     respect.
+    enum class Representation : u8 {
+        VideoFrame,
+        FirstVideoFrame,
+        PosterFrame,
+        TransparentBlack,
+    };
+    Representation current_representation() const;
+
     // FIXME: This is a hack for images used as CanvasImageSource. Do something more elegant.
     RefPtr<Gfx::ImmutableBitmap> bitmap() const;
 
