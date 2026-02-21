@@ -5,7 +5,6 @@
  */
 
 #include <AK/Array.h>
-#include <AK/ScopeGuard.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/OpenSSL.h>
 
