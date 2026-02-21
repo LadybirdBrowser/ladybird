@@ -98,6 +98,10 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
 {
     using Extractor = AK::FloatExtractor<double>;
 
+    static auto ONE_BIGINT = 1_bigint;
+    static auto TWO_BIGINT = 2_bigint;
+    static auto TEN_BIGINT = 10_bigint;
+
     auto result = convert_floating_point_to_decimal_exponential_form(number);
     auto exponent = result.exponent + count_digits(result.fraction) - 1;
 
@@ -107,7 +111,7 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     Extractor extractor;
     extractor.d = number;
 
-    u64 binary_significand = 0;
+    Crypto::UnsignedBigInteger binary_significand;
     i32 binary_exponent = 0;
 
     if (extractor.exponent == 0) {
@@ -129,8 +133,8 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     // Below, we arrange this as a fraction, placing any negative values into the denominator to ensure that the math
     // involves only unsigned integers.
     auto compute_significand = [&](i32 exponent) {
-        Crypto::UnsignedBigInteger numerator { binary_significand };
-        Crypto::UnsignedBigInteger denominator = 1_bigint;
+        auto numerator = binary_significand;
+        auto denominator = ONE_BIGINT;
 
         // 2 ^ binary_exponent
         if (binary_exponent > 0)
@@ -140,9 +144,9 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
 
         // 10 ^ (precision - exponent - 1)
         if (auto scale = precision - exponent - 1; scale > 0)
-            numerator = numerator.multiplied_by((10_bigint).pow(scale));
+            numerator = numerator.multiplied_by(TEN_BIGINT.pow(scale));
         else if (scale < 0)
-            denominator = denominator.multiplied_by((10_bigint).pow(-scale));
+            denominator = denominator.multiplied_by(TEN_BIGINT.pow(-scale));
 
         auto [quotient, remainder] = numerator.divided_by(denominator);
 
@@ -161,6 +165,57 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
         significand = compute_significand(++exponent);
     else if (digit_count < static_cast<size_t>(precision))
         significand = compute_significand(--exponent);
+
+    // When the computed significand is exactly (10 ^ (precision - 1)), then we have two candidate representations of
+    // the original number:
+    //
+    //    candidate_a = significand * (10 ^ (exponent - precision + 1))
+    //    candidate_b = alternate * (10 ^ (exponent - precision))
+    //
+    // Where alternate = compute_significand(exponent - 1).
+    //
+    // We want to know which candidate is closest to the original number (x). Tie breaks go to the larger value
+    // (candidate_a), so we only pick candidate_b if:
+    //
+    //    candidate_a - x > x - candidate_b
+    //    candidate_a + candidate_b > 2 * x
+    //
+    // Substituting the candidates and simplifying the left-hand side of this comparison, we have:
+    //
+    //    lhs = significand * (10 ^ (exponent - precision + 1)) + alternate * (10 ^ (exponent - precision))
+    //    lhs = (significand * 10 + alternate) * (10 ^ (exponent - precision))
+    //
+    // And substituting the binary decomposition for the right-hand side of this comparison, we have:
+    //
+    //    rhs = 2 * binary_significand * (2 ^ binary_exponent)
+    //
+    // Similar to `compute_significand` above, we take care to clear any negative exponents to ensure that the math
+    // involves only unsigned integers.
+    if (significand == TEN_BIGINT.pow(precision - 1)) {
+        auto alternate = compute_significand(exponent - 1);
+
+        if (alternate.count_digits_in_base(10) == static_cast<size_t>(precision)) {
+            auto lhs = significand.multiplied_by(TEN_BIGINT).plus(alternate);
+            auto rhs = TWO_BIGINT.multiplied_by(binary_significand);
+
+            // 10 ^ (exponent - precision)
+            if (auto scale = exponent - precision; scale > 0)
+                lhs = lhs.multiplied_by(TEN_BIGINT.pow(scale));
+            else if (scale < 0)
+                rhs = rhs.multiplied_by(TEN_BIGINT.pow(-scale));
+
+            // 2 ^ binary_exponent
+            if (binary_exponent > 0)
+                rhs = MUST(rhs.shift_left(binary_exponent));
+            else if (binary_exponent < 0)
+                lhs = MUST(lhs.shift_left(-binary_exponent));
+
+            if (lhs > rhs) {
+                significand = move(alternate);
+                --exponent;
+            }
+        }
+    }
 
     return { .significand = move(significand), .exponent = exponent };
 }
