@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NonnullOwnPtr.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/ThreadEventQueue.h>
