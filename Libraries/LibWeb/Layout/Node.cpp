@@ -560,6 +560,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, GC::Ref<C
     , m_computed_values(make<CSS::ComputedValues>())
 {
     m_has_style = true;
+    m_is_body = node && node == document.body();
     apply_style(computed_style);
 }
 
@@ -568,6 +569,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOw
     , m_computed_values(move(computed_values))
 {
     m_has_style = true;
+    m_is_body = node && node == document.body();
 }
 
 void NodeWithStyle::visit_edges(Visitor& visitor)
@@ -1131,11 +1133,6 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     mutable_wrapper_computed_values.set_z_index(computed_values().z_index());
 
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
-}
-
-bool NodeWithStyle::is_body() const
-{
-    return dom_node() && dom_node() == document().body();
 }
 
 bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)

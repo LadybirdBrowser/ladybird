@@ -247,6 +247,7 @@ private:
     bool m_is_grid_item { false };
 
     bool m_has_been_wrapped_in_table_wrapper { false };
+    bool m_is_body { false };
 
     bool m_needs_layout_update { false };
 
@@ -274,7 +275,7 @@ public:
 
     void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values);
 
-    bool is_body() const;
+    bool is_body() const { return m_is_body; }
     bool is_scroll_container() const;
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
