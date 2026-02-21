@@ -10,7 +10,6 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibHTTP/Cookie/Cookie.h>
-#include <LibHTTP/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Forward.h>
 
