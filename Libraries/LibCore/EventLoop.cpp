@@ -7,7 +7,6 @@
  */
 
 #include <AK/Badge.h>
-#include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>

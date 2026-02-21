@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
+#include <LibCore/Event.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
