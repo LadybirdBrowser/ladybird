@@ -37,12 +37,12 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    enum class ListItem {
+    enum class ListItem : u8 {
         No,
         Yes,
     };
 
-    enum class Type {
+    enum class Type : u8 {
         OutsideAndInside,
         Internal,
         Box,
