@@ -1348,7 +1348,6 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
         return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
     };
 
-    // FIXME: Not all shorthands are represented by ShorthandStyleValue, we still need to add support for those that don't.
     return make_shorthand_value(shorthand.value())->to_string(SerializationMode::Normal);
 }
 
