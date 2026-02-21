@@ -1,0 +1,77 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 129.875 0+0+0] [BFC] children: not-inline
+    BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+      TextNode <#text> (not painted)
+    BlockContainer <body> at [8,21.4375] [8+0+0 784 0+0+8] [8+0+0 100.4375 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [8,21.4375] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <h1> at [8,21.4375] [0+0+0 784 0+0+0] [21.4375+0+0 37 0+0+21.4375] children: inline
+        frag 0 from TextNode start: 0, length: 37, rect: [8,21.4375 613.1875x37] baseline: 28.09375
+            "Input Field Placeholder Position Test"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,79.875] [0+0+0 784 0+0+0] [0+0+0 42 0+0+0] children: inline
+        frag 0 from TextInputBox start: 0, length: 0, rect: [19,90.875 200x20] baseline: 30
+        frag 1 from TextNode start: 0, length: 1, rect: [230,95.875 8x18] baseline: 13.796875
+            " "
+        frag 2 from TextInputBox start: 0, length: 0, rect: [249,90.875 200x20] baseline: 30
+        frag 3 from TextNode start: 0, length: 1, rect: [460,95.875 8x18] baseline: 13.796875
+            " "
+        frag 4 from TextInputBox start: 0, length: 0, rect: [479,90.875 200x20] baseline: 30
+        TextNode <#text> (not painted)
+        TextInputBox <input> at [19,90.875] inline-block [0+1+10 200 10+1+0] [0+1+10 20 10+1+0] [BFC] children: not-inline
+          Box <div> at [21,91.875] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [21,91.875] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 0, rect: [21,91.875 0x18] baseline: 13.796875
+              TextNode <#text> (not painted)
+            BlockContainer <div> at [21,91.875] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 11, rect: [21,91.875 87.328125x18] baseline: 13.796875
+                  "Empty field"
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        TextInputBox <input> at [249,90.875] inline-block [0+1+10 200 10+1+0] [0+1+10 20 10+1+0] [BFC] children: not-inline
+          Box <div> at [251,91.875] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [251,91.875] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 12, rect: [251,91.875 81.96875x18] baseline: 13.796875
+                  "Filled field"
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        TextInputBox <input> at [479,90.875] inline-block [0+1+10 200 10+1+0] [0+1+10 20 10+1+0] [BFC] children: not-inline
+          Box <div> at [481,91.875] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [481,91.875] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 0, rect: [481,91.875 0x18] baseline: 13.796875
+              TextNode <#text> (not painted)
+            BlockContainer <div> at [481,91.875] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 9, rect: [481,91.875 81.171875x18] baseline: 13.796875
+                  "Type here"
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x129.875]
+    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
+    PaintableWithLines (BlockContainer<BODY>) [8,21.4375 784x100.4375]
+      PaintableWithLines (BlockContainer(anonymous)) [8,21.4375 784x0]
+      PaintableWithLines (BlockContainer<H1>) [8,21.4375 784x37]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,79.875 784x42]
+        PaintableWithLines (TextInputBox<INPUT>) [8,79.875 222x42]
+          PaintableBox (Box<DIV>) [19,90.875 200x20]
+            PaintableWithLines (BlockContainer<DIV>) [21,91.875 0x18]
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer<DIV>) [21,91.875 196x18]
+              TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+        PaintableWithLines (TextInputBox<INPUT>) [238,79.875 222x42]
+          PaintableBox (Box<DIV>) [249,90.875 200x20]
+            PaintableWithLines (BlockContainer<DIV>) [251,91.875 196x18]
+              TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+        PaintableWithLines (TextInputBox<INPUT>) [468,79.875 222x42]
+          PaintableBox (Box<DIV>) [479,90.875 200x20]
+            PaintableWithLines (BlockContainer<DIV>) [481,91.875 0x18]
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer<DIV>) [481,91.875 196x18]
+              TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x129.875] [children: 0] (z-index: auto)

@@ -8,6 +8,7 @@
  * Copyright (c) 2024, Fernando Kiotheka <fer@k6a.dev>
  * Copyright (c) 2025, Felipe Muñoz Mazur <felipe.munoz.mazur@protonmail.com>
  * Copyright (c) 2025, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
+ * Copyright (c) 2026, Michiel Nijenhuis <michielmitsjol@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -861,7 +862,10 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text(R"~~~(
                 width: 100%;
+                height: 1lh;
                 align-items: center;
+                overflow: hidden;
+                scrollbar-width: none;
                 text-overflow: clip;
                 white-space: nowrap;
             )~~~"sv);
