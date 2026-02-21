@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/MemoryStream.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Notifier.h>
