@@ -727,9 +727,20 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         if ((dom_node.has_children() || shadow_root) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
             push_parent(as<NodeWithStyle>(*layout_node));
             if (shadow_root) {
+                // For replaced elements with shadow DOM children, wrap the children in an
+                // anonymous BlockContainer so that a BFC handles their layout.
+                if (layout_node->is_replaced_box_with_children()) {
+                    if (!layout_node->first_child() || !layout_node->first_child()->is_anonymous()) {
+                        auto wrapper = as<NodeWithStyle>(*layout_node).create_anonymous_wrapper();
+                        m_ancestor_stack.last()->append_child(wrapper);
+                    }
+                    push_parent(as<NodeWithStyle>(*layout_node->first_child()));
+                }
                 for (auto* node = shadow_root->first_child(); node; node = node->next_sibling()) {
                     update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                 }
+                if (layout_node->is_replaced_box_with_children())
+                    pop_parent();
                 shadow_root->set_child_needs_layout_tree_update(false);
                 shadow_root->set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
             } else {
