@@ -51,7 +51,7 @@ String LocaleData::to_string()
         UErrorCode status = U_ZERO_ERROR;
 
         auto result = locale().toLanguageTag<StringBuilder>(status);
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
 
         m_locale_string = MUST(result.to_string());
     }
@@ -83,7 +83,7 @@ icu::NumberingSystem& LocaleData::numbering_system()
             status = U_ZERO_ERROR;
 
             m_numbering_system = adopt_own_if_nonnull(icu::NumberingSystem::createInstance("und", status));
-            VERIFY(icu_success(status));
+            verify_icu_success(status);
         }
     }
 
@@ -96,7 +96,7 @@ icu::DateTimePatternGenerator& LocaleData::date_time_pattern_generator()
         UErrorCode status = U_ZERO_ERROR;
 
         m_date_time_pattern_generator = adopt_own(*icu::DateTimePatternGenerator::createInstance(locale(), status));
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
     }
 
     return *m_date_time_pattern_generator;
@@ -108,7 +108,7 @@ icu::TimeZoneNames& LocaleData::time_zone_names()
         UErrorCode status = U_ZERO_ERROR;
 
         m_time_zone_names = adopt_own(*icu::TimeZoneNames::createInstance(locale(), status));
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
     }
 
     return *m_time_zone_names;

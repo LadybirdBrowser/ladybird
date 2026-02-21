@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
+#include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
@@ -87,6 +88,14 @@ constexpr bool icu_success(UErrorCode code)
 constexpr bool icu_failure(UErrorCode code)
 {
     return static_cast<bool>(U_FAILURE(code));
+}
+
+inline void verify_icu_success(UErrorCode code, SourceLocation location = SourceLocation::current())
+{
+    if (icu_failure(code)) [[unlikely]] {
+        dbgln("\033[31;1mICU error\033[0m: {} {}", u_errorName(code), location);
+        VERIFY_NOT_REACHED();
+    }
 }
 
 ALWAYS_INLINE icu::StringPiece icu_string_piece(StringView string)

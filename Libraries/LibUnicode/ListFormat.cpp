@@ -149,7 +149,7 @@ NonnullOwnPtr<ListFormat> ListFormat::create(StringView locale, ListFormatType t
     VERIFY(locale_data.has_value());
 
     auto formatter = adopt_own(*icu::ListFormatter::createInstance(locale_data->locale(), icu_list_format_type(type), icu_list_format_width(style), status));
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     return adopt_own(*new ListFormatImpl(move(formatter)));
 }

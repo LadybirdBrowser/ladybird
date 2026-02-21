@@ -441,13 +441,13 @@ static void apply_display_options(icu::number::LocalizedNumberFormatter& formatt
     case NumberFormatStyle::Currency:
         formatter = formatter.unit(icu::CurrencyUnit(icu_string_piece(*display_options.currency), status));
         formatter = formatter.unitWidth(icu_currency_display(*display_options.currency_display));
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
         break;
 
     case NumberFormatStyle::Unit:
         formatter = formatter.unit(icu::MeasureUnit::forIdentifier(icu_string_piece(*display_options.unit), status));
         formatter = formatter.unitWidth(icu_unit_width(*display_options.unit_display));
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
         break;
     }
 
@@ -655,7 +655,7 @@ public:
         VERIFY(!m_plural_rules);
 
         m_plural_rules = adopt_own(*icu::PluralRules::forLocale(m_locale, icu_plural_type(plural_form), status));
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
     }
 
     virtual PluralCategory select_plural(Value const& value) const override
@@ -730,7 +730,7 @@ private:
         auto formattable = value.visit(
             [&](double number) { return icu::Formattable { number }; },
             [&](String const& number) { return icu::Formattable(icu_string_piece(number), status); });
-        VERIFY(icu_success(status));
+        verify_icu_success(status);
 
         return formattable;
     }

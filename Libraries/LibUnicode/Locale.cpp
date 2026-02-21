@@ -484,7 +484,7 @@ String canonicalize_unicode_locale_id(StringView locale)
     VERIFY(locale_data.has_value());
 
     locale_data->locale().canonicalize(status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     return locale_data->to_string();
 }
@@ -497,13 +497,13 @@ String canonicalize_unicode_extension_values(StringView key, StringView value)
     builder.setUnicodeLocaleKeyword(icu_string_piece(key), icu_string_piece(value));
 
     auto locale = builder.build(status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     locale.canonicalize(status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     auto result = locale.getUnicodeKeywordValue<StringBuilder>(icu_string_piece(key), status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     return MUST(result.to_string());
 }
@@ -602,7 +602,7 @@ static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& l
     builder.setVariant(locale.getVariant());
 
     locale = builder.build(status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 }
 
 Optional<String> add_likely_subtags(StringView locale)

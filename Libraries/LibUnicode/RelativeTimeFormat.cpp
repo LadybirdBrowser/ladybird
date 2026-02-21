@@ -248,7 +248,7 @@ NonnullOwnPtr<RelativeTimeFormat> RelativeTimeFormat::create(StringView locale, 
         static_cast<icu::DecimalFormat&>(*number_formatter).setMinimumGroupingDigits(UNUM_MINIMUM_GROUPING_DIGITS_AUTO);
 
     auto formatter = make<icu::RelativeDateTimeFormatter>(locale_data->locale(), number_formatter, icu_relative_date_time_style(style), UDISPCTX_CAPITALIZATION_NONE, status);
-    VERIFY(icu_success(status));
+    verify_icu_success(status);
 
     return make<RelativeTimeFormatImpl>(move(formatter));
 }
