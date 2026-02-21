@@ -209,6 +209,10 @@ describe("in- and exports", () => {
         expectModulePassed("./top-level-dispose.mjs");
     });
 
+    test("default export of parenthesized named class expression", () => {
+        expectModulePassed("./default-export-named-class-expression.mjs");
+    });
+
     test("can export default a RegExp", () => {
         const result = expectModulePassed("./default-regexp-export.mjs");
         expect(result.default).toBeInstanceOf(RegExp);
