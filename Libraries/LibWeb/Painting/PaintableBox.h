@@ -309,6 +309,8 @@ private:
     CSSPixelSize m_content_size;
 
     Optional<CSSPixelRect> mutable m_absolute_rect;
+    Optional<CSSPixelRect> mutable m_absolute_padding_box_rect;
+    Optional<CSSPixelRect> mutable m_absolute_border_box_rect;
 
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
     RefPtr<ScrollFrame const> m_own_scroll_frame;
