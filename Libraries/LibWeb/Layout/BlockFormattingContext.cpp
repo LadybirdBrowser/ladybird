@@ -1497,10 +1497,11 @@ Optional<int> BlockFormattingContext::determine_used_value_for_column_count(CSSP
     }
     auto column_gap = get_column_gap_used_value_for_multicol(U);
     auto column_width = computed_values.column_width().to_px(root(), U);
-    if (computed_values.column_count().is_auto()) {
-        return max(1, ((U + column_gap) / (column_width + column_gap)).to_int());
-    }
-    return min(computed_values.column_count().value(), max(1, ((U + column_gap) / (column_width + column_gap)).to_int()));
+    auto divisor = column_width + column_gap;
+    auto column_count = divisor == 0 ? 1 : max(1, ((U + column_gap) / divisor).to_int());
+    if (computed_values.column_count().is_auto())
+        return column_count;
+    return min(computed_values.column_count().value(), column_count);
 }
 CSSPixels BlockFormattingContext::determine_used_value_for_column_width(CSSPixels const& U, int N) const
 {
