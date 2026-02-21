@@ -147,6 +147,20 @@ ErrorOr<String> UnsignedBigInteger::to_base(u16 N) const
     return StringView(buffer.bytes().slice(0, written - 1)).to_ascii_lowercase_string();
 }
 
+size_t UnsignedBigInteger::count_digits_in_base(u16 base) const
+{
+    VERIFY(base <= 36);
+
+    if (is_zero())
+        return 1;
+
+    int size = 0;
+    MP_MUST(mp_radix_size(&m_mp, base, &size));
+
+    // mp_radix_size includes a null byte.
+    return static_cast<size_t>(size) - 1;
+}
+
 u64 UnsignedBigInteger::to_u64() const
 {
     return mp_get_u64(&m_mp);
