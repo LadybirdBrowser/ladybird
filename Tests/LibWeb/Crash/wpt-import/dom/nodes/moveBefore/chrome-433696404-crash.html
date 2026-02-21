@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/433696404">
+<p>Passes if no crash</p>
+<div id="host">
+  <template shadowrootmode="open">
+    <div><div style="display: none;"><slot></slot></div></div>
+  </template>
+</div>
+<span id="span">Text in light DOM</span>
+<script>
+  span.offsetTop;
+  host.moveBefore(span, null);
+  span.offsetTop;
+</script>
