@@ -65,6 +65,9 @@ String Paintable::debug_description() const
 
 void Paintable::resolve_paint_properties()
 {
+    auto const& cv = computed_values();
+    m_visible = cv.visibility() == CSS::Visibility::Visible && cv.opacity() != 0;
+
     m_visible_for_hit_testing = true;
     if (auto dom_node = this->dom_node(); dom_node && dom_node->is_inert()) {
         // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
@@ -72,12 +75,6 @@ void Paintable::resolve_paint_properties()
         // - Hit-testing must act as if the 'pointer-events' CSS property were set to 'none'.
         m_visible_for_hit_testing = false;
     }
-}
-
-bool Paintable::is_visible() const
-{
-    auto const& computed_values = this->computed_values();
-    return computed_values.visibility() == CSS::Visibility::Visible && computed_values.opacity() != 0;
 }
 
 DOM::Document const& Paintable::document() const
