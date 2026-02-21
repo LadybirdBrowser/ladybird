@@ -1,0 +1,7 @@
+shadow1 has foo initially: true
+shadow1 has foo after remove: true
+shadow1 has foo after move: true
+shadow2 has foo after move: true
+document has foo while in shadow: true
+shadow2 has foo after moving to document: true
+document has foo after move: true

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    let host1 = document.createElement("div");
+    let host2 = document.createElement("div");
+    document.body.append(host1, host2);
+
+    let shadow1 = host1.attachShadow({ mode: "open" });
+    let shadow2 = host2.attachShadow({ mode: "open" });
+
+    let node = document.createElement("span");
+    node.id = "foo";
+    shadow1.append(node);
+
+    shadow1.getElementById("foo");
+
+    println(`shadow1 has foo initially: ${shadow1.getElementById("foo") === node}`);
+
+    node.remove();
+    println(`shadow1 has foo after remove: ${shadow1.getElementById("foo") === null}`);
+
+    shadow2.append(node);
+    println(`shadow1 has foo after move: ${shadow1.getElementById("foo") === null}`);
+    println(`shadow2 has foo after move: ${shadow2.getElementById("foo") === node}`);
+    println(`document has foo while in shadow: ${document.getElementById("foo") === null}`);
+
+    document.body.append(node);
+    println(`shadow2 has foo after moving to document: ${shadow2.getElementById("foo") === null}`);
+    println(`document has foo after move: ${document.getElementById("foo") === node}`);
+});
+</script>
