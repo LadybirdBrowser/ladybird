@@ -15,7 +15,7 @@
 
 namespace Web::HTML {
 
-enum class CanUseCrossOriginIsolatedAPIs {
+enum class CanUseCrossOriginIsolatedAPIs : u8 {
     No,
     Yes,
 };
