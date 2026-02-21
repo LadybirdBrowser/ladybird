@@ -7,7 +7,6 @@
  */
 
 #include <AK/Vector.h>
-#include <LibCore/Socket.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
