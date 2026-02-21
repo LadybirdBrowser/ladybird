@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="foo" data-name="first"></div>
+<div id="foo" data-name="second"></div>
+<script>
+test(() => {
+    let [first, second] = document.querySelectorAll("[id='foo']");
+
+    println(`initial: ${document.getElementById("foo").dataset.name}`);
+
+    document.body.insertBefore(second, first);
+    println(`after reorder: ${document.getElementById("foo").dataset.name}`);
+
+    first.id = "bar";
+    println(`after first id change: ${document.getElementById("foo").dataset.name}`);
+
+    second.remove();
+    println(`after removing second: ${document.getElementById("foo")}`);
+
+    first.id = "foo";
+    println(`after restoring first: ${document.getElementById("foo") === first}`);
+});
+</script>
