@@ -1974,8 +1974,8 @@ Window::NamedObjects Window::named_objects(StringView name)
         if (auto element_name = element->name(); element_name.has_value() && *element_name == name)
             objects.elements.append(*element);
     }
-    associated_document().element_by_id().for_each_element_with_id(name, [&](auto element) {
-        objects.elements.append(*element);
+    associated_document().element_by_id().for_each_element_with_id(name, associated_document(), [&](auto& element) {
+        objects.elements.append(element);
     });
 
     return objects;
