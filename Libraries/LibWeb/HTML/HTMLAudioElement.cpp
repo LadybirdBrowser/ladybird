@@ -28,6 +28,15 @@ void HTMLAudioElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties& style)
+{
+    Base::adjust_computed_style(style);
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#embedded-content-rendering-rules
+    if (!has_attribute(AttributeNames::controls))
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
+}
+
 GC::Ptr<Layout::Node> HTMLAudioElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::AudioBox>(document(), *this, style);

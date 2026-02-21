@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 272 tests
 
-212 Pass
-60 Fail
+211 Pass
+61 Fail
 Pass	Simplest possible test ("<div>abc")
 Fail	Leading whitespace removed ("<div> abc")
 Fail	Trailing whitespace removed ("<div>abc ")
@@ -120,7 +120,7 @@ Pass	<textarea> contents ignored ("<textarea>abc")
 Pass	<iframe> contents ignored ("<iframe>abc")
 Pass	<iframe> contents ignored ("<iframe><div id='target'>abc")
 Pass	<iframe> subdocument ignored ("<iframe src='data:text/html,abc'>")
-Pass	<audio> contents ignored ("<audio style='display:block'>abc")
+Fail	<audio> contents ignored ("<audio style='display:block'>abc")
 Pass	<audio> contents ok for element not being rendered ("<audio style='display:block'><source id='target' class='poke' style='display:block'>")
 Pass	<audio> contents ok for element not being rendered ("<audio style='display:block'><source id='target' class='poke' style='display:none'>")
 Pass	<video> contents ignored ("<video>abc")
