@@ -1,0 +1,197 @@
+.container {
+    --accent-color: #9d7cf2;
+    --dark-accent-color: #8a64e5;
+    --light-accent-color: #e0d4ff;
+    --foreground-color: white;
+    --track-color: rgb(20, 20, 20);
+    --panel-color: rgb(38, 38, 38);
+
+    overflow: hidden;
+}
+
+.container.video {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    font-family: sans-serif;
+    font-size: 12px;
+    color: var(--foreground-color);
+    user-select: none;
+}
+
+.container.video > .controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: color-mix(in srgb, var(--panel-color) 82%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease-in-out;
+}
+
+.container.video > .controls.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.container.audio > .controls {
+    inset: 0;
+    background: var(--panel-color);
+    justify-content: center;
+}
+
+.timeline {
+    z-index: 1;
+    height: 5px;
+    padding: 5px 0;
+    margin: -5px 0;
+    background: var(--track-color);
+    background-clip: content-box;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.timeline-fill {
+    height: 100%;
+    background: var(--accent-color);
+    width: 0%;
+    pointer-events: none;
+}
+
+.button-bar {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    gap: 8px;
+    min-height: 30px;
+}
+
+.control-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.icon {
+    width: 24px;
+    height: 24px;
+}
+
+.control-button .icon path {
+    fill: var(--foreground-color);
+}
+
+.control-button:hover .icon path {
+    fill: var(--light-accent-color);
+}
+
+.play-pause-icon path {
+    display: none;
+}
+.play-pause-icon:not(.playing) .play-path {
+    display: inline;
+}
+.play-pause-icon.playing .pause-path {
+    display: inline;
+}
+
+.mute-button {
+    margin-left: auto;
+}
+
+.mute-button:not(.low, .high) > .icon > .volume-low {
+    display: none;
+}
+.mute-button:not(.high) > .icon > .volume-high {
+    display: none;
+}
+
+.mute-button.muted > .icon > .volume-low,
+.mute-button.muted > .icon > .volume-high,
+.mute-button.muted > .icon > .speaker {
+    clip-path: url(#muted-clip);
+}
+.mute-button:not(.muted) > .icon > .muted-line {
+    display: none;
+}
+
+.timestamp {
+    min-width: 0;
+    overflow: clip;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.volume-area {
+    max-width: 60px;
+    flex-grow: 1;
+    padding: 5px;
+    margin: -5px;
+    cursor: pointer;
+}
+
+.volume-area.hidden {
+    display: none;
+}
+
+.volume {
+    height: 6px;
+    background: var(--track-color);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.volume-fill {
+    height: 100%;
+    width: 100%;
+    background: var(--accent-color);
+    pointer-events: none;
+}
+
+.video-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--panel-color);
+    opacity: 80%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.placeholder-circle:hover {
+    background: var(--panel-color);
+    opacity: 100%;
+}
+
+.placeholder-circle path {
+    fill: var(--light-accent-color);
+}
+
+.placeholder-icon {
+    width: 36px;
+    height: 36px;
+    margin-left: 4px;
+}

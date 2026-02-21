@@ -6,7 +6,7 @@
 
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/Layout/AudioBox.h>
-#include <LibWeb/Painting/AudioPaintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Layout {
 
@@ -27,16 +27,15 @@ HTML::HTMLAudioElement const& AudioBox::dom_node() const
     return static_cast<HTML::HTMLAudioElement const&>(*ReplacedBox::dom_node());
 }
 
-GC::Ptr<Painting::Paintable> AudioBox::create_paintable() const
+bool AudioBox::can_have_children() const
 {
-    return Painting::AudioPaintable::create(*this);
+    // If we allow children when controls are disabled, innerText may be non-empty.
+    return dom_node().shadow_root() != nullptr;
 }
 
-CSS::SizeWithAspectRatio AudioBox::natural_size() const
+GC::Ptr<Painting::Paintable> AudioBox::create_paintable() const
 {
-    if (dom_node().should_paint())
-        return { 300, 40, {} };
-    return { 0, 0, {} };
+    return Painting::PaintableBox::create(*this);
 }
 
 }
