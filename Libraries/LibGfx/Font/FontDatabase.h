@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/HashFunctions.h>
 #include <AK/OwnPtr.h>
+#include <AK/RefPtr.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Forward.h>
 

@@ -9,12 +9,11 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/MemoryStream.h>
-#include <AK/RefPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Variant.h>
-#include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
 
 namespace Core {
