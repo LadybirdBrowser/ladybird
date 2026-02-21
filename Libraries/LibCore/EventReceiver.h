@@ -15,6 +15,7 @@
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <LibCore/Export.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
@@ -38,7 +39,7 @@ public:                                            \
         return #klass##sv;                         \
     }
 
-class EventReceiver
+class CORE_API EventReceiver
     : public AtomicRefCounted<EventReceiver>
     , public Weakable<EventReceiver> {
     // NOTE: No C_OBJECT macro for Core::EventReceiver itself.

@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
+#include <LibCore/Export.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
@@ -15,7 +16,7 @@ namespace Core {
 // Per-thread global event queue. This is where events are queued for the EventLoop to process.
 // There is only one ThreadEventQueue per thread, and it is accessed via ThreadEventQueue::current().
 // It is allowed to post events to other threads' event queues.
-class ThreadEventQueue {
+class CORE_API ThreadEventQueue {
     AK_MAKE_NONCOPYABLE(ThreadEventQueue);
     AK_MAKE_NONMOVABLE(ThreadEventQueue);
 
