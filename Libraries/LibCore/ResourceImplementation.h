@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/RefPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/StringView.h>
 #include <LibCore/Resource.h>
 
