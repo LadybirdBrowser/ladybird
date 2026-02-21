@@ -17,6 +17,12 @@ class ResizeObserverSize : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(ResizeObserverSize);
 
 public:
+    struct RawSize {
+        double inline_size { 0 };
+        double block_size { 0 };
+    };
+
+    static RawSize compute_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
     static GC::Ref<ResizeObserverSize> calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
 
     double inline_size() const { return m_inline_size; }
@@ -25,6 +31,7 @@ public:
     double block_size() const { return m_block_size; }
     void set_block_size(double block_size) { m_block_size = block_size; }
 
+    bool equals(RawSize const& other) const;
     bool equals(ResizeObserverSize const& other) const;
 
 private:
