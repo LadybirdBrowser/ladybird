@@ -9,7 +9,6 @@
 #include <math.h>
 #include <tommath.h>
 
-#include <AK/StringBuilder.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/Tommath.h>
 
