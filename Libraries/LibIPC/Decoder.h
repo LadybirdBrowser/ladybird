@@ -130,9 +130,6 @@ template<>
 ErrorOr<Core::AnonymousBuffer> decode(Decoder&);
 
 template<>
-ErrorOr<Core::DateTime> decode(Decoder&);
-
-template<>
 ErrorOr<Core::ProxyData> decode(Decoder&);
 
 template<>
