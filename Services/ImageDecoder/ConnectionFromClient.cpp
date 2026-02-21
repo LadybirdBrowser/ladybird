@@ -183,13 +183,13 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     return result;
 }
 
-NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image_job(i64 image_id, Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image_job(i64 request_id, Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
     return Job::construct(
         [encoded_buffer = move(encoded_buffer), ideal_size = move(ideal_size), mime_type = move(mime_type)](auto&) mutable -> ErrorOr<DecodeResult> {
             return TRY(decode_image_to_details(move(encoded_buffer), ideal_size, mime_type));
         },
-        [strong_this = NonnullRefPtr(*this), image_id](DecodeResult result) -> ErrorOr<void> {
+        [strong_this = NonnullRefPtr(*this), request_id](DecodeResult result) -> ErrorOr<void> {
             i64 session_id = 0;
 
             if (result.decoder) {
@@ -202,35 +202,31 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
                 strong_this->m_animation_sessions.set(session_id, move(session));
             }
 
-            strong_this->async_did_decode_image(image_id, result.is_animated, result.loop_count, move(result.bitmaps), move(result.durations), result.scale, move(result.color_profile), session_id);
-            strong_this->m_pending_jobs.remove(image_id);
+            strong_this->async_did_decode_image(request_id, result.is_animated, result.loop_count, move(result.bitmaps), move(result.durations), result.scale, move(result.color_profile), session_id);
+            strong_this->m_pending_jobs.remove(request_id);
             return {};
         },
-        [strong_this = NonnullRefPtr(*this), image_id](Error error) -> void {
+        [strong_this = NonnullRefPtr(*this), request_id](Error error) -> void {
             if (strong_this->is_open())
-                strong_this->async_did_fail_to_decode_image(image_id, MUST(String::formatted("Decoding failed: {}", error)));
-            strong_this->m_pending_jobs.remove(image_id);
+                strong_this->async_did_fail_to_decode_image(request_id, MUST(String::formatted("Decoding failed: {}", error)));
+            strong_this->m_pending_jobs.remove(request_id);
         });
 }
 
-Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+void ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, i64 request_id)
 {
-    auto image_id = m_next_image_id++;
-
     if (!encoded_buffer.is_valid()) {
         dbgln_if(IMAGE_DECODER_DEBUG, "Encoded data is invalid");
-        async_did_fail_to_decode_image(image_id, "Encoded data is invalid"_string);
-        return image_id;
+        async_did_fail_to_decode_image(request_id, "Encoded data is invalid"_string);
+        return;
     }
 
-    m_pending_jobs.set(image_id, make_decode_image_job(image_id, move(encoded_buffer), ideal_size, move(mime_type)));
-
-    return image_id;
+    m_pending_jobs.set(request_id, make_decode_image_job(request_id, move(encoded_buffer), ideal_size, move(mime_type)));
 }
 
-void ConnectionFromClient::cancel_decoding(i64 image_id)
+void ConnectionFromClient::cancel_decoding(i64 request_id)
 {
-    if (auto job = m_pending_jobs.take(image_id); job.has_value()) {
+    if (auto job = m_pending_jobs.take(request_id); job.has_value()) {
         job.value()->cancel();
     }
 }

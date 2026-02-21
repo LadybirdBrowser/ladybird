@@ -17,10 +17,10 @@ Client::Client(NonnullOwnPtr<IPC::Transport> transport)
 void Client::die()
 {
     verify_event_loop();
-    for (auto& [_, promise] : m_pending_decoded_images) {
-        promise->reject(Error::from_string_literal("ImageDecoder disconnected"));
-    }
-    m_pending_decoded_images.clear();
+    auto pending_promises = move(m_token_promises);
+
+    for (auto& promise : pending_promises)
+        promise.value->reject(Error::from_string_literal("ImageDecoder disconnected"));
 }
 
 NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes encoded_data, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
@@ -47,27 +47,24 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
 
     memcpy(encoded_buffer.data<void>(), encoded_data.data(), encoded_data.size());
 
-    auto response = send_sync_but_allow_failure<Messages::ImageDecoderServer::DecodeImage>(move(encoded_buffer), ideal_size, mime_type);
-    if (!response) {
-        dbgln("ImageDecoder disconnected trying to decode image");
-        promise->reject(Error::from_string_literal("ImageDecoder disconnected"));
-        return promise;
-    }
+    i64 request_id = m_next_request_id++;
+    m_token_promises.set(request_id, promise);
 
-    m_pending_decoded_images.set(response->image_id(), promise);
+    async_decode_image(encoded_buffer, ideal_size, mime_type, request_id);
 
     return promise;
 }
 
-void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id)
+void Client::did_decode_image(i64 request_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id)
 {
     verify_event_loop();
     auto bitmaps = move(bitmap_sequence.bitmaps);
     VERIFY(!bitmaps.is_empty());
 
-    auto maybe_promise = m_pending_decoded_images.take(image_id);
+    Optional<NonnullRefPtr<Core::Promise<DecodedImage>>> maybe_promise = m_token_promises.take(request_id);
+
     if (!maybe_promise.has_value()) {
-        dbgln("ImageDecoderClient: No pending image with ID {}", image_id);
+        dbgln("ImageDecoderClient: No pending image with request token {}", request_id);
         return;
     }
     auto promise = maybe_promise.release_value();
@@ -89,7 +86,7 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
 
     for (size_t i = 0; i < bitmaps.size(); ++i) {
         if (!bitmaps[i]) {
-            dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", image_id, i);
+            dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", request_id, i);
             promise->reject(Error::from_string_literal("Invalid bitmap"));
             return;
         }
@@ -101,17 +98,18 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
     promise->resolve(move(image));
 }
 
-void Client::did_fail_to_decode_image(i64 image_id, String error_message)
+void Client::did_fail_to_decode_image(i64 request_id, String error_message)
 {
     verify_event_loop();
-    auto maybe_promise = m_pending_decoded_images.take(image_id);
+    Optional<NonnullRefPtr<Core::Promise<DecodedImage>>> maybe_promise = m_token_promises.take(request_id);
+
     if (!maybe_promise.has_value()) {
-        dbgln("ImageDecoderClient: No pending image with ID {}", image_id);
+        dbgln("ImageDecoderClient: No pending image with request token {}", request_id);
         return;
     }
     auto promise = maybe_promise.release_value();
 
-    dbgln("ImageDecoderClient: Failed to decode image with ID {}: {}", image_id, error_message);
+    dbgln("ImageDecoderClient: Failed to decode image with request token {}: {}", request_id, error_message);
     // FIXME: Include the error message in the Error object when Errors are allowed to hold Strings
     promise->reject(Error::from_string_literal("Image decoding failed or aborted"));
 }

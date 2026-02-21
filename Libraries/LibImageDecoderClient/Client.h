@@ -55,14 +55,15 @@ private:
     void verify_event_loop() const;
     virtual void die() override;
 
-    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id) override;
-    virtual void did_fail_to_decode_image(i64 image_id, String error_message) override;
+    virtual void did_decode_image(i64 request_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id) override;
+    virtual void did_fail_to_decode_image(i64 request_id, String error_message) override;
 
     virtual void did_decode_animation_frames(i64 session_id, Gfx::BitmapSequence bitmaps) override;
     virtual void did_fail_animation_decode(i64 session_id, String error_message) override;
 
     Core::EventLoop* m_creation_event_loop { &Core::EventLoop::current() };
-    HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_pending_decoded_images;
+    i64 m_next_request_id { 0 };
+    HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_token_promises;
 };
 
 }
