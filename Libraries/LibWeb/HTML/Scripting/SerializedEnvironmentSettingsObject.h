@@ -20,6 +20,19 @@ enum class CanUseCrossOriginIsolatedAPIs : u8 {
     Yes,
 };
 
+struct SerializedDocument {
+    URL::URL url;
+};
+
+struct SerializedWindow {
+    SerializedDocument associated_document;
+};
+
+struct SerializedWorkerGlobalScope {
+};
+
+using SerializedGlobal = Variant<SerializedWindow, SerializedWorkerGlobalScope>;
+
 struct SerializedEnvironmentSettingsObject {
     String id;
     URL::URL creation_url;
@@ -32,11 +45,24 @@ struct SerializedEnvironmentSettingsObject {
     SerializedPolicyContainer policy_container;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability;
     double time_origin;
+    SerializedGlobal global;
 };
 
 }
 
 namespace IPC {
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SerializedWindow const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::SerializedWindow> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SerializedWorkerGlobalScope const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::SerializedWorkerGlobalScope> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SerializedEnvironmentSettingsObject const&);

@@ -55,11 +55,7 @@ void WorkerAgentParent::initialize(JS::Realm& realm)
 
     auto serialized_outside_settings = m_outside_settings->serialize();
 
-    Optional<URL::URL> document_url_if_started_by_window_fixme;
-    if (auto* window = as_if<HTML::Window>(m_outside_settings->realm().global_object()))
-        document_url_if_started_by_window_fixme = window->associated_document().url();
-
-    m_worker_ipc->async_start_worker(m_url, m_worker_options.type, m_worker_options.credentials, m_worker_options.name, move(data_holder), serialized_outside_settings, m_agent_type, document_url_if_started_by_window_fixme);
+    m_worker_ipc->async_start_worker(m_url, m_worker_options.type, m_worker_options.credentials, m_worker_options.name, move(data_holder), serialized_outside_settings, m_agent_type);
 }
 
 void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
