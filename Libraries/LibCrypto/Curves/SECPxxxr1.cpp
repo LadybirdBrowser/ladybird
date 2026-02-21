@@ -5,6 +5,7 @@
  */
 
 #include <LibCrypto/Curves/SECPxxxr1.h>
+#include <LibCrypto/OpenSSL.h>
 
 #include <openssl/core_names.h>
 #include <openssl/ec.h>

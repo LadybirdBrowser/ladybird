@@ -11,7 +11,6 @@
 #include <AK/StringView.h>
 #include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
-#include <LibCrypto/OpenSSL.h>
 
 namespace {
 
