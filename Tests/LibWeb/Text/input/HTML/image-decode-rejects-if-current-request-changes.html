@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: decode() must reject if the image's current request changes after decode begins.
+asyncTest(async done => {
+    const server = httpTestServer();
+    const slowImageUrl = await server.createEcho("GET", "/decode-mutation-slow.svg", {
+        status: 200,
+        headers: {
+            "Content-Type": "image/svg+xml",
+            "Access-Control-Allow-Origin": "*",
+        },
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="green"/></svg>',
+        delay_ms: 300,
+    });
+
+    const image = document.createElement("img");
+    image.src = slowImageUrl;
+    document.body.appendChild(image);
+
+    const decodePromise = image.decode();
+
+    await Promise.resolve();
+    image.src = "../../../Assets/120.png?mutated=1";
+
+    const timeoutPromise = timeout(3000).then(() => {
+        throw new Error("Timed out waiting for decode result");
+    });
+
+    try {
+        await Promise.race([decodePromise, timeoutPromise]);
+        println("FAIL: decode resolved after current request changed");
+    } catch (error) {
+        if (String(error).includes("Timed out"))
+            println("FAIL: timed out waiting for decode rejection");
+        else
+            println("PASS");
+    }
+
+    done();
+});
+</script>
