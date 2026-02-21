@@ -6,7 +6,6 @@
  */
 
 #include <AK/ByteBuffer.h>
-#include <AK/IPv4Address.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Certificate/Certificate.h>
