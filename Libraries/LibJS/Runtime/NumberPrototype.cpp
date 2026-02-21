@@ -128,28 +128,41 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     //
     // Below, we arrange this as a fraction, placing any negative values into the denominator to ensure that the math
     // involves only unsigned integers.
-    Crypto::UnsignedBigInteger numerator { binary_significand };
-    Crypto::UnsignedBigInteger denominator = 1_bigint;
+    auto compute_significand = [&](i32 exponent) {
+        Crypto::UnsignedBigInteger numerator { binary_significand };
+        Crypto::UnsignedBigInteger denominator = 1_bigint;
 
-    // 2 ^ binary_exponent
-    if (binary_exponent > 0)
-        numerator = MUST(numerator.shift_left(binary_exponent));
-    else if (binary_exponent < 0)
-        denominator = MUST(denominator.shift_left(-binary_exponent));
+        // 2 ^ binary_exponent
+        if (binary_exponent > 0)
+            numerator = MUST(numerator.shift_left(binary_exponent));
+        else if (binary_exponent < 0)
+            denominator = MUST(denominator.shift_left(-binary_exponent));
 
-    // 10 ^ (precision - exponent - 1)
-    if (auto scale = precision - exponent - 1; scale > 0)
-        numerator = numerator.multiplied_by((10_bigint).pow(scale));
-    else if (scale < 0)
-        denominator = denominator.multiplied_by((10_bigint).pow(-scale));
+        // 10 ^ (precision - exponent - 1)
+        if (auto scale = precision - exponent - 1; scale > 0)
+            numerator = numerator.multiplied_by((10_bigint).pow(scale));
+        else if (scale < 0)
+            denominator = denominator.multiplied_by((10_bigint).pow(-scale));
 
-    auto [quotient, remainder] = numerator.divided_by(denominator);
+        auto [quotient, remainder] = numerator.divided_by(denominator);
 
-    // Round half-up to distinguish between equally valid candidates.
-    if (MUST(remainder.shift_left(1)) >= denominator)
-        quotient = quotient.plus(1);
+        // Round half-up to distinguish between equally valid candidates.
+        if (MUST(remainder.shift_left(1)) >= denominator)
+            quotient = quotient.plus(1);
 
-    return { .significand = move(quotient), .exponent = exponent };
+        return quotient;
+    };
+
+    // The exponent computed from Ryu can be off-by-one at boundaries (e.g. when rounding 9.9999... up to 10.0). If the
+    // resulting digit count is incorrect, we adjust the exponent and recompute the significand.
+    auto significand = compute_significand(exponent);
+
+    if (auto digit_count = significand.count_digits_in_base(10); digit_count > static_cast<size_t>(precision))
+        significand = compute_significand(++exponent);
+    else if (digit_count < static_cast<size_t>(precision))
+        significand = compute_significand(--exponent);
+
+    return { .significand = move(significand), .exponent = exponent };
 }
 
 // 21.1.3.2 Number.prototype.toExponential ( fractionDigits ), https://tc39.es/ecma262/#sec-number.prototype.toexponential
@@ -202,23 +215,32 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
     }
     // 10. Else,
     else {
-        // a. If fractionDigits is not undefined, then
-        //     i. Let e and n be integers such that 10^f ≤ n < 10^(f+1) and for which n × 10^(e-f) - x is as close to zero as possible.
-        //        If there are two such sets of e and n, pick the e and n for which n × 10^(e-f) is larger.
-        // b. Else,
-        //     i. Let e, n, and f be integers such that f ≥ 0, 10^f ≤ n < 10^(f+1), 𝔽(n × 10^(e-f)) is 𝔽(x), and f is as small as possible.
-        //        Note that the decimal representation of n has f + 1 digits, n is not divisible by 10, and the least significant digit of n is not necessarily uniquely determined by these criteria.
-        exponent = static_cast<int>(floor(log10(number)));
+        Crypto::UnsignedBigInteger significand;
 
-        if (fraction_digits_value.is_undefined()) {
-            auto mantissa = convert_floating_point_to_decimal_exponential_form(number).fraction;
-            fraction_digits = count_digits(mantissa) - 1;
+        // a. If fractionDigits is not undefined, then
+        if (!fraction_digits_value.is_undefined()) {
+            // i. Let e and n be integers such that 10^f ≤ n < 10^(f+1) and for which n × 10^(e-f) - x is as close to
+            //    zero as possible. If there are two such sets of e and n, pick the e and n for which n × 10^(e-f) is
+            //    larger.
+            auto result = compute_significand_and_exponent_with_precision(number, static_cast<i32>(fraction_digits) + 1);
+
+            significand = move(result.significand);
+            exponent = result.exponent;
+        }
+        // b. Else,
+        else {
+            // i. Let e, n, and f be integers such that f ≥ 0, 10^f ≤ n < 10^(f+1), 𝔽(n × 10^(e-f)) is 𝔽(x), and f is
+            //    as small as possible. Note that the decimal representation of n has f + 1 digits, n is not divisible
+            //    by 10, and the least significant digit of n is not necessarily uniquely determined by these criteria.
+            auto result = convert_floating_point_to_decimal_exponential_form(number);
+
+            significand = result.fraction;
+            fraction_digits = count_digits(result.fraction) - 1;
+            exponent = result.exponent + static_cast<i32>(fraction_digits);
         }
 
-        number = round(number / pow(10, exponent - fraction_digits));
-
         // c. Let m be the String value consisting of the digits of the decimal representation of n (in order, with no leading zeroes).
-        number_string = number_to_string(number, NumberToStringMode::WithoutExponent);
+        number_string = MUST(significand.to_base(10));
     }
 
     // 11. If f ≠ 0, then

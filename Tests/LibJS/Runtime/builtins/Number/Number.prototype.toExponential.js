@@ -92,4 +92,15 @@ describe("correct behavior", () => {
             expect(test[0].toExponential()).toBe(test[1]);
         });
     });
+
+    test("numbers exceeding the limits of a double", () => {
+        [
+            [123.456, 17, "1.23456000000000003e+2"],
+            [0.0001, 17, "1.00000000000000005e-4"],
+            [0.9999, 17, "9.99900000000000011e-1"],
+            [0.9999, 0, "1e+0"],
+        ].forEach(test => {
+            expect(test[0].toExponential(test[1])).toBe(test[2]);
+        });
+    });
 });
