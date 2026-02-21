@@ -7,12 +7,13 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
 
 namespace Gfx {
 
-class FontCascadeList : public RefCounted<FontCascadeList> {
+class GFX_API FontCascadeList : public RefCounted<FontCascadeList> {
 public:
     using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, Font const&)>;
 

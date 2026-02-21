@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
@@ -32,7 +33,7 @@ enum class TurbulenceType {
 
 struct FilterImpl;
 
-class Filter {
+class GFX_API Filter {
 public:
     Filter(Filter const&);
     Filter& operator=(Filter const&);

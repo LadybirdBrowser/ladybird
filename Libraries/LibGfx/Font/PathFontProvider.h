@@ -9,12 +9,13 @@
 #include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/Typeface.h>
 
 namespace Gfx {
 
-class PathFontProvider final : public SystemFontProvider {
+class GFX_API PathFontProvider final : public SystemFontProvider {
     AK_MAKE_NONCOPYABLE(PathFontProvider);
     AK_MAKE_NONMOVABLE(PathFontProvider);
 

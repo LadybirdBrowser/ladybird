@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Noncopyable.h>
+#include <LibGfx/Export.h>
 #include <LibThreading/Mutex.h>
 
 #ifdef USE_VULKAN
@@ -26,7 +27,7 @@ namespace Gfx {
 struct VulkanContext;
 class MetalContext;
 
-class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
+class GFX_API SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
     AK_MAKE_NONCOPYABLE(SkiaBackendContext);
     AK_MAKE_NONMOVABLE(SkiaBackendContext);
 

@@ -11,6 +11,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/SkiaBackendContext.h>
 
@@ -23,7 +24,7 @@ class SkSurface;
 
 namespace Gfx {
 
-class PaintingSurface : public AtomicRefCounted<PaintingSurface> {
+class GFX_API PaintingSurface : public AtomicRefCounted<PaintingSurface> {
 public:
     enum class Origin {
         TopLeft,

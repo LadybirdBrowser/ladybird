@@ -7,12 +7,13 @@
 #pragma once
 
 #include <AK/RefPtr.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 
 namespace Gfx {
 
-class ShareableBitmap {
+class GFX_API ShareableBitmap {
 public:
     ShareableBitmap();
 
@@ -43,9 +44,9 @@ private:
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Gfx::ShareableBitmap const&);
+GFX_API ErrorOr<void> encode(Encoder&, Gfx::ShareableBitmap const&);
 
 template<>
-ErrorOr<Gfx::ShareableBitmap> decode(Decoder&);
+GFX_API ErrorOr<Gfx::ShareableBitmap> decode(Decoder&);
 
 }

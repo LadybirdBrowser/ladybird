@@ -14,6 +14,7 @@ static_assert(false, "This file must only be used for macOS");
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <LibCore/IOSurface.h>
+#include <LibGfx/Export.h>
 
 namespace Gfx {
 
@@ -36,6 +37,6 @@ public:
     virtual ~MetalContext() { }
 };
 
-RefPtr<MetalContext> get_metal_context();
+GFX_API RefPtr<MetalContext> get_metal_context();
 
 }

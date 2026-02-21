@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibGfx/Export.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {
 
 struct PNGLoadingContext;
 
-class PNGImageDecoderPlugin final : public ImageDecoderPlugin {
+class GFX_API PNGImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);

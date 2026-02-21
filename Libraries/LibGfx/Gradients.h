@@ -8,6 +8,7 @@
 
 #include <AK/Math.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Size.h>
 
 namespace Gfx {
@@ -20,7 +21,7 @@ struct ColorStop {
     bool operator==(ColorStop const&) const = default;
 };
 
-float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop, float position);
+GFX_API float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop, float position);
 
 inline float normalized_gradient_angle_radians(float gradient_angle)
 {

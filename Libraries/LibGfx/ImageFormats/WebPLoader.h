@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibGfx/Export.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {
 
 struct WebPLoadingContext;
 
-class WebPImageDecoderPlugin final : public ImageDecoderPlugin {
+class GFX_API WebPImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
