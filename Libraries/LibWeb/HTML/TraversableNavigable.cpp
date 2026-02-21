@@ -930,7 +930,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
             IGNORE_USE_IN_ESCAPING_LAMBDA auto events_fired = false;
 
             // 2. Let needsBeforeunload be true if navigablesThatNeedBeforeUnload contains traversable; otherwise false.
-            auto it = navigables_that_need_before_unload.find_if([&traversable](GC::Root<Navigable> navigable) {
+            auto it = navigables_that_need_before_unload.find_if([&traversable](auto const& navigable) {
                 return navigable.ptr() == traversable.ptr();
             });
             auto needs_beforeunload = it != navigables_that_need_before_unload.end();

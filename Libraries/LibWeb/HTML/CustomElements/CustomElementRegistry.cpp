@@ -366,7 +366,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> CustomElementRegistry::when_define
         return WebIDL::create_rejected_promise(realm, WebIDL::SyntaxError::create(realm, Utf16String::formatted("'{}' is not a valid custom element name", name)));
 
     // 2. If this's custom element definition set contains an item with name name, then return a promise resolved with that item's constructor.
-    auto existing_definition_iterator = m_custom_element_definitions.find_if([&name](GC::Root<CustomElementDefinition> const& definition) {
+    auto existing_definition_iterator = m_custom_element_definitions.find_if([&name](auto const& definition) {
         return definition->name() == name;
     });
 
@@ -411,7 +411,7 @@ void CustomElementRegistry::upgrade(GC::Ref<DOM::Node> root) const
 
 GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_with_name_and_local_name(String const& name, String const& local_name) const
 {
-    auto definition_iterator = m_custom_element_definitions.find_if([&](GC::Root<CustomElementDefinition> const& definition) {
+    auto definition_iterator = m_custom_element_definitions.find_if([&](auto const& definition) {
         return definition->name() == name && definition->local_name() == local_name;
     });
 
@@ -420,7 +420,7 @@ GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_with_name
 
 GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_from_new_target(JS::FunctionObject const& new_target) const
 {
-    auto definition_iterator = m_custom_element_definitions.find_if([&](GC::Root<CustomElementDefinition> const& definition) {
+    auto definition_iterator = m_custom_element_definitions.find_if([&](auto const& definition) {
         return definition->constructor().callback.ptr() == &new_target;
     });
 
