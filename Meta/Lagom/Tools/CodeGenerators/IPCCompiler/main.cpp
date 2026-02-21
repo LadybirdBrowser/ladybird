@@ -6,7 +6,6 @@
 
 #include <AK/Debug.h>
 #include <AK/Enumerate.h>
-#include <AK/Function.h>
 #include <AK/GenericLexer.h>
 #include <AK/HashMap.h>
 #include <AK/SourceGenerator.h>
