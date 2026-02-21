@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Platform.h>
 #include <LibCore/FileWatcher.h>
 #include <LibCore/TimeZoneWatcher.h>
 
