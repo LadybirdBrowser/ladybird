@@ -737,8 +737,19 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
                         }
                     }
                 } else if (button == UIEvents::MouseButton::Secondary) {
-                    if (is<HTML::HTMLImageElement>(*node)) {
-                        auto& image_element = as<HTML::HTMLImageElement>(*node);
+                    // Skip up the tree to the first ancestor that is not a UA shadow DOM node, and use its context menu.
+                    // Media elements' controls' shadow DOM nodes should not have their own context menu, but rather activate
+                    // their parent media element's menu.
+                    auto context_menu_node = node.as_nonnull();
+                    while (auto shadow_root = context_menu_node->containing_shadow_root()) {
+                        if (!shadow_root->is_user_agent_internal())
+                            break;
+                        VERIFY(shadow_root->host() != nullptr);
+                        context_menu_node = *shadow_root->host();
+                    }
+
+                    if (is<HTML::HTMLImageElement>(*context_menu_node)) {
+                        auto& image_element = as<HTML::HTMLImageElement>(*context_menu_node);
                         auto image_url = image_element.document().encoding_parse_url(image_element.current_src());
                         if (image_url.has_value()) {
                             Optional<Gfx::Bitmap const*> bitmap;
@@ -747,12 +758,12 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
 
                             m_navigable->page().client().page_did_request_image_context_menu(top_level_viewport_position, *image_url, "", modifiers, bitmap);
                         }
-                    } else if (is<HTML::HTMLMediaElement>(*node)) {
-                        auto& media_element = as<HTML::HTMLMediaElement>(*node);
+                    } else if (is<HTML::HTMLMediaElement>(*context_menu_node)) {
+                        auto& media_element = as<HTML::HTMLMediaElement>(*context_menu_node);
 
                         Page::MediaContextMenu menu {
                             .media_url = *media_element.document().encoding_parse_url(media_element.current_src()),
-                            .is_video = is<HTML::HTMLVideoElement>(*node),
+                            .is_video = is<HTML::HTMLVideoElement>(*context_menu_node),
                             .is_playing = media_element.potentially_playing(),
                             .is_muted = media_element.muted(),
                             .has_user_agent_controls = media_element.has_attribute(HTML::AttributeNames::controls),
