@@ -75,7 +75,7 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
 }
 
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
-void paint_background(DisplayListRecordingContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
+void paint_background(DisplayListRecordingContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground const& resolved_background, BorderRadiiData const& border_radii)
 {
     auto& display_list_recorder = context.display_list_recorder();
 
