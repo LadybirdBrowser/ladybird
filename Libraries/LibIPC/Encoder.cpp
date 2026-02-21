@@ -10,7 +10,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Checked.h>
-#include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/NumericLimits.h>
 #include <AK/String.h>
@@ -19,7 +18,6 @@
 #include <AK/Utf16View.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Proxy.h>
-#include <LibCore/System.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
 #include <LibURL/Origin.h>
