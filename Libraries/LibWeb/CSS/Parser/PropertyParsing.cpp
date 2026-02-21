@@ -2242,6 +2242,11 @@ RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>
                 return nullptr;
 
             if (in_alt_text) {
+                // https://drafts.csswg.org/css-content-3/#content-property
+                // / [ <string> | <counter> | <attr()> ]+
+                // NB: <attr()> is handled as an arbitrary substitution function and does not reach this code path.
+                if (!style_value->is_string() && !style_value->is_counter())
+                    return nullptr;
                 alt_text_values.append(style_value.release_nonnull());
             } else {
                 content_values.append(style_value.release_nonnull());
