@@ -13,8 +13,8 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Time.h>
-#include <LibCore/Event.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibThreading/RWLock.h>
 
