@@ -284,7 +284,7 @@ public:
     MUST_UPCALL virtual void inserted();
     virtual void post_connection();
     MUST_UPCALL virtual void removed_from(Node* old_parent, Node& old_root);
-    virtual void moved_from(GC::Ptr<Node> old_parent);
+    MUST_UPCALL virtual void moved_from(GC::Ptr<Node> old_parent);
 
     struct ChildrenChangedMetadata {
         enum class Type {
