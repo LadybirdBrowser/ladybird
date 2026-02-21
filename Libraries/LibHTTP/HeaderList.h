@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
