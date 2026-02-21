@@ -8,6 +8,7 @@
 
 #include <LibGC/Root.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/Display.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
@@ -69,7 +70,7 @@ public:
     [[nodiscard]] bool is_absolutely_positioned() const { return m_absolutely_positioned; }
     [[nodiscard]] bool is_floating() const { return m_floating; }
     [[nodiscard]] bool is_inline() const { return m_inline; }
-    [[nodiscard]] CSS::Display display() const;
+    [[nodiscard]] CSS::Display display() const { return m_display; }
 
     bool has_stacking_context() const;
     StackingContext* enclosing_stacking_context();
@@ -197,6 +198,8 @@ private:
     bool m_inline : 1 { false };
     bool m_visible : 1 { true };
     bool m_visible_for_hit_testing : 1 { true };
+
+    CSS::Display m_display;
 
 protected:
     bool m_needs_paint_only_properties_update : 1 { true };
