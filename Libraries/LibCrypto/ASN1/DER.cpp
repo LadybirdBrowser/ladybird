@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BitmapView.h>
 #include <AK/IntegralMath.h>
 #include <AK/Math.h>
 #include <AK/Stream.h>
