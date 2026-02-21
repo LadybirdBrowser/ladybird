@@ -9,6 +9,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/String.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -54,19 +55,31 @@ public:
         VERIFY(is_internal());
         return m_value.internal;
     }
-    bool is_table_column() const;
-    bool is_table_row_group() const;
-    bool is_table_header_group() const;
-    bool is_table_footer_group() const;
-    bool is_table_row() const;
-    bool is_table_cell() const;
-    bool is_table_column_group() const;
-    bool is_table_caption() const;
-    // https://drafts.csswg.org/css-display-3/#internal-table-element
-    bool is_internal_table() const;
 
-    bool is_none() const;
-    bool is_contents() const;
+    bool is_table_column() const { return is_internal() && internal() == DisplayInternal::TableColumn; }
+    bool is_table_row_group() const { return is_internal() && internal() == DisplayInternal::TableRowGroup; }
+    bool is_table_header_group() const { return is_internal() && internal() == DisplayInternal::TableHeaderGroup; }
+    bool is_table_footer_group() const { return is_internal() && internal() == DisplayInternal::TableFooterGroup; }
+    bool is_table_row() const { return is_internal() && internal() == DisplayInternal::TableRow; }
+    bool is_table_cell() const { return is_internal() && internal() == DisplayInternal::TableCell; }
+    bool is_table_column_group() const { return is_internal() && internal() == DisplayInternal::TableColumnGroup; }
+    bool is_table_caption() const { return is_internal() && internal() == DisplayInternal::TableCaption; }
+
+    // https://drafts.csswg.org/css-display-3/#internal-table-element
+    bool is_internal_table() const
+    {
+        return is_internal()
+            && (internal() == DisplayInternal::TableRowGroup
+                || internal() == DisplayInternal::TableHeaderGroup
+                || internal() == DisplayInternal::TableFooterGroup
+                || internal() == DisplayInternal::TableRow
+                || internal() == DisplayInternal::TableCell
+                || internal() == DisplayInternal::TableColumnGroup
+                || internal() == DisplayInternal::TableColumn);
+    }
+
+    bool is_none() const { return m_type == Type::Box && m_value.box == DisplayBox::None; }
+    bool is_contents() const { return m_type == Type::Box && m_value.box == DisplayBox::Contents; }
 
     Type type() const { return m_type; }
 
@@ -78,8 +91,8 @@ public:
         return m_value.outside_inside.outside;
     }
 
-    bool is_block_outside() const;
-    bool is_inline_outside() const;
+    bool is_block_outside() const { return is_outside_and_inside() && outside() == DisplayOutside::Block; }
+    bool is_inline_outside() const { return is_outside_and_inside() && outside() == DisplayOutside::Inline; }
     bool is_inline_block() const { return is_inline_outside() && is_flow_root_inside(); }
 
     ListItem list_item() const
@@ -96,13 +109,13 @@ public:
         return m_value.outside_inside.inside;
     }
 
-    bool is_flow_inside() const;
-    bool is_flow_root_inside() const;
-    bool is_table_inside() const;
-    bool is_flex_inside() const;
-    bool is_grid_inside() const;
-    bool is_ruby_inside() const;
-    bool is_math_inside() const;
+    bool is_flow_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Flow; }
+    bool is_flow_root_inside() const { return is_outside_and_inside() && inside() == DisplayInside::FlowRoot; }
+    bool is_table_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Table; }
+    bool is_flex_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Flex; }
+    bool is_grid_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Grid; }
+    bool is_ruby_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Ruby; }
+    bool is_math_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Math; }
 
     enum class Short {
         None,
