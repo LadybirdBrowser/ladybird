@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <LibCompress/Zlib.h>
+#include <LibCompress/GenericZlib.h>
 
 namespace Compress {
 
