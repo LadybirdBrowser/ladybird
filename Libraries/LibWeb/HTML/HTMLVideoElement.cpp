@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -66,13 +67,6 @@ void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String>
 GC::Ptr<Layout::Node> HTMLVideoElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::VideoBox>(document(), *this, style);
-}
-
-void HTMLVideoElement::adjust_computed_style(CSS::ComputedProperties& style)
-{
-    // https://drafts.csswg.org/css-display-3/#unbox
-    if (style.display().is_contents())
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 Layout::VideoBox* HTMLVideoElement::layout_node()

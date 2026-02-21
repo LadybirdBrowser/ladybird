@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
- * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +13,8 @@
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -87,6 +89,13 @@ void HTMLMediaElement::finalize()
     }
 
     document().page().unregister_media_element({}, unique_id());
+}
+
+void HTMLMediaElement::adjust_computed_style(CSS::ComputedProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#queue-a-media-element-task

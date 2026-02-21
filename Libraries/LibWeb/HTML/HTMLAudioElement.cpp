@@ -33,13 +33,6 @@ GC::Ptr<Layout::Node> HTMLAudioElement::create_layout_node(GC::Ref<CSS::Computed
     return heap().allocate<Layout::AudioBox>(document(), *this, style);
 }
 
-void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties& style)
-{
-    // https://drafts.csswg.org/css-display-3/#unbox
-    if (style.display().is_contents())
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
-}
-
 Layout::AudioBox* HTMLAudioElement::layout_node()
 {
     return static_cast<Layout::AudioBox*>(Node::layout_node());

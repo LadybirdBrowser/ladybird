@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
- * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -42,6 +42,8 @@ public:
     virtual ~HTMLMediaElement() override;
 
     virtual bool is_focusable() const override { return true; }
+
+    virtual void adjust_computed_style(CSS::ComputedProperties& style) override;
 
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     void queue_a_media_element_task(Function<void()>);
