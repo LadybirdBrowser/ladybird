@@ -9,6 +9,8 @@
 #pragma once
 
 #include <AK/Concepts.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
 

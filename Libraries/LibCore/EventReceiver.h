@@ -10,10 +10,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/Noncopyable.h>
-#include <AK/OwnPtr.h>
 #include <AK/StringView.h>
-#include <AK/TypeCasts.h>
-#include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibCore/Forward.h>
 
