@@ -38,6 +38,7 @@ Paintable::Paintable(Layout::Node const& layout_node)
     m_absolutely_positioned = computed_values.position() == CSS::Positioning::Absolute;
     m_floating = layout_node.is_floating();
     m_inline = layout_node.is_inline();
+    m_display = layout_node.display();
 }
 
 Paintable::~Paintable() = default;
@@ -85,11 +86,6 @@ DOM::Document const& Paintable::document() const
 DOM::Document& Paintable::document()
 {
     return layout_node().document();
-}
-
-CSS::Display Paintable::display() const
-{
-    return layout_node().display();
 }
 
 PaintableBox* Paintable::containing_block() const
