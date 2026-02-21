@@ -7,10 +7,9 @@
 #include <AK/Assertions.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
-#include <LibGC/Heap.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/Forward.h>
 #include <LibGC/HeapBlock.h>
-#include <stdio.h>
-#include <sys/mman.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
