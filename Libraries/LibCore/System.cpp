@@ -9,13 +9,9 @@
  */
 
 #include <AK/ByteString.h>
-#include <AK/FixedArray.h>
 #include <AK/ScopeGuard.h>
-#include <AK/ScopedValueRollback.h>
 #include <AK/StdLibExtras.h>
-#include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <limits.h>
 #include <stdarg.h>
