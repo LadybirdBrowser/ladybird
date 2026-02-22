@@ -79,6 +79,8 @@ public:
     double zoom_level() const { return m_zoom_level; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
+    int max_touch_points() const { return m_max_touch_points; }
+    void set_max_touch_points(int max_touch_points);
 
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
@@ -321,6 +323,7 @@ protected:
     double m_zoom_level { 1.0 };
     double m_device_pixel_ratio { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
+    int m_max_touch_points { 0 };
 
     RefPtr<Menu> m_page_context_menu;
     RefPtr<Menu> m_link_context_menu;

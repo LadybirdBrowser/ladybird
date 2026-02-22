@@ -145,8 +145,14 @@ GC::Ref<WebXR::XRSystem> Navigator::xr()
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
 WebIDL::Long Navigator::max_touch_points()
 {
-    dbgln("FIXME: Unimplemented Navigator.maxTouchPoints");
-    return 0;
+    // The getter steps are:
+    // 1. Let emulated maxTouchPoints be the result of WebDriver BiDi emulated max touch points.
+    // 2. If emulated maxTouchPoints is not null, return emulated maxTouchPoints.
+    // 3. Return the maximum number of simultaneous touch contacts supported by the device.
+    //
+    // FIXME: Implement step 1/2 using WebDriver BiDi emulation once supported in Ladybird.
+    auto const& window = as<HTML::Window>(HTML::current_principal_global_object());
+    return window.page().max_touch_points();
 }
 
 GC::Ref<ServiceWorker::ServiceWorkerContainer> Navigator::service_worker()
