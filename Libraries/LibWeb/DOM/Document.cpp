@@ -5592,7 +5592,9 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
             auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
             relevant_global_object.dispatch_event(pop_state_event);
 
-            // FIXME: 4. Restore persisted state given entry.
+            // 4. Restore persisted state given entry.
+            if (auto navigable = this->navigable())
+                navigable->restore_scroll_position_data(entry);
 
             // 5. If oldURL's fragment is not equal to entry's URL's fragment, then queue a global task on the DOM manipulation task source
             //    given document's relevant global object to fire an event named hashchange at document's relevant global object,
@@ -5614,7 +5616,9 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
             // 1. Assert: entriesForNavigationAPI is given.
             VERIFY(entries_for_navigation_api.has_value());
 
-            // FIXME: 2. Restore persisted state given entry.
+            // 2. Restore persisted state given entry.
+            // AD-HOC: Scroll restoration is deferred to after try_to_scroll_to_the_fragment (step 8).
+            //         See https://github.com/whatwg/html/issues/12138
 
             // 3. Initialize the navigation API entries for a new document given navigation, entriesForNavigationAPI, and entry.
             navigation->initialize_the_navigation_api_entries_for_a_new_document(*entries_for_navigation_api, entry);
@@ -5648,6 +5652,11 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
 
         // 3. Try to scroll to the fragment for document.
         try_to_scroll_to_the_fragment();
+
+        // AD-HOC: Restore scroll position after try_to_scroll_to_the_fragment to avoid being overwritten
+        //         by scroll_to_the_beginning_of_the_document. See https://github.com/whatwg/html/issues/12138
+        if (auto navigable = this->navigable())
+            navigable->restore_scroll_position_data(entry);
 
         // 4. At this point scripts may run for the newly-created document document.
         m_ready_to_run_scripts = true;

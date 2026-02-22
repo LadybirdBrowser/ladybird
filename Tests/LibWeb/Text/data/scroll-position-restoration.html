@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>div { height: 10000px; }</style>
+<div></div>
+<script>
+    window.scrollTo(0, 200);
+    history.pushState({}, "", location.href + "#pushed");
+    window.scrollTo(0, 0);
+    parent.postMessage(`scrollY before back: ${window.scrollY}`, "*");
+
+    window.addEventListener("popstate", () => {
+        // Scroll is restored at spec step 4, after popstate dispatch returns.
+        // Listen for the scroll event that fires when the position is restored.
+        document.addEventListener("scroll", () => {
+            parent.postMessage(`scrollY after back: ${window.scrollY}`, "*");
+        }, { once: true });
+    });
+
+    history.back();
+</script>

@@ -13,6 +13,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Web::HTML {
 
@@ -69,6 +70,9 @@ public:
     [[nodiscard]] ScrollRestorationMode scroll_restoration_mode() const { return m_scroll_restoration_mode; }
     void set_scroll_restoration_mode(ScrollRestorationMode scroll_restoration_mode) { m_scroll_restoration_mode = scroll_restoration_mode; }
 
+    [[nodiscard]] Optional<CSSPixelPoint> const& scroll_position_data() const { return m_scroll_position_data; }
+    void set_scroll_position_data(Optional<CSSPixelPoint> scroll_position_data) { m_scroll_position_data = move(scroll_position_data); }
+
     [[nodiscard]] GC::Ptr<PolicyContainer> policy_container() const { return m_policy_container; }
     void set_policy_container(GC::Ptr<PolicyContainer> policy_container) { m_policy_container = policy_container; }
 
@@ -114,7 +118,8 @@ private:
     GC::Ptr<PolicyContainer> m_policy_container;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-scroll-position
-    // FIXME: scroll position data, which is scroll position data for the document's restorable scrollable regions
+    // scroll position data, which is scroll position data for the document's restorable scrollable regions
+    Optional<CSSPixelPoint> m_scroll_position_data;
 
     // browsing context name, a browsing context name or null, initially null
     Optional<ByteString> m_browsing_context_name;

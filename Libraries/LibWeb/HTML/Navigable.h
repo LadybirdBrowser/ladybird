@@ -166,6 +166,9 @@ public:
     CSSPixelPoint to_top_level_position(CSSPixelPoint);
     CSSPixelRect to_top_level_rect(CSSPixelRect const&);
 
+    void save_persisted_state(SessionHistoryEntry&);
+    void restore_scroll_position_data(SessionHistoryEntry const&);
+
     CSSPixelPoint viewport_scroll_offset() const { return m_viewport_scroll_offset; }
     CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_viewport_size }; }
     CSSPixelSize viewport_size() const { return m_viewport_size; }

@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigateEvent.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationDestination.h>
@@ -184,10 +185,12 @@ void NavigateEvent::process_scroll_behavior()
     // 2. Set event's interception state to "scrolled".
     m_interception_state = InterceptionState::Scrolled;
 
-    // FIXME: 3. If event's navigationType was initialized to "traverse" or "reload", then restore scroll position data
-    //           given event's relevant global object's navigable's active session history entry.
+    // 3. If event's navigationType was initialized to "traverse" or "reload", then restore scroll position data
+    //    given event's relevant global object's navigable's active session history entry.
     if (m_navigation_type == Bindings::NavigationType::Traverse || m_navigation_type == Bindings::NavigationType::Reload) {
-        dbgln("FIXME: restore scroll position data after traversal or reload navigation");
+        auto& window = as<HTML::Window>(relevant_global_object(*this));
+        if (auto navigable = window.navigable())
+            navigable->restore_scroll_position_data(*navigable->active_session_history_entry());
     }
 
     // 4. Otherwise:

@@ -316,7 +316,10 @@ GC::Ptr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
 void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
 {
-    // FIXME: 1. Save persisted state to the navigable's active session history entry.
+    // 1. Save persisted state to the navigable's active session history entry.
+    // FIXME: Also persist user interaction state (form control values, etc.)
+    if (m_active_session_history_entry)
+        save_persisted_state(*m_active_session_history_entry);
 
     // 2. Let newDocument be entry's document.
     GC::Ptr<DOM::Document> new_document = entry->document().ptr();
@@ -2014,6 +2017,10 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
         script_history_length = script_history_index + 1;
     }
 
+    // AD-HOC: The spec only calls "save persisted state" during traversals, but same-document fragment
+    //         navigations also switch the active entry, so scroll data must be persisted here.
+    save_persisted_state(*m_active_session_history_entry);
+
     // 12. Set navigable's active session history entry to historyEntry.
     m_active_session_history_entry = history_entry;
 
@@ -2503,6 +2510,10 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 9. Set document's latest entry to newEntry.
     document.set_latest_entry(new_entry);
 
+    // AD-HOC: The spec only calls "save persisted state" during traversals, but pushState/replaceState
+    //         also switch the active entry, so scroll data must be persisted here.
+    navigable->save_persisted_state(*navigable->active_session_history_entry());
+
     // 10. Set navigable's active session history entry to newEntry.
     navigable->set_active_session_history_entry(new_entry);
 
@@ -2524,6 +2535,40 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
         // 2. FIXME: Invoke WebDriver BiDi history updated with navigable.
         return signal_to_continue_session_history_processing;
     }));
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#save-persisted-state
+void Navigable::save_persisted_state(SessionHistoryEntry& entry)
+{
+    // 1. Set the scroll position data of entry to contain the scroll positions for all of entry's document's
+    //    restorable scrollable regions.
+    // FIXME: Persist scroll positions for all of the document's restorable scrollable regions.
+    entry.set_scroll_position_data(viewport_scroll_offset());
+
+    // FIXME: 2. Optionally, update entry's persisted user state to reflect any state that the user agent wishes to
+    //           persist, such as the values of form fields.
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-scroll-position-data
+void Navigable::restore_scroll_position_data(SessionHistoryEntry const& entry)
+{
+    // AD-HOC: The spec checks scroll restoration mode in "restore persisted state", not in "restore scroll
+    //         position data". We fold the check here for simplicity at all call sites.
+    // FIXME: Also check entry's document's relevant global object's navigation API's suppress normal scroll
+    //        restoration during ongoing navigation.
+    if (entry.scroll_restoration_mode() != ScrollRestorationMode::Auto)
+        return;
+
+    // FIXME: 1. Let document be entry's document.
+    // FIXME: 2. If document's has been scrolled by the user is true, then the user agent should return.
+
+    if (!entry.scroll_position_data().has_value())
+        return;
+
+    // 3. The user agent should attempt to use entry's scroll position data to restore the scroll positions of entry's
+    //    document's restorable scrollable regions.
+    // FIXME: Restore scroll positions for all of the document's restorable scrollable regions.
+    perform_scroll_of_viewport_scrolling_box(entry.scroll_position_data().value());
 }
 
 void Navigable::scroll_offset_did_change()
