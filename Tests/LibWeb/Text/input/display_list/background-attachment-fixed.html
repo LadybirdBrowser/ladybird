@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 200vh;
+        background-attachment: fixed;
+        background-image: linear-gradient(green, blue);
+        background-size: 100% 100vh;
+        background-repeat: no-repeat;
+    }
+</style>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
