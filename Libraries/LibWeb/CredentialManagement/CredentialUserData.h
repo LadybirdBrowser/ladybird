@@ -10,15 +10,15 @@
 
 namespace Web::CredentialManagement {
 
+// https://www.w3.org/TR/credential-management-1/#credentialuserdata
 class CredentialUserData {
 public:
     virtual ~CredentialUserData() = default;
 
-    String const& name() { return m_name; }
-    String const& icon_url() { return m_icon_url; }
+    String const& name() const { return m_name; }
+    String const& icon_url() const { return m_icon_url; }
 
 protected:
-    CredentialUserData() = default;
     CredentialUserData(String name, String icon_url)
         : m_name(move(name))
         , m_icon_url(move(icon_url))
