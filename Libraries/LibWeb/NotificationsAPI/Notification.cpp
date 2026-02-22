@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "options[\"tag\"] cannot be the empty string when options[\"renotify\"] is set to true."sv };
 
     // 4. Set notification’s data to StructuredSerializeForStorage(options["data"]).
-    notification.data = HTML::structured_serialize_for_storage(realm.vm(), options.data).release_value();
+    notification.data = TRY(HTML::structured_serialize_for_storage(realm.vm(), options.data));
 
     // 5. Set notification’s title to title.
     notification.title = title;
