@@ -1,0 +1,29 @@
+<!doctype html>
+<title>client* on the scrolling element</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1654769">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<style>
+  :root {
+    /* Ensure the width of the root element's box is smaller than the viewport. */
+    margin: 5px;
+    /* Remove the scrollbars so that we can test {Width, Height}. */
+    scrollbar-width: none;
+    /* Would love to add a border but https://github.com/w3c/csswg-drafts/issues/5363 */
+  }
+</style>
+<div style="height: 200vh; width: 200vw"></div>
+<script>
+test(function() {
+  scrollTo(100, 100);
+  assert_equals(document.documentElement.clientTop, 0, "Client top doesn't depend on scrolling");
+  assert_equals(document.documentElement.clientLeft, 0, "Client left doesn't depend on scrolling");
+  assert_equals(document.documentElement.clientWidth, window.innerWidth, "Without scrollbars, client width should match viewport width");
+  assert_equals(document.documentElement.clientHeight, window.innerHeight, "Without scrollbars, client height should match viewport height");
+}, "client* properties on the root element");
+</script>

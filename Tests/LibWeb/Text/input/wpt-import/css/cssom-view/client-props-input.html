@@ -1,0 +1,43 @@
+<!doctype html>
+<title>client* on input / textarea</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1654769">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<style>
+  input, textarea {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 200px;
+    width: 300px;
+    border-style: solid;
+    border-width: 10px 20px;
+    padding: 2px;
+    box-sizing: content-box;
+  }
+  .block { display: block; }
+</style>
+<input>
+<textarea></textarea>
+<input class="block">
+<textarea class="block"></textarea>
+<script>
+test(() => {
+  for (let element of document.querySelectorAll("input, textarea")) {
+    let description = `${element.nodeName} ${element.className}: `;
+    assert_equals(element.clientHeight, 204, description + "clientHeight should be the padding box height");
+    assert_equals(element.clientTop, 10, description + "clientTop should include the border offset");
+    // <input> clips to the content box edge in the inline axis, so it should also include the padding offset.
+    let expectedLeft = 20;
+    let expectedWidth = 304;
+    if (element.nodeName == "INPUT") {
+      expectedLeft += 2;
+      expectedWidth -= 4;
+    }
+    assert_equals(element.clientWidth, expectedWidth, description + "clientWidth should be the padding box for textarea, content box for input");
+    assert_equals(element.clientLeft, expectedLeft, description + "clientLeft should include the border offset for textarea and border + padding for input");
+  }
+}, "client* on input / textarea");
+</script>

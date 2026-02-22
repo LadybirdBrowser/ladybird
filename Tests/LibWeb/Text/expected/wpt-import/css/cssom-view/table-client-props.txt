@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+4 Pass
+11 Fail
+Pass	Overall test to make sure there are no exceptions
+Pass	Basic table
+Fail	Basic caption
+Fail	Table and narrower caption
+Fail	Table and wider caption
+Pass	Table with padding
+Pass	Table with padding and content-box sizing
+Fail	Table with separated border
+Fail	Table with collapsed border
+Fail	Flex-level table with separated border
+Fail	Flex-level table with collapsed border
+Fail	Caption with padding
+Fail	Caption with border
+Fail	Caption with margin
+Fail	Bottom caption

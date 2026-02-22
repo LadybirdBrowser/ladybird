@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Client properties for elements with css zoom
+Pass	Client properties for elements with css zoom 1

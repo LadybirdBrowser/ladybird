@@ -1,0 +1,96 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>client* properties on tables</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<div id="test-target" style="position: absolute"></div>
+<script>
+  test(function() {
+    // Each test consists of four elements: the markup to use, the expected
+    // value of offsetWidth on the table, the expected value of offsetHeight
+    // on the table, and the description string.
+    var tests = [
+      [ `<table style="width: 20px; height: 30px">`,
+        20, 30,
+        "Basic table" ],
+      [ `<table><caption style="width: 40px; height: 50px">`,
+        40, 50,
+        "Basic caption" ],
+      [ `<table style="width: 20px; height: 30px">
+           <caption style="width: 10px; height: 20px">`,
+        20, 50,
+        "Table and narrower caption" ],
+      [ `<table style="width: 20px; height: 30px">
+           <caption style="width: 40px; height: 20px">`,
+        40, 50,
+        "Table and wider caption" ],
+      [ `<table style="width: 20px; height: 30px; padding: 1px 2px 3px 4px">`,
+        20, 30,
+        "Table with padding" ],
+      [ `<table style="width: 20px; height: 30px; padding: 1px 2px 3px 4px;
+                       box-sizing: content-box">`,
+        26, 34,
+        "Table with padding and content-box sizing" ],
+      [ `<table style="width: 20px; height: 30px;
+                       border-width: 1px 2px 3px 4px; border-style: solid;
+                       border-collapse: separate; box-sizing: content-box">`,
+        26, 34,
+        "Table with separated border" ],
+      [ `<table style="width: 20px; height: 30px;
+                       border-width: 2px 4px 6px 8px; border-style: solid;
+                       border-collapse: collapse; box-sizing: content-box">
+           <tr><td>`,
+        26, 34,
+        "Table with collapsed border" ],
+      [ `<div style="display: flex">
+           <table style="width: 20px; height: 30px;
+                         border-width: 1px 2px 3px 4px; border-style: solid;
+                         border-collapse: separate; box-sizing: content-box">`,
+        26, 34,
+        "Flex-level table with separated border" ],
+      [ `<div style="display: flex">
+           <table style="width: 20px; height: 30px;
+                         border-width: 2px 4px 6px 8px; border-style: solid;
+                         border-collapse: collapse; box-sizing: content-box">
+             <tr><td>`,
+        26, 34,
+        "Flex-level table with collapsed border" ],
+      [ `<table>
+           <caption style="width: 40px; height: 50px; padding: 1px 2px 3px 4px">`,
+        46, 54,
+        "Caption with padding" ],
+      [ `<table>
+           <caption style="width: 40px; height: 50px;
+                           border-width: 1px 2px 3px 4px; border-style: solid">`,
+        46, 54,
+        "Caption with border" ],
+      [ `<table>
+           <caption style="width: 40px; height: 50px; margin: 1px 2px 3px 4px;">`,
+        46, 54,
+        "Caption with margin" ],
+      [ `<table style="caption-side: bottom">
+           <caption style="width: 40px; height: 50px;">`,
+        40, 50,
+        "Bottom caption" ],
+    ];
+
+    function target() {
+      return document.getElementById("test-target");
+    }
+
+    function table() {
+      return target().querySelector("table");
+    }
+
+    for (var t of tests) {
+      test(function() {
+        target().innerHTML = t[0];
+        assert_equals(table().clientWidth, t[1], t[3] + " clientWidth");
+        assert_equals(table().clientHeight, t[2], t[3] + " clientHeight");
+        assert_equals(table().clientLeft, 0, t[3] + " clientLeft");
+        assert_equals(table().clientTop, 0, t[3] + " clientTop");
+      }, t[3]);
+    }
+  }, "Overall test to make sure there are no exceptions");
+</script>
