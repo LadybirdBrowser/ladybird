@@ -36,7 +36,7 @@ WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name
 WorkerHost::~WorkerHost() = default;
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared, Optional<URL::URL> document_url_if_started_by_window_fixme)
+void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared)
 {
     // 3. Let unsafeWorkerCreationTime be the unsafe shared current time.
     auto unsafe_worker_creation_time = Web::HighResolutionTime::unsafe_shared_current_time();
@@ -90,8 +90,8 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     //       This causes the Referrer-Policy spec's "determine request's referrer" algorithm to read the ESO's creation
     //       URL, whereas it would normally read the document's URL. To hack around this, we overwrite the creation URL
     //       (which is only used in the initial worker script fetch).
-    if (document_url_if_started_by_window_fixme.has_value())
-        outside_settings->creation_url = document_url_if_started_by_window_fixme.release_value();
+    if (auto const* window = outside_settings_snapshot.global.get_pointer<Web::HTML::SerializedWindow>())
+        outside_settings->creation_url = window->associated_document.url;
 
     // 10. If is shared is true, then:
     if (is_shared) {
