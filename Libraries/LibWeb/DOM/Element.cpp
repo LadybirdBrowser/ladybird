@@ -1443,33 +1443,49 @@ Vector<CSSPixelRect> Element::get_client_rects() const
 
 int Element::client_top() const
 {
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementClientTop);
+    // NOTE: We only need style information here, not layout metrics.
+    const_cast<Document&>(document()).update_style_if_needed_for_element(AbstractElement { const_cast<Element&>(*this) });
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
-    if (!paintable_box())
+    if (!computed_properties())
+        return 0;
+    auto display = computed_properties()->display();
+    if (display.is_none() || display.is_contents())
+        return 0;
+    if (display.is_inline_outside() && display.is_flow_inside())
         return 0;
 
     // 2. Return the computed value of the border-top-width property
     //    plus the height of any scrollbar rendered between the top padding edge and the top border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
-    return paintable_box()->computed_values().border_top().width.to_int();
+    auto border_top_style = computed_properties()->line_style(CSS::PropertyID::BorderTopStyle);
+    if (border_top_style == CSS::LineStyle::None || border_top_style == CSS::LineStyle::Hidden)
+        return 0;
+    return max(CSSPixels { 0 }, computed_properties()->length(CSS::PropertyID::BorderTopWidth).absolute_length_to_px()).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientleft
 int Element::client_left() const
 {
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementClientLeft);
+    // NOTE: We only need style information here, not layout metrics.
+    const_cast<Document&>(document()).update_style_if_needed_for_element(AbstractElement { const_cast<Element&>(*this) });
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
-    if (!paintable_box())
+    if (!computed_properties())
+        return 0;
+    auto display = computed_properties()->display();
+    if (display.is_none() || display.is_contents())
+        return 0;
+    if (display.is_inline_outside() && display.is_flow_inside())
         return 0;
 
     // 2. Return the computed value of the border-left-width property
     //    plus the width of any scrollbar rendered between the left padding edge and the left border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
-    return paintable_box()->computed_values().border_left().width.to_int();
+    auto border_left_style = computed_properties()->line_style(CSS::PropertyID::BorderLeftStyle);
+    if (border_left_style == CSS::LineStyle::None || border_left_style == CSS::LineStyle::Hidden)
+        return 0;
+    return max(CSSPixels { 0 }, computed_properties()->length(CSS::PropertyID::BorderLeftWidth).absolute_length_to_px()).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientwidth
