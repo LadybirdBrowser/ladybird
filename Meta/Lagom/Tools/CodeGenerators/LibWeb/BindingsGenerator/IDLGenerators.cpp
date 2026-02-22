@@ -97,7 +97,12 @@ static bool is_platform_object(Type const& type)
         "KeyframeEffect"sv,
         "MediaKeySystemAccess"sv,
         "MediaList"sv,
+        "MediaDeviceInfo"sv,
+        "MediaDevices"sv,
         "Memory"sv,
+        "MediaStream"sv,
+        "MediaStreamTrack"sv,
+        "MediaStreamTrackEvent"sv,
         "MessagePort"sv,
         "Module"sv,
         "MutationRecord"sv,
@@ -571,7 +576,7 @@ static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type 
 
     if (type.is_nullable() || optional_integral_type) {
         scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value(static_cast<@cpp_type@>(@value@.release_value()));
+    @result_expression@ JS::Value(static_cast<@cpp_type@>(@value@.value()));
 )~~~");
     } else {
         scoped_generator.append(R"~~~(
@@ -1948,6 +1953,24 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
     scoped_generator.set("value_cpp_name", value.replace("."sv, "_"sv));
+    // Use one non-optional expression for wrapping.
+    // Some optional values are Optional<T> and need .value(), while others are pointer-like and do not.
+    auto value_non_optional = value;
+
+    bool optional_uses_value_access = false;
+    if (is_optional) {
+        optional_uses_value_access = is<UnionType>(type)
+            || type.is_string()
+            || type.name().is_one_of("sequence"sv, "FrozenArray"sv)
+            || type.is_primitive()
+            || interface.enumerations.contains(type.name())
+            || interface.dictionaries.contains(type.name());
+    }
+
+    if (optional_uses_value_access)
+        value_non_optional = ByteString::formatted("{}.value()", value);
+
+    scoped_generator.set("value_non_optional", value_non_optional);
     if (!libweb_interface_namespaces.span().contains_slow(type.name())) {
         if (is_javascript_builtin(type))
             scoped_generator.set("type", ByteString::formatted("JS::{}", type.name()));
@@ -1994,6 +2017,11 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     if (@value@) {
 )~~~");
         }
+    }
+    if (is_optional && is<UnionType>(type)) {
+        scoped_generator.append(R"~~~(
+    if (@value@.has_value()) {
+)~~~");
     }
 
     if (type.is_string()) {
@@ -2072,7 +2100,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         auto result = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
         // 2. For each key → value of D:
-        for (auto const& [key, value] : @value@) {
+        for (auto const& [key, value] : @value_non_optional@) {
             // 1. Let jsKey be key converted to a JavaScript value.
             auto js_key = JS::PropertyKey { Utf16FlyString::from_utf8(key) };
 
@@ -2096,6 +2124,10 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             scoped_generator.append(R"~~~(
     @result_expression@ JS::Value(@value@.release_value());
 )~~~");
+        } else if (is_optional) {
+            scoped_generator.append(R"~~~(
+    @result_expression@ JS::Value(@value_non_optional@);
+)~~~");
         } else {
             scoped_generator.append(R"~~~(
     @result_expression@ JS::Value(@value@);
@@ -2105,15 +2137,15 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         generate_from_integral(scoped_generator, type, generate_optional_integral_type);
     } else if (type.name() == "Location" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
         scoped_generator.append(R"~~~(
-    @result_expression@ @value@;
+    @result_expression@ @value_non_optional@;
 )~~~");
     } else if (type.name() == "Promise") {
         scoped_generator.append(R"~~~(
-    @result_expression@ GC::Ref { as<JS::Promise>(*@value@->promise()) };
+    @result_expression@ GC::Ref { as<JS::Promise>(*@value_non_optional@->promise()) };
 )~~~");
     } else if (type.name() == "ArrayBufferView" || type.name() == "BufferSource") {
         scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value(@value@->raw_object());
+    @result_expression@ JS::Value(@value_non_optional@->raw_object());
 )~~~");
     } else if (is<IDL::UnionType>(type)) {
         auto& union_type = as<IDL::UnionType>(type);
@@ -2121,7 +2153,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         auto union_generator = scoped_generator.fork();
 
         union_generator.append(R"~~~(
-    @result_expression@ @value@.visit(
+    @result_expression@ @value_non_optional@.visit(
 )~~~");
 
         for (size_t current_union_type_index = 0; current_union_type_index < union_types.size(); ++current_union_type_index) {
@@ -2179,15 +2211,15 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
         if (callback_function.is_legacy_treat_non_object_as_null && !type.is_nullable()) {
             scoped_generator.append(R"~~~(
-  if (!@value@) {
+  if (!@value_non_optional@) {
       @result_expression@ JS::js_null();
   } else {
-      @result_expression@ @value@->callback;
+      @result_expression@ @value_non_optional@->callback;
   }
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
-  @result_expression@ @value@->callback;
+  @result_expression@ @value_non_optional@->callback;
 )~~~");
         }
     } else if (interface.dictionaries.contains(type.name())) {
@@ -2230,7 +2262,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 }
 
                 next_iteration_index++;
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional, next_iteration_index);
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value_non_optional, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional, next_iteration_index);
 
                 if (is_optional) {
                     dictionary_generator.append(R"~~~(
@@ -2256,11 +2288,11 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
     } else if (type.name() == "object") {
         scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value(const_cast<JS::Object*>(@value@));
+    @result_expression@ JS::Value(const_cast<JS::Object*>(@value_non_optional@));
 )~~~");
     } else {
         scoped_generator.append(R"~~~(
-    @result_expression@ &const_cast<@type@&>(*@value@);
+    @result_expression@ &const_cast<@type@&>(*@value_non_optional@);
 )~~~");
     }
 
@@ -2270,7 +2302,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         @result_expression@ JS::js_null();
     }
 )~~~");
-    } else if (is_optional && !is<UnionType>(type)) {
+    } else if (is_optional) {
         // Optional return values should not be assigned any value (including null) if the value is not present.
         scoped_generator.append(R"~~~(
     }
@@ -5333,6 +5365,7 @@ using namespace Web::IndexedDB;
 using namespace Web::Internals;
 using namespace Web::IntersectionObserver;
 using namespace Web::MediaCapabilitiesAPI;
+using namespace Web::MediaCapture;
 using namespace Web::MediaSourceExtensions;
 using namespace Web::NavigationTiming;
 using namespace Web::NotificationsAPI;

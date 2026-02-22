@@ -15,6 +15,8 @@ set(SOURCES
     Providers/VideoDataProvider.cpp
     Sinks/AudioMixingSink.cpp
     Sinks/DisplayingVideoSink.cpp
+    MediaCapture/AudioInputDevices.cpp
+    MediaCapture/AudioOutputDevices.cpp
     TimedImage.cpp
     VideoFrame.cpp
 )
