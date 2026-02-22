@@ -195,10 +195,10 @@ void ConnectionFromClient::traverse_the_history_by_delta(u64 page_id, i32 delta)
         page->page().traverse_the_history_by_delta(delta);
 }
 
-void ConnectionFromClient::set_viewport_size(u64 page_id, Web::DevicePixelSize size)
+void ConnectionFromClient::set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->set_viewport_size(size);
+        page->set_viewport(size, device_pixel_ratio);
 }
 
 void ConnectionFromClient::ready_to_paint(u64 page_id)
@@ -1193,12 +1193,6 @@ void ConnectionFromClient::set_is_scripting_enabled(u64 page_id, bool is_scripti
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_is_scripting_enabled(is_scripting_enabled);
-}
-
-void ConnectionFromClient::set_device_pixel_ratio(u64 page_id, double device_pixel_ratio)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->set_device_pixel_ratio(device_pixel_ratio);
 }
 
 void ConnectionFromClient::set_zoom_level(u64 page_id, double zoom_level)

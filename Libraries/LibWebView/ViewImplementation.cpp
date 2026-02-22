@@ -613,7 +613,7 @@ void ViewImplementation::update_zoom()
 
 void ViewImplementation::handle_resize()
 {
-    client().async_set_viewport_size(page_id(), this->viewport_size());
+    client().async_set_viewport(page_id(), this->viewport_size(), m_device_pixel_ratio);
 }
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client)
@@ -630,7 +630,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
-    client().async_set_device_pixel_ratio(m_client_state.page_index, m_device_pixel_ratio);
+    client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio);
     client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);

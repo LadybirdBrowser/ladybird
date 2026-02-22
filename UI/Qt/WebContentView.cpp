@@ -549,13 +549,12 @@ void WebContentView::resizeEvent(QResizeEvent* event)
 void WebContentView::set_viewport_rect(Gfx::IntRect rect)
 {
     m_viewport_size = rect.size();
-    client().async_set_viewport_size(m_client_state.page_index, rect.size().to_type<Web::DevicePixels>());
+    handle_resize();
 }
 
 void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;
-    client().async_set_device_pixel_ratio(m_client_state.page_index, m_device_pixel_ratio);
     update_viewport_size();
     handle_resize();
 }

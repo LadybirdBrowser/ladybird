@@ -206,18 +206,21 @@ void PageClient::report_finished_handling_input_event(u64 page_id, Web::EventRes
     client().async_did_finish_handling_input_event(page_id, event_was_handled);
 }
 
-void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
+void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pixel_ratio)
 {
+    auto invalidate = m_device_pixel_ratio != device_pixel_ratio
+        ? Web::InvalidateDisplayList::Yes
+        : Web::InvalidateDisplayList::No;
+
     m_viewport_size = size;
-    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size));
+    m_device_pixel_ratio = device_pixel_ratio;
+
+    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
 }
 
-void PageClient::set_device_pixel_ratio(double device_pixel_ratio)
+void PageClient::set_zoom_level(double zoom_level)
 {
-    if (m_device_pixel_ratio == device_pixel_ratio)
-        return;
-
-    m_device_pixel_ratio = device_pixel_ratio;
+    m_zoom_level = zoom_level;
     page().top_level_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size));
 }
 
@@ -388,7 +391,7 @@ void PageClient::page_did_set_browser_zoom(double factor)
 
 void PageClient::page_did_set_device_pixel_ratio_for_testing(double ratio)
 {
-    set_device_pixel_ratio(ratio);
+    set_viewport(m_viewport_size, ratio);
 }
 
 void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position)

@@ -41,7 +41,7 @@ endpoint WebContentServer
 
     ready_to_paint(u64 page_id) =|
 
-    set_viewport_size(u64 page_id, Web::DevicePixelSize size) =|
+    set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio) =|
 
     key_event(u64 page_id, Web::KeyEvent event) =|
     mouse_event(u64 page_id, Web::MouseEvent event) =|
@@ -103,7 +103,6 @@ endpoint WebContentServer
     set_enable_global_privacy_control(u64 page_id, bool enable) =|
     set_has_focus(u64 page_id, bool has_focus) =|
     set_is_scripting_enabled(u64 page_id, bool is_scripting_enabled) =|
-    set_device_pixel_ratio(u64 page_id, double device_pixel_ratio) =|
     set_zoom_level(u64 page_id, double zoom_level) =|
     set_maximum_frames_per_second(u64 page_id, double maximum_frames_per_second) =|
 
