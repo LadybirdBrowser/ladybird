@@ -11,6 +11,7 @@
 *.autosave
 build*/
 Build*/
+target/
 Toolchain/Tarballs
 Toolchain/Build
 Toolchain/Local

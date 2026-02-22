@@ -25,6 +25,10 @@ install_llvm_key() {
 
 apt update -y
 apt install -y lsb-release git python3 autoconf autoconf-archive automake build-essential cmake libdrm-dev libgl1-mesa-dev libtool nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland ccache fonts-liberation2 zip unzip curl tar
+
+### Install Rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
 ### Ensure new enough host compiler is available
 
 VERSION="0.0.0"

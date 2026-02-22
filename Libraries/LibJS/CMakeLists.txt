@@ -294,7 +294,7 @@ endif()
 
 if (WIN32)
     # FIXME: Windows on ARM
-    target_link_libraries(LibJS PRIVATE clang_rt.builtins-x86_64.lib)
+    target_link_libraries(LibJS PRIVATE clang_rt.builtins-x86_64.lib kernel32 ntdll Ws2_32 userenv)
 else()
     # This flag has no effect on Windows
     target_compile_options(LibJS PRIVATE -fno-omit-frame-pointer)
