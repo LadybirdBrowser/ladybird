@@ -2424,6 +2424,42 @@ static Optional<GridTrackSizeList> composite_grid_track_size_list(CalculationCon
     return result;
 }
 
+static RefPtr<StyleValue const> composite_mixed_value(StyleValue const& underlying_value, StyleValue const& animated_value, CalculationContext const& calculation_context)
+{
+    // https://drafts.csswg.org/css-values-4/#combine-mixed
+    // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
+    auto underlying_value_type = get_value_type_of_numeric_style_value(underlying_value, calculation_context);
+    auto animated_value_type = get_value_type_of_numeric_style_value(animated_value, calculation_context);
+
+    if (underlying_value_type.has_value() && underlying_value_type == animated_value_type) {
+        // The computed value of a percentage-dimension mix is defined as
+        // FIXME: a computed dimension if the percentage component is zero or is defined specifically to compute to a dimension value
+        // a computed percentage if the dimension component is zero
+        // a computed calc() expression otherwise
+        if (auto const* from_dimension_value = as_if<DimensionStyleValue>(underlying_value); from_dimension_value && animated_value.type() == StyleValue::Type::Percentage) {
+            auto dimension_component = from_dimension_value->raw_value();
+            auto percentage_component = animated_value.as_percentage().raw_value();
+            if (dimension_component == 0.f)
+                return PercentageStyleValue::create(Percentage { percentage_component });
+        } else if (auto const* to_dimension_value = as_if<DimensionStyleValue>(animated_value); to_dimension_value && underlying_value.type() == StyleValue::Type::Percentage) {
+            auto dimension_component = to_dimension_value->raw_value();
+            auto percentage_component = underlying_value.as_percentage().raw_value();
+            if (dimension_component == 0)
+                return PercentageStyleValue::create(Percentage { percentage_component });
+        }
+
+        auto underlying_node = CalculationNode::from_style_value(underlying_value, calculation_context);
+        auto animated_node = CalculationNode::from_style_value(animated_value, calculation_context);
+
+        return CalculatedStyleValue::create(
+            simplify_a_calculation_tree(SumCalculationNode::create({ underlying_node, animated_node }), calculation_context, {}),
+            *underlying_node->numeric_type()->added_to(*animated_node->numeric_type()),
+            calculation_context);
+    }
+
+    return {};
+}
+
 RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation)
 {
     auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
@@ -2437,9 +2473,8 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
     if (composite_operation == Bindings::CompositeOperation::Replace)
         return {};
 
-    // FIXME: Composite mixed values where possible
-    if (underlying_value.type() != animated_value.type())
-        return {};
+    if (underlying_value.type() != animated_value.type() || underlying_value.is_calculated() || animated_value.is_calculated())
+        return composite_mixed_value(underlying_value, animated_value, calculation_context);
 
     switch (underlying_value.type()) {
     case StyleValue::Type::Angle: {
