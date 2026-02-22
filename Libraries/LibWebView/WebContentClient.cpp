@@ -588,6 +588,11 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
     Application::cookie_jar().expire_cookies_with_time_offset(offset);
 }
 
+void WebContentClient::did_clear_cookies_for_origin(URL::Origin origin)
+{
+    Application::cookie_jar().clear_cookies_for_origin(origin);
+}
+
 Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
 {
     return Application::storage_jar().get_item(storage_endpoint, storage_key, bottle_key);

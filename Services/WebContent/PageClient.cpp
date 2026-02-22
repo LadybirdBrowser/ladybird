@@ -583,6 +583,11 @@ void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
         document->reset_cookie_version();
 }
 
+void PageClient::page_did_clear_cookies_for_origin(URL::Origin const& origin)
+{
+    client().async_did_clear_cookies_for_origin(origin);
+}
+
 Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageItem>(storage_endpoint, storage_key, bottle_key);
