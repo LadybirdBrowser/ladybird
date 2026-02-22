@@ -70,6 +70,7 @@ enum class SetNeedsLayoutReason {
 
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(X) \
     X(ElementSetInnerHTML)                                \
+    X(ElementSetShadowRoot)                               \
     X(DetailsElementOpenedOrClosed)                       \
     X(HTMLInputElementSrcAttribute)                       \
     X(HTMLOListElementOrdinalValues)                      \

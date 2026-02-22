@@ -158,6 +158,14 @@ function (generate_css_implementation)
         NAMESPACE "Web::CSS"
     )
 
+    embed_as_string(
+        "MediaControlsStyleSheetSource.cpp"
+        "${LIBWEB_INPUT_FOLDER}/HTML/MediaControls.css"
+        "CSS/MediaControlsStyleSheetSource.cpp"
+        "media_controls_stylesheet_source"
+        NAMESPACE "Web::CSS"
+    )
+
     set(CSS_GENERATED_HEADERS
        "CSS/Enums.h"
        "CSS/EnvironmentVariable.h"

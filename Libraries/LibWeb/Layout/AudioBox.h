@@ -20,10 +20,14 @@ public:
     HTML::HTMLAudioElement& dom_node();
     HTML::HTMLAudioElement const& dom_node() const;
 
+    virtual bool can_have_children() const override;
+
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
-    virtual CSS::SizeWithAspectRatio natural_size() const override;
+    // Treat the audio element as if it was not a replaced element, sizing based on its content.
+    // Thus, it can fit to the shadow DOM controls, instead of having a hardcoded height.
+    virtual bool has_auto_content_box_size() const override { return false; }
     AudioBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);
 };
 

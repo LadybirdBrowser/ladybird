@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2026, Gregory Bertilso <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,12 +8,12 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/MediaPaintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
 
-class VideoPaintable final : public MediaPaintable {
-    GC_CELL(VideoPaintable, MediaPaintable);
+class VideoPaintable final : public PaintableBox {
+    GC_CELL(VideoPaintable, PaintableBox);
     GC_DECLARE_ALLOCATOR(VideoPaintable);
 
 public:
@@ -22,8 +23,6 @@ public:
 
 private:
     VideoPaintable(Layout::VideoBox const&);
-
-    void paint_placeholder_video_controls(DisplayListRecordingContext&, DevicePixelRect video_rect, Optional<DevicePixelPoint> const& mouse_position) const;
 };
 
 }

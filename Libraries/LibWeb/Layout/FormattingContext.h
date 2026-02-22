@@ -70,6 +70,7 @@ public:
         Grid,
         Table,
         SVG,
+        ReplacedWithChildren,
         InternalReplaced, // Internal hack formatting context for replaced elements. FIXME: Get rid of this.
         InternalDummy,    // Internal hack formatting context for unimplemented things. FIXME: Get rid of this.
     };
@@ -89,6 +90,8 @@ public:
             return "TFC"sv;
         case Type::SVG:
             return "SVG"sv;
+        case Type::ReplacedWithChildren:
+            return "Replaced, with children"sv;
         case Type::InternalReplaced:
             return "Replaced"sv;
         case Type::InternalDummy:

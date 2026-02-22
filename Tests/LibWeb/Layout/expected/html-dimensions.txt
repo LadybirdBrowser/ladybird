@@ -3,9 +3,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 720 0+0+8] children: inline
       frag 0 from VideoBox start: 0, length: 0, rect: [8,8 320x240] baseline: 240
       frag 1 from VideoBox start: 0, length: 0, rect: [8,248 640x480] baseline: 480
-      VideoBox <video> at [8,8] [0+0+0 320 0+0+0] [0+0+0 240 0+0+0] children: not-inline
+      VideoBox <video> at [8,8] inline-block [0+0+0 320 0+0+0] [0+0+0 240 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      VideoBox <video> at [8,248] [0+0+0 640 0+0+0] [0+0+0 480 0+0+0] children: not-inline
+      VideoBox <video> at [8,248] inline-block [0+0+0 640 0+0+0] [0+0+0 480 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x736]

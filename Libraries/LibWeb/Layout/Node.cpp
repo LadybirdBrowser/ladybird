@@ -243,7 +243,7 @@ static GC::Ptr<Box> nearest_ancestor_capable_of_forming_a_containing_block(Node&
         if (ancestor->is_block_container()
             || ancestor->display().is_flex_inside()
             || ancestor->display().is_grid_inside()
-            || ancestor->is_svg_svg_box()) {
+            || ancestor->is_replaced_box_with_children()) {
             return as<Box>(ancestor);
         }
     }
@@ -1422,6 +1422,11 @@ bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const
 
     // SVG related boxes should never be split.
     if (is_svg_box() || is_svg_svg_box() || is_svg_foreign_object_box())
+        return false;
+
+    // Replaced boxes with children (e.g. media elements with shadow DOM controls)
+    // have their own formatting context; don't split them.
+    if (parent()->is_replaced_box_with_children())
         return false;
 
     return true;

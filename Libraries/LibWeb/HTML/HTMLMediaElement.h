@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
- * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -19,11 +19,10 @@
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/MediaControls.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/PixelUnits.h>
-#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/WebIDL/DOMException.h>
-#include <math.h>
 
 namespace Web::HTML {
 
@@ -43,6 +42,8 @@ public:
     virtual ~HTMLMediaElement() override;
 
     virtual bool is_focusable() const override { return true; }
+
+    virtual void adjust_computed_style(CSS::ComputedProperties& style) override;
 
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     void queue_a_media_element_task(Function<void()>);
@@ -143,36 +144,8 @@ public:
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
-    bool handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
-
-    enum class MediaComponent {
-        PlaybackButton,
-        SpeakerButton,
-        Timeline,
-        Volume,
-    };
-
-    void set_layout_mouse_tracking_component(Badge<Painting::MediaPaintable>, Optional<MediaComponent> mouse_tracking_component) { m_mouse_tracking_component = move(mouse_tracking_component); }
-    Optional<MediaComponent> const& layout_mouse_tracking_component(Badge<Painting::MediaPaintable>) const { return m_mouse_tracking_component; }
-
-    void set_layout_hovered_component(Badge<Painting::MediaPaintable>, Optional<MediaComponent> hovered_component) { m_hovered_component = hovered_component; }
-    Optional<MediaComponent> const& layout_hovered_component(Badge<Painting::MediaPaintable>) const { return m_hovered_component; }
-
-    void set_layout_mouse_position(Badge<Painting::MediaPaintable>, Optional<CSSPixelPoint> mouse_position) { m_mouse_position = move(mouse_position); }
-    Optional<CSSPixelPoint> const& layout_mouse_position(Badge<Painting::MediaPaintable>) const { return m_mouse_position; }
-
-    void set_layout_display_time(Badge<Painting::MediaPaintable>, Optional<double> display_time);
-    double layout_display_time(Badge<Painting::MediaPaintable>) const;
-
-    struct CachedLayoutBoxes {
-        Optional<CSSPixelRect> control_box_rect;
-        Optional<CSSPixelRect> playback_button_rect;
-        Optional<CSSPixelRect> timeline_rect;
-        Optional<CSSPixelRect> speaker_button_rect;
-        Optional<CSSPixelRect> volume_rect;
-        Optional<CSSPixelRect> volume_scrub_rect;
-    };
-    CachedLayoutBoxes& cached_layout_boxes(Badge<Painting::MediaPaintable>) const { return m_layout_boxes; }
+    void create_controls();
+    void destroy_controls();
 
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
@@ -365,13 +338,7 @@ private:
 
     bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 
-    // Cached state for layout.
-    Optional<MediaComponent> m_mouse_tracking_component;
-    Optional<MediaComponent> m_hovered_component;
-    bool m_tracking_mouse_position_while_playing { false };
-    Optional<CSSPixelPoint> m_mouse_position;
-    Optional<double> m_display_time;
-    mutable CachedLayoutBoxes m_layout_boxes;
+    Optional<MediaControls> m_controls;
 
     bool m_has_enabled_preferred_audio_track { false };
     bool m_has_selected_preferred_video_track { false };

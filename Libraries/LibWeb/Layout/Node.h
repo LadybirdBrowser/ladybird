@@ -126,6 +126,8 @@ public:
     virtual bool is_node_with_style() const { return false; }
     virtual bool is_node_with_style_and_box_model_metrics() const { return false; }
 
+    bool is_replaced_box_with_children() const { return is_replaced_box() && can_have_children(); }
+
     template<typename T>
     bool fast_is() const = delete;
 

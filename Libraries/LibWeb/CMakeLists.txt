@@ -547,6 +547,7 @@ set(SOURCES
     HTML/HTMLMapElement.cpp
     HTML/HTMLMarqueeElement.cpp
     HTML/HTMLMediaElement.cpp
+    HTML/MediaControls.cpp
     HTML/HTMLMenuElement.cpp
     HTML/HTMLMetaElement.cpp
     HTML/HTMLMeterElement.cpp
@@ -763,6 +764,7 @@ set(SOURCES
     Layout/Node.cpp
     Layout/RadioButton.cpp
     Layout/ReplacedBox.cpp
+    Layout/ReplacedWithChildrenFormattingContext.cpp
     Layout/SVGBox.cpp
     Layout/SVGClipBox.cpp
     Layout/SVGForeignObjectBox.cpp
@@ -817,7 +819,6 @@ set(SOURCES
     Page/InputEvent.cpp
     Page/Page.cpp
     Painting/AccumulatedVisualContext.cpp
-    Painting/AudioPaintable.cpp
     Painting/BackgroundPainting.cpp
     Painting/BackingStoreManager.cpp
     Painting/Blending.cpp
@@ -839,7 +840,6 @@ set(SOURCES
     Painting/ImagePaintable.cpp
     Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
-    Painting/MediaPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
     Painting/PaintableBox.cpp
@@ -1181,6 +1181,7 @@ generate_html_implementation()
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
+    CSS/MediaControlsStyleSheetSource.cpp
     CSS/DescriptorID.cpp
     CSS/Enums.cpp
     CSS/EnvironmentVariable.cpp

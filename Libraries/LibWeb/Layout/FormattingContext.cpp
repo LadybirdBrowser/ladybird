@@ -15,6 +15,7 @@
 #include <LibWeb/Layout/GridFormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/Layout/ReplacedWithChildrenFormattingContext.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
@@ -139,15 +140,17 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
 
 Optional<FormattingContext::Type> FormattingContext::formatting_context_type_created_by_box(Box const& box)
 {
-    if (box.is_replaced_box() && !box.can_have_children()) {
+    if (is<SVGSVGBox>(box))
+        return Type::SVG;
+
+    if (box.is_replaced_box_with_children())
+        return Type::ReplacedWithChildren;
+
+    if (box.is_replaced_box())
         return Type::InternalReplaced;
-    }
 
     if (!box.can_have_children())
         return {};
-
-    if (is<SVGSVGBox>(box))
-        return Type::SVG;
 
     auto display = box.display();
 
@@ -222,6 +225,8 @@ OwnPtr<FormattingContext> FormattingContext::create_independent_formatting_conte
         return make<GridFormattingContext>(state, layout_mode, child_box, this);
     case Type::Table:
         return make<TableFormattingContext>(state, layout_mode, child_box, this);
+    case Type::ReplacedWithChildren:
+        return make<ReplacedWithChildrenFormattingContext>(state, layout_mode, child_box, this);
     case Type::InternalReplaced:
         return make<ReplacedFormattingContext>(state, layout_mode, child_box);
     case Type::InternalDummy:
@@ -2214,7 +2219,7 @@ bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, Availab
     // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 §10
     // and CSS Flexible Box Model Level 1 §9.2.
     // https://www.w3.org/TR/css-sizing-4/#aspect-ratio-automatic
-    if (is<ReplacedBox>(box))
+    if (box.is_replaced_box() && box.has_auto_content_box_size())
         return true;
 
     if (box.has_preferred_aspect_ratio() || box.has_auto_content_box_size()) {

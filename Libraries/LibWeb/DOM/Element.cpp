@@ -1290,6 +1290,7 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     if (m_shadow_root)
         m_shadow_root->set_host(this);
     invalidate_style(StyleInvalidationReason::ElementSetShadowRoot);
+    set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ElementSetShadowRoot);
 }
 
 GC::Ref<CSS::CSSStyleProperties> Element::style_for_bindings()

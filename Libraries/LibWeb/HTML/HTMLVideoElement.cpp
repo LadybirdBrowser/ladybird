@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -66,13 +67,6 @@ void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String>
 GC::Ptr<Layout::Node> HTMLVideoElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::VideoBox>(document(), *this, style);
-}
-
-void HTMLVideoElement::adjust_computed_style(CSS::ComputedProperties& style)
-{
-    // https://drafts.csswg.org/css-display-3/#unbox
-    if (style.display().is_contents())
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 Layout::VideoBox* HTMLVideoElement::layout_node()
@@ -185,6 +179,55 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
     return {};
+}
+
+HTMLVideoElement::Representation HTMLVideoElement::current_representation() const
+{
+    // https://html.spec.whatwg.org/multipage/media.html#the-video-element:the-video-element-7
+    // A video element represents what is given for the first matching condition in the list below:
+
+    // -> When no video data is available (the element's readyState attribute is either HAVE_NOTHING, or HAVE_METADATA
+    //    but no video data has yet been obtained at all, or the element's readyState attribute is any subsequent value
+    //    but the media resource does not have a video channel)
+    if (ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing
+        || (ready_state() >= HTML::HTMLMediaElement::ReadyState::HaveMetadata && video_tracks()->length() == 0)) {
+        // The video element represents its poster frame, if any, or else transparent black with no intrinsic dimensions.
+        return poster_frame() ? Representation::PosterFrame : Representation::TransparentBlack;
+    }
+
+    // -> When the video element is paused, the current playback position is the first frame of video, and the element's
+    //    show poster flag is set
+    if (paused() && current_playback_position() == 0 && show_poster()) {
+        // The video element represents its poster frame, if any, or else the first frame of the video.
+        return poster_frame() ? Representation::PosterFrame : Representation::FirstVideoFrame;
+    }
+
+    // -> When the video element is paused, and the frame of video corresponding to the current playback position
+    //    is not available (e.g. because the video is seeking or buffering)
+    //
+    //     The video element represents the last frame of the video to have been rendered.
+    //
+    // NOTE: We don't need to check this condition, as seeking is asynchronous, and the last available frame
+    //       will be kept until the seek completes.
+
+    // -> When the video element is neither potentially playing nor paused (e.g. when seeking or stalled)
+    if (!potentially_playing() && !paused()) {
+        // The video element represents the last frame of the video to have been rendered.
+        return Representation::VideoFrame;
+    }
+
+    // -> When the video element is paused
+    if (paused()) {
+        // The video element represents the frame of video corresponding to the current playback position.
+        return Representation::VideoFrame;
+    }
+
+    // -> Otherwise (the video element has a video channel and is potentially playing)
+    //
+    //     The video element represents the frame of video at the continuously increasing "current" position. When the
+    //     current playback position changes such that the last frame rendered is no longer the frame corresponding to
+    //     the current playback position in the video, the new frame must be rendered.
+    return Representation::VideoFrame;
 }
 
 RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const

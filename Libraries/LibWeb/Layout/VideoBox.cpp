@@ -14,7 +14,7 @@ namespace Web::Layout {
 GC_DEFINE_ALLOCATOR(VideoBox);
 
 VideoBox::VideoBox(DOM::Document& document, DOM::Element& element, GC::Ref<CSS::ComputedProperties> style)
-    : ReplacedBox(document, element, move(style))
+    : ReplacedBox(document, element, style)
 {
     document.register_viewport_client(*this);
 }
@@ -36,6 +36,12 @@ HTML::HTMLVideoElement& VideoBox::dom_node()
 HTML::HTMLVideoElement const& VideoBox::dom_node() const
 {
     return static_cast<HTML::HTMLVideoElement const&>(*ReplacedBox::dom_node());
+}
+
+bool VideoBox::can_have_children() const
+{
+    // If we allow children when controls are disabled, innerText may be non-empty.
+    return dom_node().shadow_root() != nullptr;
 }
 
 CSS::SizeWithAspectRatio VideoBox::natural_size() const

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
- * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +13,8 @@
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -89,6 +91,18 @@ void HTMLMediaElement::finalize()
     document().page().unregister_media_element({}, unique_id());
 }
 
+void HTMLMediaElement::adjust_computed_style(CSS::ComputedProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
+
+    // AD-HOC: We rewrite `display: inline` to `display: inline-block`.
+    //         This is required for the internal shadow tree to work correctly in layout.
+    if (style.display().is_inline_outside() && style.display().is_flow_inside())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#queue-a-media-element-task
 void HTMLMediaElement::queue_a_media_element_task(Function<void()> steps)
 {
@@ -118,6 +132,11 @@ void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String>
         load_element().release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value);
+    } else if (name == HTML::AttributeNames::controls) {
+        if (value.has_value() || is_scripting_disabled())
+            create_controls();
+        else
+            destroy_controls();
     }
 }
 
@@ -462,9 +481,6 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
     });
 
     // FIXME: Then, if the media element is not allowed to play, the user agent must run the internal pause steps for the media element.
-
-    if (auto* paintable = this->paintable())
-        paintable->set_needs_display();
 
     update_volume();
 }
@@ -1251,10 +1267,6 @@ Painting::ExternalContentSource& HTMLMediaElement::ensure_external_content_sourc
 
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
 {
-    set_needs_style_update(true);
-    if (auto layout_node = this->layout_node())
-        layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementSetVideoTrack);
-
     if (m_selected_video_track) {
         VERIFY(m_selected_video_track_sink);
         m_playback_manager->remove_the_displaying_video_sink_for_track(m_selected_video_track->track_in_playback_manager());
@@ -1273,12 +1285,12 @@ void HTMLMediaElement::update_video_frame_and_timeline()
     if (!m_playback_manager)
         return;
 
-    auto new_frame_available = false;
     if (m_selected_video_track_sink) {
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
             ensure_external_content_source().update(m_selected_video_track_sink->current_frame());
-            new_frame_available = true;
+            if (paintable())
+                paintable()->set_needs_display();
         }
     }
 
@@ -1287,21 +1299,9 @@ void HTMLMediaElement::update_video_frame_and_timeline()
     if (seeking())
         return;
 
-    auto needs_display_list_rebuild = false;
     auto new_position = m_playback_manager->current_time().to_seconds_f64();
-    if (new_position != m_current_playback_position) {
+    if (new_position != m_current_playback_position)
         set_current_playback_position(new_position);
-        needs_display_list_rebuild = true;
-    }
-
-    if (!paintable())
-        return;
-
-    if (needs_display_list_rebuild) {
-        paintable()->set_needs_display(InvalidateDisplayList::Yes);
-    } else if (new_frame_available) {
-        paintable()->set_needs_display(InvalidateDisplayList::No);
-    }
 }
 
 void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
@@ -1402,6 +1402,10 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
 
     auto event = TrackEvent::create(realm, HTML::EventNames::addtrack, move(event_init));
     m_video_tracks->dispatch_event(event);
+
+    // Update the VideoPaintable, so that it can potentially change representations based on the new video track count.
+    if (paintable())
+        paintable()->set_needs_display();
 }
 
 void HTMLMediaElement::on_metadata_parsed()
@@ -2362,86 +2366,15 @@ void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL:
         WebIDL::reject_promise(realm, promise, error);
 }
 
-bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode key, u32 modifiers)
+void HTMLMediaElement::create_controls()
 {
-    if (modifiers != UIEvents::KeyModifier::Mod_None)
-        return false;
-
-    switch (key) {
-    case UIEvents::KeyCode::Key_Space:
-        toggle_playback();
-        break;
-
-    case UIEvents::KeyCode::Key_Home:
-        set_current_time(0);
-        break;
-    case UIEvents::KeyCode::Key_End:
-        set_current_time(duration());
-        break;
-
-    case UIEvents::KeyCode::Key_Left:
-    case UIEvents::KeyCode::Key_Right: {
-        static constexpr double time_skipped_per_key_press = 5.0;
-        auto current_time = this->current_time();
-
-        if (key == UIEvents::KeyCode::Key_Left)
-            current_time = max(0.0, current_time - time_skipped_per_key_press);
-        else
-            current_time = min(duration(), current_time + time_skipped_per_key_press);
-
-        set_current_time(current_time);
-        break;
-    }
-
-    case UIEvents::KeyCode::Key_Up:
-    case UIEvents::KeyCode::Key_Down: {
-        static constexpr double volume_change_per_key_press = 0.1;
-        auto volume = this->volume();
-
-        if (key == UIEvents::KeyCode::Key_Up)
-            volume = min(1.0, volume + volume_change_per_key_press);
-        else
-            volume = max(0.0, volume - volume_change_per_key_press);
-
-        // This should never fail since volume is clamped to 0.0..1.0 above.
-        MUST(set_volume(volume));
-        break;
-    }
-
-    case UIEvents::KeyCode::Key_M:
-        set_muted(!muted());
-        break;
-
-    default:
-        return false;
-    }
-
-    return true;
+    if (!m_controls.has_value())
+        m_controls.emplace(*this);
 }
 
-void HTMLMediaElement::set_layout_display_time(Badge<Painting::MediaPaintable>, Optional<double> display_time)
+void HTMLMediaElement::destroy_controls()
 {
-    if (display_time.has_value()) {
-        if (potentially_playing() && !m_tracking_mouse_position_while_playing) {
-            m_tracking_mouse_position_while_playing = true;
-            m_playback_manager->pause();
-        }
-    } else if (!display_time.has_value()) {
-        if (m_tracking_mouse_position_while_playing) {
-            m_tracking_mouse_position_while_playing = false;
-            m_playback_manager->play();
-        }
-    }
-
-    m_display_time = move(display_time);
-
-    if (auto* paintable = this->paintable())
-        paintable->set_needs_display();
-}
-
-double HTMLMediaElement::layout_display_time(Badge<Painting::MediaPaintable>) const
-{
-    return m_display_time.value_or(current_time());
+    m_controls.clear();
 }
 
 }
