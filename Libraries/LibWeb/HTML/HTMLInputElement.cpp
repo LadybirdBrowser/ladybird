@@ -862,7 +862,10 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text(R"~~~(
                 width: 100%;
+                height: 1lh;
                 align-items: center;
+                overflow: hidden;
+                scrollbar-width: auto;
                 text-overflow: clip;
                 white-space: nowrap;
             )~~~"sv);
