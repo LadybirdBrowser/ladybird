@@ -10,7 +10,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             TextNode <#text> (not painted)
             SVGGeometryBox <rect> at [8,8] [0+0+0 200 0+0+0] [0+0+0 200 0+0+0] children: not-inline
             TextNode <#text> (not painted)
-            SVGGeometryBox <circle> at [26.75,26.75] [0+0+0 162.5 0+0+0] [0+0+0 162.5 0+0+0] children: not-inline
+            SVGGeometryBox <circle> at [28,28] [0+0+0 160 0+0+0] [0+0+0 160 0+0+0] children: not-inline
             TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         SVGGeometryBox <rect> at [208,208] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
@@ -18,7 +18,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             TextNode <#text> (not painted)
             SVGGeometryBox <rect> at [208,208] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
             TextNode <#text> (not painted)
-            SVGGeometryBox <circle> at [226.75,217.375] [0+0+0 162.5 0+0+0] [0+0+0 81.25 0+0+0] children: not-inline
+            SVGGeometryBox <circle> at [228,218] [0+0+0 160 0+0+0] [0+0+0 80 0+0+0] children: not-inline
             TextNode <#text> (not painted)
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
