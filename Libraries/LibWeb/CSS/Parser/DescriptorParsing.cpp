@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
@@ -263,6 +264,31 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     if (valid_sources.is_empty())
                         return nullptr;
                     return StyleValueList::create(move(valid_sources), StyleValueList::Separator::Comma);
+                }
+                case DescriptorMetadata::ValueType::FontWeightAbsolutePair: {
+                    // <font-weight-absolute>{1,2}
+                    // <font-weight-absolute> = [ normal | bold | <number [1,1000]> ]
+                    // This is the same as the font-weight property, twice, without 'lighter' or 'bolder'.
+                    auto parse_absolute_font_weight = [&] -> RefPtr<StyleValue const> {
+                        auto value_for_property = parse_css_value_for_property(PropertyID::FontWeight, tokens);
+                        if (!value_for_property)
+                            return nullptr;
+                        if (value_for_property->is_css_wide_keyword() || value_for_property->is_unresolved())
+                            return nullptr;
+                        if (first_is_one_of(value_for_property->to_keyword(), Keyword::Lighter, Keyword::Bolder))
+                            return nullptr;
+                        return value_for_property;
+                    };
+                    auto first = parse_absolute_font_weight();
+                    if (!first)
+                        return nullptr;
+                    tokens.discard_whitespace();
+                    if (!tokens.has_next_token())
+                        return StyleValueList::create({ first.release_nonnull() }, StyleValueList::Separator::Space);
+                    auto second = parse_absolute_font_weight();
+                    if (!second)
+                        return nullptr;
+                    return StyleValueList::create({ first.release_nonnull(), second.release_nonnull() }, StyleValueList::Separator::Space);
                 }
                 case DescriptorMetadata::ValueType::Length:
                     return parse_length_value(tokens);

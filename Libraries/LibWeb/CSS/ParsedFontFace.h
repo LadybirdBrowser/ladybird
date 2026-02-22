@@ -10,6 +10,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <LibGfx/Font/UnicodeRange.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -26,7 +27,7 @@ public:
     static Vector<Source> sources_from_style_value(StyleValue const&);
     static ParsedFontFace from_descriptors(CSSFontFaceDescriptors const&);
 
-    ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings);
+    ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings);
     ~ParsedFontFace() = default;
 
     GC::Ref<CSSRule> parent_rule() const { return m_parent_rule; }
@@ -39,7 +40,7 @@ public:
     Optional<FlyString> font_named_instance() const { return m_font_named_instance; }
     Optional<OrderedHashMap<FlyString, double>> font_variation_settings() const { return m_font_variation_settings; }
     Optional<int> slope() const { return m_slope; }
-    Optional<int> weight() const { return m_weight; }
+    Optional<FontWeightRange> weight() const { return m_weight; }
     Optional<int> width() const { return m_width; }
     Optional<Percentage> line_gap_override() const { return m_line_gap_override; }
     Vector<Source> const& sources() const { return m_sources; }
@@ -49,7 +50,7 @@ private:
     GC::Ref<CSSRule> m_parent_rule;
     FlyString m_font_family;
     Optional<FlyString> m_font_named_instance;
-    Optional<int> m_weight;
+    Optional<FontWeightRange> m_weight;
     Optional<int> m_slope;
     Optional<int> m_width;
     Vector<Source> m_sources;

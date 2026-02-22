@@ -126,6 +126,7 @@ struct DescriptorMetadata {
         CropOrCross,
         FamilyName,
         FontSrcList,
+        FontWeightAbsolutePair,
         Length,
         OptionalDeclarationValue,
         PageSize,
@@ -395,6 +396,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "FamilyName"_string;
                         if (syntax_string == "<font-src-list>"sv)
                             return "FontSrcList"_string;
+                        if (syntax_string == "<font-weight-absolute>{1,2}"sv)
+                            return "FontWeightAbsolutePair"_string;
                         if (syntax_string == "<declaration-value>?"sv)
                             return "OptionalDeclarationValue"_string;
                         if (syntax_string == "<length>"sv)
