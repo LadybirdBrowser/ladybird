@@ -12,6 +12,7 @@
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
+#include <AK/SourceLocation.h>
 #include <AK/StringView.h>
 #include <AK/Weakable.h>
 #include <LibGC/Forward.h>
@@ -65,126 +66,135 @@ public:
 
     class GC_API Visitor {
     public:
-        void visit(Cell* cell)
+        void visit(Cell* cell, SourceLocation location = SourceLocation::current())
         {
             if (cell)
-                visit_impl(*cell);
+                visit_impl(*cell, location);
         }
 
         void visit(Cell& cell)
         {
-            visit_impl(cell);
+            visit_impl(cell, {});
         }
 
         void visit(Cell const* cell)
         {
-            visit(const_cast<Cell*>(cell));
+            if (cell)
+                visit_impl(const_cast<Cell&>(*cell), {});
         }
 
         void visit(Cell const& cell)
         {
-            visit(const_cast<Cell&>(cell));
+            visit_impl(const_cast<Cell&>(cell), {});
         }
 
         template<typename T>
-        void visit(Ptr<T> cell)
+        void visit(Ptr<T> cell, SourceLocation location = SourceLocation::current())
         {
             if (cell)
-                visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()));
+                visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()), location);
         }
 
         template<typename T>
-        void visit(Ref<T> cell)
+        void visit(Ref<T> cell, SourceLocation location = SourceLocation::current())
         {
-            visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()));
+            visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()), location);
         }
 
         template<typename T>
-        void visit(ReadonlySpan<T> span)
-        {
-            for (auto& value : span)
-                visit(value);
-        }
-
-        template<typename T>
-        void visit(ReadonlySpan<T> span)
-        requires(IsBaseOf<NanBoxedValue, T>)
-        {
-            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
-        }
-
-        template<typename T>
-        void visit(Span<T> span)
+        void visit(ReadonlySpan<T> span, SourceLocation location = SourceLocation::current())
         {
             for (auto& value : span)
-                visit(value);
+                visit(value, location);
         }
 
         template<typename T>
-        void visit(Span<T> span)
+        void visit(ReadonlySpan<T> span, SourceLocation location = SourceLocation::current())
         requires(IsBaseOf<NanBoxedValue, T>)
         {
-            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
+            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()), location);
+        }
+
+        template<typename T>
+        void visit(Span<T> span, SourceLocation location = SourceLocation::current())
+        {
+            for (auto& value : span)
+                visit(value, location);
+        }
+
+        template<typename T>
+        void visit(Span<T> span, SourceLocation location = SourceLocation::current())
+        requires(IsBaseOf<NanBoxedValue, T>)
+        {
+            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()), location);
         }
 
         template<typename T, size_t inline_capacity>
-        void visit(Vector<T, inline_capacity> const& vector)
+        void visit(Vector<T, inline_capacity> const& vector, SourceLocation location = SourceLocation::current())
         {
             for (auto& value : vector)
-                visit(value);
+                visit(value, location);
         }
 
         template<typename T, size_t inline_capacity>
-        void visit(Vector<T, inline_capacity> const& vector)
+        void visit(Vector<T, inline_capacity> const& vector, SourceLocation location = SourceLocation::current())
         requires(IsBaseOf<NanBoxedValue, T>)
         {
-            visit_impl(ReadonlySpan<NanBoxedValue>(vector.span().data(), vector.size()));
+            visit_impl(ReadonlySpan<NanBoxedValue>(vector.span().data(), vector.size()), location);
         }
 
         template<typename T>
-        void visit(HashTable<T> const& table)
+        void visit(HashTable<T> const& table, SourceLocation location = SourceLocation::current())
         {
             for (auto& value : table)
-                visit(value);
+                visit(value, location);
         }
 
         template<typename T>
-        void visit(OrderedHashTable<T> const& table)
+        void visit(OrderedHashTable<T> const& table, SourceLocation location = SourceLocation::current())
         {
             for (auto& value : table)
-                visit(value);
+                visit(value, location);
         }
 
         template<typename K, typename V, typename T>
-        void visit(HashMap<K, V, T> const& map)
+        void visit(HashMap<K, V, T> const& map, SourceLocation location = SourceLocation::current())
         {
             for (auto& it : map) {
                 if constexpr (requires { visit(it.key); })
-                    visit(it.key);
+                    visit(it.key, location);
                 if constexpr (requires { visit(it.value); })
-                    visit(it.value);
+                    visit(it.value, location);
             }
         }
 
         template<typename K, typename V, typename T>
-        void visit(OrderedHashMap<K, V, T> const& map)
+        void visit(OrderedHashMap<K, V, T> const& map, SourceLocation location = SourceLocation::current())
         {
             for (auto& it : map) {
                 if constexpr (requires { visit(it.key); })
-                    visit(it.key);
+                    visit(it.key, location);
                 if constexpr (requires { visit(it.value); })
-                    visit(it.value);
+                    visit(it.value, location);
             }
         }
 
         template<typename T>
-        void visit(Optional<T> const& optional)
+        void visit(Optional<T> const& optional, SourceLocation location = SourceLocation::current())
         {
             if (optional.has_value())
-                visit(optional.value());
+                visit(optional.value(), location);
         }
 
         void visit(NanBoxedValue const& value);
+
+        template<typename T>
+        void visit(T const& value, SourceLocation location = SourceLocation::current())
+        requires(IsBaseOf<NanBoxedValue, T>)
+        {
+            if (value.is_cell())
+                visit_impl(value.as_cell(), location);
+        }
 
         // Allow explicitly ignoring a GC-allocated member in a visit_edges implementation instead
         // of just not using it.
@@ -196,8 +206,8 @@ public:
         virtual void visit_possible_values(ReadonlyBytes) = 0;
 
     protected:
-        virtual void visit_impl(Cell&) = 0;
-        virtual void visit_impl(ReadonlySpan<NanBoxedValue>) = 0;
+        virtual void visit_impl(Cell&, SourceLocation) = 0;
+        virtual void visit_impl(ReadonlySpan<NanBoxedValue>, SourceLocation) = 0;
         virtual ~Visitor() = default;
     };
 

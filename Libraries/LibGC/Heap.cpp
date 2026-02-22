@@ -139,10 +139,10 @@ public:
         }
     }
 
-    virtual void visit_impl(Cell& cell) override
+    virtual void visit_impl(Cell& cell, SourceLocation location) override
     {
         if (m_node_being_visited)
-            m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(&cell));
+            m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(&cell), location);
 
         if (m_graph.get(reinterpret_cast<FlatPtr>(&cell)).has_value())
             return;
@@ -150,10 +150,10 @@ public:
         m_work_queue.append(cell);
     }
 
-    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values, SourceLocation location) override
     {
         for (auto const& value : values)
-            visit(value);
+            visit(value, location);
     }
 
     virtual void visit_possible_values(ReadonlyBytes bytes) override
@@ -169,7 +169,7 @@ public:
                 return;
 
             if (m_node_being_visited)
-                m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(cell));
+                m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(cell), SourceLocation {});
 
             if (m_graph.get(reinterpret_cast<FlatPtr>(cell)).has_value())
                 return;
@@ -193,14 +193,18 @@ public:
         auto graph = AK::JsonObject();
         for (auto& it : m_graph) {
             AK::JsonArray edges;
-            for (auto const& value : it.value.edges) {
-                edges.must_append(MUST(String::formatted("{}", value)));
+            for (auto const& [target, location] : it.value.edges) {
+                auto edge = AK::JsonObject();
+                edge.set("address"sv, MUST(String::formatted("{}", target)));
+                if (location.line_number() != 0)
+                    edge.set("location"sv, MUST(String::formatted("{}:{}", location.filename(), location.line_number())));
+                edges.must_append(move(edge));
             }
 
             auto node = AK::JsonObject();
             if (it.value.root_origin.has_value()) {
                 auto type = it.value.root_origin->type;
-                auto location = it.value.root_origin->location;
+                auto root_location = it.value.root_origin->location;
                 switch (type) {
                 case HeapRoot::Type::ConservativeVector:
                     node.set("root"sv, "ConservativeVector"sv);
@@ -209,7 +213,7 @@ public:
                     node.set("root"sv, "MustSurviveGC"sv);
                     break;
                 case HeapRoot::Type::Root:
-                    node.set("root"sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
+                    node.set("root"sv, MUST(String::formatted("Root {} {}:{}", root_location->function_name(), root_location->filename(), root_location->line_number())));
                     break;
                 case HeapRoot::Type::RootVector:
                     node.set("root"sv, "RootVector"sv);
@@ -239,7 +243,7 @@ private:
     struct GraphNode {
         Optional<HeapRoot> root_origin;
         StringView class_name;
-        HashTable<FlatPtr> edges {};
+        HashMap<FlatPtr, SourceLocation> edges;
     };
 
     GraphNode* m_node_being_visited { nullptr };
@@ -486,7 +490,7 @@ public:
         }
     }
 
-    virtual void visit_impl(Cell& cell) override
+    virtual void visit_impl(Cell& cell, SourceLocation) override
     {
         if (cell.is_marked())
             return;
@@ -496,7 +500,7 @@ public:
         m_work_queue.append(cell);
     }
 
-    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values, SourceLocation) override
     {
         m_work_queue.grow_capacity(m_work_queue.size() + values.size());
 
