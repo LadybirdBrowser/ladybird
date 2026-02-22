@@ -1,0 +1,3 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined

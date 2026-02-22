@@ -1,0 +1,28 @@
+Program (script) @5:1
+└─ FunctionDeclaration "fn" @5:1
+   └─ body
+      └─ FunctionBody @6:5
+         ├─ ExpressionStatement @6:5
+         │  └─ AssignmentExpression (=) @6:17
+         │     ├─ BindingPattern (array)
+         │     │  └─ entry
+         │     │     └─ alias
+         │     │        └─ BindingPattern (object)
+         │     │           └─ entry
+         │     │              ├─ name
+         │     │              │  └─ Identifier "a" [global] @6:8
+         │     │              └─ initializer
+         │     │                 └─ NumericLiteral 0 @6:14
+         │     └─ ArrayExpression @6:19
+         └─ ExpressionStatement @7:5
+            └─ AssignmentExpression (=) @7:18
+               ├─ BindingPattern (array)
+               │  └─ entry
+               │     └─ alias
+               │        └─ MemberExpression @7:15
+               │           ├─ ObjectExpression @7:7
+               │           │  └─ ObjectProperty @7:7
+               │           │     ├─ StringLiteral "a" @7:7
+               │           │     └─ NumericLiteral 0 @7:12
+               │           └─ Identifier "x" @7:15
+               └─ ArrayExpression @7:20

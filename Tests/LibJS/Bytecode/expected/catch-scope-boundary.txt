@@ -1,0 +1,61 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:console
+[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  30]       GetGlobal dst:reg9, identifier:throwInCatch
+[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, throwInCatch
+[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  88]       GetGlobal dst:reg7, identifier:console
+[  98]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
+[  b0]       GetGlobal dst:reg10, identifier:throwInCatchWithLocals
+[  c0]       Call dst:reg9, callee:reg10, this_value:Undefined, throwInCatchWithLocals
+[  e0]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+[ 108]       End value:reg6
+
+JS bytecode executable "throwInCatch"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:result~2, src:String("bad")
+[  18]       Jump target:@90
+[  20]    1: Catch dst:reg5
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       Mov dst:e~1, src:reg5
+[  40]       Jump target:@80
+[  48]    2: Catch dst:reg6
+[  50]       SetLexicalEnvironment environment:reg4
+[  58]       Mov dst:e2~0, src:reg6
+[  68]       Mov dst:result~2, src:String("good")
+[  78]    3: Return value:result~2
+[  80]    4: Throw src:Int32(2)
+[  88]    5: Return value:result~2
+[  90]    6: Throw src:Int32(1)
+
+Exception handlers:
+    from   80 to   88 handler   48
+    from   90 to   98 handler   20
+
+JS bytecode executable "throwInCatchWithLocals"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:outerVar~3, src:String("outer")
+[  18]       Jump target:@c8
+[  20]    1: Catch dst:reg5
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       Mov dst:e~2, src:reg5
+[  40]       Add dst:catchLocal~1, lhs:String("local:"), rhs:e~2
+[  50]       Jump target:@c0
+[  58]    2: Catch dst:reg6
+[  60]       SetLexicalEnvironment environment:reg4
+[  68]       Mov dst:inner~0, src:reg6
+[  78]       Add dst:reg7, lhs:outerVar~3, rhs:String(",")
+[  88]       Add dst:reg8, lhs:reg7, rhs:catchLocal~1
+[  98]       Add dst:reg7, lhs:reg8, rhs:String(",")
+[  a8]       Add dst:reg8, lhs:reg7, rhs:inner~0
+[  b8]       Return value:reg8
+[  c0]    3: Throw src:String("second")
+[  c8]    4: Throw src:String("first")
+
+Exception handlers:
+    from   c0 to   c8 handler   58
+    from   c8 to   d0 handler   20
+
+"good"
+"outer,local:first,second"

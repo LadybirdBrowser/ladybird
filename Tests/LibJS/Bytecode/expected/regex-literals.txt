@@ -1,0 +1,19 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewRegExp dst:reg5, foo, 
+[  20]       InitializeLexicalBinding identifier:a, src:reg5
+[  38]       NewRegExp dst:reg5, bar, gi
+[  50]       InitializeLexicalBinding identifier:b, src:reg5
+[  68]       NewRegExp dst:reg5, baz, i
+[  80]       Add dst:reg6, lhs:Int32(1), rhs:reg5
+[  90]       InitializeLexicalBinding identifier:c, src:reg6
+[  a8]       GetGlobal dst:reg6, identifier:matchDigits
+[  b8]       Call dst:reg5, callee:reg6, this_value:Undefined, matchDigits, arguments:[String("abc123")]
+[  e0]       End value:reg5
+
+JS bytecode executable "matchDigits"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewRegExp dst:reg6, \d+, g
+[  20]       GetById dst:reg7, base:reg6, property:test
+[  38]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[arg0]
+[  60]       Return value:reg5

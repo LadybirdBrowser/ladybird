@@ -1,0 +1,24 @@
+Program (script) @2:1
+├─ FunctionDeclaration "non_strict" @2:1
+│  └─ body
+│     └─ FunctionBody @3:5
+│        ├─ VariableDeclaration (let) @3:5
+│        │  └─ VariableDeclarator @3:5
+│        │     ├─ Identifier "x" [variable:0] (let) @3:9
+│        │     └─ NumericLiteral 1 @3:13
+│        ├─ LabelledStatement "static_label" @4:5
+│        │  └─ ExpressionStatement @4:19
+│        │     └─ AssignmentExpression (=) @4:21
+│        │        ├─ Identifier "x" [variable:0] (let) @4:19
+│        │        └─ NumericLiteral 2 @4:23
+│        └─ ReturnStatement @5:5
+│           └─ Identifier "x" [variable:0] (let) @5:12
+└─ FunctionDeclaration "let_as_identifier" @9:1
+   └─ body
+      └─ FunctionBody @10:5
+         ├─ VariableDeclaration (var) @10:5
+         │  └─ VariableDeclarator @10:5
+         │     ├─ Identifier "let" [variable:0] (var) @10:9
+         │     └─ NumericLiteral 42 @10:15
+         └─ ReturnStatement @11:5
+            └─ Identifier "let" [variable:0] (var) @11:12

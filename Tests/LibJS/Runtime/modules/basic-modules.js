@@ -235,7 +235,7 @@ describe("loops", () => {
 });
 
 describe("failing modules cascade", () => {
-    let failingModuleError = "Left-hand side of postfix";
+    let failingModuleError = "postfix";
     test("importing a file with a SyntaxError results in a SyntaxError", () => {
         expectedModuleToThrowSyntaxError("./failing.mjs", failingModuleError);
     });

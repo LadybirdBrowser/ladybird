@@ -1,0 +1,11 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
+[  28]       CreatePrivateEnvironment
+[  30]       AddPrivateName name:#x
+[  38]       SetLexicalEnvironment environment:reg4
+[  40]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
+[  68]       LeavePrivateEnvironment
+[  70]       InitializeLexicalBinding identifier:C, src:reg6
+[  88]       End value:Undefined

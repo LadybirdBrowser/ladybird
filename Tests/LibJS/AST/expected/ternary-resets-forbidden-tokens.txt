@@ -1,0 +1,49 @@
+Program (script) @3:1
+├─ ExpressionStatement @3:1
+│  └─ ConditionalExpression @3:8
+│     ├─ test
+│     │  └─ LogicalExpression (&&) @3:3
+│     │     ├─ NumericLiteral 1 @3:1
+│     │     └─ NumericLiteral 1 @3:6
+│     ├─ consequent
+│     │  └─ NumericLiteral 1 @3:10
+│     └─ alternate
+│        └─ LogicalExpression (??) @3:17
+│           ├─ NumericLiteral 1 @3:15
+│           └─ NumericLiteral 1 @3:20
+├─ ExpressionStatement @4:1
+│  └─ ConditionalExpression @4:8
+│     ├─ test
+│     │  └─ LogicalExpression (||) @4:3
+│     │     ├─ NumericLiteral 1 @4:1
+│     │     └─ NumericLiteral 1 @4:6
+│     ├─ consequent
+│     │  └─ NumericLiteral 1 @4:10
+│     └─ alternate
+│        └─ LogicalExpression (??) @4:17
+│           ├─ NumericLiteral 1 @4:15
+│           └─ NumericLiteral 1 @4:20
+├─ ExpressionStatement @5:1
+│  └─ ConditionalExpression @5:10
+│     ├─ test
+│     │  └─ LogicalExpression (??) @5:4
+│     │     ├─ NumericLiteral 1 @5:2
+│     │     └─ NumericLiteral 1 @5:7
+│     ├─ consequent
+│     │  └─ NumericLiteral 1 @5:12
+│     └─ alternate
+│        └─ LogicalExpression (&&) @5:18
+│           ├─ NumericLiteral 1 @5:16
+│           └─ NumericLiteral 1 @5:21
+└─ ExpressionStatement @6:1
+   └─ ConditionalExpression @6:10
+      ├─ test
+      │  └─ LogicalExpression (??) @6:4
+      │     ├─ NumericLiteral 1 @6:2
+      │     └─ NumericLiteral 1 @6:7
+      ├─ consequent
+      │  └─ NumericLiteral 1 @6:12
+      └─ alternate
+         └─ LogicalExpression (||) @6:18
+            ├─ NumericLiteral 1 @6:16
+            └─ NumericLiteral 1 @6:21

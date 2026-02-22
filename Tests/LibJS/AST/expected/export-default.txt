@@ -1,0 +1,18 @@
+Program (module) [strict] @1:1
+└─ ExportStatement @1:1
+   ├─ entries
+   │  └─ ExportName: "default", LocalName: "*default*"
+   └─ statement
+      └─ ClassExpression "cName" @1:17
+         ├─ constructor
+         │  └─ FunctionExpression "cName" [strict] [uses-this] [uses-this-from-environment] @1:17
+         │     └─ body
+         │        └─ BlockStatement @1:17
+         └─ elements
+            └─ ClassMethod @1:17
+               ├─ StringLiteral "valueOf" @1:17
+               └─ FunctionExpression "" [strict] @1:31
+                  └─ body
+                     └─ FunctionBody @1:43
+                        └─ ReturnStatement @1:43
+                           └─ NumericLiteral 45 @1:50

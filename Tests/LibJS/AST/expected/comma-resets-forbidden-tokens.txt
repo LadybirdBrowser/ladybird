@@ -1,0 +1,37 @@
+Program (script) @3:1
+├─ VariableDeclaration (var) @3:1
+│  └─ VariableDeclarator @3:1
+│     ├─ Identifier "t" [global] (var) @3:5
+│     └─ BooleanLiteral true @3:9
+├─ ExpressionStatement @4:1
+│  └─ SequenceExpression @4:2
+│     ├─ LogicalExpression (&&) @4:4
+│     │  ├─ Identifier "t" [global] (var) @4:2
+│     │  └─ Identifier "t" [global] (var) @4:7
+│     └─ LogicalExpression (??) @4:12
+│        ├─ Identifier "t" [global] (var) @4:10
+│        └─ NumericLiteral 3 @4:15
+├─ ExpressionStatement @5:1
+│  └─ SequenceExpression @5:2
+│     ├─ LogicalExpression (||) @5:4
+│     │  ├─ Identifier "t" [global] (var) @5:2
+│     │  └─ Identifier "t" [global] (var) @5:7
+│     └─ LogicalExpression (??) @5:12
+│        ├─ Identifier "t" [global] (var) @5:10
+│        └─ NumericLiteral 3 @5:15
+├─ ExpressionStatement @6:1
+│  └─ SequenceExpression @6:2
+│     ├─ LogicalExpression (??) @6:4
+│     │  ├─ Identifier "t" [global] (var) @6:2
+│     │  └─ Identifier "t" [global] (var) @6:7
+│     └─ LogicalExpression (&&) @6:12
+│        ├─ Identifier "t" [global] (var) @6:10
+│        └─ NumericLiteral 3 @6:15
+└─ ExpressionStatement @7:1
+   └─ SequenceExpression @7:2
+      ├─ LogicalExpression (??) @7:4
+      │  ├─ Identifier "t" [global] (var) @7:2
+      │  └─ Identifier "t" [global] (var) @7:7
+      └─ LogicalExpression (||) @7:12
+         ├─ Identifier "t" [global] (var) @7:10
+         └─ NumericLiteral 3 @7:15

@@ -71,6 +71,13 @@ test("constructor without new", () => {
     expect(Number("0x1e+10")).toBeNaN();
     expect(Number("0x1e-10")).toBeNaN();
     expect(Number("0x1_1")).toBeNaN();
+
+    // Large non-decimal string literals that exceed u64 range
+    expect(Number("0x10000000000000000")).toBe(18446744073709552000);
+    expect(Number("0xFFFFFFFFFFFFFFFF")).toBe(18446744073709552000);
+    expect(Number("0x1FFFFFFFFFFFFFFFF")).toBe(36893488147419103000);
+    expect(Number("0b10000000000000000000000000000000000000000000000000000000000000000")).toBe(18446744073709552000);
+    expect(Number("0o2000000000000000000000")).toBe(18446744073709552000);
 });
 
 test("constructor with new", () => {

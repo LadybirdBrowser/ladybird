@@ -36,6 +36,21 @@ function catch_no_param() {
     }
 }
 
+// Multiple catch clauses with destructuring patterns.
+// Tests that pattern_bound_names don't leak between catch clauses.
+function multiple_catch_destruct() {
+    try {
+        try {
+            throw { a: 1 };
+        } catch ({ a }) {
+            a;
+        }
+        throw { b: 2 };
+    } catch ({ b }) {
+        return b;
+    }
+}
+
 // Catch with eval: poisons the catch block.
 function catch_with_eval() {
     try {

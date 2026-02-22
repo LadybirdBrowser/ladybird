@@ -1,0 +1,20 @@
+Program (script) @1:1
+└─ ClassDeclaration @1:1
+   └─ ClassExpression "Foo" @1:1
+      ├─ super class
+      │  └─ TaggedTemplateLiteral @1:20
+      │     ├─ tag
+      │     │  └─ Identifier "bar" [global] @1:20
+      │     └─ template
+      │        └─ TemplateLiteral @1:23
+      │           └─ StringLiteral "qux" @1:27
+      └─ constructor
+         └─ FunctionExpression "Foo" [strict] [uses-this] [uses-this-from-environment] @1:1
+            ├─ parameters
+            │  └─ rest
+            │     └─ Identifier "args" @1:1
+            └─ body
+               └─ BlockStatement @1:1
+                  └─ ReturnStatement @1:1
+                     └─ SuperCall @1:1
+                        └─ Identifier "args" @1:1

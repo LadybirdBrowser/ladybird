@@ -2,4 +2,5 @@ Program (script) @1:1
 └─ FunctionDeclaration "foo" @1:1
    └─ body
       └─ FunctionBody @2:5
-         └─ ReturnStatement @2:5
+         ├─ ReturnStatement @2:5
+         └─ EmptyStatement @3:5

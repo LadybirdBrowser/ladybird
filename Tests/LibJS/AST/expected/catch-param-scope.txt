@@ -77,22 +77,61 @@ Program (script) @2:1
 │                 └─ BlockStatement @34:13
 │                    └─ ReturnStatement @35:9
 │                       └─ NumericLiteral 2 @35:16
-└─ FunctionDeclaration "catch_with_eval" [direct-eval] [uses-this] [might-need-arguments] @40:1
+├─ FunctionDeclaration "multiple_catch_destruct" @41:1
+│  └─ body
+│     └─ FunctionBody @42:5
+│        └─ TryStatement @42:5
+│           ├─ block
+│           │  └─ BlockStatement @42:9
+│           │     ├─ TryStatement @43:9
+│           │     │  ├─ block
+│           │     │  │  └─ BlockStatement @43:13
+│           │     │  │     └─ ThrowStatement @44:13
+│           │     │  │        └─ ObjectExpression @44:19
+│           │     │  │           └─ ObjectProperty @44:19
+│           │     │  │              ├─ StringLiteral "a" @44:19
+│           │     │  │              └─ NumericLiteral 1 @44:24
+│           │     │  └─ handler
+│           │     │     └─ CatchClause @45:11
+│           │     │        ├─ parameter
+│           │     │        │  └─ BindingPattern (object)
+│           │     │        │     └─ entry
+│           │     │        │        └─ name
+│           │     │        │           └─ Identifier "a" [variable:0] @45:18
+│           │     │        └─ BlockStatement @45:25
+│           │     │           └─ ExpressionStatement @46:13
+│           │     │              └─ Identifier "a" [variable:0] @46:13
+│           │     └─ ThrowStatement @48:9
+│           │        └─ ObjectExpression @48:15
+│           │           └─ ObjectProperty @48:15
+│           │              ├─ StringLiteral "b" @48:15
+│           │              └─ NumericLiteral 2 @48:20
+│           └─ handler
+│              └─ CatchClause @49:7
+│                 ├─ parameter
+│                 │  └─ BindingPattern (object)
+│                 │     └─ entry
+│                 │        └─ name
+│                 │           └─ Identifier "b" [variable:1] @49:14
+│                 └─ BlockStatement @49:21
+│                    └─ ReturnStatement @50:9
+│                       └─ Identifier "b" [variable:1] @50:16
+└─ FunctionDeclaration "catch_with_eval" [direct-eval] [uses-this] [might-need-arguments] @55:1
    └─ body
-      └─ FunctionBody @41:5
-         └─ TryStatement @41:5
+      └─ FunctionBody @56:5
+         └─ TryStatement @56:5
             ├─ block
-            │  └─ BlockStatement @41:9
-            │     └─ ThrowStatement @42:9
-            │        └─ NumericLiteral 1 @42:15
+            │  └─ BlockStatement @56:9
+            │     └─ ThrowStatement @57:9
+            │        └─ NumericLiteral 1 @57:15
             └─ handler
-               └─ CatchClause @43:7
+               └─ CatchClause @58:7
                   ├─ parameter
-                  │  └─ Identifier "err" @43:14
-                  └─ BlockStatement @43:19
-                     ├─ ExpressionStatement @44:9
-                     │  └─ CallExpression @44:13
-                     │     ├─ Identifier "eval" [in-eval-scope] @44:9
-                     │     └─ StringLiteral "" @44:16
-                     └─ ReturnStatement @45:9
-                        └─ Identifier "err" [in-eval-scope] @45:16
+                  │  └─ Identifier "err" @58:14
+                  └─ BlockStatement @58:19
+                     ├─ ExpressionStatement @59:9
+                     │  └─ CallExpression @59:13
+                     │     ├─ Identifier "eval" [in-eval-scope] @59:9
+                     │     └─ StringLiteral "" @59:16
+                     └─ ReturnStatement @60:9
+                        └─ Identifier "err" [in-eval-scope] @60:16

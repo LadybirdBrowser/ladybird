@@ -116,17 +116,73 @@ describe("tagged template literal functionality", () => {
             expect(values[0]).toBeUndefined();
             lastValue = values.raw[0];
         }
+        // Invalid unicode escapes.
         noCookedButRaw`\u`;
         expect(calls).toBe(1);
         expect(lastValue).toBe("\\u");
 
+        // Octal escapes (always invalid in templates).
         noCookedButRaw`\01`;
         expect(calls).toBe(2);
         expect(lastValue).toBe("\\01");
 
+        // Unicode code point out of range.
         noCookedButRaw`\u{10FFFFF}`;
         expect(calls).toBe(3);
         expect(lastValue).toBe("\\u{10FFFFF}");
+
+        // Invalid hex escapes.
+        noCookedButRaw`\xZZ`;
+        expect(calls).toBe(4);
+        expect(lastValue).toBe("\\xZZ");
+
+        noCookedButRaw`\x`;
+        expect(calls).toBe(5);
+        expect(lastValue).toBe("\\x");
+
+        // Digit escapes (1-9).
+        noCookedButRaw`\1`;
+        expect(calls).toBe(6);
+        expect(lastValue).toBe("\\1");
+
+        noCookedButRaw`\9`;
+        expect(calls).toBe(7);
+        expect(lastValue).toBe("\\9");
+
+        noCookedButRaw`\8`;
+        expect(calls).toBe(8);
+        expect(lastValue).toBe("\\8");
+
+        // \0 followed by another digit.
+        noCookedButRaw`\00`;
+        expect(calls).toBe(9);
+        expect(lastValue).toBe("\\00");
+
+        noCookedButRaw`\08`;
+        expect(calls).toBe(10);
+        expect(lastValue).toBe("\\08");
+
+        noCookedButRaw`\09`;
+        expect(calls).toBe(11);
+        expect(lastValue).toBe("\\09");
+    });
+
+    test("valid escapes in tagged templates have correct cooked values", () => {
+        function getCooked(values) {
+            return values[0];
+        }
+        // Simple escapes should still work.
+        expect(getCooked`\n`).toBe("\n");
+        expect(getCooked`\r`).toBe("\r");
+        expect(getCooked`\t`).toBe("\t");
+        expect(getCooked`\b`).toBe("\b");
+        expect(getCooked`\f`).toBe("\f");
+        expect(getCooked`\v`).toBe("\v");
+        expect(getCooked`\0`).toBe("\0");
+        expect(getCooked`\\`).toBe("\\");
+        expect(getCooked`\x41`).toBe("A");
+        expect(getCooked`\u0041`).toBe("A");
+        expect(getCooked`\u{41}`).toBe("A");
     });
 
     test("for multiple values gives undefined only for invalid strings", () => {

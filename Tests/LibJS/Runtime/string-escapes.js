@@ -1,9 +1,42 @@
+test("simple escape characters", () => {
+    expect("\n").toBe(String.fromCharCode(0x0a));
+    expect("\r").toBe(String.fromCharCode(0x0d));
+    expect("\t").toBe(String.fromCharCode(0x09));
+    expect("\b").toBe(String.fromCharCode(0x08));
+    expect("\f").toBe(String.fromCharCode(0x0c));
+    expect("\v").toBe(String.fromCharCode(0x0b));
+    expect("\0").toBe(String.fromCharCode(0x00));
+    // Same in template literals.
+    expect(`\n`).toBe(String.fromCharCode(0x0a));
+    expect(`\r`).toBe(String.fromCharCode(0x0d));
+    expect(`\t`).toBe(String.fromCharCode(0x09));
+    expect(`\b`).toBe(String.fromCharCode(0x08));
+    expect(`\f`).toBe(String.fromCharCode(0x0c));
+    expect(`\v`).toBe(String.fromCharCode(0x0b));
+    expect(`\0`).toBe(String.fromCharCode(0x00));
+});
+
+test("identity escapes", () => {
+    expect("\'").toBe("'");
+    expect('\"').toBe('"');
+    expect("\\").toBe(String.fromCharCode(0x5c));
+    expect("\a").toBe("a");
+    expect("\q").toBe("q");
+    // Same in template literals.
+    expect(`\'`).toBe("'");
+    expect(`\"`).toBe('"');
+    expect(`\\`).toBe(String.fromCharCode(0x5c));
+    expect(`\a`).toBe("a");
+    expect(`\q`).toBe("q");
+});
+
 test("hex escapes", () => {
     expect("\x55").toBe("U");
     expect("X55").toBe("X55");
     expect(`\x55`).toBe("U");
     expect(`\X55`).toBe("X55");
     expect("\xff").toBe(String.fromCharCode(0xff));
+    expect("\x00").toBe(String.fromCharCode(0x00));
     expect("'\\x'").not.toEval();
     expect("'\\x1'").not.toEval();
     expect("'\\xz'").not.toEval();
@@ -17,6 +50,9 @@ test("unicode escapes", () => {
     expect("\u{1f41e}").toBe("🐞");
     expect(`\u{1f41e}`).toBe("🐞");
     expect("\u00ff").toBe(String.fromCharCode(0xff));
+    expect("\u{0}").toBe(String.fromCharCode(0));
+    expect("\u{41}").toBe("A");
+    expect(`\u{41}`).toBe("A");
     expect("'\\u'").not.toEval();
     expect("'\\u1'").not.toEval();
     expect("'\\uf'").not.toEval();

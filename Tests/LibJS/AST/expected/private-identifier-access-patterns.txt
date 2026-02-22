@@ -1,0 +1,35 @@
+Program (script) @1:1
+└─ ClassDeclaration @1:1
+   └─ ClassExpression "C" @1:1
+      ├─ constructor
+      │  └─ FunctionExpression "C" [strict] [uses-this] [uses-this-from-environment] @1:1
+      │     └─ body
+      │        └─ BlockStatement @1:1
+      └─ elements
+         ├─ ClassField @1:1
+         │  └─ PrivateIdentifier "#x" @1:1
+         └─ ClassMethod @1:1
+            ├─ StringLiteral "method" @1:1
+            └─ FunctionExpression "" [strict] [uses-this] @3:5
+               └─ body
+                  └─ FunctionBody @4:9
+                     ├─ ExpressionStatement @4:9
+                     │  └─ MemberExpression @4:13
+                     │     ├─ ThisExpression @4:9
+                     │     └─ PrivateIdentifier "#x" @4:13
+                     ├─ ExpressionStatement @5:9
+                     │  └─ OptionalChain @5:13
+                     │     ├─ ThisExpression @5:9
+                     │     └─ PrivateMemberReference(optional)
+                     │        └─ PrivateIdentifier "#x" @5:15
+                     ├─ ExpressionStatement @6:9
+                     │  └─ OptionalChain @6:13
+                     │     ├─ ThisExpression @6:9
+                     │     ├─ MemberReference(optional)
+                     │     │  └─ Identifier "foo" @6:15
+                     │     └─ PrivateMemberReference(not optional)
+                     │        └─ PrivateIdentifier "#x" @6:19
+                     └─ ExpressionStatement @7:9
+                        └─ BinaryExpression (in) @7:12
+                           ├─ PrivateIdentifier "#x" @7:9
+                           └─ ThisExpression @7:15

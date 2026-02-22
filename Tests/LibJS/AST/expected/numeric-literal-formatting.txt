@@ -19,7 +19,24 @@ Program (script) @2:1
 │  └─ VariableDeclarator @6:1
 │     ├─ Identifier "e" [global] (var) @6:5
 │     └─ NumericLiteral 5e-7 @6:9
-└─ VariableDeclaration (var) @7:1
-   └─ VariableDeclarator @7:1
-      ├─ Identifier "f" [global] (var) @7:5
-      └─ NumericLiteral 1.5 @7:9
+├─ VariableDeclaration (var) @7:1
+│  └─ VariableDeclarator @7:1
+│     ├─ Identifier "f" [global] (var) @7:5
+│     └─ NumericLiteral 1.5 @7:9
+├─ VariableDeclaration (var) @9:1
+│  └─ VariableDeclarator @9:1
+│     ├─ Identifier "g" [global] (var) @9:5
+│     └─ NumericLiteral 0.000035656023101182655 @9:9
+├─ VariableDeclaration (var) @10:1
+│  └─ VariableDeclarator @10:1
+│     ├─ Identifier "h" [global] (var) @10:5
+│     └─ NumericLiteral 0.08424758911132812 @10:9
+├─ VariableDeclaration (var) @12:1
+│  └─ VariableDeclarator @12:1
+│     ├─ Identifier "i" [global] (var) @12:5
+│     └─ NumericLiteral Infinity @12:9
+└─ VariableDeclaration (var) @13:1
+   └─ VariableDeclarator @13:1
+      ├─ Identifier "j" [global] (var) @13:5
+      └─ UnaryExpression (-) @13:9
+         └─ NumericLiteral Infinity @13:10

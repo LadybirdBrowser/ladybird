@@ -1,0 +1,21 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:fn
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, fn
+[  38]       End value:reg5
+
+JS bytecode executable "fn"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:f~0, src:Undefined
+[  18]       NewFunction dst:reg5, shared_function_data_index:0, lhs_name:f
+[  30]       Mov dst:f~0, src:reg5
+[  40]       NewObject dst:reg5
+[  50]       JumpNullish condition:reg5, true_target:@90, false_target:@98
+[  60]    1: End value:Undefined
+[  68]    2: IteratorNextUnpack dst_value:reg5, dst_done:reg9, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+[  80]       JumpIf condition:reg9, true_target:@60, false_target:@b8
+[  90]    3: Jump target:@60
+[  98]    4: GetObjectPropertyIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, object:reg5
+[  b0]       Jump target:@68
+[  b8]    5: Mov dst:f~0, src:reg5
+[  c8]       Jump target:@68

@@ -1,0 +1,32 @@
+Program (script) @3:1
+├─ FunctionDeclaration "for_of_simple_rhs" @3:1
+│  └─ body
+│     └─ FunctionBody @4:5
+│        ├─ VariableDeclaration (var) @4:5
+│        │  └─ VariableDeclarator @4:5
+│        │     └─ Identifier "x" [variable:0] (var) @4:9
+│        └─ ForOfStatement @5:12
+│           ├─ lhs
+│           │  └─ Identifier "x" [variable:0] (var) @5:10
+│           ├─ rhs
+│           │  └─ ArrayExpression @5:15
+│           │     ├─ NumericLiteral 1 @5:16
+│           │     ├─ NumericLiteral 2 @5:19
+│           │     └─ NumericLiteral 3 @5:22
+│           └─ body
+│              └─ BlockStatement @5:26
+└─ FunctionDeclaration "for_in_comma_rhs" @9:1
+   └─ body
+      └─ FunctionBody @10:5
+         ├─ VariableDeclaration (var) @10:5
+         │  └─ VariableDeclarator @10:5
+         │     └─ Identifier "x" [variable:0] (var) @10:9
+         └─ ForInStatement @11:12
+            ├─ lhs
+            │  └─ Identifier "x" [variable:0] (var) @11:10
+            ├─ rhs
+            │  └─ SequenceExpression @11:15
+            │     ├─ NumericLiteral 0 @11:15
+            │     └─ ObjectExpression @11:18
+            └─ body
+               └─ BlockStatement @11:22

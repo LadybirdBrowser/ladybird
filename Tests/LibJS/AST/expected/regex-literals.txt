@@ -1,0 +1,44 @@
+Program (script) @2:1
+├─ VariableDeclaration (let) @2:1
+│  └─ VariableDeclarator @2:1
+│     ├─ Identifier "a" [global] (let) @2:5
+│     └─ RegExpLiteral /foo/ @2:9
+├─ VariableDeclaration (let) @5:1
+│  └─ VariableDeclarator @5:1
+│     ├─ Identifier "b" [global] (let) @5:5
+│     └─ RegExpLiteral /bar/gi @5:9
+├─ VariableDeclaration (let) @8:1
+│  └─ VariableDeclarator @8:1
+│     ├─ Identifier "c" [global] (let) @8:5
+│     └─ BinaryExpression (+) @8:11
+│        ├─ NumericLiteral 1 @8:9
+│        └─ RegExpLiteral /baz/i @8:13
+├─ VariableDeclaration (let) @11:1
+│  └─ VariableDeclarator @11:1
+│     ├─ Identifier "d" [global] (let) @11:5
+│     └─ ArrayExpression @11:9
+│        ├─ RegExpLiteral /abc/ @11:10
+│        └─ RegExpLiteral /def/g @11:17
+├─ VariableDeclaration (let) @12:1
+│  └─ VariableDeclarator @12:1
+│     ├─ Identifier "e" [global] (let) @12:5
+│     └─ RegExpLiteral /hello world/ @12:9
+├─ VariableDeclaration (let) @13:1
+│  └─ VariableDeclarator @13:1
+│     ├─ Identifier "f" [global] (let) @13:5
+│     └─ RegExpLiteral /[a-z]+/gms @13:9
+├─ IfStatement @16:1
+│  ├─ test
+│  │  └─ CallExpression @16:16
+│  │     ├─ MemberExpression @16:11
+│  │     │  ├─ RegExpLiteral /test/ @16:5
+│  │     │  └─ Identifier "test" @16:11
+│  │     └─ StringLiteral "test" @16:23
+│  └─ consequent
+│     └─ BlockStatement @16:26
+├─ ExpressionStatement @17:1
+│  └─ UnaryExpression (typeof) @17:1
+│     └─ RegExpLiteral /foo/ @17:8
+└─ ExpressionStatement @18:1
+   └─ UnaryExpression (void) @18:1
+      └─ RegExpLiteral /foo/ @18:6
