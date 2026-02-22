@@ -18,7 +18,7 @@ WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> FederatedCredential::construct
     // 1. Let r be the result of executing Create a FederatedCredential from FederatedCredentialInit on data. If that
     // threw an exception, rethrow that exception.
     // 2. Return r.
-    return create_federated_credential(realm, data);
+    return create_federated_credential(realm, data, {});
 }
 
 FederatedCredential::~FederatedCredential()
