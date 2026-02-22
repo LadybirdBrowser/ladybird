@@ -219,12 +219,11 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::surface(size_t, Gfx::IntSize s
 
 void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect, Gfx::ScalingMode scaling_mode) const
 {
-    auto surface = this->surface(0, dst_rect.size());
-    if (!surface)
+    auto immutable_bitmap = bitmap(0, dst_rect.size());
+    if (!immutable_bitmap)
         return;
 
-    auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
-    context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *snapshot, scaling_mode);
+    context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *immutable_bitmap, scaling_mode);
 }
 
 }
