@@ -220,10 +220,21 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     return offset;
 }
 
-static CSSPixelPoint compute_position_in_nested_navigable(Painting::NavigableContainerViewportPaintable const& paintable, CSSPixelPoint viewport_position)
+static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Paintable& paintable, CSSPixelPoint viewport_position, Function<EventResult(EventHandler&, CSSPixelPoint)> dispatch)
 {
-    auto local_position = paintable.transform_to_local_coordinates(viewport_position);
-    return local_position - paintable.absolute_rect().location();
+    auto node = dom_node_for_event_dispatch(paintable);
+    if (!node)
+        return {};
+
+    if (auto* navigable_paintable = as_if<Painting::NavigableContainerViewportPaintable>(paintable)) {
+        auto position = navigable_paintable->transform_to_local_coordinates(viewport_position) - navigable_paintable->absolute_rect().location();
+        if (auto content_navigable = as_if<HTML::NavigableContainer>(*node)->content_navigable()) {
+            return dispatch(content_navigable->event_handler(), position);
+        }
+        return EventResult::Dropped;
+    }
+
+    return {};
 }
 
 // Find paragraph boundaries for triple-click selection. A paragraph is delimited by block nodes or <br> elements.
@@ -595,12 +606,11 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         auto node = dom_node_for_event_dispatch(*paintable);
 
         if (node) {
-            if (auto* navigable_container = as_if<HTML::NavigableContainer>(*node)) {
-                auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
-                auto result = navigable_container->content_navigable()->event_handler().handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
-                if (result == EventResult::Handled)
-                    return EventResult::Handled;
-            }
+            if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
+                });
+                result.has_value())
+                return result.value();
 
             // NB: Search for the first parent of the hit target that's an element.
             GC::Ptr<Layout::Node> layout_node;
@@ -668,13 +678,11 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         auto node = dom_node_for_event_dispatch(*paintable);
 
         if (node) {
-            if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
-                if (auto content_navigable = iframe_element->content_navigable()) {
-                    auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
-                    return content_navigable->event_handler().handle_mouseup(position, screen_position, button, buttons, modifiers);
-                }
-                return EventResult::Dropped;
-            }
+            if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                    return event_handler.handle_mouseup(position, screen_position, button, buttons, modifiers);
+                });
+                result.has_value())
+                return result.value();
 
             // NB: Search for the first parent of the hit target that's an element.
             //
@@ -824,13 +832,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         if (!node)
             return EventResult::Dropped;
 
-        if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
-            if (auto content_navigable = iframe_element->content_navigable()) {
-                auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
-                return content_navigable->event_handler().handle_mousedown(position, screen_position, button, buttons, modifiers);
-            }
-            return EventResult::Dropped;
-        }
+        if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers);
+            });
+            result.has_value())
+            return result.value();
 
         m_navigable->page().set_focused_navigable({}, m_navigable);
 
@@ -1008,13 +1014,11 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
         node = dom_node_for_event_dispatch(*paintable);
 
-        if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(node.ptr())) {
-            if (auto content_navigable = iframe_element->content_navigable()) {
-                auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
-                return content_navigable->event_handler().handle_mousemove(position, screen_position, buttons, modifiers);
-            }
-            return EventResult::Dropped;
-        }
+        if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                return event_handler.handle_mousemove(position, screen_position, buttons, modifiers);
+            });
+            result.has_value())
+            return result.value();
 
         auto cursor_data = paintable->computed_values().cursor();
         auto pointer_events = paintable->computed_values().pointer_events();
@@ -1150,13 +1154,11 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
     if (!node)
         return EventResult::Dropped;
 
-    if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
-        if (auto content_navigable = iframe_element->content_navigable()) {
-            auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
-            return content_navigable->event_handler().handle_doubleclick(position, screen_position, button, buttons, modifiers);
-        }
-        return EventResult::Dropped;
-    }
+    if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.handle_doubleclick(position, screen_position, button, buttons, modifiers);
+        });
+        result.has_value())
+        return result.value();
 
     // NB: Search for the first parent of the hit target that's an element.
     //
@@ -1252,13 +1254,11 @@ EventResult EventHandler::handle_tripleclick(CSSPixelPoint visual_viewport_posit
     if (!node)
         return EventResult::Dropped;
 
-    if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
-        if (auto content_navigable = iframe_element->content_navigable()) {
-            auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
-            return content_navigable->event_handler().handle_tripleclick(position, screen_position, button, buttons, modifiers);
-        }
-        return EventResult::Dropped;
-    }
+    if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.handle_tripleclick(position, screen_position, button, buttons, modifiers);
+        });
+        result.has_value())
+        return result.value();
 
     if (button == UIEvents::MouseButton::Primary) {
         if (auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor); hit.has_value()) {
@@ -1327,13 +1327,11 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!node)
         return EventResult::Dropped;
 
-    if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
-        if (auto content_navigable = iframe_element->content_navigable()) {
-            auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
-            return content_navigable->event_handler().handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
-        }
-        return EventResult::Dropped;
-    }
+    if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [type, screen_position, button, buttons, modifiers, &files](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
+        });
+        result.has_value())
+        return result.value();
 
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
     auto scroll_offset = document.navigable()->viewport_scroll_offset();
