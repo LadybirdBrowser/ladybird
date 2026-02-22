@@ -517,8 +517,6 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
             return;
 
         auto node = cursor_position->node();
-        node->document().update_layout(UpdateLayoutReason::CursorBlinkTimer);
-
         if (node->paintable()) {
             m_cursor_blink_state = !m_cursor_blink_state;
             node->paintable()->set_needs_display();
