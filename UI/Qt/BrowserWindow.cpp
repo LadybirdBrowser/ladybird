@@ -258,6 +258,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     if (parent_tab) {
         new_child_tab(Web::HTML::ActivateTab::Yes, *parent_tab, AK::move(page_index));
+    } else if (initial_urls.is_empty()) {
+        new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes);
     } else {
         for (size_t i = 0; i < initial_urls.size(); ++i) {
             new_tab_from_url(initial_urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);

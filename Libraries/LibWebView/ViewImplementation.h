@@ -339,6 +339,7 @@ protected:
     RefPtr<Action> m_take_full_screenshot_action;
 
     RefPtr<Action> m_open_in_new_tab_action;
+    RefPtr<Action> m_open_in_new_window_action;
     RefPtr<Action> m_copy_url_action;
     URL::URL m_context_menu_url;
 

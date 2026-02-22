@@ -324,6 +324,11 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
         view->load(url);
 }
 
+void Application::open_url_in_new_window(URL::URL const& url) const
+{
+    dbgln("open_url_in_new_window() is unsupported on this platform (url: {})", url);
+}
+
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
 {
     auto request_server_socket = TRY(connect_new_request_server_client());
