@@ -96,6 +96,35 @@ void CircularBuffer::clear()
     m_seekback_limit = 0;
 }
 
+ErrorOr<void> CircularBuffer::try_resize(size_t new_capacity)
+{
+    if (new_capacity < m_used_space)
+        return Error::from_errno(ENOSPC);
+
+    if (new_capacity == capacity() && m_reading_head == 0)
+        return {};
+
+    if (is_wrapping_around()) {
+        auto const old_used_space = m_used_space;
+        auto temp = TRY(ByteBuffer::create_uninitialized(old_used_space));
+        auto bytes = read(temp.bytes());
+        VERIFY(bytes.size() == old_used_space);
+        TRY(m_buffer.try_resize(new_capacity));
+        m_buffer.overwrite(0, bytes.data(), bytes.size());
+        m_reading_head = 0;
+        m_used_space = bytes.size();
+    } else if (m_reading_head != 0) {
+        TypedTransfer<u8>::move(m_buffer.data(), m_buffer.data() + m_reading_head, m_used_space);
+        m_reading_head = 0;
+        TRY(m_buffer.try_resize(new_capacity));
+    } else {
+        TRY(m_buffer.try_resize(new_capacity));
+    }
+
+    m_seekback_limit = min(m_seekback_limit, new_capacity);
+    return {};
+}
+
 Bytes CircularBuffer::next_write_span()
 {
     if (is_wrapping_around())

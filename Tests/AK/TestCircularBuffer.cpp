@@ -441,3 +441,147 @@ BENCHMARK_CASE(looping_copy_from_seekback)
         EXPECT_EQ(copied_bytes, 15 * MiB);
     }
 }
+
+TEST_CASE(try_resize_grow)
+{
+    auto buffer = create_circular_buffer(4);
+
+    u8 const source[] = { 1, 2, 3 };
+    EXPECT_EQ(buffer.write({ source, 3 }), 3ul);
+    EXPECT_EQ(buffer.used_space(), 3ul);
+
+    TRY_OR_FAIL(buffer.try_resize(8));
+
+    EXPECT_EQ(buffer.capacity(), 8ul);
+    EXPECT_EQ(buffer.used_space(), 3ul);
+    EXPECT_EQ(buffer.empty_space(), 5ul);
+
+    u8 const more[] = { 4, 5, 6, 7, 8 };
+    EXPECT_EQ(buffer.write({ more, 5 }), 5ul);
+    EXPECT_EQ(buffer.used_space(), 8ul);
+
+    safe_read(buffer, 1);
+    safe_read(buffer, 2);
+    safe_read(buffer, 3);
+    safe_read(buffer, 4);
+    safe_read(buffer, 5);
+    safe_read(buffer, 6);
+    safe_read(buffer, 7);
+    safe_read(buffer, 8);
+}
+
+TEST_CASE(try_resize_linearize_wrapping)
+{
+    auto buffer = create_circular_buffer(4);
+
+    u8 const source[] = { 1, 2, 3, 4 };
+    EXPECT_EQ(buffer.write({ source, 4 }), 4ul);
+
+    safe_read(buffer, 1);
+    safe_read(buffer, 2);
+
+    u8 const more[] = { 5, 6 };
+    EXPECT_EQ(buffer.write({ more, 2 }), 2ul);
+
+    EXPECT_EQ(buffer.used_space(), 4ul);
+
+    TRY_OR_FAIL(buffer.try_resize(8));
+
+    EXPECT_EQ(buffer.capacity(), 8ul);
+    EXPECT_EQ(buffer.used_space(), 4ul);
+    EXPECT_EQ(buffer.empty_space(), 4ul);
+
+    u8 const new_data[] = { 7, 8, 9, 10 };
+    EXPECT_EQ(buffer.write({ new_data, 4 }), 4ul);
+    EXPECT_EQ(buffer.used_space(), 8ul);
+
+    safe_read(buffer, 3);
+    safe_read(buffer, 4);
+    safe_read(buffer, 5);
+    safe_read(buffer, 6);
+    safe_read(buffer, 7);
+    safe_read(buffer, 8);
+    safe_read(buffer, 9);
+    safe_read(buffer, 10);
+}
+
+TEST_CASE(try_resize_linearize_non_wrapping)
+{
+    auto buffer = create_circular_buffer(8);
+
+    u8 const initial[] = { 1, 2, 3, 4, 5, 6 };
+    EXPECT_EQ(buffer.write({ initial, 6 }), 6ul);
+    safe_read(buffer, 1);
+    safe_read(buffer, 2);
+    safe_read(buffer, 3);
+    safe_read(buffer, 4);
+    safe_read(buffer, 5);
+    safe_read(buffer, 6);
+
+    u8 const source[] = { 10 };
+    EXPECT_EQ(buffer.write({ source, 1 }), 1ul);
+
+    EXPECT_EQ(buffer.used_space(), 1ul);
+    EXPECT_EQ(buffer.empty_space(), 7ul);
+
+    TRY_OR_FAIL(buffer.try_resize(8));
+
+    EXPECT_EQ(buffer.capacity(), 8ul);
+    EXPECT_EQ(buffer.used_space(), 1ul);
+    EXPECT_EQ(buffer.empty_space(), 7ul);
+
+    u8 const new_data[] = { 20, 21, 22, 23, 24, 25, 26 };
+    EXPECT_EQ(buffer.write({ new_data, 7 }), 7ul);
+    EXPECT_EQ(buffer.used_space(), 8ul);
+
+    safe_read(buffer, 10);
+    safe_read(buffer, 20);
+    safe_read(buffer, 21);
+    safe_read(buffer, 22);
+    safe_read(buffer, 23);
+    safe_read(buffer, 24);
+    safe_read(buffer, 25);
+    safe_read(buffer, 26);
+}
+
+TEST_CASE(try_resize_already_linearized)
+{
+    auto buffer = create_circular_buffer(4);
+
+    u8 const source[] = { 1, 2 };
+    EXPECT_EQ(buffer.write({ source, 2 }), 2ul);
+
+    TRY_OR_FAIL(buffer.try_resize(4));
+
+    EXPECT_EQ(buffer.capacity(), 4ul);
+    EXPECT_EQ(buffer.used_space(), 2ul);
+
+    safe_read(buffer, 1);
+    safe_read(buffer, 2);
+}
+
+TEST_CASE(try_resize_too_small)
+{
+    auto buffer = create_circular_buffer(4);
+
+    u8 const source[] = { 1, 2, 3 };
+    EXPECT_EQ(buffer.write({ source, 3 }), 3ul);
+
+    auto result = buffer.try_resize(2);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().code(), ENOSPC);
+
+    EXPECT_EQ(buffer.capacity(), 4ul);
+    EXPECT_EQ(buffer.used_space(), 3ul);
+}
+
+TEST_CASE(try_resize_empty_buffer)
+{
+    auto buffer = create_circular_buffer(4);
+
+    TRY_OR_FAIL(buffer.try_resize(8));
+
+    EXPECT_EQ(buffer.capacity(), 8ul);
+    EXPECT_EQ(buffer.used_space(), 0ul);
+    EXPECT_EQ(buffer.empty_space(), 8ul);
+}
