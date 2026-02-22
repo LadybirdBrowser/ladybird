@@ -1107,11 +1107,12 @@ void CanvasRenderingContext2D::set_shadow_color(String color)
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
     auto style_value = parse_css_value(CSS::Parser::ParsingParams(), color, CSS::PropertyID::Color);
     if (style_value && style_value->has_color()) {
+        DOM::AbstractElement abstract_element { context };
+        context.document().update_style_if_needed_for_element(abstract_element);
+
         CSS::ColorResolutionContext color_resolution_context {};
-        context.document().update_layout(DOM::UpdateLayoutReason::CanvasRenderingContext2DSetShadowColor);
-        if (auto node = context.layout_node()) {
-            color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*node);
-        }
+        if (context.computed_properties())
+            color_resolution_context = CSS::ColorResolutionContext::for_element(abstract_element);
 
         auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
 
