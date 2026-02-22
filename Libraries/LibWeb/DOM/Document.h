@@ -76,8 +76,6 @@ enum class InvalidateLayoutTreeReason {
     X(DumpDisplayList)                     \
     X(ElementCheckVisibility)              \
     X(ElementClientHeight)                 \
-    X(ElementClientLeft)                   \
-    X(ElementClientTop)                    \
     X(ElementClientWidth)                  \
     X(ElementGetClientRects)               \
     X(ElementIsPotentiallyScrollable)      \
