@@ -35,7 +35,7 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(StyleVal
             [&](FontSourceStyleValue::Local const& local) {
                 sources.empend(string_from_style_value(local.name), OptionalNone {}, Vector<FontTech> {});
             },
-            [&](URL const& url) {
+            [&](CSSURL const& url) {
                 sources.empend(url, font_source.format(), font_source.tech());
             });
     };

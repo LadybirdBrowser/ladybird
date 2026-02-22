@@ -356,7 +356,7 @@ private:
     GridTrackSizeList parse_grid_auto_track_list(TokenStream<ComponentValue>&);
     GridTrackSizeList parse_explicit_track_list(TokenStream<ComponentValue>&);
 
-    Optional<URL> parse_url_function(TokenStream<ComponentValue>&);
+    Optional<CSSURL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<URLStyleValue const> parse_url_value(TokenStream<ComponentValue>&);
 
     RefPtr<BorderRadiusRectStyleValue const> parse_border_radius_rect_value(TokenStream<ComponentValue>&);

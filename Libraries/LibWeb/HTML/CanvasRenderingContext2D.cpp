@@ -1277,7 +1277,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
                         ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
                         : new_filter;
                 },
-                [&](CSS::URL const& url) {
+                [&](CSS::CSSURL const& url) {
                     (void)url;
                     // FIXME: Resolve the SVG filter
                     dbgln("FIXME: SVG filters are not implemented for Canvas2D");

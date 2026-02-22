@@ -1206,11 +1206,19 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
+set_target_properties(LibWeb PROPERTIES
+    UNITY_BUILD ${LADYBIRD_ENABLE_UNITY_BUILD}
+    UNITY_BUILD_UNIQUE_ID "LIBWEB_UNITY_ID"
+    UNITY_BUILD_BATCH_SIZE 16
+)
+
 find_package(LibXml2 REQUIRED)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
+
+target_compile_definitions(LibWeb PRIVATE GL_GLEXT_PROTOTYPES=1)
 
 generate_js_bindings(LibWeb)

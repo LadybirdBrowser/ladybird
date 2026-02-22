@@ -88,10 +88,10 @@ protected:
 
     Gfx::AffineTransform m_transform = {};
 
-    GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
+    GC::Ptr<DOM::Element> resolve_url_to_element(CSS::CSSURL const& url) const;
 
     template<typename T>
-    GC::Ptr<T> try_resolve_url_to(CSS::URL const& url) const
+    GC::Ptr<T> try_resolve_url_to(CSS::CSSURL const& url) const
     {
         return as_if<T>(resolve_url_to_element(url).ptr());
     }

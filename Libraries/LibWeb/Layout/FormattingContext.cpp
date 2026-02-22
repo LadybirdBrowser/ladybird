@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
@@ -2290,6 +2291,13 @@ bool FormattingContext::should_treat_max_height_as_none(Box const& box, Availabl
     if (max_height.is_min_content() && available_height.is_min_content())
         return true;
     return false;
+}
+
+CSSPixels FormattingContext::gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const
+{
+    return gap.visit(
+        [](CSS::NormalGap) { return CSSPixels(0); },
+        [&](auto const& gap) { return gap.to_px(context_box(), reference_value); });
 }
 
 }

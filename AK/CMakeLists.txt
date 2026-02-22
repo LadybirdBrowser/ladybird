@@ -49,6 +49,8 @@ endif()
 
 ladybird_lib(AK ak)
 
+set_target_properties(AK PROPERTIES UNITY_BUILD ${LADYBIRD_ENABLE_UNITY_BUILD})
+
 find_package(cpptrace CONFIG)
 find_package(Backtrace)
 

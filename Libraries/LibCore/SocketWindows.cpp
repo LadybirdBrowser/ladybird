@@ -7,10 +7,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Windows.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
-
-#include <AK/Windows.h>
 #include <ws2tcpip.h>
 
 #define MSG_DONTWAIT 0x40

@@ -570,3 +570,7 @@ void log_os_error_code([[maybe_unused]] OSStatus error_code, [[maybe_unused]] So
 }
 
 }
+
+#undef ENUMERATE_CHANNEL_POSITIONS
+#undef MAYBE_ADD_CHANNEL_FROM_BITMAP_FLAG
+#undef MAYBE_ADD_CHANNEL_FROM_CHANNEL_DESCRIPTION

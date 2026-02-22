@@ -20,6 +20,7 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <AK/Windows.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibMedia/Audio/ChannelMap.h>
@@ -28,7 +29,6 @@
 #include <LibThreading/Mutex.h>
 #include <LibThreading/Thread.h>
 
-#include <AK/Windows.h>
 #include <audioclient.h>
 #include <avrt.h>
 #include <mmdeviceapi.h>
@@ -516,3 +516,6 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::set_volume(doub
 }
 
 }
+
+#undef ENUMERATE_CHANNEL_POSITIONS
+#undef MAYBE_ADD_CHANNEL_FROM_BITMAP_FLAG
