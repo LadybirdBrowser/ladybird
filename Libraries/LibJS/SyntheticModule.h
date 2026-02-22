@@ -13,7 +13,7 @@
 namespace JS {
 
 // 16.2.1.8 Synthetic Module Records, https://tc39.es/ecma262/#sec-synthetic-module-records
-class SyntheticModule final : public Module {
+class JS_API SyntheticModule final : public Module {
     GC_CELL(SyntheticModule, Module);
     GC_DECLARE_ALLOCATOR(SyntheticModule);
 
@@ -28,7 +28,7 @@ public:
     virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
     virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
     virtual ThrowCompletionOr<void> link(VM& vm) override;
-    virtual ThrowCompletionOr<GC::Ref<Promise>> evaluate(VM& vm) override;
+    virtual ThrowCompletionOr<GC::Ref<PromiseCapability>> evaluate(VM& vm) override;
 
 private:
     SyntheticModule(Realm& realm, Vector<Utf16FlyString> export_names, EvaluationFunction evaluation_steps, ByteString filename);
@@ -39,6 +39,6 @@ private:
     EvaluationFunction m_evaluation_steps; // [[EvaluationSteps]]
 };
 
-ThrowCompletionOr<GC::Ref<Module>> parse_json_module(Realm& realm, StringView source_text, ByteString filename);
+ThrowCompletionOr<GC::Ref<SyntheticModule>> JS_API parse_json_module(Realm& realm, StringView source_text, ByteString filename);
 
 }

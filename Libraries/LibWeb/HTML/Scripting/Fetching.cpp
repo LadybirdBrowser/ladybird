@@ -63,16 +63,16 @@ ScriptFetchOptions default_script_fetch_options()
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-type-from-module-request
 String module_type_from_module_request(JS::ModuleRequest const& module_request)
 {
-    // 1. Let moduleType be "javascript".
-    String module_type = "javascript"_string;
+    // 1. Let moduleType be "javascript-or-wasm".
+    String module_type = "javascript-or-wasm"_string;
 
     // 2. If moduleRequest.[[Attributes]] has a Record entry such that entry.[[Key]] is "type", then:
     for (auto const& entry : module_request.attributes) {
         if (entry.key != "type"_string)
             continue;
 
-        // 1. If entry.[[Value]] is "javascript", then set moduleType to null.
-        if (entry.value == "javascript"_string)
+        // 1. If entry.[[Value]] is "javascript-or-wasm", then set moduleType to null.
+        if (entry.value == "javascript-or-wasm"_string)
             module_type = ""_string; // FIXME: This should be null!
         // 2. Otherwise, set moduleType to entry.[[Value]].
         else
@@ -583,7 +583,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
         }
 
         // 2. Fetch the descendants of and link result given fetchClient, destination, and onComplete. If performFetch was given, pass it along as well.
-        fetch_descendants_of_and_link_a_module_script(realm, as<JavaScriptModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
+        fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
     });
 
     // 2. Fetch a single module script given url, fetchClient, destination, options, settingsObject's realm, "client", true,
@@ -622,8 +622,8 @@ void fetch_single_module_script(JS::Realm& realm,
     PerformTheFetchHook perform_fetch,
     OnFetchScriptComplete on_complete)
 {
-    // 1. Let moduleType be "javascript".
-    String module_type = "javascript"_string;
+    // 1. Let moduleType be "javascript-or-wasm".
+    String module_type = "javascript-or-wasm"_string;
 
     // 2. If moduleRequest was given, then set moduleType to the result of running the module type from module request steps given moduleRequest.
     if (module_request.has_value())
@@ -686,7 +686,7 @@ void fetch_single_module_script(JS::Realm& realm,
     //     Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     //     In both cases, let processResponseConsumeBody given response response and null, failure, or a byte sequence bodyBytes be the following algorithm:
     auto process_response_consume_body = [&module_map, url, module_type, &module_map_realm, on_complete](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
-        // 1. If either of the following conditions are met:
+        // 1. If any of the following are true:
         //    - bodyBytes is null or failure; or
         //    - response's status is not an ok status,
         if (body_bytes.has<Empty>() || body_bytes.has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>() || !Fetch::Infrastructure::is_ok_status(response->status())) {
@@ -696,29 +696,49 @@ void fetch_single_module_script(JS::Realm& realm,
             return;
         }
 
-        // 2. Let sourceText be the result of UTF-8 decoding bodyBytes.
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
-        VERIFY(decoder.has_value());
-        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
-
-        // 3. Let mimeType be the result of extracting a MIME type from response's header list.
+        // 2. Let mimeType be the result of extracting a MIME type from response's header list.
         auto mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
 
-        // 4. Let moduleScript be null.
-        GC::Ptr<JavaScriptModuleScript> module_script;
+        // 3. Let moduleScript be null.
+        GC::Ptr<ModuleScript> module_script;
 
-        // FIXME: 5. Let referrerPolicy be the result of parsing the `Referrer-Policy` header given response. [REFERRERPOLICY]
-        // FIXME: 6. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
+        // FIXME: 4. Let referrerPolicy be the result of parsing the `Referrer-Policy` header given response. [REFERRERPOLICY]
+        // FIXME: 5. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
 
-        // 7. If mimeType is a JavaScript MIME type and moduleType is "javascript", then set moduleScript to the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL, and options.
+        //  6. If mimeType's essence is "application/wasm" and moduleType is "javascript-or-wasm", then set moduleScript
+        //     to the result of creating a WebAssembly module script given bodyBytes, moduleMapRealm, response's URL, and
+        //     options.
         // FIXME: Pass options.
-        if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript")
-            module_script = JavaScriptModuleScript::create(url.to_byte_string(), source_text, module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+        if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm") {
+            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), body_bytes.get<ByteBuffer>(), module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+        }
 
-        // FIXME: 8. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to the result of creating a CSS module script given sourceText and settingsObject.
-        // FIXME: 9. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of creating a JSON module script given sourceText and settingsObject.
+        // 7. Otherwise
+        else {
+            // 1. Let sourceText be the result of UTF-8 decoding bodyBytes.
+            auto decoder = TextCodec::decoder_for("UTF-8"sv);
+            VERIFY(decoder.has_value());
+            auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
 
-        // 10. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.
+            // 2. If mimeType is a JavaScript MIME type and moduleType is "javascript-or-wasm", then set moduleScript to
+            //    the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL,
+            //    and options.
+            // FIXME: Pass options.
+            if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm")
+                module_script = ModuleScript::create_a_javascript_module_script(url.to_byte_string(), source_text, module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+
+            // 3. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to
+            //    the result of creating a CSS module script given sourceText and moduleMapRealm.
+            if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css")
+                module_script = ModuleScript::create_a_css_module_script(url.to_byte_string(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
+
+            // 4. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of
+            //    creating a JSON module script given sourceText and moduleMapRealm.
+            if (mime_type.has_value() && mime_type->is_json() && module_type == "json")
+                module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
+        }
+
+        // 8. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.
         module_map.set(url, module_type.to_byte_string(), { ModuleMap::EntryType::ModuleScript, module_script });
         on_complete->function()(module_script);
     };
@@ -744,7 +764,7 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
         }
 
         // 2. Fetch the descendants of and link result given settingsObject, "script", and onComplete.
-        auto& module_script = as<JavaScriptModuleScript>(*result);
+        auto& module_script = as<ModuleScript>(*result);
         fetch_descendants_of_and_link_a_module_script(realm, module_script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
     });
 
@@ -756,7 +776,7 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
 void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, ByteString const& source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, OnFetchScriptComplete on_complete)
 {
     // 1. Let script be the result of creating a JavaScript module script using sourceText, settingsObject's realm, baseURL, and options.
-    auto script = JavaScriptModuleScript::create(filename, source_text.view(), settings_object.realm(), base_url).release_value_but_fixme_should_propagate_errors();
+    auto script = ModuleScript::create_a_javascript_module_script(filename, source_text.view(), settings_object.realm(), base_url).release_value_but_fixme_should_propagate_errors();
 
     // 2. Fetch the descendants of and link script, given settingsObject, "script", and onComplete.
     fetch_descendants_of_and_link_a_module_script(realm, *script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
@@ -796,17 +816,17 @@ void fetch_single_imported_module_script(JS::Realm& realm,
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-the-descendants-of-and-link-a-module-script
 void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
-    JavaScriptModuleScript& module_script,
+    ModuleScript& module_script,
     EnvironmentSettingsObject& fetch_client,
     Fetch::Infrastructure::Request::Destination destination,
     PerformTheFetchHook perform_fetch,
     OnFetchScriptComplete on_complete)
 {
     // 1. Let record be moduleScript's record.
-    auto* record = module_script.record();
+    auto record = module_script.record();
 
     // 2. If record is null, then:
-    if (!record) {
+    if (record.has<Empty>()) {
         // 1. Set moduleScript's error to rethrow to moduleScript's parse error.
         module_script.set_error_to_rethrow(module_script.parse_error());
 
@@ -834,13 +854,17 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     prepare_to_run_callback(realm);
 
     // 5. Let loadingPromise be record.LoadRequestedModules(state).
-    auto& loading_promise = record->load_requested_modules(state);
+    auto loading_promise = record.visit(
+        [](Empty) -> GC::Ref<JS::PromiseCapability> { VERIFY_NOT_REACHED(); },
+        [&](GC::Ref<JS::Module> module) { return GC::Ref { module->load_requested_modules(state) }; });
 
     WebIDL::react_to_promise(loading_promise,
         // 6. Upon fulfillment of loadingPromise, run the following steps:
         GC::create_function(realm.heap(), [&realm, record, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform record.Link().
-            auto linking_result = record->link(realm.vm());
+            auto linking_result = record.visit(
+                [](Empty) -> JS::ThrowCompletionOr<void> { VERIFY_NOT_REACHED(); },
+                [&](GC::Ref<JS::Module> module) { return module->link(realm.vm()); });
 
             // If this throws an exception, set result's error to rethrow to that exception.
             if (linking_result.is_throw_completion())
