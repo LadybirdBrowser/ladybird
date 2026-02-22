@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -32,6 +33,11 @@ public:
     GC::Ref<CSSFontFeatureValuesMap> character_variant() const { return m_character_variant; }
     GC::Ref<CSSFontFeatureValuesMap> styleset() const { return m_styleset; }
     GC::Ref<CSSFontFeatureValuesMap> historical_forms() const { return m_historical_forms; }
+
+    Vector<FlyString> const& font_families() const { return m_font_families; }
+    HashMap<FontFeatureValueKey, Vector<u32>> to_hash_map() const;
+
+    void clear_dependent_caches();
 
     virtual String serialized() const override;
 

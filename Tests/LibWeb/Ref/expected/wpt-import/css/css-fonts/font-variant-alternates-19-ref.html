@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test:  font-variant-alternates: multiple @font-feature-values rules</title>
+<link rel="author" title="Dominik Röttsches" href="drott@chromium.org">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(../../../../input/wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf);
+  }
+  .test {
+	  font-family: fwf;
+	  font-size: 2em;
+	  line-height: 1.1;
+  }
+</style>
+<body>
+
+<p>Test passes if the three lines below are identical, with 4 crosses (✗), then
+three check marks (✓), then 11 crosses (✗), then 1 checkmark (✓).</p>
+<section class="test">
+  <p class="ref">BBBBAAABBBBBBBBBBBAB</p>
+  <p class="ref">BBBBAAABBBBBBBBBBBAB</p>
+  <p class="ref">BBBBAAABBBBBBBBBBBAB</p>
+</section>

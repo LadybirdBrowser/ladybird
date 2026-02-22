@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test:  font-variant-alternates: multiple @font-feature-values rules</title>
+<link rel="author" title="Dominik Röttsches" href="drott@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-variant-alternates-19-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-variant-alternates-prop">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-feature-settings-prop">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-feature-values">
+<meta name="assert" content="If multiple @font-feature-values rules are defined for a given family, the
+resulting values definitions are the union of the definitions contained within these rules.">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(support/fonts/FontWithFancyFeatures.otf);
+  }
+  @font-feature-values fwf {
+    @styleset {
+      foo: 4;
+      bar: 2;
+    }
+  }
+  @font-feature-values fwf {
+    @styleset {
+      baz: 3;
+    }
+  }
+  @font-feature-values fwf {
+    @styleset {
+      foo: 1; /* Overrides foo from first rule. */
+    }
+    @ornaments {
+      baz: 3;
+    }
+  }
+  .test {
+	  font-family: fwf;
+	  font-size: 2em;
+	  line-height: 1.1;
+  }
+  .high {
+	 font-variant-alternates: styleset(foo,bar,baz) ornaments(baz);
+  }
+  .low {
+   font-feature-settings: "hist" off, "salt" 00, "ss01" on, "ss02" on, "ss03" on,
+    "cv01" off, "cv02" off, "cv03" off,  "swsh" 00, "cswh" 00, "ornm" 03, "nalt" 00;
+  }
+</style>
+<body>
+
+<p>Test passes if the three lines below are identical, with 4 crosses (✗), then
+three check marks (✓), then 11 crosses (✗), then 1 checkmark (✓).</p>
+<section class="test">
+  <p class="high">Xnophijklmqrstuvwxyz</p>
+  <p class="low">Xnophijklmqrstuvwxyz</p>
+  <p class="ref">BBBBAAABBBBBBBBBBBAB</p>
+</section>

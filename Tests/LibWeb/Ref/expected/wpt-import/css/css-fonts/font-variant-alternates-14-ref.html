@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test:  font-variant-alternates: swash(); low level equivalence</title>
+<link rel="author" title="Chris Lilley" href="chris@w3.org">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(../../../../input/wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf);
+  }
+  .test {
+	  font-family: fwf;
+	  font-size: 2em;
+	  line-height: 1.1;
+  }
+</style>
+<body>
+
+<p>Test passes if the three lines below are identical, with twelve crosses (✗), one check mark (✓), two crosses (✗), one check mark (✓) followed by four crosses (✗). </p>
+<section class="test">
+  <p class="ref">BBBBBBBBBBBBABBABBBB</p>
+  <p class="ref">BBBBBBBBBBBBABBABBBB</p>
+  <p class="ref">BBBBBBBBBBBBABBABBBB</p>
+</section>
