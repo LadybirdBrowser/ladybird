@@ -171,6 +171,16 @@ if (WIN32)
     find_package(mman REQUIRED)
 endif()
 
+if (ENABLE_RUST)
+    include(FetchContent)
+    FetchContent_Declare(
+        Corrosion
+        GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+        GIT_TAG v0.5.1
+    )
+    FetchContent_MakeAvailable(Corrosion)
+endif()
+
 include(targets)
 
 # Plugins need to be installed in order to be used by non-lagom builds
