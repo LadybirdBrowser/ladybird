@@ -21,6 +21,9 @@ dictionary WebGLContextAttributes {
     WebGLPowerPreference powerPreference = "default";
     boolean failIfMajorPerformanceCaveat = false;
     boolean desynchronized = false;
+
+    // https://immersive-web.github.io/webxr/#dom-webglcontextattributes-xrcompatible
+    boolean xrCompatible = false;
 };
 
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
@@ -573,4 +576,7 @@ interface mixin WebGLRenderingContextBase {
     const GLenum CONTEXT_LOST_WEBGL = 0x9242;
     const GLenum UNPACK_COLORSPACE_CONVERSION_WEBGL = 0x9243;
     const GLenum BROWSER_DEFAULT_WEBGL = 0x9244;
+
+    // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
+    [NewObject] Promise<undefined> makeXRCompatible();
 };

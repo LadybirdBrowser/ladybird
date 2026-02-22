@@ -30,7 +30,6 @@ public:
 
     GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const;
 
-    bool is_context_lost() const;
     Optional<WebGLContextAttributes> get_context_attributes();
 
     RefPtr<Gfx::PaintingSurface> surface();
@@ -71,6 +70,12 @@ private:
     // https://www.khronos.org/registry/webgl/specs/latest/1.0/#webgl-context-lost-flag
     // Each WebGLRenderingContext has a webgl context lost flag, which is initially unset.
     bool m_context_lost { false };
+
+    // WebGL presents its drawing buffer to the HTML page compositor immediately before a compositing operation, but only if at least one of the following has occurred since the previous compositing operation:
+    // - Context creation
+    // - Canvas resize
+    // - clear, drawArrays, or drawElements has been called while the drawing buffer is the currently bound framebuffer
+    bool m_should_present { true };
 
     Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
 

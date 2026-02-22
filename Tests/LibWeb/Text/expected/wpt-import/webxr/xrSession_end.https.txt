@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	end event fires when immersive session ends - webgl
+Fail	end event fires when immersive session ends - webgl2
+Fail	end event fires when non-immersive session ends - webgl
+Fail	end event fires when non-immersive session ends - webgl2

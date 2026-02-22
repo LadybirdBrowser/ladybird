@@ -22,6 +22,9 @@ struct WebGLContextAttributes {
     Bindings::WebGLPowerPreference power_preference { Bindings::WebGLPowerPreference::Default };
     bool fail_if_major_performance_caveat { false };
     bool desynchronized { false };
+
+    // https://immersive-web.github.io/webxr/#dom-webglcontextattributes-xrcompatible
+    bool xr_compatible { false };
 };
 
 JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attributes_dictionary(JS::VM&, JS::Value value);

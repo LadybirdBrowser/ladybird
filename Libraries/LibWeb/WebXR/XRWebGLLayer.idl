@@ -1,0 +1,36 @@
+#import <WebGL/WebGLRenderingContext.idl>
+#import <WebGL/WebGL2RenderingContext.idl>
+// https://immersive-web.github.io/webxr/#xrwebgllayer-interface
+
+typedef (WebGLRenderingContext or
+         WebGL2RenderingContext) XRWebGLRenderingContext;
+
+dictionary XRWebGLLayerInit {
+    boolean antialias = true;
+    boolean depth = true;
+    boolean stencil = false;
+    boolean alpha = true;
+    boolean ignoreDepthValues = false;
+    double framebufferScaleFactor = 1.0;
+};
+
+[SecureContext, Exposed=Window]
+interface XRWebGLLayer: XRLayer {
+    constructor(XRSession session,
+               XRWebGLRenderingContext context,
+               optional XRWebGLLayerInit layerInit = {});
+    // Attributes
+    // FIXME: readonly attribute boolean antialias;
+    // FIXME: readonly attribute boolean ignoreDepthValues;
+    // FIXME: attribute float? fixedFoveation;
+    
+    // FIXME: [SameObject] readonly attribute WebGLFramebuffer? framebuffer;
+    // FIXME: readonly attribute unsigned long framebufferWidth;
+    // FIXME: readonly attribute unsigned long framebufferHeight;
+    
+    // Methods
+    // FIXME: XRViewport? getViewport(XRView view);
+    
+    // Static Methods
+    // FIXME: static double getNativeFramebufferScaleFactor(XRSession session);
+};

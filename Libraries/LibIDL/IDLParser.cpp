@@ -732,7 +732,7 @@ void Parser::parse_deleter(HashMap<ByteString, ByteString>& extended_attributes,
 void Parser::parse_interface(Interface& interface)
 {
     consume_whitespace();
-    interface.name = parse_identifier_ending_with_space();
+    interface.name = parse_identifier_ending_with_space_or(':');
     consume_whitespace();
     if (lexer.consume_specific(':')) {
         consume_whitespace();
