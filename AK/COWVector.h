@@ -159,6 +159,12 @@ public:
         return m_detail->m_members.last();
     }
 
+    T take_last()
+    {
+        copy();
+        return m_detail->m_members.take_last();
+    }
+
     auto begin() const { return m_detail->m_members.begin(); }
     auto end() const { return m_detail->m_members.end(); }
 

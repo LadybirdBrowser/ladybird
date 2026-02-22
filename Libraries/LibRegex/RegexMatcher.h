@@ -234,13 +234,6 @@ public:
 
 private:
     void run_optimization_passes();
-    void rewrite_with_useless_jumps_removed();
-    void attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&);
-    bool attempt_rewrite_entire_match_as_substring_search(BasicBlockList const&);
-    void attempt_rewrite_adjacent_compares_as_string_compare(BasicBlockList const&);
-    void attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList const&);
-    void rewrite_simple_compares(BasicBlockList const&);
-    void fill_optimization_data(BasicBlockList const&);
 };
 
 // free standing functions for match, search and has_match

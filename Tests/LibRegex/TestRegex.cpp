@@ -357,7 +357,7 @@ TEST_CASE(ini_file_entries)
     RegexResult result;
 
     if constexpr (REGEX_DEBUG) {
-        RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+        RegexDebug<regex::ByteCode> regex_dbg(stderr);
         regex_dbg.print_raw_bytecode(re);
         regex_dbg.print_header();
         regex_dbg.print_bytecode(re);
@@ -406,7 +406,7 @@ TEST_CASE(named_capture_group)
     RegexResult result;
 
     if constexpr (REGEX_DEBUG) {
-        RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+        RegexDebug<regex::ByteCode> regex_dbg(stderr);
         regex_dbg.print_raw_bytecode(re);
         regex_dbg.print_header();
         regex_dbg.print_bytecode(re);
@@ -429,7 +429,7 @@ TEST_CASE(ecma262_named_capture_group_with_dollar_sign)
     RegexResult result;
 
     if constexpr (REGEX_DEBUG) {
-        RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+        RegexDebug<regex::ByteCode> regex_dbg(stderr);
         regex_dbg.print_raw_bytecode(re);
         regex_dbg.print_header();
         regex_dbg.print_bytecode(re);
@@ -452,7 +452,7 @@ TEST_CASE(a_star)
     RegexResult result;
 
     if constexpr (REGEX_DEBUG) {
-        RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+        RegexDebug<regex::ByteCode> regex_dbg(stderr);
         regex_dbg.print_raw_bytecode(re);
         regex_dbg.print_header();
         regex_dbg.print_bytecode(re);
@@ -623,7 +623,7 @@ TEST_CASE(ECMA262_parse)
         EXPECT_EQ(re.parser_result.error, test.expected_error);
         if constexpr (REGEX_DEBUG) {
             dbgln("\n");
-            RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+            RegexDebug<regex::ByteCode> regex_dbg(stderr);
             regex_dbg.print_raw_bytecode(re);
             regex_dbg.print_header();
             regex_dbg.print_bytecode(re);
@@ -768,14 +768,15 @@ TEST_CASE(ECMA262_match)
         Regex<ECMA262> re(test.pattern, test.options);
         if constexpr (REGEX_DEBUG) {
             dbgln("\n");
-            RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+            RegexDebug<regex::ByteCode> regex_dbg(stderr);
             regex_dbg.print_raw_bytecode(re);
             regex_dbg.print_header();
             regex_dbg.print_bytecode(re);
             dbgln("\n");
         }
         EXPECT_EQ(re.parser_result.error, regex::Error::NoError);
-        EXPECT_EQ(re.match(test.subject).success, test.matches);
+        auto match_result = re.match(test.subject);
+        EXPECT_EQ(match_result.success, test.matches);
     }
 }
 
@@ -798,7 +799,7 @@ TEST_CASE(lookbehind)
         Regex<ECMA262> re(test.pattern, test.options);
         if constexpr (REGEX_DEBUG) {
             dbgln("\n");
-            RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+            RegexDebug<regex::ByteCode> regex_dbg(stderr);
             regex_dbg.print_raw_bytecode(re);
             regex_dbg.print_header();
             regex_dbg.print_bytecode(re);
@@ -915,7 +916,7 @@ TEST_CASE(ECMA262_unicode_match)
 
         if constexpr (REGEX_DEBUG) {
             dbgln("\n");
-            RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+            RegexDebug<regex::ByteCode> regex_dbg(stderr);
             regex_dbg.print_raw_bytecode(re);
             regex_dbg.print_header();
             regex_dbg.print_bytecode(re);
@@ -981,7 +982,7 @@ TEST_CASE(ECMA262_unicode_sets_match)
         Regex<ECMA262> re(test.pattern, (ECMAScriptFlags)regex::AllFlags::UnicodeSets | test.options);
         if constexpr (REGEX_DEBUG) {
             dbgln("\n");
-            RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+            RegexDebug<regex::ByteCode> regex_dbg(stderr);
             regex_dbg.print_raw_bytecode(re);
             regex_dbg.print_header();
             regex_dbg.print_bytecode(re);
@@ -1057,7 +1058,7 @@ TEST_CASE(ECMA262_property_match)
 
         if constexpr (REGEX_DEBUG) {
             dbgln("\n");
-            RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+            RegexDebug<regex::ByteCode> regex_dbg(stderr);
             regex_dbg.print_raw_bytecode(re);
             regex_dbg.print_header();
             regex_dbg.print_bytecode(re);
@@ -1091,7 +1092,7 @@ TEST_CASE(replace)
         Regex<ECMA262> re(test.pattern, test.options);
         if constexpr (REGEX_DEBUG) {
             dbgln("\n");
-            RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+            RegexDebug<regex::ByteCode> regex_dbg(stderr);
             regex_dbg.print_raw_bytecode(re);
             regex_dbg.print_header();
             regex_dbg.print_bytecode(re);
@@ -1224,7 +1225,7 @@ TEST_CASE(optimizer_char_class_lut)
 
     if constexpr (REGEX_DEBUG) {
         dbgln("\n");
-        RegexDebug<regex::FlatByteCode> regex_dbg(stderr);
+        RegexDebug<regex::ByteCode> regex_dbg(stderr);
         regex_dbg.print_raw_bytecode(re);
         regex_dbg.print_header();
         regex_dbg.print_bytecode(re);
@@ -1655,17 +1656,129 @@ TEST_CASE(ecma262_modifiers)
         }                                                                        \
     } while (0);
 
+static size_t flat_instruction_size(regex::OpCodeId type, regex::FlatByteCode const& bc, size_t offset)
+{
+    using namespace regex;
+    switch (type) {
+    case OpCodeId::Compare:
+    case OpCodeId::CompareSimple:
+        return bc.instruction_at<Op_Compare>(offset).total_size();
+    case OpCodeId::Jump:
+    case OpCodeId::ForkJump:
+    case OpCodeId::ForkStay:
+    case OpCodeId::ForkReplaceJump:
+    case OpCodeId::ForkReplaceStay:
+        return sizeof(Op_Jump);
+    case OpCodeId::JumpNonEmpty:
+        return sizeof(Op_JumpNonEmpty);
+    case OpCodeId::ForkIf:
+        return sizeof(Op_ForkIf);
+    case OpCodeId::Repeat:
+        return sizeof(Op_Repeat);
+    case OpCodeId::SetStepBack:
+        return sizeof(Op_SetStepBack);
+    case OpCodeId::SaveRightNamedCaptureGroup:
+        return sizeof(Op_SaveRightNamedCapture);
+    case OpCodeId::GoBack:
+    case OpCodeId::SaveLeftCaptureGroup:
+    case OpCodeId::SaveRightCaptureGroup:
+    case OpCodeId::ClearCaptureGroup:
+    case OpCodeId::FailIfEmpty:
+    case OpCodeId::ResetRepeat:
+    case OpCodeId::Checkpoint:
+    case OpCodeId::CheckBoundary:
+    case OpCodeId::RSeekTo:
+    case OpCodeId::SaveModifiers:
+        return sizeof(Op_WithArg);
+    default:
+        return sizeof(RegexInstruction);
+    }
+}
+
 static Vector<ByteString> bytecode_dump(Regex<ECMA262> const& re)
 {
+    using namespace regex;
     Vector<ByteString> lines;
-    auto& bytecode = re.parser_result.bytecode.get<regex::FlatByteCode>();
-    auto state = regex::MatchState::only_for_enumeration();
-    while (state.instruction_position < bytecode.size()) {
-        auto& opcode = bytecode.get_opcode(state);
-        lines.append(ByteString::formatted("{} {}", opcode.name(), opcode.arguments_string()));
-        if (is<regex::OpCode_Exit<regex::FlatByteCode>>(opcode))
+    auto& bc = re.parser_result.bytecode.get<FlatByteCode>();
+    size_t offset = 0;
+    while (offset < bc.size()) {
+        auto& insn = bc.instruction_at(offset);
+        auto type = insn.m_type;
+        auto name = OpCode<ByteCode>::name(type);
+        auto size = flat_instruction_size(type, bc, offset);
+
+        switch (type) {
+        case OpCodeId::RSeekTo: {
+            auto& op = bc.instruction_at<Op_WithArg>(offset);
+            if (op.m_arg0 <= 0x7f)
+                lines.append(ByteString::formatted("{} before '{}'", name, op.m_arg0));
+            else
+                lines.append(ByteString::formatted("{} before u+{:04x}", name, op.m_arg0));
             break;
-        state.instruction_position += opcode.size();
+        }
+        case OpCodeId::Compare: {
+            auto& op = bc.instruction_at<Op_Compare>(offset);
+            StringBuilder builder;
+            builder.append(name);
+            builder.appendff(" argc={}, args={} ", op.m_arg_count, op.m_compare_size);
+            lines.append(builder.to_byte_string());
+            break;
+        }
+        case OpCodeId::CompareSimple: {
+            auto& op = bc.instruction_at<Op_Compare>(offset);
+            auto const* data = op.compare_data();
+            auto compare_type = static_cast<CharacterCompareType>(data[0]);
+            StringBuilder builder;
+            builder.append(name);
+            builder.append(' ');
+            switch (compare_type) {
+            case CharacterCompareType::Char: {
+                builder.append("Char"sv);
+                auto ch = data[1];
+                if (is_ascii_printable(ch))
+                    builder.appendff(" '{:c}'", static_cast<char>(ch));
+                else
+                    builder.appendff(" 0x{:x}", ch);
+                break;
+            }
+            case CharacterCompareType::String: {
+                builder.append("String"sv);
+                auto string_index = data[1];
+                auto string = bc.get_u16_string(string_index);
+                builder.appendff(" \"{}\"", string);
+                break;
+            }
+            case CharacterCompareType::AnyChar:
+                builder.append("AnyChar"sv);
+                break;
+            case CharacterCompareType::CharClass:
+                builder.append("CharClass"sv);
+                break;
+            case CharacterCompareType::CharRange:
+                builder.append("CharRange"sv);
+                break;
+            default:
+                builder.appendff("type={}", to_underlying(compare_type));
+                break;
+            }
+            lines.append(builder.to_byte_string());
+            break;
+        }
+        case OpCodeId::JumpNonEmpty: {
+            auto& op = bc.instruction_at<Op_JumpNonEmpty>(offset);
+            auto form = static_cast<OpCodeId>(op.m_form);
+            auto form_name = OpCode<ByteCode>::name(form);
+            lines.append(ByteString::formatted("{} form={}", name, form_name));
+            break;
+        }
+        default:
+            lines.append(ByteString { name });
+            break;
+        }
+
+        if (type == OpCodeId::Exit)
+            break;
+        offset += size;
     }
     return lines;
 }

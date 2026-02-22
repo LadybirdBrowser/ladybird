@@ -1,5 +1,6 @@
 set(SOURCES
     RegexByteCode.cpp
+    RegexIR.cpp
     RegexLexer.cpp
     RegexMatcher.cpp
     RegexOptimizer.cpp
