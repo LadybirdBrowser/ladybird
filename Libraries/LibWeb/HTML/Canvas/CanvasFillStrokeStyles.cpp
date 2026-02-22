@@ -45,9 +45,10 @@ void CanvasFillStrokeStyles<IncludingClass>::set_fill_style(FillOrStrokeStyleVar
                 CSS::ColorResolutionContext color_resolution_context {};
 
                 if (context) {
-                    context->document().update_layout(DOM::UpdateLayoutReason::CanvasRenderingContext2DSetFillStyle);
-                    if (context->layout_node())
-                        color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
+                    DOM::AbstractElement abstract_element { *context };
+                    context->document().update_style_if_needed_for_element(abstract_element);
+                    if (context->computed_properties())
+                        color_resolution_context = CSS::ColorResolutionContext::for_element(abstract_element);
                 }
 
                 auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);

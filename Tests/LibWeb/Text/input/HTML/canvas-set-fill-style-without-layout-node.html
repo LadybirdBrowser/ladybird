@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    // Setting fillStyle on a detached canvas (no layout node) should not crash.
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "red";
+    println(ctx.fillStyle);
+    ctx.fillStyle = "rgba(0, 128, 255, 0.5)";
+    println(ctx.fillStyle);
+});
+</script>
