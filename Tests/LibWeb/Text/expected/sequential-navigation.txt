@@ -1,0 +1,4 @@
+<BUTTON id="button">
+<INPUT id="input">
+<DIV id="tabindex-zero">
+<BUTTON id="visibility-hidden-override">

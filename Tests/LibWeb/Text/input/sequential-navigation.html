@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<button id="button"></button>
+<input id="input">
+<div id="tabindex-zero" tabindex="0"></div>
+<input id="negative-tabindex" tabindex="-1">
+<button id="display-none" style="display: none;"></button>
+<button id="visibility-hidden" style="visibility: hidden;"></button>
+<div style="display: none">
+    <button id="display-none-child"></button>
+</div>
+<div style="visibility: hidden">
+    <button id="visibility-hidden-override" style="visibility: visible"></button>
+</div>
+<button id="display-none-tabindex-zero" style="display: none" tabindex="0"></button>
+
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // Focus elements sequentially and print the focusable ones until it wraps to the beginning
+
+        const focusedElements = [];
+
+        internals.sendKey(document.body, "Tab");
+
+        while (!focusedElements.includes(document.activeElement.id)) {
+            focusedElements.push(document.activeElement.id);
+
+            printElement(document.activeElement);
+
+            internals.sendKey(document.activeElement, "Tab");
+        }
+    });
+</script>
