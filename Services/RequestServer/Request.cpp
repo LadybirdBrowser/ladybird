@@ -631,7 +631,7 @@ void Request::handle_complete_state()
             m_curl_result_code = CURLE_OK;
 
         if (m_curl_result_code != CURLE_OK) {
-            m_network_error = curl_code_to_network_error(*m_curl_result_code);
+            m_network_error = RequestServer::curl_code_to_network_error(*m_curl_result_code);
 
             if (m_network_error == Requests::NetworkError::Unknown) {
                 char const* curl_error_message = curl_easy_strerror(static_cast<CURLcode>(*m_curl_result_code));
