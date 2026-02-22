@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    // Setting filter on a detached canvas (no layout node) should not crash.
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.filter = "blur(5px)";
+    println(ctx.filter);
+    ctx.filter = "sepia(0.5)";
+    println(ctx.filter);
+    ctx.filter = "none";
+    println(ctx.filter);
+});
+</script>
