@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="test-iframe"></iframe>
+<script>
+    test(() => {
+        const iframe = document.getElementById("test-iframe");
+        const doc = iframe.contentDocument;
+
+        doc.open(); doc.write("<style>html{height:100vh}html:hover{background:red}</style>"); doc.close(); // In order to bypass cross-origin safety.
+
+        const innerDocument = iframe.contentWindow.document.documentElement;
+        internals.mouseMove(50, 50);
+        let color = getComputedStyle(innerDocument).backgroundColor;
+
+        println("Red Background in iframe: " + (color == "rgb(255, 0, 0)"));
+
+        internals.mouseMove(500, 500);
+        color = getComputedStyle(innerDocument).backgroundColor;
+
+        println("Red Background in iframe: " + (color == "rgba(255, 0, 0, 0)"));
+    });
+</script>
