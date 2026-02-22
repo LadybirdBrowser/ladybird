@@ -257,6 +257,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 - (void)onLoadFinish:(URL::URL const&)url
 {
+    [[self tabController] onLoadFinish:url];
 }
 
 - (void)onURLChange:(URL::URL const&)url
@@ -266,6 +267,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 - (void)onTitleChange:(Utf16String const&)title
 {
+    [[self tabController] onTitleChange:title];
     self.title = Ladybird::utf16_string_to_ns_string(title);
     [self updateTabTitleAndFavicon];
 }

@@ -108,7 +108,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
         m_autocomplete = make<WebView::Autocomplete>();
 
-        m_autocomplete->on_autocomplete_query_complete = [weak_self](auto suggestions) {
+        m_autocomplete->on_suggestions_query_complete = [weak_self](auto suggestions) {
             TabController* self = weak_self;
             if (self == nil) {
                 return;
@@ -144,9 +144,15 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self setLocationFieldText:url.serialize()];
 }
 
+- (void)onLoadFinish:(URL::URL const&)url
+{
+    (void)url;
+}
+
 - (void)onURLChange:(URL::URL const&)url
 {
     [self setLocationFieldText:url.serialize()];
+    m_autocomplete->record_navigation(url.serialize());
 
     // Don't steal focus from the location bar when loading the new tab page
     if (url != WebView::Application::settings().new_tab_page_url()) {
@@ -154,9 +160,24 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     }
 }
 
+- (void)onTitleChange:(Utf16String const&)title
+{
+    auto const& url = [[[self tab] web_view] view].url();
+    auto ns_title = Ladybird::utf16_string_to_ns_string(title);
+    m_autocomplete->update_navigation_title(url.serialize(), Ladybird::ns_string_to_string(ns_title));
+}
+
 - (void)clearHistory
 {
-    // FIXME: Reimplement clearing history using WebContent's history.
+    WebView::Application::ClearBrowsingDataOptions options;
+    options.delete_history = WebView::Application::ClearBrowsingDataOptions::Delete::Yes;
+    WebView::Application::the().clear_browsing_data(options);
+}
+
+- (void)bookmarkCurrentPage
+{
+    auto const& url = [[[self tab] web_view] view].url();
+    m_autocomplete->record_bookmark(url.serialize());
 }
 
 - (void)focusLocationToolbarItem
@@ -225,6 +246,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 - (BOOL)navigateToLocation:(String)location
 {
+    m_autocomplete->record_committed_input(location);
+
     if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value()) {
         [self loadURL:*url];
     }
@@ -537,6 +560,12 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
     auto url_string = Ladybird::ns_string_to_string([location_search_field stringValue]);
     [self setLocationFieldText:url_string];
+}
+
+- (void)controlTextDidBeginEditing:(NSNotification*)notification
+{
+    (void)notification;
+    m_autocomplete->notify_omnibox_interaction();
 }
 
 - (void)controlTextDidChange:(NSNotification*)notification

@@ -5,6 +5,7 @@
  */
 
 #include <LibWebView/Application.h>
+#include <LibWebView/Autocomplete.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/InfoBar.h>
@@ -203,9 +204,19 @@
 
 - (void)clearHistory:(id)sender
 {
-    for (TabController* controller in self.managed_tabs) {
-        [controller clearHistory];
-    }
+    WebView::Application::ClearBrowsingDataOptions options;
+    options.delete_history = WebView::Application::ClearBrowsingDataOptions::Delete::Yes;
+    WebView::Application::the().clear_browsing_data(options);
+}
+
+- (void)bookmarkCurrentPage:(id)sender
+{
+    auto* current_tab = [NSApp keyWindow];
+    if (![current_tab isKindOfClass:[Tab class]])
+        return;
+
+    auto* controller = (TabController*)[current_tab windowController];
+    [controller bookmarkCurrentPage];
 }
 
 - (NSMenuItem*)createApplicationMenu
@@ -250,6 +261,9 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Location"
                                                 action:@selector(openLocation:)
                                          keyEquivalent:@"l"]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Bookmark Current Page"
+                                                action:@selector(bookmarkCurrentPage:)
+                                         keyEquivalent:@"d"]];
 
     [menu setSubmenu:submenu];
     return menu;

@@ -62,6 +62,7 @@ public:
     void find_next();
 
     void request_close();
+    void bookmark_current_page();
 
     QIcon const& favicon() const { return m_favicon; }
     QString const& title() const { return m_title; }

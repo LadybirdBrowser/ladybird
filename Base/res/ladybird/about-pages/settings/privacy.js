@@ -16,6 +16,7 @@ const browsingDataTotalSize = document.querySelector("#browsing-data-total-size"
 
 const clearBrowsingDataCachedFiles = document.querySelector("#clear-browsing-data-cached-files");
 const clearBrowsingDataCachedFilesSize = document.querySelector("#clear-browsing-data-cached-files-size");
+const clearBrowsingDataHistory = document.querySelector("#clear-browsing-data-history");
 const clearBrowsingDataRemoveData = document.querySelector("#clear-browsing-data-remove-data");
 const clearBrowsingDataSiteData = document.querySelector("#clear-browsing-data-site-data");
 const clearBrowsingDataSiteDataSize = document.querySelector("#clear-browsing-data-site-data-size");
@@ -140,11 +141,15 @@ clearBrowsingDataTimeRange.addEventListener("change", () => {
 });
 
 function setRemoveDataEnabledState() {
-    clearBrowsingDataRemoveData.disabled = !clearBrowsingDataCachedFiles.checked && !clearBrowsingDataSiteData.checked;
+    clearBrowsingDataRemoveData.disabled =
+        !clearBrowsingDataCachedFiles.checked &&
+        !clearBrowsingDataSiteData.checked &&
+        !clearBrowsingDataHistory.checked;
 }
 
 clearBrowsingDataCachedFiles.addEventListener("change", setRemoveDataEnabledState);
 clearBrowsingDataSiteData.addEventListener("change", setRemoveDataEnabledState);
+clearBrowsingDataHistory.addEventListener("change", setRemoveDataEnabledState);
 
 clearBrowsingDataRemoveData.addEventListener("click", () => {
     const since = computeTimeRange();
@@ -153,6 +158,7 @@ clearBrowsingDataRemoveData.addEventListener("click", () => {
         since: since?.epochMilliseconds,
         cachedFiles: clearBrowsingDataCachedFiles.checked,
         siteData: clearBrowsingDataSiteData.checked,
+        history: clearBrowsingDataHistory.checked,
     });
 
     browsingDataSettingsDialog.close();

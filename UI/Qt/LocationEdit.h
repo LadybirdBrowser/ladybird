@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <LibWebView/Settings.h>
 
@@ -25,6 +26,9 @@ public:
 
     URL::URL const& url() const { return m_url; }
     void set_url(URL::URL);
+    void record_navigation(String const&, Optional<String> title = {});
+    void update_navigation_title(String const&, String const&);
+    void record_bookmark(String const&);
 
     bool url_is_hidden() const { return m_url_is_hidden; }
     void set_url_is_hidden(bool url_is_hidden) { m_url_is_hidden = url_is_hidden; }

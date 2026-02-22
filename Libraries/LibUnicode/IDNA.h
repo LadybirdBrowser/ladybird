@@ -59,4 +59,16 @@ struct ToAsciiOptions {
 
 ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& = {});
 
+struct ToUnicodeOptions {
+    CheckHyphens check_hyphens { CheckHyphens::Yes };
+    CheckBidi check_bidi { CheckBidi::Yes };
+    CheckJoiners check_joiners { CheckJoiners::Yes };
+    UseStd3AsciiRules use_std3_ascii_rules { UseStd3AsciiRules::No };
+    TransitionalProcessing transitional_processing { TransitionalProcessing::No };
+    VerifyDnsLength verify_dns_length { VerifyDnsLength::Yes };
+    IgnoreInvalidPunycode ignore_invalid_punycode { IgnoreInvalidPunycode::No };
+};
+
+ErrorOr<String> to_unicode(Utf8View domain_name, ToUnicodeOptions const& = {});
+
 }

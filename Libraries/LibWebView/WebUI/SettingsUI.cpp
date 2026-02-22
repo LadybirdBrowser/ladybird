@@ -7,6 +7,7 @@
 #include <AK/JsonArray.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
@@ -45,6 +46,21 @@ void SettingsUI::register_interfaces()
     });
     register_interface("setAutocompleteEngine"sv, [this](auto const& data) {
         set_autocomplete_engine(data);
+    });
+    register_interface("setAutocompleteRemoteEnabled"sv, [this](auto const& data) {
+        set_autocomplete_remote_enabled(data);
+    });
+    register_interface("setAutocompleteLocalIndexMaxEntries"sv, [this](auto const& data) {
+        set_autocomplete_local_index_max_entries(data);
+    });
+    register_interface("setAutocompleteSearchTitleData"sv, [this](auto const& data) {
+        set_autocomplete_search_title_data(data);
+    });
+    register_interface("loadAutocompleteLocalIndexStats"sv, [this](auto const&) {
+        load_autocomplete_local_index_stats();
+    });
+    register_interface("rebuildAutocompleteLocalIndex"sv, [this](auto const&) {
+        rebuild_autocomplete_local_index();
     });
 
     register_interface("loadForciblyEnabledSiteSettings"sv, [this](auto const&) {
@@ -173,6 +189,62 @@ void SettingsUI::set_autocomplete_engine(JsonValue const& autocomplete_engine)
         WebView::Application::settings().set_autocomplete_engine({});
     else if (autocomplete_engine.is_string())
         WebView::Application::settings().set_autocomplete_engine(autocomplete_engine.as_string());
+}
+
+void SettingsUI::set_autocomplete_remote_enabled(JsonValue const& enabled)
+{
+    if (!enabled.is_bool())
+        return;
+
+    WebView::Application::settings().set_autocomplete_remote_enabled(enabled.as_bool());
+}
+
+void SettingsUI::set_autocomplete_local_index_max_entries(JsonValue const& max_entries)
+{
+    auto parsed_max_entries = max_entries.get_integer<u64>();
+    if (!parsed_max_entries.has_value())
+        return;
+
+    WebView::Application::settings().set_autocomplete_local_index_max_entries(*parsed_max_entries);
+    load_current_settings();
+}
+
+void SettingsUI::set_autocomplete_search_title_data(JsonValue const& enabled)
+{
+    if (!enabled.is_bool())
+        return;
+
+    WebView::Application::settings().set_autocomplete_search_title_data(enabled.as_bool());
+    load_current_settings();
+}
+
+void SettingsUI::load_autocomplete_local_index_stats()
+{
+    auto stats = Autocomplete::local_index_stats();
+
+    JsonObject json_stats;
+    json_stats.set("totalEntries"sv, stats.total_entries);
+    json_stats.set("navigationalEntries"sv, stats.navigational_entries);
+    json_stats.set("queryCompletionEntries"sv, stats.query_completion_entries);
+    json_stats.set("bookmarkEntries"sv, stats.bookmark_entries);
+    json_stats.set("historyEntries"sv, stats.history_entries);
+    json_stats.set("uniqueTokens"sv, stats.unique_tokens);
+    json_stats.set("phrasePrefixes"sv, stats.phrase_prefixes);
+    json_stats.set("tokenPrefixes"sv, stats.token_prefixes);
+    json_stats.set("termTransitionContexts"sv, stats.term_transition_contexts);
+    json_stats.set("termTransitionEdges"sv, stats.term_transition_edges);
+    json_stats.set("isLoaded"sv, stats.is_loaded);
+    json_stats.set("isLoading"sv, stats.is_loading);
+    json_stats.set("rebuildPending"sv, stats.rebuild_pending);
+    json_stats.set("rebuildInProgress"sv, stats.rebuild_in_progress);
+
+    async_send_message("autocompleteLocalIndexStats"sv, move(json_stats));
+}
+
+void SettingsUI::rebuild_autocomplete_local_index()
+{
+    Autocomplete::rebuild_local_index_from_current_entries();
+    load_autocomplete_local_index_stats();
 }
 
 enum class SiteSettingType {
@@ -335,6 +407,10 @@ void SettingsUI::clear_browsing_data(JsonValue const& options)
         : Application::ClearBrowsingDataOptions::Delete::No;
 
     clear_browsing_data_options.delete_site_data = options.as_object().get_bool("siteData"sv).value_or(false)
+        ? Application::ClearBrowsingDataOptions::Delete::Yes
+        : Application::ClearBrowsingDataOptions::Delete::No;
+
+    clear_browsing_data_options.delete_history = options.as_object().get_bool("history"sv).value_or(false)
         ? Application::ClearBrowsingDataOptions::Delete::Yes
         : Application::ClearBrowsingDataOptions::Delete::No;
 
