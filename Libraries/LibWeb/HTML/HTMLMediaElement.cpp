@@ -1492,6 +1492,14 @@ void HTMLMediaElement::on_metadata_parsed()
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& fetch_data)
 {
+    if (m_playback_manager) {
+        m_playback_manager->on_track_added = nullptr;
+        m_playback_manager->on_metadata_parsed = nullptr;
+        m_playback_manager->on_unsupported_format_error = nullptr;
+        m_playback_manager->on_playback_state_change = nullptr;
+        m_playback_manager->on_duration_change = nullptr;
+    }
+
     m_playback_manager = Media::PlaybackManager::create();
 
     m_has_enabled_preferred_audio_track = false;
