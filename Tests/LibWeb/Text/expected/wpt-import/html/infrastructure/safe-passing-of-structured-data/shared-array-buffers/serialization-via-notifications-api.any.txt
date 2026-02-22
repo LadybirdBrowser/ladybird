@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	SharedArrayBuffer cloning via the Notifications API's data member: basic case
+Pass	SharedArrayBuffer cloning via the Notifications API's data member: is interleaved correctly
