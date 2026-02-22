@@ -1120,8 +1120,8 @@ static void create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> en
 
     // 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
     //    document state's initiator origin.
-    if (navigable->top_level_traversable()->parent() == nullptr)
-        request->set_top_level_navigation_initiator_origin(entry->document_state()->origin());
+    if (navigable->is_top_level_traversable())
+        request->set_top_level_navigation_initiator_origin(entry->document_state()->initiator_origin());
 
     // 5. If request's client is null:
     if (request->client() == nullptr) {
