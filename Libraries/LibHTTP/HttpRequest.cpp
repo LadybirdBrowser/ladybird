@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <AK/StringBuilder.h>
 #include <LibHTTP/HttpRequest.h>
 

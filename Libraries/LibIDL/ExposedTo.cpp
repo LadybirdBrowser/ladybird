@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteString.h>
+#include <AK/Vector.h>
 #include <LibIDL/ExposedTo.h>
 
 static ByteString s_error_string;

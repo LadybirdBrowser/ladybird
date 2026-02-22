@@ -8,7 +8,6 @@
 
 #include <AK/Badge.h>
 #include <AK/Function.h>
-#include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StackInfo.h>
@@ -20,7 +19,6 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapRoot.h>
-#include <LibGC/Internals.h>
 #include <LibGC/Root.h>
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>

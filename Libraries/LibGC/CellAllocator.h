@@ -8,7 +8,6 @@
 
 #include <AK/IntrusiveList.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/NonnullOwnPtr.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapBlock.h>

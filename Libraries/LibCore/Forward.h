@@ -15,7 +15,6 @@ class ArgsParser;
 class BufferedSocketBase;
 class ConfigFile;
 class CustomEvent;
-class DateTime;
 class DirIterator;
 class DeferredInvocationContext;
 class ElapsedTimer;

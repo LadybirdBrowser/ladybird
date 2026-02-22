@@ -6,7 +6,9 @@
 
 #pragma once
 
-#include <LibIDL/Types.h>
+#include <AK/EnumBits.h>
+#include <AK/Error.h>
+#include <AK/StringView.h>
 
 namespace IDL {
 

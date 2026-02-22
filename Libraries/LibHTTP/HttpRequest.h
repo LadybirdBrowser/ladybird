@@ -10,7 +10,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Noncopyable.h>
-#include <LibCore/Forward.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
 

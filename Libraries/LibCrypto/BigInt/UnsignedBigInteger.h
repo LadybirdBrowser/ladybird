@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/String.h>
 #include <LibCrypto/BigInt/TommathForward.h>
 

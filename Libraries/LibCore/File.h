@@ -11,7 +11,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Stream.h>
-#include <LibCore/Forward.h>
 
 namespace Core {
 

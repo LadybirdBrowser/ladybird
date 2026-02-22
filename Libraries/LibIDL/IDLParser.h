@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <LibIDL/Types.h>
 

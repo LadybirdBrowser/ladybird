@@ -6,7 +6,6 @@
  */
 
 #include <AK/Assertions.h>
-#include <AK/Format.h>
 #include <AK/Platform.h>
 #include <AK/Random.h>
 #include <AK/Vector.h>

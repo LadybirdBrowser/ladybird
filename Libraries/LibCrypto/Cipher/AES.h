@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
+#include <AK/ByteBuffer.h>
 #include <LibCrypto/OpenSSLForward.h>
 
 namespace Crypto::Cipher {

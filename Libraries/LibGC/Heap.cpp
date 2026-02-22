@@ -21,7 +21,6 @@
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
-#include <LibGC/WeakInlines.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER

@@ -10,20 +10,19 @@
 #include <AK/ByteString.h>
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
-#include <AK/NumericLimits.h>
 #include <AK/Queue.h>
 #include <AK/StdLibExtras.h>
+#include <AK/Stream.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Try.h>
 #include <AK/TypeList.h>
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
 #include <LibCore/SharedCircularQueue.h>
-#include <LibCore/Socket.h>
 #include <LibIPC/Concepts.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
-#include <LibIPC/Message.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 
@@ -129,9 +128,6 @@ ErrorOr<Empty> decode(Decoder&);
 
 template<>
 ErrorOr<Core::AnonymousBuffer> decode(Decoder&);
-
-template<>
-ErrorOr<Core::DateTime> decode(Decoder&);
 
 template<>
 ErrorOr<Core::ProxyData> decode(Decoder&);

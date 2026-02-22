@@ -8,12 +8,10 @@
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
 #include <AK/JsonValue.h>
-#include <AK/NumericLimits.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Proxy.h>
-#include <LibCore/Socket.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/File.h>
 #include <LibURL/Parser.h>

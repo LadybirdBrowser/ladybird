@@ -134,9 +134,6 @@ template<>
 ErrorOr<void> encode(Encoder&, Core::AnonymousBuffer const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Core::DateTime const&);
-
-template<>
 ErrorOr<void> encode(Encoder&, Core::ProxyData const&);
 
 template<>

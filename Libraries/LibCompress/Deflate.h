@@ -10,7 +10,7 @@
 
 #include <AK/BitStream.h>
 #include <AK/Stream.h>
-#include <LibCompress/Zlib.h>
+#include <LibCompress/GenericZlib.h>
 
 namespace Compress {
 

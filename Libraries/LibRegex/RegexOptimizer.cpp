@@ -17,6 +17,7 @@
 #include <AK/Vector.h>
 #include <LibRegex/Regex.h>
 #include <LibRegex/RegexBytecodeStreamOptimizer.h>
+#include <LibRegex/RegexDebug.h>
 #include <LibUnicode/CharacterTypes.h>
 #if REGEX_DEBUG
 #    include <AK/ScopeGuard.h>

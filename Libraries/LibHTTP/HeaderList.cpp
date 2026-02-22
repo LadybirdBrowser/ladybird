@@ -7,6 +7,7 @@
  */
 
 #include <AK/GenericLexer.h>
+#include <AK/HashTable.h>
 #include <AK/StringUtils.h>
 #include <LibHTTP/HeaderList.h>
 

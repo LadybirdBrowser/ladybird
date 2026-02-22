@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibIPC/Decoder.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/Message.h>
 
