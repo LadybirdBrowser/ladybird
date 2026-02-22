@@ -11,4 +11,23 @@ fi
 
 cd "${LADYBIRD_SOURCE_DIR}"
 
-find . \( -name Base -o -name Patches -o -name Ports -o -name Root -o -name Toolchain -o -name Build \) -prune -o \( -name '*.ipc' -or -name '*.cpp' -or -name '*.idl' -or -name '*.h' -or -name '*.in' -or -name '*.css' -or -name '*.cmake' -or -name '*.json' -or -name 'CMakeLists.txt' \) -print > ladybird.files
+find . \( \
+        -name Base \
+        -o -name Patches \
+        -o -name Ports \
+        -o -name Root \
+        -o -name Toolchain \
+        -o -name Build \
+    \) -prune \
+    -o \( \
+        -name '*.ipc' \
+        -o -name '*.cpp' \
+        -o -name '*.idl' \
+        -o -name '*.h' \
+        -o -name '*.in' \
+        -o -name '*.css' \
+        -o -name '*.cmake' \
+        -o -name '*.json' \
+        -o -name 'CMakeLists.txt' \
+    \) \
+    -print > ladybird.files
