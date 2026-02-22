@@ -12,6 +12,7 @@
 #include <LibCore/Promise.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <thread>
 
 namespace ImageDecoderClient {
 
@@ -51,15 +52,19 @@ public:
     Function<void(i64 session_id, String error_message)> on_animation_decode_failed;
 
 private:
+    void verify_thread_affinity() const { VERIFY(m_creation_thread == std::this_thread::get_id()); }
+
     virtual void die() override;
 
-    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id) override;
-    virtual void did_fail_to_decode_image(i64 image_id, String error_message) override;
+    virtual void did_decode_image(i64 request_token, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id) override;
+    virtual void did_fail_to_decode_image(i64 request_token, String error_message) override;
 
     virtual void did_decode_animation_frames(i64 session_id, Gfx::BitmapSequence bitmaps) override;
     virtual void did_fail_animation_decode(i64 session_id, String error_message) override;
 
-    HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_pending_decoded_images;
+    std::thread::id m_creation_thread { std::this_thread::get_id() };
+    i64 m_next_request_token { 0 };
+    HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_token_promises;
 };
 
 }
