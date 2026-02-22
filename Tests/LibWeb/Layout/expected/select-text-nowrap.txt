@@ -1,0 +1,29 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 38 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 22 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 150x18] baseline: 16.796875
+      BlockContainer <select> at [13,10] inline-block [0+1+4 150 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+        Box <div> at [13,10] flex-container(row) [0+0+0 150 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [13,10] flex-item [0+0+0 417.328125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 50, rect: [13,10 417.328125x18] baseline: 13.796875
+                "This is some really long text that should not wrap"
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [434.328125,11] flex-item [4+0+0 0 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from SVGSVGBox start: 0, length: 0, rect: [434.328125,24 0x0] baseline: 0
+            SVGSVGBox <svg> at [434.328125,24] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [SVG] children: not-inline
+              SVGGeometryBox <path> at [434.328125,24] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x38]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x22]
+      PaintableWithLines (BlockContainer<SELECT>) [8,8 160x22] overflow: [9,9 421.328125x21]
+        PaintableBox (Box<DIV>) [13,10 150x18] overflow: [13,10 417.328125x18]
+          PaintableWithLines (BlockContainer<DIV>) [13,10 417.328125x18]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>) [434.328125,11 0x16]
+            SVGSVGPaintable (SVGSVGBox<svg>) [434.328125,24 0x0]
+              SVGPathPaintable (SVGGeometryBox<path>) [434.328125,24 0x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x38] [children: 0] (z-index: auto)
