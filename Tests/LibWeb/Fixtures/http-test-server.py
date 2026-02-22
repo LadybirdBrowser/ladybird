@@ -38,7 +38,23 @@ class Echo:
 echo_store: Dict[str, Echo] = {}
 
 
+def echo_definition(echo: Echo):
+    headers = echo.headers or {}
+    return (
+        echo.method,
+        echo.path,
+        echo.status,
+        echo.body,
+        echo.delay_ms,
+        tuple(sorted(headers.items())),
+        echo.reason_phrase,
+        echo.reflect_headers_in_body,
+    )
+
+
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    static_directory: str
+
     def __init__(self, *arguments, **kwargs):
         super().__init__(*arguments, directory=self.static_directory, **kwargs)
 
@@ -104,9 +120,34 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Return 409: Conflict if the method+path combination already exists
             key = f"{echo.method} {echo.path}"
             if key in echo_store:
+                existing_echo = echo_store[key]
+
+                # Be idempotent if the definition is identical.
+                if echo_definition(existing_echo) == echo_definition(echo):
+                    host = self.headers.get("host", "localhost")
+                    path = existing_echo.path.lstrip("/")
+                    fetch_url = f"http://{host}/{path}"
+                    fetch_config = {
+                        "method": existing_echo.method,
+                        "url": fetch_url,
+                    }
+
+                    self.send_response(200)
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
+                    return
+
                 self.send_response(409)
                 self.send_header("Content-Type", "text/plain")
                 self.end_headers()
+                message = (
+                    "Echo already exists for method+path, but with a different definition.\n"
+                    f"key: {key}\n"
+                    "Hint: Use a unique path per test run (or keep the same definition).\n"
+                )
+                self.wfile.write(message.encode("utf-8"))
                 return
 
             echo_store[key] = echo
@@ -203,7 +244,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             if echo.reflect_headers_in_body:
                 headers = defaultdict(list)
                 for key in self.headers.keys():
-                    headers[key] = self.headers.get_all(key)
+                    headers[key] = self.headers.get_all(key) or []
                 headers = json.dumps(headers)
                 response_body = echo.body.replace("$HEADERS", headers) if echo.body else headers
             else:
