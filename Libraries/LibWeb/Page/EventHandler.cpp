@@ -1732,6 +1732,108 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto arrow_key_scroll_distance = 100;
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
 
+    // Helper lambda to find the nearest scrollable ancestor of a node (excluding viewport)
+    auto find_scrollable_ancestor = [](DOM::Node const* node) -> Painting::PaintableBox* {
+        if (!node || !node->is_connected())
+            return nullptr;
+
+        // Start from the node's layout node
+        auto* layout_node = node->layout_node();
+        if (!layout_node)
+            return nullptr;
+
+        auto* paintable = layout_node->first_paintable();
+        if (!paintable)
+            return nullptr;
+
+        auto* paintable_box = as_if<Painting::PaintableBox>(paintable);
+        if (!paintable_box)
+            return nullptr;
+
+        if (!paintable_box->is_viewport_paintable() && paintable_box->could_be_scrolled_by_wheel_event())
+            return const_cast<Painting::PaintableBox*>(paintable_box);
+
+        if (auto* scrollable_ancestor = paintable_box->nearest_scrollable_ancestor()) {
+            if (!scrollable_ancestor->is_viewport_paintable())
+                return const_cast<Painting::PaintableBox*>(scrollable_ancestor);
+        }
+
+        return nullptr;
+    };
+
+    // Helper lambda to validate if a scroll target is still valid
+    auto is_scroll_target_valid = [](Painting::PaintableBox const* target) -> bool {
+        if (!target)
+            return false;
+        
+        GC::Ptr<DOM::Node const> node = target->dom_node();
+        if (!node || !node->is_connected())
+            return false;
+
+        if (target->is_viewport_paintable())
+            return false;
+        
+        return target->could_be_scrolled_by_wheel_event();
+    };
+
+    // Helper lambda to find the next nearest scrollable ancestor when current target becomes invalid
+    auto find_next_scrollable_ancestor = [&find_scrollable_ancestor](Painting::PaintableBox const* invalid_target) -> Painting::PaintableBox* {
+        if (!invalid_target)
+            return nullptr;
+
+        GC::Ptr<DOM::Node const> node = invalid_target->dom_node();
+        if (!node)
+            return nullptr;
+
+        auto* parent = node->parent();
+        while (parent) {
+            if (auto* scrollable = find_scrollable_ancestor(parent))
+                return scrollable;
+            parent = parent->parent();
+        }
+
+        return nullptr;
+    };
+
+    // Determine the scroll target with persistent state tracking
+    Painting::PaintableBox* scroll_target = nullptr;
+    GC::Ptr<DOM::Node> current_focused_area = focused_area;
+
+    // Check if focus has changed
+    bool focus_changed = (current_focused_area.ptr() != m_keyboard_scroll_focused_node.ptr());
+
+    if (focus_changed) {
+        // Focus changed - recalculate scroll target
+        m_keyboard_scroll_focused_node = current_focused_area;
+        m_keyboard_scroll_target = find_scrollable_ancestor(current_focused_area.ptr());
+        scroll_target = m_keyboard_scroll_target.ptr();
+    } else {
+        // Focus hasn't changed - try to reuse the previous scroll target
+        scroll_target = m_keyboard_scroll_target.ptr();
+
+        // Validate the cached scroll target
+        if (scroll_target && !is_scroll_target_valid(scroll_target)) {
+            scroll_target = find_next_scrollable_ancestor(scroll_target);
+            m_keyboard_scroll_target = scroll_target;
+        }
+
+        // If we still don't have a valid target and focus hasn't changed, 
+        // but the focused node is gone, clear our state
+        if (!scroll_target && m_keyboard_scroll_focused_node && !m_keyboard_scroll_focused_node->is_connected()) {
+            m_keyboard_scroll_focused_node = nullptr;
+            m_keyboard_scroll_target = nullptr;
+        }
+    }
+
+    // Helper lambda to scroll either the target element or the window
+    auto scroll_by = [&](CSSPixels delta_x, CSSPixels delta_y) {
+        if (scroll_target) {
+            (void)scroll_target->scroll_by(delta_x.to_int(), delta_y.to_int());
+        } else {
+            document->window()->scroll_by(delta_x.to_double(), delta_y.to_double());
+        }
+    };
+
     switch (key) {
     case UIEvents::KeyCode::Key_Up:
     case UIEvents::KeyCode::Key_Down:
@@ -1743,7 +1845,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             else
                 document->window()->scroll_by(0, INT64_MAX);
         } else {
-            document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
+            scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
         }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
@@ -1757,19 +1859,34 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (modifiers)
             document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
         else
-            document->window()->scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+            scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+        return EventResult::Handled;
+    case UIEvents::KeyCode::Key_Space:
+        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Shift)
+            break;
+        scroll_by(0, modifiers & UIEvents::KeyModifier::Mod_Shift ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
         if (modifiers != UIEvents::KeyModifier::Mod_None)
             break;
-        document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
+        scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Home:
-        document->scroll_to_the_beginning_of_the_document();
+        if (scroll_target)
+            (void)scroll_target->set_scroll_offset({ 0, 0 });
+        else
+            document->scroll_to_the_beginning_of_the_document();
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_End:
-        document->window()->scroll_by(0, INT64_MAX);
+        if (scroll_target) {
+            auto overflow_rect = scroll_target->scrollable_overflow_rect();
+            if (overflow_rect.has_value())
+                (void)scroll_target->set_scroll_offset({ 0, overflow_rect->height() });
+
+        } else {
+            document->window()->scroll_by(0, INT64_MAX);
+        }
         return EventResult::Handled;
     default:
         break;

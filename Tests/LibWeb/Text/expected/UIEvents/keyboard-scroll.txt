@@ -1,0 +1,7 @@
+Initial inner.scrollTop: 0
+After setting to 50: 50
+After click, activeElement: focusable-button
+Test 1 - Focus via click: scrolled=#inner
+Test 2 - Focus via JavaScript: scrolled=#inner
+Test 3 - Focus via Tab: scrolled=#inner
+Test 4 - Focused element removed: scrolled=document

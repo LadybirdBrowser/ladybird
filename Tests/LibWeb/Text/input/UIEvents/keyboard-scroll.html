@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Keyboard scrolling targets the focused element's scrollable container</title>
+<link rel="author" href="ahmed.n.abdeltwab@gmail.com">
+<style>
+    .scroller {
+        overflow: auto;
+        height: 200px;
+        border: 1px solid black;
+    }
+    .spacer {
+        height: 200vh;
+    }
+    button {
+        padding: 10px;
+        font-size: 14px;
+    }
+</style>
+<body id="body">
+<div class="scroller" id="outer">
+    <div class="scroller" id="inner">
+        <button id="focusable-button">Focus me (I'm a button)</button>
+        <div class="spacer"></div>
+    </div>
+    <div class="spacer"></div>
+</div>
+<div class="spacer"></div>
+</body>
+<script src="../include.js"></script>
+<script>
+    const button = document.getElementById("focusable-button");
+    const outer = document.getElementById("outer");
+    const inner = document.getElementById("inner");
+
+    function friendlyName(node) {
+        if (!node) return "null";
+        if (node == document) return "document";
+        if (node.id) return `#${node.id}`;
+        return `<${node.tagName}>`;
+    }
+
+    function resetScroll() {
+        document.scrollingElement.scrollTo(0, 0);
+        outer.scrollTo(0, 0);
+        inner.scrollTo(0, 0);
+    }
+
+    function findScrolledElement() {
+        if (inner.scrollTop > 0) return inner;
+        if (outer.scrollTop > 0) return outer;
+        if (document.scrollingElement.scrollTop > 0) return document;
+        return null;
+    }
+
+    asyncTest(async done => {
+        // Ensure layout is complete
+        document.body.offsetWidth;
+        await animationFrame();
+
+        // First, verify that the inner div can actually scroll
+        println(`Initial inner.scrollTop: ${inner.scrollTop}`);
+        inner.scrollTop = 50;
+        await animationFrame();
+        println(`After setting to 50: ${inner.scrollTop}`);
+        inner.scrollTop = 0;
+        await animationFrame();
+
+        // Test 1: Keyboard scrolling works when element is focused via click
+        resetScroll();
+        const buttonRect = button.getBoundingClientRect();
+        internals.click(buttonRect.left + 5, buttonRect.top + 5);
+        await animationFrame();
+        
+        println(`After click, activeElement: ${document.activeElement ? document.activeElement.id : 'null'}`);
+
+        // Send key to the button itself, not document.body
+        internals.sendKey(button, "Down");
+        await animationFrame();
+        await animationFrame();
+
+        const scrolled1 = findScrolledElement();
+        println(`Test 1 - Focus via click: scrolled=${friendlyName(scrolled1)}`);
+
+        // Test 2: Keyboard scrolling works when element is focused via JavaScript
+        resetScroll();
+        await animationFrame();
+
+        button.focus();
+        await animationFrame();
+
+        internals.sendKey(button, "Down");
+        await animationFrame();
+        await animationFrame();
+
+        const scrolled2 = findScrolledElement();
+        println(`Test 2 - Focus via JavaScript: scrolled=${friendlyName(scrolled2)}`);
+
+        // Test 3: Keyboard scrolling works when element is focused via Tab key
+        resetScroll();
+        await animationFrame();
+
+        // Blur current focus
+        if (document.activeElement) {
+            document.activeElement.blur();
+        }
+        await animationFrame();
+
+        // Simulate Tab key to focus the button
+        internals.sendKey(document.body, "Tab");
+        await animationFrame();
+
+        // If Tab didn't focus our button, focus it programmatically for test consistency
+        if (document.activeElement !== button) {
+            button.focus();
+        }
+        await animationFrame();
+
+        internals.sendKey(button, "Down");
+        await animationFrame();
+        await animationFrame();
+
+        const scrolled3 = findScrolledElement();
+        println(`Test 3 - Focus via Tab: scrolled=${friendlyName(scrolled3)}`);
+
+        // Test 4: Keyboard scrolling targets correct container when focused element is removed
+        resetScroll();
+        await animationFrame();
+
+        button.focus();
+        await animationFrame();
+
+        button.remove();
+        await animationFrame();
+
+        internals.sendKey(document.body, "Down");
+        await animationFrame();
+        await animationFrame();
+
+        const scrolled4 = findScrolledElement();
+        println(`Test 4 - Focused element removed: scrolled=${friendlyName(scrolled4)}`);
+        inner.insertBefore(button, inner.firstChild);
+
+        done();
+    });
+</script>
