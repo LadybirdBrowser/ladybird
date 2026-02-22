@@ -52,34 +52,46 @@ GC::Ptr<Layout::Node> SVGSVGElement::create_layout_node(GC::Ref<CSS::ComputedPro
 
 RefPtr<CSS::StyleValue const> SVGSVGElement::width_style_value_from_attribute() const
 {
+    if (m_cached_width_style_value.has_value())
+        return *m_cached_width_style_value;
+
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto width_attribute = attribute(SVG::AttributeNames::width);
+
+    RefPtr<CSS::StyleValue const> result;
     if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or(String {}), CSS::PropertyID::Width)) {
-        return width_value.release_nonnull();
-    }
-    if (width_attribute == "") {
+        result = width_value.release_nonnull();
+    } else if (width_attribute == "") {
         // If the `width` attribute is an empty string, it defaults to 100%.
         // This matches WebKit and Blink, but not Firefox. The spec is unclear.
         // FIXME: Figure out what to do here.
-        return CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
+        result = CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
     }
-    return nullptr;
+
+    m_cached_width_style_value = result;
+    return result;
 }
 
 RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute() const
 {
+    if (m_cached_height_style_value.has_value())
+        return *m_cached_height_style_value;
+
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto height_attribute = attribute(SVG::AttributeNames::height);
+
+    RefPtr<CSS::StyleValue const> result;
     if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or(String {}), CSS::PropertyID::Height)) {
-        return height_value.release_nonnull();
-    }
-    if (height_attribute == "") {
+        result = height_value.release_nonnull();
+    } else if (height_attribute == "") {
         // If the `height` attribute is an empty string, it defaults to 100%.
         // This matches WebKit and Blink, but not Firefox. The spec is unclear.
         // FIXME: Figure out what to do here.
-        return CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
+        result = CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
     }
-    return nullptr;
+
+    m_cached_height_style_value = result;
+    return result;
 }
 
 void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -87,8 +99,14 @@ void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> co
     Base::attribute_changed(name, old_value, value, namespace_);
     SVGFitToViewBox::attribute_changed(*this, name, value);
 
-    if (name.equals_ignoring_ascii_case(SVG::AttributeNames::width) || name.equals_ignoring_ascii_case(SVG::AttributeNames::height))
+    if (name.equals_ignoring_ascii_case(SVG::AttributeNames::width)) {
+        m_cached_width_style_value = {};
         update_fallback_view_box_for_svg_as_image();
+    }
+    if (name.equals_ignoring_ascii_case(SVG::AttributeNames::height)) {
+        m_cached_height_style_value = {};
+        update_fallback_view_box_for_svg_as_image();
+    }
 }
 
 void SVGSVGElement::children_changed(ChildrenChangedMetadata const*)

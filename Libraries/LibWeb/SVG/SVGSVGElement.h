@@ -95,6 +95,9 @@ private:
 
     Optional<ViewBox> m_fallback_view_box_for_svg_as_image;
 
+    mutable Optional<RefPtr<CSS::StyleValue const>> m_cached_width_style_value;
+    mutable Optional<RefPtr<CSS::StyleValue const>> m_cached_height_style_value;
+
     GC::Ptr<SVGViewElement> m_active_view_element;
 };
 
