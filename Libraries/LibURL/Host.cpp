@@ -192,14 +192,20 @@ Optional<String> Host::public_suffix() const
     auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
 
     // 3. Let publicSuffix be the public suffix determined by running the Public Suffix List algorithm with host as domain. [PSL]
+
+    // NB: The PSL algorithm maintains trailing dots, so we strip it here since step 4 expects no trailing dot.
+    auto host_without_trailing_dot = host_string.bytes_as_string_view();
+    if (!trailing_dot.is_empty())
+        host_without_trailing_dot = host_without_trailing_dot.substring_view(0, host_without_trailing_dot.length() - 1);
+
     // FIXME: Unify this logic with registrable domain.
-    auto public_suffix = PublicSuffixData::the()->get_public_suffix(host_string);
+    auto public_suffix = PublicSuffixData::the()->get_public_suffix(host_without_trailing_dot);
     if (!public_suffix.has_value()) {
-        auto last_dot = host_string.bytes_as_string_view().find_last('.');
+        auto last_dot = host_without_trailing_dot.find_last('.');
         if (last_dot.has_value())
-            public_suffix = MUST(host_string.substring_from_byte_offset(last_dot.value() + 1));
+            public_suffix = MUST(String::from_utf8(host_without_trailing_dot.substring_view(last_dot.value() + 1)));
         else
-            public_suffix = host_string;
+            public_suffix = MUST(String::from_utf8(host_without_trailing_dot));
     }
 
     // 4. Assert: publicSuffix is an ASCII string that does not end with ".".
@@ -225,23 +231,25 @@ Optional<String> Host::registrable_domain() const
     auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
 
     // 3. Let registrableDomain be the registrable domain determined by running the Public Suffix List algorithm with host as domain. [PSL]
-    //
-    // NOTE: If we do not find a registrable domain via the PSL, use everything after the second to last dot.
-    auto registrable_domain = get_registrable_domain(host_string);
-    if (!registrable_domain.has_value()) {
-        auto view = host_string.bytes_as_string_view();
 
-        auto last_dot = view.find_last('.');
+    // NB: The PSL algorithm maintains trailing dots, so we strip it here since step 4 expects no trailing dot.
+    auto host_without_trailing_dot = host_string.bytes_as_string_view();
+    if (!trailing_dot.is_empty())
+        host_without_trailing_dot = host_without_trailing_dot.substring_view(0, host_without_trailing_dot.length() - 1);
+
+    // NB: If we do not find a registrable domain via the PSL, use everything after the second to last dot.
+    auto registrable_domain = get_registrable_domain(host_without_trailing_dot);
+    if (!registrable_domain.has_value()) {
+        auto last_dot = host_without_trailing_dot.find_last('.');
         if (last_dot.has_value()) {
-            view = view.substring_view(0, *last_dot);
-            auto second_last_dot = view.find_last('.');
+            auto second_last_dot = host_without_trailing_dot.substring_view(0, *last_dot).find_last('.');
             if (second_last_dot.has_value())
-                registrable_domain = MUST(host_string.substring_from_byte_offset(second_last_dot.value() + 1));
+                registrable_domain = MUST(String::from_utf8(host_without_trailing_dot.substring_view(second_last_dot.value() + 1)));
         }
     }
 
     if (!registrable_domain.has_value())
-        registrable_domain = host_string;
+        registrable_domain = MUST(String::from_utf8(host_without_trailing_dot));
 
     // 4. Assert: registrableDomain is an ASCII string that does not end with ".".
     VERIFY(registrable_domain->is_ascii());
