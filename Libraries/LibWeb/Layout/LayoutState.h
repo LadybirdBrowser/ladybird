@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 #include <LibWeb/Layout/Box.h>
@@ -52,6 +52,71 @@ struct StaticPositionRect {
 
         return position;
     }
+};
+
+// Sparse, index-based container using two-level page tables.
+// Layout state is throwaway — rebuilt on every layout pass — so a
+// flat vector pre-allocated for the entire tree wastes memory, while
+// a hash map pays hashing overhead on every access. Page tables give
+// O(1) lookup without hashing, allocating pages only on first write.
+template<typename T>
+class PagedStore {
+    static constexpr u32 PageBits = 4;
+    static constexpr u32 PageSize = 1u << PageBits;
+    static constexpr u32 PageMask = PageSize - 1;
+
+    struct Page {
+        Optional<T> entries[PageSize] {};
+    };
+
+public:
+    void ensure_capacity(u32 count)
+    {
+        m_pages.resize((count + PageSize - 1) >> PageBits);
+    }
+
+    T* get(u32 index) const
+    {
+        auto page_index = index >> PageBits;
+        if (page_index >= m_pages.size())
+            return nullptr;
+        auto const& page = m_pages[page_index];
+        if (!page)
+            return nullptr;
+        auto& entry = page->entries[index & PageMask];
+        if (!entry.has_value())
+            return nullptr;
+        return &entry.value();
+    }
+
+    T& allocate(u32 index)
+    {
+        auto page_index = index >> PageBits;
+        if (page_index >= m_pages.size())
+            m_pages.resize(page_index + 1);
+        auto& page = m_pages[page_index];
+        if (!page)
+            page = make<Page>();
+        auto& entry = page->entries[index & PageMask];
+        entry = T {};
+        return entry.value();
+    }
+
+    template<typename Callback>
+    void for_each(Callback callback)
+    {
+        for (auto const& page : m_pages) {
+            if (!page)
+                continue;
+            for (auto& entry : page->entries) {
+                if (entry.has_value())
+                    callback(entry.value());
+            }
+        }
+    }
+
+private:
+    Vector<OwnPtr<Page>> m_pages;
 };
 
 struct LayoutState {
@@ -220,17 +285,22 @@ struct LayoutState {
 
     void set_subtree_root(NodeWithStyle const& node) { m_subtree_root = &node; }
 
+    void ensure_capacity(u32 node_count);
+
     UsedValues& get_mutable(NodeWithStyle const&);
     UsedValues const& get(NodeWithStyle const&) const;
 
     UsedValues& populate_from_paintable(NodeWithStyle const&, Painting::PaintableBox const&);
 
-    OrderedHashMap<GC::Ref<Layout::Node const>, NonnullOwnPtr<UsedValues>> used_values_per_layout_node;
+    UsedValues const* try_get(NodeWithStyle const&) const;
+    UsedValues* try_get_mutable(NodeWithStyle const&);
+    UsedValues const* try_get(Node const&) const;
 
 private:
     UsedValues& ensure_used_values_for(NodeWithStyle const&);
     void resolve_relative_positions();
 
+    PagedStore<UsedValues> m_used_values_store;
     GC::Ptr<Layout::NodeWithStyle const> m_subtree_root;
 };
 

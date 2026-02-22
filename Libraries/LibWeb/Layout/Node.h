@@ -282,6 +282,9 @@ public:
 
     void set_computed_values(NonnullOwnPtr<CSS::ComputedValues>);
 
+    u32 layout_index() const { return m_layout_index; }
+    void set_layout_index(u32 index) { m_layout_index = index; }
+
 protected:
     NodeWithStyle(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     NodeWithStyle(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
@@ -295,6 +298,7 @@ private:
 
     NonnullOwnPtr<CSS::ComputedValues> m_computed_values;
     RefPtr<CSS::AbstractImageStyleValue const> m_list_style_image;
+    u32 m_layout_index { 0 };
 };
 
 template<>

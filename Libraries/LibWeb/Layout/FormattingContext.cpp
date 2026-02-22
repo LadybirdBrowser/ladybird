@@ -1259,7 +1259,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
     if (!block_container)
         return {};
 
-    auto const* block_container_used_values = state.used_values_per_layout_node.get(*block_container).value_or(nullptr);
+    auto const* block_container_used_values = state.try_get(*block_container);
     if (!block_container_used_values)
         return {};
 
@@ -1296,7 +1296,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
 
     // Expand the bounding rect by the inline's padding to get the padding box.
     // Per CSS, the containing block is formed by the padding edge.
-    auto const* inline_used_values = state.used_values_per_layout_node.get(inline_node).value_or(nullptr);
+    auto const* inline_used_values = state.try_get(inline_node);
     if (inline_used_values) {
         bounding_rect->set_x(bounding_rect->x() - inline_used_values->padding_left);
         bounding_rect->set_y(bounding_rect->y() - inline_used_values->padding_top);
@@ -1309,7 +1309,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
     // Walk from block_container up to abspos_containing_block, accumulating offsets.
     CSSPixelPoint offset_to_containing_block;
     for (Node const* ancestor = block_container; ancestor && ancestor != &abspos_containing_block; ancestor = ancestor->parent()) {
-        if (auto const* ancestor_used_values = state.used_values_per_layout_node.get(*ancestor).value_or(nullptr)) {
+        if (auto const* ancestor_used_values = state.try_get(*ancestor)) {
             offset_to_containing_block.translate_by(ancestor_used_values->offset);
         }
     }

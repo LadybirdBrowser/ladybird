@@ -1501,7 +1501,11 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
     }
 
+    u32 layout_index_counter = 0;
     m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
+        if (auto* node_with_style = as_if<Layout::NodeWithStyle>(layout_node))
+            node_with_style->set_layout_index(layout_index_counter++);
+
         layout_node.recompute_containing_block({});
 
         auto* box = as_if<Layout::Box>(layout_node);
@@ -1530,6 +1534,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     });
 
     Layout::LayoutState layout_state;
+    layout_state.ensure_capacity(layout_index_counter);
 
     {
         Layout::BlockFormattingContext root_formatting_context(layout_state, Layout::LayoutMode::Normal, *m_layout_root, nullptr);
