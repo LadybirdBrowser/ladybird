@@ -59,6 +59,7 @@ set(AK_TEST_SOURCES
     TestRandom.cpp
     TestRedBlackTree.cpp
     TestRefPtr.cpp
+    TestRingBuffer.cpp
     TestSegmentedVector.cpp
     TestSinglyLinkedList.cpp
     TestSourceGenerator.cpp
@@ -97,6 +98,8 @@ endif()
 foreach(source IN LISTS AK_TEST_SOURCES)
     ladybird_test("${source}" AK)
 endforeach()
+
+target_link_libraries(TestRingBuffer PRIVATE LibThreading)
 
 if (WIN32)
     # FIXME: Windows on ARM

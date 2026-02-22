@@ -171,6 +171,14 @@ requires(!IsRvalueReference<T>) class Vector;
 template<typename T, typename ErrorType = Error>
 class [[nodiscard]] ErrorOr;
 
+template<typename T, u32 Size>
+requires(is_power_of_two(Size) && IsMoveConstructible<T> && IsMoveAssignable<T> && !IsLvalueReference<T>)
+class MPSCRingBuffer;
+
+template<typename T, u64 Size>
+requires(is_power_of_two(Size) && IsMoveConstructible<T> && IsMoveAssignable<T> && !IsLvalueReference<T>)
+class SPSCRingBuffer;
+
 }
 
 #if USING_AK_GLOBALLY
@@ -207,6 +215,7 @@ using AK::JsonValue;
 using AK::LexicalPath;
 using AK::LittleEndianInputBitStream;
 using AK::LittleEndianOutputBitStream;
+using AK::MPSCRingBuffer;
 using AK::NonnullOwnPtr;
 using AK::NonnullRefPtr;
 using AK::Optional;
@@ -217,6 +226,7 @@ using AK::SearchableCircularBuffer;
 using AK::SeekableStream;
 using AK::SinglyLinkedList;
 using AK::Span;
+using AK::SPSCRingBuffer;
 using AK::StackInfo;
 using AK::Stream;
 using AK::String;

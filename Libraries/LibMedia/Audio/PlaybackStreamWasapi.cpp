@@ -8,6 +8,7 @@
 #include <AK/Assertions.h>
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
+#include <AK/CpuBackoff.h>
 #include <AK/Error.h>
 #include <AK/FixedArray.h>
 #include <AK/Format.h>
@@ -365,7 +366,7 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
                             if (padding == 0)
                                 dbgln_if(AUDIO_DEBUG, "------- PlaybackStreamWASAPI: overslept draining buffer --------");
                             while (padding > 0) {
-                                AK::atomic_pause();
+                                cpu_pause();
                                 MUST_HR(state.audio_client->GetCurrentPadding(&padding));
                             }
                         }
