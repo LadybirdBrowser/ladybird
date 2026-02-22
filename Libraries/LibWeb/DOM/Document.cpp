@@ -1742,6 +1742,12 @@ void Document::update_style()
     m_needs_full_style_update = false;
 }
 
+void Document::update_style_if_needed_for_element(AbstractElement const& abstract_element)
+{
+    if (element_needs_style_update(abstract_element))
+        update_style();
+}
+
 bool Document::element_needs_style_update(AbstractElement const& abstract_element) const
 {
     // If there are document-level reasons to update style, we can't skip.
