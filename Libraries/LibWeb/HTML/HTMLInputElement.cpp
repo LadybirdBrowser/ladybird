@@ -131,23 +131,27 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
         return heap().allocate<Layout::ImageBox>(document(), *this, move(style), *this);
     }
 
-    // https://drafts.csswg.org/css-ui/#appearance-switching
-    // This specification introduces the appearance property to provide some control over this behavior.
-    // In particular, using appearance: none allows authors to suppress the native appearance of widgets,
-    // giving them a primitive appearance where CSS can be used to restyle them.
-    if (style->appearance() == CSS::Appearance::None) {
-        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
-    }
-
     switch (type_state()) {
 
     case TypeAttributeState::SubmitButton:
     case TypeAttributeState::Button:
     case TypeAttributeState::ResetButton:
+        // NB: For button inputs with appearance: none, use generic layout
+        // https://drafts.csswg.org/css-ui/#appearance-switching
+        if (style->appearance() == CSS::Appearance::None)
+            return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
         return heap().allocate<Layout::BlockContainer>(document(), this, move(style));
     case TypeAttributeState::Checkbox:
+        // NB: For checkbox inputs with appearance: none, use generic layout
+        // https://drafts.csswg.org/css-ui/#appearance-switching
+        if (style->appearance() == CSS::Appearance::None)
+            return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
         return heap().allocate<Layout::CheckBox>(document(), *this, move(style));
     case TypeAttributeState::RadioButton:
+        // NB: For radio inputs with appearance: none, use generic layout
+        // https://drafts.csswg.org/css-ui/#appearance-switching
+        if (style->appearance() == CSS::Appearance::None)
+            return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
         return heap().allocate<Layout::RadioButton>(document(), *this, move(style));
     case TypeAttributeState::Text:
     case TypeAttributeState::Search:
@@ -156,6 +160,10 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
     case TypeAttributeState::Email:
     case TypeAttributeState::Password:
     case TypeAttributeState::Number:
+        // NB: Text-like inputs retain TextInputBox layout even with appearance: none.
+        //     The primitive appearance behavior for form controls is currently under-specified,
+        //     and other browsers retain some native presentation aspects (like sizing) even with appearance: none.
+        //     See: https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-text-entry-widget
         // FIXME: text padding issues
         return heap().allocate<Layout::TextInputBox>(document(), *this, move(style));
     default:
