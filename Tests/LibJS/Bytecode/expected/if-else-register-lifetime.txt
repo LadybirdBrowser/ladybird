@@ -7,33 +7,33 @@ JS bytecode executable ""
 
 JS bytecode executable "test"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:j~0, src:Undefined
-[  18]       Mov dst:a~2, src:Undefined
-[  28]       Mov dst:i~1, src:Undefined
-[  38]       Mov dst:a~2, src:Int32(1)
+[   8]       Mov dst:a~0, src:Undefined
+[  18]       Mov dst:i~1, src:Undefined
+[  28]       Mov dst:j~2, src:Undefined
+[  38]       Mov dst:a~0, src:Int32(1)
 [  48]       Mov dst:i~1, src:Int32(0)
 [  58]       Jump target:@88
-[  60]    1: Mov dst:j~0, src:Int32(0)
+[  60]    1: Mov dst:j~2, src:Int32(0)
 [  70]       Jump target:@118
 [  78]    2: PostfixIncrement dst:reg5, src:i~1
 [  88]    3: JumpLessThan lhs:i~1, rhs:Int32(10), true_target:@60, false_target:@a0
 [  a0]    4: GetGlobal dst:reg6, identifier:parseInt
-[  b0]       Mov dst:reg8, src:a~2
-[  c0]       Call dst:reg5, callee:reg6, this_value:Undefined, parseInt, arguments:[reg8]
+[  b0]       Mov dst:reg7, src:a~0
+[  c0]       Call dst:reg5, callee:reg6, this_value:Undefined, parseInt, arguments:[reg7]
 [  e8]       Return value:reg5
-[  f0]    5: JumpLessThan lhs:j~0, rhs:Int32(5), true_target:@138, false_target:@190
-[ 108]    6: PostfixIncrement dst:reg5, src:j~0
-[ 118]    7: JumpLessThan lhs:j~0, rhs:Int32(10), true_target:@f0, false_target:@130
+[  f0]    5: JumpLessThan lhs:j~2, rhs:Int32(5), true_target:@138, false_target:@190
+[ 108]    6: PostfixIncrement dst:reg5, src:j~2
+[ 118]    7: JumpLessThan lhs:j~2, rhs:Int32(10), true_target:@f0, false_target:@130
 [ 130]    8: Jump target:@78
-[ 138]    9: Mov dst:reg6, src:j~0
-[ 148]       Add dst:reg7, lhs:i~1, rhs:j~0
+[ 138]    9: Mov dst:reg6, src:j~2
+[ 148]       Add dst:reg7, lhs:i~1, rhs:j~2
 [ 158]       GetByValue dst:reg8, base:arg0, property:reg7, base_identifier:x
 [ 170]       PutNormalByValue base:arg0, property:reg6, src:reg8, base_identifier:x
 [ 188]       Jump target:@218
-[ 190]   10: Mov dst:reg8, src:j~0
-[ 1a0]       GetGlobal dst:reg7, identifier:parseInt
-[ 1b0]       Sub dst:reg9, lhs:j~0, rhs:Int32(3)
+[ 190]   10: Mov dst:reg6, src:j~2
+[ 1a0]       GetGlobal dst:reg8, identifier:parseInt
+[ 1b0]       Sub dst:reg9, lhs:j~2, rhs:Int32(3)
 [ 1c0]       GetByValue dst:reg10, base:arg0, property:reg9, base_identifier:x
-[ 1d8]       Call dst:reg6, callee:reg7, this_value:Undefined, parseInt, arguments:[reg10, Int32(1)]
-[ 200]       PutNormalByValue base:arg0, property:reg8, src:reg6, base_identifier:x
+[ 1d8]       Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg10, Int32(1)]
+[ 200]       PutNormalByValue base:arg0, property:reg6, src:reg7, base_identifier:x
 [ 218]   11: Jump target:@108

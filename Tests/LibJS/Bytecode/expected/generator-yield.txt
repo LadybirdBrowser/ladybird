@@ -6,10 +6,10 @@ JS bytecode executable ""
 [  48]       GetGlobal dst:reg6, identifier:g
 [  58]       GetById dst:reg7, base:reg6, property:next, base_identifier:g
 [  70]       Call dst:reg5, callee:reg7, this_value:reg6, g.next
-[  90]       GetGlobal dst:reg6, identifier:g
-[  a0]       GetById dst:reg8, base:reg6, property:next, base_identifier:g
-[  b8]       Call dst:reg7, callee:reg8, this_value:reg6, g.next
-[  d8]       End value:reg7
+[  90]       GetGlobal dst:reg7, identifier:g
+[  a0]       GetById dst:reg8, base:reg7, property:next, base_identifier:g
+[  b8]       Call dst:reg6, callee:reg8, this_value:reg7, g.next
+[  d8]       End value:reg6
 
 JS bytecode executable "multi_yield"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -22,10 +22,10 @@ JS bytecode executable "multi_yield"
 [  70]    4: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@88, false_target:@90
 [  88]    5: Throw src:reg7
 [  90]    6: Yield value:reg7
-[  a0]    7: Mov dst:reg7, src:reg0
-[  b0]       GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
-[  c0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@d8, false_target:@e8
+[  a0]    7: Mov dst:reg5, src:reg0
+[  b0]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[  c0]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@d8, false_target:@e8
 [  d8]    8: Yield value:Undefined
-[  e8]    9: JumpStrictlyEquals lhs:reg5, rhs:Int32(5), true_target:@100, false_target:@108
-[ 100]   10: Throw src:reg6
-[ 108]   11: Yield value:reg6
+[  e8]    9: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@100, false_target:@108
+[ 100]   10: Throw src:reg7
+[ 108]   11: Yield value:reg7

@@ -5,16 +5,16 @@ JS bytecode executable ""
 [  30]       GetGlobal dst:reg9, identifier:eval
 [  40]       CallDirectEval dst:reg8, callee:reg9, this_value:Undefined, eval, arguments:[String("switch(1) { case 1: 'hello'; let x = 1; }")]
 [  68]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  90]       GetGlobal dst:reg6, identifier:console
-[  a0]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[  90]       GetGlobal dst:reg7, identifier:console
+[  a0]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
 [  b8]       GetGlobal dst:reg10, identifier:eval
 [  c8]       CallDirectEval dst:reg9, callee:reg10, this_value:Undefined, eval, arguments:[String("switch(1) { case 1: 'first'; 'second'; }")]
-[  f0]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-[ 118]       GetGlobal dst:reg8, identifier:console
-[ 128]       GetById dst:reg6, base:reg8, property:log, base_identifier:console
+[  f0]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+[ 118]       GetGlobal dst:reg7, identifier:console
+[ 128]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
 [ 140]       GetGlobal dst:reg10, identifier:eval
 [ 150]       CallDirectEval dst:reg9, callee:reg10, this_value:Undefined, eval, arguments:[String("switch(1) { case 1: 'matched'; break; default: 'default'; }")]
-[ 178]       Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+[ 178]       Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
 [ 1a0]       End value:reg5
 
 JS bytecode executable "eval"

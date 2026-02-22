@@ -28,9 +28,9 @@ JS bytecode executable "forLetClosure"
 [ 138]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [ 148]       CreateVariable identifier:i, is_immutable:false, is_global:false, is_strict:false
 [ 158]       InitializeLexicalBinding identifier:i, src:reg6
-[ 170]    2: GetBinding dst:reg7, identifier:i
-[ 188]       PostfixIncrement dst:reg6, src:reg7
-[ 198]       SetLexicalBinding identifier:i, src:reg7
+[ 170]    2: GetBinding dst:reg6, identifier:i
+[ 188]       PostfixIncrement dst:reg7, src:reg6
+[ 198]       SetLexicalBinding identifier:i, src:reg6
 [ 1b0]    3: GetBinding dst:reg6, identifier:i
 [ 1c8]       JumpLessThan lhs:reg6, rhs:Int32(3), true_target:@b0, false_target:@1e0
 [ 1e0]    4: SetLexicalEnvironment environment:reg4

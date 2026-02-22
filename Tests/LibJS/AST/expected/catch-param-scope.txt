@@ -34,15 +34,15 @@ Program (script) @2:1
 │                 │  └─ BindingPattern (object)
 │                 │     ├─ entry
 │                 │     │  └─ name
-│                 │     │     └─ Identifier "msg" [variable:0] @14:14
+│                 │     │     └─ Identifier "msg" [variable:1] @14:14
 │                 │     └─ entry
 │                 │        └─ name
-│                 │           └─ Identifier "code" [variable:1] @14:14
+│                 │           └─ Identifier "code" [variable:0] @14:14
 │                 └─ BlockStatement @14:29
 │                    └─ ReturnStatement @15:9
 │                       └─ BinaryExpression (+) @15:20
-│                          ├─ Identifier "msg" [variable:0] @15:16
-│                          └─ Identifier "code" [variable:1] @15:22
+│                          ├─ Identifier "msg" [variable:1] @15:16
+│                          └─ Identifier "code" [variable:0] @15:22
 ├─ FunctionDeclaration "catch_shadow" @20:1
 │  └─ body
 │     └─ FunctionBody @21:5

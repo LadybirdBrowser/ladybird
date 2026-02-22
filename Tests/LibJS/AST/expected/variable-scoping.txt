@@ -32,16 +32,16 @@ Program (script) @1:1
 │     └─ FunctionBody @17:5
 │        ├─ VariableDeclaration (const) @17:5
 │        │  └─ VariableDeclarator @17:5
-│        │     ├─ Identifier "x" [variable:1] (const) @17:11
+│        │     ├─ Identifier "x" [variable:0] (const) @17:11
 │        │     └─ NumericLiteral 1 @17:15
 │        ├─ VariableDeclaration (const) @18:5
 │        │  └─ VariableDeclarator @18:5
-│        │     ├─ Identifier "y" [variable:0] (const) @18:11
+│        │     ├─ Identifier "y" [variable:1] (const) @18:11
 │        │     └─ NumericLiteral 2 @18:15
 │        └─ ReturnStatement @19:5
 │           └─ BinaryExpression (+) @19:14
-│              ├─ Identifier "x" [variable:1] (const) @19:12
-│              └─ Identifier "y" [variable:0] (const) @19:16
+│              ├─ Identifier "x" [variable:0] (const) @19:12
+│              └─ Identifier "y" [variable:1] (const) @19:16
 └─ FunctionDeclaration "for_let_scoping" @22:1
    └─ body
       └─ FunctionBody @23:5

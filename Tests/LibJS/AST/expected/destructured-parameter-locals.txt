@@ -4,16 +4,16 @@ Program (script) @1:1
 │  │  └─ BindingPattern (array)
 │  │     ├─ entry
 │  │     │  └─ alias
-│  │     │     └─ Identifier "x" [variable:1] @1:29
+│  │     │     └─ Identifier "x" [variable:0] @1:29
 │  │     └─ entry
 │  │        └─ alias
-│  │           └─ Identifier "y" [variable:0] @1:29
+│  │           └─ Identifier "y" [variable:1] @1:29
 │  └─ body
 │     └─ FunctionBody @2:5
 │        └─ ReturnStatement @2:5
 │           └─ BinaryExpression (+) @2:14
-│              ├─ Identifier "x" [variable:1] @2:12
-│              └─ Identifier "y" [variable:0] @2:16
+│              ├─ Identifier "x" [variable:0] @2:12
+│              └─ Identifier "y" [variable:1] @2:16
 ├─ FunctionDeclaration "object_destructured" @5:1
 │  ├─ parameters
 │  │  └─ BindingPattern (object)

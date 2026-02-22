@@ -23,10 +23,10 @@ JS bytecode executable "f"
 [  a0]    4: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@b8, false_target:@c0
 [  b8]    5: Throw src:reg7
 [  c0]    6: Yield value:reg7
-[  d0]    7: Mov dst:reg7, src:reg0
-[  e0]       GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
-[  f0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@108, false_target:@118
+[  d0]    7: Mov dst:reg5, src:reg0
+[  e0]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[  f0]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@108, false_target:@118
 [ 108]    8: Yield value:Undefined
-[ 118]    9: JumpStrictlyEquals lhs:reg5, rhs:Int32(5), true_target:@130, false_target:@138
-[ 130]   10: Throw src:reg6
-[ 138]   11: Yield value:reg6
+[ 118]    9: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@130, false_target:@138
+[ 130]   10: Throw src:reg7
+[ 138]   11: Yield value:reg7

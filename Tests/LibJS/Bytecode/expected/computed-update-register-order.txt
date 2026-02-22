@@ -12,7 +12,7 @@ JS bytecode executable "test"
 [  30]       PostfixIncrement dst:reg7, src:reg5
 [  40]       PutNormalByValue base:arg0, property:reg6, src:reg5
 [  58]       GetGlobal dst:reg6, identifier:foo
-[  68]       Call dst:reg7, callee:reg6, this_value:Undefined, foo, arguments:[arg0]
+[  68]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[arg0]
 [  90]       End value:Undefined
 
 JS bytecode executable "foo"

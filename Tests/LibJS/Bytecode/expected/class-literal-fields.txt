@@ -28,9 +28,9 @@ JS bytecode executable "test"
 [  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
 [  68]       Mov dst:A~0, src:reg6
 [  78]       ThrowIfTDZ src:A~0
-[  80]       Mov dst:reg5, src:A~0
-[  90]       CallConstruct dst:reg6, callee:reg5, A
-[  a8]       Return value:reg6
+[  80]       Mov dst:reg6, src:A~0
+[  90]       CallConstruct dst:reg5, callee:reg6, A
+[  a8]       Return value:reg5
 
 JS bytecode executable "A"
 [   0]    0: GetLexicalEnvironment dst:reg4

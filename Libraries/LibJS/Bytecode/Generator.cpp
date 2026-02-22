@@ -584,7 +584,16 @@ void Generator::grow(size_t additional_size)
 ScopedOperand Generator::allocate_register()
 {
     if (!m_free_registers.is_empty()) {
-        return ScopedOperand { *this, Operand { m_free_registers.take_last() } };
+        // Always allocate the lowest-numbered free register to ensure
+        // deterministic allocation regardless of operand drop order.
+        size_t min_index = 0;
+        for (size_t i = 1; i < m_free_registers.size(); ++i) {
+            if (m_free_registers[i].index() < m_free_registers[min_index].index())
+                min_index = i;
+        }
+        auto reg = m_free_registers[min_index];
+        m_free_registers.remove(min_index);
+        return ScopedOperand { *this, Operand { reg } };
     }
     VERIFY(m_next_register != NumericLimits<u32>::max());
     return ScopedOperand { *this, Operand { Register { m_next_register++ } } };

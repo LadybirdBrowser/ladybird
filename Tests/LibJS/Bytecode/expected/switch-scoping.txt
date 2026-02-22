@@ -5,12 +5,12 @@ JS bytecode executable ""
 [  30]       GetGlobal dst:reg9, identifier:switchWithBlockDecl
 [  40]       Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
 [  68]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  90]       GetGlobal dst:reg6, identifier:console
-[  a0]       GetById dst:reg8, base:reg6, property:log, base_identifier:console
+[  90]       GetGlobal dst:reg7, identifier:console
+[  a0]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
 [  b8]       GetGlobal dst:reg10, identifier:switchWithBlockDecl
 [  c8]       Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
-[  f0]       Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-[ 118]       End value:reg7
+[  f0]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+[ 118]       End value:reg6
 
 JS bytecode executable "switchWithBlockDecl"
 [   0]    0: GetLexicalEnvironment dst:reg4

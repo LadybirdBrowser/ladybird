@@ -5,11 +5,11 @@ JS bytecode executable ""
 [  28]       SetLexicalEnvironment environment:reg4
 [  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:Int32(42)]
 [  58]       InitializeLexicalBinding identifier:C, src:reg6
-[  70]       GetGlobal dst:reg5, identifier:C
-[  80]       CallConstruct dst:reg6, callee:reg5, C
-[  98]       GetByValue dst:reg5, base:reg6, property:Int32(42)
-[  b0]       GetById dst:reg6, base:reg5, property:name, base_identifier:[42]
-[  c8]       End value:reg6
+[  70]       GetGlobal dst:reg6, identifier:C
+[  80]       CallConstruct dst:reg5, callee:reg6, C
+[  98]       GetByValue dst:reg6, base:reg5, property:Int32(42)
+[  b0]       GetById dst:reg5, base:reg6, property:name, base_identifier:[42]
+[  c8]       End value:reg5
 
 JS bytecode executable "C"
 [   0]    0: GetLexicalEnvironment dst:reg4

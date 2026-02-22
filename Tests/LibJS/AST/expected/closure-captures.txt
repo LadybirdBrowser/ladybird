@@ -8,7 +8,7 @@ Program (script) @3:1
 │        │     └─ NumericLiteral 1 @4:20
 │        ├─ VariableDeclaration (let) @5:5
 │        │  └─ VariableDeclarator @5:5
-│        │     ├─ Identifier "not_captured" [variable:0] (let) @5:9
+│        │     ├─ Identifier "not_captured" [variable:1] (let) @5:9
 │        │     └─ NumericLiteral 2 @5:24
 │        ├─ FunctionDeclaration "inner" @6:5
 │        │  └─ body
@@ -18,8 +18,8 @@ Program (script) @3:1
 │        └─ ReturnStatement @9:5
 │           └─ BinaryExpression (+) @9:20
 │              ├─ CallExpression @9:17
-│              │  └─ Identifier "inner" [variable:1] @9:12
-│              └─ Identifier "not_captured" [variable:0] (let) @9:22
+│              │  └─ Identifier "inner" [variable:0] @9:12
+│              └─ Identifier "not_captured" [variable:1] (let) @9:22
 ├─ FunctionDeclaration "level0" @13:1
 │  └─ body
 │     └─ FunctionBody @14:5

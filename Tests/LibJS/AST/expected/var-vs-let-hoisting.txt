@@ -20,25 +20,25 @@ Program (script) @2:1
 │        │  ├─ init
 │        │  │  └─ VariableDeclaration (var) @12:10
 │        │  │     └─ VariableDeclarator @12:10
-│        │  │        ├─ Identifier "i" [variable:1] (var) @12:14
+│        │  │        ├─ Identifier "i" [variable:0] (var) @12:14
 │        │  │        └─ NumericLiteral 0 @12:18
 │        │  ├─ test
 │        │  │  └─ BinaryExpression (<) @12:23
-│        │  │     ├─ Identifier "i" [variable:1] (var) @12:21
+│        │  │     ├─ Identifier "i" [variable:0] (var) @12:21
 │        │  │     └─ NumericLiteral 10 @12:25
 │        │  ├─ update
 │        │  │  └─ UpdateExpression (++, postfix) @12:30
-│        │  │     └─ Identifier "i" [variable:1] (var) @12:29
+│        │  │     └─ Identifier "i" [variable:0] (var) @12:29
 │        │  └─ body
 │        │     └─ BlockStatement @12:34
 │        │        └─ VariableDeclaration (var) @13:9
 │        │           └─ VariableDeclarator @13:9
-│        │              ├─ Identifier "inner" [variable:0] (var) @13:13
-│        │              └─ Identifier "i" [variable:1] (var) @13:21
+│        │              ├─ Identifier "inner" [variable:1] (var) @13:13
+│        │              └─ Identifier "i" [variable:0] (var) @13:21
 │        └─ ReturnStatement @15:5
 │           └─ BinaryExpression (+) @15:14
-│              ├─ Identifier "i" [variable:1] @15:12
-│              └─ Identifier "inner" [variable:0] @15:16
+│              ├─ Identifier "i" [variable:0] @15:12
+│              └─ Identifier "inner" [variable:1] @15:16
 ├─ FunctionDeclaration "for_let" @19:1
 │  └─ body
 │     └─ FunctionBody @20:5

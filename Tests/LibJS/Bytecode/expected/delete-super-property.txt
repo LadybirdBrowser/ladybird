@@ -6,33 +6,33 @@ JS bytecode executable ""
 [  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("foo"), element_keys:String("baz")]
 [  58]       InitializeLexicalBinding identifier:A, src:reg6
 [  70]       Jump target:@c0
-[  78]    1: Catch dst:reg6
+[  78]    1: Catch dst:reg5
 [  80]       SetLexicalEnvironment environment:reg4
-[  88]       Mov dst:e~0, src:reg6
-[  98]       Mov dst:reg5, src:Undefined
-[  a8]       Mov dst:reg7, src:reg5
+[  88]       Mov dst:e~0, src:reg5
+[  98]       Mov dst:reg6, src:Undefined
+[  a8]       Mov dst:reg7, src:reg6
 [  b8]    2: Jump target:@1a0
-[  c0]    3: Mov dst:reg6, src:Undefined
+[  c0]    3: Mov dst:reg5, src:Undefined
 [  d0]       GetGlobal dst:reg9, identifier:A
 [  e0]       CallConstruct dst:reg8, callee:reg9, A
 [  f8]       GetById dst:reg9, base:reg8, property:foo
-[ 110]       Call dst:reg5, callee:reg9, this_value:reg8, <object>.foo
-[ 130]       Mov dst:reg6, src:reg5
-[ 140]       Mov dst:reg5, src:reg6
+[ 110]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.foo
+[ 130]       Mov dst:reg5, src:reg6
+[ 140]       Mov dst:reg6, src:reg5
 [ 150]       Jump target:@b8
-[ 158]    4: Catch dst:reg6
+[ 158]    4: Catch dst:reg5
 [ 160]       SetLexicalEnvironment environment:reg4
-[ 168]       Mov dst:e~1, src:reg6
+[ 168]       Mov dst:e~1, src:reg5
 [ 178]       Mov dst:reg7, src:Undefined
-[ 188]       Mov dst:reg9, src:reg7
+[ 188]       Mov dst:reg8, src:reg7
 [ 198]    5: End value:reg7
-[ 1a0]    6: Mov dst:reg6, src:Undefined
+[ 1a0]    6: Mov dst:reg5, src:Undefined
 [ 1b0]       GetGlobal dst:reg10, identifier:A
-[ 1c0]       CallConstruct dst:reg8, callee:reg10, A
-[ 1d8]       GetById dst:reg10, base:reg8, property:baz
-[ 1f0]       Call dst:reg7, callee:reg10, this_value:reg8, <object>.baz
-[ 210]       Mov dst:reg6, src:reg7
-[ 220]       Mov dst:reg7, src:reg6
+[ 1c0]       CallConstruct dst:reg9, callee:reg10, A
+[ 1d8]       GetById dst:reg10, base:reg9, property:baz
+[ 1f0]       Call dst:reg7, callee:reg10, this_value:reg9, <object>.baz
+[ 210]       Mov dst:reg5, src:reg7
+[ 220]       Mov dst:reg7, src:reg5
 [ 230]       End value:reg7
 
 Exception handlers:

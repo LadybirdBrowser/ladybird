@@ -16,22 +16,22 @@ Program (script) @4:1
 │     └─ FunctionBody @10:5
 │        ├─ VariableDeclaration (let) @10:5
 │        │  └─ VariableDeclarator @10:5
-│        │     ├─ Identifier "a" [variable:1] (let) @10:9
+│        │     ├─ Identifier "a" [variable:0] (let) @10:9
 │        │     └─ NumericLiteral 1 @10:13
 │        ├─ VariableDeclaration (const) @11:5
 │        │  └─ VariableDeclarator @11:5
-│        │     ├─ Identifier "b" [variable:2] (const) @11:11
+│        │     ├─ Identifier "b" [variable:1] (const) @11:11
 │        │     └─ NumericLiteral 2 @11:15
 │        ├─ VariableDeclaration (var) @12:5
 │        │  └─ VariableDeclarator @12:5
-│        │     ├─ Identifier "c" [variable:0] (var) @12:9
+│        │     ├─ Identifier "c" [variable:2] (var) @12:9
 │        │     └─ NumericLiteral 3 @12:13
 │        └─ ReturnStatement @13:5
 │           └─ BinaryExpression (+) @13:18
 │              ├─ BinaryExpression (+) @13:14
-│              │  ├─ Identifier "a" [variable:1] (let) @13:12
-│              │  └─ Identifier "b" [variable:2] (const) @13:16
-│              └─ Identifier "c" [variable:0] (var) @13:20
+│              │  ├─ Identifier "a" [variable:0] (let) @13:12
+│              │  └─ Identifier "b" [variable:1] (const) @13:16
+│              └─ Identifier "c" [variable:2] (var) @13:20
 ├─ FunctionDeclaration "for_binding_forms" @17:1
 │  └─ body
 │     └─ FunctionBody @18:5
@@ -87,10 +87,10 @@ Program (script) @4:1
 │        │     ├─ BindingPattern (array)
 │        │     │  ├─ entry
 │        │     │  │  └─ alias
-│        │     │  │     └─ Identifier "a" [variable:1] @28:9
+│        │     │  │     └─ Identifier "a" [variable:0] @28:9
 │        │     │  └─ entry
 │        │     │     └─ alias
-│        │     │        └─ Identifier "b" [variable:4] @28:9
+│        │     │        └─ Identifier "b" [variable:1] @28:9
 │        │     └─ ArrayExpression @28:18
 │        │        ├─ NumericLiteral 1 @28:19
 │        │        └─ NumericLiteral 2 @28:22
@@ -99,10 +99,10 @@ Program (script) @4:1
 │        │     ├─ BindingPattern (object)
 │        │     │  ├─ entry
 │        │     │  │  └─ name
-│        │     │  │     └─ Identifier "c" [variable:3] @29:11
+│        │     │  │     └─ Identifier "c" [variable:2] @29:11
 │        │     │  └─ entry
 │        │     │     └─ name
-│        │     │        └─ Identifier "d" [variable:2] @29:11
+│        │     │        └─ Identifier "d" [variable:3] @29:11
 │        │     └─ ObjectExpression @29:22
 │        │        ├─ ObjectProperty @29:22
 │        │        │  ├─ StringLiteral "c" @29:22
@@ -115,7 +115,7 @@ Program (script) @4:1
 │        │     ├─ BindingPattern (array)
 │        │     │  ├─ entry
 │        │     │  │  └─ alias
-│        │     │  │     └─ Identifier "e" [variable:0] @30:9
+│        │     │  │     └─ Identifier "e" [variable:4] @30:9
 │        │     │  └─ entry (rest)
 │        │     │     └─ alias
 │        │     │        └─ Identifier "f" [variable:5] @30:9
@@ -129,11 +129,11 @@ Program (script) @4:1
 │              │  ├─ BinaryExpression (+) @31:22
 │              │  │  ├─ BinaryExpression (+) @31:18
 │              │  │  │  ├─ BinaryExpression (+) @31:14
-│              │  │  │  │  ├─ Identifier "a" [variable:1] @31:12
-│              │  │  │  │  └─ Identifier "b" [variable:4] @31:16
-│              │  │  │  └─ Identifier "c" [variable:3] @31:20
-│              │  │  └─ Identifier "d" [variable:2] @31:24
-│              │  └─ Identifier "e" [variable:0] @31:28
+│              │  │  │  │  ├─ Identifier "a" [variable:0] @31:12
+│              │  │  │  │  └─ Identifier "b" [variable:1] @31:16
+│              │  │  │  └─ Identifier "c" [variable:2] @31:20
+│              │  │  └─ Identifier "d" [variable:3] @31:24
+│              │  └─ Identifier "e" [variable:4] @31:28
 │              └─ MemberExpression [computed] @31:33
 │                 ├─ Identifier "f" [variable:5] @31:32
 │                 └─ NumericLiteral 0 @31:34
@@ -142,10 +142,10 @@ Program (script) @4:1
       └─ FunctionBody @36:5
          ├─ VariableDeclaration (let) @36:5
          │  ├─ VariableDeclarator @36:5
-         │  │  ├─ Identifier "x" [variable:1] (let) @36:9
+         │  │  ├─ Identifier "x" [variable:0] (let) @36:9
          │  │  └─ NumericLiteral 1 @36:13
          │  ├─ VariableDeclarator @36:5
-         │  │  ├─ Identifier "y" [variable:0] (let) @37:9
+         │  │  ├─ Identifier "y" [variable:1] (let) @37:9
          │  │  └─ NumericLiteral 2 @37:13
          │  └─ VariableDeclarator @36:5
          │     ├─ Identifier "z" [variable:2] (let) @38:9
@@ -153,6 +153,6 @@ Program (script) @4:1
          └─ ReturnStatement @39:5
             └─ BinaryExpression (+) @39:18
                ├─ BinaryExpression (+) @39:14
-               │  ├─ Identifier "x" [variable:1] (let) @39:12
-               │  └─ Identifier "y" [variable:0] (let) @39:16
+               │  ├─ Identifier "x" [variable:0] (let) @39:12
+               │  └─ Identifier "y" [variable:1] (let) @39:16
                └─ Identifier "z" [variable:2] (let) @39:20

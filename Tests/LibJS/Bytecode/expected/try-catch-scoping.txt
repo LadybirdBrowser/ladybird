@@ -35,9 +35,9 @@ JS bytecode executable "tryCatchFinallyWithBlocks"
 [  30]       Mov dst:reg5, src:Int32(1)
 [  40]    2: Mov dst:z~2, src:Int32(3)
 [  50]       GetGlobal dst:reg8, identifier:console
-[  60]       GetById dst:reg10, base:reg8, property:log, base_identifier:console
-[  78]       Mov dst:reg9, src:z~2
-[  88]       Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
+[  60]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
+[  78]       Mov dst:reg10, src:z~2
+[  88]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[reg10]
 [  b0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@178, false_target:@180
 [  c8]    3: Catch dst:reg7
 [  d0]       SetLexicalEnvironment environment:reg4

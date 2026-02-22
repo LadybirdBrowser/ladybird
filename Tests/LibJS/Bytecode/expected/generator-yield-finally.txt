@@ -23,24 +23,24 @@ JS bytecode executable "f"
 [  d8]    9: Mov dst:reg6, src:reg9
 [  e8]       Mov dst:reg5, src:Int32(2)
 [  f8]       Jump target:@40
-[ 100]   10: Mov dst:reg9, src:reg0
-[ 110]       GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg9
-[ 120]       JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:@138, false_target:@150
+[ 100]   10: Mov dst:reg7, src:reg0
+[ 110]       GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+[ 120]       JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@138, false_target:@150
 [ 138]   11: Mov dst:reg5, src:Int32(0)
 [ 148]       Jump target:@40
-[ 150]   12: JumpStrictlyEquals lhs:reg7, rhs:Int32(5), true_target:@168, false_target:@170
-[ 168]   13: Throw src:reg8
-[ 170]   14: Mov dst:reg6, src:reg8
+[ 150]   12: JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:@168, false_target:@170
+[ 168]   13: Throw src:reg9
+[ 170]   14: Mov dst:reg6, src:reg9
 [ 180]       Mov dst:reg5, src:Int32(2)
 [ 190]       Jump target:@40
 [ 198]   15: Mov dst:reg1, src:reg10
-[ 1a8]       Mov dst:reg8, src:reg0
-[ 1b8]       GetCompletionFields type_dst:reg9, value_dst:reg7, completion:reg8
-[ 1c8]       JumpStrictlyEquals lhs:reg9, rhs:Int32(1), true_target:@1e0, false_target:@1f8
+[ 1a8]       Mov dst:reg7, src:reg0
+[ 1b8]       GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+[ 1c8]       JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@1e0, false_target:@1f8
 [ 1e0]   16: JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@228, false_target:@238
-[ 1f8]   17: JumpStrictlyEquals lhs:reg9, rhs:Int32(5), true_target:@210, false_target:@218
-[ 210]   18: Throw src:reg7
-[ 218]   19: Yield value:reg7
+[ 1f8]   17: JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:@210, false_target:@218
+[ 210]   18: Throw src:reg9
+[ 218]   19: Yield value:reg9
 [ 228]   20: Yield value:Undefined
 [ 238]   21: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@250, false_target:@260
 [ 250]   22: Yield value:reg6

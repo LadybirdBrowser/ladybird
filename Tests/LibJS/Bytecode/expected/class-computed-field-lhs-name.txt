@@ -4,9 +4,9 @@ JS bytecode executable ""
 [  18]       SetLexicalEnvironment environment:reg4
 [  20]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, lhs_name:C, element_keys:[element_keys:Int32(3)]
 [  48]       SetGlobal identifier:C, src:reg6
-[  58]       GetGlobal dst:reg5, identifier:C
-[  68]       CallConstruct dst:reg6, callee:reg5, C
-[  80]       End value:reg6
+[  58]       GetGlobal dst:reg6, identifier:C
+[  68]       CallConstruct dst:reg5, callee:reg6, C
+[  80]       End value:reg5
 
 JS bytecode executable "C"
 [   0]    0: GetLexicalEnvironment dst:reg4

@@ -5,17 +5,17 @@ JS bytecode executable ""
 [  28]       SetLexicalEnvironment environment:reg4
 [  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
 [  58]       InitializeLexicalBinding identifier:Base, src:reg6
-[  70]       CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
+[  70]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  80]       CreateVariable identifier:Foo, is_immutable:true, is_global:false, is_strict:false
-[  90]       GetGlobal dst:reg5, identifier:Base
+[  90]       GetGlobal dst:reg6, identifier:Base
 [  a0]       SetLexicalEnvironment environment:reg4
-[  a8]       NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
+[  a8]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("method")]
 [  d0]       InitializeLexicalBinding identifier:Foo, src:reg7
-[  e8]       GetGlobal dst:reg5, identifier:Foo
-[  f8]       CallConstruct dst:reg6, callee:reg5, Foo
-[ 110]       GetById dst:reg5, base:reg6, property:method
-[ 128]       Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
-[ 148]       End value:reg7
+[  e8]       GetGlobal dst:reg7, identifier:Foo
+[  f8]       CallConstruct dst:reg6, callee:reg7, Foo
+[ 110]       GetById dst:reg7, base:reg6, property:method
+[ 128]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
+[ 148]       End value:reg5
 
 JS bytecode executable "Foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

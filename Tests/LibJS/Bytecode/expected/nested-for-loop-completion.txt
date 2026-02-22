@@ -6,15 +6,15 @@ JS bytecode executable ""
 [  30]    1: SetGlobal identifier:depth, src:Int32(0)
 [  40]       Mov dst:reg6, src:Undefined
 [  50]       Jump target:@e8
-[  58]    2: GetGlobal dst:reg7, identifier:n
-[  68]       Add dst:reg6, lhs:reg7, rhs:Int32(1)
-[  78]       SetGlobal identifier:n, src:reg6
+[  58]    2: GetGlobal dst:reg6, identifier:n
+[  68]       Add dst:reg7, lhs:reg6, rhs:Int32(1)
+[  78]       SetGlobal identifier:n, src:reg7
 [  88]    3: GetGlobal dst:reg6, identifier:n
 [  98]       JumpLessThanEquals lhs:reg6, rhs:Int32(7), true_target:@30, false_target:@b0
 [  b0]    4: End value:reg5
-[  b8]    5: GetGlobal dst:reg8, identifier:depth
-[  c8]       Add dst:reg7, lhs:reg8, rhs:Int32(2)
-[  d8]       SetGlobal identifier:depth, src:reg7
+[  b8]    5: GetGlobal dst:reg7, identifier:depth
+[  c8]       Add dst:reg8, lhs:reg7, rhs:Int32(2)
+[  d8]       SetGlobal identifier:depth, src:reg8
 [  e8]    6: GetGlobal dst:reg7, identifier:depth
 [  f8]       JumpLessThanEquals lhs:reg7, rhs:Int32(0), true_target:@b8, false_target:@110
 [ 110]    7: Mov dst:reg5, src:reg6

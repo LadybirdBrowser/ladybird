@@ -4,15 +4,15 @@ JS bytecode executable ""
 [  18]       Mov dst:reg5, src:Undefined
 [  28]       Jump target:@68
 [  30]    1: Jump target:@170
-[  38]    2: GetGlobal dst:reg7, identifier:i
-[  48]       PostfixIncrement dst:reg6, src:reg7
-[  58]       SetGlobal identifier:i, src:reg7
+[  38]    2: GetGlobal dst:reg6, identifier:i
+[  48]       PostfixIncrement dst:reg7, src:reg6
+[  58]       SetGlobal identifier:i, src:reg6
 [  68]    3: GetGlobal dst:reg6, identifier:i
 [  78]       JumpLessThan lhs:reg6, rhs:Int32(5), true_target:@30, false_target:@90
-[  90]    4: GetGlobal dst:reg10, identifier:i
-[  a0]       StrictlyInequals dst:reg6, lhs:reg10, rhs:Int32(5)
-[  b0]       Mov dst:reg10, src:Undefined
-[  c0]       JumpIf condition:reg6, true_target:@210, false_target:@218
+[  90]    4: GetGlobal dst:reg6, identifier:i
+[  a0]       StrictlyInequals dst:reg7, lhs:reg6, rhs:Int32(5)
+[  b0]       Mov dst:reg6, src:Undefined
+[  c0]       JumpIf condition:reg7, true_target:@210, false_target:@218
 [  d0]    5: Catch dst:reg7
 [  d8]       SetLexicalEnvironment environment:reg4
 [  e0]       Mov dst:reg6, src:Int32(1)
@@ -37,7 +37,7 @@ JS bytecode executable ""
 [ 200]   12: Return value:reg7
 [ 208]   13: Throw src:reg7
 [ 210]   14: Throw src:String("bad")
-[ 218]   15: End value:reg10
+[ 218]   15: End value:reg6
 
 Exception handlers:
     from  118 to  170 handler   d0

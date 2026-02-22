@@ -18,11 +18,11 @@ JS bytecode executable ""
 [ 140]       GetGlobal dst:reg6, identifier:obj
 [ 150]       GetById dst:reg7, base:reg6, property:test, base_identifier:obj
 [ 168]       Call dst:reg5, callee:reg7, this_value:reg6, obj.test
-[ 188]       GetGlobal dst:reg7, identifier:obj
-[ 198]       GetById dst:reg6, base:reg7, property:x, base_identifier:obj
-[ 1b0]       GetGlobal dst:reg7, identifier:obj
-[ 1c0]       GetById dst:reg8, base:reg7, property:test2, base_identifier:obj
-[ 1d8]       Call dst:reg5, callee:reg8, this_value:reg7, obj.test2
+[ 188]       GetGlobal dst:reg6, identifier:obj
+[ 198]       GetById dst:reg7, base:reg6, property:x, base_identifier:obj
+[ 1b0]       GetGlobal dst:reg6, identifier:obj
+[ 1c0]       GetById dst:reg8, base:reg6, property:test2, base_identifier:obj
+[ 1d8]       Call dst:reg5, callee:reg8, this_value:reg6, obj.test2
 [ 1f8]       End value:reg5
 
 JS bytecode executable "test"

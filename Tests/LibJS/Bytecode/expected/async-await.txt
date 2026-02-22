@@ -10,15 +10,15 @@ JS bytecode executable "f"
 [  18]       GetGlobal dst:reg6, identifier:Promise
 [  28]       GetById dst:reg7, base:reg6, property:resolve, base_identifier:Promise
 [  40]       Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
-[  68]       Mov dst:reg7, src:reg0
+[  68]       Mov dst:reg6, src:reg0
 [  78]       Await continuation_label:@88, argument:reg5
-[  88]    2: Mov dst:reg7, src:reg0
-[  98]       GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
-[  a8]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@c0, false_target:@d0
+[  88]    2: Mov dst:reg6, src:reg0
+[  98]       GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+[  a8]       JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:@c0, false_target:@d0
 [  c0]    3: Await continuation_label:@d8, argument:reg8
 [  d0]    4: Throw src:reg8
 [  d8]    5: Mov dst:reg5, src:reg0
-[  e8]       GetCompletionFields type_dst:reg7, value_dst:reg6, completion:reg5
-[  f8]       JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:@110, false_target:@120
-[ 110]    6: Yield value:reg6
-[ 120]    7: Throw src:reg6
+[  e8]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+[  f8]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@110, false_target:@120
+[ 110]    6: Yield value:reg7
+[ 120]    7: Throw src:reg7

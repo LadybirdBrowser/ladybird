@@ -17,8 +17,8 @@ JS bytecode executable "classWithName"
 [  68]       CallConstruct dst:reg6, callee:reg7, C
 [  80]       GetById dst:reg7, base:reg6, property:method
 [  98]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-[  b8]       StrictlyEquals dst:reg7, lhs:reg5, rhs:C~0
-[  c8]       Return value:reg7
+[  b8]       StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
+[  c8]       Return value:reg6
 
 JS bytecode executable "Foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

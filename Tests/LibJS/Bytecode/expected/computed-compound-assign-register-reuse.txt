@@ -13,9 +13,9 @@ JS bytecode executable "subVector"
 [  30]       GetByValue dst:reg7, base:arg1, property:Int32(0), base_identifier:v
 [  48]       Sub dst:reg8, lhs:reg5, rhs:reg7
 [  58]       PutNormalByValue base:arg0, property:reg6, src:reg8
-[  70]       GetByValue dst:reg8, base:arg0, property:Int32(1), base_identifier:self
+[  70]       GetByValue dst:reg5, base:arg0, property:Int32(1), base_identifier:self
 [  88]       Mov dst:reg6, src:Int32(1)
-[  98]       GetByValue dst:reg5, base:arg1, property:Int32(1), base_identifier:v
-[  b0]       Sub dst:reg7, lhs:reg8, rhs:reg5
-[  c0]       PutNormalByValue base:arg0, property:reg6, src:reg7
+[  98]       GetByValue dst:reg7, base:arg1, property:Int32(1), base_identifier:v
+[  b0]       Sub dst:reg8, lhs:reg5, rhs:reg7
+[  c0]       PutNormalByValue base:arg0, property:reg6, src:reg8
 [  d8]       End value:Undefined
