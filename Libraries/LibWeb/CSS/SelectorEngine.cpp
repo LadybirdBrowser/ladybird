@@ -679,8 +679,6 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::NthOfType:
     case CSS::PseudoClass::NthLastOfType: {
         auto const* parent = element.parent();
-        if (!parent)
-            return false;
 
         if (context.collect_per_element_selector_involvement_metadata) {
             auto& mutable_element = const_cast<DOM::Element&>(element);
@@ -704,6 +702,9 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             return list.contains([&](auto const& selector) { return matches(selector, element, shadow_host, context); });
         };
 
+        // https://drafts.csswg.org/selectors-4/#child-index
+        // The pseudo-classes defined in this section select elements based on their index amongst their inclusive siblings.
+        // NB: An element without a parent has no siblings, so its index is 1.
         int index = 1;
         switch (pseudo_class.type) {
         case CSS::PseudoClass::__Count:
@@ -711,6 +712,8 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         case CSS::PseudoClass::NthChild: {
             if (!matches_selector_list(pseudo_class.argument_selector_list, element))
                 return false;
+            if (!parent)
+                break;
             for (auto* child = parent->first_child_of_type<DOM::Element>(); child && child != &element; child = child->next_element_sibling()) {
                 if (matches_selector_list(pseudo_class.argument_selector_list, *child))
                     ++index;
@@ -720,6 +723,8 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         case CSS::PseudoClass::NthLastChild: {
             if (!matches_selector_list(pseudo_class.argument_selector_list, element))
                 return false;
+            if (!parent)
+                break;
             for (auto* child = parent->last_child_of_type<DOM::Element>(); child && child != &element; child = child->previous_element_sibling()) {
                 if (matches_selector_list(pseudo_class.argument_selector_list, *child))
                     ++index;
