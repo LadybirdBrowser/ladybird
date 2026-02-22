@@ -118,12 +118,8 @@ CSSPixelPoint AccumulatedVisualContext::inverse_transform_point(CSSPixelPoint sc
 
 CSSPixelRect AccumulatedVisualContext::transform_rect_to_viewport(CSSPixelRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
 {
-    Vector<AccumulatedVisualContext const*> chain;
-    for (auto const* node = this; node; node = node->parent().ptr())
-        chain.append(node);
-
     auto rect = source_rect.to_type<float>();
-    for (auto const* node : chain) {
+    for (auto const* node = this; node; node = node->parent().ptr()) {
         node->data().visit(
             [&](TransformData const& transform) {
                 auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
