@@ -30,6 +30,13 @@ enum class TurbulenceType {
     Turbulence,
 };
 
+enum class ColorChannel {
+    R,
+    G,
+    B,
+    A,
+};
+
 struct FilterImpl;
 
 class Filter {
@@ -56,6 +63,7 @@ public:
     static Filter erode(float radius_x, float radius_y, Optional<Filter> const& input = {});
     static Filter dilate(float radius_x, float radius_y, Optional<Filter> const& input = {});
     static Filter turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size);
+    static Filter displacement_map(float scale, ColorChannel x_channel, ColorChannel y_channel, Optional<Filter> const& input = {}, Optional<Filter> const& displacement = {});
 
     FilterImpl const& impl() const;
 

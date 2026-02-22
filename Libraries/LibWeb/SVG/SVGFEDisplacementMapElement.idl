@@ -1,0 +1,24 @@
+#import <SVG/SVGAnimatedEnumeration.idl>
+#import <SVG/SVGAnimatedNumber.idl>
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEDisplacementMapElement
+[Exposed=Window]
+interface SVGFEDisplacementMapElement : SVGElement {
+
+  // Channel Selectors
+    const unsigned short SVG_CHANNEL_UNKNOWN = 0;
+    const unsigned short SVG_CHANNEL_R = 1;
+    const unsigned short SVG_CHANNEL_G = 2;
+    const unsigned short SVG_CHANNEL_B = 3;
+    const unsigned short SVG_CHANNEL_A = 4;
+
+    readonly attribute SVGAnimatedString in1;
+    readonly attribute SVGAnimatedString in2;
+    readonly attribute SVGAnimatedNumber scale;
+    [ImplementedAs=x_channel_selector_bindings] readonly attribute SVGAnimatedEnumeration xChannelSelector;
+    [ImplementedAs=y_channel_selector_bindings] readonly attribute SVGAnimatedEnumeration yChannelSelector;
+};
+
+SVGFEDisplacementMapElement includes SVGFilterPrimitiveStandardAttributes;

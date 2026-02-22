@@ -313,4 +313,30 @@ Filter Filter::turbulence(TurbulenceType turbulence_type, float base_frequency_x
     return Filter(Impl::create(SkImageFilters::Shader(move(turbulence_shader))));
 }
 
+Filter Filter::displacement_map(float scale, ColorChannel x_channel, ColorChannel y_channel, Optional<Filter> const& input, Optional<Filter> const& displacement)
+{
+    sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
+    sk_sp<SkImageFilter> displacement_skia = displacement.has_value() ? displacement->m_impl->filter : nullptr;
+
+    auto channel_to_skia = [](ColorChannel channel) {
+        switch (channel) {
+        case ColorChannel::R:
+            return SkColorChannel::kR;
+        case ColorChannel::G:
+            return SkColorChannel::kG;
+        case ColorChannel::B:
+            return SkColorChannel::kB;
+        case ColorChannel::A:
+            return SkColorChannel::kA;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    auto x_channel_skia = channel_to_skia(x_channel);
+    auto y_channel_skia = channel_to_skia(y_channel);
+
+    return Filter(Impl::create(SkImageFilters::DisplacementMap(x_channel_skia, y_channel_skia, scale, displacement_skia, input_skia)));
+}
+
 }

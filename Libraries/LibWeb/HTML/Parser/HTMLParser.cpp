@@ -3168,6 +3168,7 @@ void HTMLParser::adjust_svg_tag_names(HTMLToken& token)
         { "fediffuselighting"_fly_string, "feDiffuseLighting"_fly_string },
         { "fedisplacementmap"_fly_string, "feDisplacementMap"_fly_string },
         { "fedistantlight"_fly_string, "feDistantLight"_fly_string },
+        { "fedisplacementmap"_fly_string, "feDisplacementMap"_fly_string },
         { "fedropshadow"_fly_string, "feDropShadow"_fly_string },
         { "feflood"_fly_string, "feFlood"_fly_string },
         { "fefunca"_fly_string, "feFuncA"_fly_string },
