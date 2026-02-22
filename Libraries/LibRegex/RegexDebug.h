@@ -7,9 +7,127 @@
 #pragma once
 
 #include <AK/StringBuilder.h>
+#include <LibRegex/RegexIR.h>
 #include <LibRegex/RegexMatcher.h>
 
 namespace regex {
+
+inline void print_ir(RegexIR const& ir, FILE* file = stderr)
+{
+    for (size_t i = 0; i < ir.insts.size(); ++i) {
+        auto const& inst = ir.insts[i];
+
+        switch (inst.op) {
+        case IROp::Label:
+            outln(file, "L{}:", inst.target);
+            continue;
+        case IROp::Nop:
+            outln(file, "  {:4}  Nop", i);
+            continue;
+        default:
+            break;
+        }
+
+        StringBuilder args;
+
+        switch (inst.op) {
+        case IROp::Jump:
+        case IROp::ForkJump:
+        case IROp::ForkStay:
+        case IROp::ForkReplaceJump:
+        case IROp::ForkReplaceStay:
+        case IROp::ForkIf:
+        case IROp::JumpNonEmpty:
+        case IROp::Repeat:
+            args.appendff("to L{}", inst.target);
+            break;
+        default:
+            break;
+        }
+
+        switch (inst.op) {
+        case IROp::Repeat:
+            args.appendff(", count={}, id={}", inst.arg0, inst.arg1);
+            break;
+        case IROp::JumpNonEmpty:
+            args.appendff(", checkpoint={}, form={}", inst.arg0, inst.arg1);
+            break;
+        case IROp::ForkIf:
+            args.appendff(", form={}, cond={}", inst.arg0, inst.arg1);
+            break;
+        case IROp::GoBack:
+        case IROp::SaveLeftCapture:
+        case IROp::SaveRightCapture:
+        case IROp::ClearCaptureGroup:
+        case IROp::FailIfEmpty:
+        case IROp::ResetRepeat:
+        case IROp::Checkpoint:
+        case IROp::CheckBoundary:
+        case IROp::RSeekTo:
+        case IROp::SaveModifiers:
+            args.appendff("{}", inst.arg0);
+            break;
+        case IROp::SaveRightNamedCapture:
+            args.appendff("group={}", inst.arg0);
+            break;
+        case IROp::SetStepBack:
+            if (inst.compare_size > 0)
+                args.appendff("{}", static_cast<i64>(ir.compare_data[inst.compare_start]));
+            break;
+        default:
+            break;
+        }
+
+        if (inst.op == IROp::Compare && inst.compare_size > 0) {
+            auto pairs = ir_flat_compares(
+                ir.compare_data.span().slice(inst.compare_start, inst.compare_size),
+                inst.arg0);
+            args.appendff("argc={} [", inst.arg0);
+            bool first = true;
+            for (auto const& pair : pairs) {
+                if (!first)
+                    args.append(", "sv);
+                first = false;
+                args.append(character_compare_type_name(pair.type));
+                switch (pair.type) {
+                case CharacterCompareType::Char:
+                    if (pair.value >= 0x20 && pair.value <= 0x7e)
+                        args.appendff(" '{:c}'", static_cast<char>(pair.value));
+                    else
+                        args.appendff(" u+{:04x}", static_cast<u32>(pair.value));
+                    break;
+                case CharacterCompareType::CharClass:
+                    args.appendff(" {}", character_class_name(static_cast<CharClass>(pair.value)));
+                    break;
+                case CharacterCompareType::CharRange: {
+                    u32 from = pair.value >> 32;
+                    u32 to = pair.value & 0xffffffff;
+                    if (from >= 0x20 && from <= 0x7e && to >= 0x20 && to <= 0x7e)
+                        args.appendff(" '{:c}'-'{:c}'", static_cast<char>(from), static_cast<char>(to));
+                    else
+                        args.appendff(" u+{:04x}-u+{:04x}", from, to);
+                    break;
+                }
+                case CharacterCompareType::String:
+                    args.appendff(" #{}", static_cast<u32>(pair.value));
+                    break;
+                case CharacterCompareType::Reference:
+                case CharacterCompareType::NamedReference:
+                    args.appendff(" \\{}", static_cast<u32>(pair.value));
+                    break;
+                default:
+                    if (pair.value != 0)
+                        args.appendff(" {}", static_cast<u32>(pair.value));
+                    break;
+                }
+            }
+            args.append(']');
+        }
+
+        outln(file, "  {:4}  {:25} {}", i, irop_name(inst.op), args.string_view());
+    }
+    fflush(file);
+}
 
 template<typename ByteCode>
 class RegexDebug {
