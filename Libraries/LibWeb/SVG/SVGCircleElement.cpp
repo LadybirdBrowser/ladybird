@@ -63,7 +63,7 @@ static CSSPixels normalized_diagonal_length(CSSPixelSize viewport_size)
 {
     if (viewport_size.width() == viewport_size.height())
         return viewport_size.width();
-    return sqrt((viewport_size.width() * viewport_size.width()) + (viewport_size.height() * viewport_size.height())) / CSSPixels::nearest_value_for(AK::Sqrt2<float>);
+    return sqrt(((viewport_size.width() * viewport_size.width()) + (viewport_size.height() * viewport_size.height())) / 2);
 }
 
 Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
