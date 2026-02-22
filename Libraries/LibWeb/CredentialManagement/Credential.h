@@ -19,7 +19,6 @@ class Credential : public Bindings::PlatformObject {
 
 public:
     static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::VM&);
-    static GC::Ref<WebIDL::Promise> will_request_conditional_creation(JS::VM&);
 
     virtual ~Credential() override;
 

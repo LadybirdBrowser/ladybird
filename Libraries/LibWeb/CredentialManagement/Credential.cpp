@@ -16,13 +16,6 @@ GC::Ref<WebIDL::Promise> Credential::is_conditional_mediation_available(JS::VM& 
     return WebIDL::create_rejected_promise_from_exception(*realm, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "is conditional mediation available"sv));
 }
 
-// https://www.w3.org/TR/credential-management-1/#dom-credential-willrequestconditionalcreation
-GC::Ref<WebIDL::Promise> Credential::will_request_conditional_creation(JS::VM& vm)
-{
-    auto* realm = vm.current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "will request conditional creation"sv));
-}
-
 Credential::~Credential() { }
 
 Credential::Credential(JS::Realm& realm)
