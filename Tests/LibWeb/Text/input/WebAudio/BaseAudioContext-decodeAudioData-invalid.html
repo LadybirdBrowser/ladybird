@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let success_calls = 0;
+        let error_calls = 0;
+
+        const bytes = new ArrayBuffer(0);
+
+        const context = new OfflineAudioContext(1, 1, 44100);
+        const promise = context.decodeAudioData(
+            bytes,
+            () => {
+                success_calls++;
+            },
+            () => {
+                error_calls++;
+            }
+        );
+
+        let error_name = "(no error)";
+        try {
+            await promise;
+        } catch (e) {
+            error_name = e.name;
+        }
+
+        println(`error: ${error_name}`);
+        println(`success count: ${success_calls}`);
+        println(`error count: ${error_calls}`);
+
+        done();
+    });
+</script>
