@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Style from document overrides style from outer CE
+1 Pass
+Pass	Style from document overrides style from outer CE
