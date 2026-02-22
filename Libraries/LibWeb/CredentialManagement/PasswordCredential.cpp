@@ -12,7 +12,7 @@ namespace Web::CredentialManagement {
 GC_DEFINE_ALLOCATOR(PasswordCredential);
 
 // https://www.w3.org/TR/credential-management-1/#dom-passwordcredential-passwordcredential
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> const& form)
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, GC::Ref<HTML::HTMLFormElement> form)
 {
     // 1. Let origin be the current settings object's origin.
     auto origin = HTML::current_principal_settings_object().origin();
