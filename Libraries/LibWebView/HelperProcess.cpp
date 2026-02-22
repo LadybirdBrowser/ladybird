@@ -85,6 +85,8 @@ template<typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process_impl(
     IPC::File image_decoder_socket,
     Optional<IPC::File> request_server_socket,
+    Optional<IPC::File> audio_server_socket,
+    Optional<ByteString> audio_grant_id,
     ClientArguments&&... client_arguments)
 {
     auto const& browser_options = WebView::Application::browser_options();
@@ -114,6 +116,7 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--enable-idl-tracing"sv);
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
+
     if (web_content_options.expose_experimental_interfaces == WebView::ExposeExperimentalInterfaces::Yes)
         arguments.append("--expose-experimental-interfaces"sv);
     if (web_content_options.expose_internals_object == WebView::ExposeInternalsObject::Yes)
@@ -152,6 +155,12 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
 
     arguments.append("--image-decoder-socket"sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
+    if (audio_server_socket.has_value() && audio_grant_id.has_value()) {
+        arguments.append("--audio-server-socket"sv);
+        arguments.append(ByteString::number(audio_server_socket->fd()));
+        arguments.append("--audio-grant-id"sv);
+        arguments.append(audio_grant_id.release_value());
+    }
 
     return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), forward<ClientArguments>(client_arguments)...);
 }
@@ -159,16 +168,20 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     WebView::ViewImplementation& view,
     IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket)
+    Optional<IPC::File> request_server_socket,
+    Optional<IPC::File> audio_server_socket,
+    Optional<ByteString> audio_grant_id)
 {
-    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), view);
+    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), move(audio_server_socket), move(audio_grant_id), view);
 }
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process(
     IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket)
+    Optional<IPC::File> request_server_socket,
+    Optional<IPC::File> audio_server_socket,
+    Optional<ByteString> audio_grant_id)
 {
-    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket));
+    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), move(audio_server_socket), move(audio_grant_id));
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()
@@ -182,6 +195,17 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
 }
 
+ErrorOr<NonnullRefPtr<AudioServer::BrokerOfAudioServer>> launch_audio_server_process()
+{
+    Vector<ByteString> arguments;
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process<AudioServer::BrokerOfAudioServer>("AudioServer"sv, arguments);
+}
+
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type)
 {
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -190,6 +214,7 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
 
     if (web_content_options.expose_experimental_interfaces == WebView::ExposeExperimentalInterfaces::Yes)
         arguments.append("--expose-experimental-interfaces"sv);
+
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
 
@@ -302,6 +327,13 @@ ErrorOr<IPC::File> connect_new_image_decoder_client()
     TRY(socket.clear_close_on_exec());
 
     return socket;
+}
+
+ErrorOr<AudioServer::CreateClientResponse> connect_new_audio_server_client()
+{
+    auto client_info = TRY(Application::audio_server().connect_new_client("*"sv, "*"sv, true));
+    TRY(client_info.socket.clear_close_on_exec());
+    return client_info;
 }
 
 }

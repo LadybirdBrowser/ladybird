@@ -10,3 +10,29 @@ executable("js") {
     "//Userland/Libraries/LibTextCodec",
   ]
 }
+
+if (current_os != "win") {
+  executable("MultipleAudioServerClientExample") {
+    sources = [ "Examples/MultipleAudioServerClientExample.cpp" ]
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [
+      "//AK",
+      "//Userland/Libraries/LibAudioServer",
+      "//Userland/Libraries/LibCore",
+      "//Userland/Libraries/LibIPC",
+      "//Userland/Libraries/LibMain",
+    ]
+  }
+
+  executable("MinimalAudioServerClientExample") {
+    sources = [ "Examples/MinimalAudioServerClientExample.cpp" ]
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [
+      "//AK",
+      "//Userland/Libraries/LibAudioServer",
+      "//Userland/Libraries/LibCore",
+      "//Userland/Libraries/LibIPC",
+      "//Userland/Libraries/LibMain",
+    ]
+  }
+}
