@@ -108,27 +108,32 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
 
         auto child_border_box = child.paintable_box()->absolute_border_box_rect();
 
-        // Border boxes with zero area do not affect the scrollable overflow area.
-        if (child_border_box.is_empty())
-            return TraversalDecision::Continue;
-
         // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
         if (child_border_box.bottom() < 0 || child_border_box.right() < 0)
             return TraversalDecision::Continue;
 
-        scrollable_overflow_rect.unite(child_border_box);
-        content_overflow_rect.unite(child_border_box);
+        // Border boxes with zero area do not affect the scrollable overflow area.
+        if (!child_border_box.is_empty()) {
+            scrollable_overflow_rect.unite(child_border_box);
+            content_overflow_rect.unite(child_border_box);
+        }
 
         // - The scrollable overflow areas of all of the above boxes (including zero-area boxes and accounting for
         //   transforms as described above), provided they themselves have overflow: visible (i.e. do not themselves
         //   trap the overflow) and that scrollable overflow is not already clipped (e.g. by the clip property or the
         //   contain property).
+        // Scrollable overflow is already clipped by the contain property.
+        if (child.has_layout_containment() || child.has_paint_containment())
+            return TraversalDecision::Continue;
+
         if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
             auto child_scrollable_overflow = measure_scrollable_overflow(child);
-            if (child.computed_values().overflow_x() == CSS::Overflow::Visible)
-                scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
-            if (child.computed_values().overflow_y() == CSS::Overflow::Visible)
-                scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
+            if (!child_scrollable_overflow.is_empty()) {
+                if (child.computed_values().overflow_x() == CSS::Overflow::Visible)
+                    scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
+                if (child.computed_values().overflow_y() == CSS::Overflow::Visible)
+                    scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
+            }
         }
 
         return TraversalDecision::Continue;

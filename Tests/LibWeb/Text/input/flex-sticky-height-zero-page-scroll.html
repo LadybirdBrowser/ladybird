@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<!--
+    Reduced from YouTube Music album page (music.youtube.com).
+    The track list is inside an absolutely positioned element with height: 100vh.
+    Content overflowing the absolute element should still make the page scrollable
+    since overflow defaults to visible.
+
+    Key structure from the original page:
+    - ytmusic-browse-response (position: relative)
+      - .background-gradient (position: absolute; height: 100vh)
+        - two-column flex layout with track list
+-->
+<style>
+    body {
+        margin: 0;
+    }
+    .relative-container {
+        display: block;
+        position: relative;
+    }
+    .abspos-container {
+        position: absolute;
+        width: 100%;
+        height: 100vh;
+    }
+    .content {
+        display: flex;
+        flex-direction: row;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .sticky-column {
+        position: sticky;
+        top: 64px;
+        height: 0;
+        width: 300px;
+        flex-shrink: 0;
+    }
+    .sticky-content {
+        width: 300px;
+        height: 300px;
+        background: lightblue;
+    }
+    .track-list {
+        flex-grow: 1;
+    }
+    .item {
+        height: 60px;
+        border-bottom: 1px solid #ccc;
+    }
+</style>
+<script src="include.js"></script>
+<div class="relative-container">
+    <div class="abspos-container">
+        <div class="content">
+            <div class="sticky-column">
+                <div class="sticky-content">Album Art</div>
+            </div>
+            <div class="track-list">
+                <div class="item">Track 1</div>
+                <div class="item">Track 2</div>
+                <div class="item">Track 3</div>
+                <div class="item">Track 4</div>
+                <div class="item">Track 5</div>
+                <div class="item">Track 6</div>
+                <div class="item">Track 7</div>
+                <div class="item">Track 8</div>
+                <div class="item">Track 9</div>
+                <div class="item">Track 10</div>
+                <div class="item">Track 11</div>
+                <div class="item">Track 12</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const scrollable = document.documentElement.scrollHeight > window.innerHeight;
+        println(`Page scrollable: ${scrollable}`);
+    });
+</script>
