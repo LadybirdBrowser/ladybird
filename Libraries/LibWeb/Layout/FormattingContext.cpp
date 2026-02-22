@@ -1471,6 +1471,12 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Abs
         }
     }
 
+    // AD-HOC: Reset offset to zero before recomputing. Table cells with percentage heights are laid out twice - before
+    //         and after table height is determined. Each pass re-enters layout_absolutely_positioned_element for abspos
+    //         descendants. Without this reset, the stale offset from the first pass triggers the assertion in
+    //         content_box_rect_in_static_position_ancestor_coordinate_space.
+    box_state.set_content_offset({ 0, 0 });
+
     CSSPixelPoint used_offset;
 
     auto static_position = m_state.get(box).static_position();

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+.cell {
+    display: table-cell;
+    height: 100%;
+}
+.cb {
+    position: relative;
+    padding: 1px;
+}
+.cb::after {
+    position: absolute;
+    content: "";
+    top: 0;
+    left: 0;
+}
+</style>
+<div style="display: table"><div class="cell"><div class="cb"></div></div></div>
