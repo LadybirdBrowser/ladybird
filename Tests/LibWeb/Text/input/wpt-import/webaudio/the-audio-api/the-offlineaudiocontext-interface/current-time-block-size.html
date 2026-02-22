@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>Test currentTime at completion of OfflineAudioContext rendering</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+promise_test(function() {
+  // sampleRate is a power of two so that time can be represented exactly
+  // in double currentTime.
+  var context = new OfflineAudioContext(1, 1, 65536);
+  return context.startRendering().
+    then(function(buffer) {
+      assert_equals(buffer.length, 1, "buffer length");
+      assert_equals(context.currentTime, 128 / context.sampleRate,
+                    "currentTime at completion");
+    });
+});
+</script>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test ConstantSourceNode Output
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="../../resources/audioparam-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let sampleRate = 48000;
+      let renderDuration = 0.125;
+      let renderFrames = sampleRate * renderDuration;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('constant source', (task, should) => {
+        // Verify a constant source outputs the correct (fixed) constant.
+        let context = new OfflineAudioContext(1, renderFrames, sampleRate);
+        let node = new ConstantSourceNode(context, {offset: 0.5});
+        node.connect(context.destination);
+        node.start();
+
+        context.startRendering()
+            .then(function(buffer) {
+              let actual = buffer.getChannelData(0);
+              let expected = new Float32Array(actual.length);
+              expected.fill(node.offset.value);
+
+              should(actual, 'Basic: ConstantSourceNode({offset: 0.5})')
+                  .beEqualToArray(expected);
+            })
+            .then(() => task.done());
+      });
+
+      audit.define('stop before start', (task, should) => {
+        let context = new OfflineAudioContext(1, renderFrames, sampleRate);
+        let node = new ConstantSourceNode(context, {offset: 1});
+        node.connect(context.destination);
+        node.start(61 / context.sampleRate);
+        node.stop(31 / context.sampleRate);
+
+        context.startRendering()
+            .then(function(buffer) {
+                let actual = buffer.getChannelData(0);
+                should(actual,
+                       "ConstantSourceNode with stop before " +
+                           "start must output silence")
+                  .beConstantValueOf(0);
+            })
+            .then(() => task.done());
+      });
+
+      audit.define('stop equal to start', (task, should) => {
+          let context = new OfflineAudioContext(1, renderFrames, sampleRate);
+          let node = new ConstantSourceNode(context, {offset: 1});
+          node.connect(context.destination);
+          node.start(31 / context.sampleRate);
+          node.stop(31 / context.sampleRate);
+
+          context.startRendering()
+              .then(function(buffer) {
+                  let actual = buffer.getChannelData(0);
+                  should(actual,
+                         "ConstantSourceNode with stop equal to start " +
+                             " must output silence")
+                      .beConstantValueOf(0);
+          })
+          .then(() => task.done());
+      });
+
+      audit.define('start/stop', (task, should) => {
+        // Verify a constant source starts and stops at the correct time and has
+        // the correct (fixed) value.
+        let context = new OfflineAudioContext(1, renderFrames, sampleRate);
+        let node = new ConstantSourceNode(context, {offset: 1});
+        node.connect(context.destination);
+
+        let startFrame = 10;
+        let stopFrame = 300;
+
+        node.start(startFrame / context.sampleRate);
+        node.stop(stopFrame / context.sampleRate);
+
+        context.startRendering()
+            .then(function(buffer) {
+              let actual = buffer.getChannelData(0);
+              let expected = new Float32Array(actual.length);
+              // The expected output is all 1s from start to stop time.
+              expected.fill(0);
+
+              for (let k = startFrame; k < stopFrame; ++k) {
+                expected[k] = node.offset.value;
+              }
+
+              let prefix = 'start/stop: ';
+              should(actual.slice(0, startFrame),
+                     prefix + 'ConstantSourceNode frames [0, ' +
+                       startFrame + ')')
+                  .beConstantValueOf(0);
+
+              should(actual.slice(startFrame, stopFrame),
+                     prefix + 'ConstantSourceNode frames [' +
+                         startFrame + ', ' + stopFrame + ')')
+                  .beConstantValueOf(1);
+
+              should(
+                  actual.slice(stopFrame),
+                  prefix + 'ConstantSourceNode frames [' + stopFrame +
+                      ', ' + renderFrames + ')')
+                  .beConstantValueOf(0);
+            })
+            .then(() => task.done());
+
+      });
+
+      audit.define('basic automation', (task, should) => {
+        // Verify that automation works as expected.
+        let context = new OfflineAudioContext(1, renderFrames, sampleRate);
+        let source = context.createConstantSource();
+        source.connect(context.destination);
+
+        let rampEndTime = renderDuration / 2;
+        source.offset.setValueAtTime(0.5, 0);
+        source.offset.linearRampToValueAtTime(1, rampEndTime);
+
+        source.start();
+
+        context.startRendering()
+            .then(function(buffer) {
+              let actual = buffer.getChannelData(0);
+              let expected = createLinearRampArray(
+                  0, rampEndTime, 0.5, 1, context.sampleRate);
+
+              let rampEndFrame = Math.ceil(rampEndTime * context.sampleRate);
+              let prefix = 'Automation: ';
+
+              should(actual.slice(0, rampEndFrame),
+                     prefix + 'ConstantSourceNode.linearRamp(1, 0.5)')
+                  .beCloseToArray(expected, {
+                    // Experimentally determined threshold.
+                    relativeThreshold: 7.1610e-7
+                  });
+
+              should(actual.slice(rampEndFrame),
+                     prefix + 'ConstantSourceNode after ramp')
+                .beConstantValueOf(1);
+            })
+            .then(() => task.done());
+      });
+
+      audit.define('connected audioparam', (task, should) => {
+        // Verify the constant source output with connected AudioParam produces
+        // the correct output.
+        let context = new OfflineAudioContext(2, renderFrames, sampleRate)
+        context.destination.channelInterpretation = 'discrete';
+        let source = new ConstantSourceNode(context, {offset: 1});
+        let osc = context.createOscillator();
+        let merger = context.createChannelMerger(2);
+        merger.connect(context.destination);
+
+        source.connect(merger, 0, 0);
+        osc.connect(merger, 0, 1);
+        osc.connect(source.offset);
+
+        osc.start();
+        let sourceStartFrame = 10;
+        source.start(sourceStartFrame / context.sampleRate);
+
+        context.startRendering()
+            .then(function(buffer) {
+              // Channel 0 and 1 should be identical, except channel 0 (the
+              // source) is silent at the beginning.
+              let actual = buffer.getChannelData(0);
+              let expected = buffer.getChannelData(1);
+              // The expected output should be oscillator + 1 because offset
+              // is 1.
+              expected = expected.map(x => 1 + x);
+              let prefix = 'Connected param: ';
+
+              // The initial part of the output should be silent because the
+              // source node hasn't started yet.
+              should(
+                  actual.slice(0, sourceStartFrame),
+                  prefix + 'ConstantSourceNode frames [0, ' + sourceStartFrame +
+                      ')')
+                  .beConstantValueOf(0);
+              // The rest of the output should be the same as the oscillator (in
+              // channel 1)
+              should(
+                  actual.slice(sourceStartFrame),
+                  prefix + 'ConstantSourceNode frames [' + sourceStartFrame +
+                      ', ' + renderFrames + ')')
+                  .beCloseToArray(expected.slice(sourceStartFrame), 0);
+
+            })
+            .then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

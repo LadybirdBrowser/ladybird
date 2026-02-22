@@ -89,6 +89,9 @@ public:
 
     NodeID node_id() const { return m_node_id; }
 
+    ReadonlySpan<AudioNodeConnection> input_connections() const { return m_input_connections.span(); }
+    ReadonlySpan<AudioNodeConnection> output_connections() const { return m_output_connections.span(); }
+
 protected:
     AudioNode(JS::Realm&, GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count = 2);
 

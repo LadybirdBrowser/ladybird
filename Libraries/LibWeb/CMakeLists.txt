@@ -1067,9 +1067,16 @@ set(SOURCES
     WebAudio/MediaElementAudioSourceNode.cpp
     WebAudio/OfflineAudioCompletionEvent.cpp
     WebAudio/OfflineAudioContext.cpp
+    WebAudio/OfflineAudioRenderThread.cpp
     WebAudio/OscillatorNode.cpp
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
+    WebAudio/Realtime/ConstantSourceRenderNode.cpp
+    WebAudio/Realtime/DestinationRenderNode.cpp
+    WebAudio/Realtime/OhNoesRenderNode.cpp
+    WebAudio/Realtime/RenderGraphImpl.cpp
+    WebAudio/RenderGraph.cpp
+    WebAudio/RenderGraphSnapshot.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
     WebDriver/Actions.cpp
