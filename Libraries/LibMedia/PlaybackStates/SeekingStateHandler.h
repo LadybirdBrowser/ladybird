@@ -63,11 +63,11 @@ public:
 private:
     struct SeekData : public RefCounted<SeekData> {
         SeekData(PlaybackManager& manager)
-            : manager(manager)
+            : manager(manager.weak())
         {
         }
 
-        NonnullRefPtr<PlaybackManager> manager;
+        WeakPlaybackManager manager;
 
         size_t id { 0 };
 
@@ -82,6 +82,8 @@ private:
 
     static void possibly_complete_seek(SeekData& seek_data)
     {
+        if (!seek_data.manager)
+            return;
         if (seek_data.video_seeks_completed != seek_data.video_seeks_in_flight)
             return;
         if (seek_data.audio_seeks_completed != seek_data.audio_seeks_in_flight)
@@ -119,7 +121,10 @@ private:
 
     static void begin_audio_seeks(SeekData& seek_data)
     {
-        seek_data.audio_seeks_in_flight = count_audio_tracks(seek_data.manager);
+        if (!seek_data.manager)
+            return;
+
+        seek_data.audio_seeks_in_flight = count_audio_tracks(*seek_data.manager);
 
         if (seek_data.audio_seeks_in_flight == 0) {
             possibly_complete_seek(seek_data);

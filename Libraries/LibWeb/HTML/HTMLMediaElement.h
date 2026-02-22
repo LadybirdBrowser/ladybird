@@ -354,7 +354,7 @@ private:
     GC::Weak<Fetch::Infrastructure::FetchController> m_fetch_controller;
     u32 m_current_fetch_generation { 0 };
 
-    RefPtr<Media::PlaybackManager> m_playback_manager;
+    OwnPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;
     RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
 

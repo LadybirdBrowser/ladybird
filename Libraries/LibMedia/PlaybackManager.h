@@ -24,11 +24,12 @@
 
 namespace Media {
 
-class MEDIA_API PlaybackManager final : public AtomicRefCounted<PlaybackManager> {
+class WeakPlaybackManagerLink;
+class WeakPlaybackManager;
+
+class MEDIA_API PlaybackManager final {
     AK_MAKE_NONCOPYABLE(PlaybackManager);
     AK_MAKE_NONMOVABLE(PlaybackManager);
-
-    class WeakPlaybackManager;
 
 #define __MAKE_PLAYBACK_STATE_HANDLER_FRIEND(clazz) \
     friend class clazz;
@@ -47,7 +48,7 @@ public:
     static constexpr int DEFAULT_SUSPEND_TIMEOUT_MS = 10000;
     static constexpr int RESUMING_SUSPEND_TIMEOUT_MS = 1000;
 
-    static NonnullRefPtr<PlaybackManager> create();
+    static NonnullOwnPtr<PlaybackManager> create();
     ~PlaybackManager();
 
     AK::Duration duration() const { return m_duration; }
@@ -88,30 +89,9 @@ public:
 
     void add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> const&);
 
+    WeakPlaybackManager weak();
+
 private:
-    class WeakPlaybackManager : public AtomicRefCounted<WeakPlaybackManager> {
-        friend class PlaybackManager;
-
-    public:
-        WeakPlaybackManager() = default;
-
-        RefPtr<PlaybackManager> take_strong() const
-        {
-            Threading::MutexLocker locker { m_mutex };
-            return m_manager;
-        }
-
-    private:
-        void revoke()
-        {
-            Threading::MutexLocker locker { m_mutex };
-            m_manager = nullptr;
-        }
-
-        mutable Threading::Mutex m_mutex;
-        PlaybackManager* m_manager { nullptr };
-    };
-
     struct VideoTrackData {
         Track track;
         NonnullRefPtr<VideoDataProvider> provider;
@@ -134,7 +114,7 @@ private:
     VideoTrackData& get_video_data_for_track(Track const& track);
     AudioTrackData& get_audio_data_for_track(Track const& track);
 
-    DecoderErrorOr<void> prepare_playback_from_media_data(NonnullRefPtr<IncrementallyPopulatedStream>, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference);
+    static DecoderErrorOr<void> prepare_playback_from_media_data(WeakPlaybackManager const&, NonnullRefPtr<IncrementallyPopulatedStream>, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference);
 
     template<typename T, typename... Args>
     void replace_state_handler(Args&&... args);
@@ -142,7 +122,7 @@ private:
 
     OwnPtr<PlaybackStateHandler> m_handler;
 
-    NonnullRefPtr<WeakPlaybackManager> m_weak_wrapper;
+    NonnullRefPtr<WeakPlaybackManagerLink> m_weak_link;
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
 
@@ -178,5 +158,71 @@ void PlaybackManager::dispatch_state_change() const
     if (on_playback_state_change)
         on_playback_state_change();
 }
+
+class WeakPlaybackManagerLink : public AtomicRefCounted<WeakPlaybackManagerLink> {
+public:
+    WeakPlaybackManagerLink(PlaybackManager& manager)
+        : m_manager(&manager)
+        , m_originating_event_loop(Core::EventLoop::current())
+    {
+    }
+
+    bool is_alive() const
+    {
+        verify_thread_is_originating_thread();
+        return m_manager != nullptr;
+    }
+    PlaybackManager& get() const
+    {
+        VERIFY(is_alive());
+        return *m_manager;
+    }
+
+    void revoke(Badge<PlaybackManager>)
+    {
+        Threading::MutexLocker locker { m_mutex };
+        m_manager = nullptr;
+    }
+
+private:
+    void verify_thread_is_originating_thread() const
+    {
+        VERIFY(Core::EventLoop::is_running());
+        VERIFY(&Core::EventLoop::current() == &m_originating_event_loop);
+    }
+
+    mutable Threading::Mutex m_mutex;
+    PlaybackManager* m_manager { nullptr };
+    Core::EventLoop& m_originating_event_loop;
+};
+
+class WeakPlaybackManager {
+    AK_MAKE_DEFAULT_COPYABLE(WeakPlaybackManager);
+    AK_MAKE_DEFAULT_MOVABLE(WeakPlaybackManager);
+
+public:
+    WeakPlaybackManager(WeakPlaybackManagerLink& link)
+        : m_link(link)
+    {
+    }
+
+    operator bool() const
+    {
+        return m_link->is_alive();
+    }
+
+    PlaybackManager& operator*() const
+    {
+        return m_link->get();
+    }
+
+    PlaybackManager* operator->() const
+    {
+        return &m_link->get();
+    }
+
+private:
+    NonnullRefPtr<WeakPlaybackManagerLink> m_link;
+};
 
 }

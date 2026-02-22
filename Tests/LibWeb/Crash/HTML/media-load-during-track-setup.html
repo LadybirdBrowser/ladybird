@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script>
+    video.preload = "none";
+    video.src = "../../Assets/test-webm.webm";
+    video.onsuspend = () => {
+        video.onsuspend = null;
+        video.load();
+    };
+</script>
