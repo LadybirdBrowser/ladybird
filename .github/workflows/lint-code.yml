@@ -13,8 +13,6 @@ jobs:
       - name: Set Up Environment
         shell: bash
         run: |
-          set -e
-
           brew install curl llvm@21 ninja optipng ruff shellcheck unzip
 
           # Note: gn isn't available in homebrew :(
