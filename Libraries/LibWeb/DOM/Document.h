@@ -66,7 +66,6 @@ enum class InvalidateLayoutTreeReason {
 
 #define ENUMERATE_UPDATE_LAYOUT_REASONS(X)    \
     X(AutoScrollSelection)                    \
-    X(CanvasRenderingContext2DSetFilter)      \
     X(CanvasRenderingContext2DSetFillStyle)   \
     X(CanvasRenderingContext2DSetShadowColor) \
     X(CanvasRenderingContext2DSetStrokeStyle) \
