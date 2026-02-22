@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml" class="reftest-wait">
+  <title>Pattern with 'transform' property added dynamically</title>
+  <h:link rel="help" href="https://svgwg.org/svg2-draft/single-page.html#pservers-PatternElementPatternTransformAttribute"/>
+  <h:link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-attribute-specificity"/>
+  <h:link rel="match" href="../../../../../expected/wpt-import/svg/pservers/reftests/reference/green-100x100.svg"/>
+  <h:script src="../../../common/reftest-wait.js"/>
+  <h:script src="../../../common/rendering-utils.js"/>
+
+  <pattern id="pat" width="100" height="100">
+    <rect x="25" y="25" width="75" height="75" fill="red"/>
+    <rect width="75" height="75" fill="green"/>
+  </pattern>
+  <rect width="100" height="100" fill="url(#pat)"/>
+  <script>
+    waitForAtLeastOneFrame().then(() => {
+      const pattern = document.getElementById('pat');
+      pattern.style.transform = 'translate(-25px, -25px) scale(2)';
+      takeScreenshot();
+    });
+  </script>
+</svg>

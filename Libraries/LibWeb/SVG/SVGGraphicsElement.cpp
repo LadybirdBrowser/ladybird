@@ -23,6 +23,7 @@
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -54,28 +55,32 @@ void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Strin
     }
 }
 
-Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value) const
+Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, DisplayListRecordingContext* recording_context) const
 {
     // FIXME: This entire function is an ad-hoc hack:
     if (!paint_value.has_value() || !paint_value->is_url())
         return {};
     if (auto gradient = try_resolve_url_to<SVG::SVGGradientElement const>(paint_value->as_url()))
         return gradient->to_gfx_paint_style(paint_context);
+    if (auto pattern = try_resolve_url_to<SVG::SVGPatternElement const>(paint_value->as_url())) {
+        if (recording_context && layout_node())
+            return pattern->to_gfx_paint_style(paint_context, *recording_context, *layout_node());
+    }
     return {};
 }
 
-Optional<Painting::PaintStyle> SVGGraphicsElement::fill_paint_style(SVGPaintContext const& paint_context) const
+Optional<Painting::PaintStyle> SVGGraphicsElement::fill_paint_style(SVGPaintContext const& paint_context, DisplayListRecordingContext* recording_context) const
 {
     if (!layout_node())
         return {};
-    return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().fill());
+    return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().fill(), recording_context);
 }
 
-Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintContext const& paint_context) const
+Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintContext const& paint_context, DisplayListRecordingContext* recording_context) const
 {
     if (!layout_node())
         return {};
-    return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().stroke());
+    return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().stroke(), recording_context);
 }
 
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
@@ -113,6 +118,26 @@ GC::Ptr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path() const
     if (!clip_path_reference.has_value() || !clip_path_reference->is_url())
         return {};
     return try_resolve_url_to<SVG::SVGClipPathElement const>(clip_path_reference->url());
+}
+
+GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::fill_pattern() const
+{
+    if (!layout_node())
+        return {};
+    auto const& fill = layout_node()->computed_values().fill();
+    if (!fill.has_value() || !fill->is_url())
+        return {};
+    return try_resolve_url_to<SVG::SVGPatternElement const>(fill->as_url());
+}
+
+GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::stroke_pattern() const
+{
+    if (!layout_node())
+        return {};
+    auto const& stroke = layout_node()->computed_values().stroke();
+    if (!stroke.has_value() || !stroke->is_url())
+        return {};
+    return try_resolve_url_to<SVG::SVGPatternElement const>(stroke->as_url());
 }
 
 Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> transform_list)
@@ -187,7 +212,7 @@ Optional<Gfx::Color> SVGGraphicsElement::fill_color() const
         if (auto referenced_element = try_resolve_url_to<SVGGraphicsElement const>(paint->as_url()))
             return referenced_element->fill_color();
 
-        return {};
+        return paint->fallback_color();
     }
 
     return paint->as_color();
@@ -206,7 +231,7 @@ Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
         if (auto referenced_element = try_resolve_url_to<SVGGraphicsElement const>(paint->as_url()))
             return referenced_element->stroke_color();
 
-        return {};
+        return paint->fallback_color();
     }
 
     return paint->as_color();

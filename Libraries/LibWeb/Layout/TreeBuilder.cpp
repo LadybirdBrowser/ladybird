@@ -33,6 +33,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
+#include <LibWeb/Layout/SVGPatternBox.h>
 #include <LibWeb/Layout/TableGrid.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -598,6 +599,11 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
                 node.set_child_needs_layout_tree_update(false);
                 auto layout_node = node.layout_node();
+                // SVGPatternBox, SVGMaskBox, and SVGClipBox are created on behalf of a referencing
+                // element and attached to that element's layout subtree. Skip them so they survive cleanup of their
+                // DOM ancestor.
+                if (layout_node && (is<SVGPatternBox>(*layout_node) || is<SVGMaskBox>(*layout_node) || is<SVGClipBox>(*layout_node)))
+                    return TraversalDecision::SkipChildrenAndContinue;
                 if (layout_node && layout_node->parent()) {
                     layout_node->remove();
                 }
@@ -651,6 +657,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                     VERIFY_NOT_REACHED();
                 // Only layout direct uses of SVG masks/clipPaths.
                 context.layout_svg_mask_or_clip_path = false;
+            } else if (context.layout_svg_pattern) {
+                layout_node = document.heap().allocate<Layout::SVGPatternBox>(document, as<SVG::SVGPatternElement>(dom_node), *style);
+                context.layout_svg_pattern = false;
             } else {
                 layout_node = element.create_layout_node(*style);
             }
@@ -876,6 +885,31 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
             layout_mask_or_clip_path(mask);
         if (auto clip_path = graphics_element.clip_path())
             layout_mask_or_clip_path(clip_path);
+
+        HashTable<SVG::SVGPatternElement const*> seen_content_elements;
+        auto layout_pattern = [&](GC::Ptr<SVG::SVGPatternElement const> pattern) {
+            if (!pattern)
+                return;
+            auto content_element = pattern->pattern_content_element();
+            if (!content_element)
+                return;
+            if (seen_content_elements.set(content_element.ptr()) != AK::HashSetResult::InsertedNewEntry)
+                return;
+            TemporaryChange<bool> layout_flag(context.layout_svg_pattern, true);
+            push_parent(as<NodeWithStyle>(*layout_node));
+            for (GC::Ref<NodeWithStyle> ancestor : m_ancestor_stack) {
+                if (ancestor->dom_node() == content_element.ptr()) {
+                    pop_parent();
+                    return;
+                }
+            }
+            update_layout_tree(const_cast<SVG::SVGPatternElement&>(*content_element), context, MustCreateSubtree::Yes);
+            pop_parent();
+        };
+        if (auto fill = graphics_element.fill_pattern())
+            layout_pattern(fill);
+        if (auto stroke = graphics_element.stroke_pattern())
+            layout_pattern(stroke);
     }
 
     // Add nodes for the ::after pseudo-element.

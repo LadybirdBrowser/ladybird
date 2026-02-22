@@ -2874,8 +2874,9 @@ RefPtr<StyleValue const> Parser::parse_paint_value(TokenStream<ComponentValue>& 
         tokens.discard_whitespace();
         if (auto color_or_none = parse_color_or_none(); color_or_none == nullptr) {
             // Fail to parse if the fallback is invalid, but otherwise ignore it.
-            // FIXME: Use fallback color
             return nullptr;
+        } else if (color_or_none.has_value() && *color_or_none && (*color_or_none)->has_color()) {
+            return URLStyleValue::create(url->as_url().url(), color_or_none->release_nonnull());
         }
         return url;
     }

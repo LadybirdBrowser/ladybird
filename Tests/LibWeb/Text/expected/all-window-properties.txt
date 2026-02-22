@@ -421,6 +421,7 @@ SVGMetadataElement
 SVGNumber
 SVGNumberList
 SVGPathElement
+SVGPatternElement
 SVGPoint
 SVGPolygonElement
 SVGPolylineElement
