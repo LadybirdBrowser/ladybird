@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>Client properties for elements with css zoom</title>
+<link rel="author" title="Yotam Hacohen" href="mailto:yotha@chromium.org">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-viewport/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+      .test_content div {
+        width: 64px;
+        height: 64px;
+        background-color: cyan;
+      }
+      .test_content div.x4_zoom {
+        zoom: 4.0;
+      }
+</style>
+<body>
+  <div class="test_content">
+    <div id="no_zoom"></div>
+    <div class="x4_zoom" id="element_with_zoom"></div>
+
+    <div class="x4_zoom">
+      <div id="direct_child_of_element_with_zoom"></div>
+      <div>
+        <div id="indirect_child_of_element_with_zoom"></div>
+      </div>
+      <div class="x4_zoom" id="both_child_and_parent_has_zoom"></div>
+    </div>
+  </div>
+
+  <script>
+      setup(() => {
+        window.noZoom = document.getElementById("no_zoom");
+      });
+      function compareObjectToDivWithNoZoom(object){
+        assert_equals(object.clientTop, noZoom.clientTop, 'clientTop');
+        assert_equals(object.clientLeft, noZoom.clientLeft, 'clientLeft');
+        assert_equals(object.clientWidth, noZoom.clientWidth, 'clientWidth');
+        assert_equals(object.clientHeight ,noZoom.clientHeight, 'clientHeight');
+      }
+      test(function() {
+        assert_true(!!noZoom, "no zoom target exists");
+      });
+      test(function() {
+        compareObjectToDivWithNoZoom(document.getElementById("element_with_zoom"));
+        compareObjectToDivWithNoZoom(document.getElementById("direct_child_of_element_with_zoom"));
+        compareObjectToDivWithNoZoom(document.getElementById("indirect_child_of_element_with_zoom"));
+        compareObjectToDivWithNoZoom(document.getElementById("both_child_and_parent_has_zoom"));
+      });
+  </script>
+</body>

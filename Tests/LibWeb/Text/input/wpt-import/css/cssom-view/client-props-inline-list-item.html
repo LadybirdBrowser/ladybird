@@ -1,0 +1,26 @@
+<!doctype html>
+<title>client* returns the same for non-replaced inlines regardless of list-item-ness</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1581467">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<style>
+  .li {
+    display: inline list-item;
+  }
+</style>
+<div style="position: absolute"><span>Foo</span></div>
+<div style="position: absolute"><span class="li">Foo</span></div>
+<script>
+test(() => {
+  let first = document.querySelector("span");
+  let second = document.querySelector(".li");
+
+  assert_equals(first.clientWidth, second.clientWidth, "clientWidth should match");
+  assert_equals(first.clientHeight, second.clientHeight, "clientHeight should match");
+  assert_equals(first.clientTop, second.clientTop, "clientTop should match");
+  assert_equals(first.clientLeft, second.clientLeft, "clientLeft should match");
+}, "client* returns the same for non-replaced inlines regardless of list-item-ness");
+</script>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1655741">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<title>Shouldn't assert when asking for the client* props on the scrolling element</title>
+<style>
+  :root { display: none }
+</style>
+<script>
+  document.scrollingElement.clientTop;
+  document.scrollingElement.clientLeft;
+  document.scrollingElement.clientHeight;
+  document.scrollingElement.clientWidth;
+</script>
