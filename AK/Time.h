@@ -60,10 +60,12 @@ unsigned day_of_week(int year, unsigned month, int day);
 // can be negative.
 constexpr int day_of_year(int year, unsigned month, int day)
 {
-    if (is_constant_evaluated())
+    if consteval {
         VERIFY(month >= 1 && month <= 12); // Note that this prevents bad constexpr months, but never actually prints anything.
-    else if (!(month >= 1 && month <= 12))
-        return 0;
+    } else {
+        if (!(month >= 1 && month <= 12))
+            return 0;
+    }
 
     constexpr Array seek_table = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
     int day_of_year = seek_table[month - 1] + day - 1;

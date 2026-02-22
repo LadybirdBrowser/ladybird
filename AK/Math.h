@@ -65,12 +65,12 @@ constexpr T to_degrees(T radians)
 }
 
 #define CONSTEXPR_STATE(function, args...)        \
-    if (is_constant_evaluated()) {                \
-        if (IsSame<T, long double>)               \
+    if consteval {                                \
+        if constexpr (IsSame<T, long double>)     \
             return __builtin_##function##l(args); \
-        if (IsSame<T, double>)                    \
+        if constexpr (IsSame<T, double>)          \
             return __builtin_##function(args);    \
-        if (IsSame<T, float>)                     \
+        if constexpr (IsSame<T, float>)           \
             return __builtin_##function##f(args); \
     }
 
@@ -110,7 +110,7 @@ template<FloatingPoint T>
 constexpr T ceil(T num)
 {
     // FIXME: SSE4.1 rounds[sd] num, res, 0b110
-    if (is_constant_evaluated()) {
+    if consteval {
         if (num < NumericLimits<i64>::min() || num > NumericLimits<i64>::max())
             return num;
         return (static_cast<T>(static_cast<i64>(num)) == num)
@@ -133,7 +133,7 @@ template<FloatingPoint T>
 constexpr T floor(T num)
 {
     // FIXME: SSE4.1 rounds[sd] num, res, 0b101
-    if (is_constant_evaluated()) {
+    if consteval {
         if (num < NumericLimits<i64>::min() || num > NumericLimits<i64>::max())
             return num;
         return (static_cast<T>(static_cast<i64>(num)) == num)
@@ -156,7 +156,7 @@ template<FloatingPoint T>
 constexpr T trunc(T num)
 {
 #if ARCH(AARCH64)
-    if (is_constant_evaluated()) {
+    if consteval {
         if (num < NumericLimits<i64>::min() || num > NumericLimits<i64>::max())
             return num;
         return static_cast<T>(static_cast<i64>(num));
@@ -601,7 +601,7 @@ constexpr T cos(T angle)
 template<FloatingPoint T>
 constexpr void sincos(T angle, T& sin_val, T& cos_val)
 {
-    if (is_constant_evaluated()) {
+    if consteval {
         sin_val = sin(angle);
         cos_val = cos(angle);
         return;

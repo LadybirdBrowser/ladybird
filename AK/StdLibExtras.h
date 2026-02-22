@@ -122,20 +122,11 @@ requires(IsEnum<V>)
     return static_cast<UnderlyingType<V>>(value);
 }
 
-constexpr bool is_constant_evaluated()
-{
-#if __has_builtin(__builtin_is_constant_evaluated)
-    return __builtin_is_constant_evaluated();
-#else
-    return false;
-#endif
-}
-
 template<typename T>
 ALWAYS_INLINE constexpr void taint_for_optimizer(T& value)
 requires(IsIntegral<T>)
 {
-    if (!is_constant_evaluated()) {
+    if !consteval {
         asm volatile(""
             : "+r"(value));
     }
@@ -145,7 +136,7 @@ template<typename T>
 ALWAYS_INLINE constexpr void taint_for_optimizer(T& value)
 requires(!IsIntegral<T>)
 {
-    if (!is_constant_evaluated()) {
+    if !consteval {
         asm volatile(""
             :
             : "m"(value)
@@ -158,9 +149,11 @@ requires(!IsIntegral<T>)
 #define __DEFINE_GENERIC_ABS(type, zero, intrinsic) \
     constexpr type abs(type num)                    \
     {                                               \
-        if (is_constant_evaluated())                \
+        if consteval {                              \
             return num < (zero) ? -num : num;       \
-        return __builtin_##intrinsic(num);          \
+        } else {                                    \
+            return __builtin_##intrinsic(num);      \
+        }                                           \
     }
 
 __DEFINE_GENERIC_ABS(int, 0, abs);
@@ -180,7 +173,6 @@ using AK::ceil_div;
 using AK::clamp;
 using AK::exchange;
 using AK::forward;
-using AK::is_constant_evaluated;
 using AK::is_power_of_two;
 using AK::max;
 using AK::min;

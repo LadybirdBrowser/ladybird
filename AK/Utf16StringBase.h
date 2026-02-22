@@ -49,8 +49,9 @@ public:
 
     constexpr ~Utf16StringBase()
     {
-        if (!is_constant_evaluated())
+        if !consteval {
             destroy_string();
+        }
     }
 
     ALWAYS_INLINE operator Utf16View() const& LIFETIME_BOUND { return utf16_view(); }
@@ -278,9 +279,11 @@ public:
     // This is primarily interesting to unit tests.
     [[nodiscard]] constexpr bool has_short_ascii_storage() const
     {
-        if (is_constant_evaluated())
+        if consteval {
             return (m_value.short_ascii_string.byte_count_and_short_string_flag & StringBase::SHORT_STRING_FLAG) != 0;
-        return (short_ascii_string_without_union_member_assertion().byte_count_and_short_string_flag & StringBase::SHORT_STRING_FLAG) != 0;
+        } else {
+            return (short_ascii_string_without_union_member_assertion().byte_count_and_short_string_flag & StringBase::SHORT_STRING_FLAG) != 0;
+        }
     }
 
     // This is primarily interesting to unit tests.

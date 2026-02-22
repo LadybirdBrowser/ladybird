@@ -188,7 +188,18 @@ ALWAYS_INLINE constexpr Word extend_sign(bool sign)
 template<typename WordType>
 ALWAYS_INLINE constexpr WordType add_words(WordType word1, WordType word2, bool& carry)
 {
-    if (!is_constant_evaluated()) {
+    if consteval {
+        // Note: This is usually too confusing for both GCC and Clang.
+        WordType output;
+        bool ncarry = __builtin_add_overflow(word1, word2, &output);
+        if (carry) {
+            ++output;
+            if (output == 0)
+                ncarry = true;
+        }
+        carry = ncarry;
+        return output;
+    } else {
 #if __has_builtin(__builtin_addc)
         WordType ncarry, output;
         if constexpr (SameAs<WordType, unsigned int>)
@@ -215,22 +226,23 @@ ALWAYS_INLINE constexpr WordType add_words(WordType word1, WordType word2, bool&
         }
 #endif
     }
-    // Note: This is usually too confusing for both GCC and Clang.
-    WordType output;
-    bool ncarry = __builtin_add_overflow(word1, word2, &output);
-    if (carry) {
-        ++output;
-        if (output == 0)
-            ncarry = true;
-    }
-    carry = ncarry;
-    return output;
 }
 
 template<typename WordType>
 ALWAYS_INLINE constexpr WordType sub_words(WordType word1, WordType word2, bool& carry)
 {
-    if (!is_constant_evaluated()) {
+    if consteval {
+        // Note: This is usually too confusing for both GCC and Clang.
+        WordType output;
+        bool ncarry = __builtin_sub_overflow(word1, word2, &output);
+        if (carry) {
+            if (output == 0)
+                ncarry = true;
+            --output;
+        }
+        carry = ncarry;
+        return output;
+    } else {
 #if __has_builtin(__builtin_subc)
         WordType ncarry, output;
         if constexpr (SameAs<WordType, unsigned int>)
@@ -257,16 +269,6 @@ ALWAYS_INLINE constexpr WordType sub_words(WordType word1, WordType word2, bool&
         }
 #endif
     }
-    // Note: This is usually too confusing for both GCC and Clang.
-    WordType output;
-    bool ncarry = __builtin_sub_overflow(word1, word2, &output);
-    if (carry) {
-        if (output == 0)
-            ncarry = true;
-        --output;
-    }
-    carry = ncarry;
-    return output;
 }
 
 template<typename WordType>
