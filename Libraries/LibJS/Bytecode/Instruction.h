@@ -11,7 +11,6 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/OpCodes.h>
 #include <LibJS/Forward.h>
-#include <LibJS/SourceRange.h>
 
 namespace JS::Bytecode::Op {
 
