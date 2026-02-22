@@ -58,6 +58,7 @@ public:
 
         virtual void abort() override;
         virtual void reset_abort() override { m_aborted = false; }
+        virtual bool is_aborted() const override { return m_aborted; }
 
         virtual bool is_blocked() const override { return m_blocked; }
 

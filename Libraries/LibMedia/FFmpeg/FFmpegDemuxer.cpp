@@ -237,8 +237,12 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
     if (!seek_succeeded) {
         track_context.is_seekable = false;
         auto av_base_timestamp = duration_to_time_units(timestamp, AV_TIME_BASE_Q);
-        if (av_seek_frame(&format_context, -1, av_base_timestamp, AVSEEK_FLAG_BACKWARD) < 0)
+        if (av_seek_frame(&format_context, -1, av_base_timestamp, AVSEEK_FLAG_BACKWARD) < 0) {
+            if (track_context.cursor->is_aborted())
+                return DecoderError::format(DecoderErrorCategory::Aborted, "Seek aborted");
+
             return DecoderError::format(DecoderErrorCategory::Corrupted, "Failed to seek");
+        }
     }
 
     return DemuxerSeekResult::MovedPosition;
@@ -268,10 +272,13 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
     for (;;) {
         auto read_frame_error = av_read_frame(&format_context, &packet);
         if (read_frame_error < 0) {
+            if (track_context.cursor->is_aborted())
+                return DecoderError::format(DecoderErrorCategory::Aborted, "Read aborted");
+
             if (read_frame_error == AVERROR_EOF)
                 return DecoderError::format(DecoderErrorCategory::EndOfStream, "End of stream");
 
-            return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to read frame");
+            return DecoderError::with_description(DecoderErrorCategory::Corrupted, av_error_code_to_string(read_frame_error));
         }
         if (packet.stream_index != stream.index) {
             av_packet_unref(&packet);
