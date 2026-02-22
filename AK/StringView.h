@@ -27,8 +27,9 @@ public:
         : m_characters(characters)
         , m_length(length)
     {
-        if (!is_constant_evaluated())
+        if !consteval {
             VERIFY(!Checked<uintptr_t>::addition_would_overflow(reinterpret_cast<uintptr_t>(characters), length));
+        }
     }
 
     ALWAYS_INLINE StringView(unsigned char const* characters, size_t length)
@@ -67,8 +68,9 @@ public:
 
     constexpr char const& operator[](size_t index) const
     {
-        if (!is_constant_evaluated())
+        if !consteval {
             VERIFY(index < m_length);
+        }
         return m_characters[index];
     }
 
@@ -116,15 +118,17 @@ public:
 
     [[nodiscard]] constexpr StringView substring_view(size_t start, size_t length) const
     {
-        if (!is_constant_evaluated())
+        if !consteval {
             VERIFY(start + length <= m_length);
+        }
         return { m_characters + start, length };
     }
 
     [[nodiscard]] constexpr StringView substring_view(size_t start) const
     {
-        if (!is_constant_evaluated())
+        if !consteval {
             VERIFY(start <= length());
+        }
         return substring_view(start, length() - start);
     }
 

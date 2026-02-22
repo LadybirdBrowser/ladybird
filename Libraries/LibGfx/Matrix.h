@@ -46,7 +46,7 @@ public:
     constexpr Matrix& operator=(Matrix const& other)
     {
 #ifndef __clang__
-        if (is_constant_evaluated()) {
+        if consteval {
             for (size_t i = 0; i < N; i++) {
                 for (size_t j = 0; j < N; j++) {
                     (*this)[i, j] = other[i, j];

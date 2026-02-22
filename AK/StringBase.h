@@ -59,16 +59,19 @@ public:
 
     constexpr ~StringBase()
     {
-        if (!is_constant_evaluated())
+        if !consteval {
             destroy_string();
+        }
     }
 
     // NOTE: This is primarily interesting to unit tests.
     [[nodiscard]] constexpr bool is_short_string() const
     {
-        if (is_constant_evaluated())
+        if consteval {
             return (m_impl.short_string.byte_count_and_short_string_flag & SHORT_STRING_FLAG) != 0;
-        return (short_string_without_union_member_assertion().byte_count_and_short_string_flag & SHORT_STRING_FLAG) != 0;
+        } else {
+            return (short_string_without_union_member_assertion().byte_count_and_short_string_flag & SHORT_STRING_FLAG) != 0;
+        }
     }
 
     // Returns the underlying UTF-8 encoded bytes.
