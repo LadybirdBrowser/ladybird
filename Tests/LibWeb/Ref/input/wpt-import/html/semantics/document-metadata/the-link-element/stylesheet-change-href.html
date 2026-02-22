@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Obtaining a new stylesheet removes styles from the previous stylesheet.</title>
+<link rel=match href=../../../../../../expected/wpt-import/html/semantics/document-metadata/the-link-element/stylesheet-change-href-ref.html>
+<script>
+  function changeHref() {
+    var elem = document.getElementById('stylesheet');
+    elem.href = 'resources/good.css';
+    elem.onload = null;
+  }
+</script>
+<link id=stylesheet rel=stylesheet href="resources/bad.css" onload="changeHref()">
+<p>This text should be green on a white background

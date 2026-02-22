@@ -385,6 +385,8 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
 // https://html.spec.whatwg.org/multipage/semantics.html#fetch-and-process-the-linked-resource
 void HTMLLinkElement::fetch_and_process_linked_resource()
 {
+    ++m_fetch_generation;
+
     if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload))
         default_fetch_and_process_linked_resource();
     else if (m_relationship & Relationship::Preload)
@@ -429,8 +431,9 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
     }
 
     // 7. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
+    auto fetch_generation = m_fetch_generation;
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response_consume_body = [this](auto response, auto body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [this, fetch_generation](auto response, auto body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
@@ -455,7 +458,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
         // FIXME: 3. Otherwise, wait for the link resource's critical subresources to finish loading.
 
         // 4. Process the linked resource given el, success, response, and bodyBytes.
-        process_linked_resource(success, response, move(successful_body_bytes));
+        process_linked_resource(success, response, move(successful_body_bytes), fetch_generation);
     };
 
     if (m_fetch_controller)
@@ -762,12 +765,12 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes, u64 fetch_generation)
 {
     if (m_relationship & Relationship::Icon)
         process_icon_resource(success, response, move(body_bytes));
     else if (m_relationship & Relationship::Stylesheet)
-        process_stylesheet_resource(success, response, move(body_bytes));
+        process_stylesheet_resource(success, response, move(body_bytes), fetch_generation);
 }
 
 // AD-HOC: The spec is underspecified for fetching and processing rel="icon" See:
@@ -782,7 +785,7 @@ void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure:
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
+void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes, u64 fetch_generation)
 {
     if (!document().is_fully_active())
         return;
@@ -801,8 +804,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     if (mime_type_string.has_value() && mime_type_string != "text/css"sv)
         success = false;
 
-    // FIXME: 2. If el no longer creates an external resource link that contributes to the styling processing model,
-    //           or if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
+    // 2. If el no longer creates an external resource link that contributes to the styling processing model,
+    //    or if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
+    if (fetch_generation != m_fetch_generation)
+        return;
 
     // 3. If el has an associated CSS style sheet, remove the CSS style sheet.
     if (m_loaded_style_sheet) {
@@ -871,6 +876,11 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     else {
         dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
     }
+
+    // AD-HOC: The event dispatch above may have synchronously triggered a new fetch. If so, this response is now stale
+    //         so we should abort here instead of processing the response.
+    if (fetch_generation != m_fetch_generation)
+        return;
 
     // 6. If el contributes a script-blocking style sheet, then:
     if (contributes_a_script_blocking_style_sheet()) {
