@@ -23,6 +23,7 @@ find . \( \
         -name '*.ipc' \
         -o -name '*.cpp' \
         -o -name '*.idl' \
+        -o -name '*.c' \
         -o -name '*.h' \
         -o -name '*.in' \
         -o -name '*.css' \
@@ -31,3 +32,9 @@ find . \( \
         -o -name 'CMakeLists.txt' \
     \) \
     -print > ladybird.files
+find Build/release/ \( \
+        -name '*.cpp' \
+        -o -name '*.idl' \
+        -o -name '*.h' \
+    \) \
+    -print >> ladybird.files  # Append
