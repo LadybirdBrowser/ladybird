@@ -822,8 +822,10 @@ Token const& Lexer::next()
                         consume();
                     }
                 }
-                if (m_current_code_unit == 'e' || m_current_code_unit == 'E')
-                    is_invalid_numeric_literal = is_invalid_numeric_literal || !consume_exponent();
+                if (m_current_code_unit == 'e' || m_current_code_unit == 'E') {
+                    if (!consume_exponent())
+                        is_invalid_numeric_literal = true;
+                }
             }
         }
         if (is_invalid_numeric_literal) {
