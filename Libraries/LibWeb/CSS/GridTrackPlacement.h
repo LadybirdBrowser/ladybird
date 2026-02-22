@@ -20,12 +20,12 @@ public:
         return GridTrackPlacement();
     }
 
-    static GridTrackPlacement make_line(Optional<IntegerOrCalculated> line_number, Optional<String> name)
+    static GridTrackPlacement make_line(RefPtr<StyleValue const> line_number, Optional<String> name)
     {
         return GridTrackPlacement(AreaOrLine { .line_number = move(line_number), .name = move(name) });
     }
 
-    static GridTrackPlacement make_span(IntegerOrCalculated value, Optional<String> name)
+    static GridTrackPlacement make_span(NonnullRefPtr<StyleValue const> value, Optional<String> name)
     {
         return GridTrackPlacement(Span { .value = move(value), .name = move(name) });
     }
@@ -37,7 +37,7 @@ public:
     bool is_auto_positioned() const { return is_auto() || is_span(); }
     bool is_positioned() const { return !is_auto_positioned(); }
 
-    bool is_custom_ident() const { return is_area_or_line() && !m_value.get<AreaOrLine>().line_number.has_value(); }
+    bool is_custom_ident() const { return is_area_or_line() && !m_value.get<AreaOrLine>().line_number; }
 
     bool has_identifier() const
     {
@@ -46,13 +46,13 @@ public:
 
     bool has_line_number() const
     {
-        return is_area_or_line() && m_value.get<AreaOrLine>().line_number.has_value();
+        return is_area_or_line() && m_value.get<AreaOrLine>().line_number;
     }
 
     String identifier() const { return *m_value.get<AreaOrLine>().name; }
 
-    IntegerOrCalculated line_number() const { return *m_value.get<AreaOrLine>().line_number; }
-    IntegerOrCalculated span() const { return m_value.get<Span>().value; }
+    NonnullRefPtr<StyleValue const> line_number() const { return *m_value.get<AreaOrLine>().line_number; }
+    NonnullRefPtr<StyleValue const> span() const { return *m_value.get<Span>().value; }
 
     void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode mode) const;
@@ -73,17 +73,17 @@ private:
     };
 
     struct AreaOrLine {
-        Optional<IntegerOrCalculated> line_number;
+        ValueComparingRefPtr<StyleValue const> line_number;
         Optional<String> name;
         bool operator==(AreaOrLine const& other) const = default;
-        bool is_computationally_independent() const { return !line_number.has_value() || line_number->is_computationally_independent(); }
+        bool is_computationally_independent() const { return !line_number || line_number->is_computationally_independent(); }
     };
 
     struct Span {
-        IntegerOrCalculated value;
+        ValueComparingNonnullRefPtr<StyleValue const> value;
         Optional<String> name;
         bool operator==(Span const& other) const = default;
-        bool is_computationally_independent() const { return value.is_computationally_independent(); }
+        bool is_computationally_independent() const { return value->is_computationally_independent(); }
     };
 
     GridTrackPlacement()

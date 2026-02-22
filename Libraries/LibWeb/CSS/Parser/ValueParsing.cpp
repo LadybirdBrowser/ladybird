@@ -5024,7 +5024,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
     //     [ span && [ <integer [1,∞]> || <custom-ident> ] ]
     bool is_span = false;
     Optional<String> parsed_custom_ident;
-    Optional<IntegerOrCalculated> parsed_integer;
+    RefPtr<StyleValue const> parsed_integer;
 
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
@@ -5042,7 +5042,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
             tokens.discard_a_token(); // span
 
             // NOTE: "span" must not appear in between <custom-ident> and <integer>
-            if (tokens.has_next_token() && (parsed_custom_ident.has_value() || parsed_integer.has_value()))
+            if (tokens.has_next_token() && (parsed_custom_ident.has_value() || parsed_integer))
                 return nullptr;
 
             is_span = true;
@@ -5059,8 +5059,10 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
             continue;
         }
 
-        if (auto maybe_parsed_integer = parse_integer(tokens); maybe_parsed_integer.has_value()) {
-            if (parsed_integer.has_value())
+        // FIXME: Use the correct value parsing context here to clamp calculated values (note the non-contiguous valid
+        //        range for integers for non-span)
+        if (auto maybe_parsed_integer = parse_integer_value(tokens)) {
+            if (parsed_integer)
                 return nullptr;
 
             parsed_integer = maybe_parsed_integer;
@@ -5075,13 +5077,13 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
 
     // <custom-ident>
     // [ [ <integer [-∞,-1]> | <integer [1,∞]> ] && <custom-ident>? ]
-    if (!is_span && (parsed_integer.has_value() || parsed_custom_ident.has_value()) && (!parsed_integer.has_value() || parsed_integer.value().is_calculated() || parsed_integer.value().value() != 0))
+    if (!is_span && (parsed_integer || parsed_custom_ident.has_value()) && (!parsed_integer || !parsed_integer->is_integer() || parsed_integer->as_integer().integer() != 0))
         return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(parsed_integer, parsed_custom_ident));
 
     // [ span && [ <integer [1,∞]> || <custom-ident> ] ]
-    if (is_span && (parsed_integer.has_value() || parsed_custom_ident.has_value()) && (!parsed_integer.has_value() || parsed_integer.value().is_calculated() || parsed_integer.value().value() > 0))
+    if (is_span && (parsed_integer || parsed_custom_ident.has_value()) && (!parsed_integer || !parsed_integer->is_integer() || parsed_integer->as_integer().integer() > 0))
         // If the <integer> is omitted, it defaults to 1.
-        return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_span(parsed_integer.value_or(1), parsed_custom_ident));
+        return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_span(parsed_integer ? parsed_integer.release_nonnull() : IntegerStyleValue::create(1), parsed_custom_ident));
 
     return nullptr;
 }
