@@ -66,7 +66,6 @@ enum class InvalidateLayoutTreeReason {
 
 #define ENUMERATE_UPDATE_LAYOUT_REASONS(X) \
     X(AutoScrollSelection)                 \
-    X(CanvasSetFillStyle)                  \
     X(CursorBlinkTimer)                    \
     X(ChildDocumentStyleUpdate)            \
     X(Debugging)                           \
