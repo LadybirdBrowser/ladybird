@@ -100,18 +100,19 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBack
     auto sk_alpha_type = to_skia_alpha_type(color_type, alpha_type);
     auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, SkColorSpace::MakeSRGB());
 
-    if (!context) {
-        auto bitmap = Bitmap::create(color_type, alpha_type, size).value();
-        auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch());
-        VERIFY(surface);
-        return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, bitmap)));
+    if (context) {
+        context->lock();
+        auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info);
+        context->unlock();
+        if (surface)
+            return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+        dbgln("Unable to create GPU surface for size {}x{}, falling back to CPU", size.width(), size.height());
     }
 
-    context->lock();
-    auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info);
+    auto bitmap = Bitmap::create(color_type, alpha_type, size).value();
+    auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch());
     VERIFY(surface);
-    context->unlock();
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, bitmap)));
 }
 
 NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
