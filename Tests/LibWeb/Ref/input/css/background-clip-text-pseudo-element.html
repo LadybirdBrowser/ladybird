@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <link rel="match" href="../../expected/css/background-clip-text-pseudo-element.html" />
+  <style>
+    h1 {
+      background: black;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1:before {
+      content: attr(data-text);
+      position: absolute;
+      left: 200px;
+    }
+  </style>
+ </head>
+ <body>
+  <h1 data-text="test">test</h1>
+ </body>
+</html>

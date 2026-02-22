@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2026, mikiubo <michele.uboldi@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -41,8 +42,14 @@ static RefPtr<DisplayList> compute_text_clip_paths(DisplayListRecordingContext& 
         display_list_recorder.draw_glyph_run(baseline_start, *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
     };
 
-    paintable.for_each_in_inclusive_subtree([&](auto& paintable) {
-        if (auto* paintable_lines = as_if<PaintableWithLines>(paintable)) {
+    paintable.for_each_in_inclusive_subtree([&](auto& sub_paintable) {
+        // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
+        if (&sub_paintable != &paintable) {
+            auto& layout_node = sub_paintable.layout_node();
+            if (!layout_node.is_in_flow() && !layout_node.is_floating())
+                return TraversalDecision::SkipChildrenAndContinue;
+        }
+        if (auto* paintable_lines = as_if<PaintableWithLines>(sub_paintable)) {
             for (auto const& fragment : paintable_lines->fragments()) {
                 if (is<Layout::TextNode>(fragment.layout_node()))
                     add_text_clip_path(fragment);
