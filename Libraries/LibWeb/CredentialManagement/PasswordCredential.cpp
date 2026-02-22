@@ -19,7 +19,7 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_i
 
     // 2. Let r be the result of executing Create a PasswordCredential from an HTMLFormElement given form and origin.
     // 3. If r is an exception, throw r. Otherwise, return r.
-    return create_password_credential(realm, form, move(origin));
+    return create_password_credential(realm, form, origin);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-passwordcredential-passwordcredential-data
@@ -30,18 +30,18 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_i
 
     // 1. Let r be the result of executing Create a PasswordCredential from PasswordCredentialData on data.
     // 2. If r is an exception, throw r.
-    return create_password_credential(realm, data, move(origin));
+    return create_password_credential(realm, data, origin);
 }
 
 PasswordCredential::~PasswordCredential()
 {
 }
 
-PasswordCredential::PasswordCredential(JS::Realm& realm, PasswordCredentialData const& data, URL::Origin origin)
+PasswordCredential::PasswordCredential(JS::Realm& realm, PasswordCredentialData const& data, URL::Origin const& origin)
     : Credential(realm, data.id)
     , CredentialUserData(data.name.value_or(String {}), data.icon_url.value_or(String {}))
     , m_password(data.password)
-    , m_origin(move(origin))
+    , m_origin(origin)
 {
 }
 

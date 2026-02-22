@@ -25,11 +25,11 @@ FederatedCredential::~FederatedCredential()
 {
 }
 
-FederatedCredential::FederatedCredential(JS::Realm& realm, FederatedCredentialInit const& init, URL::Origin origin)
+FederatedCredential::FederatedCredential(JS::Realm& realm, FederatedCredentialInit const& init, URL::Origin const& origin)
     : Credential(realm, init.id)
     , CredentialUserData(init.name.value_or(String {}), init.icon_url.value_or(String {}))
     , m_provider(init.provider)
-    , m_origin(move(origin))
+    , m_origin(origin)
 {
 }
 

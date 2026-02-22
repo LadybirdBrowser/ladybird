@@ -34,7 +34,7 @@ public:
     String type() const override { return "password"_string; }
 
 private:
-    PasswordCredential(JS::Realm&, PasswordCredentialData const&, URL::Origin);
+    PasswordCredential(JS::Realm&, PasswordCredentialData const&, URL::Origin const&);
     virtual void initialize(JS::Realm&) override;
 
     // TODO: Use Core::SecretString when it comes back

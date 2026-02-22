@@ -33,7 +33,7 @@ public:
     String type() const override { return "federated"_string; }
 
 private:
-    FederatedCredential(JS::Realm&, FederatedCredentialInit const&, URL::Origin);
+    FederatedCredential(JS::Realm&, FederatedCredentialInit const&, URL::Origin const&);
     virtual void initialize(JS::Realm&) override;
 
     String m_provider;
