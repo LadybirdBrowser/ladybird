@@ -268,7 +268,7 @@ public:
     CSS::StyleSheetList& style_sheets();
     CSS::StyleSheetList const& style_sheets() const;
 
-    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const;
+    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
 
     CSS::StyleSheetList* style_sheets_for_bindings() { return &style_sheets(); }
 
@@ -980,6 +980,8 @@ public:
     Optional<CSS::CustomPropertyRegistration const&> get_registered_custom_property(FlyString const& name) const;
     NonnullRefPtr<CSS::StyleValue const> custom_property_initial_value(FlyString const& name) const;
 
+    HashMap<FlyString, CSS::CounterStyle> const& registered_counter_styles() const { return m_registered_counter_styles; }
+
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
 
@@ -1042,6 +1044,7 @@ private:
     void run_csp_initialization() const;
 
     void build_registered_properties_cache();
+    void build_counter_style_cache();
 
     void ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url = {});
 
@@ -1398,6 +1401,8 @@ private:
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<FlyString, CSS::CustomPropertyRegistration> m_registered_property_set;
     HashMap<FlyString, CSS::CustomPropertyRegistration> m_cached_registered_properties_from_css_property_rules;
+
+    HashMap<FlyString, CSS::CounterStyle> m_registered_counter_styles;
 
     CSS::StyleScope m_style_scope;
 

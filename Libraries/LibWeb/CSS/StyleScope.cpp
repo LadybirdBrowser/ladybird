@@ -142,7 +142,7 @@ static CSSStyleSheet& default_stylesheet()
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String default_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), default_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), default_stylesheet_source));
     }
     return *sheet;
 }
@@ -152,7 +152,7 @@ static CSSStyleSheet& quirks_mode_stylesheet()
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String quirks_mode_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), quirks_mode_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), quirks_mode_stylesheet_source));
     }
     return *sheet;
 }
@@ -162,7 +162,7 @@ static CSSStyleSheet& mathml_stylesheet()
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String mathml_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), mathml_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), mathml_stylesheet_source));
     }
     return *sheet;
 }
@@ -172,13 +172,12 @@ static CSSStyleSheet& svg_stylesheet()
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String svg_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), svg_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), svg_stylesheet_source));
     }
     return *sheet;
 }
 
-template<typename Callback>
-void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Callback callback) const
+void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     if (cascade_origin == CascadeOrigin::UserAgent) {
         callback(default_stylesheet());
@@ -461,12 +460,12 @@ RuleCache const& StyleScope::get_pseudo_class_rule_cache(PseudoClass pseudo_clas
     return *m_pseudo_class_rule_cache[to_underlying(pseudo_class)];
 }
 
-void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node)) {
-        shadow_root->for_each_active_css_style_sheet(move(callback));
+        shadow_root->for_each_active_css_style_sheet(callback);
     } else {
-        m_node->document().for_each_active_css_style_sheet(move(callback));
+        m_node->document().for_each_active_css_style_sheet(callback);
     }
 }
 

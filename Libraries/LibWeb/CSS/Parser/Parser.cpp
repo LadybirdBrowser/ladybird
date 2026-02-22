@@ -50,6 +50,12 @@ ParsingParams::ParsingParams(JS::Realm& realm, ParsingMode mode)
 {
 }
 
+ParsingParams::ParsingParams(JS::Realm& realm, IsUAStyleSheet is_ua_style_sheet)
+    : realm(realm)
+    , is_ua_style_sheet(is_ua_style_sheet)
+{
+}
+
 ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
     : realm(const_cast<JS::Realm&>(document.realm()))
     , document(&document)
@@ -67,6 +73,7 @@ Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     : m_document(context.document)
     , m_realm(context.realm)
     , m_parsing_mode(context.mode)
+    , m_is_ua_style_sheet(context.is_ua_style_sheet)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
     , m_value_context(move(context.value_context))

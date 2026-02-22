@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<title>CSS Counter Styles: Longhand East Asian Counter Styles Japanese Limited-range Implementation (required)</title>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles/#limited-japanese">
+<link rel="author" href="mailto:saku@email.sakupi01.com" title="saku">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-counter-styles/japanese-informal/counter-japanese-informal-ref.html">
+<style>
+  div::after {
+    content: counter(n, japanese-informal);
+  }
+</style>
+<div style="counter-reset: n 0;"></div>
+<div style="counter-reset: n 1;"></div>
+<div style="counter-reset: n 2;"></div>
+<div style="counter-reset: n 3;"></div>
+<div style="counter-reset: n 4;"></div>
+<div style="counter-reset: n 5;"></div>
+<div style="counter-reset: n 6;"></div>
+<div style="counter-reset: n 7;"></div>
+<div style="counter-reset: n 8;"></div>
+<div style="counter-reset: n 9;"></div>
+
+<div style="counter-reset: n 10;"></div>
+<div style="counter-reset: n 100;"></div>
+<div style="counter-reset: n 1000;"></div>
+
+<div style="counter-reset: n 11;"></div>
+<div style="counter-reset: n 99;"></div>
+<div style="counter-reset: n 101;"></div>
+<div style="counter-reset: n 200;"></div>
+<div style="counter-reset: n 6001;"></div>
+
+<div style="counter-reset: n -1;"></div>

@@ -5,6 +5,7 @@
  */
 
 #include "CounterStyleStyleValue.h"
+#include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/Enums.h>
 
 namespace Web::CSS {
@@ -19,6 +20,12 @@ Optional<CounterStyleNameKeyword> CounterStyleStyleValue::to_counter_style_name_
     return keyword_from_string(m_name)
         .map([](auto keyword) { return keyword_to_counter_style_name_keyword(keyword); })
         .value_or(OptionalNone {});
+}
+
+Optional<CounterStyle const&> CounterStyleStyleValue::resolve_counter_style(HashMap<FlyString, CounterStyle> const& registered_counter_styles) const
+{
+    // FIXME: Support symbols() function for anonymous counter style
+    return registered_counter_styles.get(m_name);
 }
 
 }

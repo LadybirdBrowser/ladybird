@@ -157,15 +157,11 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
             auto const& feature_tags = value->as_value_list().values();
             OrderedHashMap<FlyString, i64> settings;
             settings.ensure_capacity(feature_tags.size());
-            for (auto const& feature_tag : feature_tags) {
-                auto const& setting_value = feature_tag->as_open_type_tagged().value();
-                if (setting_value->is_integer()) {
-                    settings.set(feature_tag->as_open_type_tagged().tag(), setting_value->as_integer().integer());
-                } else if (setting_value->is_calculated() && setting_value->as_calculated().resolves_to_number()) {
-                    if (auto integer = setting_value->as_calculated().resolve_integer({}); integer.has_value()) {
-                        settings.set(feature_tag->as_open_type_tagged().tag(), *integer);
-                    }
-                }
+            for (auto const& feature_tag_style_value : feature_tags) {
+                auto const& feature_tag = feature_tag_style_value->as_open_type_tagged();
+
+                // FIXME: We should absolutize feature_tag.value() in case there are relative lengths
+                settings.set(feature_tag.tag(), int_from_style_value(feature_tag.value()));
             }
             font_feature_settings = move(settings);
         }

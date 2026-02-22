@@ -1,0 +1,21 @@
+body {
+  /* to match ua.css, see bug 1020143 */
+  font-variant-numeric: tabular-nums;
+}
+ol, ul, section, p {
+  padding: 0; margin: 0;
+  line-height: 150%;
+}
+ol, ul {
+  list-style-position: inside;
+}
+li, p {
+  padding: 0;
+}
+p {
+  padding-right: .5em;
+}
+li::marker {
+  /* Blink workaround of https://bugzilla.mozilla.org/show_bug.cgi?id=1688769 */
+  white-space: pre;
+}

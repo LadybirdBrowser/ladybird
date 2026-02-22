@@ -35,9 +35,6 @@ public:
     bool is_valid_symbol_count(size_t count) const;
     bool is_valid_additive_symbol_count(size_t count) const;
 
-    bool properties_equal(CounterStyleSystemStyleValue const& other) const { return m_value == other.m_value; }
-
-private:
     struct Fixed {
         ValueComparingRefPtr<StyleValue const> first_symbol;
         bool operator==(Fixed const&) const = default;
@@ -48,13 +45,19 @@ private:
         bool operator==(Extends const&) const = default;
     };
 
+    using Value = Variant<CounterStyleSystem, Fixed, Extends>;
+    Value const& value() const { return m_value; }
+
+    bool properties_equal(CounterStyleSystemStyleValue const& other) const { return m_value == other.m_value; }
+
+private:
     explicit CounterStyleSystemStyleValue(Variant<CounterStyleSystem, Fixed, Extends> value)
         : StyleValueWithDefaultOperators(Type::CounterStyleSystem)
         , m_value(move(value))
     {
     }
 
-    Variant<CounterStyleSystem, Fixed, Extends> m_value;
+    Value m_value;
 };
 
 }

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-counter-styles/cjk-decimal/counter-cjk-decimal-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles/#cjk-decimal">
+<style>
+  div::after {
+    content: counter(n, cjk-decimal);
+  }
+</style>
+<div style="counter-reset: n 0;"></div>
+<div style="counter-reset: n 1;"></div>
+<div style="counter-reset: n 2;"></div>
+<div style="counter-reset: n 3;"></div>
+<div style="counter-reset: n 4;"></div>
+<div style="counter-reset: n 5;"></div>
+<div style="counter-reset: n 6;"></div>
+<div style="counter-reset: n 7;"></div>
+<div style="counter-reset: n 8;"></div>
+<div style="counter-reset: n 9;"></div>
+
+<div style="counter-reset: n 10;"></div>
+<div style="counter-reset: n 11;"></div>
+<div style="counter-reset: n 99;"></div>
+<div style="counter-reset: n 100;"></div>
+<div style="counter-reset: n 6001;"></div>
+<div style="counter-reset: n 12345;"></div>
+
+<div style="counter-reset: n -1;"></div>

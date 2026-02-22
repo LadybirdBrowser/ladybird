@@ -237,6 +237,7 @@ class ComputedProperties;
 class ConicGradientStyleValue;
 class ContentStyleValue;
 class CounterDefinitionsStyleValue;
+class CounterStyle;
 class CounterStyleStyleValue;
 class CounterStyleSystemStyleValue;
 class CounterStyleValue;

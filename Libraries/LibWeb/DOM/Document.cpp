@@ -42,11 +42,14 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
+#include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/CounterStyle.h>
+#include <LibWeb/CSS/CounterStyleDefinition.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/MediaQueryList.h>
@@ -1729,6 +1732,9 @@ void Document::update_style()
     style_computer().reset_ancestor_filter();
 
     build_registered_properties_cache();
+
+    // FIXME: We don't need to rebuild this cache on every style update, just if a @counter-style rule has changed.
+    build_counter_style_cache();
 
     auto invalidation = update_style_recursively(*this, style_computer(), false, false, false);
     if (!invalidation.is_none())
@@ -6418,7 +6424,7 @@ WebIDL::ExceptionOr<void> Document::set_adopted_style_sheets(JS::Value new_value
     return {};
 }
 
-void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     if (m_style_sheets) {
         for (auto& style_sheet : m_style_sheets->sheets()) {
@@ -7405,6 +7411,95 @@ void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL con
 
     page().client().page_did_request_document_cookie_version_index(unique_id(), *new_domain);
     m_cookie_version_index = {};
+}
+
+void Document::build_counter_style_cache()
+{
+    m_registered_counter_styles.clear_with_capacity();
+
+    HashMap<FlyString, CSS::CounterStyleDefinition> counter_style_definitions;
+
+    CSS::ComputationContext computation_context {
+        .length_resolution_context = CSS::Length::ResolutionContext::for_document(*this)
+    };
+
+    Function<void(CSS::CSSStyleSheet&)> const collect_counter_style_definitions = [&](CSS::CSSStyleSheet const& style_sheet) {
+        style_sheet.for_each_counter_style_at_rule([&](CSS::CSSCounterStyleRule const& counter_style_rule) {
+            if (auto const& definition = CSS::CounterStyleDefinition::from_counter_style_rule(counter_style_rule, computation_context); definition.has_value())
+                counter_style_definitions.set(definition->name(), *definition);
+        });
+    };
+
+    m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::UserAgent, collect_counter_style_definitions);
+    m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::User, collect_counter_style_definitions);
+    m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::Author, collect_counter_style_definitions);
+
+    // FIXME: Implement the non-css-definable (i.e. longhand east asian and `ethiopic-numeric`) counter styles.
+    VERIFY(counter_style_definitions.contains("decimal"_fly_string));
+
+    auto const is_part_of_extends_cycle = [&](FlyString const& counter_style_name) {
+        HashTable<FlyString> visited;
+        auto current_counter_style_name = counter_style_name;
+
+        while (true) {
+            if (visited.contains(current_counter_style_name))
+                return true;
+
+            visited.set(current_counter_style_name);
+
+            auto const& current_definition = counter_style_definitions.get(current_counter_style_name);
+
+            // NB: Counter styles which extend non-existent counter styles are defaulted to extending "decimal" which
+            //     itself doesn't extend any other counter style so they can't be part of a cycle.
+            if (!current_definition.has_value())
+                return false;
+
+            if (current_definition->algorithm().has<CSS::CounterStyleAlgorithm>())
+                return false;
+
+            current_counter_style_name = current_definition->algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>().name;
+        }
+
+        VERIFY_NOT_REACHED();
+    };
+
+    // NB: We register non-extending counter styles immediately and then extending counter styles after we have
+    //     registered their corresponding extended counter style.
+    Vector<CSS::CounterStyleDefinition> extending_counter_styles;
+
+    for (auto const& [name, definition] : counter_style_definitions) {
+        // NB: We don't need to wait for this counter style's extended counter style to be registered since it doesn't
+        //     have one - register it immediately.
+        if (definition.algorithm().has<CSS::CounterStyleAlgorithm>()) {
+            m_registered_counter_styles.set(name, CSS::CounterStyle::from_counter_style_definition(definition, m_registered_counter_styles));
+            continue;
+        }
+
+        auto extends = definition.algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>();
+
+        if (!counter_style_definitions.contains(extends.name) || is_part_of_extends_cycle(name)) {
+            auto copied = definition;
+            copied.set_algorithm(CSS::CounterStyleSystemStyleValue::Extends { "decimal"_fly_string });
+            extending_counter_styles.append(copied);
+        } else {
+            extending_counter_styles.append(definition);
+        }
+    }
+
+    // FIXME: This is O(n^2) in the worst case but we usually don't see many counter styles so it should be fine in practice.
+    while (!extending_counter_styles.is_empty()) {
+        for (size_t i = 0; i < extending_counter_styles.size(); ++i) {
+            auto const& definition = extending_counter_styles.at(i);
+            auto extends = definition.algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>();
+
+            if (!m_registered_counter_styles.contains(extends.name))
+                continue;
+
+            m_registered_counter_styles.set(definition.name(), CSS::CounterStyle::from_counter_style_definition(definition, m_registered_counter_styles));
+            extending_counter_styles.remove(i);
+            --i;
+        }
+    }
 }
 
 StringView to_string(SetNeedsLayoutReason reason)

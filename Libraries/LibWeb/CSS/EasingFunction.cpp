@@ -317,16 +317,6 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
         VERIFY_NOT_REACHED();
     };
 
-    auto const resolve_integer = [](StyleValue const& style_value) {
-        if (style_value.is_integer())
-            return style_value.as_integer().integer();
-
-        if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_integer({}).value();
-
-        VERIFY_NOT_REACHED();
-    };
-
     if (style_value.is_easing()) {
         return style_value.as_easing().function().visit(
             [&](EasingStyleValue::Linear const& linear) -> EasingFunction {
@@ -358,7 +348,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
                 return CubicBezierEasingFunction { resolved_x1, resolved_y1, resolved_x2, resolved_y2, cubic_bezier.to_string(SerializationMode::Normal) };
             },
             [&](EasingStyleValue::Steps const& steps) -> EasingFunction {
-                return StepsEasingFunction { resolve_integer(steps.number_of_intervals), steps.position, steps.to_string(SerializationMode::ResolvedValue) };
+                return StepsEasingFunction { int_from_style_value(steps.number_of_intervals), steps.position, steps.to_string(SerializationMode::ResolvedValue) };
             });
     }
 

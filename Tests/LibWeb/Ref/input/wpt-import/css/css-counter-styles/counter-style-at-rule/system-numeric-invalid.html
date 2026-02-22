@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Test: system numeric, invalid</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org/">
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#numeric-system">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-counter-styles/counter-style-at-rule/system-common-invalid2-ref.html">
+<link rel="stylesheet" href="support/test-common.css">
+<style type="text/css">
+  @counter-style a {
+    system: numeric;
+    suffix: ":";
+  }
+  @counter-style b {
+    system: numeric;
+    symbols: A;
+    suffix: ":";
+  }
+</style>
+<ol start="-2" style="list-style-type: a">
+  <li>foo<li>bar<li>foo<li>bar
+</ol>
+<ol start="-2" style="list-style-type: b">
+  <li>foo<li>bar<li>foo<li>bar
+</ol>

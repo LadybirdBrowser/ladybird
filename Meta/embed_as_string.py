@@ -15,13 +15,13 @@ def main():
     parser.add_argument("-s", "--namespace", required=False, help="C++ namespace to put the string into")
     args = parser.parse_args()
 
-    with open(args.output, "w") as f:
+    with open(args.output, "w", encoding="utf-8") as f:
         f.write("#include <AK/String.h>\n")
         if args.namespace:
             f.write(f"namespace {args.namespace} {{\n")
         f.write(f"extern String {args.variable_name};\n")
         f.write(f'String {args.variable_name} = R"~~~(')
-        with open(args.input, "r") as input:
+        with open(args.input, "r", encoding="utf-8") as input:
             for line in input.readlines():
                 f.write(f"{line}")
         f.write(')~~~"_string;\n')

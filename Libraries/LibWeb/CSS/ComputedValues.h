@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ColumnCount.h>
+#include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/Enums.h>
@@ -144,7 +145,7 @@ private:
 
 using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefined>;
 
-using ListStyleType = Variant<Empty, CounterStyleNameKeyword, String>;
+using ListStyleType = Variant<Empty, Optional<CounterStyle const&>, String>;
 
 class InitialValues {
 public:
@@ -185,7 +186,7 @@ public:
     static Filter filter() { return Filter::make_none(); }
     static Color background_color() { return Color::Transparent; }
     static BackgroundBox background_color_clip() { return BackgroundBox::BorderBox; }
-    static ListStyleType list_style_type() { return CounterStyleNameKeyword::Disc; }
+    static ListStyleType list_style_type() { return Optional<CounterStyle const&> { CounterStyle::disc() }; }
     static ListStylePosition list_style_position() { return ListStylePosition::Outside; }
     static Visibility visibility() { return Visibility::Visible; }
     static FlexDirection flex_direction() { return FlexDirection::Row; }
