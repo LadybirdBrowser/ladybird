@@ -23,14 +23,26 @@ static constexpr auto s_white_bold = "\033[1;37m"sv;
 
 static void print_node(ASTDumpState const& state, StringView text)
 {
-    if (state.is_root) {
-        outln("{}", text);
-    } else if (state.use_color) {
-        outln("{}{}{}{}{}", state.prefix,
-            s_dim, state.is_last ? "\xe2\x94\x94\xe2\x94\x80 "sv : "\xe2\x94\x9c\xe2\x94\x80 "sv,
-            s_reset, text);
+    if (state.output) {
+        if (state.is_root) {
+            state.output->appendff("{}\n", text);
+        } else if (state.use_color) {
+            state.output->appendff("{}{}{}{}{}\n", state.prefix,
+                s_dim, state.is_last ? "\xe2\x94\x94\xe2\x94\x80 "sv : "\xe2\x94\x9c\xe2\x94\x80 "sv,
+                s_reset, text);
+        } else {
+            state.output->appendff("{}{}{}\n", state.prefix, state.is_last ? "\xe2\x94\x94\xe2\x94\x80 "sv : "\xe2\x94\x9c\xe2\x94\x80 "sv, text);
+        }
     } else {
-        outln("{}{}{}", state.prefix, state.is_last ? "\xe2\x94\x94\xe2\x94\x80 "sv : "\xe2\x94\x9c\xe2\x94\x80 "sv, text);
+        if (state.is_root) {
+            outln("{}", text);
+        } else if (state.use_color) {
+            outln("{}{}{}{}{}", state.prefix,
+                s_dim, state.is_last ? "\xe2\x94\x94\xe2\x94\x80 "sv : "\xe2\x94\x9c\xe2\x94\x80 "sv,
+                s_reset, text);
+        } else {
+            outln("{}{}{}", state.prefix, state.is_last ? "\xe2\x94\x94\xe2\x94\x80 "sv : "\xe2\x94\x9c\xe2\x94\x80 "sv, text);
+        }
     }
 }
 
@@ -45,7 +57,7 @@ static ByteString child_prefix(ASTDumpState const& state)
 
 static ASTDumpState child_state(ASTDumpState const& state, bool is_last)
 {
-    return { child_prefix(state), is_last, false, state.use_color };
+    return { child_prefix(state), is_last, false, state.use_color, state.output };
 }
 
 static ByteString format_position(ASTDumpState const& state, SourceRange const& range)
@@ -1032,6 +1044,15 @@ void ImportStatement::dump(ASTDumpState const& state) const
         print_node(child_state(state, i == m_entries.size() - 1),
             ByteString::formatted("ImportName: {}, LocalName: {}", entry.import_name, entry.local_name));
     }
+}
+
+String ASTNode::dump_to_string() const
+{
+    StringBuilder builder;
+    ASTDumpState state;
+    state.output = &builder;
+    dump(state);
+    return String::from_utf8_with_replacement_character(builder.string_view());
 }
 
 }

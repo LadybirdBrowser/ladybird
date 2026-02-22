@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
+#include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Weak.h>
@@ -174,6 +175,7 @@ public:
     [[nodiscard]] UnrealizedSourceRange source_range_at(size_t offset) const;
 
     void dump() const;
+    [[nodiscard]] String dump_to_string() const;
 
     [[nodiscard]] Operand original_operand_from_raw(u32) const;
 

@@ -92,6 +92,45 @@ void Executable::dump() const
     warnln("");
 }
 
+String Executable::dump_to_string() const
+{
+    StringBuilder output;
+    output.appendff("JS bytecode executable \"{}\"\n", name);
+    InstructionStreamIterator it(bytecode, this);
+
+    size_t basic_block_offset_index = 0;
+
+    while (!it.at_end()) {
+        bool print_basic_block_marker = false;
+        if (basic_block_offset_index < basic_block_start_offsets.size()
+            && it.offset() == basic_block_start_offsets[basic_block_offset_index]) {
+            ++basic_block_offset_index;
+            print_basic_block_marker = true;
+        }
+
+        output.appendff("[{:4x}] ", it.offset());
+        if (print_basic_block_marker)
+            output.appendff("{:4}: ", basic_block_offset_index - 1);
+        else
+            output.append("      "sv);
+        output.appendff("{}\n", (*it).to_byte_string(*this));
+
+        ++it;
+    }
+
+    if (!exception_handlers.is_empty()) {
+        output.append("\nException handlers:\n"sv);
+        for (auto& handlers : exception_handlers) {
+            output.appendff("    from {:4x} to {:4x} handler {:4x}\n",
+                handlers.start_offset,
+                handlers.end_offset,
+                handlers.handler_offset);
+        }
+    }
+
+    return output.to_string_without_validation();
+}
+
 void Executable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);

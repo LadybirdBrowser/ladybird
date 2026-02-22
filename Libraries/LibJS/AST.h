@@ -55,6 +55,7 @@ struct ASTDumpState {
     bool is_last { true };
     bool is_root { true };
     bool use_color { false };
+    StringBuilder* output { nullptr };
 };
 
 class JS_API ASTNode : public RefCounted<ASTNode> {
@@ -66,6 +67,7 @@ public:
 
     virtual Optional<Bytecode::ScopedOperand> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
     virtual void dump(ASTDumpState const& state = {}) const;
+    [[nodiscard]] String dump_to_string() const;
 
     [[nodiscard]] SourceRange const& source_range() const { return m_source_range; }
     u32 start_offset() const { return m_source_range.start.offset; }
