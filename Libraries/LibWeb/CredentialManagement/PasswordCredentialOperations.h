@@ -10,7 +10,10 @@
 
 namespace Web::CredentialManagement {
 
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> const&, URL::Origin);
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::Realm& realm, PasswordCredentialData const&, URL::Origin);
+// https://www.w3.org/TR/credential-management-1/#abstract-opdef-create-a-passwordcredential-from-an-htmlformelement
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> const&, URL::Origin const&);
+
+// https://www.w3.org/TR/credential-management-1/#abstract-opdef-create-a-passwordcredential-from-passwordcredentialdata
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(JS::Realm& realm, PasswordCredentialData const&, URL::Origin const&);
 
 }
