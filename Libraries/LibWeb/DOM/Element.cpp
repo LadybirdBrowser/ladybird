@@ -1907,7 +1907,6 @@ bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowH
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementIsPotentiallyScrollable);
-    const_cast<Document&>(document()).update_style();
 
     // NB: Since this should always be the body element, the body element must have a <html> element parent. See Document::body().
     VERIFY(parent_element());
