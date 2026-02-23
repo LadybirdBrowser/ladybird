@@ -55,7 +55,7 @@ Optional<CounterStyleDefinition> CounterStyleDefinition::from_counter_style_rule
     if (maybe_algorithm.has<Empty>())
         return {};
 
-    return CounterStyleDefinition(
+    return CounterStyleDefinition::create(
         rule.name(),
         maybe_algorithm.downcast<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends>(),
         rule.negative_style_value() ? Optional<CounterStyleNegativeSign> { resolve_negative_sign(*rule.negative_style_value()) } : Optional<CounterStyleNegativeSign> {},

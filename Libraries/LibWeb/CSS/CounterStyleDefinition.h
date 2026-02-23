@@ -59,7 +59,7 @@ struct AutoRange {
 
 class CounterStyleDefinition {
 public:
-    static Optional<CounterStyleDefinition> create(FlyString name, Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> algorithm, Optional<CounterStyleNegativeSign> negative_sign, Optional<CounterStyleSymbol> prefix, Optional<CounterStyleSymbol> suffix, Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> range, Optional<FlyString> fallback, Optional<CounterStylePad> pad)
+    static CounterStyleDefinition create(FlyString name, Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> algorithm, Optional<CounterStyleNegativeSign> negative_sign, Optional<CounterStyleSymbol> prefix, Optional<CounterStyleSymbol> suffix, Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> range, Optional<FlyString> fallback, Optional<CounterStylePad> pad)
     {
         return CounterStyleDefinition(move(name), move(algorithm), move(negative_sign), move(prefix), move(suffix), move(range), move(fallback), move(pad));
     }
