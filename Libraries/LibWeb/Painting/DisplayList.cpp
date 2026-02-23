@@ -45,8 +45,12 @@ void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshotBy
     if (surface) {
         surface->lock_context();
     }
+    m_surface = surface;
     auto scroll_state_snapshot = m_scroll_state_snapshots_by_display_list.get(display_list).value_or({});
-    execute_impl(display_list, scroll_state_snapshot, surface);
+    execute_impl(display_list, scroll_state_snapshot);
+    if (surface)
+        flush();
+    m_surface = nullptr;
     if (surface) {
         surface->unlock_context();
     }
@@ -84,21 +88,14 @@ static FloatMatrix4x4 scale_matrix_for_device_pixels(FloatMatrix4x4 matrix, floa
     return matrix;
 }
 
-void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface> surface)
+void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state)
 {
-    if (surface)
-        m_surfaces.append(*surface);
-    ScopeGuard guard = [&surfaces = m_surfaces, pop_surface_from_stack = !!surface] {
-        if (pop_surface_from_stack)
-            (void)surfaces.take_last();
-    };
-
     auto const& commands = display_list.commands();
     auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
 
     DevicePixelConverter device_pixel_converter { device_pixels_per_css_pixel };
 
-    VERIFY(!m_surfaces.is_empty());
+    VERIFY(m_surface);
 
     auto for_each_node_from_common_ancestor_to_target = [](this auto const& self, RefPtr<AccumulatedVisualContext const> common_ancestor, RefPtr<AccumulatedVisualContext const> node, auto&& callback) -> void {
         if (!node || node == common_ancestor)
@@ -263,8 +260,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         applied_depth--;
     }
 
-    if (surface)
-        flush();
+    flush();
 }
 
 }

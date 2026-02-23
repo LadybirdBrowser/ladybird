@@ -27,8 +27,8 @@ public:
     void execute(DisplayList&, ScrollStateSnapshotByDisplayList&&, RefPtr<Gfx::PaintingSurface>);
 
 protected:
-    Gfx::PaintingSurface& surface() const { return m_surfaces.last(); }
-    void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface>);
+    Gfx::PaintingSurface& surface() const { return *m_surface; }
+    void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state);
 
     ScrollStateSnapshotByDisplayList m_scroll_state_snapshots_by_display_list;
 
@@ -67,7 +67,7 @@ private:
 
     virtual void add_clip_path(Gfx::Path const&) = 0;
 
-    Vector<NonnullRefPtr<Gfx::PaintingSurface>, 1> m_surfaces;
+    RefPtr<Gfx::PaintingSurface> m_surface;
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
