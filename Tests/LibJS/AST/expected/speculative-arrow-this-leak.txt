@@ -1,0 +1,20 @@
+Program (script) @6:1
+└─ FunctionDeclaration "outer" [uses-this] @6:1
+   └─ body
+      └─ FunctionBody @7:5
+         ├─ VariableDeclaration (var) @7:5
+         │  └─ VariableDeclarator @7:5
+         │     ├─ Identifier "f" [variable:0] (var) @7:9
+         │     └─ FunctionExpression "" [uses-this] @7:13
+         │        ├─ parameters
+         │        │  └─ Identifier "a" [argument:0] @7:22
+         │        └─ body
+         │           └─ FunctionBody @8:9
+         │              ├─ ExpressionStatement @8:9
+         │              │  └─ AssignmentExpression (=) @8:12
+         │              │     ├─ Identifier "a" [argument:0] @8:10
+         │              │     └─ ThisExpression @8:14
+         │              └─ ReturnStatement @9:9
+         │                 └─ Identifier "a" [argument:0] @9:16
+         └─ ReturnStatement @11:5
+            └─ Identifier "f" [variable:0] (var) @11:12

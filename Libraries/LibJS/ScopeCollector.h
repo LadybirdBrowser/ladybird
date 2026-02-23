@@ -92,6 +92,19 @@ public:
 
     bool has_declaration_in_current_function(Utf16FlyString const& name) const;
 
+    struct SavedAncestorFlags {
+        ScopeRecord* record;
+        bool uses_this;
+        bool uses_this_from_environment;
+    };
+
+    // Save/restore ancestor function scope flags around speculative parsing.
+    // During speculative arrow function parsing, set_uses_this() may propagate
+    // flags to ancestor function scopes. If the speculative parse fails, these
+    // flags must be restored.
+    [[nodiscard]] Vector<SavedAncestorFlags> save_ancestor_flags() const;
+    void restore_ancestor_flags(Vector<SavedAncestorFlags> const&);
+
     void analyze();
 
 private:

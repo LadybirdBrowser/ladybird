@@ -300,6 +300,25 @@ void ScopeCollector::set_uses_new_target()
 void ScopeCollector::set_is_arrow_function() { m_current->is_arrow_function = true; }
 void ScopeCollector::set_is_function_declaration() { m_current->is_function_declaration = true; }
 
+Vector<ScopeCollector::SavedAncestorFlags> ScopeCollector::save_ancestor_flags() const
+{
+    Vector<SavedAncestorFlags> saved;
+    for (auto* scope = m_current; scope; scope = scope->parent) {
+        if (scope->type == ScopeRecord::ScopeType::Function) {
+            saved.append({ scope, scope->uses_this, scope->uses_this_from_environment });
+        }
+    }
+    return saved;
+}
+
+void ScopeCollector::restore_ancestor_flags(Vector<SavedAncestorFlags> const& saved)
+{
+    for (auto const& entry : saved) {
+        entry.record->uses_this = entry.uses_this;
+        entry.record->uses_this_from_environment = entry.uses_this_from_environment;
+    }
+}
+
 bool ScopeCollector::contains_direct_call_to_eval() const { return m_current->contains_direct_call_to_eval; }
 bool ScopeCollector::uses_this_from_environment() const { return m_current->uses_this_from_environment; }
 bool ScopeCollector::uses_this() const { return m_current->uses_this; }

@@ -495,6 +495,11 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
             return nullptr;
     }
 
+    // Save ancestor function scope flags before speculative parsing.
+    // If arrow parsing fails, set_uses_this() may have propagated flags
+    // to ancestor function scopes that must be restored.
+    auto saved_ancestor_flags = scope_collector().save_ancestor_flags();
+
     save_state();
     auto rule_start = (expect_parens && !is_async)
         // Someone has consumed the opening parenthesis for us! Start there.
@@ -504,6 +509,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
 
     ArmedScopeGuard state_rollback_guard = [&] {
         load_state();
+        scope_collector().restore_ancestor_flags(saved_ancestor_flags);
     };
 
     auto function_kind = FunctionKind::Normal;
