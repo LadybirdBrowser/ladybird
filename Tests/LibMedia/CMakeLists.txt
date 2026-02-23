@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestAudioDataProvider.cpp
     TestCICP.cpp
     TestDataProviders.cpp
+    TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
     TestH264Decode.cpp
     TestIncrementallyPopulatedStream.cpp
