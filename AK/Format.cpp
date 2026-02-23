@@ -1379,14 +1379,16 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
             builder.appendff("({})", process_id);
             auto thread_id = current_thread_id();
 
-            if (thread_id != s_main_thread_id) {
-                char thread_name[16];
-                auto thread_name_result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
-                if (thread_name_result == 0 && strlen(thread_name) > 0)
-                    builder.appendff(" {}", thread_name);
-                else
-                    builder.append(" Thread"sv);
-                builder.appendff("({})", thread_id);
+            if constexpr (!IsSame<decltype(thread_id), Empty>) {
+                if (thread_id != s_main_thread_id) {
+                    char thread_name[16];
+                    auto thread_name_result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+                    if (thread_name_result == 0 && strlen(thread_name) > 0)
+                        builder.appendff(" {}", thread_name);
+                    else
+                        builder.append(" Thread"sv);
+                    builder.appendff("({})", thread_id);
+                }
             }
             builder.append(DEFAULT_FORMAT ": "sv);
         }
