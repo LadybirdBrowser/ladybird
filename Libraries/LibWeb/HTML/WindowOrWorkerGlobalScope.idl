@@ -43,7 +43,7 @@ interface mixin WindowOrWorkerGlobalScope {
     [SameObject] readonly attribute Crypto crypto;
 
     // https://w3c.github.io/ServiceWorker/#cache-storage-interface
-    [SecureContext, SameObject] readonly attribute CacheStorage caches;
+    [SecureContext, SameObject, Experimental] readonly attribute CacheStorage caches;
 
     // https://w3c.github.io/trusted-types/dist/spec/#extensions-to-the-windoworworkerglobalscope-interface
     readonly attribute TrustedTypePolicyFactory trustedTypes;
