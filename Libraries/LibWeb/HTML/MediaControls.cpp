@@ -36,8 +36,8 @@ MediaControls::MediaControls(HTMLMediaElement& media_element)
 MediaControls::~MediaControls()
 {
     remove_event_listeners();
-    if (auto media_element = m_media_element.ptr())
-        media_element->set_shadow_root(nullptr);
+    if (m_media_element)
+        m_media_element->set_shadow_root(nullptr);
 }
 
 void MediaControls::create_shadow_tree()
