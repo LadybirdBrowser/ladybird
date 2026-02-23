@@ -471,7 +471,11 @@ void MediaControls::update_timeline()
     if (!isnan(duration) && duration > 0.0)
         percentage = (m_media_element->current_time() / duration) * 100.0;
 
+    if (m_last_timeline_percentage == percentage)
+        return;
+
     MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
+    m_last_timeline_percentage = percentage;
 }
 
 void MediaControls::update_timestamp()
