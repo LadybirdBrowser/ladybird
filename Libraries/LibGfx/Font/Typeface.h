@@ -50,9 +50,9 @@ struct FontCacheKey {
 
     unsigned hash() const
     {
-        auto h = pair_int_hash(u32_hash(bit_cast<u32>(point_size)), axes.size());
+        auto h = pair_int_hash(bit_cast<u32>(point_size), axes.size());
         for (auto const& axis : axes)
-            h = pair_int_hash(h, pair_int_hash(axis.tag.to_u32(), u32_hash(bit_cast<u32>(axis.value))));
+            h = pair_int_hash(h, pair_int_hash(axis.tag.to_u32(), bit_cast<u32>(axis.value)));
         h = pair_int_hash(h, Traits<Gfx::ShapeFeatures>::hash(shape_features));
         return h;
     }

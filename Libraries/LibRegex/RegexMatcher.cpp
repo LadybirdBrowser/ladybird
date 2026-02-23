@@ -721,6 +721,6 @@ template<typename Parser>
 struct AK::Traits<regex::CacheKey<Parser>> : public AK::DefaultTraits<regex::CacheKey<Parser>> {
     static unsigned hash(regex::CacheKey<Parser> const& key)
     {
-        return pair_int_hash(key.pattern.hash(), u32_hash(to_underlying(key.options.value())));
+        return pair_int_hash(key.pattern.hash(), to_underlying(key.options.value()));
     }
 };
