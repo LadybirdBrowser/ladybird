@@ -35,6 +35,10 @@
 #    include <AK/Windows.h>
 #endif
 
+#if defined(AK_OS_FREEBSD)
+#    include <pthread_np.h>
+#endif
+
 namespace AK {
 
 class FormatParser : public GenericLexer {
@@ -1320,6 +1324,8 @@ static auto current_thread_id()
     u64 thread_id { 0 };
     pthread_threadid_np(nullptr, &thread_id);
     return thread_id;
+#elif defined(AK_OS_FREEBSD)
+    return pthread_getthreadid_np();
 #else
     return Empty();
 #endif
