@@ -44,11 +44,26 @@ void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::I
     APPEND(AddRoundedRectClip { corner_radii, border_rect, corner_clip });
 }
 
-void DisplayListRecorder::add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect, Gfx::MaskKind kind)
+void DisplayListRecorder::begin_masks(ReadonlySpan<MaskInfo> masks)
 {
-    if (rect.is_empty())
-        return;
-    APPEND(AddMask { move(display_list), rect, kind });
+    for (auto const& mask : masks) {
+        save();
+        add_clip_rect(mask.rect);
+        save_layer();
+    }
+}
+
+void DisplayListRecorder::end_masks(ReadonlySpan<MaskInfo> masks)
+{
+    for (size_t i = masks.size(); i-- > 0;) {
+        auto const& mask = masks[i];
+        auto mask_kind = mask.kind == Gfx::MaskKind::Luminance ? Optional<Gfx::MaskKind>(Gfx::MaskKind::Luminance) : Optional<Gfx::MaskKind> {};
+        apply_effects(1.0f, Gfx::CompositingAndBlendingOperator::DestinationIn, {}, mask_kind);
+        paint_nested_display_list(mask.display_list, mask.rect);
+        restore(); // DstIn layer
+        restore(); // content layer
+        restore(); // clip save
+    }
 }
 
 void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
@@ -346,9 +361,9 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutt
         .vertical = vertical });
 }
 
-void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Gfx::Filter> filter)
+void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Gfx::Filter> filter, Optional<Gfx::MaskKind> mask_kind)
 {
-    APPEND(ApplyEffects { .opacity = opacity, .compositing_and_blending_operator = compositing_and_blending_operator, .filter = move(filter) });
+    APPEND(ApplyEffects { .opacity = opacity, .compositing_and_blending_operator = compositing_and_blending_operator, .filter = move(filter), .mask_kind = mask_kind });
 }
 
 }

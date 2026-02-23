@@ -10,6 +10,7 @@
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
+#include <core/SkColorFilter.h>
 #include <core/SkFont.h>
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
@@ -19,6 +20,7 @@
 #include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
+#include <effects/SkLumaColorFilter.h>
 #include <effects/SkRuntimeEffect.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
@@ -869,6 +871,9 @@ void DisplayListPlayerSkia::apply_effects(ApplyEffects const& command)
 
     if (command.filter.has_value())
         paint.setImageFilter(to_skia_image_filter(command.filter.value()));
+
+    if (command.mask_kind.has_value() && command.mask_kind.value() == Gfx::MaskKind::Luminance)
+        paint.setColorFilter(SkLumaColorFilter::Make());
 
     canvas.saveLayer(nullptr, &paint);
 }

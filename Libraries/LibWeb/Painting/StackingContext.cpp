@@ -299,9 +299,6 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto const& computed_values = paintable_box().computed_values();
     auto mask_image = computed_values.mask_image();
 
-    // Mask handling stays at paint time with its own save/restore.
-    bool needs_to_save_state = mask_image || paintable_box().get_mask_area().has_value() || paintable_box().get_clip_area().has_value();
-
     auto effective_state = paintable_box().accumulated_visual_context();
     context.display_list_recorder().set_accumulated_visual_context(effective_state);
 
@@ -312,9 +309,8 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         context.display_list_recorder().fill_rect_transparent(device_rect);
     }
 
-    if (needs_to_save_state) {
-        context.display_list_recorder().save();
-    }
+    // Collect all masks (CSS mask-image, SVG <mask>, SVG <clipPath>).
+    Vector<DisplayListRecorder::MaskInfo> masks;
 
     if (mask_image) {
         auto mask_display_list = DisplayList::create(context.device_pixels_per_css_pixel());
@@ -322,25 +318,25 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         auto mask_painting_context = context.clone(display_list_recorder);
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
         mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);
-        context.display_list_recorder().add_mask(mask_display_list, mask_rect_in_device_pixels.to_type<int>(), Gfx::MaskKind::Alpha);
+        masks.append({ mask_display_list, mask_rect_in_device_pixels.to_type<int>(), Gfx::MaskKind::Alpha });
     }
 
-    // Apply <mask> if present
     if (auto mask_area = paintable_box().get_mask_area(); mask_area.has_value()) {
         if (auto mask_display_list = paintable_box().calculate_mask(context, *mask_area)) {
             auto rect = context.enclosing_device_rect(*mask_area).to_type<int>();
             auto kind = paintable_box().get_mask_type().value_or(Gfx::MaskKind::Alpha);
-            context.display_list_recorder().add_mask(mask_display_list, rect, kind);
+            masks.append({ mask_display_list, rect, kind });
         }
     }
 
-    // Apply <clipPath> if present
     if (auto clip_area = paintable_box().get_clip_area(); clip_area.has_value()) {
         if (auto clip_display_list = paintable_box().calculate_clip(context, *clip_area)) {
             auto rect = context.enclosing_device_rect(*clip_area).to_type<int>();
-            context.display_list_recorder().add_mask(clip_display_list, rect, Gfx::MaskKind::Alpha);
+            masks.append({ clip_display_list, rect, Gfx::MaskKind::Alpha });
         }
     }
+
+    context.display_list_recorder().begin_masks(masks);
 
     auto context_before_children = context.display_list_recorder().accumulated_visual_context();
 
@@ -348,8 +344,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
     context.display_list_recorder().set_accumulated_visual_context(context_before_children);
 
-    if (needs_to_save_state)
-        context.display_list_recorder().restore();
+    context.display_list_recorder().end_masks(masks);
 }
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
