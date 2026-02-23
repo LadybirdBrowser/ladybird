@@ -2257,20 +2257,9 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
             if (percentage < 0 || percentage > 100)
                 return {};
         }
-        Optional<PercentageOrCalculated> percentage_or_calculated;
-        if (percentage_style_value) {
-            if (percentage_style_value->is_calculated()) {
-                percentage_or_calculated = PercentageOrCalculated { percentage_style_value->as_calculated() };
-            } else if (percentage_style_value->is_percentage()) {
-                percentage_or_calculated = PercentageOrCalculated { percentage_style_value->as_percentage().percentage() };
-            } else {
-                VERIFY_NOT_REACHED();
-            }
-        }
-
         return ColorMixStyleValue::ColorMixComponent {
             .color = color_style_value.release_nonnull(),
-            .percentage = move(percentage_or_calculated),
+            .percentage = move(percentage_style_value),
         };
     };
 
@@ -2303,9 +2292,9 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
     if (!second_component.has_value())
         return {};
 
-    if (first_component->percentage.has_value() && second_component->percentage.has_value()
+    if (first_component->percentage && second_component->percentage
         && !first_component->percentage->is_calculated() && !second_component->percentage->is_calculated()
-        && first_component->percentage->value().value() == 0 && second_component->percentage->value().value() == 0) {
+        && first_component->percentage->as_percentage().percentage().value() == 0 && second_component->percentage->as_percentage().percentage().value() == 0) {
         return {};
     }
 

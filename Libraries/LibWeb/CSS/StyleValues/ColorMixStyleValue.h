@@ -17,7 +17,7 @@ public:
 
     struct ColorMixComponent {
         ValueComparingNonnullRefPtr<StyleValue const> color;
-        Optional<PercentageOrCalculated> percentage;
+        ValueComparingRefPtr<StyleValue const> percentage;
         bool operator==(ColorMixComponent const&) const = default;
     };
 
@@ -33,8 +33,8 @@ public:
         return (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent())
             && m_properties.first_component.color->is_computationally_independent()
             && m_properties.second_component.color->is_computationally_independent()
-            && (!m_properties.first_component.percentage.has_value() || m_properties.first_component.percentage->is_computationally_independent())
-            && (!m_properties.second_component.percentage.has_value() || m_properties.second_component.percentage->is_computationally_independent());
+            && (!m_properties.first_component.percentage || m_properties.first_component.percentage->is_computationally_independent())
+            && (!m_properties.second_component.percentage || m_properties.second_component.percentage->is_computationally_independent());
     }
 
 private:
@@ -48,8 +48,8 @@ private:
     ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
     struct PercentageNormalizationResult {
-        Percentage p1;
-        Percentage p2;
+        ValueComparingNonnullRefPtr<StyleValue const> p1;
+        ValueComparingNonnullRefPtr<StyleValue const> p2;
         double alpha_multiplier;
     };
     PercentageNormalizationResult normalize_percentages() const;

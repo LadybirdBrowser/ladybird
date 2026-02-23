@@ -44,11 +44,11 @@ bool ColorMixStyleValue::equals(StyleValue const& other) const
 // https://drafts.csswg.org/css-color-5/#serial-color-mix
 void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    auto serialize_first_percentage = [&mode](StringBuilder& builder, Optional<PercentageOrCalculated> const& p1, Optional<PercentageOrCalculated> const& p2) {
+    auto serialize_first_percentage = [&mode](StringBuilder& builder, RefPtr<StyleValue const> const& p1, RefPtr<StyleValue const> const& p2) {
         // if BOTH the first percentage p1 and second percentage p2 are specified:
-        if (p1.has_value() && p2.has_value()) {
+        if (p1 && p2) {
             // If both p1 equals 50% and p2 equals 50%, nothing is serialized.
-            if (!p1->is_calculated() && !p2->is_calculated() && p1->value().value() == 50 && p2->value().value() == 50)
+            if (p1->is_percentage() && p2->is_percentage() && p1->as_percentage().percentage().value() == 50 && p2->as_percentage().percentage().value() == 50)
                 return;
 
             // else, p1 is serialized as is.
@@ -56,9 +56,9 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
             p1->serialize(builder, mode);
         }
         // else if ONLY the first percentage p1 is specified:
-        else if (p1.has_value()) {
+        else if (p1) {
             // If p1 is equal to 50%, nothing is serialized.
-            if (!p1->is_calculated() && p1->value().value() == 50)
+            if (p1->is_percentage() && p1->as_percentage().percentage().value() == 50)
                 return;
 
             // else, p1 is serialized as is.
@@ -66,14 +66,14 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
             p1->serialize(builder, mode);
         }
         // else if ONLY the second percentage p2 is specified:
-        else if (p2.has_value()) {
+        else if (p2) {
             // if p2 equals 50%, nothing is serialized.
-            if (!p2->is_calculated() && p2->value().value() == 50)
+            if (p2->is_percentage() && p2->as_percentage().percentage().value() == 50)
                 return;
 
             // if p2 is not calc(), the value of 100% - p2 is serialized.
             if (!p2->is_calculated())
-                builder.appendff(" {}%", 100 - p2->value().value());
+                builder.appendff(" {}%", 100 - p2->as_percentage().percentage().value());
 
             // else, nothing is serialized.
         }
@@ -83,11 +83,11 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
         }
     };
 
-    auto serialize_second_percentage = [&mode](StringBuilder& builder, Optional<PercentageOrCalculated> const& p1, Optional<PercentageOrCalculated> const& p2) {
+    auto serialize_second_percentage = [&mode](StringBuilder& builder, RefPtr<StyleValue const> const& p1, RefPtr<StyleValue const> const& p2) {
         // If BOTH the first percentage p1 and second percentages p2 are specified:
-        if (p1.has_value() && p2.has_value()) {
+        if (p1 && p2) {
             // if neither p1 nor p2 is calc(), and p1 + p2 equals 100%, nothing is serialized.
-            if (!p1->is_calculated() && !p2->is_calculated() && p1->value().value() + p2->value().value() == 100)
+            if (p1->is_percentage() && p2->is_percentage() && p1->as_percentage().percentage().value() + p2->as_percentage().percentage().value() == 100)
                 return;
 
             // else, p2 is serialized as is.
@@ -95,13 +95,13 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
             p2->serialize(builder, mode);
         }
         // else if ONLY the first percentage p1 is specified:
-        else if (p1.has_value()) {
+        else if (p1) {
             // nothing is serialized.
         }
         // else if ONLY the second percentage p2 is specified:
-        else if (p2.has_value()) {
+        else if (p2) {
             // if p2 equals 50%, nothing is serialized.
-            if (!p2->is_calculated() && p2->value().value() == 50)
+            if (p2->is_percentage() && p2->as_percentage().percentage().value() == 50)
                 return;
 
             // if p2 is not calc(), nothing is serialized.
@@ -136,12 +136,12 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
 // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
 ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_percentages() const
 {
-    auto resolve_percentage = [&](Optional<PercentageOrCalculated> const& percentage_or_calculated) -> Optional<Percentage> {
-        if (!percentage_or_calculated.has_value())
+    auto resolve_percentage = [&](RefPtr<StyleValue const> const& percentage_or_calculated) -> Optional<Percentage> {
+        if (!percentage_or_calculated)
             return {};
         if (!percentage_or_calculated->is_calculated())
-            return percentage_or_calculated->value();
-        return percentage_or_calculated->resolved({});
+            return percentage_or_calculated->as_percentage().percentage();
+        return percentage_or_calculated->as_calculated().resolve_percentage({});
     };
 
     // 1. Let p1 be the first percentage and p2 the second one.
@@ -181,7 +181,7 @@ ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_
     VERIFY(p1.has_value());
     VERIFY(p2.has_value());
 
-    return PercentageNormalizationResult { .p1 = *p1, .p2 = *p2, .alpha_multiplier = alpha_multiplier };
+    return PercentageNormalizationResult { .p1 = PercentageStyleValue::create(*p1), .p2 = PercentageStyleValue::create(*p2), .alpha_multiplier = alpha_multiplier };
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix-result
@@ -192,7 +192,7 @@ Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolu
     auto normalized_percentages = normalize_percentages();
     auto from_color = m_properties.first_component.color->to_color(color_resolution_context);
     auto to_color = m_properties.second_component.color->to_color(color_resolution_context);
-    auto delta = normalized_percentages.p2.value() / 100;
+    auto delta = Percentage::from_style_value(normalized_percentages.p2).as_fraction();
 
     if (!from_color.has_value() || !to_color.has_value())
         return {};
@@ -218,7 +218,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
 
     auto from_color = absolutized_first_color->to_color(color_resolution_context);
     auto to_color = absolutized_second_color->to_color(color_resolution_context);
-    auto delta = normalized_percentages.p2.value() / 100;
+    auto delta = Percentage::from_style_value(normalized_percentages.p2).as_fraction();
 
     if (from_color.has_value() && to_color.has_value()) {
         // FIXME: Interpolation should produce a StyleValue of some kind instead of a Gfx::Color, and use the interpolation color space.
