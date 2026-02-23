@@ -148,6 +148,10 @@ runs:
             qt \
             unzip
 
+    - name: 'Install Rust toolchain'
+      if: ${{ inputs.os != 'Windows' }}
+      uses: dtolnay/rust-toolchain@stable
+
     - name: 'Install wasm-tools'
       shell: bash
       run: |
