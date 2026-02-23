@@ -4,7 +4,7 @@ Program (script) @1:1
       └─ FunctionBody @2:5
          ├─ VariableDeclaration (var) @2:5
          │  └─ VariableDeclarator @2:5
-         │     ├─ Identifier "x" (var) @2:9
+         │     ├─ Identifier "x" [variable:1] (var) @2:9
          │     └─ NumericLiteral 1 @2:13
          ├─ FunctionDeclaration "inner" @3:5
          │  └─ body
@@ -15,4 +15,4 @@ Program (script) @1:1
          │                 ├─ StringLiteral "x" @4:16
          │                 └─ NumericLiteral 42 @4:21
          └─ ReturnStatement @6:5
-            └─ Identifier "x" (var) @6:12
+            └─ Identifier "x" [variable:1] (var) @6:12

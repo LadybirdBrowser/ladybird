@@ -1517,6 +1517,7 @@ Parser::PrimaryExpressionParseResult Parser::parse_object_expression()
         property_type = ObjectProperty::Type::KeyValue;
         RefPtr<Expression const> property_key;
         RefPtr<Expression const> property_value;
+        RefPtr<Identifier> shorthand_identifier;
         FunctionKind function_kind { FunctionKind::Normal };
 
         if (match(TokenType::TripleDot)) {
@@ -1559,7 +1560,11 @@ Parser::PrimaryExpressionParseResult Parser::parse_object_expression()
                 property_key = parse_property_key();
             } else {
                 property_key = create_ast_node<StringLiteral>({ m_source_code, rule_start.position(), position() }, identifier.fly_string_value().to_utf16_string());
-                property_value = create_identifier_and_register_in_current_scope({ m_source_code, rule_start.position(), position() }, identifier.fly_string_value());
+                // NB: Don't register the identifier in the scope collector yet.
+                // If this turns out to be a shorthand property, we'll register it
+                // below. Otherwise (key: value), the identifier is unused.
+                shorthand_identifier = create_ast_node<Identifier>({ m_source_code, rule_start.position(), position() }, identifier.fly_string_value());
+                property_value = shorthand_identifier;
             }
         } else {
             property_key = parse_property_key();
@@ -1625,6 +1630,12 @@ Parser::PrimaryExpressionParseResult Parser::parse_object_expression()
                 if (is_strict_reserved_word(string_literal.value()))
                     syntax_error(MUST(String::formatted("'{}' is a reserved keyword", string_literal.value())));
             }
+
+            // NB: This is a shorthand property ({x}), so now register the
+            // identifier in the scope collector. We deferred this from above
+            // to avoid registering identifiers for key: value properties.
+            if (scope_collector().has_current_scope())
+                scope_collector().register_identifier(*shorthand_identifier, {});
 
             properties.append(create_ast_node<ObjectProperty>({ m_source_code, rule_start.position(), position() }, *property_key, *property_value, property_type, false));
         } else {
