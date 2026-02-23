@@ -3755,6 +3755,12 @@ void @class_name@::initialize(JS::Realm& realm)
 
         auto attribute_generator = generator_for_member(attribute.name, attribute.extended_attributes);
 
+        // AD-HOC: Do not expose experimental attributes unless instructed to do so.
+        if (attribute.extended_attributes.contains("Experimental")) {
+            attribute_generator.append(R"~~~(
+    if (HTML::UniversalGlobalScopeMixin::expose_experimental_interfaces()) {)~~~");
+        }
+
         if (attribute.extended_attributes.contains("SecureContext")) {
             attribute_generator.append(R"~~~(
     if (HTML::is_secure_context(Bindings::principal_host_defined_environment_settings_object(realm))) {)~~~");
@@ -3813,6 +3819,11 @@ void @class_name@::initialize(JS::Realm& realm)
 )~~~");
 
         if (attribute.extended_attributes.contains("SecureContext")) {
+            attribute_generator.append(R"~~~(
+    })~~~");
+        }
+
+        if (attribute.extended_attributes.contains("Experimental")) {
             attribute_generator.append(R"~~~(
     })~~~");
         }
