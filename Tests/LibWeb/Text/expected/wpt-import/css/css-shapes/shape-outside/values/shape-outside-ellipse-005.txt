@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 416 tests
 
-396 Pass
-20 Fail
+400 Pass
+16 Fail
 Pass	test unit: cm - ellipse(50cm 100cm at 50% 50%) - inline
 Pass	test unit: cm - ellipse(100cm 100px at 50% 50%) - inline
 Pass	test unit: cm - ellipse(50cm 25% at 50% 50%) - inline
@@ -265,17 +265,17 @@ Pass	test unit: pt - ellipse(100pt 100px at 50% 50%) - computed
 Pass	test unit: pt - ellipse(50pt 25% at 50% 50%) - computed
 Pass	test unit: pt - ellipse(25% 50pt at 50% 50%) - computed
 Pass	test unit: pt - ellipse(25pt closest-side at 50% 50%) - computed
-Fail	test unit: pt - ellipse(closest-side 75pt at 50% 50%) - computed
+Pass	test unit: pt - ellipse(closest-side 75pt at 50% 50%) - computed
 Pass	test unit: pt - ellipse(25pt farthest-side at 50% 50%) - computed
-Fail	test unit: pt - ellipse(farthest-side 75pt at 50% 50%) - computed
+Pass	test unit: pt - ellipse(farthest-side 75pt at 50% 50%) - computed
 Pass	test unit: pt - ellipse(50pt 100pt) - computed
 Pass	test unit: pt - ellipse(100pt 100px) - computed
 Pass	test unit: pt - ellipse(50pt 25%) - computed
 Pass	test unit: pt - ellipse(25% 50pt) - computed
 Pass	test unit: pt - ellipse(25pt closest-side) - computed
-Fail	test unit: pt - ellipse(closest-side 75pt) - computed
+Pass	test unit: pt - ellipse(closest-side 75pt) - computed
 Pass	test unit: pt - ellipse(25pt farthest-side) - computed
-Fail	test unit: pt - ellipse(farthest-side 75pt) - computed
+Pass	test unit: pt - ellipse(farthest-side 75pt) - computed
 Pass	test unit: pc - ellipse(50pc 100pc at 50% 50%) - computed
 Pass	test unit: pc - ellipse(100pc 100px at 50% 50%) - computed
 Pass	test unit: pc - ellipse(50pc 25% at 50% 50%) - computed
