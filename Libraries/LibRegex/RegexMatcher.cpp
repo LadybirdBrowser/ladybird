@@ -514,13 +514,6 @@ private:
     Node* m_last { nullptr };
 };
 
-struct SufficientlyUniformValueTraits : DefaultTraits<u64> {
-    static constexpr unsigned hash(u64 value)
-    {
-        return (value >> 32) ^ value;
-    }
-};
-
 template<class Parser>
 Matcher<Parser>::ExecuteResult Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
 {
@@ -566,7 +559,7 @@ Matcher<Parser>::ExecuteResult Matcher<Parser>::execute(MatchInput const& input,
     }
 
     BumpAllocatedLinkedList<MatchState> states_to_try_next;
-    HashTable<u64, SufficientlyUniformValueTraits> seen_state_hashes;
+    HashTable<u64, IdentityHashTraits<u64>> seen_state_hashes;
 #if REGEX_DEBUG
     size_t recursion_level = 0;
 #endif

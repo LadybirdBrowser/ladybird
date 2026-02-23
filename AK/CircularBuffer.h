@@ -95,7 +95,7 @@ private:
 
     SearchableCircularBuffer(ByteBuffer);
 
-    HashMap<unsigned, size_t> m_hash_location_map;
+    HashMap<unsigned, size_t, IdentityHashTraits<unsigned>> m_hash_location_map;
     HashMap<size_t, size_t> m_location_chain_map;
 
     ErrorOr<void> insert_location_hash(ReadonlyBytes value, size_t raw_offset);

@@ -23,7 +23,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     // Read files, compute their hashes, ignore collisions for now.
-    HashMap<u32, Vector<ByteString>> inverse_hashes;
+    HashMap<u32, Vector<ByteString>, IdentityHashTraits<u32>> inverse_hashes;
     bool had_errors = false;
     for (auto filename : arguments.strings.slice(1)) {
 

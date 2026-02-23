@@ -83,9 +83,21 @@ struct Traits<T> : public DefaultTraits<T> {
     static constexpr bool is_trivially_serializable() { return Traits<UnderlyingType<T>>::is_trivially_serializable(); }
 };
 
+template<Integral T>
+struct IdentityHashTraits : public Traits<T> {
+    static constexpr unsigned hash(T value)
+    {
+        if constexpr (sizeof(T) <= 4)
+            return static_cast<unsigned>(value);
+        else
+            return static_cast<unsigned>(value ^ (value >> 32));
+    }
+};
+
 }
 
 #if USING_AK_GLOBALLY
 using AK::DefaultTraits;
+using AK::IdentityHashTraits;
 using AK::Traits;
 #endif
