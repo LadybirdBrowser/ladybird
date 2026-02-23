@@ -105,7 +105,7 @@ public:
     [[nodiscard]] Vector<SavedAncestorFlags> save_ancestor_flags() const;
     void restore_ancestor_flags(Vector<SavedAncestorFlags> const&);
 
-    void analyze();
+    void analyze(bool suppress_globals = false);
 
 private:
     void open_scope(ScopeRecord::ScopeType type, ScopeNode* node, ScopeRecord::ScopeLevel level);
@@ -114,10 +114,10 @@ private:
     void throw_identifier_declared(Utf16FlyString const& name, NonnullRefPtr<Declaration const> const& declaration);
 
     static void propagate_eval_poisoning(ScopeRecord& scope);
-    static void resolve_identifiers(ScopeRecord& scope, bool initiated_by_eval);
+    static void resolve_identifiers(ScopeRecord& scope, bool initiated_by_eval, bool suppress_globals);
     static void hoist_functions(ScopeRecord& scope);
     static void build_function_scope_data(ScopeRecord& scope);
-    void analyze_recursive(ScopeRecord& scope);
+    void analyze_recursive(ScopeRecord& scope, bool suppress_globals);
 
     Parser& m_parser;
     ScopeRecord* m_current { nullptr };

@@ -362,23 +362,23 @@ void ScopeCollector::throw_identifier_declared(Utf16FlyString const& name, Nonnu
 
 // --- Post-parse analysis ---
 
-void ScopeCollector::analyze()
+void ScopeCollector::analyze(bool suppress_globals)
 {
     if (m_root)
-        analyze_recursive(*m_root);
+        analyze_recursive(*m_root, suppress_globals);
 }
 
-void ScopeCollector::analyze_recursive(ScopeRecord& scope)
+void ScopeCollector::analyze_recursive(ScopeRecord& scope, bool suppress_globals)
 {
     // Process children first (bottom-up).
     for (auto& child : scope.children)
-        analyze_recursive(*child);
+        analyze_recursive(*child, suppress_globals);
 
     if (!scope.ast_node)
         return;
 
     propagate_eval_poisoning(scope);
-    resolve_identifiers(scope, m_parser.m_state.initiated_by_eval);
+    resolve_identifiers(scope, m_parser.m_state.initiated_by_eval, suppress_globals);
     hoist_functions(scope);
 
     if (scope.type == ScopeRecord::ScopeType::Function && scope.function_parameters)
@@ -399,7 +399,7 @@ void ScopeCollector::propagate_eval_poisoning(ScopeRecord& scope)
     }
 }
 
-void ScopeCollector::resolve_identifiers(ScopeRecord& scope, bool initiated_by_eval)
+void ScopeCollector::resolve_identifiers(ScopeRecord& scope, bool initiated_by_eval, bool suppress_globals)
 {
     // NB: ScopeRecord::identifier_groups is a HashMap, so its iteration order
     // is non-deterministic. We sort the keys alphabetically here to ensure
@@ -492,7 +492,7 @@ void ScopeCollector::resolve_identifiers(ScopeRecord& scope, bool initiated_by_e
         }
 
         if (scope.type == ScopeRecord::ScopeType::Program) {
-            auto can_use_global_for_identifier = !(identifier_group.used_inside_with_statement || initiated_by_eval);
+            auto can_use_global_for_identifier = !(suppress_globals || identifier_group.used_inside_with_statement || initiated_by_eval);
             if (can_use_global_for_identifier) {
                 for (auto& identifier : identifier_group.identifiers) {
                     if (!identifier->is_inside_scope_with_eval())

@@ -254,7 +254,7 @@ NonnullRefPtr<Program> Parser::parse_program(bool starts_in_strict_mode)
             parse_module(program);
     }
 
-    scope_collector().analyze();
+    scope_collector().analyze(m_is_dynamic_function);
 
     program->set_end_offset({}, position().offset);
     return program;

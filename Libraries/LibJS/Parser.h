@@ -197,6 +197,7 @@ public:
     Vector<CallExpression::Argument> parse_arguments();
 
     void run_scope_analysis() { m_scope_collector.analyze(); }
+    void set_is_dynamic_function() { m_is_dynamic_function = true; }
 
     bool has_errors() const { return m_state.errors.size(); }
     Vector<ParserError> const& errors() const { return m_state.errors; }
@@ -335,6 +336,7 @@ private:
     HashMap<Utf16FlyString, Optional<Position>> m_labels_in_scope;
     HashMap<size_t, TokenMemoization> m_token_memoizations;
     Program::Type m_program_type;
+    bool m_is_dynamic_function { false };
     ScopeCollector m_scope_collector;
     ScopeCollector* m_scope_collector_override { nullptr };
 };
