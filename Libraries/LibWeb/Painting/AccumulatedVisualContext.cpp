@@ -23,7 +23,8 @@ bool ClipData::contains(CSSPixelPoint point) const
 
 Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(CSSPixelPoint screen_point, ScrollStateSnapshot const& scroll_state) const
 {
-    Vector<AccumulatedVisualContext const*> chain;
+    Vector<AccumulatedVisualContext const*, 8> chain;
+    chain.ensure_capacity(m_depth);
     for (auto const* node = this; node; node = node->parent().ptr())
         chain.append(node);
 
@@ -86,7 +87,8 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
 
 CSSPixelPoint AccumulatedVisualContext::inverse_transform_point(CSSPixelPoint screen_point) const
 {
-    Vector<AccumulatedVisualContext const*> chain;
+    Vector<AccumulatedVisualContext const*, 8> chain;
+    chain.ensure_capacity(m_depth);
     for (auto const* node = this; node; node = node->parent().ptr())
         chain.append(node);
 
