@@ -441,11 +441,22 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
     inform_the_navigation_api_about_aborting_navigation();
 
     // 3. Set navigable's ongoing navigation to newValue.
+    auto was_traversal = m_ongoing_navigation.has<Traversal>();
     m_ongoing_navigation = ongoing_navigation;
 
     for (auto& navigation_observer : m_navigation_observers) {
         if (navigation_observer.ongoing_navigation_changed())
             navigation_observer.ongoing_navigation_changed()->function()();
+    }
+
+    // AD-HOC: If we just finished a traversal and there are navigations that were deferred because the traversal was
+    //         ongoing, process them now.
+    // FIXME: See if this can be removed after TraversableNavigable::apply_the_history_step()'s spin_until is gone.
+    if (was_traversal && !ongoing_navigation.has<Traversal>()) {
+        while (!m_pending_navigations.is_empty()) {
+            auto navigation_params = m_pending_navigations.take_first();
+            begin_navigation(navigation_params);
+        }
     }
 }
 
@@ -1778,11 +1789,20 @@ void Navigable::begin_navigation(NavigateParams params)
     // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
     [[maybe_unused]] auto target_snapshot_params = snapshot_target_snapshot_params();
 
-    // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "pending", and url is url.
+    // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id
+    //     is navigationId, status is "pending", and url is url.
 
     // 18. If navigable's ongoing navigation is "traversal", then:
     if (ongoing_navigation().has<Traversal>()) {
-        // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
+        // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id
+        //    is navigationId, status is "canceled", and url is url.
+
+        // AD-HOC: Instead of canceling the navigation (per spec step 18.2), defer it until the traversal completes.
+        //         This prevents a race condition where page_did_finish_loading is sent to the client before the session
+        //         history traversal from finalize_a_cross_document_navigation completes. If the client sends a new
+        //         navigation before the traversal finishes, it would be dropped, causing the page to appear stuck.
+        // FIXME: See if this can be removed after TraversableNavigable::apply_the_history_step()'s spin_until is gone.
+        m_pending_navigations.append(move(params));
 
         // 2. Return.
         return;
