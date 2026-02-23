@@ -249,6 +249,7 @@ write_cmake_config("ak_debug_gen") {
     "MACH_PORT_DEBUG=",
     "MATROSKA_DEBUG=",
     "MATROSKA_TRACE_DEBUG=",
+    "MUTEX_DEBUG=",
     "NETWORKJOB_DEBUG=",
     "NT_DEBUG=",
     "OPENTYPE_GPOS_DEBUG=",
