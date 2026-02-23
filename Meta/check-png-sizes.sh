@@ -38,17 +38,25 @@ for file in "${input_files[@]}"; do
 done
 
 if (( ${#files[@]} )); then
-    # We need to allow optipng to write output so we can check what it actually did. We use a dummy file that's discarded afterwards.
-    optimizations=$( printf '%s\0' "${files[@]}" |\
-        xargs -0 -n1 optipng -strip all -out dummy-optipng-output.png -clobber 2>&1 |\
-        grep -i -e 'Output IDAT size =' |\
-        sed -E 's/Output IDAT size = [0-9]+ byte(s?) \(([0-9]+) byte(s?) decrease\)/\2/g;s/Output IDAT size = [0-9]+ byte(s?) \(no change\)/0/g' |\
-        awk "{ if (\$1 >= $MINIMUM_OPTIMIZATION_BYTES) { S+=\$1 } } END { print S }")
-    rm -f dummy-optipng-output.png dummy-optipng-output.png.bak
-    optimizations="${optimizations:-0}"
+    tmpdir=$(mktemp -d)
+    # Each parallel invocation writes to its own temp file (using the sh process PID) to avoid clobbering. The per-file check
+    # is done inside sh -c so that filenames and byte counts stay paired despite interleaved parallel output.
+    # shellcheck disable=SC2016
+    results=$(printf '%s\0' "${files[@]}" \
+        | xargs -0 -n1 -P0 sh -c '
+            output=$(optipng -strip all -out "$0/optipng-$$.png" -clobber "$2" 2>&1) || true
+            decrease=$(printf "%s\n" "$output" | sed -nE "s/Output IDAT size = [0-9]+ byte(s?) \(([0-9]+) byte(s?) decrease\)/\2/p")
+            decrease="${decrease:-0}"
+            if [ "$decrease" -ge "$1" ]; then
+                printf "%d %s\n" "$decrease" "$2"
+            fi
+        ' "$tmpdir" "$MINIMUM_OPTIMIZATION_BYTES")
+    rm -rf "$tmpdir"
 
-    if [[ "$optimizations" -ne 0 ]] ; then
-        echo "There are non-optimized PNG images in Base/. It is possible to reduce file sizes by at least $optimizations byte(s)."
+    if [ -n "$results" ]; then
+        optimizations=$(printf '%s\n' "$results" | awk '{ S+=$1 } END { print S }')
+        echo "There are non-optimized PNG images. It is possible to reduce file sizes by at least $optimizations byte(s)."
+        printf '%s\n' "$results" | awk '{ print "  " $2 }'
         # shellcheck disable=SC2016 # we're not trying to expand expressions here
         echo 'Please run optipng with `-strip all` on modified PNG images and try again.'
         exit 1
