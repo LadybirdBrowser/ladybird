@@ -48,7 +48,6 @@ private:
     void paint_radial_gradient(PaintRadialGradient const&) override;
     void paint_conic_gradient(PaintConicGradient const&) override;
     void add_rounded_rect_clip(AddRoundedRectClip const&) override;
-    void add_mask(AddMask const&) override;
     void paint_scrollbar(PaintScrollBar const&) override;
     void paint_nested_display_list(PaintNestedDisplayList const&) override;
     void apply_effects(ApplyEffects const&) override;
@@ -59,10 +58,6 @@ private:
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
     RefPtr<Gfx::SkiaBackendContext> m_context;
-
-    struct CachedRuntimeEffects;
-    OwnPtr<CachedRuntimeEffects> m_cached_runtime_effects;
-    CachedRuntimeEffects& cached_runtime_effects();
 };
 
 }

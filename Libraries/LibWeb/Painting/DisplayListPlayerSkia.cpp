@@ -21,7 +21,6 @@
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
 #include <effects/SkLumaColorFilter.h>
-#include <effects/SkRuntimeEffect.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
@@ -746,76 +745,6 @@ void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& comm
     auto& canvas = surface().canvas();
     auto clip_op = command.corner_clip == CornerClip::Inside ? SkClipOp::kDifference : SkClipOp::kIntersect;
     canvas.clipRRect(rounded_rect, clip_op, true);
-}
-
-struct DisplayListPlayerSkia::CachedRuntimeEffects {
-    sk_sp<SkRuntimeEffect> luminance_mask;
-    sk_sp<SkRuntimeEffect> alpha_mask;
-};
-
-DisplayListPlayerSkia::CachedRuntimeEffects& DisplayListPlayerSkia::cached_runtime_effects()
-{
-    if (!m_cached_runtime_effects)
-        m_cached_runtime_effects = make<DisplayListPlayerSkia::CachedRuntimeEffects>();
-    return *m_cached_runtime_effects;
-}
-
-void DisplayListPlayerSkia::add_mask(AddMask const& command)
-{
-    auto const& rect = command.rect;
-    if (rect.is_empty())
-        return;
-    auto mask_surface = Gfx::PaintingSurface::create_with_size(m_context, rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-
-    ScrollStateSnapshot scroll_state_snapshot;
-    execute_impl(*command.display_list, scroll_state_snapshot, mask_surface);
-
-    SkMatrix mask_matrix;
-    mask_matrix.setTranslate(rect.x(), rect.y());
-    auto image = mask_surface->sk_surface().makeImageSnapshot();
-
-    auto compile_effect = [](char const* sksl_shader) {
-        auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(sksl_shader));
-        if (!effect) {
-            dbgln("SkSL error: {}", error.c_str());
-            VERIFY_NOT_REACHED();
-        }
-        return effect;
-    };
-
-    auto& cached_runtime_effects = this->cached_runtime_effects();
-
-    sk_sp<SkRuntimeEffect> effect;
-    if (command.kind == Gfx::MaskKind::Luminance) {
-        char const* sksl_shader = R"(
-                uniform shader mask_image;
-                half4 main(float2 coord) {
-                    half4 color = mask_image.eval(coord);
-                    half luminance = 0.2126 * color.b + 0.7152 * color.g + 0.0722 * color.r;
-                    return half4(0.0, 0.0, 0.0, color.a * luminance);
-                }
-            )";
-        if (!cached_runtime_effects.luminance_mask) {
-            cached_runtime_effects.luminance_mask = compile_effect(sksl_shader);
-        }
-        effect = cached_runtime_effects.luminance_mask;
-    } else {
-        char const* sksl_shader = R"(
-                uniform shader mask_image;
-                half4 main(float2 coord) {
-                    half4 color = mask_image.eval(coord);
-                    return half4(0.0, 0.0, 0.0, color.a);
-                }
-            )";
-        if (!cached_runtime_effects.alpha_mask) {
-            cached_runtime_effects.alpha_mask = compile_effect(sksl_shader);
-        }
-        effect = cached_runtime_effects.alpha_mask;
-    }
-
-    SkRuntimeShaderBuilder builder(effect);
-    builder.child("mask_image") = image->makeShader(SkSamplingOptions(), mask_matrix);
-    surface().canvas().clipShader(builder.makeShader());
 }
 
 void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList const& command)

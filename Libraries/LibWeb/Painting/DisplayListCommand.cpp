@@ -151,11 +151,6 @@ void AddRoundedRectClip::dump(StringBuilder& builder) const
     builder.appendff(" rect={}", border_rect);
 }
 
-void AddMask::dump(StringBuilder& builder) const
-{
-    builder.appendff(" rect={}", rect);
-}
-
 void PaintNestedDisplayList::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", rect);

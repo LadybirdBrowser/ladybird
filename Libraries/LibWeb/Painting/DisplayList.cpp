@@ -252,7 +252,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(ApplyBackdropFilter, apply_backdrop_filter)
         else HANDLE_COMMAND(DrawRect, draw_rect)
         else HANDLE_COMMAND(AddRoundedRectClip, add_rounded_rect_clip)
-        else HANDLE_COMMAND(AddMask, add_mask)
         else HANDLE_COMMAND(PaintNestedDisplayList, paint_nested_display_list)
         else HANDLE_COMMAND(ApplyEffects, apply_effects)
         else VERIFY_NOT_REACHED();
