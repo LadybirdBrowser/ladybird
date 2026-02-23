@@ -18,8 +18,17 @@ if ! command -v optipng >/dev/null ; then
     exit 0
 fi
 
+if [ "$#" -eq "0" ]; then
+    input_files=()
+    while IFS= read -r file; do
+        input_files+=("${file}")
+    done < <(git ls-files -- '*.png')
+else
+    input_files=("$@")
+fi
+
 files=()
-for file in "$@"; do
+for file in "${input_files[@]}"; do
     if [[ "${file}" == *"/wpt-import/"* ]]; then
         continue
     fi
