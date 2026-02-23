@@ -234,7 +234,7 @@ void MediaControls::set_up_event_listeners()
         set_current_time(*position);
 
         auto& realm = m_media_element->realm();
-        auto& window = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+        auto& window = as<HTML::Window>(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
@@ -305,7 +305,7 @@ void MediaControls::set_up_event_listeners()
         set_volume(*volume);
 
         auto& realm = m_media_element->realm();
-        auto& window = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+        auto& window = as<HTML::Window>(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
