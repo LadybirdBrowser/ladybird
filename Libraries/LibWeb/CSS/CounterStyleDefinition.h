@@ -52,6 +52,7 @@ struct GenericCounterStyleAlgorithm {
 };
 
 using CounterStyleAlgorithm = Variant<AdditiveCounterStyleAlgorithm, FixedCounterStyleAlgorithm, GenericCounterStyleAlgorithm>;
+using CounterStyleAlgorithmOrExtends = Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends>;
 
 struct AutoRange {
     static Vector<CounterStyleRangeEntry> resolve(CounterStyleAlgorithm const&);
@@ -59,7 +60,7 @@ struct AutoRange {
 
 class CounterStyleDefinition {
 public:
-    static CounterStyleDefinition create(FlyString name, Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> algorithm, Optional<CounterStyleNegativeSign> negative_sign, Optional<CounterStyleSymbol> prefix, Optional<CounterStyleSymbol> suffix, Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> range, Optional<FlyString> fallback, Optional<CounterStylePad> pad)
+    static CounterStyleDefinition create(FlyString name, CounterStyleAlgorithmOrExtends algorithm, Optional<CounterStyleNegativeSign> negative_sign, Optional<CounterStyleSymbol> prefix, Optional<CounterStyleSymbol> suffix, Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> range, Optional<FlyString> fallback, Optional<CounterStylePad> pad)
     {
         return CounterStyleDefinition(move(name), move(algorithm), move(negative_sign), move(prefix), move(suffix), move(range), move(fallback), move(pad));
     }
@@ -68,8 +69,8 @@ public:
 
     FlyString const& name() const { return m_name; }
 
-    Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> const& algorithm() const { return m_algorithm; }
-    void set_algorithm(Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> algorithm) { m_algorithm = move(algorithm); }
+    CounterStyleAlgorithmOrExtends const& algorithm() const { return m_algorithm; }
+    void set_algorithm(CounterStyleAlgorithmOrExtends algorithm) { m_algorithm = move(algorithm); }
 
     Optional<CounterStyleNegativeSign> const& negative_sign() const { return m_negative_sign; }
 
@@ -91,7 +92,7 @@ private:
     static Variant<AutoRange, Vector<CounterStyleRangeEntry>> resolve_range(NonnullRefPtr<StyleValue const> const&, ComputationContext const&);
     static CounterStylePad resolve_pad(NonnullRefPtr<StyleValue const> const&, ComputationContext const&);
 
-    CounterStyleDefinition(FlyString name, Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> algorithm, Optional<CounterStyleNegativeSign> negative_sign, Optional<CounterStyleSymbol> prefix, Optional<CounterStyleSymbol> suffix, Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> range, Optional<FlyString> fallback, Optional<CounterStylePad> pad)
+    CounterStyleDefinition(FlyString name, CounterStyleAlgorithmOrExtends algorithm, Optional<CounterStyleNegativeSign> negative_sign, Optional<CounterStyleSymbol> prefix, Optional<CounterStyleSymbol> suffix, Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> range, Optional<FlyString> fallback, Optional<CounterStylePad> pad)
         : m_name(move(name))
         , m_algorithm(move(algorithm))
         , m_negative_sign(move(negative_sign))
@@ -104,7 +105,7 @@ private:
     }
 
     FlyString m_name;
-    Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> m_algorithm;
+    CounterStyleAlgorithmOrExtends m_algorithm;
     Optional<CounterStyleNegativeSign> m_negative_sign;
     Optional<CounterStyleSymbol> m_prefix;
     Optional<CounterStyleSymbol> m_suffix;
