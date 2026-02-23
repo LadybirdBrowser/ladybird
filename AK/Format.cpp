@@ -15,7 +15,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
-#include <AK/StringFloatingPointConversions.h>
+#include <AK/StringConversions.h>
 #include <AK/Time.h>
 #include <math.h>
 #include <pthread.h>
@@ -592,7 +592,7 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
         return put_string(special_case_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
     }
 
-    auto const [sign, mantissa, exponent] = convert_floating_point_to_decimal_exponential_form(value);
+    auto const [sign, mantissa, exponent] = convert_to_decimal_exponential_form(value);
 
     auto convert_to_decimal_digits_array = [](auto x, auto& digits) -> size_t {
         size_t length = 0;

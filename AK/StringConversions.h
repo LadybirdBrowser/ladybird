@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -36,5 +36,16 @@ Optional<T> parse_hexadecimal_number(StringView, TrimWhitespace = TrimWhitespace
 
 template<Integral T>
 Optional<T> parse_hexadecimal_number(Utf16View const&, TrimWhitespace = TrimWhitespace::Yes);
+
+struct DecimalExponentialForm {
+    constexpr bool operator==(DecimalExponentialForm const& other) const = default;
+
+    bool sign { false };
+    u64 fraction { 0 };
+    i32 exponent { 0 };
+};
+
+template<FloatingPoint T>
+DecimalExponentialForm convert_to_decimal_exponential_form(T value);
 
 }

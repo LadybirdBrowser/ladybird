@@ -9,7 +9,7 @@
 #include <AK/Array.h>
 #include <AK/FloatingPoint.h>
 #include <AK/Function.h>
-#include <AK/StringFloatingPointConversions.h>
+#include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -102,7 +102,7 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     static auto TWO_BIGINT = 2_bigint;
     static auto TEN_BIGINT = 10_bigint;
 
-    auto result = convert_floating_point_to_decimal_exponential_form(number);
+    auto result = AK::convert_to_decimal_exponential_form(number);
     auto exponent = result.exponent + count_digits(result.fraction) - 1;
 
     // Decompose the number into its exact binary representation. An IEEE-754 double is exactly equal to:
@@ -287,7 +287,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
             // i. Let e, n, and f be integers such that f ≥ 0, 10^f ≤ n < 10^(f+1), 𝔽(n × 10^(e-f)) is 𝔽(x), and f is
             //    as small as possible. Note that the decimal representation of n has f + 1 digits, n is not divisible
             //    by 10, and the least significant digit of n is not necessarily uniquely determined by these criteria.
-            auto result = convert_floating_point_to_decimal_exponential_form(number);
+            auto result = AK::convert_to_decimal_exponential_form(number);
 
             significand = result.fraction;
             fraction_digits = count_digits(result.fraction) - 1;

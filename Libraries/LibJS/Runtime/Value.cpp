@@ -11,7 +11,7 @@
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/StringBuilder.h>
-#include <AK/StringFloatingPointConversions.h>
+#include <AK/StringConversions.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf8View.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
@@ -104,14 +104,13 @@ void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
         return;
     }
 
-    // 5. Let n, k, and s be integers such that k ≥ 1, radix ^ (k - 1) ≤ s < radix ^ k,
-    // 𝔽(s × radix ^ (n - k)) is x, and k is as small as possible. Note that k is the number of
-    // digits in the representation of s using radix radix, that s is not divisible by radix, and
-    // that the least significant digit of s is not necessarily uniquely determined by these criteria.
+    // 5. Let n, k, and s be integers such that k ≥ 1, radix ^ (k - 1) ≤ s < radix ^ k, 𝔽(s × radix ^ (n - k)) is x, and
+    //    k is as small as possible. Note that k is the number of digits in the representation of s using radix radix,
+    //    that s is not divisible by radix, and that the least significant digit of s is not necessarily uniquely
+    //    determined by these criteria.
     //
-    // Note: guarantees provided by convert_floating_point_to_decimal_exponential_form satisfy
-    //       requirements of NOTE 2.
-    auto [sign, mantissa, exponent] = convert_floating_point_to_decimal_exponential_form(d);
+    // NB: guarantees provided by convert_to_decimal_exponential_form satisfy requirements of NOTE 2.
+    auto [sign, mantissa, exponent] = AK::convert_to_decimal_exponential_form(d);
     i32 k = 0;
     AK::Array<char, 20> mantissa_digits;
     convert_to_decimal_digits_array(mantissa, mantissa_digits, k);

@@ -1,15 +1,18 @@
 /*
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/FloatingPoint.h>
 #include <AK/StringConversions.h>
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
+#include <math.h>
 
 #include <fast_float/fast_float.h>
+#include <fmt/format.h>
 
 namespace AK {
 
@@ -150,5 +153,21 @@ ENUMERATE_INTEGRAL_TYPES
     template Optional<type> parse_hexadecimal_number(Utf16View const&, TrimWhitespace);
 ENUMERATE_INTEGRAL_TYPES
 #undef __ENUMERATE_TYPE
+
+template<FloatingPoint T>
+DecimalExponentialForm convert_to_decimal_exponential_form(T value)
+{
+    ASSERT(!isinf(value));
+    ASSERT(!isnan(value));
+
+    FloatExtractor<T> extractor;
+    extractor.d = value;
+
+    auto [significand, exponent] = fmt::detail::dragonbox::to_decimal(value);
+    return { static_cast<bool>(extractor.sign), significand, exponent };
+}
+
+template DecimalExponentialForm convert_to_decimal_exponential_form(float);
+template DecimalExponentialForm convert_to_decimal_exponential_form(double);
 
 }

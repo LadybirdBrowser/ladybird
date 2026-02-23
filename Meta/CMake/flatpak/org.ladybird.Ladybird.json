@@ -188,6 +188,25 @@
       ]
     },
     {
+      "name": "fmt",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/fmtlib/fmt.git",
+          "tag": "12.1.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DFMT_TEST=OFF",
+        "-DFMT_DOC=OFF"
+      ]
+    },
+    {
       "name": "icu",
       "buildsystem": "autotools",
       "builddir": false,
