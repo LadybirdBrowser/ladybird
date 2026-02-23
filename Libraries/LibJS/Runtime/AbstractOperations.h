@@ -97,7 +97,7 @@ struct EvalDeclarationData {
     Vector<Utf16FlyString> var_names;
 
     struct FunctionToInitialize {
-        GC::Ref<SharedFunctionInstanceData> shared_data;
+        GC::Root<SharedFunctionInstanceData> shared_data;
         Utf16FlyString name;
     };
     Vector<FunctionToInitialize> functions_to_initialize;
@@ -105,7 +105,8 @@ struct EvalDeclarationData {
 
     Vector<Utf16FlyString> var_scoped_names;
 
-    Vector<NonnullRefPtr<FunctionDeclaration>> annex_b_candidates;
+    Vector<Utf16FlyString> annex_b_candidate_names;
+    Vector<NonnullRefPtr<FunctionDeclaration>> annex_b_function_declarations;
 
     struct LexicalBinding {
         Utf16FlyString name;

@@ -5,21 +5,34 @@
  */
 
 #include <LibJS/AST.h>
+#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Lexer.h>
 #include <LibJS/Parser.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/RustIntegration.h>
 #include <LibJS/Script.h>
+#include <LibJS/SourceCode.h>
 
 namespace JS {
+
+bool g_dump_ast = false;
+bool g_dump_ast_use_color = false;
 
 GC_DEFINE_ALLOCATOR(Script);
 
 // 16.1.5 ParseScript ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parse-script
 Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(StringView source_text, Realm& realm, StringView filename, HostDefined* host_defined, size_t line_number_offset)
 {
+    auto rust_compilation = RustIntegration::compile_script(source_text, realm, filename, line_number_offset);
+    if (rust_compilation.has_value()) {
+        if (rust_compilation->is_error())
+            return rust_compilation->release_error();
+        return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), host_defined);
+    }
+
     // 1. Let script be ParseText(sourceText, Script).
     auto parser = Parser(Lexer(SourceCode::create(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(), Utf16String::from_utf8(source_text)), line_number_offset));
     auto script = parser.parse_program();
@@ -75,7 +88,8 @@ Script::Script(Realm& realm, StringView filename, RefPtr<Program> parse_node, Ho
     // Pre-compute AnnexB candidates (GDI step 13).
     if (!m_is_strict_mode) {
         MUST(program.for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) -> ThrowCompletionOr<void> {
-            m_annex_b_candidates.append(function_declaration);
+            m_annex_b_candidate_names.append(function_declaration.name());
+            m_annex_b_function_declarations.append(function_declaration);
             return {};
         }));
     }
@@ -87,6 +101,24 @@ Script::Script(Realm& realm, StringView filename, RefPtr<Program> parse_node, Ho
             return {};
         });
     }));
+}
+
+Script::Script(Realm& realm, StringView filename, RustIntegration::ScriptResult&& result, HostDefined* host_defined)
+    : m_realm(realm)
+    , m_executable(result.executable)
+    , m_lexical_names(move(result.lexical_names))
+    , m_var_names(move(result.var_names))
+    , m_declared_function_names(move(result.declared_function_names))
+    , m_var_scoped_names(move(result.var_scoped_names))
+    , m_annex_b_candidate_names(move(result.annex_b_candidate_names))
+    , m_lexical_bindings(move(result.lexical_bindings))
+    , m_is_strict_mode(result.is_strict_mode)
+    , m_filename(filename)
+    , m_host_defined(host_defined)
+{
+    m_functions_to_initialize.ensure_capacity(result.functions_to_initialize.size());
+    for (auto& f : result.functions_to_initialize)
+        m_functions_to_initialize.append({ *f.shared_data, move(f.name) });
 }
 
 // 16.1.7 GlobalDeclarationInstantiation ( script, env ), https://tc39.es/ecma262/#sec-globaldeclarationinstantiation
@@ -157,9 +189,9 @@ ThrowCompletionOr<void> Script::global_declaration_instantiation(VM& vm, GlobalE
     if (!m_is_strict_mode) {
         // a. Let declaredFunctionOrVarNames be the list-concatenation of declaredFunctionNames and declaredVarNames.
         // b. For each FunctionDeclaration f that is directly contained in the StatementList of a Block, CaseClause, or DefaultClause Contained within script, do
-        for (auto& function_declaration : m_annex_b_candidates) {
+        for (size_t i = 0; i < m_annex_b_candidate_names.size(); ++i) {
             // i. Let F be StringValue of the BindingIdentifier of f.
-            auto function_name = function_declaration->name();
+            auto& function_name = m_annex_b_candidate_names[i];
 
             // 1. If env.HasLexicalDeclaration(F) is false, then
             if (global_environment.has_lexical_declaration(function_name))
@@ -178,7 +210,8 @@ ThrowCompletionOr<void> Script::global_declaration_instantiation(VM& vm, GlobalE
             }
 
             // iii. When the FunctionDeclaration f is evaluated, perform the following steps in place of the FunctionDeclaration Evaluation algorithm provided in 15.2.6:
-            function_declaration->set_should_do_additional_annexB_steps();
+            if (i < m_annex_b_function_declarations.size())
+                m_annex_b_function_declarations[i]->set_should_do_additional_annexB_steps();
         }
     }
 
@@ -228,7 +261,7 @@ ThrowCompletionOr<void> Script::global_declaration_instantiation(VM& vm, GlobalE
 void Script::drop_ast()
 {
     m_parse_node = nullptr;
-    m_annex_b_candidates.clear();
+    m_annex_b_function_declarations.clear();
 }
 
 Script::~Script()

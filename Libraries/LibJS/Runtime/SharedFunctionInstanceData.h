@@ -50,9 +50,11 @@ class FunctionNode;
 class JS_API SharedFunctionInstanceData final : public GC::Cell {
     GC_CELL(SharedFunctionInstanceData, GC::Cell);
     GC_DECLARE_ALLOCATOR(SharedFunctionInstanceData);
+    static constexpr bool OVERRIDES_FINALIZE = true;
 
 public:
     virtual ~SharedFunctionInstanceData() override;
+    virtual void finalize() override;
 
     static GC::Ref<SharedFunctionInstanceData> create_for_function_node(VM&, FunctionNode const&);
     static GC::Ref<SharedFunctionInstanceData> create_for_function_node(VM&, FunctionNode const&, Utf16FlyString name);
@@ -69,6 +71,21 @@ public:
         bool is_arrow_function,
         FunctionParsingInsights const&,
         Vector<LocalVariable> local_variables_names);
+
+    // NB: Constructor for the Rust pipeline. Takes pre-computed metadata
+    //     instead of a C++ AST. FDI fields are populated later during
+    //     lazy compilation by rust_compile_function.
+    SharedFunctionInstanceData(
+        VM& vm,
+        FunctionKind,
+        Utf16FlyString name,
+        i32 function_length,
+        u32 formal_parameter_count,
+        bool strict,
+        bool is_arrow_function,
+        bool has_simple_parameter_list,
+        Vector<Utf16FlyString> parameter_names_for_mapped_arguments,
+        void* rust_function_ast);
 
     mutable GC::Ptr<Bytecode::Executable> m_executable;
 
@@ -113,7 +130,7 @@ public:
         No,
         Yes,
     };
-    HashMap<Utf16FlyString, ParameterIsLocal> m_parameter_names;
+    OrderedHashMap<Utf16FlyString, ParameterIsLocal> m_parameter_names;
     struct FunctionToInitialize {
         GC::Ref<SharedFunctionInstanceData> shared_data;
         Utf16FlyString name;
@@ -141,6 +158,11 @@ public:
     Variant<PropertyKey, PrivateName, Empty> m_class_field_initializer_name; // [[ClassFieldInitializerName]]
     ConstructorKind m_constructor_kind : 1 { ConstructorKind::Base };        // [[ConstructorKind]]
     bool m_is_class_constructor : 1 { false };                               // [[IsClassConstructor]]
+
+    // NB: When non-null, points to a Rust Box<FunctionData> used for
+    //     lazy compilation through the Rust pipeline.
+    void* m_rust_function_ast { nullptr };
+    bool m_use_rust_compilation { false };
 
     void clear_compile_inputs();
 

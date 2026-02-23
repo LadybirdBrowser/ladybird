@@ -26,6 +26,7 @@
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/Script.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibMain/Main.h>
 #include <LibTextCodec/Decoder.h>
@@ -213,7 +214,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             result = vm.throw_completion<JS::SyntaxError>(move(error_string));
         } else {
             auto script = script_or_error.release_value();
-            if (s_dump_ast)
+            if (s_dump_ast && script->parse_node())
                 dump_ast(*script->parse_node());
             if (!parse_only)
                 result = vm.bytecode_interpreter().run(*script);
@@ -845,6 +846,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.parse(arguments);
 
     [[maybe_unused]] bool syntax_highlight = !disable_syntax_highlight;
+
+    JS::g_dump_ast = s_dump_ast;
+    JS::g_dump_ast_use_color = !s_strip_ansi;
 
     AK::set_debug_enabled(!disable_debug_printing);
     s_history_path = TRY(String::formatted("{}/.js-history", Core::StandardPaths::home_directory()));

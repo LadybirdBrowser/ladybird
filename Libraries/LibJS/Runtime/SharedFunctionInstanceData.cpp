@@ -7,6 +7,7 @@
 #include <LibJS/AST.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/RustIntegration.h>
 
 namespace JS {
 
@@ -307,6 +308,43 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;
 
+void SharedFunctionInstanceData::finalize()
+{
+    Base::finalize();
+    RustIntegration::free_function_ast(m_rust_function_ast);
+    m_rust_function_ast = nullptr;
+}
+
+SharedFunctionInstanceData::SharedFunctionInstanceData(
+    VM&,
+    FunctionKind kind,
+    Utf16FlyString name,
+    i32 function_length,
+    u32 formal_parameter_count,
+    bool strict,
+    bool is_arrow_function,
+    bool has_simple_parameter_list,
+    Vector<Utf16FlyString> parameter_names_for_mapped_arguments,
+    void* rust_function_ast)
+    : m_name(move(name))
+    , m_function_length(function_length)
+    , m_formal_parameter_count(formal_parameter_count)
+    , m_parameter_names_for_mapped_arguments(move(parameter_names_for_mapped_arguments))
+    , m_kind(kind)
+    , m_strict(strict)
+    , m_is_arrow_function(is_arrow_function)
+    , m_has_simple_parameter_list(has_simple_parameter_list)
+    , m_rust_function_ast(rust_function_ast)
+    , m_use_rust_compilation(true)
+{
+    if (m_is_arrow_function)
+        m_this_mode = ThisMode::Lexical;
+    else if (m_strict)
+        m_this_mode = ThisMode::Strict;
+    else
+        m_this_mode = ThisMode::Global;
+}
+
 GC::Ref<SharedFunctionInstanceData> SharedFunctionInstanceData::create_for_function_node(VM& vm, FunctionNode const& node)
 {
     return create_for_function_node(vm, node, node.name());
@@ -342,6 +380,8 @@ void SharedFunctionInstanceData::clear_compile_inputs()
     m_functions_to_initialize.clear();
     m_var_names_to_initialize_binding.clear();
     m_lexical_bindings.clear();
+    RustIntegration::free_function_ast(m_rust_function_ast);
+    m_rust_function_ast = nullptr;
 }
 
 }

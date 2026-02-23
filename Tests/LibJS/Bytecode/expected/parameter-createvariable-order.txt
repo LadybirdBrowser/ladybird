@@ -6,9 +6,9 @@ JS bytecode executable ""
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateVariable identifier:c, is_immutable:false, is_global:false, is_strict:false
-[  18]       CreateVariable identifier:a, is_immutable:false, is_global:false, is_strict:false
-[  28]       CreateVariable identifier:b, is_immutable:false, is_global:false, is_strict:false
+[   8]       CreateVariable identifier:a, is_immutable:false, is_global:false, is_strict:false
+[  18]       CreateVariable identifier:b, is_immutable:false, is_global:false, is_strict:false
+[  28]       CreateVariable identifier:c, is_immutable:false, is_global:false, is_strict:false
 [  38]       InitializeLexicalBinding identifier:a, src:arg0
 [  50]       InitializeLexicalBinding identifier:b, src:arg1
 [  68]       InitializeLexicalBinding identifier:c, src:arg2

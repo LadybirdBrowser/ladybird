@@ -136,6 +136,7 @@
 #include <LibJS/Runtime/WeakSetConstructor.h>
 #include <LibJS/Runtime/WeakSetPrototype.h>
 #include <LibJS/Runtime/WrapForValidIteratorPrototype.h>
+#include <LibJS/RustIntegration.h>
 
 // FIXME: Remove this asm hack when we upgrade to GCC 15.
 #define INCLUDE_FILE_WITH_ASSEMBLY(name, file_path) \
@@ -208,8 +209,13 @@ GC::Ref<Intrinsics> Intrinsics::create(Realm& realm)
 
 static Vector<GC::Root<SharedFunctionInstanceData>> parse_builtin_file(unsigned char const* script_text, VM& vm)
 {
+    auto rust_compilation = RustIntegration::compile_builtin_file(script_text, vm);
+    if (rust_compilation.has_value())
+        return move(rust_compilation.value());
+
     auto script_text_as_utf16 = Utf16String::from_utf8_without_validation({ script_text, strlen(reinterpret_cast<char const*>(script_text)) });
     auto code = SourceCode::create("BuiltinFile"_string, move(script_text_as_utf16));
+
     auto lexer = Lexer { move(code) };
     auto parser = Parser { move(lexer) };
     VERIFY(!parser.has_errors());

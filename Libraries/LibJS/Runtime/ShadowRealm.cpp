@@ -17,6 +17,8 @@
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/ShadowRealm.h>
 #include <LibJS/Runtime/WrappedFunction.h>
+#include <LibJS/RustIntegration.h>
+#include <LibJS/SourceCode.h>
 
 namespace JS {
 
@@ -122,34 +124,52 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
 
     // 2. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
 
-    // a. Let script be ParseText(StringToCodePoints(sourceText), Script).
-    auto parser = Parser(Lexer(SourceCode::create({}, source_text->utf16_string())), Program::Type::Script, Parser::EvalInitialState {});
-    auto program = parser.parse_program();
+    GC::Ptr<Bytecode::Executable> executable;
+    bool strict_eval = false;
+    EvalDeclarationData eval_declaration_data;
 
-    // b. If script is a List of errors, throw a SyntaxError exception.
-    if (parser.has_errors()) {
-        auto& error = parser.errors()[0];
-        return vm.throw_completion<SyntaxError>(error.to_string());
+    auto rust_compilation = RustIntegration::compile_shadow_realm_eval(*source_text, vm);
+    if (rust_compilation.has_value()) {
+        if (rust_compilation->is_error())
+            return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
+        auto& eval_result = rust_compilation->value();
+        executable = eval_result.executable;
+        strict_eval = eval_result.is_strict_mode;
+        eval_declaration_data = move(eval_result.declaration_data);
     }
 
-    // c. If script Contains ScriptBody is false, return undefined.
-    if (program->children().is_empty())
-        return js_undefined();
+    if (!executable) {
+        // a. Let script be ParseText(StringToCodePoints(sourceText), Script).
+        auto parser = Parser(Lexer(SourceCode::create({}, source_text->utf16_string())), Program::Type::Script, Parser::EvalInitialState {});
+        auto program = parser.parse_program();
 
-    // d. Let body be the ScriptBody of script.
-    // e. If body Contains NewTarget is true, throw a SyntaxError exception.
-    // f. If body Contains SuperProperty is true, throw a SyntaxError exception.
-    // g. If body Contains SuperCall is true, throw a SyntaxError exception.
-    // FIXME: Implement these, we probably need a generic way of scanning the AST for certain nodes.
+        // b. If script is a List of errors, throw a SyntaxError exception.
+        if (parser.has_errors()) {
+            auto& error = parser.errors()[0];
+            return vm.throw_completion<SyntaxError>(error.to_string());
+        }
 
-    // 3. Let strictEval be IsStrict of script.
-    auto strict_eval = program->is_strict_mode();
+        // c. If script Contains ScriptBody is false, return undefined.
+        if (program->children().is_empty())
+            return js_undefined();
+
+        // d. Let body be the ScriptBody of script.
+        // e. If body Contains NewTarget is true, throw a SyntaxError exception.
+        // f. If body Contains SuperProperty is true, throw a SyntaxError exception.
+        // g. If body Contains SuperCall is true, throw a SyntaxError exception.
+        // FIXME: Implement these, we probably need a generic way of scanning the AST for certain nodes.
+
+        // 3. Let strictEval be IsStrict of script.
+        strict_eval = program->is_strict_mode();
+
+        eval_declaration_data = EvalDeclarationData::create(vm, program, strict_eval);
+
+        executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
+    }
 
     // 4. Let runningContext be the running execution context.
     // 5. If runningContext is not already suspended, suspend runningContext.
     // NOTE: This would be unused due to step 9 and is omitted for that reason.
-
-    auto executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
 
     // 6. Let evalContext be GetShadowRealmContext(evalRealm, strictEval).
     auto eval_context = get_shadow_realm_context(eval_realm, strict_eval, executable->registers_and_locals_count, executable->constants.size());
@@ -164,7 +184,6 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
     TRY(vm.push_execution_context(*eval_context, {}));
 
     // 10. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, null, strictEval)).
-    auto eval_declaration_data = EvalDeclarationData::create(vm, program, strict_eval);
     auto eval_result = eval_declaration_instantiation(vm, eval_declaration_data, variable_environment, lexical_environment, nullptr, strict_eval);
 
     Completion result;

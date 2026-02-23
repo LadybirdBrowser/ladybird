@@ -128,11 +128,13 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     GC::Ptr<Executable> executable = script_record.cached_executable();
     if (!executable && result.type() == Completion::Type::Normal) {
         executable = JS::Bytecode::Generator::generate_from_ast_node(vm, *script_record.parse_node(), {});
-        script_record.cache_executable(*executable);
-        script_record.drop_ast();
-        if (g_dump_bytecode)
-            executable->dump();
+        if (executable) {
+            script_record.cache_executable(*executable);
+            script_record.drop_ast();
+        }
     }
+    if (executable && g_dump_bytecode)
+        executable->dump();
 
     u32 registers_and_locals_count = 0;
     u32 constants_count = 0;

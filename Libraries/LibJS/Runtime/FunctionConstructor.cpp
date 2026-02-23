@@ -15,6 +15,8 @@
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/RustIntegration.h>
+#include <LibJS/SourceCode.h>
 
 namespace JS {
 
@@ -148,46 +150,75 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     // 16. Perform ? HostEnsureCanCompileStrings(currentRealm, parameterStrings, bodyString, sourceString, FUNCTION, parameterArgs, bodyArg).
     TRY(vm.host_ensure_can_compile_strings(realm, parameter_strings, body_string, source_text, CompilationType::Function, parameter_args, body_arg));
 
-    u8 parse_options = FunctionNodeParseOptions::CheckForFunctionAndName;
-    if (kind == FunctionKind::Async || kind == FunctionKind::AsyncGenerator)
-        parse_options |= FunctionNodeParseOptions::IsAsyncFunction;
-    if (kind == FunctionKind::Generator || kind == FunctionKind::AsyncGenerator)
-        parse_options |= FunctionNodeParseOptions::IsGeneratorFunction;
+    GC::Ptr<SharedFunctionInstanceData> function_data;
 
-    // 17. Let parameters be ParseText(P, parameterSym).
-    i32 function_length = 0;
-    auto parameters_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(parameters_string))));
-    auto parameters = parameters_parser.parse_formal_parameters(function_length, parse_options);
-
-    // 18. If parameters is a List of errors, throw a SyntaxError exception.
-    if (parameters_parser.has_errors()) {
-        auto error = parameters_parser.errors()[0];
-        return vm.throw_completion<SyntaxError>(error.to_string());
+    auto rust_compilation = RustIntegration::compile_dynamic_function(vm, source_text, parameters_string, body_parse_string, kind);
+    if (rust_compilation.has_value()) {
+        if (rust_compilation->is_error())
+            return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
+        function_data = rust_compilation->value();
     }
 
-    // 19. Let body be ParseText(bodyParseString, bodySym).
-    FunctionParsingInsights parsing_insights;
-    auto body_parser = Parser::parse_function_body_from_string(body_parse_string, parse_options, parameters, kind, parsing_insights);
+    if (!function_data) {
+        u8 parse_options = FunctionNodeParseOptions::CheckForFunctionAndName;
+        if (kind == FunctionKind::Async || kind == FunctionKind::AsyncGenerator)
+            parse_options |= FunctionNodeParseOptions::IsAsyncFunction;
+        if (kind == FunctionKind::Generator || kind == FunctionKind::AsyncGenerator)
+            parse_options |= FunctionNodeParseOptions::IsGeneratorFunction;
 
-    // 20. If body is a List of errors, throw a SyntaxError exception.
-    if (body_parser.has_errors()) {
-        auto error = body_parser.errors()[0];
-        return vm.throw_completion<SyntaxError>(error.to_string());
-    }
+        // 17. Let parameters be ParseText(P, parameterSym).
+        i32 function_length = 0;
+        auto parameters_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(parameters_string))));
+        auto parameters = parameters_parser.parse_formal_parameters(function_length, parse_options);
 
-    // 21. NOTE: The parameters and body are parsed separately to ensure that each is valid alone. For example, new Function("/*", "*/ ) {") does not evaluate to a function.
-    // 22. NOTE: If this step is reached, sourceText must have the syntax of exprSym (although the reverse implication does not hold). The purpose of the next two steps is to enforce any Early Error rules which apply to exprSym directly.
+        // 18. If parameters is a List of errors, throw a SyntaxError exception.
+        if (parameters_parser.has_errors()) {
+            auto error = parameters_parser.errors()[0];
+            return vm.throw_completion<SyntaxError>(error.to_string());
+        }
 
-    // 23. Let expr be ParseText(sourceText, exprSym).
-    auto source_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(source_text))));
-    // This doesn't need any parse_options, it determines those & the function type based on the tokens that were found.
-    auto expr = source_parser.parse_function_node<FunctionExpression>();
-    source_parser.run_scope_analysis();
+        // 19. Let body be ParseText(bodyParseString, bodySym).
+        FunctionParsingInsights parsing_insights;
+        auto body_parser = Parser::parse_function_body_from_string(body_parse_string, parse_options, parameters, kind, parsing_insights);
 
-    // 24. If expr is a List of errors, throw a SyntaxError exception.
-    if (source_parser.has_errors()) {
-        auto error = source_parser.errors()[0];
-        return vm.throw_completion<SyntaxError>(error.to_string());
+        // 20. If body is a List of errors, throw a SyntaxError exception.
+        if (body_parser.has_errors()) {
+            auto error = body_parser.errors()[0];
+            return vm.throw_completion<SyntaxError>(error.to_string());
+        }
+
+        // 21. NOTE: The parameters and body are parsed separately to ensure that each is valid alone. For example, new Function("/*", "*/ ) {") does not evaluate to a function.
+        // 22. NOTE: If this step is reached, sourceText must have the syntax of exprSym (although the reverse implication does not hold). The purpose of the next two steps is to enforce any Early Error rules which apply to exprSym directly.
+
+        // 23. Let expr be ParseText(sourceText, exprSym).
+        auto source_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(source_text))));
+        // This doesn't need any parse_options, it determines those & the function type based on the tokens that were found.
+        auto expr = source_parser.parse_function_node<FunctionExpression>();
+        source_parser.run_scope_analysis();
+
+        // 24. If expr is a List of errors, throw a SyntaxError exception.
+        if (source_parser.has_errors()) {
+            auto error = source_parser.errors()[0];
+            return vm.throw_completion<SyntaxError>(error.to_string());
+        }
+
+        // 28. Let F be OrdinaryFunctionCreate(proto, sourceText, parameters, body, non-lexical-this, env, privateEnv).
+        parsing_insights.might_need_arguments_object = true;
+
+        function_data = vm.heap().allocate<SharedFunctionInstanceData>(
+            vm,
+            expr->kind(),
+            "anonymous"_utf16_fly_string,
+            expr->function_length(),
+            expr->parameters(),
+            expr->body(),
+            Utf16View {},
+            expr->is_strict_mode(),
+            false,
+            parsing_insights,
+            expr->local_variables_names());
+        function_data->m_source_text_owner = Utf16String::from_utf8(source_text);
+        function_data->m_source_text = function_data->m_source_text_owner.utf16_view();
     }
 
     // 25. Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
@@ -199,27 +230,9 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     // 27. Let privateEnv be null.
     PrivateEnvironment* private_environment = nullptr;
 
-    // 28. Let F be OrdinaryFunctionCreate(proto, sourceText, parameters, body, non-lexical-this, env, privateEnv).
-    parsing_insights.might_need_arguments_object = true;
-
-    auto function_data = vm.heap().allocate<SharedFunctionInstanceData>(
-        vm,
-        expr->kind(),
-        "anonymous"_utf16_fly_string,
-        expr->function_length(),
-        expr->parameters(),
-        expr->body(),
-        Utf16View {},
-        expr->is_strict_mode(),
-        false,
-        parsing_insights,
-        expr->local_variables_names());
-    function_data->m_source_text_owner = Utf16String::from_utf8(source_text);
-    function_data->m_source_text = function_data->m_source_text_owner.utf16_view();
-
     auto function = ECMAScriptFunctionObject::create_from_function_data(
         realm,
-        function_data,
+        *function_data,
         &environment,
         private_environment,
         *prototype);
