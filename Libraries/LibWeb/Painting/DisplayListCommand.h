@@ -135,7 +135,7 @@ struct AddClipRect {
     Gfx::IntRect rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
-    bool is_clip_or_mask() const { return true; }
+    bool is_clip() const { return true; }
     void dump(StringBuilder&) const;
 };
 
@@ -322,7 +322,7 @@ struct AddRoundedRectClip {
     CornerClip corner_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return border_rect; }
-    bool is_clip_or_mask() const { return true; }
+    bool is_clip() const { return true; }
 
     void dump(StringBuilder&) const;
 };

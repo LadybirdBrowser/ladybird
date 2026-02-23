@@ -28,12 +28,12 @@ static Optional<Gfx::IntRect> command_bounding_rectangle(DisplayListCommand cons
         });
 }
 
-static bool command_is_clip_or_mask(DisplayListCommand const& command)
+static bool command_is_clip(DisplayListCommand const& command)
 {
     return command.visit(
         [&](auto const& command) -> bool {
-            if constexpr (requires { command.is_clip_or_mask(); })
-                return command.is_clip_or_mask();
+            if constexpr (requires { command.is_clip(); })
+                return command.is_clip();
             else
                 return false;
         });
@@ -206,9 +206,9 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         }
 
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
-            // Any clip or mask that's located outside of the visible region is equivalent to a simple clip-rect,
+            // Any clip that's located outside of the visible region is equivalent to a simple clip-rect,
             // so replace it with one to avoid doing unnecessary work.
-            if (command_is_clip_or_mask(command)) {
+            if (command_is_clip(command)) {
                 if (command.has<AddClipRect>()) {
                     add_clip_rect(command.get<AddClipRect>());
                 } else {
