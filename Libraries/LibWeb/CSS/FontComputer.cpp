@@ -705,16 +705,4 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
-size_t FontComputer::number_of_css_font_faces_with_loading_in_progress() const
-{
-    size_t count = 0;
-    for (auto const& [_, loaders] : m_loaded_fonts) {
-        for (auto const& loader : loaders) {
-            if (loader->is_loading())
-                ++count;
-        }
-    }
-    return count;
-}
-
 }

@@ -118,8 +118,6 @@ public:
 
     NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
 
-    size_t number_of_css_font_faces_with_loading_in_progress() const;
-
 private:
     virtual void visit_edges(Visitor&) override;
 
