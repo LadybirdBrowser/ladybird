@@ -136,6 +136,7 @@ void MediaControls::set_up_event_listeners()
 {
     auto& media_element = *m_media_element;
     auto& realm = media_element.realm();
+    auto& window = as<HTML::Window>(realm.global_object());
 
     // Media element state events
     add_event_listener(realm, media_element, HTML::EventNames::play, [this]() {
@@ -408,6 +409,21 @@ void MediaControls::set_up_event_listeners()
 
         return true;
     });
+
+    // Use requestAnimationFrame to update the timeline, since timeupdate only fires every 250ms.
+    auto request_animation_frame_callback_function = JS::NativeFunction::create(
+        realm, [this](JS::VM&) {
+            update_timeline();
+
+            auto& realm = m_media_element->realm();
+            auto& window = as<HTML::Window>(realm.global_object());
+            window.request_animation_frame(*m_request_animation_frame_callback);
+
+            return JS::js_undefined();
+        },
+        0, Utf16FlyString {}, &realm);
+    m_request_animation_frame_callback = realm.heap().allocate<WebIDL::CallbackType>(request_animation_frame_callback_function, realm);
+    window.request_animation_frame(*m_request_animation_frame_callback);
 }
 
 void MediaControls::toggle_playback()
