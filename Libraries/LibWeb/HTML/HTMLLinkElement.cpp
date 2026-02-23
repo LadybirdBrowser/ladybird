@@ -977,8 +977,14 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
     //    the Document object's URL, client is the Document object's relevant settings object, destination is "image",
     //    synchronous flag is set, credentials mode is "include", and whose use-URL-credentials flag is set.
     // NOTE: Fetch requests no longer have a synchronous flag, see https://github.com/whatwg/fetch/pull/1165
+    auto favicon_url = document->encoding_parse_url("/favicon.ico"sv);
+
+    // It is possible for the URL parser to fail if the document's base URL is invalid.
+    if (!favicon_url.has_value())
+        return;
+
     auto request = Fetch::Infrastructure::Request::create(vm);
-    request->set_url(*document->encoding_parse_url("/favicon.ico"sv));
+    request->set_url(favicon_url.release_value());
     request->set_client(&document->relevant_settings_object());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
