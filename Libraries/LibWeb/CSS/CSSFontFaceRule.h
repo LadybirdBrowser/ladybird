@@ -9,13 +9,16 @@
 
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 
 namespace Web::CSS {
 
 class FontFace;
 
-class CSSFontFaceRule final : public CSSRule {
+class CSSFontFaceRule final
+    : public CSSRule
+    , public CSSStyleSheet::Subresource {
     WEB_PLATFORM_OBJECT(CSSFontFaceRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFontFaceRule);
 
@@ -44,6 +47,10 @@ private:
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     void handle_src_descriptor_change();
+
+    virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+
+    GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() override { return parent_style_sheet(); }
 
     GC::Ref<CSSFontFaceDescriptors> m_style;
     GC::Ptr<FontFace> m_css_connected_font_face;

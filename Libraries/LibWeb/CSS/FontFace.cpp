@@ -598,6 +598,8 @@ GC::Ref<WebIDL::Promise> FontFace::load()
     // 3. Otherwise, set font face’s status attribute to "loading", return font face’s [[FontStatusPromise]],
     //    and continue executing the rest of this algorithm asynchronously.
     m_status = Bindings::FontFaceLoadStatus::Loading;
+    if (m_css_font_face_rule)
+        m_css_font_face_rule->set_loading_state(CSSStyleSheet::LoadingState::Loading);
 
     Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
         // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
@@ -611,6 +613,8 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 //    is "NetworkError" and set font face’s status attribute to "error".
                 if (!maybe_typeface) {
                     m_status = Bindings::FontFaceLoadStatus::Error;
+                    if (m_css_font_face_rule)
+                        m_css_font_face_rule->set_loading_state(CSSStyleSheet::LoadingState::Error);
                     WebIDL::reject_promise(realm(), m_font_status_promise, WebIDL::NetworkError::create(realm(), "Failed to load font"_utf16));
 
                     // For each FontFaceSet font face is in:
@@ -632,6 +636,8 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                     m_parsed_font = maybe_typeface;
                     m_status = Bindings::FontFaceLoadStatus::Loaded;
                     WebIDL::resolve_promise(realm(), m_font_status_promise, this);
+                    if (m_css_font_face_rule)
+                        m_css_font_face_rule->set_loading_state(CSSStyleSheet::LoadingState::Loaded);
 
                     // For each FontFaceSet font face is in:
                     for (auto& font_face_set : m_containing_sets) {

@@ -222,8 +222,22 @@ void CSSFontFaceRule::dump(StringBuilder& builder, int indent_levels) const
     Base::dump(builder, indent_levels);
 
     dump_indent(builder, indent_levels + 1);
+    builder.appendff("Loading state: {}\n", CSSStyleSheet::loading_state_name(loading_state()));
+
+    dump_indent(builder, indent_levels + 1);
     builder.appendff("Valid: {}\n", is_valid());
     dump_descriptors(builder, descriptors(), indent_levels + 1);
+}
+
+void CSSFontFaceRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+{
+    if (m_parent_style_sheet)
+        m_parent_style_sheet->remove_critical_subresource(*this);
+
+    Base::set_parent_style_sheet(parent_style_sheet);
+
+    if (m_parent_style_sheet)
+        m_parent_style_sheet->add_critical_subresource(*this);
 }
 
 }
