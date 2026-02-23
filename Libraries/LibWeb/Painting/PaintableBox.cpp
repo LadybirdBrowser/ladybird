@@ -775,13 +775,6 @@ Optional<int> PaintableBox::scroll_frame_id() const
     return {};
 }
 
-CSSPixelPoint PaintableBox::cumulative_offset_of_enclosing_scroll_frame() const
-{
-    if (m_enclosing_scroll_frame)
-        return m_enclosing_scroll_frame->cumulative_offset();
-    return {};
-}
-
 CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_position) const
 {
     if (!accumulated_visual_context())
