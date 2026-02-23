@@ -6,11 +6,11 @@ Program (script) @1:1
             ├─ init
             │  └─ UsingDeclaration @2:10
             │     └─ VariableDeclarator @2:10
-            │        ├─ Identifier "x" [global] @2:16
+            │        ├─ Identifier "x" [variable:0] @2:16
             │        └─ NullLiteral @2:20
             ├─ test
             │  └─ BinaryExpression (===) @2:28
-            │     ├─ Identifier "x" [global] @2:26
+            │     ├─ Identifier "x" [variable:0] @2:26
             │     └─ NullLiteral @2:32
             └─ body
                └─ BlockStatement @2:40
