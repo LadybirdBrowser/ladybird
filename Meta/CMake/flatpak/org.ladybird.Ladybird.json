@@ -4,7 +4,8 @@
   "runtime-version": "6.9",
   "sdk": "org.kde.Sdk",
   "sdk-extensions": [
-    "org.freedesktop.Sdk.Extension.llvm20"
+    "org.freedesktop.Sdk.Extension.llvm20",
+    "org.freedesktop.Sdk.Extension.rust-stable"
   ],
   "command": "Ladybird",
   "finish-args": [
@@ -666,7 +667,8 @@
           "type": "shell",
           "commands": [
             "# FIXME Is there an easier way to set an absolute path in config-opts?",
-            "echo set\\(LADYBIRD_CACHE_DIR \"$PWD/Caches\" CACHE STRING \\\"\\\"\\) > Cache.cmake"
+            "echo set\\(LADYBIRD_CACHE_DIR \"$PWD/Caches\" CACHE STRING \\\"\\\"\\) > Cache.cmake",
+            "echo set\\(FETCHCONTENT_SOURCE_DIR_CORROSION \"$PWD/corrosion\" CACHE STRING \\\"\\\"\\) >> Cache.cmake"
           ]
         },
         {
@@ -676,11 +678,12 @@
             "Build",
             "Tests/LibWeb/WPT"
           ]
-        }
+        },
+        "cargo-sources.json"
       ],
       "build-options": {
         "ldflags": "-Wl,-rpath-link,/app/lib",
-        "append-path": "/usr/lib/sdk/llvm20/bin",
+        "append-path": "/usr/lib/sdk/llvm20/bin:/usr/lib/sdk/rust-stable/bin",
         "prepend-ld-library-path": "/usr/lib/sdk/llvm20/lib"
       },
       "config-opts": [
