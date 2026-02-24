@@ -1,7 +1,7 @@
 initial color: rgb(255, 0, 0)
 initial opacity: 1
-after setProperty color: rgb(255, 0, 0)
-after setProperty opacity: 1
+after setProperty color: rgb(0, 128, 0)
+after setProperty opacity: 0.5
 deep initial color: rgb(0, 0, 255)
-deep after setProperty color: rgb(0, 0, 255)
-second update color: rgb(255, 0, 0)
+deep after setProperty color: rgb(0, 128, 0)
+second update color: rgb(0, 0, 255)
