@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/Selector.h>
@@ -120,7 +121,7 @@ public:
 
     GC::Ptr<CSSStyleSheet> m_user_style_sheet;
 
-    HashTable<GC::Weak<DOM::Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
+    GC::WeakHashSet<DOM::Node> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
 
     GC::Ref<DOM::Node> m_node;
 };

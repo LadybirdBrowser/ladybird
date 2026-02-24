@@ -493,10 +493,8 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
     }
 
     auto nodes = move(m_pending_nodes_for_style_invalidation_due_to_presence_of_has);
-    for (auto const& node : nodes) {
-        if (!node)
-            continue;
-        for (auto ancestor = node.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+    for (auto& node : nodes) {
+        for (auto* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
             if (!ancestor->is_element())
                 continue;
             auto& element = static_cast<DOM::Element&>(*ancestor);
