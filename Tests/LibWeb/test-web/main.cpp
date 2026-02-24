@@ -163,13 +163,14 @@ static void render_live_display()
         size_t total = s_total_tests;
 
         // Calculate progress bar width (leave room for "completed/total []")
-        auto counter = ByteString::formatted("{}/{} ", completed, total);
-        size_t bar_width = s_terminal_width > counter.length() + 3 ? s_terminal_width - counter.length() - 3 : 20;
+        auto counter_start = output.length();
+        output.appendff("{}/{} ", completed, total);
+        auto counter_length = output.length() - counter_start;
+        size_t bar_width = s_terminal_width > counter_length + 3 ? s_terminal_width - counter_length - 3 : 20;
 
         size_t filled = total > 0 ? (completed * bar_width) / total : 0;
         size_t empty = bar_width - filled;
 
-        output.append(counter);
         output.append("\033[32m["sv); // Green color
         for (size_t j = 0; j < filled; ++j)
             output.append("█"sv);
@@ -206,7 +207,7 @@ struct ViewOutputCapture {
     RefPtr<Core::Notifier> stderr_notifier;
 };
 
-static HashMap<WebView::ViewImplementation const*, OwnPtr<ViewOutputCapture>> s_output_captures;
+static HashMap<WebView::ViewImplementation const*, NonnullOwnPtr<ViewOutputCapture>> s_output_captures;
 
 static void setup_output_capture_for_view(TestWebView& view)
 {
