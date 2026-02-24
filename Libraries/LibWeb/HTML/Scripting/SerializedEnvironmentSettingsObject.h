@@ -22,6 +22,7 @@ enum class CanUseCrossOriginIsolatedAPIs : u8 {
 
 struct SerializedDocument {
     URL::URL url;
+    bool relevant_settings_object_is_secure_context { false };
 };
 
 struct SerializedWindow {
@@ -29,6 +30,7 @@ struct SerializedWindow {
 };
 
 struct SerializedWorkerGlobalScope {
+    bool relevant_settings_object_is_secure_context { false };
 };
 
 using SerializedGlobal = Variant<SerializedWindow, SerializedWorkerGlobalScope>;

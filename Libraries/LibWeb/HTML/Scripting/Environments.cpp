@@ -585,11 +585,19 @@ bool is_non_secure_context(Environment const& environment)
 SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
     auto serialized_global = [this]() -> SerializedGlobal {
-        if (auto const* window = as_if<Window>(global_object()))
-            return SerializedWindow { .associated_document { .url = window->associated_document().url() } };
-
+        bool relevant_settings_object_is_secure_context = is_secure_context(*this);
+        if (auto const* window = as_if<Window>(global_object())) {
+            return SerializedWindow {
+                .associated_document {
+                    .url = window->associated_document().url(),
+                    .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
+                }
+            };
+        }
         VERIFY(is<WorkerGlobalScope>(global_object()));
-        return SerializedWorkerGlobalScope {};
+        return SerializedWorkerGlobalScope {
+            .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
+        };
     }();
 
     return SerializedEnvironmentSettingsObject {

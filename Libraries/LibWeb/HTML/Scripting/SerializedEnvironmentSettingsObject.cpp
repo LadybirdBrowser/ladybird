@@ -15,6 +15,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedWindow const& window)
 {
     TRY(encoder.encode(window.associated_document.url));
+    TRY(encoder.encode(window.associated_document.relevant_settings_object_is_secure_context));
 
     return {};
 }
@@ -25,20 +26,24 @@ ErrorOr<Web::HTML::SerializedWindow> decode(Decoder& decoder)
     return Web::HTML::SerializedWindow {
         .associated_document {
             .url = TRY(decoder.decode<URL::URL>()),
+            .relevant_settings_object_is_secure_context = TRY(decoder.decode<bool>()),
         },
     };
 }
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::SerializedWorkerGlobalScope const&)
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedWorkerGlobalScope const& worker_global_scope)
 {
+    TRY(encoder.encode(worker_global_scope.relevant_settings_object_is_secure_context));
     return {};
 }
 
 template<>
-ErrorOr<Web::HTML::SerializedWorkerGlobalScope> decode(Decoder&)
+ErrorOr<Web::HTML::SerializedWorkerGlobalScope> decode(Decoder& decoder)
 {
-    return Web::HTML::SerializedWorkerGlobalScope {};
+    return Web::HTML::SerializedWorkerGlobalScope {
+        .relevant_settings_object_is_secure_context = TRY(decoder.decode<bool>()),
+    };
 }
 
 template<>
