@@ -10,6 +10,8 @@
 #include "TestWebView.h"
 
 #include <LibCore/Environment.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/Notifier.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibRequests/RequestClient.h>
@@ -190,46 +192,35 @@ static ErrorOr<void> run_tool_and_append_output(StringBuilder& builder, StringVi
     Core::Process process = process_or_error.release_value();
     (void)Core::System::close(write_fd);
 
-    MonotonicTime deadline = MonotonicTime::now() + AK::Duration::from_milliseconds(timeout_ms);
-    bool exited = false;
+    bool finished = false;
+    bool timed_out = false;
 
-    for (;;) {
-        struct pollfd pfd;
-        pfd.fd = read_fd;
-        pfd.events = POLLIN;
-        pfd.revents = 0;
-
-        auto poll_result = Core::System::poll({ &pfd, 1 }, 50);
-        if (!poll_result.is_error() && (pfd.revents & POLLIN)) {
-            Array<u8, 4096> buffer;
-            auto nread_or_error = Core::System::read(read_fd, buffer);
-            if (!nread_or_error.is_error() && nread_or_error.value() > 0)
-                builder.append(StringView { reinterpret_cast<char const*>(buffer.data()), nread_or_error.value() });
-        }
-
-        auto wait_result = Core::System::waitpid(process.pid(), WNOHANG);
-        if (!wait_result.is_error() && wait_result.value().pid == process.pid()) {
-            exited = true;
-            break;
-        }
-
-        if (MonotonicTime::now() >= deadline)
-            break;
-    }
-
-    if (!exited) {
-        (void)Core::System::kill(process.pid(), SIGKILL);
-        (void)Core::System::waitpid(process.pid(), 0);
-    }
-
-    for (;;) {
-        Array<u8, 8192> buffer;
+    auto notifier = Core::Notifier::construct(read_fd, Core::Notifier::Type::Read);
+    notifier->on_activation = [&] {
+        Array<u8, 4096> buffer;
         auto nread_or_error = Core::System::read(read_fd, buffer);
-        if (nread_or_error.is_error() || nread_or_error.value() == 0)
-            break;
-        builder.append(StringView { reinterpret_cast<char const*>(buffer.data()), nread_or_error.value() });
-    }
+        if (nread_or_error.is_error() || nread_or_error.value() == 0) {
+            finished = true;
+            return;
+        }
+        builder.append(StringView { buffer.data(), nread_or_error.value() });
+    };
 
+    auto timeout_timer = Core::Timer::create_single_shot(static_cast<int>(timeout_ms), [&] {
+        timed_out = true;
+    });
+    timeout_timer->start();
+
+    Core::EventLoop::current().spin_until([&] {
+        return finished || timed_out;
+    });
+
+    notifier->close();
+
+    if (!finished)
+        (void)Core::System::kill(process.pid(), SIGKILL);
+
+    (void)Core::System::waitpid(process.pid(), 0);
     (void)Core::System::close(read_fd);
     return {};
 #endif
