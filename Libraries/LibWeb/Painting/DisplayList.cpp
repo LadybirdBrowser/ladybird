@@ -259,8 +259,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         restore({});
         applied_depth--;
     }
-
-    flush();
 }
 
 }
