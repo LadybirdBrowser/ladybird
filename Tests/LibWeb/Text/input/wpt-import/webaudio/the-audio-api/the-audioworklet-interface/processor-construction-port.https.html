@@ -1,0 +1,61 @@
+<!doctype html>
+<title>Test processor port assignment on processor callback function construction</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+// https://webaudio.github.io/web-audio-api/#AudioWorkletProcessor-instantiation
+
+const get_context_for_node_name = async (node_name) => {
+  const context = new AudioContext();
+  const filePath = `processors/construction-port-${node_name}.js`;
+  await context.audioWorklet.addModule(filePath);
+  return context;
+}
+
+const test_throws = async ({node_name, thrower} = {}) => {
+  const context = await get_context_for_node_name(node_name);
+  const node = new AudioWorkletNode(context, node_name);
+  const event = await new Promise((resolve) => {
+    node.port.onmessage = resolve;
+  });
+  assert_true(event.data.threw, `${thrower} should throw`);
+  assert_equals(event.data.errorName, "TypeError");
+  assert_true(event.data.isTypeError, "exception should be TypeError");
+};
+
+const throw_tests = [
+  {
+    test_name: 'super() after new AudioWorkletProcessor()',
+    node_name: 'super-after-new',
+    thrower: 'super()'
+  },
+  {
+    test_name: 'new AudioWorkletProcessor() after super()',
+    node_name: 'new-after-super',
+    thrower: 'new AudioWorkletProcessor()'
+  },
+  {
+    test_name: 'new AudioWorkletProcessor() after new AudioWorkletProcessor()',
+    node_name: 'new-after-new',
+    thrower: 'new AudioWorkletProcessor()'
+  }
+];
+for (const test_info of throw_tests) {
+  promise_test(async () => test_throws(test_info), test_info.test_name);
+}
+
+promise_test(async (t) => {
+  const node_name = 'singleton';
+  const context = await get_context_for_node_name(node_name);
+  const node1 = new AudioWorkletNode(context, node_name);
+  const node2 = new AudioWorkletNode(context, node_name);
+  node2.onmessage = t.unreached_func("node2 should not receive a message");
+  let count = 0;
+  await new Promise((resolve) => {
+    node1.port.onmessage = t.step_func((event) => {
+      assert_less_than(count, 2, "message count");
+      if (++count == 2) { resolve(); };
+    });
+  });
+}, 'Singleton AudioWorkletProcessor');
+</script>

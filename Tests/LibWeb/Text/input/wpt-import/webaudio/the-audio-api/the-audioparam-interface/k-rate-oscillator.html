@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParams of OscillatorNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Arbitrary sample rate and duration.
+      const sampleRate = 8000;
+
+      // Only new a few render quanta to verify things are working.
+      const testDuration = 4 * 128 / sampleRate;
+
+      [{name: 'detune', initial: 0, final: 1200}, {
+        name: 'frequency',
+        initial: 440,
+        final: sampleRate / 2}].forEach((paramProperty) => {
+        promise_test(async () => {
+          const context = new OfflineAudioContext({
+            numberOfChannels: 3,
+            sampleRate: sampleRate,
+            length: testDuration * sampleRate
+          });
+
+          const merger = new ChannelMergerNode(
+              context, {numberOfInputs: context.destination.channelCount});
+          merger.connect(context.destination);
+          const inverter = new GainNode(context, {gain: -1});
+          inverter.connect(merger, 0, 2);
+
+          const kRateNode = new OscillatorNode(context);
+          const aRateNode = new OscillatorNode(context);
+
+          kRateNode.connect(merger, 0, 0);
+          aRateNode.connect(merger, 0, 1);
+
+          kRateNode.connect(merger, 0, 2);
+          aRateNode.connect(inverter);
+
+          // Set the rate
+          kRateNode[paramProperty.name].automationRate = 'k-rate';
+
+          // Automate the offset
+          kRateNode[paramProperty.name].setValueAtTime(
+              paramProperty.initial, 0);
+          kRateNode[paramProperty.name].linearRampToValueAtTime(
+              paramProperty.final, testDuration);
+
+          aRateNode[paramProperty.name].setValueAtTime(
+              paramProperty.initial, 0);
+          aRateNode[paramProperty.name].linearRampToValueAtTime(
+              paramProperty.final, testDuration);
+
+          kRateNode.start();
+          aRateNode.start();
+
+          const audioBuffer = await context.startRendering();
+          const diff = audioBuffer.getChannelData(2);
+          // Verify that the outputs are different.
+          assert_not_constant_value_of(
+              diff, 0,
+              `k-rate ${paramProperty.name}: ` +
+                  `Difference between a-rate and k-rate outputs`);
+        }, `Oscillator k-rate ${paramProperty.name}`);
+      });
+    </script>
+  </body>
+</html>

@@ -52,6 +52,20 @@ class Echo:
 echo_store: Dict[str, Echo] = {}
 
 
+def echo_definition(echo: Echo):
+    headers = echo.headers or {}
+    return (
+        echo.method,
+        echo.path,
+        echo.status,
+        echo.body,
+        echo.delay_ms,
+        tuple(sorted(headers.items())),
+        echo.reason_phrase,
+        echo.reflect_headers_in_body,
+    )
+
+
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     static_directory: str
 
@@ -225,7 +239,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             if echo.reflect_headers_in_body:
                 headers = {}
                 for key in self.headers.keys():
-                    headers[key] = self.headers.get_all(key)
+                    headers[key] = self.headers.get_all(key) or []
                 headers = json.dumps(headers)
                 response_body = echo.body.replace("$HEADERS", headers) if echo.body else headers
             else:

@@ -14,6 +14,9 @@
 
 namespace Web::WebAudio {
 
+class OfflineAudioContext;
+class RenderGraph;
+
 // https://webaudio.github.io/web-audio-api/#AnalyserOptions
 struct AnalyserOptions : AudioNodeOptions {
     unsigned long fft_size { 2048 };
@@ -64,22 +67,35 @@ private:
     double m_smoothing_time_constant;
 
     // https://webaudio.github.io/web-audio-api/#current-frequency-data
-    Vector<f32> current_frequency_data();
+    Vector<f32> const& current_frequency_data();
 
     // https://webaudio.github.io/web-audio-api/#current-time-domain-data
-    Vector<f32> current_time_domain_data();
+    Vector<f32> const& current_time_domain_data();
+    Vector<f32> capture_time_domain_window() const;
 
-    // https://webaudio.github.io/web-audio-api/#blackman-window
-    Vector<f32> apply_a_blackman_window(Vector<f32> const& x) const;
+    bool try_update_time_domain_cache_from_context(u64& out_render_quantum_index);
+    bool try_update_frequency_cache_from_context(u64& out_render_quantum_index);
 
-    // https://webaudio.github.io/web-audio-api/#smoothing-over-time
-    Vector<f32> smoothing_over_time(Vector<f32> const& current_block);
+    // Cached results for the current render quantum (single block of sample frames)
+    size_t current_render_quantum_index() const;
+    Optional<size_t> m_cached_render_quantum_index;
+    Vector<f32> m_cached_time_domain_data;
+    Vector<f32> m_cached_frequency_data;
+    Optional<size_t> m_realtime_analyser_index;
 
-    // https://webaudio.github.io/web-audio-api/#previous-block
-    Vector<f32> m_previous_block;
+    friend class RenderGraph;
+    void set_analyser_index(Badge<RenderGraph>, size_t index) { m_realtime_analyser_index = index; }
+    friend class OfflineAudioContext;
 
-    // https://webaudio.github.io/web-audio-api/#conversion-to-db
-    Vector<f32> conversion_to_dB(Vector<f32> const& X_hat) const;
+    // Rendered input signal produced by the normal WebAudio graph rendering path.
+    // This is the control-thread copy of the render-thread ring buffer, containing the most recent fftSize frames.
+    void set_time_domain_data_from_rendering(Badge<OfflineAudioContext>, ReadonlySpan<f32>);
+
+    // Rendered analyser output produced by the render thread.
+    // This sets cached values so repeated get*FrequencyData() calls within the same render quantum are stable,
+    // and so smoothing reflects render-thread state progression.
+    void set_analysis_data_from_rendering(Badge<OfflineAudioContext>, ReadonlySpan<f32> time_domain, ReadonlySpan<f32> frequency_data_db, size_t render_quantum_index);
+    Optional<Vector<f32>> m_rendered_time_domain_data;
 };
 
 }

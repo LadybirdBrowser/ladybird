@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test cross-thread passing of AudioWorkletNodeOptions
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const context = new AudioContext();
+
+      const filePath = 'processors/option-test-processor.js';
+
+      // Create a OptionTestProcessor and feed |processorData| to it. The
+      // processor should echo the received data to the node's |onmessage|
+      // handler.
+      promise_test(async () => {
+        await context.audioWorklet.addModule(filePath);
+
+        const processorOptions = {
+          description: 'foo',
+          payload: [0, 1, 2, 3],
+        };
+
+        const optionTestNode =
+            new AudioWorkletNode(context, 'option-test-processor', {
+              processorOptions: processorOptions,
+            });
+
+        await new Promise((resolve) => {
+          optionTestNode.port.onmessage = (event) => {
+            assert_equals(
+                event.data.processorOptions.description,
+                processorOptions.description,
+                `|description| field in processorOptions from processor(` +
+                    `"${event.data.processorOptions.description}") vs ` +
+                        `constructor ("${processorOptions.description}")`);
+            assert_array_equals(
+                event.data.processorOptions.payload,
+                processorOptions.payload,
+                `|payload| array in processorOptions from processor(` +
+                    `[${event.data.processorOptions.payload}]) vs constructor` +
+                        ` ([${processorOptions.payload}])`);
+            resolve();
+          };
+        });
+      }, `valid-processor-data: processorOptions round-trip`);
+
+      // Passing empty option dictionary should work without a problem.
+      promise_test(async () => {
+        await context.audioWorklet.addModule(filePath);
+
+        const optionTestNode =
+            new AudioWorkletNode(context, 'option-test-processor');
+
+        await new Promise((resolve) => {
+          optionTestNode.port.onmessage = (event) => {
+            assert_equals(
+                Object.keys(event.data).length,
+                2,
+                `Number of properties in data from processor`);
+            assert_equals(
+                event.data.numberOfInputs,
+                1,
+                `|numberOfInputs| field in data from processor`);
+            assert_equals(
+                event.data.numberOfOutputs,
+                1,
+                `|numberOfOutputs| field in data from processor`);
+            resolve();
+          };
+        });
+      }, `empty-option: default processorOptions behavior`);
+    </script>
+  </body>
+</html>

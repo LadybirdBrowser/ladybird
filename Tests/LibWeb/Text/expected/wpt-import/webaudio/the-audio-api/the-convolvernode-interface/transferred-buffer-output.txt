@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Test Convolver with transferred buffer"
+Pass	Audit report
+Pass	> [Test Convolver with transferred buffer] Output should be all zeroes
+Pass	  Convolver channel 0 output[0:1279] contains only the constant 0.
+Pass	  Convolver channel 1 output[0:1279] contains only the constant 0.
+Pass	< [Test Convolver with transferred buffer] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

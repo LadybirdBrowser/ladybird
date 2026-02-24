@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Gain - k-rate GainNode.gain
+Pass	StereoPanner - k-rate StereoPannerNode.pan

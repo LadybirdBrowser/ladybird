@@ -34,10 +34,6 @@ void TaskQueue::add(GC::Ref<Task> task)
     if (task->document() && task->document()->is_temporary_document_for_fragment_parsing())
         return;
 
-    // AD-HOC: Don't enqueue tasks for documents that haven't been browsing context associated.
-    if (task->document() && !task->document()->has_been_browsing_context_associated())
-        return;
-
     m_tasks.append(task);
     m_event_loop->schedule();
 }
@@ -61,13 +57,29 @@ bool TaskQueue::has_runnable_tasks() const
     if (m_event_loop->execution_paused())
         return false;
 
-    for (auto& task : m_tasks) {
+    for (auto const& task : m_tasks) {
         if (m_event_loop->running_rendering_task() && task->source() == Task::Source::Rendering)
             continue;
         if (task->is_runnable())
             return true;
     }
     return false;
+}
+
+GC::Ptr<Task> TaskQueue::take_first_runnable_with_source(HTML::Task::Source source)
+{
+    if (m_event_loop->execution_paused())
+        return nullptr;
+
+    for (size_t i = 0; i < m_tasks.size(); ++i) {
+        if (m_event_loop->running_rendering_task() && m_tasks[i]->source() == Task::Source::Rendering)
+            continue;
+        if (m_tasks[i]->source() != source)
+            continue;
+        if (m_tasks[i]->is_runnable())
+            return m_tasks.take(i);
+    }
+    return nullptr;
 }
 
 void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)

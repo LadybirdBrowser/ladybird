@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+  <head>
+    <title>k-rate AudioParams with inputs for AudioBufferSourceNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      const sampleRate = 8000;
+      const testDuration = 0.25;
+
+      const testCases = [
+        { paramName: 'playbackRate', startValue: [1, 0],
+            endValue: [2, testDuration] },
+        { paramName: 'detune', startValue: [-1200, 0],
+            endValue: [1200, testDuration] }
+      ];
+
+      for (const { paramName, startValue, endValue } of testCases) {
+        promise_test(async t => {
+          const prefix = `AudioBufferSourceNode ${paramName}`;
+          await runKRateParamInputTest(t, {
+            prefix,
+            paramName,
+            startValue,
+            endValue
+          });
+        }, `Verify k-rate AudioParam input works correctly for ${paramName}`);
+      }
+
+      async function runKRateParamInputTest(test, options) {
+        // Test k-rate automation of AudioBufferSourceNode with connected
+        // input.
+        //
+        // A reference source node is created with an automation on the
+        // selected AudioParam. For simplicity, we just use a linear ramp from
+        // the minValue to the maxValue of the AudioParam.
+        //
+        // The test node has an input signal connected to the AudioParam.  This
+        // input signal is created to match the automation on the reference
+        // node.
+        //
+        // Finally, the output from the two nodes must be identical if k-rate
+        // inputs are working correctly.
+        //
+        // Options parameter is a dictionary with the following required
+        // members:
+        //   prefix    - prefix to use for the messages.
+        //   paramName - Name of the AudioParam to be tested
+
+        const { prefix, paramName, startValue, endValue } = options;
+
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        const merger = new ChannelMergerNode(context, {
+          numberOfInputs: context.destination.channelCount
+        });
+        merger.connect(context.destination);
+
+        const rampBuffer = createLinearRampBuffer(context, context.length);
+
+        let refNode, tstNode;
+
+        const nodeOptions = { buffer: rampBuffer };
+
+        test.step(() => {
+          refNode = new AudioBufferSourceNode(context, nodeOptions);
+        }, `${prefix}: create reference AudioBufferSourceNode`);
+
+        test.step(() => {
+          tstNode = new AudioBufferSourceNode(context, nodeOptions);
+        }, `${prefix}: create test AudioBufferSourceNode`);
+
+        // Set automation on the reference node’s param
+        test.step(() => {
+          refNode[paramName].setValueAtTime(...startValue);
+        }, `${prefix}: setValueAtTime(${startValue[0]}, ${startValue[1]})`);
+
+        test.step(() => {
+          refNode[paramName].linearRampToValueAtTime(...endValue);
+        }, `${prefix}: linearRampToValueAtTime(${endValue[0]}, ` +
+            `${endValue[1]})`);
+
+        // Modulate test node’s param via input signal
+        let mod = new ConstantSourceNode(context, { offset: 0 });
+
+        const modStart = startValue[0] - refNode[paramName].defaultValue;
+        const modEnd = endValue[0] - refNode[paramName].defaultValue;
+
+        test.step(() => {
+          mod.offset.setValueAtTime(modStart, startValue[1]);
+        }, `${prefix}: mod.offset.setValueAtTime(${modStart}, ` +
+            ` ${startValue[1]})`);
+
+        test.step(() => {
+          mod.offset.linearRampToValueAtTime(modEnd, endValue[1]);
+        }, `${prefix}: mod.offset.linearRampToValueAtTime(${modEnd}, ` +
+            ` ${endValue[1]})`);
+
+        test.step(() => {
+          mod.connect(tstNode[paramName]);
+        }, `${prefix}: mod.connect(tstNode[${paramName}])`);
+
+        // Connect both nodes to different merger inputs
+        refNode.connect(merger, 0, 0);
+        tstNode.connect(merger, 0, 1);
+
+        // Start all nodes
+        refNode.start();
+        tstNode.start();
+        mod.start();
+
+        const renderedBuffer = await context.startRendering();
+
+        const expected = renderedBuffer.getChannelData(0);
+        const actual = renderedBuffer.getChannelData(1);
+
+        // Sanity check: outputs should not be silent
+        assert_false(
+          expected.every(v => v === 0),
+          `${prefix}: expected output is not silent`
+        );
+
+        assert_false(
+          actual.every(v => v === 0),
+          `${prefix}: actual output is not silent`
+        );
+
+        // Expected and actual outputs must match exactly
+        assert_array_approx_equals(
+          actual,
+          expected,
+          0,
+          `${prefix}: actual matches expected for k-rate AudioParam input`
+        );
+      }
+    </script>
+  </body>
+</html>

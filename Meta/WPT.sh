@@ -85,6 +85,7 @@ WPT_ARGS=(
     "--webdriver-binary=${WEBDRIVER_BINARY}"
     "--install-webdriver"
     "--webdriver-arg=--force-cpu-painting"
+    "--webdriver-arg=--test-mode"
     "--webdriver-arg=--default-time-zone=UTC"
     "--webdriver-arg=--expose-experimental-interfaces"
     "--no-pause-after-test"

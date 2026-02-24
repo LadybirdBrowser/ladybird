@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	currentTime vs currentFrames in Audio Worklet global scope

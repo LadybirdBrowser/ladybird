@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Testing behavior OfflineAudioContext after execution context is detached
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      const audit = Audit.createTaskRunner();
+
+      audit.define('decoding-on-detached-iframe', (task, should) => {
+        const iframe =
+            document.createElementNS("http://www.w3.org/1999/xhtml", "iframe");
+        document.body.appendChild(iframe);
+
+        // Use the lowest value possible for the faster test.
+        let context =
+            new iframe.contentWindow.OfflineAudioContext(1, 1, 8000);
+
+        document.body.removeChild(iframe);
+
+        return should(context.decodeAudioData(new ArrayBuffer(1)),
+               'decodeAudioData() upon a detached iframe')
+            .beRejectedWith('InvalidStateError');
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

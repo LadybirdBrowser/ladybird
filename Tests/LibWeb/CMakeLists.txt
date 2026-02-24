@@ -21,4 +21,5 @@ endforeach()
 target_link_libraries(TestContentFilter PRIVATE LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 
+add_subdirectory("webaudio-units")
 add_subdirectory("test-web")

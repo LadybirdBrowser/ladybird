@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      panner-automation-equalpower-stereo.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="../../resources/panner-model-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // To test the panner, we create a number of panner nodes
+      // equally spaced on a semicircle at unit distance.  The
+      // semicircle covers the azimuth range from -90 to 90 deg,
+      // covering full left to full right.  Each source is an impulse
+      // turning at a different time and we check that the rendered
+      // impulse has the expected gain.
+      audit.define(
+          {
+            label: 'test',
+            description:
+                'Equal-power panner model of AudioPannerNode with stereo source',
+          },
+          (task, should) => {
+            // Create offline audio context.
+            context = new OfflineAudioContext(
+                2, sampleRate * renderLengthSeconds, sampleRate);
+
+            createTestAndRun(
+                context, should, nodesToCreate, 2,
+                function(panner, x, y, z) {
+                  panner.positionX.value = x;
+                  panner.positionY.value = y;
+                  panner.positionZ.value = z;
+                })
+                .then(() => task.done());
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

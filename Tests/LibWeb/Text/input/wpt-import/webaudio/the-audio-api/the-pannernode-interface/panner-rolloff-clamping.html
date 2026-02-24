@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Clamping of PannerNode rolloffFactor
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      // Fairly arbitrary sample rate and render frames.
+      const sampleRate = 16000;
+      const renderFrames = 2048;
+
+      // Test clamping of the rolloffFactor.  The test is done by comparing the
+      // output of a panner with the rolloffFactor set outside the nominal range
+      // against the output of a panner with the rolloffFactor clamped to the
+      // nominal range.  The outputs should be the same.
+      //
+      // The |options| dictionary should contain the members
+      //   distanceModel  - The distance model to use for the panners
+      //   rolloffFactor  - The desired rolloffFactor.  Should be outside the
+      //                    nominal range of the distance model.
+      //   clampedRolloff - The rolloffFactor (above) clamped to the nominal
+      //                    range for the given distance model.
+      const runTest = async (options) => {
+        // Offline context with two channels.  The first channel is the panner
+        // node under test.  The second channel is the reference panner node.
+        const context = new OfflineAudioContext(2, renderFrames, sampleRate);
+
+        // The source for the panner nodes.  This is fairly arbitrary.
+        const src = new OscillatorNode(context, {type: 'sawtooth'});
+
+        // Create the test panner with the specified rolloff factor.  The
+        // position is fairly arbitrary, but something that is not the default
+        // is good to show the distance model had some effect.
+        const pannerTest = new PannerNode(context, {
+          rolloffFactor: options.rolloffFactor,
+          distanceModel: options.distanceModel,
+          positionX: 5000
+        });
+
+        // Create the reference panner with the rolloff factor clamped to the
+        // appropriate limit.
+        const pannerRef = new PannerNode(context, {
+          rolloffFactor: options.clampedRolloff,
+          distanceModel: options.distanceModel,
+          positionX: 5000
+        });
+
+
+        // Connect the source to the panners to the destination appropriately.
+        const merger = new ChannelMergerNode(context, {numberOfInputs: 2});
+
+
+        src.connect(pannerTest).connect(merger, 0, 0);
+        src.connect(pannerRef).connect(merger, 0, 1);
+
+        merger.connect(context.destination);
+
+        src.start();
+
+        const resultBuffer = await context.startRendering();
+        // The two channels should be the same due to the clamping.  Verify
+        // that they are the same.
+        const actual = resultBuffer.getChannelData(0);
+        const expected = resultBuffer.getChannelData(1);
+        const message = `Panner distanceModel: "${options.distanceModel}", ` +
+            `rolloffFactor: ${options.rolloffFactor}`;
+        assert_array_equals(actual, expected, message);
+      };
+      promise_test(() => runTest({
+        distanceModel: 'linear',
+        rolloffFactor: 2,
+        clampedRolloff: 1
+      }), 'rolloffFactor clamping for linear distance model');
+    </script>
+  </body>
+</html>

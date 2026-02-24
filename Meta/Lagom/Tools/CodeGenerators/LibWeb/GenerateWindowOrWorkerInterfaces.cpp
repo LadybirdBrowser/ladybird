@@ -22,6 +22,7 @@ struct InterfaceSets {
     Vector<IDL::Interface&> dedicated_worker_exposed;
     Vector<IDL::Interface&> shared_worker_exposed;
     Vector<IDL::Interface&> shadow_realm_exposed;
+    Vector<IDL::Interface&> audio_worklet_exposed;
     // TODO: service_worker_exposed
 };
 
@@ -125,7 +126,8 @@ static ErrorOr<void> generate_intrinsic_definitions_implementation(StringView ou
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
-#include <LibWeb/HTML/ShadowRealmGlobalScope.h>)~~~");
+#include <LibWeb/HTML/ShadowRealmGlobalScope.h>
+#include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>)~~~");
 
     for (auto& interface : interface_sets.intrinsics) {
         auto gen = generator.fork();
@@ -249,6 +251,7 @@ static constexpr bool is_@global_name@_exposed(InterfaceName name)
     generate_global_exposed("dedicated_worker"sv, interface_sets.dedicated_worker_exposed);
     generate_global_exposed("shared_worker"sv, interface_sets.shared_worker_exposed);
     generate_global_exposed("shadow_realm"sv, interface_sets.shadow_realm_exposed);
+    generate_global_exposed("audio_worklet"sv, interface_sets.audio_worklet_exposed);
 
     // https://webidl.spec.whatwg.org/#dfn-exposed
     generator.append(R"~~~(
@@ -270,6 +273,9 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
             return false;
     } else if (is<HTML::ShadowRealmGlobalScope>(global_object)) {
         if (!is_shadow_realm_exposed(name))
+            return false;
+    } else if (is<WebAudio::AudioWorkletGlobalScope>(global_object)) {
+        if (!is_audio_worklet_exposed(name))
             return false;
     } else {
         TODO(); // FIXME: ServiceWorkerGlobalScope and WorkletGlobalScope.
@@ -613,12 +619,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(generate_exposed_interface_header("DedicatedWorker"sv, output_path));
     TRY(generate_exposed_interface_header("SharedWorker"sv, output_path));
     TRY(generate_exposed_interface_header("ShadowRealm"sv, output_path));
+    TRY(generate_exposed_interface_header("AudioWorklet"sv, output_path));
     // TODO: ServiceWorkerExposed.h
 
     TRY(generate_exposed_interface_implementation("Window"sv, output_path, interface_sets.window_exposed));
     TRY(generate_exposed_interface_implementation("DedicatedWorker"sv, output_path, interface_sets.dedicated_worker_exposed));
     TRY(generate_exposed_interface_implementation("SharedWorker"sv, output_path, interface_sets.shared_worker_exposed));
     TRY(generate_exposed_interface_implementation("ShadowRealm"sv, output_path, interface_sets.shadow_realm_exposed));
+    TRY(generate_exposed_interface_implementation("AudioWorklet"sv, output_path, interface_sets.audio_worklet_exposed));
     // TODO: ServiceWorkerExposed.cpp
 
     return 0;
@@ -626,7 +634,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
 ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, InterfaceSets& interface_sets)
 {
-    // TODO: Add service worker exposed and audio worklet exposed
+    // TODO: Add service worker exposed
 
     auto maybe_exposed = interface.extended_attributes.get("Exposed");
     if (!maybe_exposed.has_value()) {
@@ -648,6 +656,9 @@ ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, InterfaceSets& in
 
     if (has_flag(whom, IDL::ExposedTo::ShadowRealm))
         interface_sets.shadow_realm_exposed.append(interface);
+
+    if (has_flag(whom, IDL::ExposedTo::AudioWorklet) || has_flag(whom, IDL::ExposedTo::Worklet))
+        interface_sets.audio_worklet_exposed.append(interface);
 
     return {};
 }

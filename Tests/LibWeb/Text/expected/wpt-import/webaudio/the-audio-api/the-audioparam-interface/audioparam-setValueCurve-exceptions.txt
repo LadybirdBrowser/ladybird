@@ -1,0 +1,71 @@
+Harness status: OK
+
+Found 66 tests
+
+66 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "setValueCurve"
+Pass	Executing "value setter"
+Pass	Executing "automations"
+Pass	Executing "catch-exception"
+Pass	Executing "start-end"
+Pass	Executing "curve overlap"
+Pass	Executing "curve lengths"
+Pass	Audit report
+Pass	> [setValueCurve] 
+Pass	  setValueCurveAtTime(curve, 0.0125, 0.0125) did not throw an exception.
+Pass	  setValueAtTime(1, 0.018750000000000003) threw NotSupportedError: "Event overlaps existing value curve".
+Pass	  linearRampToValueAtTime(1, 0.018750000000000003) threw NotSupportedError: "Event overlaps existing value curve".
+Pass	  exponentialRampToValueAtTime(1, 0.018750000000000003) threw NotSupportedError: "Event overlaps existing value curve".
+Pass	  setTargetAtTime(1, 0.018750000000000003, 1) threw NotSupportedError: "Event overlaps existing value curve".
+Pass	  setValueAtTime(1, 0.026250000000000002) did not throw an exception.
+Pass	< [setValueCurve] All assertions passed. (total 6 assertions)
+Pass	> [value setter] 
+Pass	  setValueCurveAtTime(curve, 0, 0.025) did not throw an exception.
+Pass	  value setter threw NotSupportedError: "value setter overlaps existing value curve".
+Pass	< [value setter] All assertions passed. (total 2 assertions)
+Pass	> [automations] 
+Pass	  linearRampToValueAtTime(1, 0.0125) did not throw an exception.
+Pass	  exponentialRampToValueAtTime(1, 0.025) did not throw an exception.
+Pass	  setTargetAtTime(1, 0.037500000000000006, 0.1) did not throw an exception.
+Pass	  setValueCurveAtTime(curve, 0.05, 0.1) did not throw an exception.
+Pass	  setValueCurveAtTime(curve, 0.00625, 0.01) threw NotSupportedError: "setValueCurveAtTime overlaps an existing automation".
+Pass	  setValueCurveAtTime(curve, 0.018750000000000003, 0.01) threw NotSupportedError: "setValueCurveAtTime overlaps an existing automation".
+Pass	  setValueCurveAtTime(curve, 0.03125, 0.01) threw NotSupportedError: "setValueCurveAtTime overlaps an existing automation".
+Pass	  setValueCurveAtTime(curve, 0.043750000000000004, 0.01) threw NotSupportedError: "setValueCurveAtTime overlaps an existing curve".
+Pass	  setValueCurveAtTime([NaN, NaN], 0.043750000000000004, 0.01) threw TypeError: "Expected arg0 to be a finite floating-point number".
+Pass	  setValueCurveAtTime([1, Infinity], 0.043750000000000004, 0.01) threw TypeError: "Expected arg0 to be a finite floating-point number".
+Pass	  delayTime.setValueCurveAtTime([1, 5], 0.043750000000000004, 0.01) did not throw an exception.
+Pass	  delayTime.setValueCurveAtTime([1, 5, Infinity], 0.043750000000000004, 0.01) threw TypeError: "Expected arg0 to be a finite floating-point number".
+Pass	  setValueCurveAtTime(curve, 0.031415926535897934, 0.01) threw NotSupportedError: "setValueCurveAtTime overlaps an existing automation".
+Pass	< [automations] All assertions passed. (total 13 assertions)
+Pass	> [catch-exception] 
+Pass	  Handled setValueCurve exception so output contains only the constant 1.
+Pass	< [catch-exception] All assertions passed. (total 1 assertions)
+Pass	> [start-end] 
+Pass	  setValueAtTime(1, 0) did not throw an exception.
+Pass	  linearRampToValueAtTime(0, 0.0025) did not throw an exception.
+Pass	  setValueCurveAtTime(..., 0.0025, 0.0025) did not throw an exception.
+Pass	  exponentialRampToValueAtTime(1, 0.0075) did not throw an exception.
+Pass	  setValueCurveAtTime(..., 0.0075, 0.0025) did not throw an exception.
+Pass	  setValueCurveAtTime(..., 0.01, 0.0025) did not throw an exception.
+Pass	  setValueAtTime(0, 0.0125) did not throw an exception.
+Pass	  setValueCurveAtTime(..., 0.0125, 0.0025) did not throw an exception.
+Pass	  setTargetAtTime(1, 0.015000000000000001, 1) did not throw an exception.
+Pass	< [start-end] All assertions passed. (total 9 assertions)
+Pass	> [curve overlap] 
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 5, 10) did not throw an exception.
+Pass	  second g.gain.setValueCurveAtTime([1,2,3], 5, 10) threw NotSupportedError: "setValueCurveAtTime overlaps an existing curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 5, 5) threw NotSupportedError: "setValueCurveAtTime overlaps an existing curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 2.5, 10) threw NotSupportedError: "setValueCurveAtTime overlaps an existing curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 10, 10) threw NotSupportedError: "setValueCurveAtTime overlaps an existing curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 6, 9) threw NotSupportedError: "setValueCurveAtTime overlaps an existing curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 4, 11) threw NotSupportedError: "setValueCurveAtTime overlaps an existing curve".
+Pass	  g.gain.setValueAtTime(1.0, 15) did not throw an exception.
+Pass	< [curve overlap] All assertions passed. (total 8 assertions)
+Pass	> [curve lengths] 
+Pass	  setValueCurveAtTime([], 0, 0.01) threw InvalidStateError: "values must not be empty".
+Pass	  setValueCurveAtTime([1], 0, 0.01) threw InvalidStateError: "values must contain at least two entries".
+Pass	  setValueCurveAtTime([1,2], 0, 0.01) did not throw an exception.
+Pass	< [curve lengths] All assertions passed. (total 3 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 7 tasks ran successfully.

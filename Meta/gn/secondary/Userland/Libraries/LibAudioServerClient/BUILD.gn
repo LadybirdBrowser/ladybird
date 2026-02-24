@@ -1,0 +1,53 @@
+import("//Meta/gn/build/compiled_action.gni")
+
+compiled_action("ToSessionClientFromAudioServerEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [
+    "//Userland/Libraries/LibAudioServer/ToSessionClientFromAudioServer.ipc",
+  ]
+  outputs = [
+    "$root_gen_dir/LibAudioServer/ToSessionClientFromAudioServerEndpoint.h",
+  ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("ToAudioServerFromSessionClientEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [
+    "//Userland/Libraries/LibAudioServer/ToAudioServerFromSessionClient.ipc",
+  ]
+  outputs = [
+    "$root_gen_dir/LibAudioServer/ToAudioServerFromSessionClientEndpoint.h",
+  ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+shared_library("LibAudioServerClient") {
+  output_name = "audioserverclient"
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+    "//Userland/",
+  ]
+  deps = [
+    ":ToAudioServerFromSessionClientEndpoint",
+    ":ToSessionClientFromAudioServerEndpoint",
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibIPC",
+  ]
+  sources = [
+    "//Userland/LibAudioServer/LibAudioServer.cpp",
+    "SessionClient.cpp",
+  ]
+  sources += get_target_outputs(":ToSessionClientFromAudioServerEndpoint") +
+             get_target_outputs(":ToAudioServerFromSessionClientEndpoint")
+}

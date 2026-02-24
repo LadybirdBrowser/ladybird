@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioContext.suspend() and AudioContext.resume()
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+
+      const sampleRate = 44100;
+      const durationInSeconds = 1;
+
+      // Task: test suspend().
+      promise_test(async t => {
+        // Create an audio context with an oscillator.
+        const offlineContext = new OfflineAudioContext(
+            1, durationInSeconds * sampleRate, sampleRate);
+        const osc = new OscillatorNode(offlineContext);
+        osc.connect(offlineContext.destination);
+
+        // Verify the state.
+        assert_equals(
+            offlineContext.state, 'suspended',
+            'offlineContext.state should start as "suspended"');
+
+        // Multiple calls to suspend() should not be a problem, but we can’t
+        // test that on an offline context.  Thus, check that suspend() on an
+        // OfflineAudioContext rejects the promise.
+        const p1 = offlineContext.suspend();
+        assert_true(p1 instanceof Promise, 'p1 is a Promise');
+
+        let rejected = false;
+        await p1.then(
+            () => assert_unreached('offlineContext.suspend() should reject'),
+            () => { rejected = true; });
+        assert_true(rejected, 'suspend() promise was rejected as expected');
+      }, 'Test suspend() for offline context');
+
+      // Task: test resume().
+      promise_test(async t => {
+        // Multiple calls to resume() should not be a problem, but we can’t
+        // test that on an offline context.  Thus, check that resume() on an
+        // OfflineAudioContext rejects the promise.
+        const offlineContext = new OfflineAudioContext(
+            1, durationInSeconds * sampleRate, sampleRate);
+        const p2 = offlineContext.resume();
+        assert_true(p2 instanceof Promise, 'p2 is a Promise');
+
+        // resume() doesn’t actually resume an offline context.
+        assert_equals(
+            offlineContext.state, 'suspended',
+            'State after resume() is still "suspended"');
+
+        let rejected = false;
+        await p2.then(
+            () => assert_unreached('offlineContext.resume() should reject'),
+            () => { rejected = true; });
+        assert_true(rejected, 'resume() promise was rejected as expected');
+      }, 'Test resume() for offline context');
+
+      // Task 3: test the state after context closed.
+      promise_test(async t => {
+        // Render the offline context.
+        const offlineContext = new OfflineAudioContext(
+            1, durationInSeconds * sampleRate, sampleRate);
+        const osc = new OscillatorNode(offlineContext);
+        osc.connect(offlineContext.destination);
+        osc.start();
+
+        // We don’t care about the actual rendering result.
+        await offlineContext.startRendering();
+
+        // After rendering, the context should be closed.
+        assert_equals(
+            offlineContext.state, 'closed',
+            'offlineContext.state should be "closed" after rendering');
+
+        // suspend() should be rejected on a closed context.
+        await offlineContext.suspend().then(
+            () => assert_unreached('suspend() on closed context should reject'),
+            () => { /* expected */ });
+
+        // resume() should be rejected on a closed context.
+        await offlineContext.resume().then(
+            () => assert_unreached('resume() on closed context should reject'),
+            () => { /* expected */ });
+      }, 'Test state after context closed');
+
+      // Task: resume a running AudioContext.
+      promise_test(async t => {
+        // Ideally this test is best with an online AudioContext, but content
+        // shell doesn’t really have a working online AudioContext.
+        // Nonetheless, create one and check resume().
+        const context = new AudioContext();
+        assert_equals(context.state, 'suspended', 'Initial state is suspended');
+
+        await context.resume();
+        assert_equals(
+            context.state, 'running', 'State after resume is running');
+      }, 'Test resuming a running online context');
+    </script>
+  </body>
+</html>

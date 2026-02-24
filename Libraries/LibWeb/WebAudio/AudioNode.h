@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioNodePrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -16,6 +17,8 @@
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
+
+class BaseAudioContext;
 
 // https://webaudio.github.io/web-audio-api/#AudioNodeOptions
 struct AudioNodeOptions {
@@ -65,11 +68,7 @@ public:
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output);
 
     // https://webaudio.github.io/web-audio-api/#dom-audionode-context
-    GC::Ref<BaseAudioContext> context()
-    {
-        // The BaseAudioContext which owns this AudioNode.
-        return m_context;
-    }
+    GC::Ref<BaseAudioContext> context() const { return m_context; }
 
     // https://webaudio.github.io/web-audio-api/#dom-audionode-numberofinputs
     virtual WebIDL::UnsignedLong number_of_inputs() = 0;
@@ -81,13 +80,17 @@ public:
     virtual WebIDL::UnsignedLong channel_count() const { return m_channel_count; }
 
     virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
-    Bindings::ChannelCountMode channel_count_mode();
+    Bindings::ChannelCountMode channel_count_mode() const;
     virtual WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
-    Bindings::ChannelInterpretation channel_interpretation();
+    Bindings::ChannelInterpretation channel_interpretation() const;
 
     WebIDL::ExceptionOr<void> initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
 
     NodeID node_id() const { return m_node_id; }
+
+    ReadonlySpan<AudioNodeConnection> input_connections() const { return m_input_connections.span(); }
+    ReadonlySpan<AudioNodeConnection> output_connections() const { return m_output_connections.span(); }
+    ReadonlySpan<AudioParamConnection> param_connections() const { return m_param_connections.span(); }
 
 protected:
     AudioNode(JS::Realm&, GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count = 2);

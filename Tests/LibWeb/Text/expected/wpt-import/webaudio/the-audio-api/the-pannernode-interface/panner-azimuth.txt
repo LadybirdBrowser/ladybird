@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Azimuth calculation"
+Pass	Audit report
+Pass	> [Azimuth calculation] 
+Pass	  Left channel contains only the constant 0.7071067690849304.
+Pass	  Righteft channel contains only the constant 0.7071067690849304.
+Pass	< [Azimuth calculation] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

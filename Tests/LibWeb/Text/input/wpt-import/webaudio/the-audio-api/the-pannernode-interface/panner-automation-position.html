@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Automation of PannerNode Positions
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="../../resources/panner-formulas.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let sampleRate = 48000;
+      // These tests are quite slow, so don't run for many frames.  256 frames
+      // should be enough to demonstrate that automations are working.
+      let renderFrames = 256;
+      let renderDuration = renderFrames / sampleRate;
+
+      let context;
+      let panner;
+
+      let audit = Audit.createTaskRunner();
+
+      // Set of tests for the panner node with automations applied to the
+      // position of the source.
+      let testConfigs = [
+        {
+          // Distance model parameters for the panner
+          distanceModel: {model: 'inverse', rolloff: 1},
+          // Initial location of the source
+          startPosition: [0, 0, 1],
+          // Final position of the source.  For this test, we only want to move
+          // on the z axis which
+          // doesn't change the azimuth angle.
+          endPosition: [0, 0, 10000],
+        },
+        {
+          distanceModel: {model: 'inverse', rolloff: 1},
+          startPosition: [0, 0, 1],
+          // An essentially random end position, but it should be such that
+          // azimuth angle changes as
+          // we move from the start to the end.
+          endPosition: [20000, 30000, 10000],
+          errorThreshold: [
+            {
+              // Error threshold for 1-channel case
+              relativeThreshold: 4.8124e-7
+            },
+            {
+              // Error threshold for 2-channel case
+              relativeThreshold: 4.3267e-7
+            }
+          ],
+        },
+        {
+          distanceModel: {model: 'exponential', rolloff: 1.5},
+          startPosition: [0, 0, 1],
+          endPosition: [20000, 30000, 10000],
+          errorThreshold:
+              [{relativeThreshold: 5.0783e-7}, {relativeThreshold: 5.2180e-7}]
+        },
+        {
+          distanceModel: {model: 'linear', rolloff: 1},
+          startPosition: [0, 0, 1],
+          endPosition: [20000, 30000, 10000],
+          errorThreshold: [
+            {relativeThreshold: 6.5324e-6}, {relativeThreshold: 6.5756e-6}
+          ]
+        }
+      ];
+
+      for (let k = 0; k < testConfigs.length; ++k) {
+        let config = testConfigs[k];
+        let tester = function(c, channelCount) {
+          return (task, should) => {
+            runTest(should, c, channelCount).then(() => task.done());
+          }
+        };
+
+        let baseTestName = config.distanceModel.model +
+            ' rolloff: ' + config.distanceModel.rolloff;
+
+        // Define tasks for both 1-channel and 2-channel
+        audit.define(k + ': 1-channel ' + baseTestName, tester(config, 1));
+        audit.define(k + ': 2-channel ' + baseTestName, tester(config, 2));
+      }
+
+      audit.run();
+
+      function runTest(should, options, channelCount) {
+        // Output has 5 channels: channels 0 and 1 are for the stereo output of
+        // the panner node. Channels 2-5 are the for automation of the x,y,z
+        // coordinate so that we have actual coordinates used for the panner
+        // automation.
+        context = new OfflineAudioContext(5, renderFrames, sampleRate);
+
+        // Stereo source for the panner.
+        let source = context.createBufferSource();
+        source.buffer = createConstantBuffer(
+            context, renderFrames, channelCount == 1 ? 1 : [1, 2]);
+
+        panner = context.createPanner();
+        panner.distanceModel = options.distanceModel.model;
+        panner.rolloffFactor = options.distanceModel.rolloff;
+        panner.panningModel = 'equalpower';
+
+        // Source and gain node for the z-coordinate calculation.
+        let dist = context.createBufferSource();
+        dist.buffer = createConstantBuffer(context, 1, 1);
+        dist.loop = true;
+        let gainX = context.createGain();
+        let gainY = context.createGain();
+        let gainZ = context.createGain();
+        dist.connect(gainX);
+        dist.connect(gainY);
+        dist.connect(gainZ);
+
+        // Set the gain automation to match the z-coordinate automation of the
+        // panner.
+
+        // End the automation some time before the end of the rendering so we
+        // can verify that automation has the correct end time and value.
+        let endAutomationTime = 0.75 * renderDuration;
+
+        gainX.gain.setValueAtTime(options.startPosition[0], 0);
+        gainX.gain.linearRampToValueAtTime(
+            options.endPosition[0], endAutomationTime);
+        gainY.gain.setValueAtTime(options.startPosition[1], 0);
+        gainY.gain.linearRampToValueAtTime(
+            options.endPosition[1], endAutomationTime);
+        gainZ.gain.setValueAtTime(options.startPosition[2], 0);
+        gainZ.gain.linearRampToValueAtTime(
+            options.endPosition[2], endAutomationTime);
+
+        dist.start();
+
+        // Splitter and merger to map the panner output and the z-coordinate
+        // automation to the correct channels in the destination.
+        let splitter = context.createChannelSplitter(2);
+        let merger = context.createChannelMerger(5);
+
+        source.connect(panner);
+        // Split the output of the panner to separate channels
+        panner.connect(splitter);
+
+        // Merge the panner outputs and the z-coordinate output to the correct
+        // destination channels.
+        splitter.connect(merger, 0, 0);
+        splitter.connect(merger, 1, 1);
+        gainX.connect(merger, 0, 2);
+        gainY.connect(merger, 0, 3);
+        gainZ.connect(merger, 0, 4);
+
+        merger.connect(context.destination);
+
+        // Initialize starting point of the panner.
+        panner.positionX.setValueAtTime(options.startPosition[0], 0);
+        panner.positionY.setValueAtTime(options.startPosition[1], 0);
+        panner.positionZ.setValueAtTime(options.startPosition[2], 0);
+
+        // Automate z coordinate to move away from the listener
+        panner.positionX.linearRampToValueAtTime(
+            options.endPosition[0], 0.75 * renderDuration);
+        panner.positionY.linearRampToValueAtTime(
+            options.endPosition[1], 0.75 * renderDuration);
+        panner.positionZ.linearRampToValueAtTime(
+            options.endPosition[2], 0.75 * renderDuration);
+
+        source.start();
+
+        // Go!
+        return context.startRendering().then(function(renderedBuffer) {
+          // Get the panner outputs
+          let data0 = renderedBuffer.getChannelData(0);
+          let data1 = renderedBuffer.getChannelData(1);
+          let xcoord = renderedBuffer.getChannelData(2);
+          let ycoord = renderedBuffer.getChannelData(3);
+          let zcoord = renderedBuffer.getChannelData(4);
+
+          // We're doing a linear ramp on the Z axis with the equalpower panner,
+          // so the equalpower panning gain remains constant.  We only need to
+          // model the distance effect.
+
+          // Compute the distance gain
+          let distanceGain = new Float32Array(xcoord.length);
+          ;
+
+          if (panner.distanceModel === 'inverse') {
+            for (let k = 0; k < distanceGain.length; ++k) {
+              distanceGain[k] =
+                  inverseDistance(panner, xcoord[k], ycoord[k], zcoord[k])
+            }
+          } else if (panner.distanceModel === 'linear') {
+            for (let k = 0; k < distanceGain.length; ++k) {
+              distanceGain[k] =
+                  linearDistance(panner, xcoord[k], ycoord[k], zcoord[k])
+            }
+          } else if (panner.distanceModel === 'exponential') {
+            for (let k = 0; k < distanceGain.length; ++k) {
+              distanceGain[k] =
+                  exponentialDistance(panner, xcoord[k], ycoord[k], zcoord[k])
+            }
+          }
+
+          // Compute the expected result.  Since we're on the z-axis, the left
+          // and right channels pass through the equalpower panner unchanged.
+          // Only need to apply the distance gain.
+          let buffer0 = source.buffer.getChannelData(0);
+          let buffer1 =
+              channelCount == 2 ? source.buffer.getChannelData(1) : buffer0;
+
+          let azimuth = new Float32Array(buffer0.length);
+
+          for (let k = 0; k < data0.length; ++k) {
+            azimuth[k] = calculateAzimuth(
+                [xcoord[k], ycoord[k], zcoord[k]],
+                [
+                  context.listener.positionX.value,
+                  context.listener.positionY.value,
+                  context.listener.positionZ.value
+                ],
+                [
+                  context.listener.forwardX.value,
+                  context.listener.forwardY.value,
+                  context.listener.forwardZ.value
+                ],
+                [
+                  context.listener.upX.value, context.listener.upY.value,
+                  context.listener.upZ.value
+                ]);
+          }
+
+          let expected = applyPanner(azimuth, buffer0, buffer1, channelCount);
+          let expected0 = expected.left;
+          let expected1 = expected.right;
+
+          for (let k = 0; k < expected0.length; ++k) {
+            expected0[k] *= distanceGain[k];
+            expected1[k] *= distanceGain[k];
+          }
+
+          let info = options.distanceModel.model +
+              ', rolloff: ' + options.distanceModel.rolloff;
+          let prefix = channelCount + '-channel ' +
+              '[' + options.startPosition[0] + ', ' + options.startPosition[1] +
+              ', ' + options.startPosition[2] + '] -> [' +
+              options.endPosition[0] + ', ' + options.endPosition[1] + ', ' +
+              options.endPosition[2] + ']: ';
+
+          let errorThreshold = 0;
+
+          if (options.errorThreshold)
+            errorThreshold = options.errorThreshold[channelCount - 1]
+
+            should(data0, prefix + 'distanceModel: ' + info + ', left channel')
+                .beCloseToArray(expected0, {absoluteThreshold: errorThreshold});
+          should(data1, prefix + 'distanceModel: ' + info + ', right channel')
+              .beCloseToArray(expected1, {absoluteThreshold: errorThreshold});
+        });
+      }
+    </script>
+  </body>
+</html>

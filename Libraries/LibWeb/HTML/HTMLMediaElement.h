@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
@@ -23,6 +24,12 @@
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
+
+namespace Web::WebAudio {
+
+class MediaElementAudioSourceProvider;
+
+}
 
 namespace Web::HTML {
 
@@ -154,6 +161,9 @@ public:
     RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
 
     Painting::ExternalContentSource& ensure_external_content_source();
+    void set_webaudio_audio_tap(NonnullRefPtr<WebAudio::MediaElementAudioSourceProvider>);
+    void clear_webaudio_audio_tap();
+    bool has_webaudio_audio_tap() const { return m_webaudio_audio_source_provider != nullptr; }
 
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
@@ -218,6 +228,8 @@ private:
 
     void volume_or_muted_attribute_changed();
     void update_volume();
+
+    void ensure_webaudio_audio_tap_installed();
 
     bool is_eligible_for_autoplay() const;
 
@@ -339,6 +351,8 @@ private:
     OwnPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;
     RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
+
+    RefPtr<WebAudio::MediaElementAudioSourceProvider> m_webaudio_audio_source_provider;
 
     bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 

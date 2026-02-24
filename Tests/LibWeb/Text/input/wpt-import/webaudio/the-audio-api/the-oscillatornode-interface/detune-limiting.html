@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Oscillator Detune: High Detune Limits and Automation</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 44100;
+      const renderLengthSeconds = 0.125;
+      const totalFrames = sampleRate * renderLengthSeconds;
+      promise_test(async t => {
+        const context = new OfflineAudioContext(2, totalFrames, sampleRate);
+        const merger = new ChannelMergerNode(context, {
+          numberOfInputs: context.destination.channelCount
+        });
+        merger.connect(context.destination);
+
+        // Set the detune so the oscillator goes beyond the Nyquist frequency
+        // and verify if it produces silence.
+        const oscFrequency = 1;
+        const detunedFrequency = sampleRate;
+        const detuneValue = Math.fround(1200 * Math.log2(detunedFrequency));
+        const testOsc = new OscillatorNode(context, {
+          frequency: oscFrequency,
+          detune: detuneValue
+        });
+        testOsc.connect(merger, 0, 1);
+        const computedFrequency
+            = oscFrequency * Math.pow(2, detuneValue / 1200);
+        const refOsc = new OscillatorNode(context, {
+          frequency: computedFrequency
+        });
+        refOsc.connect(merger, 0, 0);
+        testOsc.start();
+        refOsc.start();
+        const renderedBuffer = await context.startRendering();
+        const expected = renderedBuffer.getChannelData(0);
+        const actual = renderedBuffer.getChannelData(1);
+        assert_greater_than_equal(
+            refOsc.frequency.value,
+            context.sampleRate / 2,
+            'Reference oscillator frequency should be ≥ Nyquist'
+        );
+        assert_constant_value(
+            expected,
+            0,
+            `Reference output (freq: ${refOsc.frequency.value}) must be zero`
+        );
+        assert_array_equal_within_eps(
+            actual,
+            expected,
+            0,
+            `Test oscillator output (freq: ${oscFrequency}, ` +
+                `detune: ${detuneValue}) must match reference output`
+        );
+      }, 'Oscillator with large detune produces 0 output at Nyquist or above');
+      promise_test(async t => {
+        const context = new OfflineAudioContext(1, totalFrames, sampleRate);
+        const baseFrequency = 1;
+        const rampEndTime = renderLengthSeconds / 2;
+        const detuneEnd = 1e7;
+        const oscillator
+            = new OscillatorNode(context, { frequency: baseFrequency });
+        oscillator.detune.linearRampToValueAtTime(detuneEnd, rampEndTime);
+        oscillator.connect(context.destination);
+        oscillator.start();
+        const renderedBuffer = await context.startRendering();
+        const audio = renderedBuffer.getChannelData(0);
+        // At some point, the computed oscillator frequency will go
+        // above Nyquist.  Determine at what time this occurrs.  The
+        // computed frequency is f * 2^(d/1200) where |f| is the
+        // oscillator frequency and |d| is the detune value.  Thus,
+        // find |d| such that Nyquist = f*2^(d/1200). That is, d =
+        // 1200*log2(Nyquist/f)
+        const nyquist = context.sampleRate / 2;
+        const criticalDetune = 1200 * Math.log2(nyquist / baseFrequency);
+        // Now figure out at what point on the linear ramp does the
+        // detune value reach this critical value.  For a linear ramp:
+        //
+        //   v(t) = V0+(V1-V0)*(t-T0)/(T1-T0)
+        //
+        // Thus,
+        //
+        //   t = ((T1-T0)*v(t) + T0*V1 - T1*V0)/(V1-V0)
+        //
+        // In this test, T0 = 0, V0 = 0, T1 = rampEnd, V1 =
+        // detuneEnd, and v(t) = criticalDetune
+        const criticalTime = (rampEndTime * criticalDetune) / detuneEnd;
+        const criticalFrame = Math.ceil(criticalTime * sampleRate);
+        assert_less_than_equal(
+            criticalFrame,
+            audio.length,
+            'Critical frame should lie within audio buffer length'
+        );
+        assert_not_constant_value(
+            audio.slice(0, criticalFrame),
+            0,
+            `Oscillator output [0:${criticalFrame - 1}] should not ` +
+                `be zero before exceeding Nyquist`
+        );
+        assert_constant_value(
+            audio.slice(criticalFrame),
+            0,
+            `Oscillator output [${criticalFrame}:] should be zero ` +
+                `after exceeding Nyquist`
+        );
+      }, 'Oscillator with detune automation becomes silent above Nyquist');
+    </script>
+  </body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioWorkletNode's dynamic channel count feature
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Arbitrary numbers used to align the test with render quantum boundary.
+      const sampleRate = RENDER_QUANTUM_FRAMES * 100;
+      const renderLength = RENDER_QUANTUM_FRAMES * 2;
+      const filePath = 'processors/gain-processor.js';
+
+      const testChannelValues = [1, 2, 3];
+
+      // Creates a 3-channel source and play with ConstantSourceNode.
+      // The source goes through a bypass AudioWorkletNode (gain value of 1).
+      // Verifies if the rendered buffer has all zero for the first half
+      // (before 128 samples) and the expected values for the second half.
+      promise_test(async () => {
+        const context = new OfflineAudioContext(
+            testChannelValues.length,
+            renderLength,
+            sampleRate);
+
+        // Explicitly sets the destination channelCountMode and
+        // channelInterpretation to make sure the result does no mixing.
+        context.channelCountMode = 'explicit';
+        context.channelInterpretation = 'discrete';
+
+        await context.audioWorklet.addModule(filePath);
+
+        const gainWorkletNode = new AudioWorkletNode(context, 'gain');
+        gainWorkletNode.parameters.get('gain').value = 1.0;
+
+        // Create a ChannelMergerNode to combine multiple ConstantSourceNodes
+        const merger = new ChannelMergerNode(
+            context, {numberOfInputs: testChannelValues.length});
+        merger.connect(gainWorkletNode);
+        gainWorkletNode.connect(context.destination);
+
+        // Create a ConstantSourceNode for each channel with its
+        // corresponding value
+        const constantSources = testChannelValues.map((value, index) => {
+          const constantSource =
+              new ConstantSourceNode(context, {offset: value});
+          constantSource.connect(merger, 0, index);
+          return constantSource;
+        });
+
+        // Suspend the context at 128 sample frames and start the sources.
+        context.suspend(RENDER_QUANTUM_FRAMES/sampleRate).then(() => {
+          constantSources.forEach(source => source.start());
+          context.resume();
+        });
+
+        const renderedBuffer = await context.startRendering();
+
+        testChannelValues.forEach((value, index) => {
+          const channelData = renderedBuffer.getChannelData(index);
+
+          assert_constant_value(
+              channelData.subarray(0, RENDER_QUANTUM_FRAMES),
+              0,
+              'First half of Channel #' + index);
+
+          assert_constant_value(
+              channelData.subarray(RENDER_QUANTUM_FRAMES, renderLength),
+              value,
+              'Second half of Channel #' + index);
+        });
+      }, 'setup-buffer-and-worklet-verify-rendered-buffer');
+    </script>
+  </body>
+</html>

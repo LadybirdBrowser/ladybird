@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test DelayNode when maxDelayTime requires rounding
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 44100;
+      const inputLengthSeconds = 1;
+      const renderLengthSeconds = 2;
+
+      // Delay for one second plus 0.4 of a sample frame, to test that
+      // DelayNode is properly rounding up when calculating its buffer
+      // size (crbug.com/1065110).
+      const delayTimeSeconds = 1 + 0.4 / sampleRate;
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext({
+          numberOfChannels: 1,
+          length: sampleRate * renderLengthSeconds,
+          sampleRate: sampleRate,
+        });
+
+        // Create a constant source to use as input.
+        const src = new ConstantSourceNode(context);
+
+        // Create a DelayNode to delay for delayTimeSeconds.
+        const delay = new DelayNode(context, {
+          maxDelayTime: delayTimeSeconds,
+          delayTime: delayTimeSeconds,
+        });
+
+        src.connect(delay).connect(context.destination);
+
+        src.start();
+        const renderedBuffer = await context.startRendering();
+        const renderedData = renderedBuffer.getChannelData(0);
+
+        // The first delayTimeSeconds of output should be silent.
+        const expectedSilentFrames = Math.floor(
+            delayTimeSeconds * sampleRate);
+
+        assert_constant_value(
+            renderedData.slice(0, expectedSilentFrames),
+            0,
+            `output[0:${expectedSilentFrames - 1}]`);
+
+        // The rest should be non-silent: that is, there should
+        // be at least one non-zero sample.  (Any reasonable
+        // interpolation algorithm will make all these samples
+        // non-zero, but I don't think that's guaranteed by the
+        // spec, so we use a conservative test for now.)
+        assert_not_constant_value_of(
+            renderedData.slice(expectedSilentFrames),
+            0,
+            `output[${expectedSilentFrames}:]`);
+      }, 'Test DelayNode when maxDelayTime requires rounding');
+    </script>
+  </body>
+</html>

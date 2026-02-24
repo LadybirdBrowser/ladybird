@@ -108,7 +108,7 @@ else()
     )
 endif()
 
-set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
+set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker AudioServer WebAudioWorker)
 
 add_dependencies(ladybird ${ladybird_helper_processes})
 # FIXME: Increase support for building targets on Windows

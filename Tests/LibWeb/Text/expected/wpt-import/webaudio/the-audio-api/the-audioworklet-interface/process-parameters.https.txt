@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	3 inputs; 0 outputs
+Pass	0 inputs; 3 outputs

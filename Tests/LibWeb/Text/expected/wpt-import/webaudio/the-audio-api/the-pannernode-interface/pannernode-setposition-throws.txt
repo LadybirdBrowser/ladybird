@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	setPosition x
+Pass	setPosition y
+Pass	setPosition z
+Pass	setOrientation x
+Pass	setOrientation y
+Pass	setOrientation z

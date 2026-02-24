@@ -12,6 +12,7 @@
 #include <LibThreading/Mutex.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Process.h>
+#include <LibWebView/ProcessPolicyRouter.h>
 #include <LibWebView/ProcessType.h>
 
 namespace WebView {
@@ -25,6 +26,8 @@ class WEBVIEW_API ProcessManager {
 public:
     ProcessManager();
     ~ProcessManager();
+
+    ProcessPolicyRouter const& policy_router() const;
 
     void add_process(Process&&);
     Optional<Process> remove_process(pid_t);

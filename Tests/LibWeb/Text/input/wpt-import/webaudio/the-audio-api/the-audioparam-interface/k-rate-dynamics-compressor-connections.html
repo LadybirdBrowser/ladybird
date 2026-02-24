@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>k-rate AudioParams with inputs for DynamicsCompressorNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      // Fairly arbitrary sampleRate and somewhat duration
+      const sampleRate = 48000;
+      const testDuration = 0.25;
+
+      ['attack', 'knee', 'ratio', 'release', 'threshold'].forEach(paramName => {
+        promise_test(async () => {
+          await doTest({prefix: paramName, paramName: paramName});
+        }, `Verify k-rate '${paramName}' with input on DynamicsCompressorNode`);
+      });
+
+      async function doTest(options) {
+        // Test k-rate automation of DynamicsCompressorNode with connected
+        // input.
+        //
+        // A reference compressor node is created with an automation on the
+        // selected AudioParam. For simplicity, we just use a linear ramp from
+        // the minValue to the maxValue of the AudioParam.
+        //
+        // The test node has an input signal connected to the AudioParam.  This
+        // input signal is created to match the automation on the reference
+        // node.
+        //
+        // Finally, the output from the two nodes must be identical if k-rate
+        // inputs are working correctly.
+        //
+        // Options parameter is a dictionary with the following required
+        // members:
+        //   prefix    - prefix to use for the messages.
+        //   paramName - Name of the AudioParam to be tested
+
+        const {prefix, paramName} = options;
+
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Use an oscillator for the source.  Pretty arbitrary parameters.
+        const src = new OscillatorNode(context, {
+          type: 'sawtooth',
+          frequency: 440
+        });
+
+        // Create the reference and test nodes.
+        let refNode = new DynamicsCompressorNode(context);
+
+        const tstOptions = {};
+        tstOptions[paramName] = refNode[paramName].minValue;
+
+        let tstNode = new DynamicsCompressorNode(context, tstOptions);
+
+        // Automate the AudioParam of the reference node with a linear ramp
+        refNode[paramName].setValueAtTime(refNode[paramName].minValue, 0);
+        refNode[paramName].linearRampToValueAtTime(
+            refNode[paramName].maxValue, testDuration);
+
+        // Create the input node and automate it so that its output, when added
+        // to the intrinsic value of the AudioParam, matches the automation
+        // on the reference node.
+        //
+        // We need to do it this way because the ratio AudioParam has a nominal
+        // range of [1, 20], so we can't just set the value to 0.
+        let mod = new ConstantSourceNode(context, {offset: 0});
+
+        const endValue =
+            refNode[paramName].maxValue - refNode[paramName].minValue;
+
+        mod.offset.setValueAtTime(0, 0);
+        mod.offset.linearRampToValueAtTime(endValue, testDuration);
+        mod.connect(tstNode[paramName]);
+
+        src.connect(refNode).connect(merger, 0, 0);
+        src.connect(tstNode).connect(merger, 0, 1);
+
+        src.start();
+        mod.start();
+
+        const buffer = await context.startRendering();
+        const expected = buffer.getChannelData(0);
+        const actual = buffer.getChannelData(1);
+
+        // Debug logging to compare with reference engines.
+        for (let i = 0; i < expected.length; ++i) {
+          assert_equals(
+              actual[i], expected[i],
+              `${prefix}: Sample[${i}] must match exactly`);
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -21,6 +21,7 @@ executable("WebContent") {
     "//AK",
     "//Meta/gn/build/libs/fontconfig",
     "//Meta/gn/build/libs/pulse",
+    "//Userland/Libraries/LibAudioServer",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibFileSystem",
     "//Userland/Libraries/LibGfx",

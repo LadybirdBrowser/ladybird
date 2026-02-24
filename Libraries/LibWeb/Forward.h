@@ -843,6 +843,7 @@ class Timer;
 class TimeRanges;
 class ToggleEvent;
 class TrackEvent;
+class MediaStreamTrackEvent;
 class TransferDataDecoder;
 class TransferDataEncoder;
 class TraversableNavigable;
@@ -1009,6 +1010,19 @@ class MediaSource;
 class MediaSourceHandle;
 class SourceBuffer;
 class SourceBufferList;
+
+}
+
+namespace Web::MediaCapture {
+
+class MediaStream;
+class MediaStreamTrack;
+
+}
+
+namespace Web::Bindings {
+
+enum class MediaStreamTrackState : u8;
 
 }
 

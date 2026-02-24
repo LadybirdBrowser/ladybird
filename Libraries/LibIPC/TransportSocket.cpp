@@ -55,11 +55,9 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
 
     m_send_queue = adopt_ref(*new SendQueue);
 
-    {
-        auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
-        m_wakeup_io_thread_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
-        m_wakeup_io_thread_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
-    }
+    auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
+    m_wakeup_io_thread_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
+    m_wakeup_io_thread_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
 
     {
         auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
@@ -138,6 +136,7 @@ intptr_t TransportSocket::io_thread_loop()
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
     m_peer_eof = true;
     m_incoming_cv.broadcast();
+    notify_read_available();
     return 0;
 }
 
@@ -156,10 +155,19 @@ TransportSocket::~TransportSocket()
 void TransportSocket::stop_io_thread(IOThreadState desired_state)
 {
     VERIFY(desired_state == IOThreadState::Stopped || desired_state == IOThreadState::SendPendingMessagesAndStop);
+
     m_io_thread_state.store(desired_state, AK::MemoryOrder::memory_order_release);
     wake_io_thread();
     if (m_io_thread && m_io_thread->needs_to_be_joined())
         (void)m_io_thread->join();
+}
+
+void TransportSocket::notify_read_available()
+{
+    if (!m_notify_hook_write_fd)
+        return;
+    Array<u8, 1> bytes = { 0 };
+    (void)Core::System::write(m_notify_hook_write_fd->value(), bytes);
 }
 
 void TransportSocket::set_up_read_hook(Function<void()> hook)
@@ -240,7 +248,7 @@ void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<Nonn
             m_fds_retained_until_received_by_peer.enqueue(fd);
     }
 
-    auto raw_fds = Vector<int, 1> {};
+    Vector<int> raw_fds;
     if (num_fds_to_transfer > 0) {
         raw_fds.ensure_capacity(num_fds_to_transfer);
         for (auto const& owned_fd : fds) {
@@ -264,11 +272,10 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
         }
 
         if (maybe_nwritten.is_error()) {
-            if (auto error = maybe_nwritten.release_error(); error.is_errno() && (error.code() == EAGAIN || error.code() == EWOULDBLOCK || error.code() == EINTR)) {
+            auto error = maybe_nwritten.release_error();
+            if (error.is_errno() && (error.code() == EAGAIN || error.code() == EWOULDBLOCK || error.code() == EINTR))
                 return {};
-            } else {
-                return error;
-            }
+            return error;
         }
 
         bytes_to_write = bytes_to_write.slice(maybe_nwritten.value());
@@ -447,11 +454,6 @@ void TransportSocket::read_incoming_messages()
     } else {
         m_unprocessed_bytes.clear();
     }
-
-    auto notify_read_available = [&] {
-        Array<u8, 1> bytes = { 0 };
-        (void)Core::System::write(m_notify_hook_write_fd->value(), bytes);
-    };
 
     if (!batch.is_empty()) {
         Threading::MutexLocker locker(m_incoming_mutex);

@@ -24,7 +24,7 @@ enum class ExposedTo {
     PaintWorklet = 0x80,
     LayoutWorklet = 0x100,
     // FIXME: Categorize PaintWorklet and LayoutWorklet once we have them and know what they are.
-    AllWorkers = DedicatedWorker | SharedWorker | ServiceWorker | AudioWorklet, // FIXME: Is "AudioWorklet" a Worker? We'll assume it is for now (here, and line below)
+    AllWorkers = DedicatedWorker | SharedWorker | ServiceWorker,
     All = AllWorkers | Window | ShadowRealm | Worklet,
 };
 AK_ENUM_BITWISE_OPERATORS(ExposedTo);

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test dynamic registerProcessor() calls in AudioWorkletGlobalScope
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const t = async_test('Dynamic registration in AudioWorkletGlobalScope');
+
+      const realtimeContext = new AudioContext();
+      const filePath = 'processors/dynamic-register-processor.js';
+
+      // Test if registering an AudioWorkletProcessor dynamically (after the
+      // initial module script loading) works correctly. In the construction of
+      // nodeB (along with ProcessorB), it registers ProcessorA's definition.
+      realtimeContext.audioWorklet.addModule(filePath).then(() => {
+        const nodeB = new AudioWorkletNode(realtimeContext, 'ProcessorB');
+        assert_true(nodeB instanceof AudioWorkletNode,
+                    'nodeB should be instance of AudioWorkletNode');
+        nodeB.port.postMessage({});
+        nodeB.port.onmessage = () => {
+          const nodeA = new AudioWorkletNode(realtimeContext, 'ProcessorA');
+          t.step(() => {
+            assert_true(nodeA instanceof AudioWorkletNode,
+                        'nodeA should be instance of AudioWorkletNode');
+          });
+          t.done();
+        };
+      });
+    </script>
+  </body>
+</html>

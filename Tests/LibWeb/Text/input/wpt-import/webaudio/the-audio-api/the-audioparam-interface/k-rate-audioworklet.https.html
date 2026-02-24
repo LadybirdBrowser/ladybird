@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test k-rate AudioParam of AudioWorkletNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Use the worklet gain node to test k-rate parameters.
+      const filePath =
+          '../the-audioworklet-interface/processors/gain-processor.js';
+
+      // Context for testing
+      let context;
+
+      promise_test(async () => {
+        // Arbitrary sample rate and duration.
+        const sampleRate = 8000;
+
+        // Only new a few render quanta to verify things are working.
+        const testDuration = 4 * 128 / sampleRate;
+
+        context = new OfflineAudioContext({
+          numberOfChannels: 3,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate,
+        });
+
+        await context.audioWorklet.addModule(filePath);
+
+        const src = new ConstantSourceNode(context);
+        const kRateNode = new AudioWorkletNode(context, 'gain');
+        src.connect(kRateNode).connect(context.destination);
+
+        const kRateParam = kRateNode.parameters.get('gain');
+        kRateParam.automationRate = 'k-rate';
+
+        // Automate the gain
+        kRateParam.setValueAtTime(0, 0);
+        kRateParam.linearRampToValueAtTime(
+            10, context.length / context.sampleRate);
+
+        src.start();
+
+        const audioBuffer = await context.startRendering();
+        const output = audioBuffer.getChannelData(0);
+
+        // Verify that the output from the worklet is step-wise
+        // constant.
+        for (let k = 0; k < output.length; k += 128) {
+          assert_array_equals(
+              output.slice(k, k + 128),
+              new Float32Array(128).fill(output[k]),
+              `k-rate output [${k}: ${k + 127}]`);
+        }
+      }, 'AudioWorklet k-rate AudioParam');
+    </script>
+  </body>
+</html>

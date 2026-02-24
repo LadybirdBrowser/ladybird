@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audioparam-exceptional-values.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // Context to use for all of the tests.  The context isn't used for any
+      // processing; just need one for creating a gain node, which is used for
+      // all the tests.
+      let context;
+
+      // For these values, AudioParam methods should throw a Typeerror because
+      // they are not finite values.
+      let nonFiniteValues = [Infinity, -Infinity, NaN];
+
+      audit.define('initialize', (task, should) => {
+        should(() => {
+          // Context for testing.  Rendering isn't done, so any valid values can
+          // be used here so might as well make them small.
+          context = new OfflineAudioContext(1, 1, 8000);
+        }, 'Creating context for testing').notThrow();
+
+        task.done();
+      });
+
+      audit.define(
+          {
+            label: 'test value',
+            description: 'Test non-finite arguments for AudioParam value'
+          },
+          (task, should) => {
+            let gain = context.createGain();
+
+            // Default method for generating the arguments for an automation
+            // method for testing the value of the automation.
+            let defaultFuncArg = (value) => [value, 1];
+
+            // Test the value parameter
+            doTests(should, gain, TypeError, nonFiniteValues, [
+              {automationName: 'setValueAtTime', funcArg: defaultFuncArg}, {
+                automationName: 'linearRampToValueAtTime',
+                funcArg: defaultFuncArg
+              },
+              {
+                automationName: 'exponentialRampToValueAtTime',
+                funcArg: defaultFuncArg
+              },
+              {
+                automationName: 'setTargetAtTime',
+                funcArg: (value) => [value, 1, 1]
+              }
+            ]);
+            task.done();
+          });
+
+      audit.define(
+          {
+            label: 'test time',
+            description: 'Test non-finite arguments for AudioParam time'
+          },
+          (task, should) => {
+            let gain = context.createGain();
+
+            // Default method for generating the arguments for an automation
+            // method for testing the time parameter of the automation.
+            let defaultFuncArg = (startTime) => [1, startTime];
+
+            // Test the time parameter
+            doTests(should, gain, TypeError, nonFiniteValues, [
+              {automationName: 'setValueAtTime', funcArg: defaultFuncArg},
+              {
+                automationName: 'linearRampToValueAtTime',
+                funcArg: defaultFuncArg
+              },
+              {
+                automationName: 'exponentialRampToValueAtTime',
+                funcArg: defaultFuncArg
+              },
+              // Test start time for setTarget
+              {
+                automationName: 'setTargetAtTime',
+                funcArg: (startTime) => [1, startTime, 1]
+              },
+              // Test time constant for setTarget
+              {
+                automationName: 'setTargetAtTime',
+                funcArg: (timeConstant) => [1, 1, timeConstant]
+              },
+            ]);
+
+            task.done();
+          });
+
+      audit.define(
+          {
+            label: 'test setValueCurve',
+            description: 'Test non-finite arguments for setValueCurveAtTime'
+          },
+          (task, should) => {
+            let gain = context.createGain();
+
+            // Just an array for use by setValueCurveAtTime. The length and
+            // contents of the array are not important.
+            let curve = new Float32Array(3);
+
+            doTests(should, gain, TypeError, nonFiniteValues, [
+              {
+                automationName: 'setValueCurveAtTime',
+                funcArg: (startTime) => [curve, startTime, 1]
+              },
+            ]);
+
+            // Non-finite values for the curve should signal an error
+            doTests(
+                should, gain, TypeError,
+                [[1, 2, Infinity, 3], [1, NaN, 2, 3]], [{
+                  automationName: 'setValueCurveAtTime',
+                  funcArg: (c) => [c, 1, 1]
+                }]);
+
+            task.done();
+          });
+
+      audit.define(
+          {
+            label: 'special cases 1',
+            description: 'Test exceptions for finite values'
+          },
+          (task, should) => {
+            let gain = context.createGain();
+
+            // Default method for generating the arguments for an automation
+            // method for testing the time parameter of the automation.
+            let defaultFuncArg = (startTime) => [1, startTime];
+
+            // Test the time parameter
+            let curve = new Float32Array(3);
+            doTests(should, gain, RangeError, [-1], [
+              {automationName: 'setValueAtTime', funcArg: defaultFuncArg},
+              {
+                automationName: 'linearRampToValueAtTime',
+                funcArg: defaultFuncArg
+              },
+              {
+                automationName: 'exponentialRampToValueAtTime',
+                funcArg: defaultFuncArg
+              },
+              {
+                automationName: 'setTargetAtTime',
+                funcArg: (startTime) => [1, startTime, 1]
+              },
+              // Test time constant
+              {
+                automationName: 'setTargetAtTime',
+                funcArg: (timeConstant) => [1, 1, timeConstant]
+              },
+              // startTime and duration for setValueCurve
+              {
+                automationName: 'setValueCurveAtTime',
+                funcArg: (startTime) => [curve, startTime, 1]
+              },
+              {
+                automationName: 'setValueCurveAtTime',
+                funcArg: (duration) => [curve, 1, duration]
+              },
+            ]);
+
+            // Two final tests for setValueCurve: duration must be strictly
+            // positive.
+            should(
+                () => gain.gain.setValueCurveAtTime(curve, 1, 0),
+                'gain.gain.setValueCurveAtTime(curve, 1, 0)')
+                .throw(RangeError);
+            should(
+                () => gain.gain.setValueCurveAtTime(curve, 1, -1),
+                'gain.gain.setValueCurveAtTime(curve, 1, -1)')
+                .throw(RangeError);
+
+            task.done();
+          });
+
+      audit.define(
+          {
+            label: 'special cases 2',
+            description: 'Test special cases for expeonentialRamp'
+          },
+          (task, should) => {
+            let gain = context.createGain();
+
+            doTests(should, gain, RangeError, [0, -1e-100, 1e-100], [{
+                      automationName: 'exponentialRampToValueAtTime',
+                      funcArg: (value) => [value, 1]
+                    }]);
+
+            task.done();
+          });
+
+      audit.run();
+
+      // Run test over the set of values in |testValues| for all of the
+      // automation methods in |testMethods|.  The expected error type is
+      // |errorName|. |testMethods| is an array of dictionaries with attributes
+      // |automationName| giving the name of the automation method to be tested
+      // and |funcArg| being a function of one parameter that produces an array
+      // that will be used as the argument to the automation method.
+      function doTests(should, node, errorName, testValues, testMethods) {
+        testValues.forEach(value => {
+          testMethods.forEach(method => {
+            let args = method.funcArg(value);
+            let message = 'gain.gain.' + method.automationName + '(' +
+                argString(args) + ')';
+            should(() => node.gain[method.automationName](...args), message)
+                .throw(errorName);
+          });
+        });
+      }
+
+      // Specialized printer for automation arguments so that messages make
+      // sense.  We assume the first element is either a number or an array.  If
+      // it's an array, there are always three elements, and we want to print
+      // out the brackets for the array argument.
+      function argString(arg) {
+        if (typeof(arg[0]) === 'number') {
+          return arg.toString();
+        }
+
+        return '[' + arg[0] + '],' + arg[1] + ',' + arg[2];
+      }
+    </script>
+  </body>
+</html>

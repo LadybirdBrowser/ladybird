@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "getoutputtimestamp-cross-realm"
+Pass	Audit report
+Pass	> [getoutputtimestamp-cross-realm] 
+Pass	  mainContext's performanceTime is greater than iframeContext's performanceTime.
+Pass	  mainContext's performanceTime (via iframeContext's method) is mainContext's performanceTime within an error of 0.01.
+Pass	< [getoutputtimestamp-cross-realm] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

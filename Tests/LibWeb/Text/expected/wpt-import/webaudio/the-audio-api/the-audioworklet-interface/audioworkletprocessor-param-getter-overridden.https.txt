@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Test if AudioWorkletProcessor with invalid parameters array getter

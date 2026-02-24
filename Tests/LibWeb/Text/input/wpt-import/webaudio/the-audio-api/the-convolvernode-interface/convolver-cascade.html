@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Cascade of Mono Convolvers
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // Arbitrary sample rate and reasonably short duration
+      let sampleRate = 8000;
+      let duration = 0.25;
+      let renderFrames = duration * sampleRate;
+
+      audit.define(
+          {label: 'cascade-mono', description: 'Cascaded mono convolvers'},
+          (task, should) => {
+            // Cascade two convolvers with mono responses and verify that the
+            // output is not silent.
+            let context = new OfflineAudioContext(1, renderFrames, sampleRate);
+
+            let b0 =
+                new AudioBuffer({length: 5, sampleRate: context.sampleRate});
+            b0.getChannelData(0)[1] = 1;
+            let c0 = new ConvolverNode(
+                context, {disableNormalization: true, buffer: b0});
+
+            let b1 =
+                new AudioBuffer({length: 5, sampleRate: context.sampleRate});
+            b1.getChannelData(0)[2] = 1;
+
+            let c1 = new ConvolverNode(
+                context, {disableNormalization: true, buffer: b1});
+
+            let src = new OscillatorNode(context);
+
+            src.connect(c0).connect(c1).connect(context.destination);
+
+            src.start();
+
+            context.startRendering()
+                .then(audioBuffer => {
+                  // Just verify the output is not silent
+                  let audio = audioBuffer.getChannelData(0);
+
+                  should(audio, 'Output of cascaded mono convolvers')
+                      .notBeConstantValueOf(0);
+                })
+                .then(() => task.done());
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

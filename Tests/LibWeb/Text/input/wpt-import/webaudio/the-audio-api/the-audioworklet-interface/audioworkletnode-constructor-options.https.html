@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>AudioWorkletNodeOptions: Basic Construction & Validation</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 48000;
+      const filePath = 'processors/dummy-processor.js';
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, 1, sampleRate);
+        await context.audioWorklet.addModule(filePath);
+
+        const testNode = new AudioWorkletNode(context, 'dummy');
+        assert_true(
+            testNode instanceof AudioWorkletNode,
+            'testNode should be an instance of AudioWorkletNode');
+        assert_equals(testNode.numberOfInputs, 1, 'Default numberOfInputs');
+        assert_equals(testNode.numberOfOutputs, 1, 'Default numberOfOutputs');
+        assert_equals(testNode.channelCount, 2, 'Default channelCount');
+        assert_equals(
+            testNode.channelCountMode, 'max', 'Default channelCountMode');
+        assert_equals(
+            testNode.channelInterpretation, 'speakers',
+            'Default channelInterpretation');
+      }, 'Construct AudioWorkletNode without options and check default values');
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, 1, sampleRate);
+        await context.audioWorklet.addModule(filePath);
+
+        const options = {
+          numberOfInputs: 7,
+          numberOfOutputs: 18,
+          channelCount: 4,
+          channelCountMode: 'clamped-max',
+          channelInterpretation: 'discrete'
+        };
+
+        const testNode = new AudioWorkletNode(context, 'dummy', options);
+        assert_equals(testNode.numberOfInputs, options.numberOfInputs);
+        assert_equals(testNode.numberOfOutputs, options.numberOfOutputs);
+        assert_equals(testNode.channelCount, options.channelCount);
+        assert_equals(testNode.channelCountMode, options.channelCountMode);
+        assert_equals(
+            testNode.channelInterpretation, options.channelInterpretation);
+      }, 'Construct AudioWorkletNode with explicit AudioNodeOptions');
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, 1, sampleRate);
+        await context.audioWorklet.addModule(filePath);
+
+        const optionsValid = {channelCount: 17};
+        const testNode = new AudioWorkletNode(context, 'dummy', optionsValid);
+        assert_equals(testNode.channelCount, optionsValid.channelCount);
+
+        const optionsTooSmall = {channelCount: 0};
+        assert_throws_dom('NotSupportedError', () => {
+          new AudioWorkletNode(context, 'dummy', optionsTooSmall);
+        }, 'channelCount of 0 should throw NotSupportedError');
+
+        const optionsTooLarge = {channelCount: 33};
+        assert_throws_dom('NotSupportedError', () => {
+          new AudioWorkletNode(context, 'dummy', optionsTooLarge);
+        }, 'channelCount of 33 should throw NotSupportedError');
+      }, 'Validate channelCount boundaries for AudioWorkletNode');
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, 1, sampleRate);
+        await context.audioWorklet.addModule(filePath);
+
+        const channelCountModes = ['max', 'clamped-max', 'explicit'];
+        for (const mode of channelCountModes) {
+          const node = new AudioWorkletNode(context, 'dummy', {
+            channelCountMode: mode
+          });
+          assert_equals(
+              node.channelCountMode, mode, `Set channelCountMode to '${mode}'`);
+        }
+
+        const invalidMode = {channelCountMode: 'foobar'};
+        assert_throws_js(TypeError, () => {
+          new AudioWorkletNode(context, 'dummy', invalidMode);
+        }, 'Invalid channelCountMode should throw TypeError');
+      }, 'Validate allowed and disallowed channelCountMode options');
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, 1, sampleRate);
+        await context.audioWorklet.addModule(filePath);
+
+        const channelInterpretations = ['speakers', 'discrete'];
+        for (const interpretation of channelInterpretations) {
+          const node = new AudioWorkletNode(context, 'dummy', {
+            channelInterpretation: interpretation
+          });
+          assert_equals(node.channelInterpretation, interpretation,
+              `Set channelInterpretation to '${interpretation}'`);
+        }
+
+        const invalidInterpretation = {channelInterpretation: 'foobar'};
+        assert_throws_js(TypeError, () => {
+          new AudioWorkletNode(context, 'dummy', invalidInterpretation);
+        }, 'Invalid channelInterpretation should throw TypeError');
+      }, 'Validate allowed and disallowed channelInterpretation values');
+    </script>
+  </body>
+</html>

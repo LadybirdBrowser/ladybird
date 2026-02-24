@@ -13,6 +13,8 @@
 #include <LibWeb/Bindings/AnalyserNodePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/OfflineAudioContext.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -37,242 +39,204 @@ WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create(JS::Realm& realm
 }
 
 // https://webaudio.github.io/web-audio-api/#current-time-domain-data
-Vector<f32> AnalyserNode::current_time_domain_data()
+Vector<f32> const& AnalyserNode::current_time_domain_data()
 {
-    dbgln("FIXME: Analyser node: implement current time domain data");
-    // The input signal must be down-mixed to mono as if channelCount is 1, channelCountMode is "max" and channelInterpretation is "speakers".
-    // This is independent of the settings for the AnalyserNode itself.
-    // The most recent fftSize frames are used for the down-mixing operation.
+    u64 render_quantum_index = 0;
+    if (try_update_time_domain_cache_from_context(render_quantum_index))
+        return m_cached_time_domain_data;
 
-    // FIXME: definition of "input signal" above unclear
-    //        need to implement up/down mixing somewhere
-    //        https://webaudio.github.io/web-audio-api/#channel-up-mixing-and-down-mixing
-    Vector<f32> result;
-    result.resize(m_fft_size);
-    return result;
-}
-
-// https://webaudio.github.io/web-audio-api/#blackman-window
-Vector<f32> AnalyserNode::apply_a_blackman_window(Vector<f32> const& x) const
-{
-    f32 const a = 0.16;
-    f32 const a0 = 0.5f * (1 - a);
-    f32 const a1 = 0.5;
-    f32 const a2 = a * 0.5f;
-    unsigned long const N = m_fft_size;
-
-    auto w = [&](unsigned long n) {
-        return a0 - a1 * cos(2 * AK::Pi<f32> * (f32)n / (f32)N) + a2 * cos(4 * AK::Pi<f32> * (f32)n / (f32)N);
-    };
-
-    Vector<f32> x_hat;
-    x_hat.resize(m_fft_size);
-
-    // FIXME: Naive
-    for (unsigned long i = 0; i < m_fft_size; i++) {
-        x_hat[i] = x[i] * w(i);
-    };
-
-    return x_hat;
-}
-
-// https://webaudio.github.io/web-audio-api/#fourier-transform
-static Vector<f32> apply_a_fourier_transform(Vector<f32> const& input)
-{
-    dbgln("FIXME: Analyser node: implement apply a fourier transform");
-    auto result = Vector<f32>();
-    result.resize(input.size());
-    return result;
-}
-
-// https://webaudio.github.io/web-audio-api/#smoothing-over-time
-Vector<f32> AnalyserNode::smoothing_over_time(Vector<f32> const& current_block)
-{
-    auto X = apply_a_fourier_transform(current_block);
-
-    // FIXME: Naive
-    Vector<f32> result;
-    result.ensure_capacity(m_fft_size);
-    for (unsigned long i = 0; i < m_fft_size; i++) {
-        // FIXME: Complex modulus on X[i]
-        result.unchecked_append(m_smoothing_time_constant * m_previous_block[i] + (1.f - m_smoothing_time_constant) * abs(X[i]));
+    size_t quantum_index = current_render_quantum_index();
+    if (!m_cached_render_quantum_index.has_value()
+        || m_cached_render_quantum_index.value() != quantum_index
+        || m_cached_time_domain_data.size() != m_fft_size) {
+        m_cached_render_quantum_index = quantum_index;
+        m_cached_time_domain_data = capture_time_domain_window();
+        m_cached_frequency_data.clear();
     }
-
-    m_previous_block = result;
-
-    return result;
-}
-
-// https://webaudio.github.io/web-audio-api/#conversion-to-db
-Vector<f32> AnalyserNode::conversion_to_dB(Vector<f32> const& X_hat) const
-{
-    Vector<f32> result;
-    result.ensure_capacity(X_hat.size());
-    // FIXME: Naive
-    for (auto x : X_hat)
-        result.unchecked_append(20.0f * AK::log(x));
-
-    return result;
+    return m_cached_time_domain_data;
 }
 
 // https://webaudio.github.io/web-audio-api/#current-frequency-data
-Vector<f32> AnalyserNode::current_frequency_data()
+Vector<f32> const& AnalyserNode::current_frequency_data()
 {
+    u64 render_quantum_index = 0;
+    if (try_update_frequency_cache_from_context(render_quantum_index) && m_cached_frequency_data.size() == frequency_bin_count())
+        return m_cached_frequency_data;
+
     // 1. Compute the current time-domain data.
-    auto current_time_domain_dat = current_time_domain_data();
+    // NOTE: The spec requires that multiple calls to get*FrequencyData() within the same render quantum
+    // return the same values.
 
-    // 2. Apply a Blackman window to the time domain input data.
-    auto blackman_windowed_input = apply_a_blackman_window(current_time_domain_dat);
+    size_t quantum_index = current_render_quantum_index();
+    if (!m_cached_render_quantum_index.has_value()
+        || m_cached_render_quantum_index.value() != quantum_index
+        || m_cached_time_domain_data.size() != m_fft_size) {
+        m_cached_render_quantum_index = quantum_index;
+        m_cached_time_domain_data = capture_time_domain_window();
+        m_cached_frequency_data.clear();
+    }
 
-    // 3. Apply a Fourier transform to the windowed time domain input data to get real and imaginary frequency data.
-    auto frequency_domain_dat = apply_a_fourier_transform(blackman_windowed_input);
+    if (m_cached_frequency_data.size() == frequency_bin_count())
+        return m_cached_frequency_data;
 
-    // 4. Smooth over time the frequency domain data.
-    auto smoothed_data = smoothing_over_time(frequency_domain_dat);
+    // FIXME: If we have neither offline injected analysis nor a realtime RenderGraph snapshot,
+    // the only safe fallback is explicit silence. Do not do control-thread FFT work here.
+    m_cached_frequency_data.clear();
+    m_cached_frequency_data.resize(frequency_bin_count());
+    for (size_t i = 0; i < m_cached_frequency_data.size(); ++i)
+        m_cached_frequency_data[i] = -AK::Infinity<f32>;
+    return m_cached_frequency_data;
+}
 
-    // 5. Convert to dB.
-    return conversion_to_dB(smoothed_data);
+bool AnalyserNode::try_update_time_domain_cache_from_context(u64& out_render_quantum_index)
+{
+    auto const& audio_context = this->context();
+
+    Vector<f32> time_domain;
+    time_domain.resize(m_fft_size);
+
+    u64 render_quantum_index = 0;
+    if (!audio_context->try_copy_realtime_analyser_data(node_id(), static_cast<u32>(m_fft_size), time_domain.span(), {}, render_quantum_index))
+        return false;
+
+    out_render_quantum_index = render_quantum_index;
+    m_cached_render_quantum_index = static_cast<size_t>(render_quantum_index);
+    m_cached_time_domain_data = move(time_domain);
+    m_cached_frequency_data.clear();
+    return true;
+}
+
+bool AnalyserNode::try_update_frequency_cache_from_context(u64& out_render_quantum_index)
+{
+    auto const& audio_context = this->context();
+
+    Vector<f32> time_domain;
+    time_domain.resize(m_fft_size);
+
+    Vector<f32> frequency_db;
+    frequency_db.resize(frequency_bin_count());
+
+    u64 render_quantum_index = 0;
+    if (!audio_context->try_copy_realtime_analyser_data(node_id(), static_cast<u32>(m_fft_size), time_domain.span(), frequency_db.span(), render_quantum_index))
+        return false;
+
+    out_render_quantum_index = render_quantum_index;
+    m_cached_render_quantum_index = static_cast<size_t>(render_quantum_index);
+    m_cached_time_domain_data = move(time_domain);
+    m_cached_frequency_data = move(frequency_db);
+    return true;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-analysernode-getfloatfrequencydata
 WebIDL::ExceptionOr<void> AnalyserNode::get_float_frequency_data(GC::Root<WebIDL::BufferSource> const& array)
 {
+    auto const& frequency_data = current_frequency_data();
+
+    if (!is<JS::Float32Array>(*array->raw_object()))
+        return vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
+    auto output_floats = static_cast<JS::Float32Array&>(*array->raw_object()).data();
 
     // Write the current frequency data into array. If array has fewer elements than the frequencyBinCount,
     // the excess elements will be dropped. If array has more elements than the frequencyBinCount, the
-    // excess elements will be ignored. The most recent fftSize frames are used in computing the frequency data.
-    auto const frequency_data = current_frequency_data();
+    // excess elements will be ignored.
+    size_t floats_to_write = min(output_floats.size(), frequency_bin_count());
+    if (floats_to_write == 0)
+        return {};
 
-    // FIXME: If another call to getFloatFrequencyData() or getByteFrequencyData() occurs within the same render
-    // quantum as a previous call, the current frequency data is not updated with the same data. Instead, the
-    // previously computed data is returned.
-
-    auto& vm = this->vm();
-
-    if (!is<JS::Float32Array>(*array->raw_object()))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
-    auto& output_array = static_cast<JS::Float32Array&>(*array->raw_object());
-
-    size_t floats_to_write = min(output_array.data().size(), frequency_bin_count());
-    for (size_t i = 0; i < floats_to_write; i++) {
-        output_array.data()[i] = frequency_data[i];
-    }
-
+    ReadonlySpan<f32> input { frequency_data.data(), floats_to_write };
+    input.copy_to(output_floats.trim(floats_to_write));
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-analysernode-getbytefrequencydata
 WebIDL::ExceptionOr<void> AnalyserNode::get_byte_frequency_data(GC::Root<WebIDL::BufferSource> const& array)
 {
-    // FIXME: If another call to getByteFrequencyData() or getFloatFrequencyData() occurs within the same render
-    // quantum as a previous call, the current frequency data is not updated with the same data. Instead,
-    // the previously computed data is returned.
-    //      Need to implement some kind of blocking mechanism, I guess
-    //      Might be more obvious how to handle this when render quantua have some
-    //      more scaffolding
-    //
+    auto const& dB_data = current_frequency_data();
 
-    // current_frequency_data returns a vector of size m_fftSize
-    // FIXME: Ensure sizes are correct after the fourier transform is implemented
-    //        Spec says to write frequencyBinCount bytes, not fftSize
-    Vector<f32> dB_data = current_frequency_data();
-    Vector<u8> byte_data;
-    byte_data.ensure_capacity(dB_data.size());
+    auto& vm = this->vm();
+    if (!is<JS::Uint8Array>(*array->raw_object()))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Uint8Array");
+    auto output_bytes = static_cast<JS::Uint8Array&>(*array->raw_object()).data();
+
+    // Write the current frequency data into array. If array’s byte length is less than frequencyBinCount,
+    // the excess elements will be dropped. If array’s byte length is greater than the frequencyBinCount ,
+    // the excess elements will be ignored.
+    size_t bytes_to_write = min(output_bytes.size(), frequency_bin_count());
+    if (bytes_to_write == 0)
+        return {};
 
     // For getByteFrequencyData(), the 𝑌[𝑘] is clipped to lie between minDecibels and maxDecibels
     // and then scaled to fit in an unsigned byte such that minDecibels is represented by the
     // value 0 and maxDecibels is represented by the value 255.
-    // FIXME: Naive
-    f32 delta_dB = m_max_decibels - m_min_decibels;
-    for (auto x : dB_data) {
-        x = max(x, m_min_decibels);
-        x = min(x, m_max_decibels);
+    f32 const min_decibels = static_cast<f32>(m_min_decibels);
+    f32 const max_decibels = static_cast<f32>(m_max_decibels);
+    f32 const delta_dB = max_decibels - min_decibels;
 
-        byte_data.unchecked_append(static_cast<u8>(255 * (x - m_min_decibels) / delta_dB));
+    for (size_t i = 0; i < bytes_to_write; ++i) {
+        f32 clamped = AK::clamp(dB_data[i], min_decibels, max_decibels);
+        output_bytes[i] = static_cast<u8>(255 * (clamped - min_decibels) / delta_dB);
     }
-
-    // Write the current frequency data into array. If array’s byte length is less than frequencyBinCount,
-    // the excess elements will be dropped. If array’s byte length is greater than the frequencyBinCount ,
-    // the excess elements will be ignored. The most recent fftSize frames are used in computing the frequency data.
-    auto& output_buffer = array->viewed_array_buffer()->buffer();
-    size_t bytes_to_write = min(array->byte_length(), frequency_bin_count());
-
-    for (size_t i = 0; i < bytes_to_write; i++)
-        output_buffer[i] = byte_data[i];
-
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-analysernode-getfloattimedomaindata
 WebIDL::ExceptionOr<void> AnalyserNode::get_float_time_domain_data(GC::Root<WebIDL::BufferSource> const& array)
 {
-    // Write the current time-domain data (waveform data) into array. If array has fewer elements than the
-    // value of fftSize, the excess elements will be dropped. If array has more elements than the value of
-    // fftSize, the excess elements will be ignored. The most recent fftSize frames are written (after downmixing).
-
-    Vector<f32> time_domain_data = current_time_domain_data();
+    auto const& time_domain_data = current_time_domain_data();
 
     auto& vm = this->vm();
-
     if (!is<JS::Float32Array>(*array->raw_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
-    auto& output_array = static_cast<JS::Float32Array&>(*array->raw_object());
+    auto output_floats = static_cast<JS::Float32Array&>(*array->raw_object()).data();
 
-    size_t floats_to_write = min(output_array.data().size(), frequency_bin_count());
-    for (size_t i = 0; i < floats_to_write; i++) {
-        output_array.data()[i] = time_domain_data[i];
-    }
+    // Write the current time-domain data (waveform data) into array. If array has fewer elements than the
+    // value of fftSize, the excess elements will be dropped. If array has more elements than the value of
+    // fftSize, the excess elements will be ignored.
+    size_t floats_to_write = min(output_floats.size(), fft_size());
+    if (floats_to_write == 0)
+        return {};
 
+    ReadonlySpan<f32> input { time_domain_data.data(), floats_to_write };
+    input.copy_to(output_floats.trim(floats_to_write));
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-analysernode-getbytetimedomaindata
 WebIDL::ExceptionOr<void> AnalyserNode::get_byte_time_domain_data(GC::Root<WebIDL::BufferSource> const& array)
 {
-    // Write the current time-domain data (waveform data) into array. If array’s byte length is less than
-    // fftSize, the excess elements will be dropped. If array’s byte length is greater than the fftSize,
-    // the excess elements will be ignored. The most recent fftSize frames are used in computing the byte data.
-
-    Vector<f32> time_domain_data = current_time_domain_data();
+    auto const& time_domain_data = current_time_domain_data();
     VERIFY(time_domain_data.size() == m_fft_size);
 
-    Vector<u8> byte_data;
-    byte_data.ensure_capacity(m_fft_size);
+    if (!is<JS::Uint8Array>(*array->raw_object()))
+        return vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Uint8Array");
+    auto output_bytes = static_cast<JS::Uint8Array&>(*array->raw_object()).data();
 
-    // FIXME: Naive
-    for (size_t i = 0; i < m_fft_size; i++) {
-        auto x = 128 * (1 + time_domain_data[i]);
-        x = max(x, 0);
-        x = min(x, 255);
-        byte_data.unchecked_append(static_cast<u8>(x));
+    // Write the current time-domain data (waveform data) into array. If array’s byte length is less than
+    // fftSize, the excess elements will be dropped. If array’s byte length is greater than the fftSize,
+    // the excess elements will be ignored.
+    size_t bytes_to_write = min(output_bytes.size(), fft_size());
+    if (bytes_to_write == 0)
+        return {};
+
+    for (size_t i = 0; i < bytes_to_write; ++i) {
+        f32 clamped = AK::clamp(128 * (1 + time_domain_data[i]), 0.0f, 255.0f);
+        output_bytes[i] = static_cast<u8>(clamped);
     }
-
-    auto& output_buffer = array->viewed_array_buffer()->buffer();
-    size_t bytes_to_write = min(array->byte_length(), fft_size());
-
-    for (size_t i = 0; i < bytes_to_write; i++)
-        output_buffer[i] = byte_data[i];
-
     return {};
 }
+
+// FIXME: all of these setters, all of the js setters on all of the other audio nodes, need
+// to enqueue a parameter update.
 
 // https://webaudio.github.io/web-audio-api/#dom-analysernode-fftsize
 WebIDL::ExceptionOr<void> AnalyserNode::set_fft_size(unsigned long fft_size)
 {
     if (fft_size < 32 || fft_size > 32768 || !is_power_of_two(fft_size))
         return WebIDL::IndexSizeError::create(realm(), "Analyser node fftSize not a power of 2 between 32 and 32768"_utf16);
-
-    // reset previous block to 0s
-    m_previous_block = Vector<f32>();
-    m_previous_block.resize(fft_size);
-
     m_fft_size = fft_size;
-
-    // FIXME: Check this:
-    // Note that increasing fftSize does mean that the current time-domain data must be expanded
-    // to include past frames that it previously did not. This means that the AnalyserNode
-    // effectively MUST keep around the last 32768 sample-frames and the current time-domain
-    // data is the most recent fftSize sample-frames out of that.
+    m_cached_render_quantum_index.clear();
+    m_cached_time_domain_data.clear();
+    m_cached_frequency_data.clear();
     return {};
 }
 
@@ -333,6 +297,74 @@ void AnalyserNode::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AnalyserNode);
     Base::initialize(realm);
+}
+
+size_t AnalyserNode::current_render_quantum_index() const
+{
+    // https://webaudio.github.io/web-audio-api/#dom-analysernode-getfloatfrequencydata
+
+    // If another call to getFloatFrequencyData() or getByteFrequencyData() occurs within the
+    // same render quantum as a previous call, the current frequency data is not updated with
+    // the same data. Instead, the previously computed data is returned.
+    auto context = this->context();
+    f32 sample_rate = context->sample_rate();
+    if (sample_rate <= 0)
+        return 0;
+
+    size_t quantum_size = context->render_quantum_size();
+    if (quantum_size == 0)
+        return 0;
+
+    double frames = context->current_time() * sample_rate;
+    if (frames <= 0)
+        return 0;
+
+    return static_cast<size_t>(frames) / quantum_size;
+}
+
+Vector<f32> AnalyserNode::capture_time_domain_window() const
+{
+    if (m_rendered_time_domain_data.has_value() && is<OfflineAudioContext>(*context()))
+        return m_rendered_time_domain_data.value();
+
+    Vector<f32> time_domain_data;
+    time_domain_data.resize(m_fft_size);
+    return time_domain_data;
+}
+
+void AnalyserNode::set_time_domain_data_from_rendering(Badge<OfflineAudioContext>, ReadonlySpan<f32> time_domain)
+{
+    m_rendered_time_domain_data = Vector<f32> {};
+    m_rendered_time_domain_data->resize(m_fft_size);
+
+    // If there's too much, use the tail.
+    size_t const to_copy = min(time_domain.size(), static_cast<size_t>(m_fft_size));
+    time_domain.slice(time_domain.size() - to_copy)
+        .copy_trimmed_to(m_rendered_time_domain_data->span().slice(m_fft_size - to_copy, to_copy));
+
+    m_cached_render_quantum_index.clear();
+    m_cached_time_domain_data.clear();
+    m_cached_frequency_data.clear();
+}
+
+void AnalyserNode::set_analysis_data_from_rendering(Badge<OfflineAudioContext>, ReadonlySpan<f32> time_domain, ReadonlySpan<f32> frequency_data_db, size_t render_quantum_index)
+{
+    m_rendered_time_domain_data = Vector<f32> {};
+    m_rendered_time_domain_data->resize(m_fft_size);
+
+    size_t const to_copy = min(time_domain.size(), static_cast<size_t>(m_fft_size));
+    time_domain.slice(time_domain.size() - to_copy)
+        .copy_trimmed_to(m_rendered_time_domain_data->span().slice(m_fft_size - to_copy, to_copy));
+
+    m_cached_render_quantum_index = render_quantum_index;
+    m_cached_time_domain_data = m_rendered_time_domain_data.value();
+    m_cached_frequency_data = Vector<f32> {};
+    m_cached_frequency_data.ensure_capacity(frequency_bin_count());
+    size_t const bins_to_copy = min(frequency_data_db.size(), frequency_bin_count());
+    for (size_t i = 0; i < bins_to_copy; ++i)
+        m_cached_frequency_data.unchecked_append(frequency_data_db[i]);
+    for (size_t i = bins_to_copy; i < frequency_bin_count(); ++i)
+        m_cached_frequency_data.unchecked_append(-AK::Infinity<f32>);
 }
 
 }

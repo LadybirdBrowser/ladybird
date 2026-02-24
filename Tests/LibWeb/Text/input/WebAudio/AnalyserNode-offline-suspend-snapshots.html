@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <title>OfflineAudioContext AnalyserNode suspend snapshots</title>
+    <script src="../include.js"></script>
+</head>
+<body>
+<script>
+'use strict';
+
+function approxEqual(a, b, eps) {
+    return Math.abs(a - b) <= eps;
+}
+
+function assert(condition, message) {
+    if (!condition)
+        throw new Error(message);
+}
+
+promiseTest(async () => {
+    const sampleRate = 44100;
+    const quantumSize = 128;
+    const fftSize = 32;
+
+    function makeConstantBuffer(context, lengthInFrames, value) {
+        const buffer = context.createBuffer(1, lengthInFrames, sampleRate);
+        buffer.getChannelData(0).fill(value);
+        return buffer;
+    }
+
+    async function run(lengthInFrames, inputValue, suspendFrame) {
+        const context = new OfflineAudioContext(1, lengthInFrames, sampleRate);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = fftSize;
+
+        const source = context.createBufferSource();
+        source.buffer = makeConstantBuffer(context, lengthInFrames, inputValue);
+        source.loop = false;
+        source.connect(analyser);
+        analyser.connect(context.destination);
+
+        // Start immediately; we only need deterministic offline rendering.
+        source.start(0);
+
+        let maxAbsAtSuspend = NaN;
+        let suspendError = null;
+        const suspendTime = suspendFrame / sampleRate;
+        context.suspend(suspendTime).then(() => {
+            try {
+                const timeDomain = new Float32Array(fftSize);
+                analyser.getFloatTimeDomainData(timeDomain);
+
+                let maxAbs = 0;
+                for (let i = 0; i < timeDomain.length; ++i)
+                    maxAbs = Math.max(maxAbs, Math.abs(timeDomain[i]));
+                maxAbsAtSuspend = maxAbs;
+            } catch (e) {
+                suspendError = e;
+            } finally {
+                context.resume();
+            }
+        });
+
+        await context.startRendering();
+        if (suspendError)
+            throw suspendError;
+        assert(Number.isFinite(maxAbsAtSuspend), 'suspend should have observed analyser data');
+        return maxAbsAtSuspend;
+    }
+
+    // Phase 1: Render silence and suspend after one quantum.
+    const maxAbsAtFirstSuspend = await run(2 * quantumSize, 0.0, 1 * quantumSize);
+    assert(maxAbsAtFirstSuspend <= 1e-6, `expected near-silence at first suspend, got maxAbs=${maxAbsAtFirstSuspend}`);
+
+    // Phase 2: Render a DC signal and suspend after one quantum.
+    const maxAbsAtSecondSuspend = await run(2 * quantumSize, 1.0, 1 * quantumSize);
+    assert(approxEqual(maxAbsAtSecondSuspend, 1.0, 1e-6), `expected ~1.0 at second suspend, got maxAbs=${maxAbsAtSecondSuspend}`);
+
+    println('passed');
+});
+</script>
+</body>

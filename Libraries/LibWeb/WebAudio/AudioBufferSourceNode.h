@@ -46,6 +46,11 @@ public:
 
     WebIDL::ExceptionOr<void> start(Optional<double>, Optional<double>, Optional<double>);
 
+    // Exposed as internal helpers for the offline rendering implementation.
+    Optional<double> start_when_for_rendering() const { return m_start_when; }
+    Optional<double> start_offset_for_rendering() const { return m_start_offset; }
+    Optional<double> start_duration_for_rendering() const { return m_start_duration; }
+
     static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
     static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
 
@@ -64,6 +69,12 @@ private:
     bool m_buffer_set { false };
     double m_loop_start { 0.0 };
     double m_loop_end { 0.0 };
+
+    // Scheduled playback parameters captured at start(). These are control-thread owned and will be snapshotted
+    // into render-thread-friendly structures for OfflineAudioContext rendering.
+    Optional<double> m_start_when;
+    Optional<double> m_start_offset;
+    Optional<double> m_start_duration;
 };
 
 }

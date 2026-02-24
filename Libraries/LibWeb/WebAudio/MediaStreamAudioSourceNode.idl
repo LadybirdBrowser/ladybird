@@ -1,0 +1,13 @@
+#import <MediaCapture/MediaStream.idl>
+#import <WebAudio/AudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#MediaStreamAudioSourceNode
+[Exposed=Window]
+interface MediaStreamAudioSourceNode : AudioNode {
+    constructor (AudioContext context, MediaStreamAudioSourceOptions options);
+    [SameObject] readonly attribute MediaStream mediaStream;
+};
+
+dictionary MediaStreamAudioSourceOptions {
+    required MediaStream mediaStream;
+};

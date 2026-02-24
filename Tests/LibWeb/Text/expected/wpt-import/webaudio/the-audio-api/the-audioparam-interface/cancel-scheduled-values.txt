@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	cancel‑time: handle cancelTime values
+Pass	cancel1: cancel setValueCurve

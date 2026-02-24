@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "simple"
+Pass	Audit report
+Pass	> [simple] 
+Pass	  Initial WaveShaper.curve is equal to null.
+Pass	  Initial WaveShaper.oversample is equal to none.
+Pass	  Setting oversample to "2x" did not throw an exception.
+Pass	  Waveshaper.oversample = "2x" is equal to 2x.
+Pass	  Setting oversample to "4x" did not throw an exception.
+Pass	  Waveshaper.oversample = "4x" is equal to 4x.
+Pass	  Setting oversample to "invalid" did not throw an exception.
+Pass	  Waveshaper.oversample = "invalid" is equal to 4x.
+Pass	  Setting curve to [-1,0.25,0.75] did not throw an exception.
+Pass	  WaveShaper.curve is identical to the array [-1,0.25,0.75].
+Pass	  Setting curve back to null did not throw an exception.
+Pass	  Waveshaper.curve = null is equal to null.
+Pass	< [simple] All assertions passed. (total 12 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

@@ -1,0 +1,7 @@
+Harness status: Error
+
+Found 2 tests
+
+2 Pass
+Pass	Test if unconnected outputs provides a non-zero length array for channels
+Pass	Test if outputs connected to AudioParam provides a non-zero length array for channels

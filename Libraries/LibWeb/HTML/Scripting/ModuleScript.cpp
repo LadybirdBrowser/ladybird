@@ -43,6 +43,9 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
     // 4. Set script's base URL to baseURL.
     auto script = realm.create<JavaScriptModuleScript>(move(base_url), filename, realm);
 
+    // Keep a copy of the module source for mirroring into other execution environments.
+    script->m_source_text = source;
+
     // FIXME: 5. Set script's fetch options to options.
 
     // 6. Set script's parse error and error to rethrow to null.

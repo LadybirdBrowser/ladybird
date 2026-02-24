@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      biquad-bandpass.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/biquad-filters.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // In the tests below, the initial values are not important, except that
+      // we wanted them to be all different so that the output contains
+      // different values for the first few samples.  Otherwise, the actual
+      // values don't really matter.  A peaking filter is used because the
+      // frequency, Q, gain, and detune parameters are used by this filter.
+      //
+      // Also, for the changeList option, the times and new values aren't really
+      // important.  They just need to change so that we can verify that the
+      // outputs from the .value setter still matches the output from the
+      // corresponding setValueAtTime.
+      audit.define(
+          {label: 'Test 0', description: 'No dezippering for frequency'},
+          (task, should) => {
+            doTest(should, {
+              paramName: 'frequency',
+              initializer: {type: 'peaking', Q: 1, gain: 5},
+              changeList:
+                  [{quantum: 2, newValue: 800}, {quantum: 7, newValue: 200}],
+              threshold: 3.0399e-6
+            }).then(() => task.done());
+          });
+
+      audit.define(
+          {label: 'Test 1', description: 'No dezippering for detune'},
+          (task, should) => {
+            doTest(should, {
+              paramName: 'detune',
+              initializer:
+                  {type: 'peaking', frequency: 400, Q: 3, detune: 33, gain: 10},
+              changeList:
+                  [{quantum: 2, newValue: 1000}, {quantum: 5, newValue: -400}],
+              threshold: 4.0532e-6
+            }).then(() => task.done());
+          });
+
+      audit.define(
+          {label: 'Test 2', description: 'No dezippering for Q'},
+          (task, should) => {
+            doTest(should, {
+              paramName: 'Q',
+              initializer: {type: 'peaking', Q: 5},
+              changeList:
+                  [{quantum: 2, newValue: 10}, {quantum: 8, newValue: -10}]
+            }).then(() => task.done());
+          });
+
+      audit.define(
+          {label: 'Test 3', description: 'No dezippering for gain'},
+          (task, should) => {
+            doTest(should, {
+              paramName: 'gain',
+              initializer: {type: 'peaking', gain: 1},
+              changeList:
+                  [{quantum: 2, newValue: 5}, {quantum: 6, newValue: -.3}],
+              threshold: 1.9074e-6
+            }).then(() => task.done());
+          });
+
+      // This test compares the filter output against a JS implementation of the
+      // filter.  We're only testing a change in the frequency for a lowpass
+      // filter.  This assumes we don't need to test other AudioParam changes
+      // with JS code because any mistakes would be exposed in the tests above.
+      audit.define(
+          {
+            label: 'Test 4',
+            description: 'No dezippering of frequency vs JS filter'
+          },
+          (task, should) => {
+            // Channel 0 is the source, channel 1 is the filtered output.
+            let context = new OfflineAudioContext(2, 2048, 16384);
+
+            let merger = new ChannelMergerNode(
+                context, {numberOfInputs: context.destination.channelCount});
+            merger.connect(context.destination);
+
+            let src = new OscillatorNode(context);
+            let f = new BiquadFilterNode(context, {type: 'lowpass'});
+
+            // Remember the initial filter parameters.
+            let initialFilter = {
+              type: f.type,
+              frequency: f.frequency.value,
+              gain: f.gain.value,
+              detune: f.detune.value,
+              Q: f.Q.value
+            };
+
+            src.connect(merger, 0, 0);
+            src.connect(f).connect(merger, 0, 1);
+
+            // Apply the filter change at frame |changeFrame| with a new
+            // frequency value of |newValue|.
+            let changeFrame = 2 * RENDER_QUANTUM_FRAMES;
+            let newValue = 750;
+
+            context.suspend(changeFrame / context.sampleRate)
+                .then(() => f.frequency.value = newValue)
+                .then(() => context.resume());
+
+            src.start();
+
+            context.startRendering()
+                .then(audio => {
+                  let signal = audio.getChannelData(0);
+                  let actual = audio.getChannelData(1);
+
+                  // Get initial filter coefficients and updated coefficients
+                  let nyquistFreq = context.sampleRate / 2;
+                  let initialCoef = createFilter(
+                      initialFilter.type, initialFilter.frequency / nyquistFreq,
+                      initialFilter.Q, initialFilter.gain);
+
+                  let finalCoef = createFilter(
+                      f.type, f.frequency.value / nyquistFreq, f.Q.value,
+                      f.gain.value);
+
+                  let expected = new Float32Array(signal.length);
+
+                  // Filter the initial part of the signal.
+                  expected[0] =
+                      filterSample(signal[0], initialCoef, 0, 0, 0, 0);
+                  expected[1] = filterSample(
+                      signal[1], initialCoef, expected[0], 0, signal[0], 0);
+
+                  for (let k = 2; k < changeFrame; ++k) {
+                    expected[k] = filterSample(
+                        signal[k], initialCoef, expected[k - 1],
+                        expected[k - 2], signal[k - 1], signal[k - 2]);
+                  }
+
+                  // Filter the rest of the input with the new coefficients
+                  for (let k = changeFrame; k < signal.length; ++k) {
+                    expected[k] = filterSample(
+                        signal[k], finalCoef, expected[k - 1], expected[k - 2],
+                        signal[k - 1], signal[k - 2]);
+                  }
+
+                  // The JS filter should match the actual output.
+                  let match =
+                      should(actual, 'Output from ' + f.type + ' filter')
+                          .beCloseToArray(
+                              expected, {absoluteThreshold: 6.8546e-7});
+                  should(match, 'Output matches JS filter results').beTrue();
+                })
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {label: 'Test 5', description: 'Test with modulation'},
+          (task, should) => {
+            doTest(should, {
+              prefix: 'Modulation: ',
+              paramName: 'frequency',
+              initializer: {type: 'peaking', Q: 5, gain: 5},
+              modulation: true,
+              changeList:
+                  [{quantum: 2, newValue: 10}, {quantum: 8, newValue: -10}]
+            }).then(() => task.done());
+
+          });
+
+      audit.run();
+
+      // Run test, returning the promise from startRendering. |options|
+      // specifies the parameters for the test. |options.paramName| is the name
+      // of the AudioParam of the filter that is being tested.
+      // |options.initializer| is the initial value to be used in constructing
+      // the filter. |options.changeList| is an array consisting of dictionary
+      // with two members: |quantum| is the rendering quantum at which time we
+      // want to change the AudioParam value, and |newValue| is the value to be
+      // used.
+      function doTest(should, options) {
+        let paramName = options.paramName;
+        let newValue = options.newValue;
+        let prefix = options.prefix || '';
+
+        // Create offline audio context.  The sample rate should be a power of
+        // two to eliminate any round-off errors in computing the time at which
+        // to suspend the context for the parameter change.  The length is
+        // fairly arbitrary as long as it's big enough to the changeList
+        // values. There are two channels:  channel 0 is output for the filter
+        // under test, and channel 1 is the output of referencef filter.
+        let context = new OfflineAudioContext(2, 2048, 16384);
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        let src = new OscillatorNode(context);
+
+        // |f0| is the filter under test that will have its AudioParam value
+        // changed. |f1| is the reference filter that uses setValueAtTime to
+        // update the AudioParam value.
+        let f0 = new BiquadFilterNode(context, options.initializer);
+        let f1 = new BiquadFilterNode(context, options.initializer);
+
+        src.connect(f0).connect(merger, 0, 0);
+        src.connect(f1).connect(merger, 0, 1);
+
+        // Modulate the AudioParam with an input signal, if requested.
+        if (options.modulation) {
+          // The modulation signal is a sine wave with amplitude 1/3 the cutoff
+          // frequency of the test filter.  The amplitude is fairly arbitrary,
+          // but we want it to be a significant fraction of the cutoff so that
+          // the cutoff varies quite a bit in the test.
+          let mod =
+              new OscillatorNode(context, {type: 'sawtooth', frequency: 1000});
+          let modGain = new GainNode(context, {gain: f0.frequency.value / 3});
+          mod.connect(modGain);
+          modGain.connect(f0[paramName]);
+          modGain.connect(f1[paramName]);
+          mod.start();
+        }
+        // Output a message showing where we're starting from.
+        should(f0[paramName].value, prefix + `At time 0, ${paramName}`)
+            .beEqualTo(f0[paramName].value);
+
+        // Schedule all of the desired changes from |changeList|.
+        options.changeList.forEach(change => {
+          let changeTime =
+              change.quantum * RENDER_QUANTUM_FRAMES / context.sampleRate;
+          let value = change.newValue;
+
+          // Just output a message to show what we're doing.
+          should(value, prefix + `At time ${changeTime}, ${paramName}`)
+              .beEqualTo(value);
+
+          // Update the AudioParam value of each filter using setValueAtTime or
+          // the value setter.
+          f1[paramName].setValueAtTime(value, changeTime);
+          context.suspend(changeTime)
+              .then(() => f0[paramName].value = value)
+              .then(() => context.resume());
+        });
+
+        src.start();
+
+        return context.startRendering().then(audio => {
+          let actual = audio.getChannelData(0);
+          let expected = audio.getChannelData(1);
+
+          // The output from both filters MUST match exactly if dezippering has
+          // been properly removed.
+          let match = should(actual, `${prefix}Output from ${paramName} setter`)
+                          .beCloseToArray(
+                              expected, {absoluteThreshold: options.threshold});
+
+          // Just an extra message saying that what we're comparing, to make the
+          // output clearer. (Not really neceesary, but nice.)
+          should(
+              match,
+              `${prefix}Output from ${
+                                      paramName
+                                    } setter matches setValueAtTime output`)
+              .beTrue();
+        });
+      }
+
+      // Filter one sample:
+      //
+      //   y[n] = b0 * x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
+      //
+      // where |x| is x[n], |xn1| is x[n-1], |xn2| is x[n-2], |yn1| is y[n-1],
+      // and |yn2| is y[n-2].  |coef| is a dictonary of the filter coefficients
+      // |b0|, |b1|, |b2|, |a1|, and |a2|.
+      function filterSample(x, coef, yn1, yn2, xn1, xn2) {
+        return coef.b0 * x + coef.b1 * xn1 + coef.b2 * xn2 - coef.a1 * yn1 -
+            coef.a2 * yn2;
+      }
+    </script>
+  </body>
+</html>

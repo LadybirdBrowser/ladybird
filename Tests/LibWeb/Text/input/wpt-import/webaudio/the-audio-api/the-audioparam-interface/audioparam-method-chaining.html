@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>AudioParam Method Chaining</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audioparam-testing.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 8000;
+
+      // Create a dummy array for setValueCurveAtTime method.
+      const curveArray = new Float32Array([5.0, 6.0]);
+
+      // Method and argument combinations to test method chaining
+      const methodDictionary = [
+        {name: 'setValueAtTime', args: [1.0, 0.0]},
+        {name: 'linearRampToValueAtTime', args: [2.0, 1.0]},
+        {name: 'exponentialRampToValueAtTime', args: [3.0, 2.0]},
+        {name: 'setTargetAtTime', args: [4.0, 2.0, 0.5]},
+        {name: 'setValueCurveAtTime', args: [curveArray, 5.0, 1.0]},
+        {name: 'cancelScheduledValues', args: [6.0]}
+      ];
+
+      test(() => {
+        const context = new AudioContext();
+        methodDictionary.forEach(({name, args}) => {
+          const sourceParam = context.createGain().gain;
+          const returnParam = sourceParam[name](...args);
+          assert_equals(
+            returnParam, sourceParam,
+            `AudioParam.${name}() should return same AudioParam for chaining`
+          );
+        });
+      }, 'AudioParam: Each method returns the same object to allow chaining');
+
+      // Task: test method chaining with invalid operation.
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, sampleRate, sampleRate);
+
+        const osc = context.createOscillator();
+        const amp1 = context.createGain();
+        const amp2 = context.createGain();
+
+        osc.connect(amp1);
+        osc.connect(amp2);
+        amp1.connect(context.destination);
+        amp2.connect(context.destination);
+
+        // The first operation fails with an exception, thus the second one
+        // should not have effect on the parameter value. Instead, it should
+        // maintain the default value of 1.0.
+        assert_throws_js(
+          RangeError,
+          () => amp1.gain.setValueAtTime(0.25, -1.0)
+              .linearRampToValueAtTime(2.0, 1.0),
+          'Chained call should throw if setValueAtTime() called ' +
+              'with a negative end time'
+        );
+
+        // The first operation succeeds but the second fails due to zero target
+        // value for the exponential ramp. Thus only the first should have
+        // effect on the parameter value, setting the value to 0.5.
+        assert_throws_js(
+          RangeError,
+          () => amp2.gain.setValueAtTime(0.5, 0.0)
+              .exponentialRampToValueAtTime(0.0, 1.0),
+          'Chained call should throw if exponentialRampToValueAtTime() ' +
+              'called with a zero target value'
+        );
+
+        osc.start();
+        osc.stop(1.0);
+
+        const renderedBuffer = await context.startRendering();
+
+        assert_equals(
+          amp1.gain.value, 1.0,
+          'amp1.gain.value should remain default 1 because setValueAtTime threw'
+        );
+
+        assert_equals(
+          amp2.gain.value, 0.5,
+          'amp2.gain.value should be set by setValueAtTime ' +
+              'since exponentialRampToValueAtTime threw'
+        );
+      }, 'AudioParam: Chaining with invalid operations does ' +
+          'not apply later effects');
+
+      // Task: verify if the method chaining actually works. Create an arbitrary
+      // envelope and compare the result with the expected one created by JS
+      // code.
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, sampleRate * 4, sampleRate);
+        const constantBuffer = createConstantBuffer(context, 1, 1.0);
+
+        const source = context.createBufferSource();
+        source.buffer = constantBuffer;
+        source.loop = true;
+
+        const envelope = context.createGain();
+        source.connect(envelope);
+        envelope.connect(context.destination);
+
+        // Apply a series of scheduled events via method chaining.
+        envelope.gain.setValueAtTime(0.0, 0.0)
+          .linearRampToValueAtTime(1.0, 1.0)
+          .exponentialRampToValueAtTime(0.5, 2.0)
+          .setTargetAtTime(0.001, 2.0, 0.5);
+
+        source.start();
+
+        const rendered = await context.startRendering();
+
+        // Create expected envelope using helper functions
+        const expectedEnvelope = [
+          ...createLinearRampArray(0.0, 1.0, 0.0, 1.0, sampleRate),
+          ...createExponentialRampArray(1.0, 2.0, 1.0, 0.5, sampleRate),
+          ...createExponentialApproachArray(2.0, 4.0, 0.5, 0.001,
+              sampleRate, 0.5)
+        ];
+
+        // There are slight differences between JS implementation of
+        // AudioParam envelope and the internal implementation. (i.e.
+        // double/float and rounding up) The error threshold is adjusted
+        // empirically through the local testing.
+        assert_array_approx_equals(
+          rendered.getChannelData(0),
+          expectedEnvelope,
+          4.0532e-6,
+          'Rendered gain envelope should match expected ' +
+              'values from scheduled events'
+        );
+      }, 'AudioParam: Chaining of envelope methods schedules ' +
+          'values as expected');
+    </script>
+  </body>
+</html>

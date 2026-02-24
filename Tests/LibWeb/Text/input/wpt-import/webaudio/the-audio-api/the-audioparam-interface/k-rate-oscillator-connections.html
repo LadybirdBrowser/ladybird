@@ -1,0 +1,578 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      k-rate AudioParams with inputs for OscillatorNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      let audit = Audit.createTaskRunner();
+
+      // Sample rate must be a power of two to eliminate round-off when
+      // computing time from frames and vice versa.  Using a non-power of two
+      // will work, but the thresholds below will not be zero.  They're probably
+      // closer to 1e-5 or so, but if everything is working correctly, the
+      // outputs really should be exactly equal.
+      const sampleRate = 8192;
+
+      // Fairly arbitrary but short duration to limit runtime.
+      const testFrames = 5 * RENDER_QUANTUM_FRAMES;
+      const testDuration = testFrames / sampleRate;
+
+      audit.define(
+          {label: 'Test 1', description: 'k-rate frequency input'},
+          async (task, should) => {
+            // Test that an input to the frequency AudioParam set to k-rate
+            // works.
+
+            // Fairly arbitrary start and end frequencies for the automation.
+            const freqStart = 100;
+            const freqEnd = 2000;
+
+            let refSetup = (context) => {
+              let srcRef = new OscillatorNode(context, {frequency: 0});
+
+              should(
+                  () => srcRef.frequency.automationRate = 'k-rate',
+                  `${task.label}: srcRef.frequency.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => srcRef.frequency.setValueAtTime(freqStart, 0),
+                  `${task.label}: srcRef.frequency.setValueAtTime(${
+                      freqStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => srcRef.frequency.linearRampToValueAtTime(
+                      freqEnd, testDuration),
+                  `${task.label}: srcRef.frequency.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return srcRef;
+            };
+
+            let testSetup = (context) => {
+              let srcTest = new OscillatorNode(context, {frequency: 0});
+              should(
+                  () => srcTest.frequency.automationRate = 'k-rate',
+                  `${task.label}: srcTest.frequency.automationRate = 'k-rate'`)
+                  .notThrow();
+
+              return srcTest;
+            };
+
+            let modSetup = (context) => {
+              let mod = new ConstantSourceNode(context, {offset: 0});
+
+              should(
+                  () => mod.offset.setValueAtTime(freqStart, 0),
+                  `${task.label}: modFreq.offset.setValueAtTime(${
+                      freqStart}, 0)`)
+                  .notThrow();
+              should(
+                  () =>
+                      mod.offset.linearRampToValueAtTime(freqEnd, testDuration),
+                  `${task.label}: modFreq.offset.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+
+              // This node is going to be connected to the frequency AudioParam.
+              return {frequency: mod};
+            };
+
+            await testParams(should, {
+              prefix: task.label,
+              summary: 'k-rate frequency with input',
+              setupRefOsc: refSetup,
+              setupTestOsc: testSetup,
+              setupMod: modSetup
+            });
+
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Test 2', description: 'k-rate detune input'},
+          async (task, should) => {
+            // Test that an input to the detune AudioParam set to k-rate works.
+            // Threshold experimentally determined.  It should be probably not
+            // be much larger than 5e-5. or something is not right.
+
+            // Fairly arbitrary start and end detune values for automation.
+            const detuneStart = 0;
+            const detuneEnd = 2000;
+
+            let refSetup = (context) => {
+              let srcRef = new OscillatorNode(context, {detune: 0});
+
+              should(
+                  () => srcRef.detune.automationRate = 'k-rate',
+                  `${task.label}: srcRef.detune.automationRate = 'k-rate'`)
+                  .notThrow();
+
+              should(
+                  () => srcRef.detune.setValueAtTime(detuneStart, 0),
+                  `${task.label}: srcRef.detune.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => srcRef.detune.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: srcRef.detune.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return srcRef;
+            };
+
+            let testSetup = (context) => {
+              let srcTest = new OscillatorNode(context, {detune: 0});
+
+              should(
+                  () => srcTest.detune.automationRate = 'k-rate',
+                  `${task.label}: srcTest.detune.automationRate = 'k-rate'`)
+                  .notThrow();
+
+              return srcTest;
+            };
+
+            let modSetup = (context) => {
+              let mod = new ConstantSourceNode(context, {offset: 0});
+
+              should(
+                  () => mod.offset.setValueAtTime(detuneStart, 0),
+                  `${task.label}: modDetune.offset.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => mod.offset.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: modDetune.offset.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return {detune: mod};
+            };
+
+            await testParams(should, {
+              prefix: task.label,
+              summary: 'k-rate detune with input',
+              setupRefOsc: refSetup,
+              setupTestOsc: testSetup,
+              setupMod: modSetup
+            });
+
+            task.done();
+          });
+
+      audit.define(
+          {
+            label: 'Test 3',
+            description: 'k-rate frequency input with a-rate detune'
+          },
+          async (task, should) => {
+            // Test OscillatorNode with a k-rate frequency with input and an
+            // a-rate detune iwth automations.
+
+            // Fairly arbitrary start and end values for the frequency and
+            // detune automations.
+            const freqStart = 100;
+            const freqEnd = 2000;
+            const detuneStart = 0;
+            const detuneEnd = -2000;
+
+            let refSetup = (context) => {
+              let node = new OscillatorNode(context, {frequency: 0});
+
+              // Set up k-rate frequency and a-rate detune
+              should(
+                  () => node.frequency.automationRate = 'k-rate',
+                  `${task.label}: srcRef.frequency.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => node.frequency.setValueAtTime(freqStart, 0),
+                  `${task.label}: srcRef.frequency.setValueAtTime(${
+                      freqStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.frequency.linearRampToValueAtTime(
+                      2000, testDuration),
+                  `${task.label}: srcRef.frequency.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+              should(
+                  () => node.detune.setValueAtTime(detuneStart, 0),
+                  `${task.label}: srcRef.detune.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.detune.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: srcRef.detune.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return node;
+            };
+
+            let testSetup = (context) => {
+              let node = new OscillatorNode(context, {frequency: 0});
+
+              should(
+                  () => node.frequency.automationRate = 'k-rate',
+                  `${task.label}: srcTest.frequency.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => node.detune.setValueAtTime(detuneStart, 0),
+                  `${task.label}: srcTest.detune.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.detune.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: srcTest.detune.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return node;
+            };
+
+            let modSetup = (context) => {
+              let mod = {};
+              mod['frequency'] = new ConstantSourceNode(context, {offset: 0});
+
+              should(
+                  () => mod['frequency'].offset.setValueAtTime(freqStart, 0),
+                  `${task.label}: modFreq.offset.setValueAtTime(${
+                      freqStart}, 0)`)
+                  .notThrow();
+
+              should(
+                  () => mod['frequency'].offset.linearRampToValueAtTime(
+                      2000, testDuration),
+                  `${task.label}: modFreq.offset.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return mod;
+            };
+
+            await testParams(should, {
+              prefix: task.label,
+              summary: 'k-rate frequency input with a-rate detune',
+              setupRefOsc: refSetup,
+              setupTestOsc: testSetup,
+              setupMod: modSetup
+            });
+
+            task.done();
+          });
+
+      audit.define(
+          {
+            label: 'Test 4',
+            description: 'a-rate frequency with k-rate detune input'
+          },
+          async (task, should) => {
+            // Test OscillatorNode with an a-rate frequency with automations and
+            // a k-rate detune with input.
+
+            // Fairly arbitrary start and end values for the frequency and
+            // detune automations.
+            const freqStart = 100;
+            const freqEnd = 2000;
+            const detuneStart = 0;
+            const detuneEnd = -2000;
+
+            let refSetup = (context) => {
+              let node = new OscillatorNode(context, {detune: 0});
+
+              // Set up a-rate frequency and k-rate detune
+              should(
+                  () => node.frequency.setValueAtTime(freqStart, 0),
+                  `${task.label}: srcRef.frequency.setValueAtTime(${
+                      freqStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.frequency.linearRampToValueAtTime(
+                      2000, testDuration),
+                  `${task.label}: srcRef.frequency.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+              should(
+                  () => node.detune.automationRate = 'k-rate',
+                  `${task.label}: srcRef.detune.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => node.detune.setValueAtTime(detuneStart, 0),
+                  `${task.label}: srcRef.detune.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.detune.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: srcRef.detune.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return node;
+            };
+
+            let testSetup = (context) => {
+              let node = new OscillatorNode(context, {detune: 0});
+
+              should(
+                  () => node.detune.automationRate = 'k-rate',
+                  `${task.label}: srcTest.detune.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => node.frequency.setValueAtTime(freqStart, 0),
+                  `${task.label}: srcTest.frequency.setValueAtTime(${
+                      freqStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.frequency.linearRampToValueAtTime(
+                      freqEnd, testDuration),
+                  `${task.label}: srcTest.frequency.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return node;
+            };
+
+            let modSetup = (context) => {
+              let mod = {};
+              const name = 'detune';
+
+              mod['detune'] = new ConstantSourceNode(context, {offset: 0});
+              should(
+                  () => mod[name].offset.setValueAtTime(detuneStart, 0),
+                  `${task.label}: modDetune.offset.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+
+              should(
+                  () => mod[name].offset.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: modDetune.offset.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return mod;
+            };
+
+            await testParams(should, {
+              prefix: task.label,
+              summary: 'k-rate detune input with a-rate frequency',
+              setupRefOsc: refSetup,
+              setupTestOsc: testSetup,
+              setupMod: modSetup
+            });
+
+            task.done();
+          });
+
+      audit.define(
+          {
+            label: 'Test 5',
+            description: 'k-rate inputs for frequency and detune'
+          },
+          async (task, should) => {
+            // Test OscillatorNode with k-rate frequency and detune with inputs
+            // on both.
+
+            // Fairly arbitrary start and end values for the frequency and
+            // detune automations.
+            const freqStart = 100;
+            const freqEnd = 2000;
+            const detuneStart = 0;
+            const detuneEnd = -2000;
+
+            let refSetup = (context) => {
+              let node = new OscillatorNode(context, {frequency: 0, detune: 0});
+
+              should(
+                  () => node.frequency.automationRate = 'k-rate',
+                  `${task.label}: srcRef.frequency.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => node.frequency.setValueAtTime(freqStart, 0),
+                  `${task.label}: srcRef.setValueAtTime(${freqStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.frequency.linearRampToValueAtTime(
+                      freqEnd, testDuration),
+                  `${task.label}: srcRef;.frequency.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+              should(
+                  () => node.detune.automationRate = 'k-rate',
+                  `${task.label}: srcRef.detune.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => node.detune.setValueAtTime(detuneStart, 0),
+                  `${task.label}: srcRef.detune.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => node.detune.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: srcRef.detune.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return node;
+            };
+
+            let testSetup = (context) => {
+              let node = new OscillatorNode(context, {frequency: 0, detune: 0});
+
+              should(
+                  () => node.frequency.automationRate = 'k-rate',
+                  `${task.label}: srcTest.frequency.automationRate = 'k-rate'`)
+                  .notThrow();
+              should(
+                  () => node.detune.automationRate = 'k-rate',
+                  `${task.label}: srcTest.detune.automationRate = 'k-rate'`)
+                  .notThrow();
+
+              return node;
+            };
+
+            let modSetup = (context) => {
+              let modF = new ConstantSourceNode(context, {offset: 0});
+
+              should(
+                  () => modF.offset.setValueAtTime(freqStart, 0),
+                  `${task.label}: modFreq.offset.setValueAtTime(${
+                      freqStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => modF.offset.linearRampToValueAtTime(
+                      freqEnd, testDuration),
+                  `${task.label}: modFreq.offset.linearRampToValueAtTime(${
+                      freqEnd}, ${testDuration})`)
+                  .notThrow();
+
+              let modD = new ConstantSourceNode(context, {offset: 0});
+
+              should(
+                  () => modD.offset.setValueAtTime(detuneStart, 0),
+                  `${task.label}: modDetune.offset.setValueAtTime(${
+                      detuneStart}, 0)`)
+                  .notThrow();
+              should(
+                  () => modD.offset.linearRampToValueAtTime(
+                      detuneEnd, testDuration),
+                  `${task.label}: modDetune.offset.linearRampToValueAtTime(${
+                      detuneEnd}, ${testDuration})`)
+                  .notThrow();
+
+              return {frequency: modF, detune: modD};
+            };
+
+            await testParams(should, {
+              prefix: task.label,
+              summary: 'k-rate inputs for both frequency and detune',
+              setupRefOsc: refSetup,
+              setupTestOsc: testSetup,
+              setupMod: modSetup
+            });
+
+            task.done();
+          });
+
+      audit.run();
+
+      async function testParams(should, options) {
+        // Test a-rate and k-rate AudioParams of an OscillatorNode.
+        //
+        // |options| should be a dictionary with these members:
+        //   prefix       - prefix to use for messages
+        //   summary      - message to be printed with the final results
+        //   setupRefOsc  - function returning the reference oscillator
+        //   setupTestOsc - function returning the test oscillator
+        //   setupMod     - function returning nodes to be connected to the
+        //   AudioParams.
+        //
+        // |setupRefOsc| and |setupTestOsc| are given the context and each
+        // method is expected to create an OscillatorNode with the appropriate
+        // automations for testing.  The constructed OscillatorNode is returned.
+        //
+        // The reference oscillator
+        // should automate the desired AudioParams at the appropriate automation
+        // rate, and the output is the expected result.
+        //
+        // The test oscillator should set up the AudioParams but expect the
+        // AudioParam(s) have an input that matches the automation for the
+        // reference oscillator.
+        //
+        // |setupMod| must create one or two ConstantSourceNodes with exactly
+        // the same automations as used for the reference oscillator.  This node
+        // is used as the input to an AudioParam of the test oscillator.  This
+        // function returns a dictionary whose members are named 'frequency' and
+        // 'detune'.  The name indicates which AudioParam the constant source
+        // node should be connected to.
+
+        // Two channels: 0 = reference signal, 1 = test signal
+        let context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // The reference oscillator.
+        let srcRef = options.setupRefOsc(context);
+
+        // The test oscillator.
+        let srcTest = options.setupTestOsc(context);
+
+        // Inputs to AudioParam.
+        let mod = options.setupMod(context);
+
+        if (mod['frequency']) {
+          should(
+              () => mod['frequency'].connect(srcTest.frequency),
+              `${options.prefix}: modFreq.connect(srcTest.frequency)`)
+              .notThrow();
+          mod['frequency'].start()
+        }
+
+        if (mod['detune']) {
+          should(
+              () => mod['detune'].connect(srcTest.detune),
+              `${options.prefix}: modDetune.connect(srcTest.detune)`)
+              .notThrow();
+          mod['detune'].start()
+        }
+
+        srcRef.connect(merger, 0, 0);
+        srcTest.connect(merger, 0, 1);
+
+        srcRef.start();
+        srcTest.start();
+
+        let buffer = await context.startRendering();
+        let expected = buffer.getChannelData(0);
+        let actual = buffer.getChannelData(1);
+
+        // The output of the reference and test oscillator should be
+        // exactly equal because the AudioParam values should be exactly
+        // equal.
+        should(actual, options.summary).beCloseToArray(expected, {
+          absoluteThreshold: 0
+        });
+      }
+    </script>
+  </body>
+</html>

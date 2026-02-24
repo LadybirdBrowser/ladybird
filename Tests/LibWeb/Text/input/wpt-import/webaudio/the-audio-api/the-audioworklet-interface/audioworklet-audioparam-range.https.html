@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <title>Test AudioWorkletProcessor parameterDescriptors values range</title>
+    <script src='../../../resources/testharness.js'></script>
+    <script src='../../../resources/testharnessreport.js'></script>
+  </head>
+  <body>
+    <script id='params'>
+      // Parameter descriptors for different scenarios.
+      const PARAMS_VARIATIONS = [
+        { name: 'valid-range', defaultValue: 1, minValue: 0, maxValue: 2 },
+        { name: 'no-default', minValue: -1, maxValue: 1 },
+        { name: 'only-default', defaultValue: 1 },
+        { name: 'identical-values', defaultValue: 1, minValue: 1, maxValue: 1 },
+        { name: 'invalid-default', defaultValue: 1, minValue: 2, maxValue: 4 }
+      ];
+    </script>
+
+    <script id='processors' type='worklet'>
+      // Valid processors
+      ['valid-range', 'no-defaultValue', 'only-defaultValue',
+                      'identical-values'].forEach((name, index) => {
+        registerProcessor(`${name}-processor`,
+          class extends AudioWorkletProcessor {
+            static get parameterDescriptors() {
+              return [PARAMS_VARIATIONS[index]];
+            }
+            process() { return true; }
+          });
+      });
+
+      // Invalid processor
+      try {
+        registerProcessor('invalid-default-processor',
+          class InvalidRangeProcessor extends AudioWorkletProcessor {
+            static get parameterDescriptors() {
+              return [PARAMS_VARIATIONS[4]];
+            }
+            process() { return true; }
+          });
+        throw new Error('This should not have been reached.');
+      } catch (e) {
+        if (e.name !== 'InvalidStateError') {
+          throw new Error('Expected InvalidStateError');
+        }
+      }
+    </script>
+
+    <script>
+      function createWorkletURL() {
+        return URL.createObjectURL(new Blob([
+          document.querySelector('script#params').innerText,
+          document.querySelector('script#processors').innerText
+        ], { type: 'application/javascript' }));
+      }
+
+      promise_test(async () => {
+        const context = new AudioContext();
+        await context.audioWorklet.addModule(createWorkletURL());
+
+        // Test valid processors
+        const validProcessors = [
+          'valid-range-processor',
+          'no-defaultValue-processor',
+          'only-defaultValue-processor',
+          'identical-values-processor'
+        ];
+
+        for (const testName of validProcessors) {
+          let node = new AudioWorkletNode(context, testName);
+          assert_true(node.parameters.has(
+              PARAMS_VARIATIONS.find(
+                p => p.name === node.parameters.keys().next().value
+              ).name
+            ), `Creating an AudioWorkletNode for ${testName} should work.`);
+        }
+      }, 'Valid parameter descriptors should have successful registration.');
+
+      promise_test(async () => {
+        const context = new AudioContext();
+        await context.audioWorklet.addModule(createWorkletURL());
+
+        assert_throws_dom('InvalidStateError', () => {
+          new AudioWorkletNode(context, 'invalid-default-processor');
+        }, 'Worklet creation failed due to registration failure.');
+      }, 'Invalid parameter descriptors should fail registration.');
+    </script>
+  </body>
+</html>

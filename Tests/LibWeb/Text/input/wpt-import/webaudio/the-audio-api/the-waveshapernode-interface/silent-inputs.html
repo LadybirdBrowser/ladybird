@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Silent Inputs to WaveShaperNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 16000;
+
+      // Identity curve for the wave shaper: the input value is mapped directly
+      // to the output value.
+      const identityCurve = [-1, 0, 1];
+      const nonZeroCurve = [0.5, 0.5, 0.5];
+
+      promise_test(async (t) => {
+        const {context, source, shaper} =
+            setupGraph(nonZeroCurve, sampleRate, sampleRate);
+
+        source.offset.setValueAtTime(0, 0);
+
+        const audioBuffer = await context.startRendering();
+
+        assert_array_equals(
+            audioBuffer.getChannelData(0),
+            new Float32Array(sampleRate).fill(0.5),
+            'WaveShaper with silent inputs and curve ' +
+                JSON.stringify(shaper.curve));
+      }, 'test-0: curve output is non-zero for silent inputs');
+
+      promise_test(async (t) => {
+        const {context, source, shaper} =
+            setupGraph(nonZeroCurve, sampleRate, sampleRate);
+
+        source.offset.setValueAtTime(0, 0);
+        shaper.overSample = '2x';
+
+        const audioBuffer = await context.startRendering();
+
+        assert_array_equals(
+            audioBuffer.getChannelData(0),
+            new Float32Array(sampleRate).fill(0.5),
+            `WaveShaper with ${shaper.overSample} oversample, ` +
+                `silent inputs, and curve ${JSON.stringify(shaper.curve)}`);
+      }, 'test-1: 2x curve output is non-zero for silent inputs');
+
+      promise_test(async (t) => {
+        const {context, source, shaper} =
+            setupGraph(nonZeroCurve, sampleRate, sampleRate);
+
+        source.disconnect();
+
+        const audioBuffer = await context.startRendering();
+
+        assert_array_equals(
+            audioBuffer.getChannelData(0),
+            new Float32Array(sampleRate).fill(0.5),
+            'WaveShaper with no inputs and curve ' +
+                JSON.stringify(shaper.curve));
+      }, 'test-2: curve output is non-zero for no inputs');
+
+      function setupGraph(curve, testFrames, sampleRate) {
+        const context = new OfflineAudioContext(1, testFrames, sampleRate);
+        const source = new ConstantSourceNode(context);
+        const shaper = new WaveShaperNode(context, {curve: curve});
+
+        source.connect(shaper).connect(context.destination);
+
+        return {context: context, source: source, shaper: shaper};
+      }
+    </script>
+  </body>
+</html>

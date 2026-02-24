@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/AudioListenerPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebAudio/AudioParam.h>
+#include <LibWeb/WebAudio/Types.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebAudio {
@@ -36,11 +37,15 @@ public:
     WebIDL::ExceptionOr<void> set_position(float x, float y, float z);
     WebIDL::ExceptionOr<void> set_orientation(float x, float y, float z, float x_up, float y_up, float z_up);
 
+    NodeID node_id() const { return m_node_id; }
+
 private:
-    explicit AudioListener(JS::Realm&, GC::Ref<BaseAudioContext>);
+    explicit AudioListener(JS::Realm&, GC::Ref<BaseAudioContext>, NodeID);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+    NodeID m_node_id { 0 };
 
     GC::Ref<AudioParam> m_forward_x;
     GC::Ref<AudioParam> m_forward_y;

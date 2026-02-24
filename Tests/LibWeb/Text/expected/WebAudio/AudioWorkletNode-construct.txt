@@ -1,0 +1,5 @@
+port is MessagePort: true
+port.postMessage: function
+parameters.size: 2
+parameters.get: function
+PASS

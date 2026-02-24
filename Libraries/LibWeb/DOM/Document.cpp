@@ -207,6 +207,7 @@
 #include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
+#include <LibWeb/WebAudio/BackgroundAudioDecoder.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -637,6 +638,9 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_svg_roots_needing_relayout);
 
     visitor.visit(m_shared_resource_requests);
+
+    if (m_background_audio_decoder)
+        m_background_audio_decoder->visit_edges(visitor);
 
     visitor.visit(m_associated_animation_timelines);
     visitor.visit(m_list_of_available_images);
@@ -4476,6 +4480,9 @@ void Document::run_unloading_cleanup_steps()
         // 1. For each EventSource object eventSource whose relevant global object is equal to window, forcibly close eventSource.
         window.forcibly_close_all_event_sources();
 
+        // AD-HOC: We'll do this here, but keep an eye on https://github.com/whatwg/html/issues/8906
+        window.forcibly_close_all_audio_contexts();
+
         // 2. Clear window's map of active timers.
         window.clear_map_of_active_timers();
     }
@@ -4913,6 +4920,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
         if (PermissionsPolicy::AutoplayAllowlist::the().is_allowed_for_origin(*this, origin()) == PermissionsPolicy::Decision::Enabled)
             return true;
         break;
+    case PolicyControlledFeature::Camera:
+        // FIXME: Implement allowlist for this.
+        return true;
     case PolicyControlledFeature::FocusWithoutUserActivation:
     case PolicyControlledFeature::EncryptedMedia:
         // FIXME: Implement allowlist for this.
@@ -4921,6 +4931,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
         // FIXME: Implement allowlist for this.
         return true;
     case PolicyControlledFeature::Gamepad:
+        // FIXME: Implement allowlist for this.
+        return true;
+    case PolicyControlledFeature::Microphone:
         // FIXME: Implement allowlist for this.
         return true;
     case PolicyControlledFeature::WindowManagement:
@@ -5736,6 +5749,13 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
 HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
 {
     return m_shared_resource_requests;
+}
+
+WebAudio::BackgroundAudioDecoder& Document::background_audio_decoder()
+{
+    if (!m_background_audio_decoder)
+        m_background_audio_decoder = make<WebAudio::BackgroundAudioDecoder>(*this);
+    return *m_background_audio_decoder;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-document-timeline

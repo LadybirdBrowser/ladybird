@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<title>Test that up-mixing signals in ConvolverNode processing is linear</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+const EPSILON = 3.0 * Math.pow(2, -22);
+// sampleRate is a power of two so that delay times are exact in base-2
+// floating point arithmetic.
+const SAMPLE_RATE = 32768;
+// Length of stereo convolver input in frames (arbitrary):
+const STEREO_FRAMES = 256;
+// Length of mono signal in frames.  This is more than two blocks to ensure
+// that at least one block will be mono, even if interpolation in the
+// DelayNode means that stereo is output one block earlier and later than
+// if frames are delayed without interpolation.
+const MONO_FRAMES = 384;
+// Length of response buffer:
+const RESPONSE_FRAMES = 256;
+
+function test_linear_upmixing(channelInterpretation, initial_mono_frames)
+{
+  let stereo_input_end = initial_mono_frames + STEREO_FRAMES;
+  // Total length:
+  let length = stereo_input_end + RESPONSE_FRAMES + MONO_FRAMES + STEREO_FRAMES;
+  // The first two channels contain signal where some up-mixing occurs
+  // internally to a ConvolverNode when a stereo signal is added and removed.
+  // The last two channels are expected to contain the same signal, but mono
+  // and stereo signals are convolved independently before up-mixing the mono
+  // output to mix with the stereo output.
+  let context = new OfflineAudioContext({numberOfChannels: 4,
+                                         length: length,
+                                         sampleRate: SAMPLE_RATE});
+
+  let response = new AudioBuffer({numberOfChannels: 1,
+                                  length: RESPONSE_FRAMES,
+                                  sampleRate: context.sampleRate});
+
+  // Two stereo channel splitters will collect test and reference outputs.
+  let destinationMerger = new ChannelMergerNode(context, {numberOfInputs: 4});
+  destinationMerger.connect(context.destination);
+  let testSplitter =
+      new ChannelSplitterNode(context, {numberOfOutputs: 2});
+  let referenceSplitter =
+      new ChannelSplitterNode(context, {numberOfOutputs: 2});
+  testSplitter.connect(destinationMerger, 0, 0);
+  testSplitter.connect(destinationMerger, 1, 1);
+  referenceSplitter.connect(destinationMerger, 0, 2);
+  referenceSplitter.connect(destinationMerger, 1, 3);
+
+  // A GainNode mixes reference stereo and mono signals because up-mixing
+  // cannot be performed at a channel splitter.
+  let referenceGain = new GainNode(context);
+  referenceGain.connect(referenceSplitter);
+  referenceGain.channelInterpretation = channelInterpretation;
+
+  // The impulse response for convolution contains two impulses so as to test
+  // effects in at least two processing blocks.
+  response.getChannelData(0)[0] = 0.5;
+  response.getChannelData(0)[response.length - 1] = 0.5;
+
+  let testConvolver = new ConvolverNode(context, {disableNormalization: true,
+                                                  buffer: response});
+  testConvolver.channelInterpretation = channelInterpretation;
+  let referenceMonoConvolver = new ConvolverNode(context,
+                                                 {disableNormalization: true,
+                                                  buffer: response});
+  let referenceStereoConvolver = new ConvolverNode(context,
+                                                   {disableNormalization: true,
+                                                    buffer: response});
+  // No need to set referenceStereoConvolver.channelInterpretation because
+  // input is either silent or stereo.
+  testConvolver.connect(testSplitter);
+  // Mix reference convolver output.
+  referenceMonoConvolver.connect(referenceGain);
+  referenceStereoConvolver.connect(referenceGain);
+
+  // The DelayNode initially has a single channel of silence, which is used to
+  // switch the stereo signal in and out.  The output of the delay node is
+  // first mono silence (if there is a non-zero initial_mono_frames), then
+  // stereo, then mono silence, and finally stereo again.  maxDelayTime is
+  // used to generate the middle mono silence period from the initial silence
+  // in the DelayNode and then generate the final period of stereo from its
+  // initial input.
+  let maxDelayTime = (length - STEREO_FRAMES) / context.sampleRate;
+  let delay =
+      new DelayNode(context,
+                    {maxDelayTime: maxDelayTime,
+                     delayTime: initial_mono_frames / context.sampleRate});
+  // Schedule an increase in the delay to return to mono silence.
+  delay.delayTime.setValueAtTime(maxDelayTime,
+                                 stereo_input_end / context.sampleRate);
+  delay.connect(testConvolver);
+  delay.connect(referenceStereoConvolver);
+
+  let stereoMerger = new ChannelMergerNode(context, {numberOfInputs: 2});
+  stereoMerger.connect(delay);
+
+  // Three independent signals
+  let monoSignal = new OscillatorNode(context, {frequency: 440});
+  let leftSignal = new OscillatorNode(context, {frequency: 450});
+  let rightSignal = new OscillatorNode(context, {frequency: 460});
+  monoSignal.connect(testConvolver);
+  monoSignal.connect(referenceMonoConvolver);
+  leftSignal.connect(stereoMerger, 0, 0);
+  rightSignal.connect(stereoMerger, 0, 1);
+  monoSignal.start();
+  leftSignal.start();
+  rightSignal.start();
+
+  return context.startRendering().
+    then((buffer) => {
+      let maxDiff = -1.0;
+      let frameIndex = 0;
+      let channelIndex = 0;
+      for (let c = 0; c < 2; ++c) {
+        let testOutput = buffer.getChannelData(0 + c);
+        let referenceOutput = buffer.getChannelData(2 + c);
+        for (var i = 0; i < buffer.length; ++i) {
+          var diff = Math.abs(testOutput[i] - referenceOutput[i]);
+          if (diff > maxDiff) {
+            maxDiff = diff;
+            frameIndex = i;
+            channelIndex = c;
+          }
+        }
+      }
+      assert_approx_equals(buffer.getChannelData(0 + channelIndex)[frameIndex],
+                           buffer.getChannelData(2 + channelIndex)[frameIndex],
+                           EPSILON,
+                           `output at ${frameIndex} ` +
+                             `in channel ${channelIndex}` );
+    });
+}
+
+promise_test(() => test_linear_upmixing("speakers", MONO_FRAMES),
+             "speakers, initially mono");
+promise_test(() => test_linear_upmixing("discrete", MONO_FRAMES),
+             "discrete");
+// Gecko uses a separate path for "speakers" up-mixing when the convolver's
+// first input is stereo, so test that separately.
+promise_test(() => test_linear_upmixing("speakers", 0),
+             "speakers, initially stereo");
+</script>

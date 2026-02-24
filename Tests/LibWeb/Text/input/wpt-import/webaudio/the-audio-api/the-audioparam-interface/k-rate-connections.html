@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+  <head>
+    <title>k-rate AudioParams with Inputs</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Must be power of two to eliminate round-off
+      const sampleRate = 8192;
+
+      // Arbitrary duration that doesn't need to be too long to verify k-rate
+      // automations.  Probably should be at least a few render quanta.
+      const testDuration = 8 * RENDER_QUANTUM_FRAMES / sampleRate;
+
+      // Helper function to set up a test subgraph for verifying k-rate
+      // AudioParam automation.
+      function createTestSubGraph(
+          context, src, merger, nodeName, paramName, options = {}) {
+        // The test node which has its AudioParam set up for k-rate automations.
+        const testNode = new window[nodeName](context);
+
+        if (options.setups) {
+          options.setups(testNode);
+        }
+        testNode[paramName].automationRate = 'k-rate';
+
+        // Modulating signal for the test node. Just a linear ramp. This is
+        // connected to the AudioParam of the testNode.
+        const testMod = new ConstantSourceNode(context);
+        if (options.testModSetup) {
+          options.testModSetup(testMod);
+        } else {
+          testMod.offset.linearRampToValueAtTime(context.length, testDuration);
+        }
+
+        testMod.connect(testNode[paramName]);
+        src.connect(testNode).connect(merger, 0, 0);
+
+        // The ref node is the same type of node as the test node, but uses
+        // a-rate automation. However, the modulating signal is k-rate. This
+        // causes the input to the audio param to be constant over a render,
+        // which is basically the same as making the audio param be k-rate.
+        const refNode = new window[nodeName](context);
+        const refMod = new ConstantSourceNode(context);
+        refMod.offset.automationRate = 'k-rate';
+        if (options.testModSetup) {
+          options.testModSetup(refMod);
+        } else {
+          refMod.offset.linearRampToValueAtTime(context.length, testDuration);
+        }
+
+        refMod.connect(refNode[paramName]);
+        src.connect(refNode).connect(merger, 0, 1);
+
+        testMod.start();
+        refMod.start();
+      }
+
+      // Test k-rate GainNode.gain is k-rate
+      promise_test(async t => {
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        const src = new ConstantSourceNode(context);
+
+        createTestSubGraph(context, src, merger, 'GainNode', 'gain');
+
+        src.start();
+        const buffer = await context.startRendering();
+
+        const actual = buffer.getChannelData(0);
+        const expected = buffer.getChannelData(1);
+
+        for (let k = 0; k < actual.length; k += RENDER_QUANTUM_FRAMES) {
+          assert_constant_value(
+              actual.slice(k, k + RENDER_QUANTUM_FRAMES),
+              expected[k],
+              `gain[${k}:${k + RENDER_QUANTUM_FRAMES}]`);
+        }
+      }, 'Gain - k-rate GainNode.gain');
+
+      // Test k-rate StereoPannerNode.pan is k-rate
+      promise_test(async t => {
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        const src = new ConstantSourceNode(context);
+
+        createTestSubGraph(
+            context, src, merger, 'StereoPannerNode', 'pan', {
+              testModSetup: node => {
+                node.offset.setValueAtTime(-1, 0);
+                node.offset.linearRampToValueAtTime(1, testDuration);
+              }
+            });
+
+        src.start();
+        const renderedBuffer = await context.startRendering();
+
+        const actual = renderedBuffer.getChannelData(0);
+        const expected = renderedBuffer.getChannelData(1);
+
+        for (let k = 0; k < actual.length; k += 128) {
+          assert_constant_value(
+              actual.slice(k, k + 128),
+              expected[k],
+              `pan[${k}:${k + 128}]`);
+        }
+      }, 'StereoPanner - k-rate StereoPannerNode.pan');
+    </script>
+  </body>
+</html>

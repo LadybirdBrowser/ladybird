@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 48 tests
+
+48 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Test 0"
+Pass	Executing "Test 1"
+Pass	Executing "Test 2"
+Pass	Executing "Test 3"
+Pass	Executing "Test 4"
+Pass	Executing "Test 5"
+Pass	Audit report
+Pass	> [Test 0] No dezippering for frequency
+Pass	  At time 0, frequency is equal to 350.
+Pass	  At time 0.015625, frequency is equal to 800.
+Pass	  At time 0.0546875, frequency is equal to 200.
+Pass	  Output from frequency setter equals [0,0.17418305575847626,0.355204313993454,0.5364867448806763,0.711405873298645,0.8735066652297974,1.0167138576507568,1.1355282068252563,1.2252026796340942,1.2818963527679443,1.3027970790863037,1.2862141132354736,1.2316339015960693,1.1397417783737183,1.012405276298523,0.8526221513748169...] with an element-wise tolerance of {"absoluteThreshold":0.0000030399,"relativeThreshold":0}.
+Pass	  Output from frequency setter matches setValueAtTime output is true.
+Pass	< [Test 0] All assertions passed. (total 5 assertions)
+Pass	> [Test 1] No dezippering for detune
+Pass	  At time 0, detune is equal to 33.
+Pass	  At time 0.015625, detune is equal to 1000.
+Pass	  At time 0.0390625, detune is equal to -400.
+Pass	  Output from detune setter equals [0,0.1731615960597992,0.3515752851963043,0.529510498046875,0.7010406851768494,0.8602386713027954,1.001375675201416,1.1191174983978271,1.2087109088897705,1.2661556005477905,1.2883533239364624,1.2732325792312622,1.219840168952942,1.1284006834030151,1.000338077545166,0.8382605910301208...] with an element-wise tolerance of {"absoluteThreshold":0.0000040532,"relativeThreshold":0}.
+Pass	  Output from detune setter matches setValueAtTime output is true.
+Pass	< [Test 1] All assertions passed. (total 5 assertions)
+Pass	> [Test 2] No dezippering for Q
+Pass	  At time 0, Q is equal to 5.
+Pass	  At time 0.015625, Q is equal to 10.
+Pass	  At time 0.0625, Q is equal to -10.
+Pass	  Output from Q setter equals [0,0.16793829202651978,0.3311063051223755,0.48486924171447754,0.6248595118522644,0.7471005916595459,0.8481203317642212,0.9250492453575134,0.9757021069526672,0.998640239238739,0.9932119250297546,0.9595715403556824,0.898674488067627,0.8122506141662598,0.7027547359466553,0.5732971429824829...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  Output from Q setter matches setValueAtTime output is true.
+Pass	< [Test 2] All assertions passed. (total 5 assertions)
+Pass	> [Test 3] No dezippering for gain
+Pass	  At time 0, gain is equal to 1.
+Pass	  At time 0.015625, gain is equal to 5.
+Pass	  At time 0.046875, gain is equal to -0.3.
+Pass	  Output from gain setter equals [0,0.1691557914018631,0.3357764184474945,0.494800329208374,0.6413879990577698,0.7710639238357544,0.8798481225967407,0.9643721580505371,1.0219770669937134,1.05079185962677,1.0497863292694092,1.0188026428222656,0.9585590958595276,0.8706297874450684,0.7573992013931274,0.6219938397407532...] with an element-wise tolerance of {"absoluteThreshold":0.0000019074,"relativeThreshold":0}.
+Pass	  Output from gain setter matches setValueAtTime output is true.
+Pass	< [Test 3] All assertions passed. (total 5 assertions)
+Pass	> [Test 4] No dezippering of frequency vs JS filter
+Pass	  Output from lowpass filter equals [0,0.0007127508288249373,0.00416393531486392,0.012737087905406952,0.02830197848379612,0.052167076617479324,0.08505348861217499,0.12709030508995056,0.17783066630363464,0.23628734052181244,0.30098608136177063,0.37003445625305176,0.44120362401008606,0.5120202302932739,0.5798649787902832,0.6420749425888062...] with an element-wise tolerance of {"absoluteThreshold":6.8546e-7,"relativeThreshold":0}.
+Pass	  Output matches JS filter results is true.
+Pass	< [Test 4] All assertions passed. (total 2 assertions)
+Pass	> [Test 5] Test with modulation
+Pass	  Modulation: At time 0, frequency is equal to 350.
+Pass	  Modulation: At time 0.015625, frequency is equal to 10.
+Pass	  Modulation: At time 0.0625, frequency is equal to -10.
+Pass	  Modulation: Output from frequency setter equals [0,0.16886091232299805,0.33485111594200134,0.49328944087028503,0.6396633982658386,0.7697455883026123,0.8797038793563843,0.966202974319458,1.0264946222305298,1.0584964752197266,1.060856580734253,1.0330028533935547,0.9751768708229065,0.8884509205818176,0.7747267484664917,0.6367163062095642...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  Modulation: Output from frequency setter matches setValueAtTime output is true.
+Pass	< [Test 5] All assertions passed. (total 5 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 6 tasks ran successfully.

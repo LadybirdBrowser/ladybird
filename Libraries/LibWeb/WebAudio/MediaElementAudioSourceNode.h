@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/WebAudio/AudioNode.h>
+#include <LibWeb/WebAudio/MediaElementAudioSourceProvider.h>
 
 namespace Web::WebAudio {
 
@@ -21,6 +22,8 @@ class MediaElementAudioSourceNode final : public AudioNode {
     GC_DECLARE_ALLOCATOR(MediaElementAudioSourceNode);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~MediaElementAudioSourceNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create(JS::Realm&, GC::Ref<AudioContext>, MediaElementAudioSourceOptions const&);
@@ -30,14 +33,17 @@ public:
     virtual WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
     GC::Ref<HTML::HTMLMediaElement> media_element() const { return m_media_element; }
+    NonnullRefPtr<MediaElementAudioSourceProvider> provider() const { return m_provider; }
 
 private:
     MediaElementAudioSourceNode(JS::Realm&, GC::Ref<AudioContext>, MediaElementAudioSourceOptions const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
 
     GC::Ref<HTML::HTMLMediaElement> m_media_element;
+    NonnullRefPtr<MediaElementAudioSourceProvider> m_provider;
 };
 
 }

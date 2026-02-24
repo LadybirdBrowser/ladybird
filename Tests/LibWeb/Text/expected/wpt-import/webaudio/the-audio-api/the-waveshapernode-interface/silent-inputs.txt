@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	test-0: curve output is non-zero for silent inputs
+Pass	test-1: 2x curve output is non-zero for silent inputs
+Pass	test-2: curve output is non-zero for no inputs

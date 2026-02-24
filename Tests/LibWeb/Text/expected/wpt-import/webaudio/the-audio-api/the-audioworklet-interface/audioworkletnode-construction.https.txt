@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "construction-before-module-loading"
+Pass	Executing "construction-after-module-loading"
+Pass	Audit report
+Pass	> [construction-before-module-loading] 
+Pass	  Creating a node before loading a module should throw. threw InvalidStateError: "No AudioWorklet module has been loaded".
+Pass	< [construction-before-module-loading] All assertions passed. (total 1 assertions)
+Pass	> [construction-after-module-loading] 
+Pass	  "dummyWorkletNode" is an instance of AudioWorkletNode is true.
+Pass	  Unregistered name "foobar" must throw an exception. threw InvalidStateError: "Processor name is not registered".
+Pass	< [construction-after-module-loading] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 2 tasks ran successfully.

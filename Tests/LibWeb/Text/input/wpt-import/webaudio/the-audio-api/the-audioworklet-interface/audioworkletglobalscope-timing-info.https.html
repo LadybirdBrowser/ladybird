@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test currentTime and currentFrame in AudioWorkletGlobalScope
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      promise_test(async () => {
+        const sampleRate = 48000;
+        const renderLength = 512;
+        const context = new OfflineAudioContext(1, renderLength, sampleRate);
+
+        const filePath = 'processors/timing-info-processor.js';
+
+        await context.audioWorklet.addModule(filePath);
+
+        const portWorkletNode =
+            new AudioWorkletNode(context, 'timing-info-processor');
+        portWorkletNode.connect(context.destination);
+
+        // Suspend at render quantum boundary and check the timing
+        // information between the main thread and the rendering thread.
+        [0, 128, 256, 384].forEach(suspendFrame => {
+          context.suspend(suspendFrame / sampleRate).then(() => {
+            portWorkletNode.port.onmessage = (event) => {
+              assert_equals(
+                  event.data.currentFrame,
+                  suspendFrame,
+                  'currentFrame from the processor at ' + suspendFrame);
+              assert_equals(
+                  event.data.currentTime,
+                  context.currentTime,
+                  'currentTime from the processor at ' +
+                      context.currentTime);
+              context.resume();
+            };
+
+            portWorkletNode.port.postMessage('query-timing-info');
+          });
+        });
+
+        await context.startRendering();
+      }, 'Check the timing information from AudioWorkletProcessor');
+    </script>
+  </body>
+</html>

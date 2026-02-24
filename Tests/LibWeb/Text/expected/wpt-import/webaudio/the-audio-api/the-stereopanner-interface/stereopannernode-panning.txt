@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "mono-test"
+Pass	Executing "stereo-test"
+Pass	Audit report
+Pass	> [mono-test] 
+Pass	  Mono: Number of impulses found is equal to 100.
+Pass	  Mono: Number of impulse at the wrong offset is equal to 0.
+Pass	  Mono: Left channel error magnitude is less than or equal to 1.284318e-7.
+Pass	  Mono: Right channel error magnitude is less than or equal to 1.284318e-7.
+Pass	< [mono-test] All assertions passed. (total 4 assertions)
+Pass	> [stereo-test] 
+Pass	  Stereo: Number of impulses found is equal to 100.
+Pass	  Stereo: Number of impulse at the wrong offset is equal to 0.
+Pass	  Stereo: Left channel error magnitude is less than or equal to 1.284318e-7.
+Pass	  Stereo: Right channel error magnitude is less than or equal to 1.284318e-7.
+Pass	< [stereo-test] All assertions passed. (total 4 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 2 tasks ran successfully.
