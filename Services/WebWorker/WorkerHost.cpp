@@ -35,9 +35,24 @@ WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name
 
 WorkerHost::~WorkerHost() = default;
 
+// https://html.spec.whatwg.org/multipage/workers.html#relevant-owner-to-add
+static Web::HTML::WorkerGlobalScope::Owner relevant_owner_to_add(Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
+{
+    // Given an environment settings object o when creating or obtaining a worker, the relevant owner to add depends on the type of global object specified by o.
+    return outside_settings.global.visit(
+        // If o's global object is a WorkerGlobalScope object (i.e., if we are creating a nested dedicated worker), then the relevant owner is that global object.
+        [](Web::HTML::SerializedWorkerGlobalScope const& worker) -> Web::HTML::WorkerGlobalScope::Owner { return worker; },
+        // Otherwise, o's global object is a Window object, and the relevant owner is that Window's associated Document.
+        [](Web::HTML::SerializedWindow const& window) -> Web::HTML::WorkerGlobalScope::Owner { return window.associated_document; });
+}
+
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
 void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared)
 {
+    // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
+    // 2. Let owner be the relevant owner to add given outside settings.
+    auto owner = relevant_owner_to_add(outside_settings_snapshot);
+
     // 3. Let unsafeWorkerCreationTime be the unsafe shared current time.
     auto unsafe_worker_creation_time = Web::HighResolutionTime::unsafe_shared_current_time();
 
@@ -47,9 +62,9 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         [page, is_shared](JS::Realm& realm) -> JS::Object* {
             // For the global object, if is shared is true, create a new SharedWorkerGlobalScope object.
             if (is_shared)
-                return Web::Bindings::main_thread_vm().heap().allocate<Web::HTML::SharedWorkerGlobalScope>(realm, page);
+                return realm.heap().allocate<Web::HTML::SharedWorkerGlobalScope>(realm, page);
             // Otherwise, create a new DedicatedWorkerGlobalScope object.
-            return Web::Bindings::main_thread_vm().heap().allocate<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
+            return realm.heap().allocate<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
         },
         nullptr);
 
@@ -66,6 +81,12 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     //         As a workaround for now, set the URL here before setting up the environment settings object.
     worker_global_scope->set_url(m_url);
 
+    // 9. Append owner to worker global scope's owner set.
+    // AD-HOC: We need to do this slightly out of order compared to the spec. We initialize
+    //         web interfaces as part of step 7, which checks SecureContext for interface
+    //         exposure which itself requires owner set to be populated.
+    worker_global_scope->owner_set().append(owner);
+
     // 7. Set up a worker environment settings object with realm execution context, outside settings, and
     //    unsafeWorkerCreationTime, and let inside settings be the result.
     auto inside_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time);
@@ -78,9 +99,6 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
     // 8. Set worker global scope's name to options["name"].
     worker_global_scope->set_name(m_name);
-
-    // 9. Append owner to worker global scope's owner set.
-    // FIXME: support for 'owner' set on WorkerGlobalScope
 
     // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
     auto outside_settings = inside_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inside_settings->realm(), inside_settings->realm_execution_context().copy(), outside_settings_snapshot);

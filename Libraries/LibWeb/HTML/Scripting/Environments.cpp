@@ -553,10 +553,10 @@ bool is_secure_context(Environment const& environment)
         auto& global = static_cast<EnvironmentSettingsObject&>(const_cast<Environment&>(environment)).global_object();
 
         // 2. If global is a WorkerGlobalScope, then:
-        if (is<WorkerGlobalScope>(global)) {
-            // FIXME: 1. If global's owner set[0]'s relevant settings object is a secure context, then return true.
+        if (auto const* worker = as_if<WorkerGlobalScope>(global)) {
+            // 1. If global's owner set[0]'s relevant settings object is a secure context, then return true.
             // NOTE: We only need to check the 0th item since they will necessarily all be consistent.
-            if (true)
+            if (worker->owner_set().at(0).visit([](auto const& owner) { return owner.relevant_settings_object_is_secure_context; }))
                 return true;
 
             // 2. Return false.
