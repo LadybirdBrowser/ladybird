@@ -82,8 +82,8 @@ private:
         NonnullOwnPtr<CacheEntry> entry;
         WeakPtr<CacheRequest> request;
     };
-    HashMap<u64, Vector<OpenCacheEntry, 1>> m_open_cache_entries;
-    HashMap<u64, Vector<WeakPtr<CacheRequest>, 1>> m_requests_waiting_completion;
+    HashMap<u64, Vector<OpenCacheEntry, 1>, IdentityHashTraits<u64>> m_open_cache_entries;
+    HashMap<u64, Vector<WeakPtr<CacheRequest>, 1>, IdentityHashTraits<u64>> m_requests_waiting_completion;
 
     LexicalPath m_cache_directory;
     CacheIndex m_index;

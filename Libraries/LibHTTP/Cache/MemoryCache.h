@@ -40,8 +40,8 @@ public:
     void finalize_entry(URL::URL const&, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, ByteBuffer response_body);
 
 private:
-    HashMap<u64, Vector<Entry>> m_pending_entries;
-    HashMap<u64, Vector<Entry>> m_complete_entries;
+    HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_pending_entries;
+    HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_complete_entries;
 };
 
 }

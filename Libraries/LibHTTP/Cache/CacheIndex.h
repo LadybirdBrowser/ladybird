@@ -76,7 +76,7 @@ private:
     NonnullRawPtr<Database::Database> m_database;
     Statements m_statements;
 
-    HashMap<u64, Vector<Entry>> m_entries;
+    HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_entries;
 
     Limits m_limits;
 };
