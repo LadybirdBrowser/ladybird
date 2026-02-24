@@ -418,6 +418,8 @@ bool PaintableBox::overflow_property_applies() const
     // Overflow properties apply to block containers, flex containers and grid containers.
     // FIXME: Ideally we would check whether overflow applies positively rather than listing exceptions. However,
     //        not all elements that should support overflow are currently identifiable that way.
+    if (is<SVGPaintable>(*this))
+        return false;
     auto const& display = computed_values().display();
     if (layout_node().is_inline_node())
         return false;
