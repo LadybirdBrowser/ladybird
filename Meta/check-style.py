@@ -15,7 +15,7 @@ import sys
 #  */
 GOOD_LICENSE_HEADER_PATTERN = re.compile(
     "^/\\*\n"
-    + "( \\* Copyright \\(c\\) [0-9]{4}(-[0-9]{4})?, .*\n)+"
+    + "( \\* Copyright \\(c\\) [0-9]{4}(-([0-9]{4}|present))?, .*\n)+"
     + " \\*\n"
     + " \\* SPDX-License-Identifier: BSD-2-Clause\n"
     + " \\*/\n"
@@ -62,7 +62,7 @@ INVALID_AD_HOC_OR_FIXME = re.compile(r'^(?:[\s\d./\-(*]+(?:AD-HOC|FIXME|NB|NOTE)
 
 
 def should_check_file(filename):
-    if not filename.endswith(".cpp") and not filename.endswith(".h"):
+    if not filename.endswith(".cpp") and not filename.endswith(".h") and not filename.endswith(".rs"):
         return False
     if filename.startswith("Base/"):
         return False
@@ -108,6 +108,8 @@ def run():
         if not is_in_prefix_list(filename, LICENSE_HEADER_CHECK_EXCLUDES):
             if not GOOD_LICENSE_HEADER_PATTERN.search(file_content):
                 errors_license.append(filename)
+        if filename.endswith(".rs"):
+            continue
         if filename.endswith(".h"):
             if GOOD_PRAGMA_ONCE_PATTERN.search(file_content):
                 # Excellent, the formatting is correct.
