@@ -230,6 +230,79 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
             }
 
             VERIFY_NOT_REACHED();
+        },
+        [&](EthiopicNumericCounterStyleAlgorithm const&) -> Optional<String> {
+            // https://drafts.csswg.org/css-counter-styles-3/#ethiopic-numeric-counter-style
+            // The following algorithm converts decimal digits to ethiopic numbers:
+
+            // 1. If the number is 1, return "፩" (U+1369).
+            if (value == 1)
+                return "\U00001369"_string;
+
+            // 2. Split the number into groups of two digits, starting with the least significant decimal digit.
+            Vector<u8> groups {};
+            while (value != 0) {
+                groups.append(value % 100);
+                value /= 100;
+            }
+
+            StringBuilder builder;
+
+            // 3. Index each group sequentially, starting from the least significant as group number zero.
+
+            // NB: We iterate in descending order of significance, so we can append to the string builder in order
+            for (i32 i = groups.size() - 1; i >= 0; --i) {
+                auto group_value = groups[i];
+
+                // 4. If the group has the value zero, or if the group is the most significant one and has the value
+                //    1, or if the group has an odd index (as given in the previous step) and has the value 1, then
+                //    remove the digits (but leave the group, so it still has a separator appended below).
+                if (group_value != 0 && !(i == static_cast<i32>(groups.size()) - 1 && group_value == 1) && !(i % 2 == 1 && group_value == 1)) {
+                    // 5. For each remaining digit, substitute the relevant ethiopic character from the list below.
+                    //      Tens
+                    // Values Codepoints
+                    // 10     ፲ U+1372
+                    // 20     ፳ U+1373
+                    // 30     ፴ U+1374
+                    // 40     ፵ U+1375
+                    // 50     ፶ U+1376
+                    // 60     ፷ U+1377
+                    // 70     ፸ U+1378
+                    // 80     ፹ U+1379
+                    // 90     ፺ U+137A
+                    auto tens = group_value / 10;
+                    if (tens != 0)
+                        builder.append_code_point(0x1372 + tens - 1);
+
+                    //     Units
+                    // Values Codepoints
+                    // 1      ፩ U+1369
+                    // 2      ፪ U+136A
+                    // 3      ፫ U+136B
+                    // 4      ፬ U+136C
+                    // 5      ፭ U+136D
+                    // 6      ፮ U+136E
+                    // 7      ፯ U+136F
+                    // 8      ፰ U+1370
+                    // 9      ፱ U+1371
+                    auto units = group_value % 10;
+                    if (units != 0)
+                        builder.append_code_point(0x1369 + units - 1);
+                }
+
+                // 6. For each group with an odd index (as given in the second step), except groups which originally
+                //    had a value of zero, append ፻ U+137B.
+                if (i % 2 == 1 && group_value != 0)
+                    builder.append_code_point(0x137B);
+
+                // 7. For each group with an even index (as given in the second step), except the group with index
+                //    0, append ፼ U+137C.
+                else if (i % 2 == 0 && i != 0)
+                    builder.append_code_point(0x137C);
+            }
+
+            // 8. Concatenate the groups into one string, and return it.
+            return MUST(builder.to_string());
         });
 }
 
@@ -241,13 +314,13 @@ bool CounterStyle::uses_a_negative_sign() const
     // sign.
     // NB: We have resolved extends to the underlying algorithm before calling this
     return m_algorithm.visit(
-        [&](AdditiveCounterStyleAlgorithm const&) -> bool {
+        [](AdditiveCounterStyleAlgorithm const&) -> bool {
             return true;
         },
-        [&](FixedCounterStyleAlgorithm const&) -> bool {
+        [](FixedCounterStyleAlgorithm const&) -> bool {
             return false;
         },
-        [&](GenericCounterStyleAlgorithm const& generic_system) -> bool {
+        [](GenericCounterStyleAlgorithm const& generic_system) -> bool {
             switch (generic_system.type) {
             case CounterStyleSystem::Cyclic:
                 return false;
@@ -261,6 +334,11 @@ bool CounterStyle::uses_a_negative_sign() const
             }
 
             VERIFY_NOT_REACHED();
+        },
+        [](EthiopicNumericCounterStyleAlgorithm const&) {
+            // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
+            // All of the counter styles defined in this section have a spoken form of numbers, and use a negative sign.
+            return true;
         });
 }
 

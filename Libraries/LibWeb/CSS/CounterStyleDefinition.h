@@ -51,7 +51,9 @@ struct GenericCounterStyleAlgorithm {
     Vector<CounterStyleSymbol> symbol_list;
 };
 
-using CounterStyleAlgorithm = Variant<AdditiveCounterStyleAlgorithm, FixedCounterStyleAlgorithm, GenericCounterStyleAlgorithm>;
+struct EthiopicNumericCounterStyleAlgorithm { };
+
+using CounterStyleAlgorithm = Variant<AdditiveCounterStyleAlgorithm, FixedCounterStyleAlgorithm, GenericCounterStyleAlgorithm, EthiopicNumericCounterStyleAlgorithm>;
 using CounterStyleAlgorithmOrExtends = Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends>;
 
 struct AutoRange {

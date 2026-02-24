@@ -7798,6 +7798,30 @@ void Document::build_counter_style_cache()
 
     HashMap<FlyString, CSS::CounterStyleDefinition> counter_style_definitions;
 
+    auto const define_complex_predefined_counter_styles = [&]() {
+        // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
+        // While authors may define their own counter styles using the @counter-style rule or rely on the set of
+        // predefined counter styles, a few counter styles are described by rules that are too complex to be captured by
+        // the predefined algorithms.
+
+        // FIXME: All of the counter styles defined in this section have a spoken form of numbers
+
+        // https://drafts.csswg.org/css-counter-styles-3/#ethiopic-numeric-counter-style
+        // For this system, the name is "ethiopic-numeric", the range is 1 infinite, the suffix is "/ " (U+002F SOLIDUS
+        // followed by a U+0020 SPACE), and the rest of the descriptors have their initial value.
+        counter_style_definitions.set(
+            "ethiopic-numeric"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "ethiopic-numeric"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::EthiopicNumericCounterStyleAlgorithm {} },
+                {},
+                {},
+                "/ "_fly_string,
+                Vector<CSS::CounterStyleRangeEntry> { { 1, AK::NumericLimits<i64>::max() } },
+                {},
+                {}));
+    };
+
     CSS::ComputationContext computation_context {
         .length_resolution_context = CSS::Length::ResolutionContext::for_document(*this)
     };
@@ -7810,6 +7834,7 @@ void Document::build_counter_style_cache()
     };
 
     m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::UserAgent, collect_counter_style_definitions);
+    define_complex_predefined_counter_styles();
     m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::User, collect_counter_style_definitions);
     m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::Author, collect_counter_style_definitions);
 
