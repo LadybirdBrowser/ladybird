@@ -16,6 +16,7 @@ Client::Client(NonnullOwnPtr<IPC::Transport> transport)
 
 void Client::die()
 {
+    verify_event_loop();
     for (auto& [_, promise] : m_pending_decoded_images) {
         promise->reject(Error::from_string_literal("ImageDecoder disconnected"));
     }
@@ -24,6 +25,7 @@ void Client::die()
 
 NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes encoded_data, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
+    verify_event_loop();
     auto promise = Core::Promise<DecodedImage>::construct();
     if (on_resolved)
         promise->on_resolution = move(on_resolved);
@@ -59,6 +61,7 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
 
 void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space, i64 session_id)
 {
+    verify_event_loop();
     auto bitmaps = move(bitmap_sequence.bitmaps);
     VERIFY(!bitmaps.is_empty());
 
@@ -100,6 +103,7 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
 
 void Client::did_fail_to_decode_image(i64 image_id, String error_message)
 {
+    verify_event_loop();
     auto maybe_promise = m_pending_decoded_images.take(image_id);
     if (!maybe_promise.has_value()) {
         dbgln("ImageDecoderClient: No pending image with ID {}", image_id);
@@ -114,6 +118,7 @@ void Client::did_fail_to_decode_image(i64 image_id, String error_message)
 
 void Client::did_decode_animation_frames(i64 session_id, Gfx::BitmapSequence bitmap_sequence)
 {
+    verify_event_loop();
     if (!on_animation_frames_decoded)
         return;
 
@@ -129,18 +134,27 @@ void Client::did_decode_animation_frames(i64 session_id, Gfx::BitmapSequence bit
 
 void Client::did_fail_animation_decode(i64 session_id, String error_message)
 {
+    verify_event_loop();
     if (on_animation_decode_failed)
         on_animation_decode_failed(session_id, move(error_message));
 }
 
 void Client::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
 {
+    verify_event_loop();
     async_request_animation_frames(session_id, start_frame_index, count);
 }
 
 void Client::stop_animation_decode(i64 session_id)
 {
+    verify_event_loop();
     async_stop_animation_decode(session_id);
+}
+
+void Client::verify_event_loop() const
+{
+    if (Core::EventLoop::is_running())
+        VERIFY(&Core::EventLoop::current() == m_creation_event_loop);
 }
 
 }
