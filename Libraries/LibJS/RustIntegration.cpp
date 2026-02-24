@@ -65,21 +65,6 @@ static Utf16String utf16_from_raw(uint16_t const* data, size_t len)
     return Utf16String::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(data), len));
 }
 
-// Convert ASCII-stored source code to UTF-16 for the Rust FFI.
-// Returns a pointer to the UTF-16 data and populates the buffer if needed.
-static u16 const* get_utf16_source(Utf16View const& code_view, Vector<u16>& utf16_buf)
-{
-    if (code_view.has_ascii_storage()) {
-        auto ascii = code_view.ascii_span();
-        auto length = code_view.length_in_code_units();
-        utf16_buf.ensure_capacity(length);
-        for (size_t i = 0; i < length; ++i)
-            utf16_buf.unchecked_append(static_cast<u16>(ascii[i]));
-        return utf16_buf.data();
-    }
-    return reinterpret_cast<u16 const*>(code_view.utf16_span().data());
-}
-
 // --- Error collection callbacks ---
 
 // Collects parse errors as a Vector<ParserError> (for Script/Module compilation).
@@ -382,8 +367,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(
     u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
     size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
 
-    Vector<u16> utf16_buf;
-    auto const* source_ptr = get_utf16_source(code_view, utf16_buf);
+    auto const* source_ptr = source_code->utf16_data();
 
     void* exec_ptr = rust_compile_script(source_ptr, length, &realm.vm(), source_code.ptr(), &builder,
         g_dump_ast, g_dump_ast_use_color,
@@ -454,8 +438,7 @@ Optional<Result<EvalResult, String>> compile_eval(
     u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
     size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
 
-    Vector<u16> utf16_buf;
-    auto const* source_ptr = get_utf16_source(code_view, utf16_buf);
+    auto const* source_ptr = source_code->utf16_data();
 
     void* exec_ptr = rust_compile_eval(source_ptr, length, &vm, source_code.ptr(), &builder,
         strict_caller == CallerMode::Strict,
@@ -539,8 +522,7 @@ Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
     u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
     size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
 
-    Vector<u16> utf16_buf;
-    auto const* source_ptr = get_utf16_source(code_view, utf16_buf);
+    auto const* source_ptr = source_code->utf16_data();
 
     void* exec_ptr = rust_compile_eval(source_ptr, length, &vm, source_code.ptr(), &builder,
         false, false, false, false, false,
@@ -618,8 +600,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(
 
     void* tla_executable = nullptr;
 
-    Vector<u16> utf16_buf;
-    auto const* source_ptr = get_utf16_source(code_view, utf16_buf);
+    auto const* source_ptr = source_code->utf16_data();
 
     void* exec_ptr = rust_compile_module(source_ptr, length,
         &realm.vm(), source_code.ptr(),
@@ -775,8 +756,7 @@ Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
 
     Vector<GC::Root<SharedFunctionInstanceData>> shared_data_list;
 
-    Vector<u16> utf16_buf;
-    auto const* source_ptr = get_utf16_source(code_view, utf16_buf);
+    auto const* source_ptr = code->utf16_data();
 
     rust_compile_builtin_file(source_ptr, length, &vm, code.ptr(), &shared_data_list, collect_builtin_function,
         rust_ast_data_ptr, rust_ast_len_ptr);
@@ -806,14 +786,12 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
 
     VERIFY(shared_data.m_rust_function_ast);
     GC::DeferGC defer_gc(vm.heap());
-    auto const& code_view = shared_data.m_source_code->code_view();
-    Vector<u16> utf16_buf;
-    auto const* source_ptr = get_utf16_source(code_view, utf16_buf);
+    auto const* source_ptr = shared_data.m_source_code->utf16_data();
     auto* exec = static_cast<Bytecode::Executable*>(rust_compile_function(
         &vm,
         shared_data.m_source_code.ptr(),
         source_ptr,
-        code_view.length_in_code_units(),
+        shared_data.m_source_code->length_in_code_units(),
         &shared_data,
         shared_data.m_rust_function_ast,
         builtin_abstract_operations_enabled));

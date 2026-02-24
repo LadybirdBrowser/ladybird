@@ -25,6 +25,20 @@ SourceCode::SourceCode(String filename, Utf16String code)
 {
 }
 
+u16 const* SourceCode::utf16_data() const
+{
+    if (!m_code_view.has_ascii_storage())
+        return reinterpret_cast<u16 const*>(m_code_view.utf16_span().data());
+
+    if (m_utf16_data_cache.is_empty() && m_length_in_code_units > 0) {
+        auto ascii = m_code_view.ascii_span();
+        m_utf16_data_cache.ensure_capacity(m_length_in_code_units);
+        for (size_t i = 0; i < m_length_in_code_units; ++i)
+            m_utf16_data_cache.unchecked_append(static_cast<u16>(ascii[i]));
+    }
+    return m_utf16_data_cache.data();
+}
+
 void SourceCode::fill_position_cache() const
 {
     constexpr size_t predicted_minimum_cached_positions = 8;

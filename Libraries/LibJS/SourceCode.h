@@ -24,6 +24,8 @@ public:
     Utf16View const& code_view() const { return m_code_view; }
     size_t length_in_code_units() const { return m_length_in_code_units; }
 
+    u16 const* utf16_data() const;
+
     SourceRange range_from_offsets(u32 start_offset, u32 end_offset) const;
 
 private:
@@ -39,6 +41,10 @@ private:
     // line:column they map to. This can then be binary-searched.
     void fill_position_cache() const;
     Vector<Position> mutable m_cached_positions;
+
+    // Cached UTF-16 widening of ASCII source data, lazily populated by
+    // utf16_data() for use by the Rust compilation pipeline.
+    Vector<u16> mutable m_utf16_data_cache;
 };
 
 }
