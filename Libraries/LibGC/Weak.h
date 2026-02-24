@@ -165,14 +165,6 @@ inline bool operator==(Weak<T> const& a, Ref<U> const& b)
 namespace AK {
 
 template<typename T>
-struct Traits<GC::Weak<T>> : public DefaultTraits<GC::Weak<T>> {
-    static unsigned hash(GC::Weak<T> const& value)
-    {
-        return Traits<T*>::hash(value.ptr());
-    }
-};
-
-template<typename T>
 struct Formatter<GC::Weak<T>> : Formatter<T const*> {
     ErrorOr<void> format(FormatBuilder& builder, GC::Weak<T> const& value)
     {
