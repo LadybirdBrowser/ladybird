@@ -1036,27 +1036,33 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
         auto& test = context.tests[test_index];
         auto& actual = *test.actual_screenshot;
 
+        // Try to load and compare against existing expected PNG first.
+        auto expectation_file_or_error = Core::MappedFile::map(test.expectation_path);
+        if (!expectation_file_or_error.is_error()) {
+            auto decoder = TRY(Gfx::ImageDecoder::try_create_for_raw_bytes(expectation_file_or_error.value()->bytes()));
+            if (decoder) {
+                auto frame = TRY(decoder->frame(0));
+                test.expectation_screenshot = move(frame.image);
+
+                auto const& expected = *test.expectation_screenshot;
+                auto screenshot_matches = fuzzy_screenshot_match(url, url, actual, expected, test.fuzzy_matches, true);
+                if (screenshot_matches)
+                    return TestResult::Pass;
+            }
+        }
+
+        // Screenshots don't match (or expected file doesn't exist yet).
         if (Application::the().rebaseline) {
             TRY(Core::Directory::create(LexicalPath { test.expectation_path }.parent().string(), Core::Directory::CreateDirectories::Yes));
             TRY(dump_screenshot_to_file(actual, test.expectation_path));
             return TestResult::Pass;
         }
 
-        // Load expected PNG from disk.
-        auto expectation_file = TRY(Core::MappedFile::map(test.expectation_path));
-        auto decoder = TRY(Gfx::ImageDecoder::try_create_for_raw_bytes(expectation_file->bytes()));
-        if (!decoder)
+        // Not rebaselining and no valid expectation loaded.
+        if (!test.expectation_screenshot)
             return Error::from_string_literal("Could not decode expected screenshot PNG");
 
-        auto frame = TRY(decoder->frame(0));
-        test.expectation_screenshot = move(frame.image);
-
-        auto const& expected = *test.expectation_screenshot;
-        auto screenshot_matches = fuzzy_screenshot_match(url, url, actual, expected, test.fuzzy_matches, true);
-        if (screenshot_matches)
-            return TestResult::Pass;
-
-        TRY(write_screenshot_failure_results(test, actual, expected));
+        TRY(write_screenshot_failure_results(test, actual, *test.expectation_screenshot));
         return TestResult::Fail;
     };
 
