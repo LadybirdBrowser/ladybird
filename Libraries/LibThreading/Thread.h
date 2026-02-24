@@ -59,6 +59,8 @@ public:
     ErrorOr<void> set_priority(int priority);
     ErrorOr<int> get_priority() const;
 
+    void set_stack_size(size_t size) { m_stack_size = size; }
+
     // Only callable in the Startable state.
     void start();
     // Only callable in the Running state.
@@ -81,6 +83,7 @@ private:
     pthread_t m_tid {};
     ByteString m_thread_name;
     Atomic<ThreadState> m_state { ThreadState::Startable };
+    size_t m_stack_size { 0 };
 };
 
 template<typename T>
