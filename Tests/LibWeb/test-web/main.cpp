@@ -26,6 +26,7 @@
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/MappedFile.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
@@ -34,6 +35,7 @@
 #include <LibDiff/Generator.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibURL/Parser.h>
@@ -394,6 +396,29 @@ static ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tes
     return {};
 }
 
+static ErrorOr<void> collect_screenshot_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail)
+{
+    Core::DirIterator it(ByteString::formatted("{}/input/{}", path, trail), Core::DirIterator::Flags::SkipDots);
+    while (it.has_next()) {
+        auto name = it.next_path();
+        auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/input/{}/{}", path, trail, name)));
+
+        if (FileSystem::is_directory(input_path)) {
+            TRY(collect_screenshot_tests(app, tests, path, ByteString::formatted("{}/{}", trail, name)));
+            continue;
+        }
+
+        if (!is_valid_test_name(name))
+            continue;
+
+        auto expectation_path = ByteString::formatted("{}/expected/{}/{}.png", path, trail, LexicalPath::title(name));
+        auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
+        tests.append({ TestMode::Screenshot, input_path, move(expectation_path), relative_path, relative_path });
+    }
+
+    return {};
+}
+
 static ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail)
 {
     Core::DirIterator it(ByteString::formatted("{}/{}", path, trail), Core::DirIterator::Flags::SkipDots);
@@ -458,6 +483,8 @@ static ByteString test_mode_to_string(TestMode mode)
         return "Text"sv;
     case TestMode::Ref:
         return "Ref"sv;
+    case TestMode::Screenshot:
+        return "Screenshot"sv;
     case TestMode::Crash:
         return "Crash"sv;
     }
@@ -519,7 +546,7 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
             test_mode_to_string(test.mode),
             has_stdout ? "true" : "false",
             has_stderr ? "true" : "false");
-        if (test.mode == TestMode::Ref && test.diff_pixel_error_count > 0)
+        if ((test.mode == TestMode::Ref || test.mode == TestMode::Screenshot) && test.diff_pixel_error_count > 0)
             js.appendff(", \"pixelErrors\": {}, \"maxChannelDiff\": {}", test.diff_pixel_error_count, test.diff_maximum_error);
         js.append(" }"sv);
     }
@@ -846,6 +873,47 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
     test.timeout_timer->start();
 }
 
+static ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringView path)
+{
+    auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
+    auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));
+    TRY(screenshot_file->write_until_depleted(encoded_data));
+    return {};
+}
+
+static ErrorOr<void> write_screenshot_failure_results(Test& test, Gfx::Bitmap const& actual, Gfx::Bitmap const& expected)
+{
+    auto& app = Application::the();
+
+    auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
+    TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
+
+    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+    TRY(dump_screenshot_to_file(actual, ByteString::formatted("{}.actual.png", base_path)));
+    TRY(dump_screenshot_to_file(expected, ByteString::formatted("{}.expected.png", base_path)));
+
+    // Generate a diff image and compute stats.
+    if (actual.width() == expected.width() && actual.height() == expected.height()) {
+        auto diff = actual.diff(expected);
+        test.diff_pixel_error_count = diff.pixel_error_count;
+        test.diff_maximum_error = diff.maximum_error;
+
+        auto diff_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { actual.width(), actual.height() }));
+        for (int y = 0; y < actual.height(); ++y) {
+            for (int x = 0; x < actual.width(); ++x) {
+                auto pixel = actual.get_pixel(x, y);
+                if (pixel != expected.get_pixel(x, y))
+                    diff_bitmap->set_pixel(x, y, Gfx::Color(255, 0, 0));
+                else
+                    diff_bitmap->set_pixel(x, y, pixel.mixed_with(expected.get_pixel(x, y), 0.5f).mixed_with(Gfx::Color::White, 0.8f));
+            }
+        }
+        TRY(dump_screenshot_to_file(*diff_bitmap, ByteString::formatted("{}.diff.png", base_path)));
+    }
+
+    return {};
+}
+
 static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
@@ -862,43 +930,7 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
         if (should_match == screenshot_matches)
             return TestResult::Pass;
 
-        auto& app = Application::the();
-        auto const& actual = *test.actual_screenshot;
-        auto const& expected = *test.expectation_screenshot;
-
-        auto dump_screenshot = [](Gfx::Bitmap const& bitmap, StringView path) -> ErrorOr<void> {
-            auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
-            auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));
-            TRY(screenshot_file->write_until_depleted(encoded_data));
-            return {};
-        };
-
-        auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
-        TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
-
-        auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
-        TRY(dump_screenshot(actual, ByteString::formatted("{}.actual.png", base_path)));
-        TRY(dump_screenshot(expected, ByteString::formatted("{}.expected.png", base_path)));
-
-        // Generate a diff image and compute stats.
-        if (actual.width() == expected.width() && actual.height() == expected.height()) {
-            auto diff = actual.diff(expected);
-            test.diff_pixel_error_count = diff.pixel_error_count;
-            test.diff_maximum_error = diff.maximum_error;
-
-            auto diff_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { actual.width(), actual.height() }));
-            for (int y = 0; y < actual.height(); ++y) {
-                for (int x = 0; x < actual.width(); ++x) {
-                    auto pixel = actual.get_pixel(x, y);
-                    if (pixel != expected.get_pixel(x, y))
-                        diff_bitmap->set_pixel(x, y, Gfx::Color(255, 0, 0));
-                    else
-                        diff_bitmap->set_pixel(x, y, pixel.mixed_with(expected.get_pixel(x, y), 0.5f).mixed_with(Gfx::Color::White, 0.8f));
-                }
-            }
-            TRY(dump_screenshot(*diff_bitmap, ByteString::formatted("{}.diff.png", base_path)));
-        }
-
+        TRY(write_screenshot_failure_results(test, *test.actual_screenshot, *test.expectation_screenshot));
         return TestResult::Fail;
     };
 
@@ -993,6 +1025,95 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
     test.timeout_timer->start();
 }
 
+static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+{
+    auto test_index = test.index;
+    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, test_index]() {
+        view.on_test_complete({ test_index, TestResult::Timeout });
+    });
+
+    auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
+        auto& test = context.tests[test_index];
+        auto& actual = *test.actual_screenshot;
+
+        if (Application::the().rebaseline) {
+            TRY(Core::Directory::create(LexicalPath { test.expectation_path }.parent().string(), Core::Directory::CreateDirectories::Yes));
+            TRY(dump_screenshot_to_file(actual, test.expectation_path));
+            return TestResult::Pass;
+        }
+
+        // Load expected PNG from disk.
+        auto expectation_file = TRY(Core::MappedFile::map(test.expectation_path));
+        auto decoder = TRY(Gfx::ImageDecoder::try_create_for_raw_bytes(expectation_file->bytes()));
+        if (!decoder)
+            return Error::from_string_literal("Could not decode expected screenshot PNG");
+
+        auto frame = TRY(decoder->frame(0));
+        test.expectation_screenshot = move(frame.image);
+
+        auto const& expected = *test.expectation_screenshot;
+        auto screenshot_matches = fuzzy_screenshot_match(url, url, actual, expected, test.fuzzy_matches, true);
+        if (screenshot_matches)
+            return TestResult::Pass;
+
+        TRY(write_screenshot_failure_results(test, actual, expected));
+        return TestResult::Fail;
+    };
+
+    auto on_test_complete = [&view, test_index, handle_completed_test]() {
+        if (auto result = handle_completed_test(); result.is_error())
+            view.on_test_complete({ test_index, TestResult::Fail });
+        else
+            view.on_test_complete({ test_index, result.value() });
+    };
+
+    view.on_load_finish = [&view](auto const&) {
+        view.run_javascript(wait_for_reftest_completion);
+    };
+
+    view.on_test_finish = [&view, &context, test_index, on_test_complete = move(on_test_complete)](auto const&) {
+        // Take a screenshot of the rendered test page.
+        view.take_screenshot()->when_resolved([&view, &context, test_index, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap const> screenshot) {
+            context.tests[test_index].actual_screenshot = move(screenshot);
+            view.reset_zoom();
+            // Load reference test metadata for fuzzy matching config.
+            view.run_javascript("internals.loadReferenceTestMetadata();"_string);
+
+            view.on_reference_test_metadata = [&context, test_index, on_test_complete = move(on_test_complete)](JsonValue const& metadata) {
+                auto& test = context.tests[test_index];
+                auto metadata_object = metadata.as_object();
+
+                // Read fuzzy configurations (ignore match/mismatch references for Screenshot tests).
+                test.fuzzy_matches.clear_with_capacity();
+                auto fuzzy_values = metadata_object.get_array("fuzzy"sv);
+                for (size_t i = 0; i < fuzzy_values->size(); ++i) {
+                    auto fuzzy_configuration = fuzzy_values->at(i).as_object();
+
+                    auto content = fuzzy_configuration.get_string("content"sv).release_value();
+                    auto fuzzy_match_or_error = parse_fuzzy_match({}, content);
+                    if (fuzzy_match_or_error.is_error()) {
+                        warnln("Failed to parse fuzzy configuration '{}': {}", content, fuzzy_match_or_error.error());
+                        continue;
+                    }
+
+                    test.fuzzy_matches.append(fuzzy_match_or_error.release_value());
+                }
+
+                on_test_complete();
+            };
+        });
+    };
+
+    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
+        auto& test = context.tests[test_index];
+        if (milliseconds > timeout_in_milliseconds)
+            test.timeout_timer->restart(milliseconds);
+    };
+
+    view.load(url);
+    test.timeout_timer->start();
+}
+
 static void run_test(TestWebView& view, TestRunContext& context, size_t test_index, Application& app)
 {
     s_current_test_index_by_view.set(&view, test_index);
@@ -1042,6 +1163,9 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
             return;
         case TestMode::Ref:
             run_ref_test(view, context, test, *url, app.per_test_timeout_in_seconds * 1000);
+            return;
+        case TestMode::Screenshot:
+            run_screenshot_test(view, context, test, *url, app.per_test_timeout_in_seconds * 1000);
             return;
         }
 
@@ -1149,7 +1273,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
     TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
+    TRY(collect_screenshot_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
 
     tests.remove_all_matching([&](auto const& test) {
         static constexpr Array support_file_patterns {

@@ -24,6 +24,7 @@ enum class TestMode {
     Layout,
     Text,
     Ref,
+    Screenshot,
     Crash,
 };
 

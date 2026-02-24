@@ -22,8 +22,9 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
     """
 
     has_output = test_type != "Crash"
+    has_input_subdir = test_type != "Crash"
 
-    if has_output:
+    if has_input_subdir:
         input_prefix = TEST_DIR / test_type / "input" / test_name
     else:
         input_prefix = TEST_DIR / test_type / test_name
@@ -34,6 +35,8 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
     output_prefix = TEST_DIR / test_type / "expected" / test_name
     if test_type in ["Layout", "Text"]:
         output_file = output_prefix.with_suffix(".txt")
+    elif test_type == "Screenshot":
+        output_file = output_prefix.with_suffix(".png")
     else:
         output_file = output_prefix.with_name(Path(test_name).stem + "-ref.html")
     output_dir = output_prefix.parent
@@ -87,9 +90,8 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
             expected_boilerplate = f"Put equivalently rendering HTML for {test_name} here."
 
         elif test_type == "Screenshot":
-            input_boilerplate = Rf"""<!DOCTYPE html>
+            input_boilerplate = R"""<!DOCTYPE html>
 <head>
-<link rel="match" href="{"../" * num_sub_levels}../expected/{Path(test_name).with_suffix("")}-ref.html" />
 <style>
 </style>
 </head>
@@ -97,17 +99,7 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
 </body>
 """
 
-            expected_boilerplate = f"""<!DOCTYPE html>
-<style>
-  * {{
-    margin: 0;
-  }}
-  body {{
-    background-color: white;
-  }}
-</style>
-<img src="{"../" * num_sub_levels}../images/{Path(test_name).with_suffix("")}-ref.png">
-"""
+            expected_boilerplate = ""
 
         # layout tests are async agnostic
         elif test_type == "Layout":
@@ -131,10 +123,14 @@ to produce the expected output for this test
     # Create input and expected files
     input_boilerplate, expected_boilerplate = generate_boilerplate()
     input_file.write_text(input_boilerplate)
-    if has_output:
+    if has_output and expected_boilerplate:
         output_file.write_text(expected_boilerplate)
 
     print(f"{test_type} test '{Path(test_name).with_suffix('.html')}' created successfully.")
+    if test_type == "Screenshot":
+        print(
+            f"Run ./Meta/ladybird.py run test-web --rebaseline -f Screenshot/input/{Path(test_name).with_suffix('.html')} to generate the expected PNG"
+        )
 
 
 def main():

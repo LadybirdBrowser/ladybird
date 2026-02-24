@@ -641,7 +641,7 @@
                 tabs.push({ id: 'diff', label: 'Diff', file: `${test.name}.diff.html`, type: 'diff' });
                 tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
                 tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
-            } else if (test.mode === 'Ref') {
+            } else if (test.mode === 'Ref' || test.mode === 'Screenshot') {
                 tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, diff: `${test.name}.diff.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
             }
 
