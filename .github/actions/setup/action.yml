@@ -22,6 +22,10 @@ inputs:
     description: 'LLVM version to install'
     required: false
     default: '21'
+  type:
+    description: 'Whether the setup is for building or linting'
+    required: false
+    default: 'build'
 
 outputs:
   gcc_version:
@@ -43,9 +47,14 @@ runs:
       shell: bash
       run: |
         python3 -m pip install --upgrade pip
-        pip install pyyaml requests six
 
-    - name: 'Install Dependencies'
+        if ${{ inputs.type == 'build' }} ; then
+          pip3 install pyyaml requests six
+        else
+          pip3 install ruff
+        fi
+
+    - name: Install apt repositories
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
@@ -64,6 +73,13 @@ runs:
         fi
 
         sudo apt-get update -y
+
+    - name: Install Dependencies
+      if: ${{ inputs.os == 'Linux' && inputs.type == 'build' }}
+      shell: bash
+      run: |
+        set -e
+
         sudo apt-get install -y \
             autoconf \
             autoconf-archive \
@@ -105,6 +121,22 @@ runs:
         sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-${{ inputs.llvm_version }} 100
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ inputs.gcc_version }} 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${{ inputs.gcc_version }} 100
+
+    - name: Install Dependencies
+      if: ${{ inputs.os == 'Linux' && inputs.type == 'lint' }}
+      shell: bash
+      run: |
+        set -e
+
+        sudo apt-get install -y \
+            clang-format-${{ inputs.llvm_version }} \
+            generate-ninja \
+            optipng \
+            shellcheck
+
+        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-${{ inputs.llvm_version }} 100
+
+        sudo npm install -g prettier@3.8.1
 
     - name: Ensure clang-cl is available
       if: ${{ inputs.os == 'Windows' && inputs.toolchain == 'ClangCL' }}
@@ -153,6 +185,7 @@ runs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: 'Install wasm-tools'
+      if: ${{ inputs.type == 'build' }}
       shell: bash
       run: |
         VERSION=1.243.0
@@ -190,6 +223,7 @@ runs:
           core.exportVariable('VCPKG_FORCE_SYSTEM_BINARIES', '1')
 
     - name: 'Install vcpkg'
+      if: ${{ inputs.type == 'build' }}
       shell: bash
       run: ./Toolchain/BuildVcpkg.py
 

@@ -4,34 +4,20 @@ on: [ push, pull_request ]
 
 jobs:
   lint:
-    runs-on: macos-14
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     if: github.repository == 'LadybirdBrowser/ladybird'
 
     steps:
       - uses: actions/checkout@v6.0.2
 
       - name: Set Up Environment
-        shell: bash
-        run: |
-          set -e
-
-          brew install curl llvm@21 ninja optipng ruff shellcheck unzip
-
-          # Note: gn isn't available in homebrew :(
-          # Corresponds to https://gn.googlesource.com/gn/+/225e90c5025bf74f41dbee60d9cde4512c846fe7
-          curl -L -o gn-mac-arm64.zip "https://chrome-infra-packages.appspot.com/dl/gn/gn/mac-arm64/+/786UV5-XW0Bz6QnRFxKtnzTSVq0ta5AU1KXRJs-ZNwcC"
-          unzip gn-mac-arm64.zip -d ${{ github.workspace }}/bin
-          chmod +x ${{ github.workspace }}/bin/gn
-          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
-          echo -n "gn version: "
-          ${{ github.workspace}}/bin/gn --version
-
-      - name: Install JS Dependencies
-        shell: bash
-        run: npm install -g prettier@3.8.1
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup
+        id: 'setup'
+        with:
+          os: 'Linux'
+          arch: 'x86_64'
+          llvm_version: 21
+          type: 'lint'
 
       - name: Lint
         run: ${{ github.workspace }}/Meta/lint-ci.sh
