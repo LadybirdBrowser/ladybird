@@ -190,6 +190,14 @@ public:
         }
 
         kfree_sized(m_buckets, size_in_bytes(capacity()));
+
+        m_buckets = nullptr;
+
+        if constexpr (IsOrdered)
+            m_collection_data = { nullptr, nullptr };
+
+        m_size = 0;
+        m_mask = 0;
     }
 
     HashTable(HashTable const& other)
