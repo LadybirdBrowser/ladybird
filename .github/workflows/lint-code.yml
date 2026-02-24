@@ -30,5 +30,8 @@ jobs:
         shell: bash
         run: npm install -g prettier@3.8.1
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Lint
         run: ${{ github.workspace }}/Meta/lint-ci.sh

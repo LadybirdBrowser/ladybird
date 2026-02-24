@@ -52,4 +52,11 @@ else
     ((FAILURES+=1))
 fi
 
+if cargo fmt --check && git diff --exit-code -- ':*.rs'; then
+    echo -e "[${GREEN}OK${NC}]: cargo fmt --check"
+else
+    echo -e "[${BOLD_RED}FAIL${NC}]: cargo fmt --check"
+    ((FAILURES+=1))
+fi
+
 exit "${FAILURES}"
