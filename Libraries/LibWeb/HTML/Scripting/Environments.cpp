@@ -547,10 +547,9 @@ JS::Object& entry_global_object()
 bool is_secure_context(Environment const& environment)
 {
     // 1. If environment is an environment settings object, then:
-    if (is<EnvironmentSettingsObject>(environment)) {
+    if (auto const* environment_settings_object = as_if<EnvironmentSettingsObject>(environment)) {
         // 1. Let global be environment's global object.
-        // FIXME: Add a const global_object() getter to ESO
-        auto& global = static_cast<EnvironmentSettingsObject&>(const_cast<Environment&>(environment)).global_object();
+        auto const& global = environment_settings_object->global_object();
 
         // 2. If global is a WorkerGlobalScope, then:
         if (auto const* worker = as_if<WorkerGlobalScope>(global)) {

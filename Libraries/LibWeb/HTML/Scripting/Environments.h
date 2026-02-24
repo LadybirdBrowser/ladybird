@@ -119,6 +119,7 @@ public:
 
     JS::Realm& realm();
     JS::Object& global_object();
+    JS::Object const& global_object() const { return const_cast<EnvironmentSettingsObject*>(this)->global_object(); }
     EventLoop& responsible_event_loop();
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
