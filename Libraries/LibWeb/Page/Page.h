@@ -36,8 +36,6 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
-#include <LibWeb/HTML/HTMLCanvasElement.h>
-#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/WebViewHints.h>
@@ -252,22 +250,10 @@ private:
     GC::Ptr<HTML::HTMLMediaElement> media_context_menu_element();
 
     template<typename Callback>
-    void for_each_media_element(Callback&& callback)
-    {
-        for (auto media_id : m_media_elements) {
-            if (auto* node = DOM::Node::from_unique_id(media_id))
-                callback(as<HTML::HTMLMediaElement>(*node));
-        }
-    }
+    void for_each_media_element(Callback&& callback);
 
     template<typename Callback>
-    void for_each_canvas_element(Callback&& callback)
-    {
-        for (auto canvas_id : m_canvas_elements) {
-            if (auto* node = DOM::Node::from_unique_id(canvas_id))
-                callback(as<HTML::HTMLCanvasElement>(*node));
-        }
-    }
+    void for_each_canvas_element(Callback&& callback);
 
     Vector<GC::Root<DOM::Document>> documents_in_active_window() const;
 

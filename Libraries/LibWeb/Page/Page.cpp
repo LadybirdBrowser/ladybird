@@ -542,6 +542,15 @@ void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID 
     });
 }
 
+template<typename Callback>
+void Page::for_each_media_element(Callback&& callback)
+{
+    for (auto media_id : m_media_elements) {
+        if (auto* node = DOM::Node::from_unique_id(media_id))
+            callback(as<HTML::HTMLMediaElement>(*node));
+    }
+}
+
 void Page::update_all_media_element_video_sinks()
 {
     for_each_media_element([](auto& media_element) {
@@ -559,6 +568,15 @@ void Page::unregister_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeI
     m_canvas_elements.remove_all_matching([&](auto candidate_id) {
         return candidate_id == canvas_id;
     });
+}
+
+template<typename Callback>
+void Page::for_each_canvas_element(Callback&& callback)
+{
+    for (auto canvas_id : m_canvas_elements) {
+        if (auto* node = DOM::Node::from_unique_id(canvas_id))
+            callback(as<HTML::HTMLCanvasElement>(*node));
+    }
 }
 
 void Page::present_all_canvas_element_surfaces()
