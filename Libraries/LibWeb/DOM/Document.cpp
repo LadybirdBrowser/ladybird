@@ -4987,6 +4987,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
         if (PermissionsPolicy::AutoplayAllowlist::the().is_allowed_for_origin(*this, origin()) == PermissionsPolicy::Decision::Enabled)
             return true;
         break;
+    case PolicyControlledFeature::Camera:
+        // FIXME: Implement allowlist for this.
+        return true;
     case PolicyControlledFeature::FocusWithoutUserActivation:
     case PolicyControlledFeature::EncryptedMedia:
         // FIXME: Implement allowlist for this.
@@ -4995,6 +4998,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
         // FIXME: Implement allowlist for this.
         return true;
     case PolicyControlledFeature::Gamepad:
+        // FIXME: Implement allowlist for this.
+        return true;
+    case PolicyControlledFeature::Microphone:
         // FIXME: Implement allowlist for this.
         return true;
     case PolicyControlledFeature::WindowManagement:
