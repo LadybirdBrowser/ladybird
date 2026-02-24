@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-6 Pass
-6 Fail
-Fail	IDBIndex.get exception order: InvalidStateError vs. TransactionInactiveError
+12 Pass
+Pass	IDBIndex.get exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBIndex.get exception order: TransactionInactiveError vs. DataError
-Fail	IDBIndex.getAll exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBIndex.getAll exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBIndex.getAll exception order: TransactionInactiveError vs. DataError
-Fail	IDBIndex.getAllKeys exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBIndex.getAllKeys exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBIndex.getAllKeys exception order: TransactionInactiveError vs. DataError
-Fail	IDBIndex.count exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBIndex.count exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBIndex.count exception order: TransactionInactiveError vs. DataError
-Fail	IDBIndex.openCursor exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBIndex.openCursor exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBIndex.openCursor exception order: TransactionInactiveError vs. DataError
-Fail	IDBIndex.openKeyCursor exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBIndex.openKeyCursor exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBIndex.openKeyCursor exception order: TransactionInactiveError vs. DataError

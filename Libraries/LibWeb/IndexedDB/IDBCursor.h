@@ -53,6 +53,8 @@ public:
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> update(JS::Value);
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> delete_();
 
+    [[nodiscard]] bool is_source_or_object_store_deleted() const;
+
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }
     [[nodiscard]] GC::Ptr<Key> position() { return m_position; }
     [[nodiscard]] GC::Ptr<Key> object_store_position() { return m_object_store_position; }

@@ -42,6 +42,9 @@ public:
     bool uses_a_key_generator() const { return m_key_generator.has_value(); }
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
+    [[nodiscard]] bool is_deleted() const { return m_deleted; }
+    void set_deleted(bool deleted) { m_deleted = deleted; }
+
     GC::Ref<Database> database() const { return m_database; }
     ReadonlySpan<ObjectStoreRecord> records() const { return m_records; }
 
@@ -77,6 +80,8 @@ private:
 
     // An object store has a list of records
     Vector<ObjectStoreRecord> m_records;
+
+    bool m_deleted { false };
 };
 
 }

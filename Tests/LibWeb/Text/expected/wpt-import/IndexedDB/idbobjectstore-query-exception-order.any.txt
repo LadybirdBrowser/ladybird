@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-6 Pass
-6 Fail
-Fail	IDBObjectStore.get exception order: InvalidStateError vs. TransactionInactiveError
+12 Pass
+Pass	IDBObjectStore.get exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.get exception order: TransactionInactiveError vs. DataError
-Fail	IDBObjectStore.getAll exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBObjectStore.getAll exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.getAll exception order: TransactionInactiveError vs. DataError
-Fail	IDBObjectStore.getAllKeys exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBObjectStore.getAllKeys exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.getAllKeys exception order: TransactionInactiveError vs. DataError
-Fail	IDBObjectStore.count exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBObjectStore.count exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.count exception order: TransactionInactiveError vs. DataError
-Fail	IDBObjectStore.openCursor exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBObjectStore.openCursor exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.openCursor exception order: TransactionInactiveError vs. DataError
-Fail	IDBObjectStore.openKeyCursor exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBObjectStore.openKeyCursor exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.openKeyCursor exception order: TransactionInactiveError vs. DataError

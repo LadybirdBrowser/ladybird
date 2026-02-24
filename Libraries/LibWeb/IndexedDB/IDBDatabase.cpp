@@ -188,6 +188,11 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 
     // FIXME: 6. If there is an object store handle associated with store and transaction, remove all entries from its index set.
 
+    // AD-HOC: Mark the store and its indexes as deleted so that stale handles throw InvalidStateError.
+    store->set_deleted(true);
+    for (auto const& [_, index] : store->index_set())
+        index->set_deleted(true);
+
     // 7. Destroy store.
     database->remove_object_store(*store);
 

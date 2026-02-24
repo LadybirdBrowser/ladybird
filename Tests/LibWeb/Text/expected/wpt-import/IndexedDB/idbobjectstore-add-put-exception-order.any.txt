@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-4 Pass
-2 Fail
-Fail	IDBObjectStore.put exception order: InvalidStateError vs. TransactionInactiveError
+6 Pass
+Pass	IDBObjectStore.put exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.put exception order: TransactionInactiveError vs. ReadOnlyError
 Pass	IDBObjectStore.put exception order: ReadOnlyError vs. DataError
-Fail	IDBObjectStore.add exception order: InvalidStateError vs. TransactionInactiveError
+Pass	IDBObjectStore.add exception order: InvalidStateError vs. TransactionInactiveError
 Pass	IDBObjectStore.add exception order: TransactionInactiveError vs. ReadOnlyError
 Pass	IDBObjectStore.add exception order: ReadOnlyError vs. DataError

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	IndexedDB deleted index rename throws
+Pass	IndexedDB index rename throws in a readonly transaction
+Pass	IndexedDB index rename throws in a readwrite transaction
+Pass	IndexedDB index rename throws in an inactive transaction
+Pass	IndexedDB index rename to the name of another index throws
+Pass	IndexedDB index rename handles exceptions when stringifying names
