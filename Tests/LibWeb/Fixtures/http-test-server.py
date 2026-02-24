@@ -9,7 +9,6 @@ import socketserver
 import sys
 import time
 
-from collections import defaultdict
 from typing import Dict
 from typing import Optional
 
@@ -33,12 +32,29 @@ class Echo:
     reason_phrase: Optional[str]
     reflect_headers_in_body: bool
 
+    def __eq__(self, other):
+        if not isinstance(other, Echo):
+            return NotImplemented
+
+        return (
+            self.method == other.method
+            and self.path == other.path
+            and self.status == other.status
+            and self.body == other.body
+            and self.delay_ms == other.delay_ms
+            and self.headers == other.headers
+            and self.reason_phrase == other.reason_phrase
+            and self.reflect_headers_in_body == other.reflect_headers_in_body
+        )
+
 
 # In-memory store for echo responses
 echo_store: Dict[str, Echo] = {}
 
 
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    static_directory: str
+
     def __init__(self, *arguments, **kwargs):
         super().__init__(*arguments, directory=self.static_directory, **kwargs)
 
@@ -103,10 +119,16 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # Return 409: Conflict if the method+path combination already exists
             key = f"{echo.method} {echo.path}"
-            if key in echo_store:
+            if key in echo_store and echo_store[key] != echo:
                 self.send_response(409)
                 self.send_header("Content-Type", "text/plain")
                 self.end_headers()
+                message = (
+                    "Echo already exists for method+path, but with a different definition.\n"
+                    f"key: {key}\n"
+                    "Hint: Use a unique path per test run (or keep the same definition).\n"
+                )
+                self.wfile.write(message.encode("utf-8"))
                 return
 
             echo_store[key] = echo
@@ -201,7 +223,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
             if echo.reflect_headers_in_body:
-                headers = defaultdict(list)
+                headers = {}
                 for key in self.headers.keys():
                     headers[key] = self.headers.get_all(key)
                 headers = json.dumps(headers)
