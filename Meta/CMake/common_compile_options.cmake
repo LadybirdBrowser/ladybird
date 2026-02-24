@@ -179,3 +179,4 @@ elseif (MSVC)
 endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/sanitizers.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/tracy.cmake)

@@ -20,6 +20,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
+#include <AK/Tracy.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
@@ -1459,6 +1460,7 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
 
 void Document::update_layout(UpdateLayoutReason reason)
 {
+    TRACY_ZONE_SCOPED_NAMED("Document::update_layout");
     auto navigable = this->navigable();
     if (!navigable || navigable->active_document() != this)
         return;

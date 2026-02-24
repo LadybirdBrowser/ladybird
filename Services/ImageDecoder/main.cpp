@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Tracy.h>
 #include <ImageDecoder/ConnectionFromClient.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
@@ -19,6 +20,7 @@
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+    TRACY_SET_PROGRAM_NAME("ImageDecoder");
     AK::set_rich_debug_enabled(true);
 
     Core::ArgsParser args_parser;

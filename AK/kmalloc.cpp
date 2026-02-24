@@ -5,9 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Tracy.h>
 #include <AK/kmalloc.h>
 
-#if defined(AK_OS_SERENITY)
+#if defined(TRACY_ENABLE_MEMORY)
 
 #    include <AK/Assertions.h>
 
@@ -20,21 +21,26 @@ void* operator new(size_t size)
 {
     void* ptr = malloc(size);
     VERIFY(ptr);
+    TRACY_ALLOCATED_MEMORY(ptr, size);
     return ptr;
 }
 
 void* operator new(size_t size, std::nothrow_t const&) noexcept
 {
-    return malloc(size);
+    auto* ptr = malloc(size);
+    TRACY_ALLOCATED_MEMORY(ptr, size);
+    return ptr;
 }
 
 void operator delete(void* ptr) noexcept
 {
+    TRACY_FREED_MEMORY(ptr);
     return free(ptr);
 }
 
 void operator delete(void* ptr, size_t) noexcept
 {
+    TRACY_FREED_MEMORY(ptr);
     return free(ptr);
 }
 
@@ -42,30 +48,27 @@ void* operator new[](size_t size)
 {
     void* ptr = malloc(size);
     VERIFY(ptr);
+    TRACY_ALLOCATED_MEMORY(ptr, size);
     return ptr;
 }
 
 void* operator new[](size_t size, std::nothrow_t const&) noexcept
 {
-    return malloc(size);
+    auto* ptr = malloc(size);
+    TRACY_ALLOCATED_MEMORY(ptr, size);
+    return ptr;
 }
 
 void operator delete[](void* ptr) noexcept
 {
+    TRACY_FREED_MEMORY(ptr);
     return free(ptr);
 }
 
 void operator delete[](void* ptr, size_t) noexcept
 {
+    TRACY_FREED_MEMORY(ptr);
     return free(ptr);
-}
-
-// This is usually provided by libstdc++ in most cases, and the kernel has its own definition in
-// Kernel/Heap/kmalloc.cpp. If neither of those apply, the following should suffice to not fail during linking.
-namespace AK_REPLACED_STD_NAMESPACE {
-
-nothrow_t const nothrow;
-
 }
 
 #endif
