@@ -160,7 +160,11 @@ impl FunctionTable {
                     self.collect_from_statement(child, result);
                 }
             }
-            StatementKind::If { test, consequent, alternate } => {
+            StatementKind::If {
+                test,
+                consequent,
+                alternate,
+            } => {
                 self.collect_from_expression(test, result);
                 self.collect_from_statement(consequent, result);
                 if let Some(alt) = alternate {
@@ -175,15 +179,24 @@ impl FunctionTable {
                 self.collect_from_statement(body, result);
                 self.collect_from_expression(test, result);
             }
-            StatementKind::For { init, test, update, body } => {
+            StatementKind::For {
+                init,
+                test,
+                update,
+                body,
+            } => {
                 if let Some(init) = init {
                     match init {
                         ForInit::Expression(expr) => self.collect_from_expression(expr, result),
                         ForInit::Declaration(decl) => self.collect_from_statement(decl, result),
                     }
                 }
-                if let Some(test) = test { self.collect_from_expression(test, result); }
-                if let Some(update) = update { self.collect_from_expression(update, result); }
+                if let Some(test) = test {
+                    self.collect_from_expression(test, result);
+                }
+                if let Some(update) = update {
+                    self.collect_from_expression(update, result);
+                }
                 self.collect_from_statement(body, result);
             }
             StatementKind::ForInOf { lhs, rhs, body, .. } => {
@@ -214,7 +227,9 @@ impl FunctionTable {
                 self.collect_from_statement(item, result);
             }
             StatementKind::Return(arg) => {
-                if let Some(expr) = arg { self.collect_from_expression(expr, result); }
+                if let Some(expr) = arg {
+                    self.collect_from_expression(expr, result);
+                }
             }
             StatementKind::Throw(expr) => {
                 self.collect_from_expression(expr, result);
@@ -276,8 +291,7 @@ impl FunctionTable {
             ExpressionKind::Class(class_data) => {
                 self.collect_from_class(class_data, result);
             }
-            ExpressionKind::Binary { lhs, rhs, .. }
-            | ExpressionKind::Logical { lhs, rhs, .. } => {
+            ExpressionKind::Binary { lhs, rhs, .. } | ExpressionKind::Logical { lhs, rhs, .. } => {
                 self.collect_from_expression(lhs, result);
                 self.collect_from_expression(rhs, result);
             }
@@ -294,15 +308,23 @@ impl FunctionTable {
                 }
                 self.collect_from_expression(rhs, result);
             }
-            ExpressionKind::Conditional { test, consequent, alternate } => {
+            ExpressionKind::Conditional {
+                test,
+                consequent,
+                alternate,
+            } => {
                 self.collect_from_expression(test, result);
                 self.collect_from_expression(consequent, result);
                 self.collect_from_expression(alternate, result);
             }
             ExpressionKind::Sequence(exprs) => {
-                for expr in exprs { self.collect_from_expression(expr, result); }
+                for expr in exprs {
+                    self.collect_from_expression(expr, result);
+                }
             }
-            ExpressionKind::Member { object, property, .. } => {
+            ExpressionKind::Member {
+                object, property, ..
+            } => {
                 self.collect_from_expression(object, result);
                 self.collect_from_expression(property, result);
             }
@@ -311,7 +333,9 @@ impl FunctionTable {
                 for reference in references {
                     match reference {
                         OptionalChainReference::Call { arguments, .. } => {
-                            for arg in arguments { self.collect_from_expression(&arg.value, result); }
+                            for arg in arguments {
+                                self.collect_from_expression(&arg.value, result);
+                            }
                         }
                         OptionalChainReference::ComputedReference { expression, .. } => {
                             self.collect_from_expression(expression, result);
@@ -323,10 +347,14 @@ impl FunctionTable {
             }
             ExpressionKind::Call(data) | ExpressionKind::New(data) => {
                 self.collect_from_expression(&data.callee, result);
-                for arg in &data.arguments { self.collect_from_expression(&arg.value, result); }
+                for arg in &data.arguments {
+                    self.collect_from_expression(&arg.value, result);
+                }
             }
             ExpressionKind::SuperCall(data) => {
-                for arg in &data.arguments { self.collect_from_expression(&arg.value, result); }
+                for arg in &data.arguments {
+                    self.collect_from_expression(&arg.value, result);
+                }
             }
             ExpressionKind::Spread(expr) | ExpressionKind::Await(expr) => {
                 self.collect_from_expression(expr, result);
@@ -345,18 +373,27 @@ impl FunctionTable {
                 }
             }
             ExpressionKind::TemplateLiteral(data) => {
-                for expr in &data.expressions { self.collect_from_expression(expr, result); }
+                for expr in &data.expressions {
+                    self.collect_from_expression(expr, result);
+                }
             }
-            ExpressionKind::TaggedTemplateLiteral { tag, template_literal } => {
+            ExpressionKind::TaggedTemplateLiteral {
+                tag,
+                template_literal,
+            } => {
                 self.collect_from_expression(tag, result);
                 self.collect_from_expression(template_literal, result);
             }
             ExpressionKind::Yield { argument, .. } => {
-                if let Some(expr) = argument { self.collect_from_expression(expr, result); }
+                if let Some(expr) = argument {
+                    self.collect_from_expression(expr, result);
+                }
             }
             ExpressionKind::ImportCall { specifier, options } => {
                 self.collect_from_expression(specifier, result);
-                if let Some(opts) = options { self.collect_from_expression(opts, result); }
+                if let Some(opts) = options {
+                    self.collect_from_expression(opts, result);
+                }
             }
             ExpressionKind::NumericLiteral(_)
             | ExpressionKind::StringLiteral(_)
@@ -386,7 +423,9 @@ impl FunctionTable {
                     self.collect_from_expression(key, result);
                     self.collect_from_expression(function, result);
                 }
-                ClassElement::Field { key, initializer, .. } => {
+                ClassElement::Field {
+                    key, initializer, ..
+                } => {
                     self.collect_from_expression(key, result);
                     if let Some(init) = initializer {
                         self.collect_from_expression(init, result);
@@ -406,8 +445,12 @@ impl FunctionTable {
             }
             if let Some(ref alias) = entry.alias {
                 match alias {
-                    BindingEntryAlias::BindingPattern(sub) => self.collect_from_pattern(sub, result),
-                    BindingEntryAlias::MemberExpression(expr) => self.collect_from_expression(expr, result),
+                    BindingEntryAlias::BindingPattern(sub) => {
+                        self.collect_from_pattern(sub, result)
+                    }
+                    BindingEntryAlias::MemberExpression(expr) => {
+                        self.collect_from_expression(expr, result)
+                    }
                     BindingEntryAlias::Identifier(_) => {}
                 }
             }
@@ -417,7 +460,11 @@ impl FunctionTable {
         }
     }
 
-    fn collect_from_target(&mut self, target: &VariableDeclaratorTarget, result: &mut FunctionTable) {
+    fn collect_from_target(
+        &mut self,
+        target: &VariableDeclaratorTarget,
+        result: &mut FunctionTable,
+    ) {
         if let VariableDeclaratorTarget::BindingPattern(pat) = target {
             self.collect_from_pattern(pat, result);
         }

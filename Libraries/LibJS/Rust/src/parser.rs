@@ -38,7 +38,7 @@ use std::rc::Rc;
 
 use crate::ast::{
     BindingPattern, Expression, ExpressionKind, FunctionParameter, FunctionTable, Identifier,
-    PrivateIdentifier, SourceRange, Statement, StatementKind, ScopeData, ProgramData, Utf16String,
+    PrivateIdentifier, ProgramData, ScopeData, SourceRange, Statement, StatementKind, Utf16String,
 };
 use crate::lexer::{ch, Lexer};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -48,11 +48,11 @@ mod declarations;
 mod expressions;
 mod statements;
 
-pub use crate::ast::Position;
 pub use crate::ast::DeclarationKind;
 pub use crate::ast::FunctionKind;
-pub use crate::ast::ProgramType;
 pub use crate::ast::FunctionParsingInsights;
+pub use crate::ast::Position;
+pub use crate::ast::ProgramType;
 
 // Named precedence levels for parse_expression().
 // These correspond to the operator precedence table in ECMA-262.
@@ -126,7 +126,10 @@ impl ForbiddenTokens {
     }
 
     pub fn with_in() -> Self {
-        Self { forbid_in: true, ..Self::default() }
+        Self {
+            forbid_in: true,
+            ..Self::default()
+        }
     }
 
     pub fn allows(&self, token: TokenType) -> bool {
@@ -147,7 +150,8 @@ impl ForbiddenTokens {
             forbid_logical: self.forbid_logical || other.forbid_logical,
             forbid_coalesce: self.forbid_coalesce || other.forbid_coalesce,
             forbid_paren_open: self.forbid_paren_open || other.forbid_paren_open,
-            forbid_question_mark_period: self.forbid_question_mark_period || other.forbid_question_mark_period,
+            forbid_question_mark_period: self.forbid_question_mark_period
+                || other.forbid_question_mark_period,
             forbid_equals: self.forbid_equals || other.forbid_equals,
         }
     }
@@ -287,7 +291,11 @@ impl<'a> Parser<'a> {
         Self::new_with_line_offset(source, program_type, 1)
     }
 
-    pub fn new_with_line_offset(source: &'a [u16], program_type: ProgramType, initial_line_number: u32) -> Self {
+    pub fn new_with_line_offset(
+        source: &'a [u16],
+        program_type: ProgramType,
+        initial_line_number: u32,
+    ) -> Self {
         let mut lexer = Lexer::new(source, initial_line_number, 0);
         if program_type == ProgramType::Module {
             lexer.disallow_html_comments();
@@ -327,7 +335,10 @@ impl<'a> Parser<'a> {
     // === AST construction helpers ===
 
     pub(crate) fn range_from(&self, start: Position) -> SourceRange {
-        SourceRange { start, end: self.position() }
+        SourceRange {
+            start,
+            end: self.position(),
+        }
     }
 
     pub(crate) fn expression(&self, start: Position, expression: ExpressionKind) -> Expression {
@@ -338,7 +349,11 @@ impl<'a> Parser<'a> {
         Statement::new(self.range_from(start), statement)
     }
 
-    pub(crate) fn make_identifier(&self, start: Position, name: impl Into<Utf16String>) -> Rc<Identifier> {
+    pub(crate) fn make_identifier(
+        &self,
+        start: Position,
+        name: impl Into<Utf16String>,
+    ) -> Rc<Identifier> {
         Rc::new(Identifier::new(self.range_from(start), name.into()))
     }
 
@@ -365,7 +380,13 @@ impl<'a> Parser<'a> {
                     } else {
                         (id.name.clone(), parameter.is_rest, false)
                     };
-                    entries.push(ParameterEntry { name, identifier: Some(id.clone()), is_rest, is_from_pattern, is_first_from_pattern: false });
+                    entries.push(ParameterEntry {
+                        name,
+                        identifier: Some(id.clone()),
+                        is_rest,
+                        is_from_pattern,
+                        is_first_from_pattern: false,
+                    });
                 }
                 FunctionParameterBinding::BindingPattern(pattern) => {
                     if pattern.contains_expression() {
@@ -373,17 +394,32 @@ impl<'a> Parser<'a> {
                     }
                     // Push a placeholder entry for the pattern parameter itself
                     // so subsequent parameters get correct positional indices.
-                    entries.push(ParameterEntry { name: Utf16String::default(), identifier: None, is_rest: false, is_from_pattern: true, is_first_from_pattern: true });
+                    entries.push(ParameterEntry {
+                        name: Utf16String::default(),
+                        identifier: None,
+                        is_rest: false,
+                        is_from_pattern: true,
+                        is_first_from_pattern: true,
+                    });
                     // Then push bound names from this pattern.
-                    while info_index < parameter_info.len() && parameter_info[info_index].is_from_pattern {
+                    while info_index < parameter_info.len()
+                        && parameter_info[info_index].is_from_pattern
+                    {
                         let pi = &parameter_info[info_index];
-                        entries.push(ParameterEntry { name: pi.name.clone(), identifier: pi.identifier.clone(), is_rest: pi.is_rest, is_from_pattern: true, is_first_from_pattern: false });
+                        entries.push(ParameterEntry {
+                            name: pi.name.clone(),
+                            identifier: pi.identifier.clone(),
+                            is_rest: pi.is_rest,
+                            is_from_pattern: true,
+                            is_first_from_pattern: false,
+                        });
                         info_index += 1;
                     }
                 }
             }
         }
-        self.scope_collector.set_function_parameters(&entries, has_parameter_expressions);
+        self.scope_collector
+            .set_function_parameters(&entries, has_parameter_expressions);
     }
 
     // === Token access ===
@@ -456,7 +492,11 @@ impl<'a> Parser<'a> {
             } else {
                 let start = token.value_start as usize;
                 let end = start + token.value_len as usize;
-                if end <= self.source.len() { &self.source[start..end] } else { &[] }
+                if end <= self.source.len() {
+                    &self.source[start..end]
+                } else {
+                    &[]
+                }
             };
             if value == utf16!("arguments") {
                 if self.flags.in_class_field_initializer {
@@ -488,8 +528,10 @@ impl<'a> Parser<'a> {
             // https://tc39.es/ecma262/#sec-additional-syntax-numeric-literals
             // In strict mode, legacy octal literals (0-prefixed) are not permitted.
             let value = self.token_value(&token);
-            if value.len() > 1 && value[0] == ch(b'0')
-                && value[1] >= ch(b'0') && value[1] <= ch(b'9')
+            if value.len() > 1
+                && value[0] == ch(b'0')
+                && value[1] >= ch(b'0')
+                && value[1] <= ch(b'9')
             {
                 self.syntax_error("Unprefixed octal number not allowed in strict mode");
             }
@@ -614,7 +656,11 @@ impl<'a> Parser<'a> {
 
     /// Compile a regex pattern+flags and return the opaque compiled handle.
     /// On error, reports a syntax error and returns null.
-    pub(crate) fn compile_regex_pattern(&mut self, pattern: &[u16], flags: &[u16]) -> *mut std::ffi::c_void {
+    pub(crate) fn compile_regex_pattern(
+        &mut self,
+        pattern: &[u16],
+        flags: &[u16],
+    ) -> *mut std::ffi::c_void {
         match crate::bytecode::ffi::compile_regex(pattern, flags) {
             Ok(handle) => handle,
             Err(msg) => {
@@ -625,15 +671,30 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn validate_regex_flags(&mut self, flags: &[u16]) {
-        let valid_flags: &[u16] = &[ch(b'd'), ch(b'g'), ch(b'i'), ch(b'm'), ch(b's'), ch(b'u'), ch(b'v'), ch(b'y')];
+        let valid_flags: &[u16] = &[
+            ch(b'd'),
+            ch(b'g'),
+            ch(b'i'),
+            ch(b'm'),
+            ch(b's'),
+            ch(b'u'),
+            ch(b'v'),
+            ch(b'y'),
+        ];
         let mut seen = [false; 128];
         for &flag in flags {
             if flag >= 128 || !valid_flags.contains(&flag) {
-                self.syntax_error(&format!("Invalid RegExp flag '{}'", char::from_u32(flag as u32).unwrap_or('?')));
+                self.syntax_error(&format!(
+                    "Invalid RegExp flag '{}'",
+                    char::from_u32(flag as u32).unwrap_or('?')
+                ));
                 return;
             }
             if seen[flag as usize] {
-                self.syntax_error(&format!("Repeated RegExp flag '{}'", char::from_u32(flag as u32).unwrap_or('?')));
+                self.syntax_error(&format!(
+                    "Repeated RegExp flag '{}'",
+                    char::from_u32(flag as u32).unwrap_or('?')
+                ));
                 return;
             }
             seen[flag as usize] = true;
@@ -692,14 +753,18 @@ impl<'a> Parser<'a> {
         tt == TokenType::Identifier
             || (tt == TokenType::EscapedKeyword && !self.match_invalid_escaped_keyword())
             || (tt == TokenType::Let && !self.flags.strict_mode)
-            || (tt == TokenType::Yield && !self.flags.strict_mode && !self.flags.in_generator_function_context)
-            || (tt == TokenType::Await && !self.flags.await_expression_is_valid && self.program_type != ProgramType::Module && !self.flags.in_class_static_init_block)
+            || (tt == TokenType::Yield
+                && !self.flags.strict_mode
+                && !self.flags.in_generator_function_context)
+            || (tt == TokenType::Await
+                && !self.flags.await_expression_is_valid
+                && self.program_type != ProgramType::Module
+                && !self.flags.in_class_static_init_block)
             || tt == TokenType::Async
     }
 
     pub(crate) fn match_identifier_name(&self) -> bool {
-        self.current_token.token_type.is_identifier_name()
-            || self.match_identifier()
+        self.current_token.token_type.is_identifier_name() || self.match_identifier()
     }
 
     pub(crate) fn match_invalid_escaped_keyword(&self) -> bool {
@@ -708,7 +773,9 @@ impl<'a> Parser<'a> {
         }
         let value = self.token_value(&self.current_token);
         if value == utf16!("await") {
-            return self.program_type == ProgramType::Module || self.flags.await_expression_is_valid || self.flags.in_class_static_init_block;
+            return self.program_type == ProgramType::Module
+                || self.flags.await_expression_is_valid
+                || self.flags.in_class_static_init_block;
         }
         if value == utf16!("async") {
             return false;
@@ -725,13 +792,22 @@ impl<'a> Parser<'a> {
         value != utf16!("let") && value != utf16!("static")
     }
 
-    pub(crate) fn check_identifier_name_for_assignment_validity(&mut self, name: &[u16], force_strict: bool) {
+    pub(crate) fn check_identifier_name_for_assignment_validity(
+        &mut self,
+        name: &[u16],
+        force_strict: bool,
+    ) {
         if self.flags.strict_mode || force_strict {
             if name == utf16!("arguments") || name == utf16!("eval") {
-                self.syntax_error("Binding pattern target may not be called 'arguments' or 'eval' in strict mode");
+                self.syntax_error(
+                    "Binding pattern target may not be called 'arguments' or 'eval' in strict mode",
+                );
             } else if is_strict_reserved_word(name) {
                 let name_str = String::from_utf16_lossy(name);
-                self.syntax_error(&format!("Identifier must not be a reserved word in strict mode ('{}')", name_str));
+                self.syntax_error(&format!(
+                    "Identifier must not be a reserved word in strict mode ('{}')",
+                    name_str
+                ));
             }
         }
     }
@@ -838,10 +914,13 @@ impl<'a> Parser<'a> {
         Some(pattern)
     }
 
-    pub(crate) fn is_simple_assignment_target(expression: &Expression, allow_call_expression: bool) -> bool {
-        matches!(&expression.inner,
-            ExpressionKind::Identifier(_)
-            | ExpressionKind::Member { .. }
+    pub(crate) fn is_simple_assignment_target(
+        expression: &Expression,
+        allow_call_expression: bool,
+    ) -> bool {
+        matches!(
+            &expression.inner,
+            ExpressionKind::Identifier(_) | ExpressionKind::Member { .. }
         ) || (allow_call_expression && matches!(&expression.inner, ExpressionKind::Call(_)))
     }
 
@@ -881,23 +960,29 @@ impl<'a> Parser<'a> {
             // Now close it after children are set.
             self.scope_collector.set_scope_node(scope.clone());
             self.scope_collector.close_scope();
-            self.statement(start, StatementKind::Program(ProgramData {
-                scope,
-                program_type: ProgramType::Script,
-                is_strict_mode: is_strict,
-                has_top_level_await: false,
-            }))
+            self.statement(
+                start,
+                StatementKind::Program(ProgramData {
+                    scope,
+                    program_type: ProgramType::Script,
+                    is_strict_mode: is_strict,
+                    has_top_level_await: false,
+                }),
+            )
         } else {
             let (children, has_top_level_await) = self.parse_module();
             let scope = ScopeData::shared_with_children(children);
             self.scope_collector.set_scope_node(scope.clone());
             self.scope_collector.close_scope();
-            self.statement(start, StatementKind::Program(ProgramData {
-                scope,
-                program_type: ProgramType::Module,
-                is_strict_mode: true,
-                has_top_level_await,
-            }))
+            self.statement(
+                start,
+                StatementKind::Program(ProgramData {
+                    scope,
+                    program_type: ProgramType::Module,
+                    is_strict_mode: true,
+                    has_top_level_await,
+                }),
+            )
         }
     }
 
@@ -984,7 +1069,10 @@ impl<'a> Parser<'a> {
                         collect_binding_names(&decl.target, &mut declared_names);
                     }
                 }
-                StatementKind::FunctionDeclaration { name: Some(ref name), .. } => {
+                StatementKind::FunctionDeclaration {
+                    name: Some(ref name),
+                    ..
+                } => {
                     declared_names.insert(name.name.clone());
                 }
                 StatementKind::ClassDeclaration(data) => {
@@ -1005,7 +1093,10 @@ impl<'a> Parser<'a> {
                                     collect_binding_names(&decl.target, &mut declared_names);
                                 }
                             }
-                            StatementKind::FunctionDeclaration { name: Some(ref name), .. } => {
+                            StatementKind::FunctionDeclaration {
+                                name: Some(ref name),
+                                ..
+                            } => {
                                 declared_names.insert(name.name.clone());
                             }
                             StatementKind::ClassDeclaration(class_data) => {
@@ -1066,7 +1157,9 @@ impl<'a> Parser<'a> {
             if is_use_strict(raw_value) {
                 found_use_strict = true;
                 if self.flags.string_legacy_octal_escape_sequence_in_scope {
-                    self.syntax_error("Octal escape sequence in string literal not allowed in strict mode");
+                    self.syntax_error(
+                        "Octal escape sequence in string literal not allowed in strict mode",
+                    );
                 }
                 break;
             }
@@ -1075,7 +1168,10 @@ impl<'a> Parser<'a> {
         (found_use_strict, statements)
     }
 
-    pub(crate) fn parse_statement_list(&mut self, allow_labelled_functions: bool) -> Vec<Statement> {
+    pub(crate) fn parse_statement_list(
+        &mut self,
+        allow_labelled_functions: bool,
+    ) -> Vec<Statement> {
         let mut statements = Vec::new();
         while !self.done() {
             if self.match_export_or_import() {
@@ -1153,8 +1249,10 @@ impl<'a> Parser<'a> {
     }
 
     fn match_iteration_start(&self) -> bool {
-        matches!(self.current_token_type(),
-            TokenType::For | TokenType::While | TokenType::Do)
+        matches!(
+            self.current_token_type(),
+            TokenType::For | TokenType::While | TokenType::Do
+        )
     }
 
     pub(crate) fn match_export_or_import(&mut self) -> bool {
@@ -1163,8 +1261,7 @@ impl<'a> Parser<'a> {
         }
         if self.match_token(TokenType::Import) {
             let next = self.next_token();
-            return next.token_type != TokenType::ParenOpen
-                && next.token_type != TokenType::Period;
+            return next.token_type != TokenType::ParenOpen && next.token_type != TokenType::Period;
         }
         false
     }
@@ -1173,16 +1270,32 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn operator_precedence(tt: TokenType) -> i32 {
         match tt {
-            TokenType::Period | TokenType::BracketOpen | TokenType::ParenOpen | TokenType::QuestionMarkPeriod => 20,
+            TokenType::Period
+            | TokenType::BracketOpen
+            | TokenType::ParenOpen
+            | TokenType::QuestionMarkPeriod => 20,
             TokenType::New => 19,
             TokenType::PlusPlus | TokenType::MinusMinus => 18,
-            TokenType::ExclamationMark | TokenType::Tilde | TokenType::Typeof | TokenType::Void | TokenType::Delete | TokenType::Await => 17,
+            TokenType::ExclamationMark
+            | TokenType::Tilde
+            | TokenType::Typeof
+            | TokenType::Void
+            | TokenType::Delete
+            | TokenType::Await => 17,
             TokenType::DoubleAsterisk => 16,
             TokenType::Asterisk | TokenType::Slash | TokenType::Percent => 15,
             TokenType::Plus | TokenType::Minus => 14,
             TokenType::ShiftLeft | TokenType::ShiftRight | TokenType::UnsignedShiftRight => 13,
-            TokenType::LessThan | TokenType::LessThanEquals | TokenType::GreaterThan | TokenType::GreaterThanEquals | TokenType::In | TokenType::Instanceof => 12,
-            TokenType::EqualsEquals | TokenType::ExclamationMarkEquals | TokenType::EqualsEqualsEquals | TokenType::ExclamationMarkEqualsEquals => 11,
+            TokenType::LessThan
+            | TokenType::LessThanEquals
+            | TokenType::GreaterThan
+            | TokenType::GreaterThanEquals
+            | TokenType::In
+            | TokenType::Instanceof => 12,
+            TokenType::EqualsEquals
+            | TokenType::ExclamationMarkEquals
+            | TokenType::EqualsEqualsEquals
+            | TokenType::ExclamationMarkEqualsEquals => 11,
             TokenType::Ampersand => 10,
             TokenType::Caret => 9,
             TokenType::Pipe => 8,
@@ -1190,11 +1303,21 @@ impl<'a> Parser<'a> {
             TokenType::DoubleAmpersand => 6,
             TokenType::DoublePipe => 5,
             TokenType::QuestionMark => 4,
-            TokenType::Equals | TokenType::PlusEquals | TokenType::MinusEquals
-            | TokenType::DoubleAsteriskEquals | TokenType::AsteriskEquals | TokenType::SlashEquals
-            | TokenType::PercentEquals | TokenType::ShiftLeftEquals | TokenType::ShiftRightEquals
-            | TokenType::UnsignedShiftRightEquals | TokenType::AmpersandEquals | TokenType::CaretEquals
-            | TokenType::PipeEquals | TokenType::DoubleAmpersandEquals | TokenType::DoublePipeEquals
+            TokenType::Equals
+            | TokenType::PlusEquals
+            | TokenType::MinusEquals
+            | TokenType::DoubleAsteriskEquals
+            | TokenType::AsteriskEquals
+            | TokenType::SlashEquals
+            | TokenType::PercentEquals
+            | TokenType::ShiftLeftEquals
+            | TokenType::ShiftRightEquals
+            | TokenType::UnsignedShiftRightEquals
+            | TokenType::AmpersandEquals
+            | TokenType::CaretEquals
+            | TokenType::PipeEquals
+            | TokenType::DoubleAmpersandEquals
+            | TokenType::DoublePipeEquals
             | TokenType::DoubleQuestionMarkEquals => 3,
             TokenType::Yield => 2,
             TokenType::Comma => 1,
@@ -1204,16 +1327,38 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn operator_associativity(tt: TokenType) -> Associativity {
         match tt {
-            TokenType::Period | TokenType::BracketOpen | TokenType::ParenOpen | TokenType::QuestionMarkPeriod
-            | TokenType::Asterisk | TokenType::Slash | TokenType::Percent
-            | TokenType::Plus | TokenType::Minus
-            | TokenType::ShiftLeft | TokenType::ShiftRight | TokenType::UnsignedShiftRight
-            | TokenType::LessThan | TokenType::LessThanEquals | TokenType::GreaterThan | TokenType::GreaterThanEquals
-            | TokenType::In | TokenType::Instanceof
-            | TokenType::EqualsEquals | TokenType::ExclamationMarkEquals | TokenType::EqualsEqualsEquals | TokenType::ExclamationMarkEqualsEquals
-            | TokenType::Typeof | TokenType::Void | TokenType::Delete | TokenType::Await
-            | TokenType::Ampersand | TokenType::Caret | TokenType::Pipe
-            | TokenType::DoubleQuestionMark | TokenType::DoubleAmpersand | TokenType::DoublePipe
+            TokenType::Period
+            | TokenType::BracketOpen
+            | TokenType::ParenOpen
+            | TokenType::QuestionMarkPeriod
+            | TokenType::Asterisk
+            | TokenType::Slash
+            | TokenType::Percent
+            | TokenType::Plus
+            | TokenType::Minus
+            | TokenType::ShiftLeft
+            | TokenType::ShiftRight
+            | TokenType::UnsignedShiftRight
+            | TokenType::LessThan
+            | TokenType::LessThanEquals
+            | TokenType::GreaterThan
+            | TokenType::GreaterThanEquals
+            | TokenType::In
+            | TokenType::Instanceof
+            | TokenType::EqualsEquals
+            | TokenType::ExclamationMarkEquals
+            | TokenType::EqualsEqualsEquals
+            | TokenType::ExclamationMarkEqualsEquals
+            | TokenType::Typeof
+            | TokenType::Void
+            | TokenType::Delete
+            | TokenType::Await
+            | TokenType::Ampersand
+            | TokenType::Caret
+            | TokenType::Pipe
+            | TokenType::DoubleQuestionMark
+            | TokenType::DoubleAmpersand
+            | TokenType::DoublePipe
             | TokenType::Comma => Associativity::Left,
             _ => Associativity::Right,
         }
@@ -1227,7 +1372,10 @@ fn is_use_strict(raw: &[u16]) -> bool {
 }
 
 /// Collect all binding names introduced by a variable declarator target.
-fn collect_binding_names(target: &crate::ast::VariableDeclaratorTarget, names: &mut HashSet<Utf16String>) {
+fn collect_binding_names(
+    target: &crate::ast::VariableDeclaratorTarget,
+    names: &mut HashSet<Utf16String>,
+) {
     match target {
         crate::ast::VariableDeclaratorTarget::Identifier(identifier) => {
             names.insert(identifier.name.clone());
@@ -1239,7 +1387,10 @@ fn collect_binding_names(target: &crate::ast::VariableDeclaratorTarget, names: &
 }
 
 /// Collect all binding names from a binding pattern (object or array destructuring).
-fn collect_binding_pattern_names(pattern: &crate::ast::BindingPattern, names: &mut HashSet<Utf16String>) {
+fn collect_binding_pattern_names(
+    pattern: &crate::ast::BindingPattern,
+    names: &mut HashSet<Utf16String>,
+) {
     for entry in &pattern.entries {
         if let Some(ref alias) = entry.alias {
             match alias {

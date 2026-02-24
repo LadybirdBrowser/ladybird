@@ -44,7 +44,9 @@ impl std::fmt::Debug for ScopedOperandInner {
 impl Drop for ScopedOperandInner {
     fn drop(&mut self) {
         if self.operand.is_register() && self.operand.index() >= Register::RESERVED_COUNT {
-            self.free_register_pool.borrow_mut().push(Register(self.operand.index()));
+            self.free_register_pool
+                .borrow_mut()
+                .push(Register(self.operand.index()));
         }
     }
 }
@@ -351,11 +353,17 @@ impl Generator {
     // --- Function kind queries ---
 
     pub fn is_in_generator_function(&self) -> bool {
-        matches!(self.enclosing_function_kind, FunctionKind::Generator | FunctionKind::AsyncGenerator)
+        matches!(
+            self.enclosing_function_kind,
+            FunctionKind::Generator | FunctionKind::AsyncGenerator
+        )
     }
 
     pub fn is_in_async_function(&self) -> bool {
-        matches!(self.enclosing_function_kind, FunctionKind::Async | FunctionKind::AsyncGenerator)
+        matches!(
+            self.enclosing_function_kind,
+            FunctionKind::Async | FunctionKind::AsyncGenerator
+        )
     }
 
     pub fn is_in_async_generator_function(&self) -> bool {
@@ -383,12 +391,7 @@ impl Generator {
                 self.next_register += 1;
                 r
             } else {
-                let min_index = pool
-                    .iter()
-                    .enumerate()
-                    .min_by_key(|(_, r)| r.0)
-                    .unwrap()
-                    .0;
+                let min_index = pool.iter().enumerate().min_by_key(|(_, r)| r.0).unwrap().0;
                 pool.remove(min_index)
             }
         };
@@ -427,7 +430,10 @@ impl Generator {
     /// Copy a local variable into a fresh register to prevent later
     /// side effects from changing its value. Returns the operand unchanged
     /// if it is not a local.
-    pub fn copy_if_needed_to_preserve_evaluation_order(&mut self, operand: &ScopedOperand) -> ScopedOperand {
+    pub fn copy_if_needed_to_preserve_evaluation_order(
+        &mut self,
+        operand: &ScopedOperand,
+    ) -> ScopedOperand {
         if operand.operand().is_local() {
             let reg = self.allocate_register();
             self.emit_mov(&reg, operand);
@@ -520,9 +526,24 @@ impl Generator {
 
     // --- Table interning ---
 
-    define_intern_method!(intern_string, StringTableIndex, string_table, string_table_index);
-    define_intern_method!(intern_identifier, IdentifierTableIndex, identifier_table, identifier_table_index);
-    define_intern_method!(intern_property_key, PropertyKeyTableIndex, property_key_table, property_key_table_index);
+    define_intern_method!(
+        intern_string,
+        StringTableIndex,
+        string_table,
+        string_table_index
+    );
+    define_intern_method!(
+        intern_identifier,
+        IdentifierTableIndex,
+        identifier_table,
+        identifier_table_index
+    );
+    define_intern_method!(
+        intern_property_key,
+        PropertyKeyTableIndex,
+        property_key_table,
+        property_key_table_index
+    );
 
     /// If `operand` is a constant string that is not an array index, intern it
     /// as a property key and return the index. Uses split borrows to avoid
@@ -681,58 +702,82 @@ impl Generator {
 
         // OPTIMIZATION: If the condition is a register with ref_count == 1 and the last
         // instruction is a comparison whose dst matches condition, fuse into a JumpXxx.
-        if condition.operand().is_register()
-            && std::rc::Rc::strong_count(&condition.inner) == 1
-        {
+        if condition.operand().is_register() && std::rc::Rc::strong_count(&condition.inner) == 1 {
             let block = &mut self.basic_blocks[self.current_block_index.basic_block_index()];
             if let Some((last_instruction, _)) = block.instructions.last() {
                 let fused = match last_instruction {
                     Instruction::LessThan { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpLessThan {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
-                    Instruction::LessThanEquals { dst, lhs, rhs } if *dst == condition.operand() => {
+                    Instruction::LessThanEquals { dst, lhs, rhs }
+                        if *dst == condition.operand() =>
+                    {
                         Some(Instruction::JumpLessThanEquals {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
                     Instruction::GreaterThan { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpGreaterThan {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
-                    Instruction::GreaterThanEquals { dst, lhs, rhs } if *dst == condition.operand() => {
+                    Instruction::GreaterThanEquals { dst, lhs, rhs }
+                        if *dst == condition.operand() =>
+                    {
                         Some(Instruction::JumpGreaterThanEquals {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
                     Instruction::LooselyEquals { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpLooselyEquals {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
-                    Instruction::LooselyInequals { dst, lhs, rhs } if *dst == condition.operand() => {
+                    Instruction::LooselyInequals { dst, lhs, rhs }
+                        if *dst == condition.operand() =>
+                    {
                         Some(Instruction::JumpLooselyInequals {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
-                    Instruction::StrictlyEquals { dst, lhs, rhs } if *dst == condition.operand() => {
+                    Instruction::StrictlyEquals { dst, lhs, rhs }
+                        if *dst == condition.operand() =>
+                    {
                         Some(Instruction::JumpStrictlyEquals {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
-                    Instruction::StrictlyInequals { dst, lhs, rhs } if *dst == condition.operand() => {
+                    Instruction::StrictlyInequals { dst, lhs, rhs }
+                        if *dst == condition.operand() =>
+                    {
                         Some(Instruction::JumpStrictlyInequals {
-                            lhs: *lhs, rhs: *rhs,
-                            true_target, false_target,
+                            lhs: *lhs,
+                            rhs: *rhs,
+                            true_target,
+                            false_target,
                         })
                     }
                     _ => None,
@@ -763,8 +808,12 @@ impl Generator {
     // --- Lexical environment helpers ---
 
     pub fn current_lexical_environment(&mut self) -> ScopedOperand {
-        self.lexical_environment_register_stack.last().cloned()
-            .unwrap_or_else(|| self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT)))
+        self.lexical_environment_register_stack
+            .last()
+            .cloned()
+            .unwrap_or_else(|| {
+                self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT))
+            })
     }
 
     pub fn end_variable_scope(&mut self) {
@@ -797,7 +846,8 @@ impl Generator {
             parent: parent.operand(),
             capacity,
         });
-        self.lexical_environment_register_stack.push(new_env.clone());
+        self.lexical_environment_register_stack
+            .push(new_env.clone());
         new_env
     }
 
@@ -814,7 +864,12 @@ impl Generator {
 
     // --- Break/continue scope management ---
 
-    pub fn begin_breakable_scope(&mut self, target: Label, label_set: Vec<Utf16String>, completion: Option<ScopedOperand>) {
+    pub fn begin_breakable_scope(
+        &mut self,
+        target: Label,
+        label_set: Vec<Utf16String>,
+        completion: Option<ScopedOperand>,
+    ) {
         self.breakable_scopes.push(LabelableScope {
             bytecode_target: target,
             language_label_set: label_set,
@@ -828,7 +883,12 @@ impl Generator {
         self.breakable_scopes.pop();
     }
 
-    pub fn begin_continuable_scope(&mut self, target: Label, label_set: Vec<Utf16String>, completion: Option<ScopedOperand>) {
+    pub fn begin_continuable_scope(
+        &mut self,
+        target: Label,
+        label_set: Vec<Utf16String>,
+        completion: Option<ScopedOperand>,
+    ) {
         self.continuable_scopes.push(LabelableScope {
             bytecode_target: target,
             language_label_set: label_set,
@@ -843,7 +903,10 @@ impl Generator {
     }
 
     pub fn set_current_breakable_scope_completion_register(&mut self, completion: ScopedOperand) {
-        self.breakable_scopes.last_mut().expect("no active breakable scope").completion_register = Some(completion);
+        self.breakable_scopes
+            .last_mut()
+            .expect("no active breakable scope")
+            .completion_register = Some(completion);
     }
 
     pub fn find_breakable_scope(&self, label: Option<&[u16]>) -> Option<&LabelableScope> {
@@ -898,7 +961,9 @@ impl Generator {
     /// Register a jump target with the current FinallyContext.
     /// Assigns a unique completion_type index and emits code to set it and jump to finally.
     pub fn register_jump_in_finally_context(&mut self, target: Label) {
-        let index = self.current_finally_context.expect("no active finally context");
+        let index = self
+            .current_finally_context
+            .expect("no active finally context");
         let ctx = &mut self.finally_contexts[index];
         let jump_index = ctx.next_jump_index;
         ctx.next_jump_index += 1;
@@ -921,7 +986,9 @@ impl Generator {
         self.register_jump_in_finally_context(trampoline_block);
         self.switch_to_basic_block(trampoline_block);
         // Pop to the parent FinallyContext (simulating the inner finally completing).
-        let index = self.current_finally_context.expect("no active finally context");
+        let index = self
+            .current_finally_context
+            .expect("no active finally context");
         self.current_finally_context = self.finally_contexts[index].parent_index;
     }
 
@@ -955,10 +1022,15 @@ impl Generator {
             let boundary = self.boundaries[i];
             match boundary {
                 BlockBoundaryType::Break if is_break => {
-                    let target_scope = self.breakable_scopes.last().expect("no active breakable scope");
+                    let target_scope = self
+                        .breakable_scopes
+                        .last()
+                        .expect("no active breakable scope");
                     let target = target_scope.bytecode_target;
                     let completion = target_scope.completion_register.clone();
-                    if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion) {
+                    if let (Some(cur), Some(tgt)) =
+                        (self.current_completion_register.clone(), completion)
+                    {
                         if cur != tgt {
                             self.emit_mov(&tgt, &cur);
                         }
@@ -968,10 +1040,15 @@ impl Generator {
                     return;
                 }
                 BlockBoundaryType::Continue if !is_break => {
-                    let target_scope = self.continuable_scopes.last().expect("no active continuable scope");
+                    let target_scope = self
+                        .continuable_scopes
+                        .last()
+                        .expect("no active continuable scope");
                     let target = target_scope.bytecode_target;
                     let completion = target_scope.completion_register.clone();
-                    if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion) {
+                    if let (Some(cur), Some(tgt)) =
+                        (self.current_completion_register.clone(), completion)
+                    {
                         if cur != tgt {
                             self.emit_mov(&tgt, &cur);
                         }
@@ -990,13 +1067,19 @@ impl Generator {
                 BlockBoundaryType::ReturnToFinally => {
                     if !self.has_outer_finally_before_target(is_break, i + 1) {
                         let target_scope = if is_break {
-                            self.breakable_scopes.last().expect("no active breakable scope")
+                            self.breakable_scopes
+                                .last()
+                                .expect("no active breakable scope")
                         } else {
-                            self.continuable_scopes.last().expect("no active continuable scope")
+                            self.continuable_scopes
+                                .last()
+                                .expect("no active continuable scope")
                         };
                         let target = target_scope.bytecode_target;
                         let completion = target_scope.completion_register.clone();
-                        if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion) {
+                        if let (Some(cur), Some(tgt)) =
+                            (self.current_completion_register.clone(), completion)
+                        {
                             if cur != tgt {
                                 self.emit_mov(&tgt, &cur);
                             }
@@ -1023,13 +1106,25 @@ impl Generator {
             self.breakable_scopes
                 .iter()
                 .rev()
-                .map(|s| (s.bytecode_target, s.language_label_set.clone(), s.completion_register.clone()))
+                .map(|s| {
+                    (
+                        s.bytecode_target,
+                        s.language_label_set.clone(),
+                        s.completion_register.clone(),
+                    )
+                })
                 .collect()
         } else {
             self.continuable_scopes
                 .iter()
                 .rev()
-                .map(|s| (s.bytecode_target, s.language_label_set.clone(), s.completion_register.clone()))
+                .map(|s| {
+                    (
+                        s.bytecode_target,
+                        s.language_label_set.clone(),
+                        s.completion_register.clone(),
+                    )
+                })
                 .collect()
         };
 
@@ -1051,7 +1146,9 @@ impl Generator {
                         if !self.has_outer_finally_before_target(is_break, current_boundary + 1)
                             && label_set.iter().any(|l| l == label)
                         {
-                            if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion.clone()) {
+                            if let (Some(cur), Some(tgt)) =
+                                (self.current_completion_register.clone(), completion.clone())
+                            {
                                 if cur != tgt {
                                     self.emit_mov(&tgt, &cur);
                                 }
@@ -1072,14 +1169,14 @@ impl Generator {
             }
 
             if label_set.iter().any(|l| l == label) {
-                if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion.clone()) {
+                if let (Some(cur), Some(tgt)) =
+                    (self.current_completion_register.clone(), completion.clone())
+                {
                     if cur != tgt {
                         self.emit_mov(&tgt, &cur);
                     }
                 }
-                self.emit(Instruction::Jump {
-                    target: *target,
-                });
+                self.emit(Instruction::Jump { target: *target });
                 self.current_finally_context = saved_ctx;
                 return;
             }
@@ -1097,7 +1194,8 @@ impl Generator {
             match self.boundaries[i] {
                 BlockBoundaryType::LeaveLexicalEnvironment => {
                     env_stack_offset -= 1;
-                    let parent_env = self.lexical_environment_register_stack[env_stack_offset - 1].clone();
+                    let parent_env =
+                        self.lexical_environment_register_stack[env_stack_offset - 1].clone();
                     self.emit(Instruction::SetLexicalEnvironment {
                         environment: parent_env.operand(),
                     });
@@ -1213,11 +1311,9 @@ impl Generator {
                         OperandType::Constant => {
                             op.offset_index_by(number_of_registers + number_of_locals)
                         }
-                        OperandType::Argument => {
-                            op.offset_index_by(
-                                number_of_registers + number_of_locals + number_of_constants,
-                            )
-                        }
+                        OperandType::Argument => op.offset_index_by(
+                            number_of_registers + number_of_locals + number_of_constants,
+                        ),
                     }
                 });
             }
@@ -1282,7 +1378,11 @@ impl Generator {
                         block_actions.push(InstAction::Emit);
                         offset += instruction.encoded_size();
                     }
-                    Instruction::JumpIf { condition, true_target, false_target } => {
+                    Instruction::JumpIf {
+                        condition,
+                        true_target,
+                        false_target,
+                    } => {
                         let true_block = true_target.0 as usize;
                         let false_block = false_target.0 as usize;
                         // OPTIMIZATION: Replace JumpIf where one target is next block
@@ -1322,7 +1422,9 @@ impl Generator {
             }
             // Unterminated blocks get an implicit End(undefined) appended.
             if !block.terminated {
-                let dummy_end = Instruction::End { value: Operand::constant(0) };
+                let dummy_end = Instruction::End {
+                    value: Operand::constant(0),
+                };
                 offset += dummy_end.encoded_size();
             }
             actions.push(block_actions);
@@ -1396,7 +1498,10 @@ impl Generator {
                         let replacement = Instruction::End { value };
                         replacement.encode(self.strict, &mut bytecode);
                     }
-                    InstAction::EmitJumpFalse { condition, mut target } => {
+                    InstAction::EmitJumpFalse {
+                        condition,
+                        mut target,
+                    } => {
                         // Patch label for the target
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
@@ -1409,7 +1514,10 @@ impl Generator {
                         let replacement = Instruction::JumpFalse { condition, target };
                         replacement.encode(self.strict, &mut bytecode);
                     }
-                    InstAction::EmitJumpTrue { condition, mut target } => {
+                    InstAction::EmitJumpTrue {
+                        condition,
+                        mut target,
+                    } => {
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
                         let instruction_offset = bytecode.len();
@@ -1426,9 +1534,12 @@ impl Generator {
 
             // Unterminated blocks get an implicit End(undefined).
             if !block.terminated {
-                let mut undef_rewritten = undefined_constant_operand.expect("undefined constant must exist");
+                let mut undef_rewritten =
+                    undefined_constant_operand.expect("undefined constant must exist");
                 undef_rewritten.offset_index_by(number_of_registers + number_of_locals);
-                let end_instruction = Instruction::End { value: undef_rewritten };
+                let end_instruction = Instruction::End {
+                    value: undef_rewritten,
+                };
                 let instruction_offset = bytecode.len();
                 source_map.push(SourceMapEntry {
                     bytecode_offset: u32_from_usize(instruction_offset),
@@ -1443,7 +1554,9 @@ impl Generator {
                 exception_handlers.push(ExceptionHandler {
                     start_offset: u32_from_usize(block_start),
                     end_offset: u32_from_usize(bytecode.len()),
-                    handler_offset: u32_from_usize(block_offsets[handler_label.basic_block_index()]),
+                    handler_offset: u32_from_usize(
+                        block_offsets[handler_label.basic_block_index()],
+                    ),
                 });
             }
         }
@@ -1539,10 +1652,12 @@ pub fn parse_bigint(s: &str) -> Option<num_bigint::BigInt> {
 }
 
 /// Use `preferred_dst` if available, otherwise allocate a fresh register.
-pub fn choose_dst(generator: &mut Generator, preferred_dst: Option<&ScopedOperand>) -> ScopedOperand {
+pub fn choose_dst(
+    generator: &mut Generator,
+    preferred_dst: Option<&ScopedOperand>,
+) -> ScopedOperand {
     match preferred_dst {
         Some(dst) => dst.clone(),
         None => generator.allocate_register(),
     }
 }
-

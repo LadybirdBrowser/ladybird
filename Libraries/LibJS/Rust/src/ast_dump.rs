@@ -80,7 +80,11 @@ fn print_node(state: &DumpState, text: &str) {
     let line = if state.is_root {
         text.to_string()
     } else {
-        let connector = if state.is_last { "\u{2514}\u{2500} " } else { "\u{251c}\u{2500} " };
+        let connector = if state.is_last {
+            "\u{2514}\u{2500} "
+        } else {
+            "\u{251c}\u{2500} "
+        };
         if state.use_color {
             format!("{}{}{}{}{}", state.prefix, DIM, connector, RESET, text)
         } else {
@@ -98,11 +102,7 @@ fn child_prefix(state: &DumpState) -> String {
     if state.is_root {
         return String::new();
     }
-    let branch = if state.is_last {
-        "   "
-    } else {
-        "\u{2502}  "
-    };
+    let branch = if state.is_last { "   " } else { "\u{2502}  " };
     if state.use_color {
         format!("{}{}{}{}", state.prefix, DIM, branch, RESET)
     } else {
@@ -146,7 +146,7 @@ fn color_string(state: &DumpState, value: &str) -> String {
     if !state.use_color {
         return format!("\"{}\"", value);
     }
-    format!("{}\"{}\"{}",GREEN, value, RESET)
+    format!("{}\"{}\"{}", GREEN, value, RESET)
 }
 
 fn color_string_utf16(state: &DumpState, value: &[u16]) -> String {
@@ -240,7 +240,9 @@ fn format_f64(value: f64) -> String {
     }
     let mut buffer = [0u8; 128];
     let length = unsafe { rust_format_double(value, buffer.as_mut_ptr(), buffer.len()) };
-    std::str::from_utf8(&buffer[..length]).expect("C++ produced invalid UTF-8").to_string()
+    std::str::from_utf8(&buffer[..length])
+        .expect("C++ produced invalid UTF-8")
+        .to_string()
 }
 
 op_to_string!(binary_op_to_string, BinaryOp, {
@@ -357,12 +359,12 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             if s.children.len() == 1
                 && matches!(
                     s.children[0].inner,
-                    StatementKind::For { .. }
-                        | StatementKind::ForInOf { .. }
-                ) {
-                    dump_statement(&s.children[0], state);
-                    return;
-                }
+                    StatementKind::For { .. } | StatementKind::ForInOf { .. }
+                )
+            {
+                dump_statement(&s.children[0], state);
+                return;
+            }
             dump_scope_node("BlockStatement", &s, &statement.range, state);
         }
 
@@ -431,8 +433,12 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                 let init_state = child_state(state, false);
                 print_node(&init_state, &color_label(state, "init"));
                 match init {
-                    ForInit::Expression(expr) => dump_expression(expr, &child_state(&init_state, true)),
-                    ForInit::Declaration(decl) => dump_statement(decl, &child_state(&init_state, true)),
+                    ForInit::Expression(expr) => {
+                        dump_expression(expr, &child_state(&init_state, true))
+                    }
+                    ForInit::Declaration(decl) => {
+                        dump_statement(decl, &child_state(&init_state, true))
+                    }
                 }
             }
             if let Some(test) = test {
@@ -444,7 +450,12 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             dump_labeled_statement("body", body, true, state);
         }
 
-        StatementKind::ForInOf { kind, lhs, rhs, body } => {
+        StatementKind::ForInOf {
+            kind,
+            lhs,
+            rhs,
+            body,
+        } => {
             let name = match kind {
                 ForInOfKind::ForIn => "ForInStatement",
                 ForInOfKind::ForOf => "ForOfStatement",
@@ -460,7 +471,12 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
 
         StatementKind::Switch(data) => {
             dump_node!(state, "SwitchStatement", &statement.range);
-            dump_labeled_expression("discriminant", &data.discriminant, data.cases.is_empty(), state);
+            dump_labeled_expression(
+                "discriminant",
+                &data.discriminant,
+                data.cases.is_empty(),
+                state,
+            );
             for (i, case) in data.cases.iter().enumerate() {
                 dump_switch_case(case, &child_state(state, i == data.cases.len() - 1), state);
             }
@@ -473,7 +489,12 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
         }
 
         StatementKind::Labelled { label, item } => {
-            dump_node!(state, "LabelledStatement", &statement.range, color_string_utf16(state, label));
+            dump_node!(
+                state,
+                "LabelledStatement",
+                &statement.range,
+                color_string_utf16(state, label)
+            );
             dump_statement(item, &child_state(state, true));
         }
 
@@ -513,34 +534,65 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
         }
 
         StatementKind::VariableDeclaration { kind, declarations } => {
-            dump_node!(state, "VariableDeclaration", &statement.range, color_op(state, declaration_kind_to_string(*kind)));
+            dump_node!(
+                state,
+                "VariableDeclaration",
+                &statement.range,
+                color_op(state, declaration_kind_to_string(*kind))
+            );
             for (i, declaration) in declarations.iter().enumerate() {
-                dump_variable_declarator(declaration, &child_state(state, i == declarations.len() - 1), state);
+                dump_variable_declarator(
+                    declaration,
+                    &child_state(state, i == declarations.len() - 1),
+                    state,
+                );
             }
         }
 
         StatementKind::UsingDeclaration { declarations } => {
             dump_node!(state, "UsingDeclaration", &statement.range);
             for (i, declaration) in declarations.iter().enumerate() {
-                dump_variable_declarator(declaration, &child_state(state, i == declarations.len() - 1), state);
+                dump_variable_declarator(
+                    declaration,
+                    &child_state(state, i == declarations.len() - 1),
+                    state,
+                );
             }
         }
 
         StatementKind::FunctionDeclaration { function_id, .. } => {
             let function_data = state.function_table().get(*function_id);
-            dump_function(function_data, "FunctionDeclaration", &statement.range, state);
+            dump_function(
+                function_data,
+                "FunctionDeclaration",
+                &statement.range,
+                state,
+            );
         }
 
         StatementKind::ClassDeclaration(class_data) => {
             dump_node!(state, "ClassDeclaration", &statement.range);
-            dump_class(class_data, &statement.range, &child_state(state, true), state);
+            dump_class(
+                class_data,
+                &statement.range,
+                &child_state(state, true),
+                state,
+            );
         }
 
         StatementKind::Import(data) => {
             let module_spec = utf16_to_string(&data.module_request.module_specifier);
             let assert_clauses = format_assert_clauses(&data.module_request);
-            dump_node!(state, "ImportStatement", &statement.range,
-                format!("from {}{}", color_string(state, &module_spec), assert_clauses));
+            dump_node!(
+                state,
+                "ImportStatement",
+                &statement.range,
+                format!(
+                    "from {}{}",
+                    color_string(state, &module_spec),
+                    assert_clauses
+                )
+            );
             if !data.entries.is_empty() {
                 for (i, entry) in data.entries.iter().enumerate() {
                     let import_name = match &entry.import_name {
@@ -583,10 +635,8 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                             None => "null".to_string(),
                         }
                     };
-                    let mut desc = format!(
-                        "ExportName: {}, LocalName: {}",
-                        export_name, local_name
-                    );
+                    let mut desc =
+                        format!("ExportName: {}, LocalName: {}", export_name, local_name);
                     if let Some(ref module_request) = data.module_request {
                         desc.push_str(&format!(
                             ", ModuleRequest: {}{}",
@@ -602,10 +652,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
 
             if let Some(ref statement) = data.statement {
-                print_node(
-                    &child_state(state, true),
-                    &color_label(state, "statement"),
-                );
+                print_node(&child_state(state, true), &color_label(state, "statement"));
                 let inner_state = &child_state(&child_state(state, true), true);
                 // For `export default <expression>`, the C++ AST stores the
                 // expression directly without an ExpressionStatement wrapper.
@@ -635,15 +682,30 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
 fn dump_expression(expression: &Expression, state: &DumpState) {
     match &expression.inner {
         ExpressionKind::NumericLiteral(value) => {
-            dump_node!(state, "NumericLiteral", &expression.range, color_number_f64(state, *value));
+            dump_node!(
+                state,
+                "NumericLiteral",
+                &expression.range,
+                color_number_f64(state, *value)
+            );
         }
 
         ExpressionKind::StringLiteral(value) => {
-            dump_node!(state, "StringLiteral", &expression.range, color_string_utf16(state, value));
+            dump_node!(
+                state,
+                "StringLiteral",
+                &expression.range,
+                color_string_utf16(state, value)
+            );
         }
 
         ExpressionKind::BooleanLiteral(value) => {
-            dump_node!(state, "BooleanLiteral", &expression.range, color_number_bool(state, *value));
+            dump_node!(
+                state,
+                "BooleanLiteral",
+                &expression.range,
+                color_number_bool(state, *value)
+            );
         }
 
         ExpressionKind::NullLiteral => {
@@ -651,13 +713,23 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
         }
 
         ExpressionKind::BigIntLiteral(value) => {
-            dump_node!(state, "BigIntLiteral", &expression.range, color_number_str(state, value));
+            dump_node!(
+                state,
+                "BigIntLiteral",
+                &expression.range,
+                color_number_str(state, value)
+            );
         }
 
         ExpressionKind::RegExpLiteral(data) => {
             let pattern = utf16_to_string(&data.pattern);
             let flags = utf16_to_string(&data.flags);
-            dump_node!(state, "RegExpLiteral", &expression.range, format!("/{}/{}", pattern, flags));
+            dump_node!(
+                state,
+                "RegExpLiteral",
+                &expression.range,
+                format!("/{}/{}", pattern, flags)
+            );
         }
 
         ExpressionKind::Identifier(ident) => {
@@ -665,23 +737,43 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
         }
 
         ExpressionKind::PrivateIdentifier(ident) => {
-            dump_node!(state, "PrivateIdentifier", &expression.range, color_string_utf16(state, &ident.name));
+            dump_node!(
+                state,
+                "PrivateIdentifier",
+                &expression.range,
+                color_string_utf16(state, &ident.name)
+            );
         }
 
         ExpressionKind::Binary { op, lhs, rhs } => {
-            dump_node!(state, "BinaryExpression", &expression.range, color_op(state, binary_op_to_string(*op)));
+            dump_node!(
+                state,
+                "BinaryExpression",
+                &expression.range,
+                color_op(state, binary_op_to_string(*op))
+            );
             dump_expression(lhs, &child_state(state, false));
             dump_expression(rhs, &child_state(state, true));
         }
 
         ExpressionKind::Logical { op, lhs, rhs } => {
-            dump_node!(state, "LogicalExpression", &expression.range, color_op(state, logical_op_to_string(*op)));
+            dump_node!(
+                state,
+                "LogicalExpression",
+                &expression.range,
+                color_op(state, logical_op_to_string(*op))
+            );
             dump_expression(lhs, &child_state(state, false));
             dump_expression(rhs, &child_state(state, true));
         }
 
         ExpressionKind::Unary { op, operand } => {
-            dump_node!(state, "UnaryExpression", &expression.range, color_op(state, unary_op_to_string(*op)));
+            dump_node!(
+                state,
+                "UnaryExpression",
+                &expression.range,
+                color_op(state, unary_op_to_string(*op))
+            );
             dump_expression(operand, &child_state(state, true));
         }
 
@@ -691,12 +783,22 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             prefixed,
         } => {
             let prefix_str = if *prefixed { "prefix" } else { "postfix" };
-            dump_node!(state, "UpdateExpression", &expression.range, format!("({}, {})", update_op_to_string(*op), prefix_str));
+            dump_node!(
+                state,
+                "UpdateExpression",
+                &expression.range,
+                format!("({}, {})", update_op_to_string(*op), prefix_str)
+            );
             dump_expression(argument, &child_state(state, true));
         }
 
         ExpressionKind::Assignment { op, lhs, rhs } => {
-            dump_node!(state, "AssignmentExpression", &expression.range, color_op(state, assignment_op_to_string(*op)));
+            dump_node!(
+                state,
+                "AssignmentExpression",
+                &expression.range,
+                color_op(state, assignment_op_to_string(*op))
+            );
             match lhs {
                 AssignmentLhs::Expression(expression) => {
                     dump_expression(expression, &child_state(state, false));
@@ -731,7 +833,11 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             property,
             computed,
         } => {
-            let name = if *computed { "MemberExpression [computed]" } else { "MemberExpression" };
+            let name = if *computed {
+                "MemberExpression [computed]"
+            } else {
+                "MemberExpression"
+            };
             dump_node!(state, name, &expression.range);
             dump_expression(object, &child_state(state, false));
             dump_expression(property, &child_state(state, true));
@@ -764,7 +870,11 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
                             &ref_state,
                             &format!("MemberReference({})", optional_mode_str(*mode)),
                         );
-                        dump_identifier(identifier, &identifier.range, &child_state(&ref_state, true));
+                        dump_identifier(
+                            identifier,
+                            &identifier.range,
+                            &child_state(&ref_state, true),
+                        );
                     }
                     OptionalChainReference::PrivateMemberReference {
                         private_identifier,
@@ -792,7 +902,10 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_node!(state, "CallExpression", &expression.range);
             dump_expression(&data.callee, &child_state(state, data.arguments.is_empty()));
             for (i, argument) in data.arguments.iter().enumerate() {
-                dump_expression(&argument.value, &child_state(state, i == data.arguments.len() - 1));
+                dump_expression(
+                    &argument.value,
+                    &child_state(state, i == data.arguments.len() - 1),
+                );
             }
         }
 
@@ -800,14 +913,20 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_node!(state, "NewExpression", &expression.range);
             dump_expression(&data.callee, &child_state(state, data.arguments.is_empty()));
             for (i, argument) in data.arguments.iter().enumerate() {
-                dump_expression(&argument.value, &child_state(state, i == data.arguments.len() - 1));
+                dump_expression(
+                    &argument.value,
+                    &child_state(state, i == data.arguments.len() - 1),
+                );
             }
         }
 
         ExpressionKind::SuperCall(data) => {
             dump_node!(state, "SuperCall", &expression.range);
             for (i, argument) in data.arguments.iter().enumerate() {
-                dump_expression(&argument.value, &child_state(state, i == data.arguments.len() - 1));
+                dump_expression(
+                    &argument.value,
+                    &child_state(state, i == data.arguments.len() - 1),
+                );
             }
         }
 
@@ -826,7 +945,12 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
 
         ExpressionKind::Function(function_id) => {
             let function_data = state.function_table().get(*function_id);
-            dump_function(function_data, "FunctionExpression", &expression.range, state);
+            dump_function(
+                function_data,
+                "FunctionExpression",
+                &expression.range,
+                state,
+            );
         }
 
         ExpressionKind::Class(class_data) => {
@@ -927,7 +1051,10 @@ fn dump_identifier(ident: &Identifier, range: &SourceRange, state: &DumpState) {
         } else {
             "variable"
         };
-        desc.push_str(&format!(" {}", color_local(state, kind, ident.local_index.get())));
+        desc.push_str(&format!(
+            " {}",
+            color_local(state, kind, ident.local_index.get())
+        ));
     } else if ident.is_global.get() {
         desc.push_str(&format!(" {}", color_global(state)));
     }
@@ -948,12 +1075,7 @@ fn dump_identifier(ident: &Identifier, range: &SourceRange, state: &DumpState) {
 // Helper dumpers
 // ============================================================================
 
-fn dump_scope_node(
-    class_name: &str,
-    scope: &ScopeData,
-    range: &SourceRange,
-    state: &DumpState,
-) {
+fn dump_scope_node(class_name: &str, scope: &ScopeData, range: &SourceRange, state: &DumpState) {
     dump_node!(state, class_name, range);
     for (i, child) in scope.children.iter().enumerate() {
         dump_statement(child, &child_state(state, i == scope.children.len() - 1));
@@ -1001,10 +1123,7 @@ fn dump_function(
         ));
     }
     if function_data.parsing_insights.might_need_arguments_object {
-        desc.push_str(&format!(
-            " {}",
-            color_flag(state, "might-need-arguments")
-        ));
+        desc.push_str(&format!(" {}", color_flag(state, "might-need-arguments")));
     }
     desc.push_str(&format_position(state, range));
     print_node(state, &desc);
@@ -1016,13 +1135,18 @@ fn dump_function(
         );
         let parameters_state = child_state(state, false);
         for (i, parameter) in function_data.parameters.iter().enumerate() {
-            let parameter_state = child_state(&parameters_state, i == function_data.parameters.len() - 1);
+            let parameter_state =
+                child_state(&parameters_state, i == function_data.parameters.len() - 1);
             let has_default = parameter.default_value.is_some();
             if parameter.is_rest {
                 print_node(&parameter_state, &color_label(state, "rest"));
                 match &parameter.binding {
                     FunctionParameterBinding::Identifier(ident) => {
-                        dump_identifier(ident, &ident.range, &child_state(&parameter_state, !has_default));
+                        dump_identifier(
+                            ident,
+                            &ident.range,
+                            &child_state(&parameter_state, !has_default),
+                        );
                     }
                     FunctionParameterBinding::BindingPattern(pattern) => {
                         dump_binding_pattern(
@@ -1038,7 +1162,10 @@ fn dump_function(
                         dump_identifier(
                             ident,
                             &ident.range,
-                            &child_state(&parameters_state, i == function_data.parameters.len() - 1),
+                            &child_state(
+                                &parameters_state,
+                                i == function_data.parameters.len() - 1,
+                            ),
                         );
                     }
                     FunctionParameterBinding::BindingPattern(pattern) => {
@@ -1059,21 +1186,29 @@ fn dump_function(
                     &color_label(state, "default"),
                 );
                 dump_expression(
-                    parameter.default_value.as_ref().expect("guarded by is_some check"),
+                    parameter
+                        .default_value
+                        .as_ref()
+                        .expect("guarded by is_some check"),
                     &child_state(&child_state(&parameter_state, true), true),
                 );
             }
         }
     }
 
-    print_node(
-        &child_state(state, true),
-        &color_label(state, "body"),
+    print_node(&child_state(state, true), &color_label(state, "body"));
+    dump_statement(
+        &function_data.body,
+        &child_state(&child_state(state, true), true),
     );
-    dump_statement(&function_data.body, &child_state(&child_state(state, true), true));
 }
 
-fn dump_class(class_data: &ClassData, range: &SourceRange, state: &DumpState, root_state: &DumpState) {
+fn dump_class(
+    class_data: &ClassData,
+    range: &SourceRange,
+    state: &DumpState,
+    root_state: &DumpState,
+) {
     let name_str = match &class_data.name {
         Some(ident) => utf16_to_string(&ident.name),
         None => String::new(),
@@ -1096,7 +1231,10 @@ fn dump_class(class_data: &ClassData, range: &SourceRange, state: &DumpState, ro
             &color_label(root_state, "super class"),
         );
         dump_expression(
-            class_data.super_class.as_ref().expect("guarded by has_super_class check"),
+            class_data
+                .super_class
+                .as_ref()
+                .expect("guarded by has_super_class check"),
             &child_state(&child_state(state, false), true),
         );
     }
@@ -1121,7 +1259,10 @@ fn dump_class(class_data: &ClassData, range: &SourceRange, state: &DumpState, ro
             dump_class_element(
                 &element.inner,
                 &element.range,
-                &child_state(&child_state(state, true), i == class_data.elements.len() - 1),
+                &child_state(
+                    &child_state(state, true),
+                    i == class_data.elements.len() - 1,
+                ),
                 root_state,
             );
         }
@@ -1190,11 +1331,7 @@ fn dump_class_element(
     }
 }
 
-fn dump_binding_pattern(
-    pattern: &BindingPattern,
-    state: &DumpState,
-    root_state: &DumpState,
-) {
+fn dump_binding_pattern(pattern: &BindingPattern, state: &DumpState, root_state: &DumpState) {
     let kind_str = match pattern.kind {
         BindingPatternKind::Array => "array",
         BindingPatternKind::Object => "object",
@@ -1268,29 +1405,20 @@ fn dump_binding_pattern(
                     dump_identifier(
                         ident,
                         &ident.range,
-                        &child_state(
-                            &child_state(&entry_state, !has_initializer),
-                            true,
-                        ),
+                        &child_state(&child_state(&entry_state, !has_initializer), true),
                     );
                 }
                 BindingEntryAlias::BindingPattern(sub) => {
                     dump_binding_pattern(
                         sub,
-                        &child_state(
-                            &child_state(&entry_state, !has_initializer),
-                            true,
-                        ),
+                        &child_state(&child_state(&entry_state, !has_initializer), true),
                         root_state,
                     );
                 }
                 BindingEntryAlias::MemberExpression(expression) => {
                     dump_expression(
                         expression,
-                        &child_state(
-                            &child_state(&entry_state, !has_initializer),
-                            true,
-                        ),
+                        &child_state(&child_state(&entry_state, !has_initializer), true),
                     );
                 }
             }
@@ -1302,7 +1430,10 @@ fn dump_binding_pattern(
                 &color_label(root_state, "initializer"),
             );
             dump_expression(
-                entry.initializer.as_ref().expect("guarded by is_some check"),
+                entry
+                    .initializer
+                    .as_ref()
+                    .expect("guarded by is_some check"),
                 &child_state(&child_state(&entry_state, true), true),
             );
         }
@@ -1310,10 +1441,7 @@ fn dump_binding_pattern(
 }
 
 fn is_elision(entry: &BindingEntry) -> bool {
-    entry.name.is_none()
-        && entry.alias.is_none()
-        && entry.initializer.is_none()
-        && !entry.is_rest
+    entry.name.is_none() && entry.alias.is_none() && entry.initializer.is_none() && !entry.is_rest
 }
 
 fn dump_variable_declarator(
@@ -1343,11 +1471,7 @@ fn dump_variable_declarator(
     }
 }
 
-fn dump_object_property(
-    property: &ObjectProperty,
-    state: &DumpState,
-    root_state: &DumpState,
-) {
+fn dump_object_property(property: &ObjectProperty, state: &DumpState, root_state: &DumpState) {
     if property.property_type == ObjectPropertyType::Spread {
         print_node(
             state,
@@ -1377,11 +1501,7 @@ fn dump_object_property(
     }
 }
 
-fn dump_catch_clause(
-    clause: &CatchClause,
-    state: &DumpState,
-    root_state: &DumpState,
-) {
+fn dump_catch_clause(clause: &CatchClause, state: &DumpState, root_state: &DumpState) {
     print_node(
         state,
         &format!(
@@ -1419,11 +1539,7 @@ fn dump_catch_clause(
     dump_statement(&clause.body, &child_state(state, true));
 }
 
-fn dump_switch_case(
-    case: &SwitchCase,
-    state: &DumpState,
-    root_state: &DumpState,
-) {
+fn dump_switch_case(case: &SwitchCase, state: &DumpState, root_state: &DumpState) {
     if let Some(ref test) = case.test {
         print_node(
             state,
@@ -1433,10 +1549,7 @@ fn dump_switch_case(
                 format_position(root_state, &case.range)
             ),
         );
-        print_node(
-            &child_state(state, false),
-            &color_label(root_state, "test"),
-        );
+        print_node(&child_state(state, false), &color_label(root_state, "test"));
         dump_expression(test, &child_state(&child_state(state, false), true));
     } else {
         print_node(
@@ -1457,7 +1570,10 @@ fn dump_switch_case(
     let scope = case.scope.borrow();
     let children = &scope.children;
     for (i, child) in children.iter().enumerate() {
-        dump_statement(child, &child_state(&consequent_state, i == children.len() - 1));
+        dump_statement(
+            child,
+            &child_state(&consequent_state, i == children.len() - 1),
+        );
     }
 }
 

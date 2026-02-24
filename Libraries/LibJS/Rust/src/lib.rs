@@ -164,8 +164,13 @@ unsafe fn source_from_raw<'a>(source: *const u16, len: usize) -> Option<&'a [u16
 }
 
 /// Callback type for reporting parse errors to C++.
-type ParseErrorCallback =
-    unsafe extern "C" fn(ctx: *mut c_void, message: *const u8, message_len: usize, line: u32, column: u32);
+type ParseErrorCallback = unsafe extern "C" fn(
+    ctx: *mut c_void,
+    message: *const u8,
+    message_len: usize,
+    line: u32,
+    column: u32,
+);
 
 /// Log parser and scope collector errors, returning true if any were found.
 fn check_errors(parser: &mut Parser) -> bool {
@@ -205,13 +210,15 @@ fn check_errors_with_callback(
 
 /// Convert scope local variables to generator LocalVariable format.
 fn convert_local_variables(scope: &ast::ScopeData) -> Vec<bytecode::generator::LocalVariable> {
-    scope.local_variables.iter().map(|lv| {
-        bytecode::generator::LocalVariable {
+    scope
+        .local_variables
+        .iter()
+        .map(|lv| bytecode::generator::LocalVariable {
             name: lv.name.clone(),
             is_lexically_declared: lv.kind == ast::LocalVarKind::LetOrConst,
             is_initialized_during_declaration_instantiation: false,
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 /// Create a Generator configured for program-level compilation.
@@ -333,7 +340,8 @@ pub unsafe extern "C" fn rust_compile_program(
             return std::ptr::null_mut();
         };
 
-        let mut gen = new_program_generator(starts_in_strict_mode, vm_ptr, source_code_ptr, source_len);
+        let mut gen =
+            new_program_generator(starts_in_strict_mode, vm_ptr, source_code_ptr, source_len);
         gen.function_table = std::mem::take(&mut parser.function_table);
         compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr)
     })
@@ -374,7 +382,11 @@ pub unsafe extern "C" fn rust_compile_script(
         let Some(source_slice) = source_from_raw(source, source_len) else {
             return std::ptr::null_mut();
         };
-        let mut parser = Parser::new_with_line_offset(source_slice, ProgramType::Script, u32_from_usize(initial_line_number));
+        let mut parser = Parser::new_with_line_offset(
+            source_slice,
+            ProgramType::Script,
+            u32_from_usize(initial_line_number),
+        );
 
         let program = parser.parse_program(false);
 
@@ -389,7 +401,12 @@ pub unsafe extern "C" fn rust_compile_script(
             ast_dump::dump_program(&program, use_color, &parser.function_table);
         }
 
-        write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
+        write_ast_dump_output(
+            &program,
+            &parser.function_table,
+            ast_dump_output,
+            ast_dump_output_len,
+        );
 
         let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
             (data.scope.clone(), data.is_strict_mode)
@@ -399,12 +416,20 @@ pub unsafe extern "C" fn rust_compile_script(
 
         let mut gen = new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
         gen.function_table = std::mem::take(&mut parser.function_table);
-        let exec_ptr = compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr);
+        let exec_ptr =
+            compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr);
         if exec_ptr.is_null() {
             return std::ptr::null_mut();
         }
 
-        extract_script_gdi(&scope_ref.borrow(), is_strict, vm_ptr, source_code_ptr, gdi_context, &mut gen.function_table);
+        extract_script_gdi(
+            &scope_ref.borrow(),
+            is_strict,
+            vm_ptr,
+            source_code_ptr,
+            gdi_context,
+            &mut gen.function_table,
+        );
 
         exec_ptr
     })
@@ -462,7 +487,12 @@ pub unsafe extern "C" fn rust_compile_eval(
 
         parser.scope_collector.analyze(true);
 
-        write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
+        write_ast_dump_output(
+            &program,
+            &parser.function_table,
+            ast_dump_output,
+            ast_dump_output_len,
+        );
 
         let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
             (data.scope.clone(), data.is_strict_mode)
@@ -472,12 +502,20 @@ pub unsafe extern "C" fn rust_compile_eval(
 
         let mut gen = new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
         gen.function_table = std::mem::take(&mut parser.function_table);
-        let exec_ptr = compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr);
+        let exec_ptr =
+            compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr);
         if exec_ptr.is_null() {
             return std::ptr::null_mut();
         }
 
-        extract_eval_gdi(&scope_ref.borrow(), is_strict, vm_ptr, source_code_ptr, gdi_context, &mut gen.function_table);
+        extract_eval_gdi(
+            &scope_ref.borrow(),
+            is_strict,
+            vm_ptr,
+            source_code_ptr,
+            gdi_context,
+            &mut gen.function_table,
+        );
 
         exec_ptr
     })
@@ -530,7 +568,8 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
         // Validate parameters standalone.
         // First lex independently to catch lexer errors (e.g. unterminated comments)
         // with correct line/column positions relative to the parameter string.
-        let Some(parameters_slice) = source_from_raw(parameters_source, parameters_source_len) else {
+        let Some(parameters_slice) = source_from_raw(parameters_source, parameters_source_len)
+        else {
             return std::ptr::null_mut();
         };
         {
@@ -541,10 +580,18 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                     break;
                 }
                 if token.token_type == token::TokenType::Invalid {
-                    let msg = token.message.unwrap_or_else(|| format!("Unexpected token {}", token.token_type.name()));
+                    let msg = token
+                        .message
+                        .unwrap_or_else(|| format!("Unexpected token {}", token.token_type.name()));
                     if let Some(cb) = error_callback {
                         unsafe {
-                            cb(error_context, msg.as_ptr(), msg.len(), token.line_number, token.line_column);
+                            cb(
+                                error_context,
+                                msg.as_ptr(),
+                                msg.len(),
+                                token.line_number,
+                                token.line_column,
+                            );
                         }
                     }
                     return std::ptr::null_mut();
@@ -555,10 +602,18 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
         {
             let mut validate_src: Vec<u16> = Vec::new();
             match kind {
-                ast::FunctionKind::Generator => validate_src.extend_from_slice(utf16!("function* test(")),
-                ast::FunctionKind::Async => validate_src.extend_from_slice(utf16!("async function test(")),
-                ast::FunctionKind::AsyncGenerator => validate_src.extend_from_slice(utf16!("async function* test(")),
-                ast::FunctionKind::Normal => validate_src.extend_from_slice(utf16!("function test(")),
+                ast::FunctionKind::Generator => {
+                    validate_src.extend_from_slice(utf16!("function* test("))
+                }
+                ast::FunctionKind::Async => {
+                    validate_src.extend_from_slice(utf16!("async function test("))
+                }
+                ast::FunctionKind::AsyncGenerator => {
+                    validate_src.extend_from_slice(utf16!("async function* test("))
+                }
+                ast::FunctionKind::Normal => {
+                    validate_src.extend_from_slice(utf16!("function test("))
+                }
             }
             validate_src.extend_from_slice(parameters_slice);
             validate_src.extend_from_slice(utf16!("\n) {}"));
@@ -625,7 +680,12 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             return std::ptr::null_mut();
         }
 
-        write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
+        write_ast_dump_output(
+            &program,
+            &parser.function_table,
+            ast_dump_output,
+            ast_dump_output_len,
+        );
 
         // Extract the FunctionExpression from the program.
         // The program should contain a single ExpressionStatement wrapping a FunctionExpression.
@@ -665,7 +725,13 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
         let is_strict = function_data.is_strict_mode;
         let subtable = parser.function_table.extract_reachable(&function_data);
 
-        bytecode::ffi::create_sfd_for_gdi(function_data, subtable, vm_ptr, source_code_ptr, is_strict)
+        bytecode::ffi::create_sfd_for_gdi(
+            function_data,
+            subtable,
+            vm_ptr,
+            source_code_ptr,
+            is_strict,
+        )
     })
 }
 
@@ -708,15 +774,22 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
         let program = parser.parse_program(true); // strict mode
 
         if parser.has_errors() {
-            let errors: Vec<String> = parser.errors().iter().map(|e| {
-                format!("{}:{}: {}", e.line, e.column, e.message)
-            }).collect();
+            let errors: Vec<String> = parser
+                .errors()
+                .iter()
+                .map(|e| format!("{}:{}: {}", e.line, e.column, e.message))
+                .collect();
             panic!("Parse errors in builtin file: {}", errors.join("; "));
         }
 
         parser.scope_collector.analyze(false);
 
-        write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
+        write_ast_dump_output(
+            &program,
+            &parser.function_table,
+            ast_dump_output,
+            ast_dump_output_len,
+        );
 
         let scope_ref = if let StatementKind::Program(ref data) = program.inner {
             data.scope.clone()
@@ -726,7 +799,12 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
 
         let scope = scope_ref.borrow();
         for child in &scope.children {
-            if let StatementKind::FunctionDeclaration { function_id, ref name, .. } = child.inner {
+            if let StatementKind::FunctionDeclaration {
+                function_id,
+                ref name,
+                ..
+            } = child.inner
+            {
                 let function_data = parser.function_table.take(function_id);
                 let subtable = parser.function_table.extract_reachable(&function_data);
                 let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
@@ -760,9 +838,13 @@ type ModuleBoolCallback = unsafe extern "C" fn(ctx: *mut c_void, value: bool);
 type ModuleNameCallback = unsafe extern "C" fn(ctx: *mut c_void, name: *const u16, name_len: usize);
 type ModuleImportEntryCallback = unsafe extern "C" fn(
     ctx: *mut c_void,
-    import_name: *const u16, import_name_len: usize, is_namespace: bool,
-    local_name: *const u16, local_name_len: usize,
-    module_specifier: *const u16, specifier_len: usize,
+    import_name: *const u16,
+    import_name_len: usize,
+    is_namespace: bool,
+    local_name: *const u16,
+    local_name_len: usize,
+    module_specifier: *const u16,
+    specifier_len: usize,
     attribute_keys: *const bytecode::ffi::FFIUtf16Slice,
     attribute_values: *const bytecode::ffi::FFIUtf16Slice,
     attribute_count: usize,
@@ -770,25 +852,32 @@ type ModuleImportEntryCallback = unsafe extern "C" fn(
 type ModuleExportEntryCallback = unsafe extern "C" fn(
     ctx: *mut c_void,
     kind: u8,
-    export_name: *const u16, export_name_len: usize,
-    local_or_import_name: *const u16, local_or_import_name_len: usize,
-    module_specifier: *const u16, specifier_len: usize,
+    export_name: *const u16,
+    export_name_len: usize,
+    local_or_import_name: *const u16,
+    local_or_import_name_len: usize,
+    module_specifier: *const u16,
+    specifier_len: usize,
     attribute_keys: *const bytecode::ffi::FFIUtf16Slice,
     attribute_values: *const bytecode::ffi::FFIUtf16Slice,
     attribute_count: usize,
 );
 type ModuleRequestedModuleCallback = unsafe extern "C" fn(
     ctx: *mut c_void,
-    specifier: *const u16, specifier_len: usize,
+    specifier: *const u16,
+    specifier_len: usize,
     attribute_keys: *const bytecode::ffi::FFIUtf16Slice,
     attribute_values: *const bytecode::ffi::FFIUtf16Slice,
     attribute_count: usize,
 );
-type ModuleFunctionCallback = unsafe extern "C" fn(
-    ctx: *mut c_void, sfd_ptr: *mut c_void, name: *const u16, name_len: usize,
-);
+type ModuleFunctionCallback =
+    unsafe extern "C" fn(ctx: *mut c_void, sfd_ptr: *mut c_void, name: *const u16, name_len: usize);
 type ModuleLexicalBindingCallback = unsafe extern "C" fn(
-    ctx: *mut c_void, name: *const u16, name_len: usize, is_constant: bool, function_index: i32,
+    ctx: *mut c_void,
+    name: *const u16,
+    name_len: usize,
+    is_constant: bool,
+    function_index: i32,
 );
 
 /// Module callback table passed from C++ to avoid many function pointer parameters.
@@ -809,13 +898,18 @@ pub struct ModuleCallbacks {
 /// Helper to build FFI attribute arrays from a ModuleRequest.
 fn build_attribute_slices(
     attributes: &[ast::ImportAttribute],
-) -> (Vec<bytecode::ffi::FFIUtf16Slice>, Vec<bytecode::ffi::FFIUtf16Slice>) {
+) -> (
+    Vec<bytecode::ffi::FFIUtf16Slice>,
+    Vec<bytecode::ffi::FFIUtf16Slice>,
+) {
     attributes
         .iter()
-        .map(|a| (
-            bytecode::ffi::FFIUtf16Slice::from(a.key.as_ref()),
-            bytecode::ffi::FFIUtf16Slice::from(a.value.as_ref()),
-        ))
+        .map(|a| {
+            (
+                bytecode::ffi::FFIUtf16Slice::from(a.key.as_ref()),
+                bytecode::ffi::FFIUtf16Slice::from(a.value.as_ref()),
+            )
+        })
         .unzip()
 }
 
@@ -838,14 +932,31 @@ unsafe fn call_export_callback(
     if let Some(mr) = module_request {
         let (keys, values) = build_attribute_slices(&mr.attributes);
         callback(
-            ctx, kind, en_ptr, en_len, lin_ptr, lin_len,
-            mr.module_specifier.as_ptr(), mr.module_specifier.len(),
-            keys.as_ptr(), values.as_ptr(), keys.len(),
+            ctx,
+            kind,
+            en_ptr,
+            en_len,
+            lin_ptr,
+            lin_len,
+            mr.module_specifier.as_ptr(),
+            mr.module_specifier.len(),
+            keys.as_ptr(),
+            values.as_ptr(),
+            keys.len(),
         );
     } else {
         callback(
-            ctx, kind, en_ptr, en_len, lin_ptr, lin_len,
-            std::ptr::null(), 0, std::ptr::null(), std::ptr::null(), 0,
+            ctx,
+            kind,
+            en_ptr,
+            en_len,
+            lin_ptr,
+            lin_len,
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+            0,
         );
     }
 }
@@ -903,7 +1014,12 @@ pub unsafe extern "C" fn rust_compile_module(
             ast_dump::dump_program(&program, use_color, &parser.function_table);
         }
 
-        write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
+        write_ast_dump_output(
+            &program,
+            &parser.function_table,
+            ast_dump_output,
+            ast_dump_output_len,
+        );
 
         let program_data = if let StatementKind::Program(ref data) = program.inner {
             data
@@ -924,7 +1040,12 @@ pub unsafe extern "C" fn rust_compile_module(
 
         // 4. Extract var declared names and lexical bindings.
         extract_module_declarations(
-            &scope_ref.borrow(), vm_ptr, source_code_ptr, module_context, cb, &mut function_table,
+            &scope_ref.borrow(),
+            vm_ptr,
+            source_code_ptr,
+            module_context,
+            cb,
+            &mut function_table,
         );
 
         // 5. Compute requested modules (sorted by source offset).
@@ -934,7 +1055,13 @@ pub unsafe extern "C" fn rust_compile_module(
         if has_top_level_await {
             // Compile as an async wrapper function.
             let exec_ptr = compile_module_as_async(
-                &program, &scope_ref, vm_ptr, source_code_ptr, source, source_len, function_table,
+                &program,
+                &scope_ref,
+                vm_ptr,
+                source_code_ptr,
+                source,
+                source_len,
+                function_table,
             );
             if !tla_executable_out.is_null() {
                 *tla_executable_out = exec_ptr;
@@ -953,11 +1080,7 @@ pub unsafe extern "C" fn rust_compile_module(
 }
 
 /// Extract import/export metadata from a module's scope and call C++ callbacks.
-unsafe fn extract_module_metadata(
-    scope: &ast::ScopeData,
-    ctx: *mut c_void,
-    cb: &ModuleCallbacks,
-) {
+unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: &ModuleCallbacks) {
     use ast::{ExportEntryKind, StatementKind};
 
     // Collect all import entries with their module requests.
@@ -975,15 +1098,22 @@ unsafe fn extract_module_metadata(
                 let (in_ptr, in_len, is_ns) = entry
                     .import_name
                     .as_ref()
-                    .map_or((std::ptr::null(), 0, true), |n| (n.as_ptr(), n.len(), false));
+                    .map_or((std::ptr::null(), 0, true), |n| {
+                        (n.as_ptr(), n.len(), false)
+                    });
                 let (keys, values) = build_attribute_slices(&import_data.module_request.attributes);
                 (cb.push_import_entry)(
                     ctx,
-                    in_ptr, in_len, is_ns,
-                    entry.local_name.as_ptr(), entry.local_name.len(),
+                    in_ptr,
+                    in_len,
+                    is_ns,
+                    entry.local_name.as_ptr(),
+                    entry.local_name.len(),
                     import_data.module_request.module_specifier.as_ptr(),
                     import_data.module_request.module_specifier.len(),
-                    keys.as_ptr(), values.as_ptr(), keys.len(),
+                    keys.as_ptr(),
+                    values.as_ptr(),
+                    keys.len(),
                 );
 
                 all_import_entries.push(ImportEntryWithRequest {
@@ -1004,9 +1134,7 @@ unsafe fn extract_module_metadata(
         };
 
         // Handle default export binding name.
-        if export_data.is_default_export
-            && export_data.entries.len() == 1
-        {
+        if export_data.is_default_export && export_data.entries.len() == 1 {
             let entry = &export_data.entries[0];
             // If the default export is not a declaration (function/class/etc.),
             // its binding name is the local_or_import_name.
@@ -1032,22 +1160,26 @@ unsafe fn extract_module_metadata(
 
             if !has_module_request {
                 // No module request: check against import entries.
-                let matching_import = all_import_entries.iter().find(|ie| {
-                    entry.local_or_import_name.as_ref() == Some(&ie.local_name)
-                });
+                let matching_import = all_import_entries
+                    .iter()
+                    .find(|ie| entry.local_or_import_name.as_ref() == Some(&ie.local_name));
 
                 if let Some(import_entry) = matching_import {
                     if import_entry.import_name.is_none() {
                         // Namespace re-export → local export.
                         call_export_callback(
-                            cb.push_local_export, ctx,
-                            entry.kind as u8, &entry.export_name, &entry.local_or_import_name,
+                            cb.push_local_export,
+                            ctx,
+                            entry.kind as u8,
+                            &entry.export_name,
+                            &entry.local_or_import_name,
                             None,
                         );
                     } else {
                         // Re-export of a specific binding → indirect export.
                         call_export_callback(
-                            cb.push_indirect_export, ctx,
+                            cb.push_indirect_export,
+                            ctx,
                             ExportEntryKind::NamedExport as u8,
                             &entry.export_name,
                             &import_entry.import_name,
@@ -1057,23 +1189,32 @@ unsafe fn extract_module_metadata(
                 } else {
                     // Direct local export.
                     call_export_callback(
-                        cb.push_local_export, ctx,
-                        entry.kind as u8, &entry.export_name, &entry.local_or_import_name,
+                        cb.push_local_export,
+                        ctx,
+                        entry.kind as u8,
+                        &entry.export_name,
+                        &entry.local_or_import_name,
                         None,
                     );
                 }
             } else if entry.kind == ExportEntryKind::ModuleRequestAllButDefault {
                 // export * from "module"
                 call_export_callback(
-                    cb.push_star_export, ctx,
-                    entry.kind as u8, &entry.export_name, &entry.local_or_import_name,
+                    cb.push_star_export,
+                    ctx,
+                    entry.kind as u8,
+                    &entry.export_name,
+                    &entry.local_or_import_name,
                     export_data.module_request.as_ref(),
                 );
             } else {
                 // export { x } from "module" or export { x as y } from "module"
                 call_export_callback(
-                    cb.push_indirect_export, ctx,
-                    entry.kind as u8, &entry.export_name, &entry.local_or_import_name,
+                    cb.push_indirect_export,
+                    ctx,
+                    entry.kind as u8,
+                    &entry.export_name,
+                    &entry.local_or_import_name,
                     export_data.module_request.as_ref(),
                 );
             }
@@ -1114,14 +1255,22 @@ unsafe fn extract_module_declarations(
         };
 
         match declaration {
-            StatementKind::FunctionDeclaration { function_id, ref name, .. } => {
-                let is_default = is_exported
-                    && name.as_ref().is_some_and(|n| n.name == default_name);
+            StatementKind::FunctionDeclaration {
+                function_id,
+                ref name,
+                ..
+            } => {
+                let is_default =
+                    is_exported && name.as_ref().is_some_and(|n| n.name == default_name);
 
                 let function_data = function_table.take(*function_id);
                 let subtable = function_table.extract_reachable(&function_data);
                 let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
-                    function_data, subtable, vm_ptr, source_code_ptr, true,
+                    function_data,
+                    subtable,
+                    vm_ptr,
+                    source_code_ptr,
+                    true,
                 );
                 if sfd_ptr.is_null() {
                     continue;
@@ -1149,7 +1298,13 @@ unsafe fn extract_module_declarations(
                 function_count += 1;
 
                 // Lexical binding uses the AST name (e.g., "*default*").
-                (cb.push_lexical_binding)(ctx, binding_name.as_ptr(), binding_name.len(), false, function_index);
+                (cb.push_lexical_binding)(
+                    ctx,
+                    binding_name.as_ptr(),
+                    binding_name.len(),
+                    false,
+                    function_index,
+                );
             }
             StatementKind::ClassDeclaration(class_data) => {
                 if let Some(ref name_ident) = class_data.name {
@@ -1347,10 +1502,7 @@ extern "C" {
 
 /// Recursively collect var-declared names from a statement and all nested
 /// statements, excluding function/class bodies (which create new var scopes).
-fn collect_var_names_recursive(
-    statement: &ast::StatementKind,
-    push_name: &mut dyn FnMut(&[u16]),
-) {
+fn collect_var_names_recursive(statement: &ast::StatementKind, push_name: &mut dyn FnMut(&[u16])) {
     match statement {
         ast::StatementKind::VariableDeclaration {
             kind: ast::DeclarationKind::Var,
@@ -1391,7 +1543,11 @@ fn extract_gdi_common(
     // Var names (var declarations at any nesting level + top-level function declarations)
     for child in &scope.children {
         collect_var_names_recursive(&child.inner, push_var_name);
-        if let StatementKind::FunctionDeclaration { name: Some(ref name_ident), .. } = child.inner {
+        if let StatementKind::FunctionDeclaration {
+            name: Some(ref name_ident),
+            ..
+        } = child.inner
+        {
             push_var_name(&name_ident.name);
         }
     }
@@ -1400,7 +1556,12 @@ fn extract_gdi_common(
     let mut seen_names: HashSet<ast::Utf16String> = HashSet::new();
     let mut functions_to_init: Vec<(ast::FunctionId, ast::Utf16String)> = Vec::new();
     for child in scope.children.iter().rev() {
-        if let StatementKind::FunctionDeclaration { function_id, name: Some(ref name_ident), .. } = child.inner {
+        if let StatementKind::FunctionDeclaration {
+            function_id,
+            name: Some(ref name_ident),
+            ..
+        } = child.inner
+        {
             if seen_names.insert(name_ident.name.clone()) {
                 functions_to_init.push((function_id, name_ident.name.clone()));
             }
@@ -1410,7 +1571,13 @@ fn extract_gdi_common(
         let function_data = function_table.take(*function_id);
         let subtable = function_table.extract_reachable(&function_data);
         let sfd_ptr = unsafe {
-            bytecode::ffi::create_sfd_for_gdi(function_data, subtable, vm_ptr, source_code_ptr, is_strict)
+            bytecode::ffi::create_sfd_for_gdi(
+                function_data,
+                subtable,
+                vm_ptr,
+                source_code_ptr,
+                is_strict,
+            )
         };
         assert!(!sfd_ptr.is_null(), "create_sfd_for_gdi returned null");
         push_function(sfd_ptr, name);
@@ -1472,12 +1639,17 @@ unsafe fn extract_eval_gdi(
     eval_gdi_set_strict(ctx, is_strict);
 
     extract_gdi_common(
-        scope, vm_ptr, source_code_ptr, is_strict,
+        scope,
+        vm_ptr,
+        source_code_ptr,
+        is_strict,
         &mut |name| eval_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
         &mut |sfd_ptr, name| eval_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
         &mut |name| eval_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
         &mut |name| eval_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
-        &mut |name, is_const| eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const),
+        &mut |name, is_const| {
+            eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+        },
         function_table,
     );
 }
@@ -1527,19 +1699,27 @@ unsafe fn extract_script_gdi(
     }
 
     extract_gdi_common(
-        scope, vm_ptr, source_code_ptr, is_strict,
+        scope,
+        vm_ptr,
+        source_code_ptr,
+        is_strict,
         &mut |name| script_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
         &mut |sfd_ptr, name| script_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
         &mut |name| script_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
         &mut |name| script_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
-        &mut |name, is_const| script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const),
+        &mut |name, is_const| {
+            script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+        },
         function_table,
     );
 }
 
 /// Visit each child statement of a statement, excluding function/class bodies
 /// (which create new var scopes). This enables recursive var-declaration walking.
-fn for_each_child_statement(statement: &ast::StatementKind, f: &mut dyn FnMut(&ast::StatementKind)) {
+fn for_each_child_statement(
+    statement: &ast::StatementKind,
+    f: &mut dyn FnMut(&ast::StatementKind),
+) {
     use ast::StatementKind;
 
     match statement {
@@ -1548,7 +1728,11 @@ fn for_each_child_statement(statement: &ast::StatementKind, f: &mut dyn FnMut(&a
                 f(&child.inner);
             }
         }
-        StatementKind::If { consequent, alternate, .. } => {
+        StatementKind::If {
+            consequent,
+            alternate,
+            ..
+        } => {
             f(&consequent.inner);
             if let Some(alt) = alternate {
                 f(&alt.inner);
@@ -1676,110 +1860,113 @@ pub unsafe extern "C" fn rust_compile_function(
     builtin_abstract_operations_enabled: bool,
 ) -> *mut c_void {
     abort_on_panic(|| {
-    if rust_function_ast.is_null() {
-        return std::ptr::null_mut();
-    }
-    let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
-    let function_data = Box::new(payload.data);
+        if rust_function_ast.is_null() {
+            return std::ptr::null_mut();
+        }
+        let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
+        let function_data = Box::new(payload.data);
 
-    let body_scope = match &function_data.body.inner {
-        StatementKind::FunctionBody { ref scope, .. } => Some(scope),
-        StatementKind::Block(ref scope) => Some(scope),
-        _ => None,
-    };
+        let body_scope = match &function_data.body.inner {
+            StatementKind::FunctionBody { ref scope, .. } => Some(scope),
+            StatementKind::Block(ref scope) => Some(scope),
+            _ => None,
+        };
 
-    // Compute SFD metadata before codegen so the generator can use
-    // function_environment_needed to optimize `this` access.
-    let sfd_metadata = compute_sfd_metadata(&function_data);
+        // Compute SFD metadata before codegen so the generator can use
+        // function_environment_needed to optimize `this` access.
+        let sfd_metadata = compute_sfd_metadata(&function_data);
 
-    let mut gen = bytecode::generator::Generator::new();
-    gen.strict = function_data.is_strict_mode;
-    gen.function_environment_needed = sfd_metadata.function_environment_needed;
-    gen.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
-    gen.function_table = payload.function_table;
-    gen.vm_ptr = vm_ptr;
-    gen.source_code_ptr = source_code_ptr;
-    gen.source_len = source_len;
-    gen.enclosing_function_kind = function_data.kind;
+        let mut gen = bytecode::generator::Generator::new();
+        gen.strict = function_data.is_strict_mode;
+        gen.function_environment_needed = sfd_metadata.function_environment_needed;
+        gen.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
+        gen.function_table = payload.function_table;
+        gen.vm_ptr = vm_ptr;
+        gen.source_code_ptr = source_code_ptr;
+        gen.source_len = source_len;
+        gen.enclosing_function_kind = function_data.kind;
 
-    if let Some(scope) = body_scope {
-        gen.local_variables = convert_local_variables(&scope.borrow());
-    }
+        if let Some(scope) = body_scope {
+            gen.local_variables = convert_local_variables(&scope.borrow());
+        }
 
-    let entry_block = gen.make_block();
-    gen.switch_to_basic_block(entry_block);
+        let entry_block = gen.make_block();
+        gen.switch_to_basic_block(entry_block);
 
-    // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
-    // For async (non-generator) functions, emit the initial Yield BEFORE
-    // GetLexicalEnvironment so that parameter evaluation errors are caught
-    // by the async promise wrapper. This matches C++ ordering.
-    if gen.is_in_async_function() && !gen.is_in_generator_function() {
-        let start_block = gen.make_block();
-        let undef = gen.add_constant_undefined();
-        gen.emit(bytecode::instruction::Instruction::Yield {
-            continuation_label: Some(start_block),
-            value: undef.operand(),
-        });
-        gen.switch_to_basic_block(start_block);
-    }
-
-    {
-        use bytecode::operand::{Operand, Register};
-        let env_reg = gen.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-        gen.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
-            dst: env_reg.operand(),
-        });
-        gen.lexical_environment_register_stack.push(env_reg);
-    }
-
-    if let Some(scope) = body_scope {
-        bytecode::codegen::emit_function_declaration_instantiation(
-            &mut gen, &function_data, &scope.borrow(),
-        );
-    }
-
-    // https://tc39.es/ecma262/#sec-generatorstart
-    // For generator functions (including async generators), emit the initial Yield
-    // AFTER FDI. Parameter evaluation happens synchronously before the generator starts.
-    if gen.is_in_generator_function() {
-        let start_block = gen.make_block();
-        let undef = gen.add_constant_undefined();
-        gen.emit(bytecode::instruction::Instruction::Yield {
-            continuation_label: Some(start_block),
-            value: undef.operand(),
-        });
-        gen.switch_to_basic_block(start_block);
-    }
-
-    let result = bytecode::codegen::generate_statement(&function_data.body, &mut gen, None);
-
-    if !gen.is_current_block_terminated() {
-        if gen.is_in_generator_or_async_function() {
-            // Generator/async functions end with Yield (no continuation = done).
+        // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
+        // For async (non-generator) functions, emit the initial Yield BEFORE
+        // GetLexicalEnvironment so that parameter evaluation errors are caught
+        // by the async promise wrapper. This matches C++ ordering.
+        if gen.is_in_async_function() && !gen.is_in_generator_function() {
+            let start_block = gen.make_block();
             let undef = gen.add_constant_undefined();
             gen.emit(bytecode::instruction::Instruction::Yield {
-                continuation_label: None,
+                continuation_label: Some(start_block),
                 value: undef.operand(),
             });
-        } else if let Some(value) = result {
-            gen.emit(bytecode::instruction::Instruction::End {
-                value: value.operand(),
-            });
+            gen.switch_to_basic_block(start_block);
         }
-        // If result is None, the assembler will add End(undefined) as a
-        // fallthrough for unterminated blocks, matching C++ compile().
-    }
 
-    // For generator/async functions, terminate all unterminated blocks with Yield.
-    if gen.is_in_generator_or_async_function() {
-        gen.terminate_unterminated_blocks_with_yield();
-    }
+        {
+            use bytecode::operand::{Operand, Register};
+            let env_reg =
+                gen.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
+            gen.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
+                dst: env_reg.operand(),
+            });
+            gen.lexical_environment_register_stack.push(env_reg);
+        }
 
-    let assembled = gen.assemble();
+        if let Some(scope) = body_scope {
+            bytecode::codegen::emit_function_declaration_instantiation(
+                &mut gen,
+                &function_data,
+                &scope.borrow(),
+            );
+        }
 
-    write_sfd_metadata(sfd_ptr, &sfd_metadata);
+        // https://tc39.es/ecma262/#sec-generatorstart
+        // For generator functions (including async generators), emit the initial Yield
+        // AFTER FDI. Parameter evaluation happens synchronously before the generator starts.
+        if gen.is_in_generator_function() {
+            let start_block = gen.make_block();
+            let undef = gen.add_constant_undefined();
+            gen.emit(bytecode::instruction::Instruction::Yield {
+                continuation_label: Some(start_block),
+                value: undef.operand(),
+            });
+            gen.switch_to_basic_block(start_block);
+        }
 
-    bytecode::ffi::create_executable(&gen, &assembled, vm_ptr, source_code_ptr)
+        let result = bytecode::codegen::generate_statement(&function_data.body, &mut gen, None);
+
+        if !gen.is_current_block_terminated() {
+            if gen.is_in_generator_or_async_function() {
+                // Generator/async functions end with Yield (no continuation = done).
+                let undef = gen.add_constant_undefined();
+                gen.emit(bytecode::instruction::Instruction::Yield {
+                    continuation_label: None,
+                    value: undef.operand(),
+                });
+            } else if let Some(value) = result {
+                gen.emit(bytecode::instruction::Instruction::End {
+                    value: value.operand(),
+                });
+            }
+            // If result is None, the assembler will add End(undefined) as a
+            // fallthrough for unterminated blocks, matching C++ compile().
+        }
+
+        // For generator/async functions, terminate all unterminated blocks with Yield.
+        if gen.is_in_generator_or_async_function() {
+            gen.terminate_unterminated_blocks_with_yield();
+        }
+
+        let assembled = gen.assemble();
+
+        write_sfd_metadata(sfd_ptr, &sfd_metadata);
+
+        bytecode::ffi::create_executable(&gen, &assembled, vm_ptr, source_code_ptr)
     })
 }
 
@@ -1833,12 +2020,17 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
                 || function_data.parsing_insights.uses_this_from_environment,
             might_need_arguments: function_data.parsing_insights.might_need_arguments_object,
             has_function_named_arguments: fsd.is_some_and(|f| f.has_function_named_arguments),
-            has_lexically_declared_arguments: fsd.is_some_and(|f| f.has_lexically_declared_arguments),
+            has_lexically_declared_arguments: fsd
+                .is_some_and(|f| f.has_lexically_declared_arguments),
             non_local_var_count: fsd.map_or(0, |f| f.non_local_var_count),
-            non_local_var_count_for_parameter_expressions: fsd.map_or(0, |f| f.non_local_var_count_for_parameter_expressions),
+            non_local_var_count_for_parameter_expressions: fsd
+                .map_or(0, |f| f.non_local_var_count_for_parameter_expressions),
             var_names: fsd.map(|f| &f.var_names).cloned().unwrap_or_default(),
             annexb_function_names: sd.annexb_function_names.clone(),
-            has_arguments_object_local: sd.local_variables.iter().any(|lv| lv.kind == ast::LocalVarKind::ArgumentsObject),
+            has_arguments_object_local: sd
+                .local_variables
+                .iter()
+                .any(|lv| lv.kind == ast::LocalVarKind::ArgumentsObject),
         }
     } else {
         BodyScopeInfo {
@@ -1868,17 +2060,15 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
     for parameter in &function_data.parameters {
         match &parameter.binding {
             ast::FunctionParameterBinding::Identifier(ident) => {
-                if parameter_names.insert(ident.name.clone())
-                    && !ident.is_local() {
-                        parameters_in_environment += 1;
-                    }
+                if parameter_names.insert(ident.name.clone()) && !ident.is_local() {
+                    parameters_in_environment += 1;
+                }
             }
             ast::FunctionParameterBinding::BindingPattern(pattern) => {
                 for_each_binding_pattern_identifier(pattern, &mut |ident| {
-                    if parameter_names.insert(ident.name.clone())
-                        && !ident.is_local() {
-                            parameters_in_environment += 1;
-                        }
+                    if parameter_names.insert(ident.name.clone()) && !ident.is_local() {
+                        parameters_in_environment += 1;
+                    }
                 });
             }
         }
@@ -1893,8 +2083,7 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
         && (has_parameter_expressions || !bsi.has_lexically_declared_arguments);
 
     // Arguments object needs an environment binding if it's not a local variable.
-    let arguments_object_needs_binding =
-        arguments_object_needed && !bsi.has_arguments_object_local;
+    let arguments_object_needs_binding = arguments_object_needed && !bsi.has_arguments_object_local;
 
     let mut function_environment_bindings_count: usize = 0;
     let mut var_environment_bindings_count: usize = 0;
@@ -2039,10 +2228,7 @@ fn count_non_local_names_in_target(target: &ast::VariableDeclaratorTarget, count
     }
 }
 
-fn count_non_local_names_in_binding_pattern(
-    pattern: &ast::BindingPattern,
-    count: &mut usize,
-) {
+fn count_non_local_names_in_binding_pattern(pattern: &ast::BindingPattern, count: &mut usize) {
     for entry in &pattern.entries {
         match &entry.alias {
             Some(ast::BindingEntryAlias::Identifier(ident)) => {

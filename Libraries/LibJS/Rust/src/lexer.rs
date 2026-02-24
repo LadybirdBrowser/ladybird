@@ -138,7 +138,10 @@ fn decode_code_point(source: &[u16], pos: usize) -> (u32, usize) {
         return (0xFFFD, 1);
     }
     let cu = source[pos];
-    if is_utf16_high_surrogate(cu) && pos + 1 < source.len() && is_utf16_low_surrogate(source[pos + 1]) {
+    if is_utf16_high_surrogate(cu)
+        && pos + 1 < source.len()
+        && is_utf16_low_surrogate(source[pos + 1])
+    {
         let hi = cu as u32;
         let lo = source[pos + 1] as u32;
         let cp = 0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00);
@@ -151,7 +154,10 @@ fn decode_code_point(source: &[u16], pos: usize) -> (u32, usize) {
 // https://tc39.es/ecma262/#sec-line-terminators
 // LineTerminator :: <LF> | <CR> | <LS> | <PS>
 fn is_line_terminator_cp(cp: u32) -> bool {
-    cp == '\n' as u32 || cp == '\r' as u32 || cp == LINE_SEPARATOR as u32 || cp == PARAGRAPH_SEPARATOR as u32
+    cp == '\n' as u32
+        || cp == '\r' as u32
+        || cp == LINE_SEPARATOR as u32
+        || cp == PARAGRAPH_SEPARATOR as u32
 }
 
 // https://tc39.es/ecma262/#sec-white-space
@@ -165,10 +171,7 @@ fn is_whitespace_cp(cp: u32) -> bool {
         return true;
     }
     // Unicode General Category "Space_Separator" (Zs)
-    matches!(
-        cp,
-        0x1680 | 0x2000..=0x200A | 0x202F | 0x205F | 0x3000
-    )
+    matches!(cp, 0x1680 | 0x2000..=0x200A | 0x202F | 0x205F | 0x3000)
 }
 
 // https://tc39.es/ecma262/#sec-identifier-names
@@ -186,7 +189,12 @@ fn is_identifier_start_cp(cp: u32) -> bool {
 // https://tc39.es/ecma262/#sec-identifier-names
 // IdentifierPartChar :: UnicodeIDContinue | $ | <ZWNJ> | <ZWJ>
 fn is_identifier_continue_cp(cp: u32) -> bool {
-    if is_ascii_alphanumeric(cp) || cp == '$' as u32 || cp == '_' as u32 || cp == ZERO_WIDTH_NON_JOINER || cp == ZERO_WIDTH_JOINER {
+    if is_ascii_alphanumeric(cp)
+        || cp == '$' as u32
+        || cp == '_' as u32
+        || cp == ZERO_WIDTH_NON_JOINER
+        || cp == ZERO_WIDTH_JOINER
+    {
         return true;
     }
     if cp < 128 {
@@ -213,62 +221,142 @@ fn keyword_from_str(s: &[u16]) -> Option<TokenType> {
     // against compile-time UTF-16 constants (zero allocation).
     match s.len() {
         2 => {
-            if s == utf16!("do") { return Some(TokenType::Do); }
-            if s == utf16!("if") { return Some(TokenType::If); }
-            if s == utf16!("in") { return Some(TokenType::In); }
+            if s == utf16!("do") {
+                return Some(TokenType::Do);
+            }
+            if s == utf16!("if") {
+                return Some(TokenType::If);
+            }
+            if s == utf16!("in") {
+                return Some(TokenType::In);
+            }
         }
         3 => {
-            if s == utf16!("for") { return Some(TokenType::For); }
-            if s == utf16!("let") { return Some(TokenType::Let); }
-            if s == utf16!("new") { return Some(TokenType::New); }
-            if s == utf16!("try") { return Some(TokenType::Try); }
-            if s == utf16!("var") { return Some(TokenType::Var); }
+            if s == utf16!("for") {
+                return Some(TokenType::For);
+            }
+            if s == utf16!("let") {
+                return Some(TokenType::Let);
+            }
+            if s == utf16!("new") {
+                return Some(TokenType::New);
+            }
+            if s == utf16!("try") {
+                return Some(TokenType::Try);
+            }
+            if s == utf16!("var") {
+                return Some(TokenType::Var);
+            }
         }
         4 => {
-            if s == utf16!("case") { return Some(TokenType::Case); }
-            if s == utf16!("else") { return Some(TokenType::Else); }
-            if s == utf16!("enum") { return Some(TokenType::Enum); }
-            if s == utf16!("null") { return Some(TokenType::NullLiteral); }
-            if s == utf16!("this") { return Some(TokenType::This); }
-            if s == utf16!("true") { return Some(TokenType::BoolLiteral); }
-            if s == utf16!("void") { return Some(TokenType::Void); }
-            if s == utf16!("with") { return Some(TokenType::With); }
+            if s == utf16!("case") {
+                return Some(TokenType::Case);
+            }
+            if s == utf16!("else") {
+                return Some(TokenType::Else);
+            }
+            if s == utf16!("enum") {
+                return Some(TokenType::Enum);
+            }
+            if s == utf16!("null") {
+                return Some(TokenType::NullLiteral);
+            }
+            if s == utf16!("this") {
+                return Some(TokenType::This);
+            }
+            if s == utf16!("true") {
+                return Some(TokenType::BoolLiteral);
+            }
+            if s == utf16!("void") {
+                return Some(TokenType::Void);
+            }
+            if s == utf16!("with") {
+                return Some(TokenType::With);
+            }
         }
         5 => {
-            if s == utf16!("async") { return Some(TokenType::Async); }
-            if s == utf16!("await") { return Some(TokenType::Await); }
-            if s == utf16!("break") { return Some(TokenType::Break); }
-            if s == utf16!("catch") { return Some(TokenType::Catch); }
-            if s == utf16!("class") { return Some(TokenType::Class); }
-            if s == utf16!("const") { return Some(TokenType::Const); }
-            if s == utf16!("false") { return Some(TokenType::BoolLiteral); }
-            if s == utf16!("super") { return Some(TokenType::Super); }
-            if s == utf16!("throw") { return Some(TokenType::Throw); }
-            if s == utf16!("while") { return Some(TokenType::While); }
-            if s == utf16!("yield") { return Some(TokenType::Yield); }
+            if s == utf16!("async") {
+                return Some(TokenType::Async);
+            }
+            if s == utf16!("await") {
+                return Some(TokenType::Await);
+            }
+            if s == utf16!("break") {
+                return Some(TokenType::Break);
+            }
+            if s == utf16!("catch") {
+                return Some(TokenType::Catch);
+            }
+            if s == utf16!("class") {
+                return Some(TokenType::Class);
+            }
+            if s == utf16!("const") {
+                return Some(TokenType::Const);
+            }
+            if s == utf16!("false") {
+                return Some(TokenType::BoolLiteral);
+            }
+            if s == utf16!("super") {
+                return Some(TokenType::Super);
+            }
+            if s == utf16!("throw") {
+                return Some(TokenType::Throw);
+            }
+            if s == utf16!("while") {
+                return Some(TokenType::While);
+            }
+            if s == utf16!("yield") {
+                return Some(TokenType::Yield);
+            }
         }
         6 => {
-            if s == utf16!("delete") { return Some(TokenType::Delete); }
-            if s == utf16!("export") { return Some(TokenType::Export); }
-            if s == utf16!("import") { return Some(TokenType::Import); }
-            if s == utf16!("return") { return Some(TokenType::Return); }
+            if s == utf16!("delete") {
+                return Some(TokenType::Delete);
+            }
+            if s == utf16!("export") {
+                return Some(TokenType::Export);
+            }
+            if s == utf16!("import") {
+                return Some(TokenType::Import);
+            }
+            if s == utf16!("return") {
+                return Some(TokenType::Return);
+            }
             // NB: "static" is intentionally NOT lexed as TokenType::Static.
             // C++ lexes it as Identifier and handles it contextually in class parsing.
-            if s == utf16!("switch") { return Some(TokenType::Switch); }
-            if s == utf16!("typeof") { return Some(TokenType::Typeof); }
+            if s == utf16!("switch") {
+                return Some(TokenType::Switch);
+            }
+            if s == utf16!("typeof") {
+                return Some(TokenType::Typeof);
+            }
         }
         7 => {
-            if s == utf16!("default") { return Some(TokenType::Default); }
-            if s == utf16!("extends") { return Some(TokenType::Extends); }
-            if s == utf16!("finally") { return Some(TokenType::Finally); }
+            if s == utf16!("default") {
+                return Some(TokenType::Default);
+            }
+            if s == utf16!("extends") {
+                return Some(TokenType::Extends);
+            }
+            if s == utf16!("finally") {
+                return Some(TokenType::Finally);
+            }
         }
         8 => {
-            if s == utf16!("continue") { return Some(TokenType::Continue); }
-            if s == utf16!("debugger") { return Some(TokenType::Debugger); }
-            if s == utf16!("function") { return Some(TokenType::Function); }
+            if s == utf16!("continue") {
+                return Some(TokenType::Continue);
+            }
+            if s == utf16!("debugger") {
+                return Some(TokenType::Debugger);
+            }
+            if s == utf16!("function") {
+                return Some(TokenType::Function);
+            }
         }
         10 => {
-            if s == utf16!("instanceof") { return Some(TokenType::Instanceof); }
+            if s == utf16!("instanceof") {
+                return Some(TokenType::Instanceof);
+            }
         }
         _ => {}
     }
@@ -375,7 +463,12 @@ impl<'a> Lexer<'a> {
         lexer
     }
 
-    pub fn new_at_offset(source: &'a [u16], offset: usize, line_number: u32, line_column: u32) -> Self {
+    pub fn new_at_offset(
+        source: &'a [u16],
+        offset: usize,
+        line_number: u32,
+        line_column: u32,
+    ) -> Self {
         let mut lexer = Lexer {
             source,
             position: offset,
@@ -394,11 +487,15 @@ impl<'a> Lexer<'a> {
     }
 
     fn current_template_state(&self) -> &TemplateState {
-        self.template_states.last().expect("template_states must not be empty")
+        self.template_states
+            .last()
+            .expect("template_states must not be empty")
     }
 
     fn current_template_state_mut(&mut self) -> &mut TemplateState {
-        self.template_states.last_mut().expect("template_states must not be empty")
+        self.template_states
+            .last_mut()
+            .expect("template_states must not be empty")
     }
 
     // https://tc39.es/ecma262/#sec-html-like-comments
@@ -589,7 +686,7 @@ impl<'a> Lexer<'a> {
     /// Re-scan the source from `scan_start` (1-based position) to `self.position`
     /// and build a decoded identifier value. Only called when escapes are present.
     fn build_identifier_value(&self, scan_start: usize) -> Utf16String {
-        let raw = &self.source[scan_start - 1 .. self.position - 1];
+        let raw = &self.source[scan_start - 1..self.position - 1];
         let mut result = Utf16String(Vec::with_capacity(raw.len()));
         let mut i = 0;
         while i < raw.len() {
@@ -680,7 +777,9 @@ impl<'a> Lexer<'a> {
         if self.position + 1 >= self.source_len() {
             return false;
         }
-        self.current_code_unit == a && self.source[self.position] == b && self.source[self.position + 1] == c
+        self.current_code_unit == a
+            && self.source[self.position] == b
+            && self.source[self.position + 1] == c
     }
 
     fn match4(&self, a: u16, b: u16, c: u16, d: u16) -> bool {
@@ -713,7 +812,9 @@ impl<'a> Lexer<'a> {
     fn is_line_comment_start(&self, line_has_token_yet: bool) -> bool {
         self.match2(ch(b'/'), ch(b'/'))
             || (self.allow_html_comments && self.match4(ch(b'<'), ch(b'!'), ch(b'-'), ch(b'-')))
-            || (self.allow_html_comments && !line_has_token_yet && self.match3(ch(b'-'), ch(b'-'), ch(b'>')))
+            || (self.allow_html_comments
+                && !line_has_token_yet
+                && self.match3(ch(b'-'), ch(b'-'), ch(b'>')))
             || (self.match2(ch(b'#'), ch(b'!')) && self.position == 1)
     }
 
@@ -757,7 +858,9 @@ impl<'a> Lexer<'a> {
         if !is_ascii_digit(self.current_code_unit) {
             return false;
         }
-        while is_ascii_digit(self.current_code_unit) || self.match_numeric_literal_separator_followed_by(is_ascii_digit) {
+        while is_ascii_digit(self.current_code_unit)
+            || self.match_numeric_literal_separator_followed_by(is_ascii_digit)
+        {
             self.consume();
         }
         true
@@ -779,7 +882,9 @@ impl<'a> Lexer<'a> {
         if !is_octal_digit(self.current_code_unit) {
             return false;
         }
-        while is_octal_digit(self.current_code_unit) || self.match_numeric_literal_separator_followed_by(is_octal_digit) {
+        while is_octal_digit(self.current_code_unit)
+            || self.match_numeric_literal_separator_followed_by(is_octal_digit)
+        {
             self.consume();
         }
         true
@@ -790,7 +895,9 @@ impl<'a> Lexer<'a> {
         if !is_ascii_hex_digit(self.current_code_unit) {
             return false;
         }
-        while is_ascii_hex_digit(self.current_code_unit) || self.match_numeric_literal_separator_followed_by(is_ascii_hex_digit) {
+        while is_ascii_hex_digit(self.current_code_unit)
+            || self.match_numeric_literal_separator_followed_by(is_ascii_hex_digit)
+        {
             self.consume();
         }
         true
@@ -808,7 +915,9 @@ impl<'a> Lexer<'a> {
         if !is_binary_digit(self.current_code_unit) {
             return false;
         }
-        while is_binary_digit(self.current_code_unit) || self.match_numeric_literal_separator_followed_by(is_binary_digit) {
+        while is_binary_digit(self.current_code_unit)
+            || self.match_numeric_literal_separator_followed_by(is_binary_digit)
+        {
             self.consume();
         }
         true
@@ -817,7 +926,9 @@ impl<'a> Lexer<'a> {
     fn consume_regex_literal(&mut self) -> TokenType {
         self.regex_is_in_character_class = false;
         while !self.is_eof() {
-            if self.is_line_terminator() || (!self.regex_is_in_character_class && self.current_code_unit == ch(b'/')) {
+            if self.is_line_terminator()
+                || (!self.regex_is_in_character_class && self.current_code_unit == ch(b'/'))
+            {
                 break;
             }
 
@@ -915,11 +1026,15 @@ impl<'a> Lexer<'a> {
 
         if self.current_token_type == TokenType::RegexLiteral
             && !self.is_eof()
-            && (self.current_code_unit < 128 && (self.current_code_unit as u8 as char).is_ascii_alphabetic())
+            && (self.current_code_unit < 128
+                && (self.current_code_unit as u8 as char).is_ascii_alphabetic())
             && !did_consume_whitespace_or_comments
         {
             token_type = TokenType::RegexFlags;
-            while !self.is_eof() && self.current_code_unit < 128 && (self.current_code_unit as u8 as char).is_ascii_alphabetic() {
+            while !self.is_eof()
+                && self.current_code_unit < 128
+                && (self.current_code_unit as u8 as char).is_ascii_alphabetic()
+            {
                 self.consume();
             }
         } else if self.current_code_unit == ch(b'`') {
@@ -958,7 +1073,10 @@ impl<'a> Lexer<'a> {
                 self.consume();
                 self.current_template_state_mut().in_expression = true;
             } else {
-                while !self.match2(ch(b'$'), ch(b'{')) && self.current_code_unit != ch(b'`') && !self.is_eof() {
+                while !self.match2(ch(b'$'), ch(b'{'))
+                    && self.current_code_unit != ch(b'`')
+                    && !self.is_eof()
+                {
                     if self.match2(ch(b'\\'), ch(b'$'))
                         || self.match2(ch(b'\\'), ch(b'`'))
                         || self.match2(ch(b'\\'), ch(b'\\'))
@@ -983,7 +1101,9 @@ impl<'a> Lexer<'a> {
                 token_type = TokenType::PrivateIdentifier;
             } else {
                 token_type = TokenType::Invalid;
-                token_message = Some("Start of private name '#' but not followed by valid identifier".to_string());
+                token_message = Some(
+                    "Start of private name '#' but not followed by valid identifier".to_string(),
+                );
             }
         } else if let Some((_cp, len)) = self.is_identifier_start() {
             let has_escape = self.scan_identifier_body(len);
@@ -1001,7 +1121,7 @@ impl<'a> Lexer<'a> {
                 }
                 identifier_value = Some(decoded);
             } else {
-                let source_slice = &self.source[value_start - 1 .. self.position - 1];
+                let source_slice = &self.source[value_start - 1..self.position - 1];
                 if let Some(kw) = keyword_from_str(source_slice) {
                     token_type = kw;
                 } else {
@@ -1044,7 +1164,9 @@ impl<'a> Lexer<'a> {
                     }
                 }
             } else {
-                while is_ascii_digit(self.current_code_unit) || self.match_numeric_literal_separator_followed_by(is_ascii_digit) {
+                while is_ascii_digit(self.current_code_unit)
+                    || self.match_numeric_literal_separator_followed_by(is_ascii_digit)
+                {
                     self.consume();
                 }
                 if self.current_code_unit == ch(b'n') {
@@ -1056,7 +1178,9 @@ impl<'a> Lexer<'a> {
                         if self.current_code_unit == ch(b'_') {
                             is_invalid = true;
                         }
-                        while is_ascii_digit(self.current_code_unit) || self.match_numeric_literal_separator_followed_by(is_ascii_digit) {
+                        while is_ascii_digit(self.current_code_unit)
+                            || self.match_numeric_literal_separator_followed_by(is_ascii_digit)
+                        {
                             self.consume();
                         }
                     }
@@ -1171,8 +1295,10 @@ impl<'a> Lexer<'a> {
             if token_type == TokenType::CurlyOpen {
                 self.current_template_state_mut().open_bracket_count += 1;
             } else if token_type == TokenType::CurlyClose {
-                self.current_template_state_mut().open_bracket_count =
-                    self.current_template_state().open_bracket_count.saturating_sub(1);
+                self.current_template_state_mut().open_bracket_count = self
+                    .current_template_state()
+                    .open_bracket_count
+                    .saturating_sub(1);
             }
         }
 
@@ -1181,7 +1307,12 @@ impl<'a> Lexer<'a> {
         let trivia_has_line_terminator = if trivia_start > 0 && value_start > trivia_start {
             self.source[trivia_start - 1..value_start - 1]
                 .iter()
-                .any(|&cu| cu == ch(b'\n') || cu == ch(b'\r') || cu == LINE_SEPARATOR || cu == PARAGRAPH_SEPARATOR)
+                .any(|&cu| {
+                    cu == ch(b'\n')
+                        || cu == ch(b'\r')
+                        || cu == LINE_SEPARATOR
+                        || cu == PARAGRAPH_SEPARATOR
+                })
         } else {
             false
         };
