@@ -1,6 +1,7 @@
 set(SOURCES
     BackgroundAction.cpp
     Thread.cpp
+    ThreadPool.cpp
 )
 
 ladybird_lib(LibThreading threading)
