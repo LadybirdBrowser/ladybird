@@ -100,8 +100,13 @@ static bool is_platform_object(Type const& type)
         "KeyframeEffect"sv,
         "MediaKeySystemAccess"sv,
         "MediaList"sv,
+        "MediaDeviceInfo"sv,
+        "MediaDevices"sv,
         "MediaSource"sv,
         "Memory"sv,
+        "MediaStream"sv,
+        "MediaStreamTrack"sv,
+        "MediaStreamTrackEvent"sv,
         "MessagePort"sv,
         "Module"sv,
         "MutationRecord"sv,
@@ -5465,6 +5470,7 @@ using namespace Web::IndexedDB;
 using namespace Web::Internals;
 using namespace Web::IntersectionObserver;
 using namespace Web::MediaCapabilitiesAPI;
+using namespace Web::MediaCapture;
 using namespace Web::MediaSourceExtensions;
 using namespace Web::NavigationTiming;
 using namespace Web::NotificationsAPI;

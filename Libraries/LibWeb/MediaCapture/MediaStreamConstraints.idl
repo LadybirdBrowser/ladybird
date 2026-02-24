@@ -1,0 +1,137 @@
+// https://w3c.github.io/mediacapture-main/#dom-constraindomstringparameters
+dictionary ConstrainDOMStringParameters {
+    (DOMString or sequence<DOMString>) exact;
+    (DOMString or sequence<DOMString>) ideal;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-constraindoublerange
+dictionary DoubleRange {
+    double max;
+    double min;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-constraindoublerange
+dictionary ConstrainDoubleRange : DoubleRange {
+    double exact;
+    double ideal;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-constrainulongrange
+dictionary ULongRange {
+    [Clamp] unsigned long max;
+    [Clamp] unsigned long min;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-constrainulongrange
+dictionary ConstrainULongRange : ULongRange {
+    [Clamp] unsigned long exact;
+    [Clamp] unsigned long ideal;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-constrainbooleanparameters
+dictionary ConstrainBooleanParameters {
+    boolean exact;
+    boolean ideal;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-constrainbooleanordomstringparameters
+dictionary ConstrainBooleanOrDOMStringParameters {
+    (boolean or DOMString) exact;
+    (boolean or DOMString) ideal;
+};
+
+typedef (unsigned long or ConstrainULongRange) ConstrainULong;
+typedef (double or ConstrainDoubleRange) ConstrainDouble;
+typedef (boolean or ConstrainBooleanParameters) ConstrainBoolean;
+typedef (DOMString or sequence<DOMString> or ConstrainDOMStringParameters) ConstrainDOMString;
+typedef (boolean or DOMString or ConstrainBooleanOrDOMStringParameters) ConstrainBooleanOrDOMString;
+
+// https://w3c.github.io/mediacapture-main/#dictdef-mediatrackconstraintset
+dictionary MediaTrackConstraintSet {
+    ConstrainULong width;
+    ConstrainULong height;
+    ConstrainDouble aspectRatio;
+    ConstrainDouble frameRate;
+    ConstrainDOMString facingMode;
+    ConstrainDOMString resizeMode;
+    ConstrainULong sampleRate;
+    ConstrainULong sampleSize;
+    ConstrainBooleanOrDOMString echoCancellation;
+    ConstrainBoolean autoGainControl;
+    ConstrainBoolean noiseSuppression;
+    ConstrainDouble latency;
+    ConstrainULong channelCount;
+    ConstrainDOMString deviceId;
+    ConstrainDOMString groupId;
+    ConstrainBoolean backgroundBlur;
+};
+
+dictionary MediaTrackConstraints : MediaTrackConstraintSet {
+    sequence<MediaTrackConstraintSet> advanced;
+};
+
+// https://w3c.github.io/mediacapture-main/#mediastreamconstraints
+dictionary MediaStreamConstraints {
+    (boolean or MediaTrackConstraints) video = false;
+    (boolean or MediaTrackConstraints) audio = false;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-mediatracksupportedconstraints
+dictionary MediaTrackSupportedConstraints {
+    boolean width = true;
+    boolean height = true;
+    boolean aspectRatio = true;
+    boolean frameRate = true;
+    boolean facingMode = true;
+    boolean resizeMode = true;
+    boolean sampleRate = true;
+    boolean sampleSize = true;
+    boolean echoCancellation = true;
+    boolean autoGainControl = true;
+    boolean noiseSuppression = true;
+    boolean latency = true;
+    boolean channelCount = true;
+    boolean deviceId = true;
+    boolean groupId = true;
+    boolean backgroundBlur = true;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-mediatrackcapabilities
+dictionary MediaTrackCapabilities {
+    ULongRange width;
+    ULongRange height;
+    DoubleRange aspectRatio;
+    DoubleRange frameRate;
+    sequence<DOMString> facingMode;
+    sequence<DOMString> resizeMode;
+    ULongRange sampleRate;
+    ULongRange sampleSize;
+    sequence<(boolean or DOMString)> echoCancellation;
+    sequence<boolean> autoGainControl;
+    sequence<boolean> noiseSuppression;
+    DoubleRange latency;
+    ULongRange channelCount;
+    DOMString deviceId;
+    DOMString groupId;
+    sequence<boolean> backgroundBlur;
+};
+
+// https://w3c.github.io/mediacapture-main/#dom-mediatracksettings
+dictionary MediaTrackSettings {
+    unsigned long width;
+    unsigned long height;
+    double aspectRatio;
+    double frameRate;
+    DOMString facingMode;
+    DOMString resizeMode;
+    unsigned long sampleRate;
+    unsigned long sampleSize;
+    (boolean or DOMString) echoCancellation;
+    boolean autoGainControl;
+    boolean noiseSuppression;
+    double latency;
+    unsigned long channelCount;
+    DOMString deviceId;
+    DOMString groupId;
+    boolean backgroundBlur;
+};
