@@ -15,6 +15,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
@@ -42,6 +43,8 @@ class WEB_API WorkerGlobalScope
     GC_DECLARE_ALLOCATOR(WorkerGlobalScope);
 
 public:
+    using Owner = Variant<SerializedDocument, SerializedWorkerGlobalScope>;
+
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     virtual ~WorkerGlobalScope() override;
@@ -111,6 +114,9 @@ public:
     void initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment);
     [[nodiscard]] ContentSecurityPolicy::Directives::Directive::Result run_csp_initialization() const;
 
+    auto& owner_set() { return m_owner_set; }
+    auto const& owner_set() const { return m_owner_set; }
+
 protected:
     explicit WorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 
@@ -171,6 +177,10 @@ private:
 
     // https://drafts.csswg.org/css-font-loading/#font-source
     GC::Ptr<CSS::FontFaceSet> m_fonts;
+
+    // https://html.spec.whatwg.org/multipage/workers.html#concept-WorkerGlobalScope-owner-set
+    // A WorkerGlobalScope object has an associated owner set (a set of Document and WorkerGlobalScope objects). It is initially empty and populated when the worker is created or obtained.
+    Vector<Owner> m_owner_set;
 };
 
 }
