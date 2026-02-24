@@ -5,6 +5,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <AK/Tracy.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/Painting/DisplayList.h>
 
@@ -42,6 +43,7 @@ static bool command_is_clip(DisplayListCommand const& command)
 
 void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshot const& scroll_state_snapshot, RefPtr<Gfx::PaintingSurface> surface)
 {
+    TRACY_ZONE_SCOPED_NAMED("DisplayListPlayer::execute");
     if (surface) {
         surface->lock_context();
     }

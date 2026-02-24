@@ -20,6 +20,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
+#include <AK/Tracy.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
@@ -1488,6 +1489,7 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
 
 void Document::update_layout(UpdateLayoutReason reason)
 {
+    TRACY_ZONE_SCOPED_NAMED("Document::update_layout");
     auto navigable = this->navigable();
     if (!navigable || navigable->active_document() != this)
         return;
@@ -1673,6 +1675,8 @@ bool Document::layout_is_up_to_date() const
 
 [[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer, bool needs_inherited_style_update, bool recompute_elements_depending_on_custom_properties, bool parent_display_changed)
 {
+    TRACY_ZONE_SCOPED_NAMED("update_style_recursively");
+
     bool const needs_full_style_update = node.document().needs_full_style_update();
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1768,6 +1772,8 @@ bool Document::layout_is_up_to_date() const
 
 void Document::update_style()
 {
+    TRACY_ZONE_SCOPED_NAMED("Document::update_style");
+
     // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
     // viewport to change which will can affect media query evaluation and the value of the `vw` unit.
     if (auto navigable = this->navigable(); navigable && navigable->container() && &navigable->container()->document() != this)

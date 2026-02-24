@@ -6,6 +6,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <AK/Tracy.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -119,6 +120,7 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
 void EventLoop::process()
 {
+    TRACY_ZONE_SCOPED_NAMED("HTML::EventLoop::process");
     if (m_skip_event_loop_processing_steps)
         return;
 
@@ -305,6 +307,7 @@ void EventLoop::process_input_events() const
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void EventLoop::update_the_rendering()
 {
+    TRACY_ZONE_SCOPED_NAMED("EventLoop::update_the_rendering");
     VERIFY(!m_running_rendering_task);
     m_running_rendering_task = true;
     ScopeGuard const guard = [this] {
@@ -521,6 +524,8 @@ void EventLoop::update_the_rendering()
         TemporaryExecutionContext context(document->realm(), TemporaryExecutionContext::CallbacksEnabled::Yes);
         document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading);
     }
+
+    TRACY_FRAME_MARK();
 }
 
 void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps)
@@ -599,6 +604,7 @@ void perform_a_microtask_checkpoint()
 // https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint
 void EventLoop::perform_a_microtask_checkpoint()
 {
+    TRACY_ZONE_SCOPED_NAMED("EventLoop::perform_a_microtask_checkpoint");
     if (execution_paused())
         return;
 

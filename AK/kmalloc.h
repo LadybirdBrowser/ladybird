@@ -9,16 +9,10 @@
 
 #include <AK/Checked.h>
 #include <AK/Platform.h>
+
 #include <new>
 #include <stdlib.h>
 
-#if defined(AK_OS_SERENITY)
-#    define kcalloc calloc
-#    define kfree free
-#    define kmalloc malloc
-#    define krealloc realloc
-#    define kmalloc_good_size malloc_good_size
-#else
 [[nodiscard]] void* ak_kcalloc(size_t count, size_t size);
 void ak_kfree(void* ptr);
 [[nodiscard]] void* ak_kmalloc(size_t size);
@@ -49,7 +43,6 @@ inline void kfree(void* ptr)
 {
     return ak_kmalloc_good_size(size);
 }
-#endif
 
 using std::nothrow;
 

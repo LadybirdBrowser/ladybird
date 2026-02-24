@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/HashTable.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Tracy.h>
 #include <LibGC/RootHashMap.h>
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
 #include <LibJS/Bytecode/BasicBlock.h>
@@ -420,6 +421,19 @@ NEVER_INLINE void VM::unwind_inline_frame_for_exception()
 
 void VM::run_bytecode(size_t entry_point)
 {
+#if defined(TRACY_ENABLE)
+    TRACY_ZONE_SCOPED();
+    auto& executable = current_executable();
+    if (executable.name.is_ascii()) {
+        auto name_view = executable.name.view();
+        auto name_span = name_view.ascii_span();
+        TRACY_SET_ZONE_NAME(name_span.data(), name_span.size());
+    } else {
+        constexpr auto FunctionName = "JS::Interpreter::run_bytecode()"sv;
+        TRACY_SET_ZONE_NAME(FunctionName.characters_without_null_termination(), FunctionName.length());
+    }
+#endif
+
     if (vm().interpreter_stack().is_exhausted() || vm().did_reach_stack_space_limit()) [[unlikely]] {
         reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
         return;

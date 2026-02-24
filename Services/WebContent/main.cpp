@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <AK/Tracy.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -106,6 +107,7 @@ static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+    TRACY_SET_PROGRAM_NAME("WebContent");
     AK::set_rich_debug_enabled(true);
 
 #if !defined(AK_OS_WINDOWS)

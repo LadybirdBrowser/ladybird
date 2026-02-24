@@ -5,6 +5,7 @@
  */
 
 #include <AK/Platform.h>
+#include <AK/Tracy.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
@@ -76,6 +77,7 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+    TRACY_SET_PROGRAM_NAME("WebDriver");
     AK::set_rich_debug_enabled(true);
 
     auto listen_address = "0.0.0.0"sv;

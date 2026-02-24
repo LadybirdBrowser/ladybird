@@ -5,6 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/Tracy.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
@@ -37,6 +38,7 @@ static void open_urls_from_client(Vector<URL::URL> const& urls, WebView::NewWind
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+    TRACY_SET_PROGRAM_NAME("Ladybird");
     AK::set_rich_debug_enabled(true);
 
     auto app = TRY(Ladybird::Application::create(arguments));

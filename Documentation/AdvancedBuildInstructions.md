@@ -31,6 +31,9 @@ There are some optional features that can be enabled during compilation that are
 - `LADYBIRD_CACHE_DIR`: sets the location of a shared cache of downloaded files. Should not need to be set manually unless managing a distribution package.
 - `ENABLE_NETWORK_DOWNLOADS`: allows downloading files from the internet during the build. Default on, turning off enables offline builds. For offline builds, the structure of the LADYBIRD_CACHE_DIR must be set up the way that the build expects.
 - `ENABLE_CLANG_PLUGINS`: enables Clang plugins which analyze the code for programming mistakes. See [Clang Plugins](#clang-plugins) below.
+- `ENABLE_TRACY`: enables support for the [Tracy](https://github.com/wolfpld/tracy) profiling tool.
+- `ENABLE_TRACY_MEMORY`: enables support for memory usage tracking for the [Tracy](https://github.com/wolfpld/tracy) profiling tool. This option also enables Tracy in general.
+- `TRACY_CALLSTACK_DEPTH`: enables stack frame capturing at [Tracy](https://github.com/wolfpld/tracy) zones, up to the specified depth.
 
 Many parts of the codebase have debug functionality, mostly consisting of additional messages printed to the debug console. This is done via the `<component_name>_DEBUG` macros, which can be enabled individually at build time. They are listed in [this file](../Meta/CMake/all_the_debug_macros.cmake).
 
