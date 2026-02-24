@@ -454,6 +454,15 @@ impl<'a> Lexer<'a> {
         self.position += 1;
     }
 
+    fn consume_while<F>(&mut self, condition: F)
+    where
+        F: Fn(&Self) -> bool
+    {
+        while !self.is_eof() && condition(self) {
+            self.consume();
+        }
+    }
+
     fn current_code_point(&self) -> u32 {
         if self.position == 0 {
             return 0xFFFD;
@@ -854,53 +863,34 @@ impl<'a> Lexer<'a> {
         let mut token_message: Option<String> = None;
 
         if !in_template || self.current_template_state().in_expression {
-            loop {
+            while !self.is_eof() {
                 if self.is_line_terminator() {
                     line_has_token_yet = false;
-                    loop {
-                        self.consume();
-                        if !self.is_line_terminator() {
-                            break;
-                        }
-                    }
+                    self.consume_while(|s| s.is_line_terminator());
                 } else if self.is_whitespace() {
-                    loop {
-                        self.consume();
-                        if !self.is_whitespace() {
-                            break;
-                        }
-                    }
+                    self.consume_while(|s| s.is_whitespace());
                 } else if self.is_line_comment_start(line_has_token_yet) {
-                    self.consume();
-                    loop {
-                        self.consume();
-                        if self.is_eof() || self.is_line_terminator() {
-                            break;
-                        }
-                    }
+                    self.consume(); // Skip the start sequence
+                    self.consume_while(|s| !s.is_line_terminator());
                 } else if self.is_block_comment_start() {
                     let start_line_number = self.line_number;
-                    self.consume();
-                    loop {
-                        self.consume();
-                        if self.is_eof() || self.is_block_comment_end() {
-                            break;
-                        }
-                    }
-                    if self.is_eof() {
-                        unterminated_comment = true;
-                    }
-                    self.consume(); // consume *
-                    if self.is_eof() {
-                        unterminated_comment = true;
-                    }
-                    self.consume(); // consume /
+                    self.consume(); // Consume start
+                    self.consume_while(|s| !s.is_block_comment_end());
 
+                    // Since consume_while !self.is_block_comment_end() has finished,
+                    // we are now either at EOF or a valid block comment end
+                    if self.is_eof() {
+                        unterminated_comment = true;
+                    } else {
+                        self.consume(); // consume *
+                        self.consume(); // consume /
+                    }
+                    
                     if start_line_number != self.line_number {
                         line_has_token_yet = false;
                     }
                 } else {
-                    break;
+                    break; // Found real token
                 }
             }
         }
