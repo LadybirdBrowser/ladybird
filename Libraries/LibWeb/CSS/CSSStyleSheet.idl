@@ -23,7 +23,7 @@ interface CSSStyleSheet : StyleSheet {
 };
 
 dictionary CSSStyleSheetInit {
-    DOMString baseURL = null;
+    DOMString? baseURL = null;
     (MediaList or DOMString) media = "";
     boolean disabled = false;
 };
