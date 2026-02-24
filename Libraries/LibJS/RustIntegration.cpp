@@ -589,6 +589,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(
     auto const& code_view = source_code->code_view();
     auto length = code_view.length_in_code_units();
 
+    GC::DeferGC defer_gc(realm.vm().heap());
     ModuleBuilder builder;
     ModuleCallbacks callbacks {
         .set_has_top_level_await = module_set_has_top_level_await,
@@ -764,6 +765,8 @@ Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
 
     auto const& code_view = code->code_view();
     auto length = code_view.length_in_code_units();
+
+    GC::DeferGC defer_gc(vm.heap());
 
     u8* rust_ast_data = nullptr;
     size_t rust_ast_len = 0;
