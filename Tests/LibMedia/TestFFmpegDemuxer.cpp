@@ -86,7 +86,7 @@ TEST_CASE(read_after_aborted_blocking_read)
     // Reset the abort state and provide the rest of the file data.
     demuxer->reset_blocking_reads_aborted_for_track(track);
     stream->add_chunk_at(initial_chunk_size, file_data.bytes().slice(initial_chunk_size));
-    stream->reached_end_of_body();
+    stream->close();
 
     // Wait for the reader thread to finish. It should successfully read all remaining frames
     // and then get EndOfStream.
