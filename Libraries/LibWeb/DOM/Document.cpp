@@ -1475,6 +1475,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         for (auto const& svg_root : svg_roots_to_relayout)
             relayout_svg_root(*svg_root);
 
+        invalidate_stacking_context_tree();
         invalidate_display_list();
         set_needs_to_resolve_paint_only_properties();
         set_needs_accumulated_visual_contexts_update(true);

@@ -8,6 +8,9 @@ SaveLayer@0
   Save@2
     AddMask@2 rect=[-2,-2 119x119]
   Restore@3
-  FillRect@3 rect=[8,8 100x100] color=rgb(0, 0, 0)
+  Save@2
+    AddMask@2 rect=[-2,-2 119x119]
+    FillRect@3 rect=[8,8 100x100] color=rgb(0, 0, 0)
+  Restore@2
 Restore@0
 
