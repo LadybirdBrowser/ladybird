@@ -100,6 +100,32 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
 // =============================================================================
+// ParsedProgram: GC-free parse result for off-thread parsing
+// =============================================================================
+
+/// A parsed program (script or module) that can be compiled later.
+/// Contains no GC references, so it can safely be transferred between threads.
+pub struct ParsedProgram {
+    program: ast::Statement,
+    function_table: ast::FunctionTable,
+    scope_ref: Rc<RefCell<ast::ScopeData>>,
+    is_strict_mode: bool,
+    has_top_level_await: bool,
+    errors: Vec<ParsedError>,
+    ast_dump: Option<Vec<u8>>,
+    deferred_regexes: Vec<parser::DeferredRegex>,
+}
+
+struct ParsedError {
+    message: String,
+    line: u32,
+    column: u32,
+}
+
+// SAFETY: Full ownership transfer between threads, never concurrent access.
+unsafe impl Send for ParsedProgram {}
+
+// =============================================================================
 // Internal helpers
 // =============================================================================
 
@@ -368,14 +394,260 @@ pub unsafe extern "C" fn rust_compile_program(
     }
 }
 
+/// Parse a program (script or module) without any GC interaction.
+///
+/// Lexes, parses, and runs scope analysis. The result is a `ParsedProgram`
+/// that can be compiled later via `rust_compile_parsed_script()` or
+/// `rust_compile_parsed_module()`.
+///
+/// `program_type`: 0 = Script, 1 = Module.
+///
+/// Returns nullptr if `source` is null. Otherwise returns a non-null
+/// pointer. Caller must check for errors via
+/// `rust_parsed_program_has_errors()` before compiling.
+///
+/// # Safety
+/// - `source` must point to a valid UTF-16 buffer of `source_len` elements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_program(
+    source: *const u16,
+    source_len: usize,
+    program_type: u8,
+    initial_line_number: usize,
+    dump_ast: bool,
+    use_color: bool,
+) -> *mut ParsedProgram {
+    unsafe {
+        abort_on_panic(|| {
+            let pt = match program_type {
+                0 => ProgramType::Script,
+                1 => ProgramType::Module,
+                _ => ProgramType::Script,
+            };
+
+            let Some(source_slice) = source_from_raw(source, source_len) else {
+                return std::ptr::null_mut();
+            };
+
+            let mut parser = if pt == ProgramType::Script {
+                Parser::new_with_line_offset(source_slice, pt, u32_from_usize(initial_line_number))
+            } else {
+                Parser::new(source_slice, pt)
+            };
+
+            let program = parser.parse_program(false);
+
+            // Collect errors from both parser and scope collector.
+            let mut errors = Vec::new();
+            if parser.has_errors() {
+                for err in parser.errors() {
+                    errors.push(ParsedError {
+                        message: err.message.clone(),
+                        line: err.line,
+                        column: err.column,
+                    });
+                }
+            }
+
+            if errors.is_empty() && parser.scope_collector.has_errors() {
+                for err in parser.scope_collector.drain_errors() {
+                    errors.push(ParsedError {
+                        message: err.message.clone(),
+                        line: err.line,
+                        column: err.column,
+                    });
+                }
+            }
+
+            if errors.is_empty() {
+                parser.scope_collector.analyze(false);
+            }
+
+            // Dump AST if requested (after scope analysis).
+            if dump_ast && errors.is_empty() {
+                ast_dump::dump_program(&program, use_color, &parser.function_table);
+            }
+
+            let (scope_ref, is_strict, has_tla) = if errors.is_empty() {
+                if let StatementKind::Program(ref data) = program.inner {
+                    (
+                        data.scope.clone(),
+                        data.is_strict_mode,
+                        data.has_top_level_await,
+                    )
+                } else {
+                    let scope = Rc::new(RefCell::new(ast::ScopeData::default()));
+                    (scope, false, false)
+                }
+            } else {
+                let scope = Rc::new(RefCell::new(ast::ScopeData::default()));
+                (scope, false, false)
+            };
+
+            let deferred_regexes = parser.take_deferred_regexes();
+
+            let parsed = ParsedProgram {
+                program,
+                function_table: std::mem::take(&mut parser.function_table),
+                scope_ref,
+                is_strict_mode: is_strict,
+                has_top_level_await: has_tla,
+                errors,
+                ast_dump: None,
+                deferred_regexes,
+            };
+
+            Box::into_raw(Box::new(parsed))
+        })
+    }
+}
+
+/// Check whether a ParsedProgram has parse errors.
+///
+/// # Safety
+/// `parsed` must be a valid pointer from `rust_parse_program()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_program_has_errors(parsed: *const ParsedProgram) -> bool {
+    unsafe { !(*parsed).errors.is_empty() }
+}
+
+/// Report parse errors from a ParsedProgram via callback, then clear them.
+///
+/// Calls `error_callback` for each error with the same signature as
+/// `RustParseErrorCallback`.
+///
+/// # Safety
+/// - `parsed` must be a valid pointer from `rust_parse_program()`.
+/// - `error_callback` must be a valid function pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_program_take_errors(
+    parsed: *mut ParsedProgram,
+    error_context: *mut c_void,
+    error_callback: ParseErrorCallback,
+) {
+    unsafe {
+        let parsed = &mut *parsed;
+        for err in parsed.errors.drain(..) {
+            let msg = err.message.as_bytes();
+            error_callback(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+        }
+    }
+}
+
+/// Compile deferred regex literals in a ParsedProgram.
+///
+/// Must be called on the main thread (LibRegex is not thread-safe).
+/// Any regex compilation errors are added to the ParsedProgram's error list,
+/// so the caller should check `rust_parsed_program_has_errors()` afterwards.
+///
+/// # Safety
+/// `parsed` must be a valid pointer from `rust_parse_program()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_program_compile_regexes(parsed: *mut ParsedProgram) {
+    unsafe {
+        let parsed = &mut *parsed;
+        let deferred = std::mem::take(&mut parsed.deferred_regexes);
+        for err in Parser::compile_deferred_regexes(deferred) {
+            parsed.errors.push(ParsedError {
+                message: err.message,
+                line: err.line,
+                column: err.column,
+            });
+        }
+    }
+}
+
+/// Free a ParsedProgram without compiling it.
+///
+/// # Safety
+/// `parsed` must be a valid pointer from `rust_parse_program()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_parsed_program(parsed: *mut ParsedProgram) {
+    unsafe {
+        drop(Box::from_raw(parsed));
+    }
+}
+
+/// Get the AST dump string from a ParsedProgram.
+///
+/// Generates the dump on first call and caches it. Writes the pointer
+/// and length to the provided out-parameters. The string is owned by
+/// the ParsedProgram and freed when it is freed or compiled.
+///
+/// # Safety
+/// - `parsed` must be a valid pointer from `rust_parse_program()` with no errors.
+/// - `output_ptr` and `output_len` must be valid writable pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_program_ast_dump(
+    parsed: *mut ParsedProgram,
+    output_ptr: *mut *const u8,
+    output_len: *mut usize,
+) {
+    unsafe {
+        let parsed = &mut *parsed;
+        let dump = parsed.ast_dump.get_or_insert_with(|| {
+            ast_dump::dump_program_to_string(&parsed.program, &parsed.function_table).into_bytes()
+        });
+        *output_ptr = dump.as_ptr();
+        *output_len = dump.len();
+    }
+}
+
+/// Compile a previously parsed script. Consumes and frees the ParsedProgram.
+///
+/// Performs codegen and GDI extraction. Requires VM and GC access.
+///
+/// Returns the `Executable*` as `void*`, or nullptr on failure.
+///
+/// # Safety
+/// - `parsed` must be a valid pointer from `rust_parse_program()` with no errors.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `gdi_context` must be a valid pointer to a C++ ScriptGdiBuilder.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compile_parsed_script(
+    parsed: *mut ParsedProgram,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    gdi_context: *mut c_void,
+    source_len: usize,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            let mut parsed = Box::from_raw(parsed);
+
+            let mut generator =
+                new_program_generator(parsed.is_strict_mode, vm_ptr, source_code_ptr, source_len);
+            generator.function_table = std::mem::take(&mut parsed.function_table);
+            let exec_ptr = compile_program_body(
+                &mut generator,
+                &parsed.program,
+                &parsed.scope_ref,
+                vm_ptr,
+                source_code_ptr,
+            );
+            if exec_ptr.is_null() {
+                return std::ptr::null_mut();
+            }
+
+            extract_script_gdi(
+                &parsed.scope_ref.borrow(),
+                parsed.is_strict_mode,
+                vm_ptr,
+                source_code_ptr,
+                gdi_context,
+                &mut generator.function_table,
+            );
+
+            exec_ptr
+        })
+    }
+}
+
 /// Compile a script and extract GDI (GlobalDeclarationInstantiation) metadata.
 ///
-/// This is the path for scripts. It:
-/// 1. Parses the program
-/// 2. Runs scope analysis
-/// 3. Generates bytecode → creates Executable
-/// 4. Extracts GDI metadata from the program AST
-/// 5. Populates the C++ ScriptGdiBuilder via callbacks
+/// This is the combined parse+compile path for scripts. Internally calls
+/// `rust_parse_program()` + `rust_compile_parsed_script()`.
 ///
 /// Returns the `Executable*` as `void*`, or nullptr on failure.
 ///
@@ -401,77 +673,38 @@ pub unsafe extern "C" fn rust_compile_script(
 ) -> *mut c_void {
     unsafe {
         abort_on_panic(|| {
-            let Some(source_slice) = source_from_raw(source, source_len) else {
-                return std::ptr::null_mut();
-            };
-            let mut parser = Parser::new_with_line_offset(
-                source_slice,
-                ProgramType::Script,
-                u32_from_usize(initial_line_number),
+            let parsed = rust_parse_program(
+                source,
+                source_len,
+                0,
+                initial_line_number,
+                dump_ast,
+                use_color,
             );
 
-            let program = parser.parse_program(false);
+            if parsed.is_null() {
+                return std::ptr::null_mut();
+            }
 
-            // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
-            if !regex_errors.is_empty() {
+            // Compile deferred regex literals before checking for errors.
+            rust_parsed_program_compile_regexes(parsed);
+
+            if rust_parsed_program_has_errors(parsed) {
                 if let Some(cb) = error_callback {
-                    for err in &regex_errors {
-                        let msg = err.message.as_bytes();
-                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
-                    }
+                    rust_parsed_program_take_errors(parsed, error_context, cb);
                 }
+                rust_free_parsed_program(parsed);
                 return std::ptr::null_mut();
-            }
-
-            if check_errors_with_callback(&mut parser, error_context, error_callback) {
-                return std::ptr::null_mut();
-            }
-
-            parser.scope_collector.analyze(false);
-
-            // Dump AST if requested (after scope analysis so identifier metadata is populated).
-            if dump_ast {
-                ast_dump::dump_program(&program, use_color, &parser.function_table);
             }
 
             write_ast_dump_output(
-                &program,
-                &parser.function_table,
+                &(*parsed).program,
+                &(*parsed).function_table,
                 ast_dump_output,
                 ast_dump_output_len,
             );
 
-            let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
-                (data.scope.clone(), data.is_strict_mode)
-            } else {
-                return std::ptr::null_mut();
-            };
-
-            let mut generator =
-                new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
-            generator.function_table = std::mem::take(&mut parser.function_table);
-            let exec_ptr = compile_program_body(
-                &mut generator,
-                &program,
-                &scope_ref,
-                vm_ptr,
-                source_code_ptr,
-            );
-            if exec_ptr.is_null() {
-                return std::ptr::null_mut();
-            }
-
-            extract_script_gdi(
-                &scope_ref.borrow(),
-                is_strict,
-                vm_ptr,
-                source_code_ptr,
-                gdi_context,
-                &mut generator.function_table,
-            );
-
-            exec_ptr
+            rust_compile_parsed_script(parsed, vm_ptr, source_code_ptr, gdi_context, source_len)
         })
     }
 }
