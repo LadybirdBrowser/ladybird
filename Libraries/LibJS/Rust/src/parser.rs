@@ -40,7 +40,7 @@ use crate::ast::{
     BindingPattern, Expression, ExpressionKind, FunctionParameter, FunctionTable, Identifier,
     PrivateIdentifier, ProgramData, ScopeData, SourceRange, Statement, StatementKind, Utf16String,
 };
-use crate::lexer::{ch, Lexer};
+use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
 use crate::token::{Token, TokenType};
 
@@ -1070,8 +1070,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 StatementKind::FunctionDeclaration {
-                    name: Some(name),
-                    ..
+                    name: Some(name), ..
                 } => {
                     declared_names.insert(name.name.clone());
                 }
@@ -1094,8 +1093,7 @@ impl<'a> Parser<'a> {
                                 }
                             }
                             StatementKind::FunctionDeclaration {
-                                name: Some(name),
-                                ..
+                                name: Some(name), ..
                             } => {
                                 declared_names.insert(name.name.clone());
                             }
@@ -1126,15 +1124,16 @@ impl<'a> Parser<'a> {
                         continue;
                     }
                     if let Some(ref local_name) = entry.local_or_import_name
-                        && !declared_names.contains(local_name.as_slice()) {
-                            self.syntax_error_at_position(
-                                &format!(
-                                    "'{}' in export is not declared",
-                                    String::from_utf16_lossy(local_name.as_slice())
-                                ),
-                                child.range.start,
-                            );
-                        }
+                        && !declared_names.contains(local_name.as_slice())
+                    {
+                        self.syntax_error_at_position(
+                            &format!(
+                                "'{}' in export is not declared",
+                                String::from_utf16_lossy(local_name.as_slice())
+                            ),
+                            child.range.start,
+                        );
+                    }
                 }
             }
         }

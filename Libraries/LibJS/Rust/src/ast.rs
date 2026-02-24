@@ -884,9 +884,10 @@ impl BindingPattern {
                 return true;
             }
             if let Some(BindingEntryAlias::BindingPattern(ref nested)) = entry.alias
-                && nested.contains_expression() {
-                    return true;
-                }
+                && nested.contains_expression()
+            {
+                return true;
+            }
         }
         false
     }

@@ -692,12 +692,13 @@ impl Generator {
     ) {
         // OPTIMIZATION: If condition is a constant, emit an unconditional jump.
         if let Some(constant) = self.get_constant(condition)
-            && let Some(is_truthy) = constant_to_boolean(constant) {
-                self.emit(Instruction::Jump {
-                    target: if is_truthy { true_target } else { false_target },
-                });
-                return;
-            }
+            && let Some(is_truthy) = constant_to_boolean(constant)
+        {
+            self.emit(Instruction::Jump {
+                target: if is_truthy { true_target } else { false_target },
+            });
+            return;
+        }
 
         // OPTIMIZATION: If the condition is a register with ref_count == 1 and the last
         // instruction is a comparison whose dst matches condition, fuse into a JumpXxx.
@@ -1029,9 +1030,10 @@ impl Generator {
                     let completion = target_scope.completion_register.clone();
                     if let (Some(cur), Some(tgt)) =
                         (self.current_completion_register.clone(), completion)
-                        && cur != tgt {
-                            self.emit_mov(&tgt, &cur);
-                        }
+                        && cur != tgt
+                    {
+                        self.emit_mov(&tgt, &cur);
+                    }
                     self.emit(Instruction::Jump { target });
                     self.current_finally_context = saved_ctx;
                     return;
@@ -1045,9 +1047,10 @@ impl Generator {
                     let completion = target_scope.completion_register.clone();
                     if let (Some(cur), Some(tgt)) =
                         (self.current_completion_register.clone(), completion)
-                        && cur != tgt {
-                            self.emit_mov(&tgt, &cur);
-                        }
+                        && cur != tgt
+                    {
+                        self.emit_mov(&tgt, &cur);
+                    }
                     self.emit(Instruction::Jump { target });
                     self.current_finally_context = saved_ctx;
                     return;
@@ -1074,9 +1077,10 @@ impl Generator {
                         let completion = target_scope.completion_register.clone();
                         if let (Some(cur), Some(tgt)) =
                             (self.current_completion_register.clone(), completion)
-                            && cur != tgt {
-                                self.emit_mov(&tgt, &cur);
-                            }
+                            && cur != tgt
+                        {
+                            self.emit_mov(&tgt, &cur);
+                        }
                         self.register_jump_in_finally_context(target);
                         self.current_finally_context = saved_ctx;
                         return;
@@ -1141,9 +1145,10 @@ impl Generator {
                         {
                             if let (Some(cur), Some(tgt)) =
                                 (self.current_completion_register.clone(), completion.clone())
-                                && cur != tgt {
-                                    self.emit_mov(&tgt, &cur);
-                                }
+                                && cur != tgt
+                            {
+                                self.emit_mov(&tgt, &cur);
+                            }
                             self.register_jump_in_finally_context(*target);
                             self.current_finally_context = saved_ctx;
                             return;
@@ -1162,9 +1167,10 @@ impl Generator {
             if label_set.iter().any(|l| l == label) {
                 if let (Some(cur), Some(tgt)) =
                     (self.current_completion_register.clone(), completion.clone())
-                    && cur != tgt {
-                        self.emit_mov(&tgt, &cur);
-                    }
+                    && cur != tgt
+                {
+                    self.emit_mov(&tgt, &cur);
+                }
                 self.emit(Instruction::Jump { target: *target });
                 self.current_finally_context = saved_ctx;
                 return;
@@ -1556,11 +1562,11 @@ impl Generator {
         for handler in &exception_handlers {
             if let Some(last) = merged_handlers.last_mut()
                 && last.end_offset == handler.start_offset
-                    && last.handler_offset == handler.handler_offset
-                {
-                    last.end_offset = handler.end_offset;
-                    continue;
-                }
+                && last.handler_offset == handler.handler_offset
+            {
+                last.end_offset = handler.end_offset;
+                continue;
+            }
             merged_handlers.push(handler.clone());
         }
         merged_handlers.sort_by_key(|h| h.start_offset);

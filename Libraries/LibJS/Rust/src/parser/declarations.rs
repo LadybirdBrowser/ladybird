@@ -13,8 +13,8 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::lexer::ch;
 use crate::parser::{
-    Associativity, DeclarationKind, ForbiddenTokens, FunctionKind, MethodKind, ParamInfo,
-    ParsedParameters, Parser, Position, ProgramType, PropertyKey, PRECEDENCE_ASSIGNMENT,
+    Associativity, DeclarationKind, ForbiddenTokens, FunctionKind, MethodKind,
+    PRECEDENCE_ASSIGNMENT, ParamInfo, ParsedParameters, Parser, Position, ProgramType, PropertyKey,
 };
 use crate::token::TokenType;
 
@@ -77,9 +77,10 @@ fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
             _ => {}
         }
         if entry.alias.is_none()
-            && let Some(BindingEntryName::Identifier(id)) = &entry.name {
-                names.push(id.name.clone());
-            }
+            && let Some(BindingEntryName::Identifier(id)) = &entry.name
+        {
+            names.push(id.name.clone());
+        }
     }
 }
 
@@ -1801,11 +1802,10 @@ impl<'a> Parser<'a> {
                         let token = self.consume();
                         let (name, _) = self.parse_string_value(&token);
                         if let Some(&last) = name.last()
-                            && (0xD800..=0xDBFF).contains(&last) {
-                                self.syntax_error(
-                                    "StringValue ending with unpaired high surrogate",
-                                );
-                            }
+                            && (0xD800..=0xDBFF).contains(&last)
+                        {
+                            self.syntax_error("StringValue ending with unpaired high surrogate");
+                        }
 
                         if !self.match_as() {
                             self.expected("'as'");
@@ -1893,9 +1893,9 @@ impl<'a> Parser<'a> {
                         name: Some(ref name_id),
                         ..
                     } = declaration.inner
-                    {
-                        local_name = Some(name_id.name.clone());
-                    }
+                {
+                    local_name = Some(name_id.name.clone());
+                }
                 statement = Some(Box::new(declaration));
             } else if self.match_token(TokenType::Class) {
                 let next = self.next_token();
@@ -1903,9 +1903,10 @@ impl<'a> Parser<'a> {
                 {
                     let declaration = self.parse_class_declaration();
                     if let StatementKind::ClassDeclaration(ref class) = declaration.inner
-                        && let Some(ref name_id) = class.name {
-                            local_name = Some(name_id.name.clone());
-                        }
+                        && let Some(ref name_id) = class.name
+                    {
+                        local_name = Some(name_id.name.clone());
+                    }
                     statement = Some(Box::new(declaration));
                 } else {
                     // Unnamed class declaration - don't consume semicolon,
@@ -2068,15 +2069,16 @@ impl<'a> Parser<'a> {
         // Check for duplicate exported names.
         for entry in &entries {
             if let Some(ref name) = entry.export_name
-                && !self.exported_names.insert(name.clone()) {
-                    self.syntax_error_at_position(
-                        &format!(
-                            "Duplicate export with name: '{}'",
-                            String::from_utf16_lossy(name.as_slice())
-                        ),
-                        start,
-                    );
-                }
+                && !self.exported_names.insert(name.clone())
+            {
+                self.syntax_error_at_position(
+                    &format!(
+                        "Duplicate export with name: '{}'",
+                        String::from_utf16_lossy(name.as_slice())
+                    ),
+                    start,
+                );
+            }
         }
 
         self.statement(
@@ -2127,9 +2129,10 @@ impl<'a> Parser<'a> {
             // It is a Syntax Error if IsStringWellFormedUnicode of the StringValue
             // of StringLiteral is false.
             if let Some(&last) = value.last()
-                && (0xD800..=0xDBFF).contains(&last) {
-                    self.syntax_error("StringValue ending with unpaired high surrogate");
-                }
+                && (0xD800..=0xDBFF).contains(&last)
+            {
+                self.syntax_error("StringValue ending with unpaired high surrogate");
+            }
             (value, true)
         } else {
             self.expected("export specifier (string or identifier)");

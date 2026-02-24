@@ -9,7 +9,7 @@
 use std::rc::Rc;
 
 use crate::ast::*;
-use crate::parser::{Associativity, ForbiddenTokens, Parser, Position, PRECEDENCE_COMMA};
+use crate::parser::{Associativity, ForbiddenTokens, PRECEDENCE_COMMA, Parser, Position};
 use crate::token::TokenType;
 
 /// Used locally during for-statement parsing before converting to `ast::ForInit`.
@@ -59,9 +59,9 @@ impl<'a> Parser<'a> {
                 if self.match_identifier_name()
                     && let Some(labelled) =
                         self.try_parse_labelled_statement(allow_labelled_function)
-                    {
-                        return labelled;
-                    }
+                {
+                    return labelled;
+                }
                 if self.match_expression() {
                     self.parse_expression_statement()
                 } else {
@@ -478,10 +478,11 @@ impl<'a> Parser<'a> {
                     // https://tc39.es/ecma262/#sec-for-in-and-for-of-statements
                     if let LocalForInit::Expression(ref expression) = init
                         && let ExpressionKind::Member { ref object, .. } = expression.inner
-                            && let ExpressionKind::Identifier(ref ident) = object.inner
-                                && ident.name == utf16!("let") {
-                                    self.syntax_error("For of statement may not start with let.");
-                                }
+                        && let ExpressionKind::Identifier(ref ident) = object.inner
+                        && ident.name == utf16!("let")
+                    {
+                        self.syntax_error("For of statement may not start with let.");
+                    }
                 }
                 self.consume();
                 let rhs = self.parse_assignment_expression();
@@ -514,13 +515,13 @@ impl<'a> Parser<'a> {
                 kind: DeclarationKind::Const,
                 ref declarations,
             } = declaration.inner
-            {
-                for d in declarations {
-                    if d.init.is_none() {
-                        self.syntax_error("Missing initializer in const declaration");
-                    }
+        {
+            for d in declarations {
+                if d.init.is_none() {
+                    self.syntax_error("Missing initializer in const declaration");
                 }
             }
+        }
         self.consume_token(TokenType::Semicolon);
         let for_init = match init {
             LocalForInit::Declaration(declaration) => {
@@ -864,14 +865,14 @@ impl<'a> Parser<'a> {
         };
 
         let is_iteration = body_starts_iteration || self.last_inner_label_is_iteration;
-        if !is_iteration
-            && let Some(Some((line, col))) = self.labels_in_scope.get(label.as_slice()) {
-                self.syntax_error_at(
-                    "labelled continue statement cannot use non iterating statement",
-                    *line,
-                    *col,
-                );
-            }
+        if !is_iteration && let Some(Some((line, col))) = self.labels_in_scope.get(label.as_slice())
+        {
+            self.syntax_error_at(
+                "labelled continue statement cannot use non iterating statement",
+                *line,
+                *col,
+            );
+        }
 
         self.labels_in_scope.remove(label.as_slice());
         self.flags.in_break_context = break_before;
@@ -912,13 +913,13 @@ impl<'a> Parser<'a> {
     fn validate_for_in_of_lhs(&mut self, init: &LocalForInit) {
         if let LocalForInit::Expression(ref expression) = *init
             && !Self::is_identifier(expression)
-                && !Self::is_member_expression(expression)
-                && !Self::is_call_expression(expression)
-                && !Self::is_object_expression(expression)
-                && !Self::is_array_expression(expression)
-            {
-                self.syntax_error("Invalid left-hand side in for-loop");
-            }
+            && !Self::is_member_expression(expression)
+            && !Self::is_call_expression(expression)
+            && !Self::is_object_expression(expression)
+            && !Self::is_array_expression(expression)
+        {
+            self.syntax_error("Invalid left-hand side in for-loop");
+        }
     }
 
     /// Convert a `LocalForInit` into a `ForInOfLhs`, synthesizing a binding
@@ -931,14 +932,15 @@ impl<'a> Parser<'a> {
             LocalForInit::Expression(expression) => {
                 if Self::is_array_expression(&expression) || Self::is_object_expression(&expression)
                 {
-                    match self.synthesize_binding_pattern(init_start) { Some(pattern) => {
-                        for (name, id) in self.pattern_bound_names.drain(..) {
-                            self.scope_collector.register_identifier(id, &name, None);
+                    match self.synthesize_binding_pattern(init_start) {
+                        Some(pattern) => {
+                            for (name, id) in self.pattern_bound_names.drain(..) {
+                                self.scope_collector.register_identifier(id, &name, None);
+                            }
+                            ForInOfLhs::Pattern(pattern)
                         }
-                        ForInOfLhs::Pattern(pattern)
-                    } _ => {
-                        ForInOfLhs::Expression(Box::new(expression))
-                    }}
+                        _ => ForInOfLhs::Expression(Box::new(expression)),
+                    }
                 } else {
                     ForInOfLhs::Expression(Box::new(expression))
                 }

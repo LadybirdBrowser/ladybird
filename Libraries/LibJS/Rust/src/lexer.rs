@@ -730,9 +730,10 @@ impl<'a> Lexer<'a> {
         let cp = self.current_code_point();
         if cp == '\\' as u32 {
             if let Some((escaped_cp, len)) = self.is_identifier_unicode_escape()
-                && is_identifier_start_cp(escaped_cp) {
-                    return Some((escaped_cp, len));
-                }
+                && is_identifier_start_cp(escaped_cp)
+            {
+                return Some((escaped_cp, len));
+            }
             return None;
         }
 
@@ -750,9 +751,10 @@ impl<'a> Lexer<'a> {
         let cp = self.current_code_point();
         if cp == '\\' as u32 {
             if let Some((escaped_cp, len)) = self.is_identifier_unicode_escape()
-                && is_identifier_continue_cp(escaped_cp) {
-                    return Some((escaped_cp, len));
-                }
+                && is_identifier_continue_cp(escaped_cp)
+            {
+                return Some((escaped_cp, len));
+            }
             return None;
         }
 

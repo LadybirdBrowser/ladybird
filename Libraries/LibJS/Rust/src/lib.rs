@@ -96,7 +96,7 @@ use parser::{Parser, ProgramType};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
 // =============================================================================
@@ -270,13 +270,14 @@ unsafe fn compile_program_body(
         let result = bytecode::codegen::generate_statement(program, generator, None);
 
         if !generator.is_current_block_terminated()
-            && let Some(value) = result {
-                generator.emit(bytecode::instruction::Instruction::End {
-                    value: value.operand(),
-                });
-            }
-            // If result is None, the assembler will add End(undefined) as a
-            // fallthrough for unterminated blocks, matching C++ compile().
+            && let Some(value) = result
+        {
+            generator.emit(bytecode::instruction::Instruction::End {
+                value: value.operand(),
+            });
+        }
+        // If result is None, the assembler will add End(undefined) as a
+        // fallthrough for unterminated blocks, matching C++ compile().
 
         let assembled = generator.assemble();
         bytecode::ffi::create_executable(generator, &assembled, vm_ptr, source_code_ptr)
@@ -842,14 +843,15 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
                         true, // strict
                     );
                     if !sfd_ptr.is_null()
-                        && let Some(name_ident) = name {
-                            push_function(
-                                ctx,
-                                sfd_ptr,
-                                name_ident.name.as_ptr(),
-                                name_ident.name.len(),
-                            );
-                        }
+                        && let Some(name_ident) = name
+                    {
+                        push_function(
+                            ctx,
+                            sfd_ptr,
+                            name_ident.name.as_ptr(),
+                            name_ident.name.len(),
+                        );
+                    }
                 }
             }
         });
@@ -1185,10 +1187,9 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                             | StatementKind::ClassDeclaration(_)
                     )
                 });
-                if !is_declaration
-                    && let Some(ref name) = entry.local_or_import_name {
-                        (cb.set_default_export_binding)(ctx, name.as_ptr(), name.len());
-                    }
+                if !is_declaration && let Some(ref name) = entry.local_or_import_name {
+                    (cb.set_default_export_binding)(ctx, name.as_ptr(), name.len());
+                }
             }
 
             for entry in &export_data.entries {
@@ -1619,9 +1620,10 @@ fn extract_gdi_common(
             name: Some(ref name_ident),
             ..
         } = child.inner
-            && seen_names.insert(name_ident.name.clone()) {
-                functions_to_init.push((function_id, name_ident.name.clone()));
-            }
+            && seen_names.insert(name_ident.name.clone())
+        {
+            functions_to_init.push((function_id, name_ident.name.clone()));
+        }
     }
     for (function_id, name) in &functions_to_init {
         let function_data = function_table.take(*function_id);
@@ -2274,9 +2276,10 @@ fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>) -> usiz
             }
             ast::StatementKind::ClassDeclaration(class_data) => {
                 if let Some(ref name_ident) = class_data.name
-                    && !name_ident.is_local() {
-                        count += 1;
-                    }
+                    && !name_ident.is_local()
+                {
+                    count += 1;
+                }
             }
             _ => {}
         }
@@ -2310,9 +2313,10 @@ fn count_non_local_names_in_binding_pattern(pattern: &ast::BindingPattern, count
             }
             None => {
                 if let Some(ast::BindingEntryName::Identifier(ident)) = &entry.name
-                    && !ident.is_local() {
-                        *count += 1;
-                    }
+                    && !ident.is_local()
+                {
+                    *count += 1;
+                }
             }
             Some(ast::BindingEntryAlias::MemberExpression(_)) => {}
         }

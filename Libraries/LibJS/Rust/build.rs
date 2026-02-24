@@ -554,8 +554,12 @@ fn generate_encode_method(
                     w,
                     "                let total_len = (buf.len() - start) as u32;"
                 )?;
-                writeln!(w, "                buf[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
-                    m_length_offset, m_length_offset + 4)?;
+                writeln!(
+                    w,
+                    "                buf[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
+                    m_length_offset,
+                    m_length_offset + 4
+                )?;
             }
         } else {
             // Fixed-length: pad statically

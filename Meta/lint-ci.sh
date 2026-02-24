@@ -59,4 +59,11 @@ else
     ((FAILURES+=1))
 fi
 
+if cargo clippy -- -D clippy::all && git diff --exit-code -- ':*.rs'; then
+    echo -e "[${GREEN}OK${NC}]: cargo clippy -- -D clippy::all"
+else
+    echo -e "[${BOLD_RED}FAIL${NC}]: cargo clippy -- -D clippy::all"
+    ((FAILURES+=1))
+fi
+
 exit "${FAILURES}"

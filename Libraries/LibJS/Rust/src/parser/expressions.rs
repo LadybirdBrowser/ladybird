@@ -12,9 +12,9 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::lexer::ch;
 use crate::parser::{
-    is_strict_reserved_word, Associativity, ForbiddenTokens, FunctionKind, MethodKind, ParamInfo,
-    ParsedParameters, Parser, Position, PropertyKey, PRECEDENCE_ASSIGNMENT, PRECEDENCE_COMMA,
-    PRECEDENCE_MEMBER, PRECEDENCE_UNARY,
+    Associativity, ForbiddenTokens, FunctionKind, MethodKind, PRECEDENCE_ASSIGNMENT,
+    PRECEDENCE_COMMA, PRECEDENCE_MEMBER, PRECEDENCE_UNARY, ParamInfo, ParsedParameters, Parser,
+    Position, PropertyKey, is_strict_reserved_word,
 };
 use crate::token::{Token, TokenType};
 
@@ -201,14 +201,14 @@ impl<'a> Parser<'a> {
         // falsely flagging parameter names like `function f(arguments)`.
         if let ExpressionKind::Identifier(ref id) = expression.inner
             && id.name == utf16!("arguments")
-                && !self.flags.strict_mode
-                && !self
-                    .scope_collector
-                    .has_declaration_in_current_function(&id.name)
-            {
-                self.scope_collector
-                    .set_contains_access_to_arguments_object_in_non_strict_mode();
-            }
+            && !self.flags.strict_mode
+            && !self
+                .scope_collector
+                .has_declaration_in_current_function(&id.name)
+        {
+            self.scope_collector
+                .set_contains_access_to_arguments_object_in_non_strict_mode();
+        }
 
         if !should_continue {
             // Yield/Await expressions don't participate in secondary expression
@@ -795,31 +795,36 @@ impl<'a> Parser<'a> {
                     // lhs_start. When the expression is parenthesized (e.g.
                     // `([a,b]) = ...`), lhs_start points to `(` but we need
                     // to re-lex from `[` to correctly synthesize the pattern.
-                    match self.synthesize_binding_pattern(lhs.range.start)
-                    { Some(binding_pattern) => {
-                        // Register synthesized identifiers with the scope collector so
-                        // they get resolved as locals during analyze().
-                        for (name, id) in self.pattern_bound_names.drain(..) {
-                            self.scope_collector.register_identifier(id, &name, None);
+                    match self.synthesize_binding_pattern(lhs.range.start) {
+                        Some(binding_pattern) => {
+                            // Register synthesized identifiers with the scope collector so
+                            // they get resolved as locals during analyze().
+                            for (name, id) in self.pattern_bound_names.drain(..) {
+                                self.scope_collector.register_identifier(id, &name, None);
+                            }
+                            self.pattern_bound_names = saved_bound_names;
+                            self.consume();
+                            let rhs = self.parse_expression(
+                                min_precedence,
+                                Associativity::Right,
+                                forbidden,
+                            );
+                            return (
+                                self.expression(
+                                    start,
+                                    ExpressionKind::Assignment {
+                                        op,
+                                        lhs: AssignmentLhs::Pattern(binding_pattern),
+                                        rhs: Box::new(rhs),
+                                    },
+                                ),
+                                ForbiddenTokens::none(),
+                            );
                         }
-                        self.pattern_bound_names = saved_bound_names;
-                        self.consume();
-                        let rhs =
-                            self.parse_expression(min_precedence, Associativity::Right, forbidden);
-                        return (
-                            self.expression(
-                                start,
-                                ExpressionKind::Assignment {
-                                    op,
-                                    lhs: AssignmentLhs::Pattern(binding_pattern),
-                                    rhs: Box::new(rhs),
-                                },
-                            ),
-                            ForbiddenTokens::none(),
-                        );
-                    } _ => {
-                        self.pattern_bound_names = saved_bound_names;
-                    }}
+                        _ => {
+                            self.pattern_bound_names = saved_bound_names;
+                        }
+                    }
                 }
                 let allow_call = !matches!(
                     tt,
@@ -1091,9 +1096,10 @@ impl<'a> Parser<'a> {
                     );
                 }
                 if let ExpressionKind::Member { property, .. } = &expression.inner
-                    && matches!(property.inner, ExpressionKind::PrivateIdentifier(_)) {
-                        self.syntax_error("Private fields cannot be deleted");
-                    }
+                    && matches!(property.inner, ExpressionKind::PrivateIdentifier(_))
+                {
+                    self.syntax_error("Private fields cannot be deleted");
+                }
                 self.expression(
                     start,
                     ExpressionKind::Unary {
@@ -1193,10 +1199,11 @@ impl<'a> Parser<'a> {
         // Check the actual callee expression kind, matching C++ which does
         // is<Identifier>(callee) && callee.string() == "eval".
         if let ExpressionKind::Identifier(ref id) = callee.inner
-            && id.name == utf16!("eval") {
-                self.scope_collector.set_contains_direct_call_to_eval();
-                self.scope_collector.set_uses_this();
-            }
+            && id.name == utf16!("eval")
+        {
+            self.scope_collector.set_contains_direct_call_to_eval();
+            self.scope_collector.set_uses_this();
+        }
         self.expression(
             start,
             ExpressionKind::Call(CallExpressionData {
@@ -1620,30 +1627,32 @@ impl<'a> Parser<'a> {
         // target. We parse the initializer to advance the lexer, but roll back scope records
         // since this expression is discarded. synthesize_binding_pattern will
         // re-parse from source and create the real scope records.
-        if self.match_token(TokenType::Equals) && is_identifier
-            && let Some(kv) = &key_value {
-                let id = self.make_identifier(obj_start, kv.clone());
-                self.scope_collector
-                    .register_identifier(id.clone(), &id.name, None);
-                let value = self.expression(obj_start, ExpressionKind::Identifier(id));
-                self.consume(); // consume '='
-                                // NB: Add a syntax error for CoverInitializedName. This error will
-                                // be cleared by synthesize_binding_pattern if the containing object
-                                // is reinterpreted as a destructuring pattern, but will persist if
-                                // the object is used in expression context (e.g. as a member base).
-                self.syntax_error("Invalid property in object literal");
-                let saved_scope_state = self.scope_collector.save_state();
-                let _initializer = self.parse_assignment_expression();
-                self.scope_collector.load_state(saved_scope_state);
-                return ObjectProperty {
-                    range: self.range_from(obj_start),
-                    property_type: ObjectPropertyType::KeyValue,
-                    key: Box::new(key),
-                    value: Some(Box::new(value)),
-                    is_method: false,
-                    is_computed: false,
-                };
-            }
+        if self.match_token(TokenType::Equals)
+            && is_identifier
+            && let Some(kv) = &key_value
+        {
+            let id = self.make_identifier(obj_start, kv.clone());
+            self.scope_collector
+                .register_identifier(id.clone(), &id.name, None);
+            let value = self.expression(obj_start, ExpressionKind::Identifier(id));
+            self.consume(); // consume '='
+            // NB: Add a syntax error for CoverInitializedName. This error will
+            // be cleared by synthesize_binding_pattern if the containing object
+            // is reinterpreted as a destructuring pattern, but will persist if
+            // the object is used in expression context (e.g. as a member base).
+            self.syntax_error("Invalid property in object literal");
+            let saved_scope_state = self.scope_collector.save_state();
+            let _initializer = self.parse_assignment_expression();
+            self.scope_collector.load_state(saved_scope_state);
+            return ObjectProperty {
+                range: self.range_from(obj_start),
+                property_type: ObjectPropertyType::KeyValue,
+                key: Box::new(key),
+                value: Some(Box::new(value)),
+                is_method: false,
+                is_computed: false,
+            };
+        }
 
         // Shorthand property: { x }
         // Only identifiers can be shorthand properties, not string/numeric literals.
