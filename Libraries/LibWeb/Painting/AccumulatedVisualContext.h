@@ -85,6 +85,7 @@ public:
     RefPtr<AccumulatedVisualContext const> parent() const { return m_parent; }
 
     bool is_effect() const { return m_data.has<EffectsData>(); }
+    bool has_empty_effective_clip() const { return m_has_empty_effective_clip; }
 
     size_t depth() const { return m_depth; }
     size_t id() const { return m_id; }
@@ -102,12 +103,20 @@ private:
         , m_depth(m_parent ? m_parent->depth() + 1 : 1)
         , m_id(id)
     {
+        if (m_parent && m_parent->has_empty_effective_clip()) {
+            m_has_empty_effective_clip = true;
+        } else if (m_data.has<ClipData>()) {
+            m_has_empty_effective_clip = m_data.get<ClipData>().rect.is_empty();
+        } else if (m_data.has<ClipPathData>()) {
+            m_has_empty_effective_clip = m_data.get<ClipPathData>().path.bounding_box().is_empty();
+        }
     }
 
     VisualContextData m_data;
     RefPtr<AccumulatedVisualContext const> m_parent;
     size_t m_depth;
     size_t m_id;
+    bool m_has_empty_effective_clip { false };
 };
 
 }
