@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .zero-width {
+        width: 0;
+        height: 100px;
+        overflow: hidden;
+    }
+
+    .zero-height {
+        width: 100px;
+        height: 0;
+        overflow: hidden;
+    }
+
+    .visible {
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+    }
+
+    .child {
+        width: 50px;
+        height: 50px;
+        background: red;
+    }
+</style>
+<body>
+    <div class="zero-width"><div class="child"></div></div>
+    <div class="zero-height"><div class="child"></div></div>
+    <div class="visible"><div class="child"></div></div>
+</body>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
