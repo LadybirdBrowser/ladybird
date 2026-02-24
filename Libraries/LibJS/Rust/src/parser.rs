@@ -1070,7 +1070,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 StatementKind::FunctionDeclaration {
-                    name: Some(ref name),
+                    name: Some(name),
                     ..
                 } => {
                     declared_names.insert(name.name.clone());
@@ -1094,7 +1094,7 @@ impl<'a> Parser<'a> {
                                 }
                             }
                             StatementKind::FunctionDeclaration {
-                                name: Some(ref name),
+                                name: Some(name),
                                 ..
                             } => {
                                 declared_names.insert(name.name.clone());
@@ -1125,8 +1125,8 @@ impl<'a> Parser<'a> {
                     if entry.kind == ExportEntryKind::EmptyNamedExport {
                         continue;
                     }
-                    if let Some(ref local_name) = entry.local_or_import_name {
-                        if !declared_names.contains(local_name.as_slice()) {
+                    if let Some(ref local_name) = entry.local_or_import_name
+                        && !declared_names.contains(local_name.as_slice()) {
                             self.syntax_error_at_position(
                                 &format!(
                                     "'{}' in export is not declared",
@@ -1135,7 +1135,6 @@ impl<'a> Parser<'a> {
                                 child.range.start,
                             );
                         }
-                    }
                 }
             }
         }

@@ -56,13 +56,12 @@ impl<'a> Parser<'a> {
                 if self.match_invalid_escaped_keyword() {
                     self.syntax_error("Keyword must not contain escaped characters");
                 }
-                if self.match_identifier_name() {
-                    if let Some(labelled) =
+                if self.match_identifier_name()
+                    && let Some(labelled) =
                         self.try_parse_labelled_statement(allow_labelled_function)
                     {
                         return labelled;
                     }
-                }
                 if self.match_expression() {
                     self.parse_expression_statement()
                 } else {
@@ -477,15 +476,12 @@ impl<'a> Parser<'a> {
                 } else {
                     self.validate_for_in_of_lhs(&init);
                     // https://tc39.es/ecma262/#sec-for-in-and-for-of-statements
-                    if let LocalForInit::Expression(ref expression) = init {
-                        if let ExpressionKind::Member { ref object, .. } = expression.inner {
-                            if let ExpressionKind::Identifier(ref ident) = object.inner {
-                                if ident.name == utf16!("let") {
+                    if let LocalForInit::Expression(ref expression) = init
+                        && let ExpressionKind::Member { ref object, .. } = expression.inner
+                            && let ExpressionKind::Identifier(ref ident) = object.inner
+                                && ident.name == utf16!("let") {
                                     self.syntax_error("For of statement may not start with let.");
                                 }
-                            }
-                        }
-                    }
                 }
                 self.consume();
                 let rhs = self.parse_assignment_expression();
@@ -513,8 +509,8 @@ impl<'a> Parser<'a> {
         }
 
         // Standard for loop — const requires initializer.
-        if let LocalForInit::Declaration(ref declaration) = init {
-            if let StatementKind::VariableDeclaration {
+        if let LocalForInit::Declaration(ref declaration) = init
+            && let StatementKind::VariableDeclaration {
                 kind: DeclarationKind::Const,
                 ref declarations,
             } = declaration.inner
@@ -525,7 +521,6 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-        }
         self.consume_token(TokenType::Semicolon);
         let for_init = match init {
             LocalForInit::Declaration(declaration) => {
@@ -869,15 +864,14 @@ impl<'a> Parser<'a> {
         };
 
         let is_iteration = body_starts_iteration || self.last_inner_label_is_iteration;
-        if !is_iteration {
-            if let Some(Some((line, col))) = self.labels_in_scope.get(label.as_slice()) {
+        if !is_iteration
+            && let Some(Some((line, col))) = self.labels_in_scope.get(label.as_slice()) {
                 self.syntax_error_at(
                     "labelled continue statement cannot use non iterating statement",
                     *line,
                     *col,
                 );
             }
-        }
 
         self.labels_in_scope.remove(label.as_slice());
         self.flags.in_break_context = break_before;
@@ -916,8 +910,8 @@ impl<'a> Parser<'a> {
 
     /// Validate that an expression-form LHS is valid for for-in/for-of.
     fn validate_for_in_of_lhs(&mut self, init: &LocalForInit) {
-        if let LocalForInit::Expression(ref expression) = *init {
-            if !Self::is_identifier(expression)
+        if let LocalForInit::Expression(ref expression) = *init
+            && !Self::is_identifier(expression)
                 && !Self::is_member_expression(expression)
                 && !Self::is_call_expression(expression)
                 && !Self::is_object_expression(expression)
@@ -925,7 +919,6 @@ impl<'a> Parser<'a> {
             {
                 self.syntax_error("Invalid left-hand side in for-loop");
             }
-        }
     }
 
     /// Convert a `LocalForInit` into a `ForInOfLhs`, synthesizing a binding
@@ -938,14 +931,14 @@ impl<'a> Parser<'a> {
             LocalForInit::Expression(expression) => {
                 if Self::is_array_expression(&expression) || Self::is_object_expression(&expression)
                 {
-                    if let Some(pattern) = self.synthesize_binding_pattern(init_start) {
+                    match self.synthesize_binding_pattern(init_start) { Some(pattern) => {
                         for (name, id) in self.pattern_bound_names.drain(..) {
                             self.scope_collector.register_identifier(id, &name, None);
                         }
                         ForInOfLhs::Pattern(pattern)
-                    } else {
+                    } _ => {
                         ForInOfLhs::Expression(Box::new(expression))
-                    }
+                    }}
                 } else {
                     ForInOfLhs::Expression(Box::new(expression))
                 }

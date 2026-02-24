@@ -423,10 +423,11 @@ impl ScopeCollector {
         let mut record = ScopeRecord::new(scope_type, scope_level, scope_data);
         record.parent = self.current;
 
-        if scope_type != ScopeType::Function && record.scope_data.is_none() {
-            if let Some(parent_index) = self.current {
-                record.scope_data = self.records[parent_index].scope_data.clone();
-            }
+        if scope_type != ScopeType::Function
+            && record.scope_data.is_none()
+            && let Some(parent_index) = self.current
+        {
+            record.scope_data = self.records[parent_index].scope_data.clone();
         }
 
         if scope_level == ScopeLevel::NotTopLevel {
@@ -447,17 +448,17 @@ impl ScopeCollector {
     pub fn close_scope(&mut self) {
         let index = self.current.expect("close_scope with no current scope");
 
-        if let Some(parent_index) = self.records[index].parent {
-            if !self.records[index].has_function_parameters {
-                let c = &self.records[index];
-                let arguments = c.contains_access_to_arguments_object_in_non_strict_mode;
-                let eval = c.contains_direct_call_to_eval;
-                let contains_await = c.contains_await_expression;
-                self.records[parent_index]
-                    .contains_access_to_arguments_object_in_non_strict_mode |= arguments;
-                self.records[parent_index].contains_direct_call_to_eval |= eval;
-                self.records[parent_index].contains_await_expression |= contains_await;
-            }
+        if let Some(parent_index) = self.records[index].parent
+            && !self.records[index].has_function_parameters
+        {
+            let c = &self.records[index];
+            let arguments = c.contains_access_to_arguments_object_in_non_strict_mode;
+            let eval = c.contains_direct_call_to_eval;
+            let contains_await = c.contains_await_expression;
+            self.records[parent_index].contains_access_to_arguments_object_in_non_strict_mode |=
+                arguments;
+            self.records[parent_index].contains_direct_call_to_eval |= eval;
+            self.records[parent_index].contains_await_expression |= contains_await;
         }
 
         self.current = self.records[index].parent;
@@ -1139,19 +1140,18 @@ impl ScopeCollector {
                     && group.captured_by_nested_function
                     && var_flags.intersects(VarFlags::VAR)
                     && !var_flags.intersects(VarFlags::FORBIDDEN_LEXICAL)
+                    && let Some(parent_index) = records[index].parent
                 {
-                    if let Some(parent_index) = records[index].parent {
-                        records[parent_index]
-                            .identifier_groups
-                            .entry(name.clone())
-                            .or_insert_with(|| IdentifierGroup {
-                                captured_by_nested_function: false,
-                                used_inside_with_statement: false,
-                                identifiers: Vec::new(),
-                                declaration_kind: None,
-                            })
-                            .captured_by_nested_function = true;
-                    }
+                    records[parent_index]
+                        .identifier_groups
+                        .entry(name.clone())
+                        .or_insert_with(|| IdentifierGroup {
+                            captured_by_nested_function: false,
+                            used_inside_with_statement: false,
+                            identifiers: Vec::new(),
+                            declaration_kind: None,
+                        })
+                        .captured_by_nested_function = true;
                 }
 
                 if !group.captured_by_nested_function && !group.used_inside_with_statement {
@@ -1167,40 +1167,40 @@ impl ScopeCollector {
                         local_scope = records[index].top_level;
                     }
 
-                    if let Some(ls) = local_scope {
-                        if let Some(ref scope_data) = records[ls].scope_data {
-                            let mut sd = scope_data.borrow_mut();
+                    if let Some(ls) = local_scope
+                        && let Some(ref scope_data) = records[ls].scope_data
+                    {
+                        let mut sd = scope_data.borrow_mut();
 
-                            if is_function_parameter {
-                                let argument_index = records[ls].get_parameter_index(&name);
-                                if let Some(ai) = argument_index {
-                                    for id in &group.identifiers {
-                                        id.local_index.set(ai);
-                                        id.local_type.set(Some(crate::ast::LocalType::Argument));
-                                    }
-                                } else {
-                                    let lvi = u32_from_usize(sd.local_variables.len());
-                                    sd.local_variables.push(LocalVariable {
-                                        name: name.clone(),
-                                        kind: LocalVarKind::Var,
-                                    });
-                                    for id in &group.identifiers {
-                                        id.local_index.set(lvi);
-                                        id.local_type.set(Some(crate::ast::LocalType::Variable));
-                                    }
+                        if is_function_parameter {
+                            let argument_index = records[ls].get_parameter_index(&name);
+                            if let Some(ai) = argument_index {
+                                for id in &group.identifiers {
+                                    id.local_index.set(ai);
+                                    id.local_type.set(Some(crate::ast::LocalType::Argument));
                                 }
                             } else {
-                                let kind = local_var_kind
-                                    .expect("local_var_kind must be set for local variables");
                                 let lvi = u32_from_usize(sd.local_variables.len());
                                 sd.local_variables.push(LocalVariable {
                                     name: name.clone(),
-                                    kind,
+                                    kind: LocalVarKind::Var,
                                 });
                                 for id in &group.identifiers {
                                     id.local_index.set(lvi);
                                     id.local_type.set(Some(crate::ast::LocalType::Variable));
                                 }
+                            }
+                        } else {
+                            let kind = local_var_kind
+                                .expect("local_var_kind must be set for local variables");
+                            let lvi = u32_from_usize(sd.local_variables.len());
+                            sd.local_variables.push(LocalVariable {
+                                name: name.clone(),
+                                kind,
+                            });
+                            for id in &group.identifiers {
+                                id.local_index.set(lvi);
+                                id.local_type.set(Some(crate::ast::LocalType::Variable));
                             }
                         }
                     }
@@ -1279,10 +1279,9 @@ impl ScopeCollector {
                     name: Some(ref name_ident),
                     ..
                 } = sd.children[i].inner
+                    && seen_function_names.insert(name_ident.name.clone())
                 {
-                    if seen_function_names.insert(name_ident.name.clone()) {
-                        functions_to_initialize.push(crate::ast::FunctionToInit { child_index: i });
-                    }
+                    functions_to_initialize.push(crate::ast::FunctionToInit { child_index: i });
                 }
             }
         }
@@ -1426,10 +1425,9 @@ impl ScopeCollector {
                             ref is_hoisted,
                             ..
                         } = child.inner
+                            && name.as_ref().is_some_and(|n| n.name == function.name)
                         {
-                            if name.as_ref().is_some_and(|n| n.name == function.name) {
-                                is_hoisted.set(true);
-                            }
+                            is_hoisted.set(true);
                         }
                     }
                 }

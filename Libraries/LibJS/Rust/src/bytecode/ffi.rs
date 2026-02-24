@@ -185,7 +185,7 @@ pub struct FFIExecutableData {
     pub regex_count: usize,
 }
 
-extern "C" {
+unsafe extern "C" {
     fn rust_create_executable(
         vm_ptr: *mut c_void,
         source_code_ptr: *const c_void,
@@ -296,83 +296,85 @@ pub unsafe fn create_shared_function_data(
     is_strict: bool,
     name_override: Option<&[u16]>,
 ) -> *mut c_void {
-    use crate::ast::FunctionParameterBinding;
+    unsafe {
+        use crate::ast::FunctionParameterBinding;
 
-    let source_start = function_data.source_text_start as usize;
-    let source_end = function_data.source_text_end as usize;
-    let source_text_len = source_end - source_start;
+        let source_start = function_data.source_text_start as usize;
+        let source_end = function_data.source_text_end as usize;
+        let source_text_len = source_end - source_start;
 
-    let (name_ptr, name_len) = if let Some(name) = name_override {
-        (name.as_ptr(), name.len())
-    } else if let Some(ref name_ident) = function_data.name {
-        (name_ident.name.as_ptr(), name_ident.name.len())
-    } else {
-        (std::ptr::null(), 0)
-    };
+        let (name_ptr, name_len) = if let Some(name) = name_override {
+            (name.as_ptr(), name.len())
+        } else if let Some(ref name_ident) = function_data.name {
+            (name_ident.name.as_ptr(), name_ident.name.len())
+        } else {
+            (std::ptr::null(), 0)
+        };
 
-    let has_simple_parameter_list = function_data.parameters.iter().all(|p| {
-        !p.is_rest
-            && p.default_value.is_none()
-            && matches!(p.binding, FunctionParameterBinding::Identifier(_))
-    });
+        let has_simple_parameter_list = function_data.parameters.iter().all(|p| {
+            !p.is_rest
+                && p.default_value.is_none()
+                && matches!(p.binding, FunctionParameterBinding::Identifier(_))
+        });
 
-    let parameter_name_slices: Vec<FFIUtf16Slice> = if has_simple_parameter_list {
-        function_data
-            .parameters
-            .iter()
-            .map(|p| {
-                if let FunctionParameterBinding::Identifier(ref id) = p.binding {
-                    FFIUtf16Slice::from(id.name.as_ref())
-                } else {
-                    unreachable!(
-                        "has_simple_parameter_list guarantees all bindings are identifiers"
-                    )
-                }
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
+        let parameter_name_slices: Vec<FFIUtf16Slice> = if has_simple_parameter_list {
+            function_data
+                .parameters
+                .iter()
+                .map(|p| {
+                    if let FunctionParameterBinding::Identifier(ref id) = p.binding {
+                        FFIUtf16Slice::from(id.name.as_ref())
+                    } else {
+                        unreachable!(
+                            "has_simple_parameter_list guarantees all bindings are identifiers"
+                        )
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
 
-    let function_kind = function_data.kind as u8;
-    let strict = function_data.is_strict_mode || is_strict;
-    let function_length = function_data.function_length;
-    let formal_parameter_count = u32_from_usize(function_data.parameters.len());
-    let is_arrow = function_data.is_arrow_function;
-    let uses_this = function_data.parsing_insights.uses_this;
-    let uses_this_from_environment = function_data.parsing_insights.uses_this_from_environment;
+        let function_kind = function_data.kind as u8;
+        let strict = function_data.is_strict_mode || is_strict;
+        let function_length = function_data.function_length;
+        let formal_parameter_count = u32_from_usize(function_data.parameters.len());
+        let is_arrow = function_data.is_arrow_function;
+        let uses_this = function_data.parsing_insights.uses_this;
+        let uses_this_from_environment = function_data.parsing_insights.uses_this_from_environment;
 
-    let payload = Box::new(crate::ast::FunctionPayload {
-        data: *function_data,
-        function_table: subtable,
-    });
-    let rust_ast_ptr = Box::into_raw(payload) as *mut c_void;
+        let payload = Box::new(crate::ast::FunctionPayload {
+            data: *function_data,
+            function_table: subtable,
+        });
+        let rust_ast_ptr = Box::into_raw(payload) as *mut c_void;
 
-    let ffi_data = FFISharedFunctionData {
-        name: name_ptr,
-        name_len,
-        function_kind,
-        function_length,
-        formal_parameter_count,
-        strict,
-        is_arrow,
-        has_simple_parameter_list,
-        parameter_names: parameter_name_slices.as_ptr(),
-        parameter_name_count: parameter_name_slices.len(),
-        source_text_offset: source_start,
-        source_text_length: source_text_len,
-        rust_function_ast: rust_ast_ptr,
-        uses_this,
-        uses_this_from_environment,
-    };
+        let ffi_data = FFISharedFunctionData {
+            name: name_ptr,
+            name_len,
+            function_kind,
+            function_length,
+            formal_parameter_count,
+            strict,
+            is_arrow,
+            has_simple_parameter_list,
+            parameter_names: parameter_name_slices.as_ptr(),
+            parameter_name_count: parameter_name_slices.len(),
+            source_text_offset: source_start,
+            source_text_length: source_text_len,
+            rust_function_ast: rust_ast_ptr,
+            uses_this,
+            uses_this_from_environment,
+        };
 
-    let sfd_ptr = rust_create_sfd(vm_ptr, source_code_ptr, &ffi_data);
+        let sfd_ptr = rust_create_sfd(vm_ptr, source_code_ptr, &ffi_data);
 
-    assert!(
-        !sfd_ptr.is_null(),
-        "create_shared_function_data: rust_create_sfd returned null"
-    );
-    sfd_ptr
+        assert!(
+            !sfd_ptr.is_null(),
+            "create_shared_function_data: rust_create_sfd returned null"
+        );
+        sfd_ptr
+    }
 }
 
 /// Create a SharedFunctionInstanceData for GDI use (no name override).
@@ -386,14 +388,16 @@ pub unsafe fn create_sfd_for_gdi(
     source_code_ptr: *const c_void,
     is_strict: bool,
 ) -> *mut c_void {
-    create_shared_function_data(
-        function_data,
-        subtable,
-        vm_ptr,
-        source_code_ptr,
-        is_strict,
-        None,
-    )
+    unsafe {
+        create_shared_function_data(
+            function_data,
+            subtable,
+            vm_ptr,
+            source_code_ptr,
+            is_strict,
+            None,
+        )
+    }
 }
 
 /// Constant tags for the FFI constant buffer (ABI-compatible with BytecodeFactory).
@@ -453,108 +457,112 @@ fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
 /// `vm_ptr` must be a valid `JS::VM*` and `source_code_ptr` a valid
 /// `JS::SourceCode const*`.
 pub unsafe fn create_executable(
-    gen: &Generator,
+    generator: &Generator,
     assembled: &AssembledBytecode,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
 ) -> ExecutableHandle {
-    // Build FFI slices for tables
-    let ident_slices: Vec<FFIUtf16Slice> = gen
-        .identifier_table
-        .iter()
-        .map(|s| FFIUtf16Slice::from(s.as_ref()))
-        .collect();
+    unsafe {
+        // Build FFI slices for tables
+        let ident_slices: Vec<FFIUtf16Slice> = generator
+            .identifier_table
+            .iter()
+            .map(|s| FFIUtf16Slice::from(s.as_ref()))
+            .collect();
 
-    let property_key_slices: Vec<FFIUtf16Slice> = gen
-        .property_key_table
-        .iter()
-        .map(|s| FFIUtf16Slice::from(s.as_ref()))
-        .collect();
+        let property_key_slices: Vec<FFIUtf16Slice> = generator
+            .property_key_table
+            .iter()
+            .map(|s| FFIUtf16Slice::from(s.as_ref()))
+            .collect();
 
-    let string_slices: Vec<FFIUtf16Slice> = gen
-        .string_table
-        .iter()
-        .map(|s| FFIUtf16Slice::from(s.as_ref()))
-        .collect();
+        let string_slices: Vec<FFIUtf16Slice> = generator
+            .string_table
+            .iter()
+            .map(|s| FFIUtf16Slice::from(s.as_ref()))
+            .collect();
 
-    // Encode constants
-    let constants_buffer = encode_constants(&gen.constants);
+        // Encode constants
+        let constants_buffer = encode_constants(&generator.constants);
 
-    // Build FFI exception handlers
-    let ffi_handlers: Vec<FFIExceptionHandler> = assembled
-        .exception_handlers
-        .iter()
-        .map(|h| FFIExceptionHandler {
-            start_offset: h.start_offset,
-            end_offset: h.end_offset,
-            handler_offset: h.handler_offset,
-        })
-        .collect();
+        // Build FFI exception handlers
+        let ffi_handlers: Vec<FFIExceptionHandler> = assembled
+            .exception_handlers
+            .iter()
+            .map(|h| FFIExceptionHandler {
+                start_offset: h.start_offset,
+                end_offset: h.end_offset,
+                handler_offset: h.handler_offset,
+            })
+            .collect();
 
-    // Build FFI source map
-    let ffi_source_map: Vec<FFISourceMapEntry> = assembled
-        .source_map
-        .iter()
-        .map(|e| FFISourceMapEntry {
-            bytecode_offset: e.bytecode_offset,
-            source_start: e.source_start,
-            source_end: e.source_end,
-        })
-        .collect();
+        // Build FFI source map
+        let ffi_source_map: Vec<FFISourceMapEntry> = assembled
+            .source_map
+            .iter()
+            .map(|e| FFISourceMapEntry {
+                bytecode_offset: e.bytecode_offset,
+                source_start: e.source_start,
+                source_end: e.source_end,
+            })
+            .collect();
 
-    // Build local variable name slices
-    let local_var_slices: Vec<FFIUtf16Slice> = gen
-        .local_variables
-        .iter()
-        .map(|v| FFIUtf16Slice::from(v.name.as_ref()))
-        .collect();
+        // Build local variable name slices
+        let local_var_slices: Vec<FFIUtf16Slice> = generator
+            .local_variables
+            .iter()
+            .map(|v| FFIUtf16Slice::from(v.name.as_ref()))
+            .collect();
 
-    // Collect shared function data pointers
-    let sfd_ptrs: Vec<*const c_void> = gen
-        .shared_function_data
-        .iter()
-        .map(|ptr| *ptr as *const c_void)
-        .collect();
+        // Collect shared function data pointers
+        let sfd_ptrs: Vec<*const c_void> = generator
+            .shared_function_data
+            .iter()
+            .map(|ptr| *ptr as *const c_void)
+            .collect();
 
-    // Collect class blueprint pointers
-    let bp_ptrs = &gen.class_blueprints;
+        // Collect class blueprint pointers
+        let bp_ptrs = &generator.class_blueprints;
 
-    let ffi_data = FFIExecutableData {
-        bytecode: assembled.bytecode.as_ptr(),
-        bytecode_length: assembled.bytecode.len(),
-        identifier_table: ident_slices.as_ptr(),
-        identifier_count: ident_slices.len(),
-        property_key_table: property_key_slices.as_ptr(),
-        property_key_count: property_key_slices.len(),
-        string_table: string_slices.as_ptr(),
-        string_count: string_slices.len(),
-        constants_data: constants_buffer.as_ptr(),
-        constants_data_length: constants_buffer.len(),
-        constants_count: gen.constants.len(),
-        exception_handlers: ffi_handlers.as_ptr(),
-        exception_handler_count: ffi_handlers.len(),
-        source_map: ffi_source_map.as_ptr(),
-        source_map_count: ffi_source_map.len(),
-        basic_block_offsets: assembled.basic_block_start_offsets.as_ptr(),
-        basic_block_count: assembled.basic_block_start_offsets.len(),
-        local_variable_names: local_var_slices.as_ptr(),
-        local_variable_count: local_var_slices.len(),
-        property_lookup_cache_count: gen.next_property_lookup_cache,
-        global_variable_cache_count: gen.next_global_variable_cache,
-        template_object_cache_count: gen.next_template_object_cache,
-        object_shape_cache_count: gen.next_object_shape_cache,
-        number_of_registers: assembled.number_of_registers,
-        is_strict: gen.strict,
-        length_identifier: FFIOptionalU32::from(gen.length_identifier.map(|index| index.0)),
-        shared_function_data: sfd_ptrs.as_ptr(),
-        shared_function_data_count: sfd_ptrs.len(),
-        class_blueprints: bp_ptrs.as_ptr(),
-        class_blueprint_count: bp_ptrs.len(),
-        compiled_regexes: gen.compiled_regexes.as_ptr(),
-        regex_count: gen.compiled_regexes.len(),
-    };
+        let ffi_data = FFIExecutableData {
+            bytecode: assembled.bytecode.as_ptr(),
+            bytecode_length: assembled.bytecode.len(),
+            identifier_table: ident_slices.as_ptr(),
+            identifier_count: ident_slices.len(),
+            property_key_table: property_key_slices.as_ptr(),
+            property_key_count: property_key_slices.len(),
+            string_table: string_slices.as_ptr(),
+            string_count: string_slices.len(),
+            constants_data: constants_buffer.as_ptr(),
+            constants_data_length: constants_buffer.len(),
+            constants_count: generator.constants.len(),
+            exception_handlers: ffi_handlers.as_ptr(),
+            exception_handler_count: ffi_handlers.len(),
+            source_map: ffi_source_map.as_ptr(),
+            source_map_count: ffi_source_map.len(),
+            basic_block_offsets: assembled.basic_block_start_offsets.as_ptr(),
+            basic_block_count: assembled.basic_block_start_offsets.len(),
+            local_variable_names: local_var_slices.as_ptr(),
+            local_variable_count: local_var_slices.len(),
+            property_lookup_cache_count: generator.next_property_lookup_cache,
+            global_variable_cache_count: generator.next_global_variable_cache,
+            template_object_cache_count: generator.next_template_object_cache,
+            object_shape_cache_count: generator.next_object_shape_cache,
+            number_of_registers: assembled.number_of_registers,
+            is_strict: generator.strict,
+            length_identifier: FFIOptionalU32::from(
+                generator.length_identifier.map(|index| index.0),
+            ),
+            shared_function_data: sfd_ptrs.as_ptr(),
+            shared_function_data_count: sfd_ptrs.len(),
+            class_blueprints: bp_ptrs.as_ptr(),
+            class_blueprint_count: bp_ptrs.len(),
+            compiled_regexes: generator.compiled_regexes.as_ptr(),
+            regex_count: generator.compiled_regexes.len(),
+        };
 
-    rust_create_executable(vm_ptr, source_code_ptr, &ffi_data)
+        rust_create_executable(vm_ptr, source_code_ptr, &ffi_data)
+    }
 }
 
 /// Convert a JS number to its UTF-16 string representation using the

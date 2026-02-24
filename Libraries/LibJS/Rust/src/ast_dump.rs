@@ -13,7 +13,7 @@ use crate::ast::*;
 use std::cell::RefCell;
 use std::fmt::Write;
 
-extern "C" {
+unsafe extern "C" {
     // FIXME: This FFI workaround exists only to match C++ float-to-string
     //        formatting in the AST dump. Once the C++ pipeline is removed,
     //        this can be deleted and we can use our own formatting.
@@ -33,13 +33,13 @@ macro_rules! op_to_string {
 
 /// Prints a node header with the node name, optional extras, and source position.
 macro_rules! dump_node {
-    ($state:expr, $name:expr, $range:expr) => {
+    ($state:expr_2021, $name:expr_2021, $range:expr_2021) => {
         print_node(
             $state,
             &format!("{}{}", color_node_name($state, $name), format_position($state, $range)),
         )
     };
-    ($state:expr, $name:expr, $range:expr, $($extra:expr),+ $(,)?) => {
+    ($state:expr_2021, $name:expr_2021, $range:expr_2021, $($extra:expr_2021),+ $(,)?) => {
         print_node(
             $state,
             &{

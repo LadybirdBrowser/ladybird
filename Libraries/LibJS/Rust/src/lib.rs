@@ -137,15 +137,17 @@ unsafe fn write_ast_dump_output(
     output_ptr: *mut *mut u8,
     output_len: *mut usize,
 ) {
-    if output_ptr.is_null() || output_len.is_null() {
-        return;
+    unsafe {
+        if output_ptr.is_null() || output_len.is_null() {
+            return;
+        }
+        let dump_string = ast_dump::dump_program_to_string(program, function_table);
+        let mut boxed = dump_string.into_bytes().into_boxed_slice();
+        *output_ptr = boxed.as_mut_ptr();
+        *output_len = boxed.len();
+        // NB: Caller must free via rust_free_string(ptr, len).
+        std::mem::forget(boxed);
     }
-    let dump_string = ast_dump::dump_program_to_string(program, function_table);
-    let mut boxed = dump_string.into_bytes().into_boxed_slice();
-    *output_ptr = boxed.as_mut_ptr();
-    *output_len = boxed.len();
-    // NB: Caller must free via rust_free_string(ptr, len).
-    std::mem::forget(boxed);
 }
 
 /// Create a UTF-16 slice from a raw pointer, returning None if the pointer is null.
@@ -153,14 +155,16 @@ unsafe fn write_ast_dump_output(
 /// NB: C++ Vector<u16>::data() returns nullptr when the vector is empty (no allocation),
 /// so we must handle len == 0 with a null pointer as a valid empty slice.
 unsafe fn source_from_raw<'a>(source: *const u16, len: usize) -> Option<&'a [u16]> {
-    if len == 0 {
-        return Some(&[]);
+    unsafe {
+        if len == 0 {
+            return Some(&[]);
+        }
+        if source.is_null() {
+            eprintln!("source_from_raw: null pointer with non-zero length {len}");
+            return None;
+        }
+        Some(std::slice::from_raw_parts(source, len))
     }
-    if source.is_null() {
-        eprintln!("source_from_raw: null pointer with non-zero length {len}");
-        return None;
-    }
-    Some(std::slice::from_raw_parts(source, len))
 }
 
 /// Callback type for reporting parse errors to C++.
@@ -228,53 +232,55 @@ fn new_program_generator(
     source_code_ptr: *const c_void,
     source_len: usize,
 ) -> bytecode::generator::Generator {
-    let mut gen = bytecode::generator::Generator::new();
-    gen.strict = strict;
-    gen.must_propagate_completion = true;
-    gen.vm_ptr = vm_ptr;
-    gen.source_code_ptr = source_code_ptr;
-    gen.source_len = source_len;
-    gen
+    let mut generator = bytecode::generator::Generator::new();
+    generator.strict = strict;
+    generator.must_propagate_completion = true;
+    generator.vm_ptr = vm_ptr;
+    generator.source_code_ptr = source_code_ptr;
+    generator.source_len = source_len;
+    generator
 }
 
 /// Shared compilation pipeline: local variable setup → codegen → assemble → create Executable.
 ///
 /// Called by all three program-level entry points after parsing and scope analysis.
 unsafe fn compile_program_body(
-    gen: &mut bytecode::generator::Generator,
+    generator: &mut bytecode::generator::Generator,
     program: &ast::Statement,
     scope_ref: &Rc<RefCell<ast::ScopeData>>,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
 ) -> *mut c_void {
-    gen.local_variables = convert_local_variables(&scope_ref.borrow());
+    unsafe {
+        generator.local_variables = convert_local_variables(&scope_ref.borrow());
 
-    let entry_block = gen.make_block();
-    gen.switch_to_basic_block(entry_block);
+        let entry_block = generator.make_block();
+        generator.switch_to_basic_block(entry_block);
 
-    {
-        use bytecode::operand::{Operand, Register};
-        let env_reg = gen.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-        gen.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
-            dst: env_reg.operand(),
-        });
-        gen.lexical_environment_register_stack.push(env_reg);
-    }
-
-    let result = bytecode::codegen::generate_statement(program, gen, None);
-
-    if !gen.is_current_block_terminated() {
-        if let Some(value) = result {
-            gen.emit(bytecode::instruction::Instruction::End {
-                value: value.operand(),
+        {
+            use bytecode::operand::{Operand, Register};
+            let env_reg =
+                generator.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
+            generator.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
+                dst: env_reg.operand(),
             });
+            generator.lexical_environment_register_stack.push(env_reg);
         }
-        // If result is None, the assembler will add End(undefined) as a
-        // fallthrough for unterminated blocks, matching C++ compile().
-    }
 
-    let assembled = gen.assemble();
-    bytecode::ffi::create_executable(gen, &assembled, vm_ptr, source_code_ptr)
+        let result = bytecode::codegen::generate_statement(program, generator, None);
+
+        if !generator.is_current_block_terminated()
+            && let Some(value) = result {
+                generator.emit(bytecode::instruction::Instruction::End {
+                    value: value.operand(),
+                });
+            }
+            // If result is None, the assembler will add End(undefined) as a
+            // fallthrough for unterminated blocks, matching C++ compile().
+
+        let assembled = generator.assemble();
+        bytecode::ffi::create_executable(generator, &assembled, vm_ptr, source_code_ptr)
+    }
 }
 
 // =============================================================================
@@ -292,7 +298,7 @@ unsafe fn compile_program_body(
 /// - `source` must point to a valid UTF-16 buffer of `source_len` elements.
 /// - `vm_ptr` must be a valid `JS::VM*`.
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compile_program(
     source: *const u16,
     source_len: usize,
@@ -306,45 +312,53 @@ pub unsafe extern "C" fn rust_compile_program(
     allow_super_constructor_call: bool,
     in_class_field_initializer: bool,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        let Some(source_slice) = source_from_raw(source, source_len) else {
-            return std::ptr::null_mut();
-        };
-        let pt = match program_type {
-            0 => ProgramType::Script,
-            1 => ProgramType::Module,
-            _ => {
+    unsafe {
+        abort_on_panic(|| {
+            let Some(source_slice) = source_from_raw(source, source_len) else {
+                return std::ptr::null_mut();
+            };
+            let pt = match program_type {
+                0 => ProgramType::Script,
+                1 => ProgramType::Module,
+                _ => {
+                    return std::ptr::null_mut();
+                }
+            };
+            let mut parser = Parser::new(source_slice, pt);
+            if initiated_by_eval {
+                parser.initiated_by_eval = true;
+                parser.in_eval_function_context = in_eval_function_context;
+                parser.flags.allow_super_property_lookup = allow_super_property_lookup;
+                parser.flags.allow_super_constructor_call = allow_super_constructor_call;
+                parser.flags.in_class_field_initializer = in_class_field_initializer;
+            }
+
+            let program = parser.parse_program(starts_in_strict_mode);
+
+            if check_errors(&mut parser) {
                 return std::ptr::null_mut();
             }
-        };
-        let mut parser = Parser::new(source_slice, pt);
-        if initiated_by_eval {
-            parser.initiated_by_eval = true;
-            parser.in_eval_function_context = in_eval_function_context;
-            parser.flags.allow_super_property_lookup = allow_super_property_lookup;
-            parser.flags.allow_super_constructor_call = allow_super_constructor_call;
-            parser.flags.in_class_field_initializer = in_class_field_initializer;
-        }
 
-        let program = parser.parse_program(starts_in_strict_mode);
+            parser.scope_collector.analyze(initiated_by_eval);
 
-        if check_errors(&mut parser) {
-            return std::ptr::null_mut();
-        }
+            let scope_ref = if let StatementKind::Program(ref data) = program.inner {
+                data.scope.clone()
+            } else {
+                return std::ptr::null_mut();
+            };
 
-        parser.scope_collector.analyze(initiated_by_eval);
-
-        let scope_ref = if let StatementKind::Program(ref data) = program.inner {
-            data.scope.clone()
-        } else {
-            return std::ptr::null_mut();
-        };
-
-        let mut gen =
-            new_program_generator(starts_in_strict_mode, vm_ptr, source_code_ptr, source_len);
-        gen.function_table = std::mem::take(&mut parser.function_table);
-        compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr)
-    })
+            let mut generator =
+                new_program_generator(starts_in_strict_mode, vm_ptr, source_code_ptr, source_len);
+            generator.function_table = std::mem::take(&mut parser.function_table);
+            compile_program_body(
+                &mut generator,
+                &program,
+                &scope_ref,
+                vm_ptr,
+                source_code_ptr,
+            )
+        })
+    }
 }
 
 /// Compile a script and extract GDI (GlobalDeclarationInstantiation) metadata.
@@ -363,7 +377,7 @@ pub unsafe extern "C" fn rust_compile_program(
 /// - `vm_ptr` must be a valid `JS::VM*`.
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
 /// - `gdi_context` must be a valid pointer to a C++ ScriptGdiBuilder.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compile_script(
     source: *const u16,
     source_len: usize,
@@ -378,61 +392,69 @@ pub unsafe extern "C" fn rust_compile_script(
     ast_dump_output_len: *mut usize,
     initial_line_number: usize,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        let Some(source_slice) = source_from_raw(source, source_len) else {
-            return std::ptr::null_mut();
-        };
-        let mut parser = Parser::new_with_line_offset(
-            source_slice,
-            ProgramType::Script,
-            u32_from_usize(initial_line_number),
-        );
+    unsafe {
+        abort_on_panic(|| {
+            let Some(source_slice) = source_from_raw(source, source_len) else {
+                return std::ptr::null_mut();
+            };
+            let mut parser = Parser::new_with_line_offset(
+                source_slice,
+                ProgramType::Script,
+                u32_from_usize(initial_line_number),
+            );
 
-        let program = parser.parse_program(false);
+            let program = parser.parse_program(false);
 
-        if check_errors_with_callback(&mut parser, error_context, error_callback) {
-            return std::ptr::null_mut();
-        }
+            if check_errors_with_callback(&mut parser, error_context, error_callback) {
+                return std::ptr::null_mut();
+            }
 
-        parser.scope_collector.analyze(false);
+            parser.scope_collector.analyze(false);
 
-        // Dump AST if requested (after scope analysis so identifier metadata is populated).
-        if dump_ast {
-            ast_dump::dump_program(&program, use_color, &parser.function_table);
-        }
+            // Dump AST if requested (after scope analysis so identifier metadata is populated).
+            if dump_ast {
+                ast_dump::dump_program(&program, use_color, &parser.function_table);
+            }
 
-        write_ast_dump_output(
-            &program,
-            &parser.function_table,
-            ast_dump_output,
-            ast_dump_output_len,
-        );
+            write_ast_dump_output(
+                &program,
+                &parser.function_table,
+                ast_dump_output,
+                ast_dump_output_len,
+            );
 
-        let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
-            (data.scope.clone(), data.is_strict_mode)
-        } else {
-            return std::ptr::null_mut();
-        };
+            let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
+                (data.scope.clone(), data.is_strict_mode)
+            } else {
+                return std::ptr::null_mut();
+            };
 
-        let mut gen = new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
-        gen.function_table = std::mem::take(&mut parser.function_table);
-        let exec_ptr =
-            compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr);
-        if exec_ptr.is_null() {
-            return std::ptr::null_mut();
-        }
+            let mut generator =
+                new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
+            generator.function_table = std::mem::take(&mut parser.function_table);
+            let exec_ptr = compile_program_body(
+                &mut generator,
+                &program,
+                &scope_ref,
+                vm_ptr,
+                source_code_ptr,
+            );
+            if exec_ptr.is_null() {
+                return std::ptr::null_mut();
+            }
 
-        extract_script_gdi(
-            &scope_ref.borrow(),
-            is_strict,
-            vm_ptr,
-            source_code_ptr,
-            gdi_context,
-            &mut gen.function_table,
-        );
+            extract_script_gdi(
+                &scope_ref.borrow(),
+                is_strict,
+                vm_ptr,
+                source_code_ptr,
+                gdi_context,
+                &mut generator.function_table,
+            );
 
-        exec_ptr
-    })
+            exec_ptr
+        })
+    }
 }
 
 /// Compile an eval script and extract EDI (EvalDeclarationInstantiation) metadata.
@@ -451,7 +473,7 @@ pub unsafe extern "C" fn rust_compile_script(
 /// - `vm_ptr` must be a valid `JS::VM*`.
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
 /// - `gdi_context` must be a valid pointer to a C++ EvalGdiBuilder.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compile_eval(
     source: *const u16,
     source_len: usize,
@@ -468,57 +490,65 @@ pub unsafe extern "C" fn rust_compile_eval(
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        let Some(source_slice) = source_from_raw(source, source_len) else {
-            return std::ptr::null_mut();
-        };
-        let mut parser = Parser::new(source_slice, ProgramType::Script);
-        parser.initiated_by_eval = true;
-        parser.in_eval_function_context = in_eval_function_context;
-        parser.flags.allow_super_property_lookup = allow_super_property_lookup;
-        parser.flags.allow_super_constructor_call = allow_super_constructor_call;
-        parser.flags.in_class_field_initializer = in_class_field_initializer;
+    unsafe {
+        abort_on_panic(|| {
+            let Some(source_slice) = source_from_raw(source, source_len) else {
+                return std::ptr::null_mut();
+            };
+            let mut parser = Parser::new(source_slice, ProgramType::Script);
+            parser.initiated_by_eval = true;
+            parser.in_eval_function_context = in_eval_function_context;
+            parser.flags.allow_super_property_lookup = allow_super_property_lookup;
+            parser.flags.allow_super_constructor_call = allow_super_constructor_call;
+            parser.flags.in_class_field_initializer = in_class_field_initializer;
 
-        let program = parser.parse_program(starts_in_strict_mode);
+            let program = parser.parse_program(starts_in_strict_mode);
 
-        if check_errors_with_callback(&mut parser, error_context, error_callback) {
-            return std::ptr::null_mut();
-        }
+            if check_errors_with_callback(&mut parser, error_context, error_callback) {
+                return std::ptr::null_mut();
+            }
 
-        parser.scope_collector.analyze(true);
+            parser.scope_collector.analyze(true);
 
-        write_ast_dump_output(
-            &program,
-            &parser.function_table,
-            ast_dump_output,
-            ast_dump_output_len,
-        );
+            write_ast_dump_output(
+                &program,
+                &parser.function_table,
+                ast_dump_output,
+                ast_dump_output_len,
+            );
 
-        let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
-            (data.scope.clone(), data.is_strict_mode)
-        } else {
-            return std::ptr::null_mut();
-        };
+            let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
+                (data.scope.clone(), data.is_strict_mode)
+            } else {
+                return std::ptr::null_mut();
+            };
 
-        let mut gen = new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
-        gen.function_table = std::mem::take(&mut parser.function_table);
-        let exec_ptr =
-            compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr);
-        if exec_ptr.is_null() {
-            return std::ptr::null_mut();
-        }
+            let mut generator =
+                new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
+            generator.function_table = std::mem::take(&mut parser.function_table);
+            let exec_ptr = compile_program_body(
+                &mut generator,
+                &program,
+                &scope_ref,
+                vm_ptr,
+                source_code_ptr,
+            );
+            if exec_ptr.is_null() {
+                return std::ptr::null_mut();
+            }
 
-        extract_eval_gdi(
-            &scope_ref.borrow(),
-            is_strict,
-            vm_ptr,
-            source_code_ptr,
-            gdi_context,
-            &mut gen.function_table,
-        );
+            extract_eval_gdi(
+                &scope_ref.borrow(),
+                is_strict,
+                vm_ptr,
+                source_code_ptr,
+                gdi_context,
+                &mut generator.function_table,
+            );
 
-        exec_ptr
-    })
+            exec_ptr
+        })
+    }
 }
 
 // =============================================================================
@@ -538,7 +568,7 @@ pub unsafe extern "C" fn rust_compile_eval(
 /// - All source pointers must be valid UTF-16 buffers.
 /// - `vm_ptr` must be a valid `JS::VM*`.
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compile_dynamic_function(
     full_source: *const u16,
     full_source_len: usize,
@@ -554,37 +584,37 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        let kind = match function_kind {
-            0 => ast::FunctionKind::Normal,
-            1 => ast::FunctionKind::Generator,
-            2 => ast::FunctionKind::Async,
-            3 => ast::FunctionKind::AsyncGenerator,
-            _ => {
-                return std::ptr::null_mut();
-            }
-        };
-
-        // Validate parameters standalone.
-        // First lex independently to catch lexer errors (e.g. unterminated comments)
-        // with correct line/column positions relative to the parameter string.
-        let Some(parameters_slice) = source_from_raw(parameters_source, parameters_source_len)
-        else {
-            return std::ptr::null_mut();
-        };
-        {
-            let mut lexer = lexer::Lexer::new(parameters_slice, 1, 0);
-            loop {
-                let token = lexer.next();
-                if token.token_type == token::TokenType::Eof {
-                    break;
+    unsafe {
+        abort_on_panic(|| {
+            let kind = match function_kind {
+                0 => ast::FunctionKind::Normal,
+                1 => ast::FunctionKind::Generator,
+                2 => ast::FunctionKind::Async,
+                3 => ast::FunctionKind::AsyncGenerator,
+                _ => {
+                    return std::ptr::null_mut();
                 }
-                if token.token_type == token::TokenType::Invalid {
-                    let msg = token
-                        .message
-                        .unwrap_or_else(|| format!("Unexpected token {}", token.token_type.name()));
-                    if let Some(cb) = error_callback {
-                        unsafe {
+            };
+
+            // Validate parameters standalone.
+            // First lex independently to catch lexer errors (e.g. unterminated comments)
+            // with correct line/column positions relative to the parameter string.
+            let Some(parameters_slice) = source_from_raw(parameters_source, parameters_source_len)
+            else {
+                return std::ptr::null_mut();
+            };
+            {
+                let mut lexer = lexer::Lexer::new(parameters_slice, 1, 0);
+                loop {
+                    let token = lexer.next();
+                    if token.token_type == token::TokenType::Eof {
+                        break;
+                    }
+                    if token.token_type == token::TokenType::Invalid {
+                        let msg = token.message.unwrap_or_else(|| {
+                            format!("Unexpected token {}", token.token_type.name())
+                        });
+                        if let Some(cb) = error_callback {
                             cb(
                                 error_context,
                                 msg.as_ptr(),
@@ -593,146 +623,142 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                                 token.line_column,
                             );
                         }
+                        return std::ptr::null_mut();
                     }
+                }
+            }
+            // Then wrap in a function for syntactic validation.
+            {
+                let mut validate_src: Vec<u16> = Vec::new();
+                match kind {
+                    ast::FunctionKind::Generator => {
+                        validate_src.extend_from_slice(utf16!("function* test("))
+                    }
+                    ast::FunctionKind::Async => {
+                        validate_src.extend_from_slice(utf16!("async function test("))
+                    }
+                    ast::FunctionKind::AsyncGenerator => {
+                        validate_src.extend_from_slice(utf16!("async function* test("))
+                    }
+                    ast::FunctionKind::Normal => {
+                        validate_src.extend_from_slice(utf16!("function test("))
+                    }
+                }
+                validate_src.extend_from_slice(parameters_slice);
+                validate_src.extend_from_slice(utf16!("\n) {}"));
+                let mut parser = Parser::new(&validate_src, ProgramType::Script);
+                parser.parse_program(false);
+                if check_errors_with_callback(&mut parser, error_context, error_callback) {
                     return std::ptr::null_mut();
                 }
             }
-        }
-        // Then wrap in a function for syntactic validation.
-        {
-            let mut validate_src: Vec<u16> = Vec::new();
-            match kind {
-                ast::FunctionKind::Generator => {
-                    validate_src.extend_from_slice(utf16!("function* test("))
-                }
-                ast::FunctionKind::Async => {
-                    validate_src.extend_from_slice(utf16!("async function test("))
-                }
-                ast::FunctionKind::AsyncGenerator => {
-                    validate_src.extend_from_slice(utf16!("async function* test("))
-                }
-                ast::FunctionKind::Normal => {
-                    validate_src.extend_from_slice(utf16!("function test("))
-                }
-            }
-            validate_src.extend_from_slice(parameters_slice);
-            validate_src.extend_from_slice(utf16!("\n) {}"));
-            let mut parser = Parser::new(&validate_src, ProgramType::Script);
-            parser.parse_program(false);
-            if check_errors_with_callback(&mut parser, error_context, error_callback) {
-                return std::ptr::null_mut();
-            }
-        }
 
-        // Validate body standalone: parse directly with function context flags.
-        // NB: The C++ caller already wraps the body as "\nBODY\n" in body_parse_string,
-        // so body_source already contains the newline-wrapped body. We parse it
-        // directly as a script with function context flags set, matching the C++
-        // approach of parse_function_body_from_string.
-        {
-            let Some(body_slice) = source_from_raw(body_source, body_source_len) else {
+            // Validate body standalone: parse directly with function context flags.
+            // NB: The C++ caller already wraps the body as "\nBODY\n" in body_parse_string,
+            // so body_source already contains the newline-wrapped body. We parse it
+            // directly as a script with function context flags set, matching the C++
+            // approach of parse_function_body_from_string.
+            {
+                let Some(body_slice) = source_from_raw(body_source, body_source_len) else {
+                    return std::ptr::null_mut();
+                };
+                let mut parser = Parser::new(body_slice, ProgramType::Script);
+                parser.flags.in_function_context = true;
+                match kind {
+                    ast::FunctionKind::Async | ast::FunctionKind::AsyncGenerator => {
+                        parser.flags.await_expression_is_valid = true;
+                    }
+                    _ => {}
+                }
+                match kind {
+                    ast::FunctionKind::Generator | ast::FunctionKind::AsyncGenerator => {
+                        parser.flags.in_generator_function_context = true;
+                    }
+                    _ => {}
+                }
+                parser.parse_program(false);
+                if check_errors_with_callback(&mut parser, error_context, error_callback) {
+                    return std::ptr::null_mut();
+                }
+            }
+
+            let Some(full_slice) = source_from_raw(full_source, full_source_len) else {
                 return std::ptr::null_mut();
             };
-            let mut parser = Parser::new(body_slice, ProgramType::Script);
-            parser.flags.in_function_context = true;
-            match kind {
-                ast::FunctionKind::Async | ast::FunctionKind::AsyncGenerator => {
-                    parser.flags.await_expression_is_valid = true;
-                }
-                _ => {}
-            }
-            match kind {
-                ast::FunctionKind::Generator | ast::FunctionKind::AsyncGenerator => {
-                    parser.flags.in_generator_function_context = true;
-                }
-                _ => {}
-            }
-            parser.parse_program(false);
+            let mut parser = Parser::new(full_slice, ProgramType::Script);
+            let program = parser.parse_program(false);
+
             if check_errors_with_callback(&mut parser, error_context, error_callback) {
                 return std::ptr::null_mut();
             }
-        }
 
-        let Some(full_slice) = source_from_raw(full_source, full_source_len) else {
-            return std::ptr::null_mut();
-        };
-        let mut parser = Parser::new(full_slice, ProgramType::Script);
-        let program = parser.parse_program(false);
+            // Run scope analysis. Use analyze_as_dynamic_function() to suppress
+            // marking identifiers as global, matching the C++ path which parses
+            // as a FunctionExpression (no Program scope for globals to bind to).
+            parser.scope_collector.analyze_as_dynamic_function();
 
-        if check_errors_with_callback(&mut parser, error_context, error_callback) {
-            return std::ptr::null_mut();
-        }
-
-        // Run scope analysis. Use analyze_as_dynamic_function() to suppress
-        // marking identifiers as global, matching the C++ path which parses
-        // as a FunctionExpression (no Program scope for globals to bind to).
-        parser.scope_collector.analyze_as_dynamic_function();
-
-        if parser.scope_collector.has_errors() {
-            if let Some(cb) = error_callback {
-                for err in parser.scope_collector.drain_errors() {
-                    let msg = &err.message;
-                    unsafe {
+            if parser.scope_collector.has_errors() {
+                if let Some(cb) = error_callback {
+                    for err in parser.scope_collector.drain_errors() {
+                        let msg = &err.message;
                         cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
                     }
                 }
+                return std::ptr::null_mut();
             }
-            return std::ptr::null_mut();
-        }
 
-        write_ast_dump_output(
-            &program,
-            &parser.function_table,
-            ast_dump_output,
-            ast_dump_output_len,
-        );
+            write_ast_dump_output(
+                &program,
+                &parser.function_table,
+                ast_dump_output,
+                ast_dump_output_len,
+            );
 
-        // Extract the FunctionExpression from the program.
-        // The program should contain a single ExpressionStatement wrapping a FunctionExpression.
-        let function_id = if let StatementKind::Program(ref data) = program.inner {
-            let scope = data.scope.borrow();
-            scope.children.iter().find_map(|child| match &child.inner {
-                StatementKind::FunctionDeclaration { function_id, .. } => Some(*function_id),
-                StatementKind::Expression(expression) => {
-                    if let ast::ExpressionKind::Function(function_id) = &expression.inner {
-                        Some(*function_id)
-                    } else {
-                        None
+            // Extract the FunctionExpression from the program.
+            // The program should contain a single ExpressionStatement wrapping a FunctionExpression.
+            let function_id = if let StatementKind::Program(ref data) = program.inner {
+                let scope = data.scope.borrow();
+                scope.children.iter().find_map(|child| match &child.inner {
+                    StatementKind::FunctionDeclaration { function_id, .. } => Some(*function_id),
+                    StatementKind::Expression(expression) => {
+                        if let ast::ExpressionKind::Function(function_id) = &expression.inner {
+                            Some(*function_id)
+                        } else {
+                            None
+                        }
                     }
-                }
-                _ => None,
-            })
-        } else {
-            None
-        };
+                    _ => None,
+                })
+            } else {
+                None
+            };
 
-        let Some(function_id) = function_id else {
-            if let Some(cb) = error_callback {
-                let msg = "Failed to parse dynamic function";
-                unsafe {
+            let Some(function_id) = function_id else {
+                if let Some(cb) = error_callback {
+                    let msg = "Failed to parse dynamic function";
                     cb(error_context, msg.as_ptr(), msg.len(), 0, 0);
                 }
-            }
-            return std::ptr::null_mut();
-        };
+                return std::ptr::null_mut();
+            };
 
-        let mut function_data = parser.function_table.take(function_id);
+            let mut function_data = parser.function_table.take(function_id);
 
-        // Dynamic functions always need an arguments object, matching the C++
-        // path in FunctionConstructor::create_dynamic_function.
-        function_data.parsing_insights.might_need_arguments_object = true;
+            // Dynamic functions always need an arguments object, matching the C++
+            // path in FunctionConstructor::create_dynamic_function.
+            function_data.parsing_insights.might_need_arguments_object = true;
 
-        let is_strict = function_data.is_strict_mode;
-        let subtable = parser.function_table.extract_reachable(&function_data);
+            let is_strict = function_data.is_strict_mode;
+            let subtable = parser.function_table.extract_reachable(&function_data);
 
-        bytecode::ffi::create_sfd_for_gdi(
-            function_data,
-            subtable,
-            vm_ptr,
-            source_code_ptr,
-            is_strict,
-        )
-    })
+            bytecode::ffi::create_sfd_for_gdi(
+                function_data,
+                subtable,
+                vm_ptr,
+                source_code_ptr,
+                is_strict,
+            )
+        })
+    }
 }
 
 // =============================================================================
@@ -754,7 +780,7 @@ type BuiltinFunctionCallback =
 /// - `vm_ptr` must be a valid `JS::VM*`.
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
 /// - `ctx` must be a valid pointer passed through to `push_function`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compile_builtin_file(
     source: *const u16,
     source_len: usize,
@@ -765,68 +791,69 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
 ) {
-    abort_on_panic(|| {
-        let Some(source_slice) = source_from_raw(source, source_len) else {
-            return;
-        };
+    unsafe {
+        abort_on_panic(|| {
+            let Some(source_slice) = source_from_raw(source, source_len) else {
+                return;
+            };
 
-        let mut parser = Parser::new(source_slice, ProgramType::Script);
-        let program = parser.parse_program(true); // strict mode
+            let mut parser = Parser::new(source_slice, ProgramType::Script);
+            let program = parser.parse_program(true); // strict mode
 
-        if parser.has_errors() {
-            let errors: Vec<String> = parser
-                .errors()
-                .iter()
-                .map(|e| format!("{}:{}: {}", e.line, e.column, e.message))
-                .collect();
-            panic!("Parse errors in builtin file: {}", errors.join("; "));
-        }
+            if parser.has_errors() {
+                let errors: Vec<String> = parser
+                    .errors()
+                    .iter()
+                    .map(|e| format!("{}:{}: {}", e.line, e.column, e.message))
+                    .collect();
+                panic!("Parse errors in builtin file: {}", errors.join("; "));
+            }
 
-        parser.scope_collector.analyze(false);
+            parser.scope_collector.analyze(false);
 
-        write_ast_dump_output(
-            &program,
-            &parser.function_table,
-            ast_dump_output,
-            ast_dump_output_len,
-        );
+            write_ast_dump_output(
+                &program,
+                &parser.function_table,
+                ast_dump_output,
+                ast_dump_output_len,
+            );
 
-        let scope_ref = if let StatementKind::Program(ref data) = program.inner {
-            data.scope.clone()
-        } else {
-            return;
-        };
+            let scope_ref = if let StatementKind::Program(ref data) = program.inner {
+                data.scope.clone()
+            } else {
+                return;
+            };
 
-        let scope = scope_ref.borrow();
-        for child in &scope.children {
-            if let StatementKind::FunctionDeclaration {
-                function_id,
-                ref name,
-                ..
-            } = child.inner
-            {
-                let function_data = parser.function_table.take(function_id);
-                let subtable = parser.function_table.extract_reachable(&function_data);
-                let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
-                    function_data,
-                    subtable,
-                    vm_ptr,
-                    source_code_ptr,
-                    true, // strict
-                );
-                if !sfd_ptr.is_null() {
-                    if let Some(ref name_ident) = name {
-                        push_function(
-                            ctx,
-                            sfd_ptr,
-                            name_ident.name.as_ptr(),
-                            name_ident.name.len(),
-                        );
-                    }
+            let scope = scope_ref.borrow();
+            for child in &scope.children {
+                if let StatementKind::FunctionDeclaration {
+                    function_id,
+                    ref name,
+                    ..
+                } = child.inner
+                {
+                    let function_data = parser.function_table.take(function_id);
+                    let subtable = parser.function_table.extract_reachable(&function_data);
+                    let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
+                        function_data,
+                        subtable,
+                        vm_ptr,
+                        source_code_ptr,
+                        true, // strict
+                    );
+                    if !sfd_ptr.is_null()
+                        && let Some(name_ident) = name {
+                            push_function(
+                                ctx,
+                                sfd_ptr,
+                                name_ident.name.as_ptr(),
+                                name_ident.name.len(),
+                            );
+                        }
                 }
             }
-        }
-    });
+        });
+    }
 }
 
 // =============================================================================
@@ -922,42 +949,44 @@ unsafe fn call_export_callback(
     local_or_import_name: &Option<ast::Utf16String>,
     module_request: Option<&ast::ModuleRequest>,
 ) {
-    let (en_ptr, en_len) = export_name
-        .as_ref()
-        .map_or((std::ptr::null(), 0), |n| (n.as_ptr(), n.len()));
-    let (lin_ptr, lin_len) = local_or_import_name
-        .as_ref()
-        .map_or((std::ptr::null(), 0), |n| (n.as_ptr(), n.len()));
+    unsafe {
+        let (en_ptr, en_len) = export_name
+            .as_ref()
+            .map_or((std::ptr::null(), 0), |n| (n.as_ptr(), n.len()));
+        let (lin_ptr, lin_len) = local_or_import_name
+            .as_ref()
+            .map_or((std::ptr::null(), 0), |n| (n.as_ptr(), n.len()));
 
-    if let Some(mr) = module_request {
-        let (keys, values) = build_attribute_slices(&mr.attributes);
-        callback(
-            ctx,
-            kind,
-            en_ptr,
-            en_len,
-            lin_ptr,
-            lin_len,
-            mr.module_specifier.as_ptr(),
-            mr.module_specifier.len(),
-            keys.as_ptr(),
-            values.as_ptr(),
-            keys.len(),
-        );
-    } else {
-        callback(
-            ctx,
-            kind,
-            en_ptr,
-            en_len,
-            lin_ptr,
-            lin_len,
-            std::ptr::null(),
-            0,
-            std::ptr::null(),
-            std::ptr::null(),
-            0,
-        );
+        if let Some(mr) = module_request {
+            let (keys, values) = build_attribute_slices(&mr.attributes);
+            callback(
+                ctx,
+                kind,
+                en_ptr,
+                en_len,
+                lin_ptr,
+                lin_len,
+                mr.module_specifier.as_ptr(),
+                mr.module_specifier.len(),
+                keys.as_ptr(),
+                values.as_ptr(),
+                keys.len(),
+            );
+        } else {
+            callback(
+                ctx,
+                kind,
+                en_ptr,
+                en_len,
+                lin_ptr,
+                lin_len,
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                0,
+            );
+        }
     }
 }
 
@@ -976,7 +1005,7 @@ unsafe fn call_export_callback(
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
 /// - `module_context` must be a valid `ModuleBuilder*`.
 /// - `callbacks` must point to a valid `ModuleCallbacks`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compile_module(
     source: *const u16,
     source_len: usize,
@@ -992,181 +1021,213 @@ pub unsafe extern "C" fn rust_compile_module(
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        let Some(source_slice) = source_from_raw(source, source_len) else {
-            return std::ptr::null_mut();
-        };
+    unsafe {
+        abort_on_panic(|| {
+            let Some(source_slice) = source_from_raw(source, source_len) else {
+                return std::ptr::null_mut();
+            };
 
-        let cb = &*callbacks;
+            let cb = &*callbacks;
 
-        // 1. Parse as module.
-        let mut parser = Parser::new(source_slice, ProgramType::Module);
-        let program = parser.parse_program(false);
+            // 1. Parse as module.
+            let mut parser = Parser::new(source_slice, ProgramType::Module);
+            let program = parser.parse_program(false);
 
-        if check_errors_with_callback(&mut parser, error_context, error_callback) {
-            return std::ptr::null_mut();
-        }
+            if check_errors_with_callback(&mut parser, error_context, error_callback) {
+                return std::ptr::null_mut();
+            }
 
-        parser.scope_collector.analyze(false);
+            parser.scope_collector.analyze(false);
 
-        // Dump AST if requested (after scope analysis so identifier metadata is populated).
-        if dump_ast {
-            ast_dump::dump_program(&program, use_color, &parser.function_table);
-        }
+            // Dump AST if requested (after scope analysis so identifier metadata is populated).
+            if dump_ast {
+                ast_dump::dump_program(&program, use_color, &parser.function_table);
+            }
 
-        write_ast_dump_output(
-            &program,
-            &parser.function_table,
-            ast_dump_output,
-            ast_dump_output_len,
-        );
-
-        let program_data = if let StatementKind::Program(ref data) = program.inner {
-            data
-        } else {
-            return std::ptr::null_mut();
-        };
-
-        let scope_ref = program_data.scope.clone();
-        let has_top_level_await = program_data.has_top_level_await;
-
-        let mut function_table = std::mem::take(&mut parser.function_table);
-
-        // 2. Report has_top_level_await.
-        (cb.set_has_top_level_await)(module_context, has_top_level_await);
-
-        // 3. Process imports and exports.
-        extract_module_metadata(&scope_ref.borrow(), module_context, cb);
-
-        // 4. Extract var declared names and lexical bindings.
-        extract_module_declarations(
-            &scope_ref.borrow(),
-            vm_ptr,
-            source_code_ptr,
-            module_context,
-            cb,
-            &mut function_table,
-        );
-
-        // 5. Compute requested modules (sorted by source offset).
-        extract_requested_modules(&scope_ref.borrow(), module_context, cb);
-
-        // 6. Compile module body.
-        if has_top_level_await {
-            // Compile as an async wrapper function.
-            let exec_ptr = compile_module_as_async(
+            write_ast_dump_output(
                 &program,
-                &scope_ref,
+                &parser.function_table,
+                ast_dump_output,
+                ast_dump_output_len,
+            );
+
+            let program_data = if let StatementKind::Program(ref data) = program.inner {
+                data
+            } else {
+                return std::ptr::null_mut();
+            };
+
+            let scope_ref = program_data.scope.clone();
+            let has_top_level_await = program_data.has_top_level_await;
+
+            let mut function_table = std::mem::take(&mut parser.function_table);
+
+            // 2. Report has_top_level_await.
+            (cb.set_has_top_level_await)(module_context, has_top_level_await);
+
+            // 3. Process imports and exports.
+            extract_module_metadata(&scope_ref.borrow(), module_context, cb);
+
+            // 4. Extract var declared names and lexical bindings.
+            extract_module_declarations(
+                &scope_ref.borrow(),
                 vm_ptr,
                 source_code_ptr,
-                source,
-                source_len,
-                function_table,
+                module_context,
+                cb,
+                &mut function_table,
             );
-            if !tla_executable_out.is_null() {
-                *tla_executable_out = exec_ptr;
+
+            // 5. Compute requested modules (sorted by source offset).
+            extract_requested_modules(&scope_ref.borrow(), module_context, cb);
+
+            // 6. Compile module body.
+            if has_top_level_await {
+                // Compile as an async wrapper function.
+                let exec_ptr = compile_module_as_async(
+                    &program,
+                    &scope_ref,
+                    vm_ptr,
+                    source_code_ptr,
+                    source,
+                    source_len,
+                    function_table,
+                );
+                if !tla_executable_out.is_null() {
+                    *tla_executable_out = exec_ptr;
+                }
+                std::ptr::null_mut()
+            } else {
+                // Compile as a regular program.
+                if !tla_executable_out.is_null() {
+                    *tla_executable_out = std::ptr::null_mut();
+                }
+                let mut generator =
+                    new_program_generator(true, vm_ptr, source_code_ptr, source_len);
+                generator.function_table = function_table;
+                compile_program_body(
+                    &mut generator,
+                    &program,
+                    &scope_ref,
+                    vm_ptr,
+                    source_code_ptr,
+                )
             }
-            std::ptr::null_mut()
-        } else {
-            // Compile as a regular program.
-            if !tla_executable_out.is_null() {
-                *tla_executable_out = std::ptr::null_mut();
-            }
-            let mut gen = new_program_generator(true, vm_ptr, source_code_ptr, source_len);
-            gen.function_table = function_table;
-            compile_program_body(&mut gen, &program, &scope_ref, vm_ptr, source_code_ptr)
-        }
-    })
+        })
+    }
 }
 
 /// Extract import/export metadata from a module's scope and call C++ callbacks.
 unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: &ModuleCallbacks) {
-    use ast::{ExportEntryKind, StatementKind};
+    unsafe {
+        use ast::{ExportEntryKind, StatementKind};
 
-    // Collect all import entries with their module requests.
-    struct ImportEntryWithRequest {
-        import_name: Option<ast::Utf16String>,
-        local_name: ast::Utf16String,
-        module_request: ast::ModuleRequest,
-    }
-    let mut all_import_entries: Vec<ImportEntryWithRequest> = Vec::new();
-
-    for child in &scope.children {
-        if let StatementKind::Import(ref import_data) = child.inner {
-            for entry in &import_data.entries {
-                // Report each import entry.
-                let (in_ptr, in_len, is_ns) = entry
-                    .import_name
-                    .as_ref()
-                    .map_or((std::ptr::null(), 0, true), |n| {
-                        (n.as_ptr(), n.len(), false)
-                    });
-                let (keys, values) = build_attribute_slices(&import_data.module_request.attributes);
-                (cb.push_import_entry)(
-                    ctx,
-                    in_ptr,
-                    in_len,
-                    is_ns,
-                    entry.local_name.as_ptr(),
-                    entry.local_name.len(),
-                    import_data.module_request.module_specifier.as_ptr(),
-                    import_data.module_request.module_specifier.len(),
-                    keys.as_ptr(),
-                    values.as_ptr(),
-                    keys.len(),
-                );
-
-                all_import_entries.push(ImportEntryWithRequest {
-                    import_name: entry.import_name.clone(),
-                    local_name: entry.local_name.clone(),
-                    module_request: import_data.module_request.clone(),
-                });
-            }
+        // Collect all import entries with their module requests.
+        struct ImportEntryWithRequest {
+            import_name: Option<ast::Utf16String>,
+            local_name: ast::Utf16String,
+            module_request: ast::ModuleRequest,
         }
-    }
+        let mut all_import_entries: Vec<ImportEntryWithRequest> = Vec::new();
 
-    // Process export entries (matching SourceTextModule::parse steps 9-10).
-    for child in &scope.children {
-        let export_data = if let StatementKind::Export(ref data) = child.inner {
-            data
-        } else {
-            continue;
-        };
+        for child in &scope.children {
+            if let StatementKind::Import(ref import_data) = child.inner {
+                for entry in &import_data.entries {
+                    // Report each import entry.
+                    let (in_ptr, in_len, is_ns) = entry
+                        .import_name
+                        .as_ref()
+                        .map_or((std::ptr::null(), 0, true), |n| {
+                            (n.as_ptr(), n.len(), false)
+                        });
+                    let (keys, values) =
+                        build_attribute_slices(&import_data.module_request.attributes);
+                    (cb.push_import_entry)(
+                        ctx,
+                        in_ptr,
+                        in_len,
+                        is_ns,
+                        entry.local_name.as_ptr(),
+                        entry.local_name.len(),
+                        import_data.module_request.module_specifier.as_ptr(),
+                        import_data.module_request.module_specifier.len(),
+                        keys.as_ptr(),
+                        values.as_ptr(),
+                        keys.len(),
+                    );
 
-        // Handle default export binding name.
-        if export_data.is_default_export && export_data.entries.len() == 1 {
-            let entry = &export_data.entries[0];
-            // If the default export is not a declaration (function/class/etc.),
-            // its binding name is the local_or_import_name.
-            let is_declaration = export_data.statement.as_ref().is_some_and(|s| {
-                matches!(
-                    s.inner,
-                    StatementKind::FunctionDeclaration { .. } | StatementKind::ClassDeclaration(_)
-                )
-            });
-            if !is_declaration {
-                if let Some(ref name) = entry.local_or_import_name {
-                    (cb.set_default_export_binding)(ctx, name.as_ptr(), name.len());
+                    all_import_entries.push(ImportEntryWithRequest {
+                        import_name: entry.import_name.clone(),
+                        local_name: entry.local_name.clone(),
+                        module_request: import_data.module_request.clone(),
+                    });
                 }
             }
         }
 
-        for entry in &export_data.entries {
-            if entry.kind == ExportEntryKind::EmptyNamedExport {
-                break;
+        // Process export entries (matching SourceTextModule::parse steps 9-10).
+        for child in &scope.children {
+            let export_data = if let StatementKind::Export(ref data) = child.inner {
+                data
+            } else {
+                continue;
+            };
+
+            // Handle default export binding name.
+            if export_data.is_default_export && export_data.entries.len() == 1 {
+                let entry = &export_data.entries[0];
+                // If the default export is not a declaration (function/class/etc.),
+                // its binding name is the local_or_import_name.
+                let is_declaration = export_data.statement.as_ref().is_some_and(|s| {
+                    matches!(
+                        s.inner,
+                        StatementKind::FunctionDeclaration { .. }
+                            | StatementKind::ClassDeclaration(_)
+                    )
+                });
+                if !is_declaration
+                    && let Some(ref name) = entry.local_or_import_name {
+                        (cb.set_default_export_binding)(ctx, name.as_ptr(), name.len());
+                    }
             }
 
-            let has_module_request = export_data.module_request.is_some();
+            for entry in &export_data.entries {
+                if entry.kind == ExportEntryKind::EmptyNamedExport {
+                    break;
+                }
 
-            if !has_module_request {
-                // No module request: check against import entries.
-                let matching_import = all_import_entries
-                    .iter()
-                    .find(|ie| entry.local_or_import_name.as_ref() == Some(&ie.local_name));
+                let has_module_request = export_data.module_request.is_some();
 
-                if let Some(import_entry) = matching_import {
-                    if import_entry.import_name.is_none() {
-                        // Namespace re-export → local export.
+                if !has_module_request {
+                    // No module request: check against import entries.
+                    let matching_import = all_import_entries
+                        .iter()
+                        .find(|ie| entry.local_or_import_name.as_ref() == Some(&ie.local_name));
+
+                    if let Some(import_entry) = matching_import {
+                        if import_entry.import_name.is_none() {
+                            // Namespace re-export → local export.
+                            call_export_callback(
+                                cb.push_local_export,
+                                ctx,
+                                entry.kind as u8,
+                                &entry.export_name,
+                                &entry.local_or_import_name,
+                                None,
+                            );
+                        } else {
+                            // Re-export of a specific binding → indirect export.
+                            call_export_callback(
+                                cb.push_indirect_export,
+                                ctx,
+                                ExportEntryKind::NamedExport as u8,
+                                &entry.export_name,
+                                &import_entry.import_name,
+                                Some(&import_entry.module_request),
+                            );
+                        }
+                    } else {
+                        // Direct local export.
                         call_export_callback(
                             cb.push_local_export,
                             ctx,
@@ -1175,48 +1236,28 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                             &entry.local_or_import_name,
                             None,
                         );
-                    } else {
-                        // Re-export of a specific binding → indirect export.
-                        call_export_callback(
-                            cb.push_indirect_export,
-                            ctx,
-                            ExportEntryKind::NamedExport as u8,
-                            &entry.export_name,
-                            &import_entry.import_name,
-                            Some(&import_entry.module_request),
-                        );
                     }
-                } else {
-                    // Direct local export.
+                } else if entry.kind == ExportEntryKind::ModuleRequestAllButDefault {
+                    // export * from "module"
                     call_export_callback(
-                        cb.push_local_export,
+                        cb.push_star_export,
                         ctx,
                         entry.kind as u8,
                         &entry.export_name,
                         &entry.local_or_import_name,
-                        None,
+                        export_data.module_request.as_ref(),
+                    );
+                } else {
+                    // export { x } from "module" or export { x as y } from "module"
+                    call_export_callback(
+                        cb.push_indirect_export,
+                        ctx,
+                        entry.kind as u8,
+                        &entry.export_name,
+                        &entry.local_or_import_name,
+                        export_data.module_request.as_ref(),
                     );
                 }
-            } else if entry.kind == ExportEntryKind::ModuleRequestAllButDefault {
-                // export * from "module"
-                call_export_callback(
-                    cb.push_star_export,
-                    ctx,
-                    entry.kind as u8,
-                    &entry.export_name,
-                    &entry.local_or_import_name,
-                    export_data.module_request.as_ref(),
-                );
-            } else {
-                // export { x } from "module" or export { x as y } from "module"
-                call_export_callback(
-                    cb.push_indirect_export,
-                    ctx,
-                    entry.kind as u8,
-                    &entry.export_name,
-                    &entry.local_or_import_name,
-                    export_data.module_request.as_ref(),
-                );
             }
         }
     }
@@ -1231,110 +1272,120 @@ unsafe fn extract_module_declarations(
     cb: &ModuleCallbacks,
     function_table: &mut ast::FunctionTable,
 ) {
-    use ast::StatementKind;
+    unsafe {
+        use ast::StatementKind;
 
-    let default_name: ast::Utf16String = utf16!("*default*").into();
+        let default_name: ast::Utf16String = utf16!("*default*").into();
 
-    // Var declared names (walk all nesting levels).
-    for child in &scope.children {
-        collect_module_var_names(&child.inner, ctx, cb.push_var_name);
-    }
+        // Var declared names (walk all nesting levels).
+        for child in &scope.children {
+            collect_module_var_names(&child.inner, ctx, cb.push_var_name);
+        }
 
-    // Lexical bindings and functions to initialize.
-    let mut function_count: i32 = 0;
-    for child in &scope.children {
-        let (declaration, is_exported) = match &child.inner {
-            StatementKind::Export(export_data) => {
-                if let Some(ref stmt) = export_data.statement {
-                    (&stmt.inner, true)
-                } else {
-                    continue;
+        // Lexical bindings and functions to initialize.
+        let mut function_count: i32 = 0;
+        for child in &scope.children {
+            let (declaration, is_exported) = match &child.inner {
+                StatementKind::Export(export_data) => {
+                    if let Some(ref stmt) = export_data.statement {
+                        (&stmt.inner, true)
+                    } else {
+                        continue;
+                    }
                 }
-            }
-            other => (other, false),
-        };
+                other => (other, false),
+            };
 
-        match declaration {
-            StatementKind::FunctionDeclaration {
-                function_id,
-                ref name,
-                ..
-            } => {
-                let is_default =
-                    is_exported && name.as_ref().is_some_and(|n| n.name == default_name);
+            match declaration {
+                StatementKind::FunctionDeclaration {
+                    function_id, name, ..
+                } => {
+                    let is_default =
+                        is_exported && name.as_ref().is_some_and(|n| n.name == default_name);
 
-                let function_data = function_table.take(*function_id);
-                let subtable = function_table.extract_reachable(&function_data);
-                let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
-                    function_data,
-                    subtable,
-                    vm_ptr,
-                    source_code_ptr,
-                    true,
-                );
-                if sfd_ptr.is_null() {
-                    continue;
-                }
+                    let function_data = function_table.take(*function_id);
+                    let subtable = function_table.extract_reachable(&function_data);
+                    let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
+                        function_data,
+                        subtable,
+                        vm_ptr,
+                        source_code_ptr,
+                        true,
+                    );
+                    if sfd_ptr.is_null() {
+                        continue;
+                    }
 
-                // Get the binding name from the AST (e.g., "*default*" for anonymous defaults).
-                let binding_name = if let Some(ref name_ident) = name {
-                    name_ident.name.clone()
-                } else {
-                    continue;
-                };
+                    // Get the binding name from the AST (e.g., "*default*" for anonymous defaults).
+                    let binding_name = if let Some(name_ident) = name {
+                        name_ident.name.clone()
+                    } else {
+                        continue;
+                    };
 
-                // If default export with *default* name, set the SFD display name to "default".
-                let sfd_name = if is_default {
-                    let sfd_display_name = utf16!("default");
-                    module_sfd_set_name(sfd_ptr, sfd_display_name.as_ptr(), sfd_display_name.len());
-                    let display_name: ast::Utf16String = sfd_display_name.into();
-                    display_name
-                } else {
-                    binding_name.clone()
-                };
+                    // If default export with *default* name, set the SFD display name to "default".
+                    let sfd_name = if is_default {
+                        let sfd_display_name = utf16!("default");
+                        module_sfd_set_name(
+                            sfd_ptr,
+                            sfd_display_name.as_ptr(),
+                            sfd_display_name.len(),
+                        );
+                        let display_name: ast::Utf16String = sfd_display_name.into();
+                        display_name
+                    } else {
+                        binding_name.clone()
+                    };
 
-                let function_index = function_count;
-                (cb.push_function)(ctx, sfd_ptr, sfd_name.as_ptr(), sfd_name.len());
-                function_count += 1;
+                    let function_index = function_count;
+                    (cb.push_function)(ctx, sfd_ptr, sfd_name.as_ptr(), sfd_name.len());
+                    function_count += 1;
 
-                // Lexical binding uses the AST name (e.g., "*default*").
-                (cb.push_lexical_binding)(
-                    ctx,
-                    binding_name.as_ptr(),
-                    binding_name.len(),
-                    false,
-                    function_index,
-                );
-            }
-            StatementKind::ClassDeclaration(class_data) => {
-                if let Some(ref name_ident) = class_data.name {
+                    // Lexical binding uses the AST name (e.g., "*default*").
                     (cb.push_lexical_binding)(
                         ctx,
-                        name_ident.name.as_ptr(),
-                        name_ident.name.len(),
+                        binding_name.as_ptr(),
+                        binding_name.len(),
                         false,
-                        -1,
+                        function_index,
                     );
                 }
-            }
-            StatementKind::VariableDeclaration { kind, declarations }
-                if *kind != ast::DeclarationKind::Var =>
-            {
-                let is_constant = *kind == ast::DeclarationKind::Const;
-                for declaration in declarations {
-                    for_each_bound_name(&declaration.target, &mut |name| {
-                        (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), is_constant, -1);
-                    });
+                StatementKind::ClassDeclaration(class_data) => {
+                    if let Some(ref name_ident) = class_data.name {
+                        (cb.push_lexical_binding)(
+                            ctx,
+                            name_ident.name.as_ptr(),
+                            name_ident.name.len(),
+                            false,
+                            -1,
+                        );
+                    }
                 }
-            }
-            StatementKind::UsingDeclaration { declarations } => {
-                for declaration in declarations {
-                    for_each_bound_name(&declaration.target, &mut |name| {
-                        (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), false, -1);
-                    });
+                StatementKind::VariableDeclaration { kind, declarations }
+                    if *kind != ast::DeclarationKind::Var =>
+                {
+                    let is_constant = *kind == ast::DeclarationKind::Const;
+                    for declaration in declarations {
+                        for_each_bound_name(&declaration.target, &mut |name| {
+                            (cb.push_lexical_binding)(
+                                ctx,
+                                name.as_ptr(),
+                                name.len(),
+                                is_constant,
+                                -1,
+                            );
+                        });
+                    }
                 }
+                StatementKind::UsingDeclaration { declarations } => {
+                    for declaration in declarations {
+                        for_each_bound_name(&declaration.target, &mut |name| {
+                            (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), false, -1);
+                        });
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
 }
@@ -1345,26 +1396,28 @@ unsafe fn collect_module_var_names(
     ctx: *mut c_void,
     push_var_name: ModuleNameCallback,
 ) {
-    match statement {
-        ast::StatementKind::VariableDeclaration {
-            kind: ast::DeclarationKind::Var,
-            declarations,
-        } => {
-            for declaration in declarations {
-                for_each_bound_name(&declaration.target, &mut |name| {
-                    push_var_name(ctx, name.as_ptr(), name.len());
+    unsafe {
+        match statement {
+            ast::StatementKind::VariableDeclaration {
+                kind: ast::DeclarationKind::Var,
+                declarations,
+            } => {
+                for declaration in declarations {
+                    for_each_bound_name(&declaration.target, &mut |name| {
+                        push_var_name(ctx, name.as_ptr(), name.len());
+                    });
+                }
+            }
+            ast::StatementKind::Export(export_data) => {
+                if let Some(ref stmt) = export_data.statement {
+                    collect_module_var_names(&stmt.inner, ctx, push_var_name);
+                }
+            }
+            _ => {
+                for_each_child_statement(statement, &mut |child| {
+                    collect_module_var_names(child, ctx, push_var_name);
                 });
             }
-        }
-        ast::StatementKind::Export(export_data) => {
-            if let Some(ref stmt) = export_data.statement {
-                collect_module_var_names(&stmt.inner, ctx, push_var_name);
-            }
-        }
-        _ => {
-            for_each_child_statement(statement, &mut |child| {
-                collect_module_var_names(child, ctx, push_var_name);
-            });
         }
     }
 }
@@ -1375,51 +1428,53 @@ unsafe fn extract_requested_modules(
     ctx: *mut c_void,
     cb: &ModuleCallbacks,
 ) {
-    use ast::StatementKind;
+    unsafe {
+        use ast::StatementKind;
 
-    struct RequestedModule {
-        source_offset: u32,
-        specifier: ast::Utf16String,
-        attributes: Vec<ast::ImportAttribute>,
-    }
+        struct RequestedModule {
+            source_offset: u32,
+            specifier: ast::Utf16String,
+            attributes: Vec<ast::ImportAttribute>,
+        }
 
-    let mut modules: Vec<RequestedModule> = Vec::new();
+        let mut modules: Vec<RequestedModule> = Vec::new();
 
-    for child in &scope.children {
-        match &child.inner {
-            StatementKind::Import(import_data) => {
-                modules.push(RequestedModule {
-                    source_offset: child.range.start.offset,
-                    specifier: import_data.module_request.module_specifier.clone(),
-                    attributes: import_data.module_request.attributes.clone(),
-                });
-            }
-            StatementKind::Export(export_data) => {
-                if let Some(ref mr) = export_data.module_request {
+        for child in &scope.children {
+            match &child.inner {
+                StatementKind::Import(import_data) => {
                     modules.push(RequestedModule {
                         source_offset: child.range.start.offset,
-                        specifier: mr.module_specifier.clone(),
-                        attributes: mr.attributes.clone(),
+                        specifier: import_data.module_request.module_specifier.clone(),
+                        attributes: import_data.module_request.attributes.clone(),
                     });
                 }
+                StatementKind::Export(export_data) => {
+                    if let Some(ref mr) = export_data.module_request {
+                        modules.push(RequestedModule {
+                            source_offset: child.range.start.offset,
+                            specifier: mr.module_specifier.clone(),
+                            attributes: mr.attributes.clone(),
+                        });
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
-    }
 
-    // Sort by source offset (spec requirement).
-    modules.sort_by_key(|m| m.source_offset);
+        // Sort by source offset (spec requirement).
+        modules.sort_by_key(|m| m.source_offset);
 
-    for module in &modules {
-        let (keys, values) = build_attribute_slices(&module.attributes);
-        (cb.push_requested_module)(
-            ctx,
-            module.specifier.as_ptr(),
-            module.specifier.len(),
-            keys.as_ptr(),
-            values.as_ptr(),
-            keys.len(),
-        );
+        for module in &modules {
+            let (keys, values) = build_attribute_slices(&module.attributes);
+            (cb.push_requested_module)(
+                ctx,
+                module.specifier.as_ptr(),
+                module.specifier.len(),
+                keys.as_ptr(),
+                values.as_ptr(),
+                keys.len(),
+            );
+        }
     }
 }
 
@@ -1436,63 +1491,66 @@ unsafe fn compile_module_as_async(
     source_len: usize,
     function_table: ast::FunctionTable,
 ) -> *mut c_void {
-    use bytecode::generator::Generator;
-    use bytecode::instruction::Instruction;
-    use bytecode::operand::{Operand, Register};
+    unsafe {
+        use bytecode::generator::Generator;
+        use bytecode::instruction::Instruction;
+        use bytecode::operand::{Operand, Register};
 
-    let scope = scope_ref.borrow();
-    let mut gen = Generator::new();
-    gen.strict = true;
-    gen.function_table = function_table;
-    gen.vm_ptr = vm_ptr;
-    gen.source_code_ptr = source_code_ptr;
-    gen.source_len = source_len;
-    gen.enclosing_function_kind = ast::FunctionKind::Async;
+        let scope = scope_ref.borrow();
+        let mut generator = Generator::new();
+        generator.strict = true;
+        generator.function_table = function_table;
+        generator.vm_ptr = vm_ptr;
+        generator.source_code_ptr = source_code_ptr;
+        generator.source_len = source_len;
+        generator.enclosing_function_kind = ast::FunctionKind::Async;
 
-    // Extract local variables from the program scope so the executable has the
-    // correct registers_and_locals_count. Without this, locals are not saved
-    // across await suspension points, causing them to become undefined.
-    gen.local_variables = convert_local_variables(&scope);
+        // Extract local variables from the program scope so the executable has the
+        // correct registers_and_locals_count. Without this, locals are not saved
+        // across await suspension points, causing them to become undefined.
+        generator.local_variables = convert_local_variables(&scope);
 
-    let entry_block = gen.make_block();
-    gen.switch_to_basic_block(entry_block);
+        let entry_block = generator.make_block();
+        generator.switch_to_basic_block(entry_block);
 
-    // Async function start: emit initial Yield before GetLexicalEnvironment.
-    let start_block = gen.make_block();
-    let undef = gen.add_constant_undefined();
-    gen.emit(Instruction::Yield {
-        continuation_label: Some(start_block),
-        value: undef.operand(),
-    });
-    gen.switch_to_basic_block(start_block);
-
-    // Get lexical environment.
-    let env_reg = gen.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-    gen.emit(Instruction::GetLexicalEnvironment {
-        dst: env_reg.operand(),
-    });
-    gen.lexical_environment_register_stack.push(env_reg);
-
-    // Generate module body statements.
-    let _result = bytecode::codegen::generate_statement(program, &mut gen, None);
-
-    // Async function end: emit final Yield (no continuation = done).
-    if !gen.is_current_block_terminated() {
-        let undef = gen.add_constant_undefined();
-        gen.emit(Instruction::Yield {
-            continuation_label: None,
+        // Async function start: emit initial Yield before GetLexicalEnvironment.
+        let start_block = generator.make_block();
+        let undef = generator.add_constant_undefined();
+        generator.emit(Instruction::Yield {
+            continuation_label: Some(start_block),
             value: undef.operand(),
         });
+        generator.switch_to_basic_block(start_block);
+
+        // Get lexical environment.
+        let env_reg =
+            generator.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
+        generator.emit(Instruction::GetLexicalEnvironment {
+            dst: env_reg.operand(),
+        });
+        generator.lexical_environment_register_stack.push(env_reg);
+
+        // Generate module body statements.
+        let _result = bytecode::codegen::generate_statement(program, &mut generator, None);
+
+        // Async function end: emit final Yield (no continuation = done).
+        if !generator.is_current_block_terminated() {
+            let undef = generator.add_constant_undefined();
+            generator.emit(Instruction::Yield {
+                continuation_label: None,
+                value: undef.operand(),
+            });
+        }
+
+        // Terminate all unterminated blocks with Yield.
+        generator.terminate_unterminated_blocks_with_yield();
+
+        let assembled = generator.assemble();
+        bytecode::ffi::create_executable(&generator, &assembled, vm_ptr, source_code_ptr)
     }
-
-    // Terminate all unterminated blocks with Yield.
-    gen.terminate_unterminated_blocks_with_yield();
-
-    let assembled = gen.assemble();
-    bytecode::ffi::create_executable(&gen, &assembled, vm_ptr, source_code_ptr)
 }
 
-extern "C" {
+unsafe extern "C" {
     fn module_sfd_set_name(sfd_ptr: *mut c_void, name: *const u16, name_len: usize);
 }
 
@@ -1561,11 +1619,9 @@ fn extract_gdi_common(
             name: Some(ref name_ident),
             ..
         } = child.inner
-        {
-            if seen_names.insert(name_ident.name.clone()) {
+            && seen_names.insert(name_ident.name.clone()) {
                 functions_to_init.push((function_id, name_ident.name.clone()));
             }
-        }
     }
     for (function_id, name) in &functions_to_init {
         let function_data = function_table.take(*function_id);
@@ -1631,27 +1687,29 @@ unsafe fn extract_eval_gdi(
     ctx: *mut c_void,
     function_table: &mut ast::FunctionTable,
 ) {
-    use bytecode::ffi::{
-        eval_gdi_push_annex_b_name, eval_gdi_push_function, eval_gdi_push_lexical_binding,
-        eval_gdi_push_var_name, eval_gdi_push_var_scoped_name, eval_gdi_set_strict,
-    };
+    unsafe {
+        use bytecode::ffi::{
+            eval_gdi_push_annex_b_name, eval_gdi_push_function, eval_gdi_push_lexical_binding,
+            eval_gdi_push_var_name, eval_gdi_push_var_scoped_name, eval_gdi_set_strict,
+        };
 
-    eval_gdi_set_strict(ctx, is_strict);
+        eval_gdi_set_strict(ctx, is_strict);
 
-    extract_gdi_common(
-        scope,
-        vm_ptr,
-        source_code_ptr,
-        is_strict,
-        &mut |name| eval_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
-        &mut |sfd_ptr, name| eval_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
-        &mut |name| eval_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
-        &mut |name| eval_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
-        &mut |name, is_const| {
-            eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
-        },
-        function_table,
-    );
+        extract_gdi_common(
+            scope,
+            vm_ptr,
+            source_code_ptr,
+            is_strict,
+            &mut |name| eval_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
+            &mut |sfd_ptr, name| eval_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
+            &mut |name| eval_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
+            &mut |name| eval_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
+            &mut |name, is_const| {
+                eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+            },
+            function_table,
+        );
+    }
 }
 
 /// Extract GDI metadata from a program-level ScopeData and populate
@@ -1664,54 +1722,57 @@ unsafe fn extract_script_gdi(
     ctx: *mut c_void,
     function_table: &mut ast::FunctionTable,
 ) {
-    use ast::{DeclarationKind, StatementKind};
-    use bytecode::ffi::{
-        script_gdi_push_annex_b_name, script_gdi_push_function, script_gdi_push_lexical_binding,
-        script_gdi_push_lexical_name, script_gdi_push_var_name, script_gdi_push_var_scoped_name,
-    };
+    unsafe {
+        use ast::{DeclarationKind, StatementKind};
+        use bytecode::ffi::{
+            script_gdi_push_annex_b_name, script_gdi_push_function,
+            script_gdi_push_lexical_binding, script_gdi_push_lexical_name,
+            script_gdi_push_var_name, script_gdi_push_var_scoped_name,
+        };
 
-    // Lexical names (let/const/using/class at top level) — script-only step.
-    for child in &scope.children {
-        match &child.inner {
-            StatementKind::VariableDeclaration { kind, declarations }
-                if *kind != DeclarationKind::Var =>
-            {
-                for declaration in declarations {
-                    for_each_bound_name(&declaration.target, &mut |name| {
-                        script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
-                    });
+        // Lexical names (let/const/using/class at top level) — script-only step.
+        for child in &scope.children {
+            match &child.inner {
+                StatementKind::VariableDeclaration { kind, declarations }
+                    if *kind != DeclarationKind::Var =>
+                {
+                    for declaration in declarations {
+                        for_each_bound_name(&declaration.target, &mut |name| {
+                            script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
+                        });
+                    }
                 }
-            }
-            StatementKind::UsingDeclaration { declarations } => {
-                for declaration in declarations {
-                    for_each_bound_name(&declaration.target, &mut |name| {
-                        script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
-                    });
+                StatementKind::UsingDeclaration { declarations } => {
+                    for declaration in declarations {
+                        for_each_bound_name(&declaration.target, &mut |name| {
+                            script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
+                        });
+                    }
                 }
-            }
-            StatementKind::ClassDeclaration(class_data) => {
-                if let Some(ref name) = class_data.name {
-                    script_gdi_push_lexical_name(ctx, name.name.as_ptr(), name.name.len());
+                StatementKind::ClassDeclaration(class_data) => {
+                    if let Some(ref name) = class_data.name {
+                        script_gdi_push_lexical_name(ctx, name.name.as_ptr(), name.name.len());
+                    }
                 }
+                _ => {}
             }
-            _ => {}
         }
-    }
 
-    extract_gdi_common(
-        scope,
-        vm_ptr,
-        source_code_ptr,
-        is_strict,
-        &mut |name| script_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
-        &mut |sfd_ptr, name| script_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
-        &mut |name| script_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
-        &mut |name| script_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
-        &mut |name, is_const| {
-            script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
-        },
-        function_table,
-    );
+        extract_gdi_common(
+            scope,
+            vm_ptr,
+            source_code_ptr,
+            is_strict,
+            &mut |name| script_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
+            &mut |sfd_ptr, name| script_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
+            &mut |name| script_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
+            &mut |name| script_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
+            &mut |name, is_const| {
+                script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+            },
+            function_table,
+        );
+    }
 }
 
 /// Visit each child statement of a statement, excluding function/class bodies
@@ -1816,26 +1877,30 @@ fn for_each_bound_name_in_pattern(pattern: &ast::BindingPattern, f: &mut dyn FnM
 ///
 /// # Safety
 /// `ast` must be a valid pointer returned by `Box::into_raw(Box<FunctionData>)`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_free_function_ast(ast: *mut c_void) {
-    abort_on_panic(|| {
-        if !ast.is_null() {
-            drop(Box::from_raw(ast as *mut ast::FunctionPayload));
-        }
-    });
+    unsafe {
+        abort_on_panic(|| {
+            if !ast.is_null() {
+                drop(Box::from_raw(ast as *mut ast::FunctionPayload));
+            }
+        });
+    }
 }
 
 /// Free a string allocated by Rust (e.g. AST dump output).
 ///
 /// # Safety
 /// `ptr` and `len` must correspond to a `Box<[u8]>` previously leaked via `std::mem::forget`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_free_string(ptr: *mut u8, len: usize) {
-    abort_on_panic(|| {
-        if !ptr.is_null() {
-            drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)));
-        }
-    });
+    unsafe {
+        abort_on_panic(|| {
+            if !ptr.is_null() {
+                drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)));
+            }
+        });
+    }
 }
 
 /// Compile a function body.
@@ -1849,7 +1914,7 @@ pub unsafe extern "C" fn rust_free_string(ptr: *mut u8, len: usize) {
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
 /// - `sfd_ptr` must be a valid `JS::SharedFunctionInstanceData*`.
 /// - `rust_function_ast` must be a valid `Box<FunctionData>` pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compile_function(
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
@@ -1859,115 +1924,118 @@ pub unsafe extern "C" fn rust_compile_function(
     rust_function_ast: *mut c_void,
     builtin_abstract_operations_enabled: bool,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        if rust_function_ast.is_null() {
-            return std::ptr::null_mut();
-        }
-        let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
-        let function_data = Box::new(payload.data);
+    unsafe {
+        abort_on_panic(|| {
+            if rust_function_ast.is_null() {
+                return std::ptr::null_mut();
+            }
+            let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
+            let function_data = Box::new(payload.data);
 
-        let body_scope = match &function_data.body.inner {
-            StatementKind::FunctionBody { ref scope, .. } => Some(scope),
-            StatementKind::Block(ref scope) => Some(scope),
-            _ => None,
-        };
+            let body_scope = match &function_data.body.inner {
+                StatementKind::FunctionBody { scope, .. } => Some(scope),
+                StatementKind::Block(scope) => Some(scope),
+                _ => None,
+            };
 
-        // Compute SFD metadata before codegen so the generator can use
-        // function_environment_needed to optimize `this` access.
-        let sfd_metadata = compute_sfd_metadata(&function_data);
+            // Compute SFD metadata before codegen so the generator can use
+            // function_environment_needed to optimize `this` access.
+            let sfd_metadata = compute_sfd_metadata(&function_data);
 
-        let mut gen = bytecode::generator::Generator::new();
-        gen.strict = function_data.is_strict_mode;
-        gen.function_environment_needed = sfd_metadata.function_environment_needed;
-        gen.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
-        gen.function_table = payload.function_table;
-        gen.vm_ptr = vm_ptr;
-        gen.source_code_ptr = source_code_ptr;
-        gen.source_len = source_len;
-        gen.enclosing_function_kind = function_data.kind;
+            let mut generator = bytecode::generator::Generator::new();
+            generator.strict = function_data.is_strict_mode;
+            generator.function_environment_needed = sfd_metadata.function_environment_needed;
+            generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
+            generator.function_table = payload.function_table;
+            generator.vm_ptr = vm_ptr;
+            generator.source_code_ptr = source_code_ptr;
+            generator.source_len = source_len;
+            generator.enclosing_function_kind = function_data.kind;
 
-        if let Some(scope) = body_scope {
-            gen.local_variables = convert_local_variables(&scope.borrow());
-        }
+            if let Some(scope) = body_scope {
+                generator.local_variables = convert_local_variables(&scope.borrow());
+            }
 
-        let entry_block = gen.make_block();
-        gen.switch_to_basic_block(entry_block);
+            let entry_block = generator.make_block();
+            generator.switch_to_basic_block(entry_block);
 
-        // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
-        // For async (non-generator) functions, emit the initial Yield BEFORE
-        // GetLexicalEnvironment so that parameter evaluation errors are caught
-        // by the async promise wrapper. This matches C++ ordering.
-        if gen.is_in_async_function() && !gen.is_in_generator_function() {
-            let start_block = gen.make_block();
-            let undef = gen.add_constant_undefined();
-            gen.emit(bytecode::instruction::Instruction::Yield {
-                continuation_label: Some(start_block),
-                value: undef.operand(),
-            });
-            gen.switch_to_basic_block(start_block);
-        }
-
-        {
-            use bytecode::operand::{Operand, Register};
-            let env_reg =
-                gen.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-            gen.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
-                dst: env_reg.operand(),
-            });
-            gen.lexical_environment_register_stack.push(env_reg);
-        }
-
-        if let Some(scope) = body_scope {
-            bytecode::codegen::emit_function_declaration_instantiation(
-                &mut gen,
-                &function_data,
-                &scope.borrow(),
-            );
-        }
-
-        // https://tc39.es/ecma262/#sec-generatorstart
-        // For generator functions (including async generators), emit the initial Yield
-        // AFTER FDI. Parameter evaluation happens synchronously before the generator starts.
-        if gen.is_in_generator_function() {
-            let start_block = gen.make_block();
-            let undef = gen.add_constant_undefined();
-            gen.emit(bytecode::instruction::Instruction::Yield {
-                continuation_label: Some(start_block),
-                value: undef.operand(),
-            });
-            gen.switch_to_basic_block(start_block);
-        }
-
-        let result = bytecode::codegen::generate_statement(&function_data.body, &mut gen, None);
-
-        if !gen.is_current_block_terminated() {
-            if gen.is_in_generator_or_async_function() {
-                // Generator/async functions end with Yield (no continuation = done).
-                let undef = gen.add_constant_undefined();
-                gen.emit(bytecode::instruction::Instruction::Yield {
-                    continuation_label: None,
+            // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
+            // For async (non-generator) functions, emit the initial Yield BEFORE
+            // GetLexicalEnvironment so that parameter evaluation errors are caught
+            // by the async promise wrapper. This matches C++ ordering.
+            if generator.is_in_async_function() && !generator.is_in_generator_function() {
+                let start_block = generator.make_block();
+                let undef = generator.add_constant_undefined();
+                generator.emit(bytecode::instruction::Instruction::Yield {
+                    continuation_label: Some(start_block),
                     value: undef.operand(),
                 });
-            } else if let Some(value) = result {
-                gen.emit(bytecode::instruction::Instruction::End {
-                    value: value.operand(),
-                });
+                generator.switch_to_basic_block(start_block);
             }
-            // If result is None, the assembler will add End(undefined) as a
-            // fallthrough for unterminated blocks, matching C++ compile().
-        }
 
-        // For generator/async functions, terminate all unterminated blocks with Yield.
-        if gen.is_in_generator_or_async_function() {
-            gen.terminate_unterminated_blocks_with_yield();
-        }
+            {
+                use bytecode::operand::{Operand, Register};
+                let env_reg = generator
+                    .scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
+                generator.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
+                    dst: env_reg.operand(),
+                });
+                generator.lexical_environment_register_stack.push(env_reg);
+            }
 
-        let assembled = gen.assemble();
+            if let Some(scope) = body_scope {
+                bytecode::codegen::emit_function_declaration_instantiation(
+                    &mut generator,
+                    &function_data,
+                    &scope.borrow(),
+                );
+            }
 
-        write_sfd_metadata(sfd_ptr, &sfd_metadata);
+            // https://tc39.es/ecma262/#sec-generatorstart
+            // For generator functions (including async generators), emit the initial Yield
+            // AFTER FDI. Parameter evaluation happens synchronously before the generator starts.
+            if generator.is_in_generator_function() {
+                let start_block = generator.make_block();
+                let undef = generator.add_constant_undefined();
+                generator.emit(bytecode::instruction::Instruction::Yield {
+                    continuation_label: Some(start_block),
+                    value: undef.operand(),
+                });
+                generator.switch_to_basic_block(start_block);
+            }
 
-        bytecode::ffi::create_executable(&gen, &assembled, vm_ptr, source_code_ptr)
-    })
+            let result =
+                bytecode::codegen::generate_statement(&function_data.body, &mut generator, None);
+
+            if !generator.is_current_block_terminated() {
+                if generator.is_in_generator_or_async_function() {
+                    // Generator/async functions end with Yield (no continuation = done).
+                    let undef = generator.add_constant_undefined();
+                    generator.emit(bytecode::instruction::Instruction::Yield {
+                        continuation_label: None,
+                        value: undef.operand(),
+                    });
+                } else if let Some(value) = result {
+                    generator.emit(bytecode::instruction::Instruction::End {
+                        value: value.operand(),
+                    });
+                }
+                // If result is None, the assembler will add End(undefined) as a
+                // fallthrough for unterminated blocks, matching C++ compile().
+            }
+
+            // For generator/async functions, terminate all unterminated blocks with Yield.
+            if generator.is_in_generator_or_async_function() {
+                generator.terminate_unterminated_blocks_with_yield();
+            }
+
+            let assembled = generator.assemble();
+
+            write_sfd_metadata(sfd_ptr, &sfd_metadata);
+
+            bytecode::ffi::create_executable(&generator, &assembled, vm_ptr, source_code_ptr)
+        })
+    }
 }
 
 // =============================================================================
@@ -2002,7 +2070,7 @@ struct BodyScopeInfo {
 /// constructor (ECMA-262 §10.2.11).
 fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
     let body_scope = match &function_data.body.inner {
-        ast::StatementKind::FunctionBody { ref scope, .. } => Some(scope),
+        ast::StatementKind::FunctionBody { scope, .. } => Some(scope),
         _ => None,
     };
 
@@ -2171,14 +2239,16 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
 /// # Safety
 /// `sfd_ptr` must be a valid `JS::SharedFunctionInstanceData*`.
 unsafe fn write_sfd_metadata(sfd_ptr: *mut c_void, metadata: &SfdMetadata) {
-    rust_sfd_set_metadata(
-        sfd_ptr,
-        metadata.uses_this,
-        metadata.function_environment_needed,
-        metadata.function_environment_bindings_count,
-        metadata.might_need_arguments,
-        metadata.contains_eval,
-    );
+    unsafe {
+        rust_sfd_set_metadata(
+            sfd_ptr,
+            metadata.uses_this,
+            metadata.function_environment_needed,
+            metadata.function_environment_bindings_count,
+            metadata.might_need_arguments,
+            metadata.contains_eval,
+        );
+    }
 }
 
 /// Count non-local lexically-declared identifiers in a function body scope.
@@ -2203,11 +2273,10 @@ fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>) -> usiz
                 }
             }
             ast::StatementKind::ClassDeclaration(class_data) => {
-                if let Some(ref name_ident) = class_data.name {
-                    if !name_ident.is_local() {
+                if let Some(ref name_ident) = class_data.name
+                    && !name_ident.is_local() {
                         count += 1;
                     }
-                }
             }
             _ => {}
         }
@@ -2240,11 +2309,10 @@ fn count_non_local_names_in_binding_pattern(pattern: &ast::BindingPattern, count
                 count_non_local_names_in_binding_pattern(sub, count);
             }
             None => {
-                if let Some(ast::BindingEntryName::Identifier(ident)) = &entry.name {
-                    if !ident.is_local() {
+                if let Some(ast::BindingEntryName::Identifier(ident)) = &entry.name
+                    && !ident.is_local() {
                         *count += 1;
                     }
-                }
             }
             Some(ast::BindingEntryAlias::MemberExpression(_)) => {}
         }
@@ -2271,7 +2339,7 @@ fn for_each_binding_pattern_identifier(
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     fn rust_sfd_set_metadata(
         sfd_ptr: *mut c_void,
         uses_this: bool,

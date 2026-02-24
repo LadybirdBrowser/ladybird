@@ -883,11 +883,10 @@ impl BindingPattern {
             if entry.initializer.is_some() {
                 return true;
             }
-            if let Some(BindingEntryAlias::BindingPattern(ref nested)) = entry.alias {
-                if nested.contains_expression() {
+            if let Some(BindingEntryAlias::BindingPattern(ref nested)) = entry.alias
+                && nested.contains_expression() {
                     return true;
                 }
-            }
         }
         false
     }
@@ -1038,7 +1037,7 @@ pub struct TemplateLiteralData {
 // RegExp literal
 // =============================================================================
 
-extern "C" {
+unsafe extern "C" {
     fn rust_free_compiled_regex(ptr: *mut c_void);
 }
 

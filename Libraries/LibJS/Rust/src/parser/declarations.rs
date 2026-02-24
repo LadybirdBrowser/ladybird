@@ -44,8 +44,8 @@ fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
             }
             names
         }
-        StatementKind::FunctionDeclaration { ref name, .. } => {
-            if let Some(ref name) = name {
+        StatementKind::FunctionDeclaration { name, .. } => {
+            if let Some(name) = name {
                 vec![name.name.clone()]
             } else {
                 Vec::new()
@@ -76,11 +76,10 @@ fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
             Some(BindingEntryAlias::BindingPattern(nested)) => collect_pattern_names(nested, names),
             _ => {}
         }
-        if entry.alias.is_none() {
-            if let Some(BindingEntryName::Identifier(id)) = &entry.name {
+        if entry.alias.is_none()
+            && let Some(BindingEntryName::Identifier(id)) = &entry.name {
                 names.push(id.name.clone());
             }
-        }
     }
 }
 
@@ -1801,13 +1800,12 @@ impl<'a> Parser<'a> {
                     } else if self.match_token(TokenType::StringLiteral) {
                         let token = self.consume();
                         let (name, _) = self.parse_string_value(&token);
-                        if let Some(&last) = name.last() {
-                            if (0xD800..=0xDBFF).contains(&last) {
+                        if let Some(&last) = name.last()
+                            && (0xD800..=0xDBFF).contains(&last) {
                                 self.syntax_error(
                                     "StringValue ending with unpaired high surrogate",
                                 );
                             }
-                        }
 
                         if !self.match_as() {
                             self.expected("'as'");
@@ -1890,26 +1888,24 @@ impl<'a> Parser<'a> {
             if matches_function != MatchesFunctionDeclaration::No {
                 let has_default_name = matches_function == MatchesFunctionDeclaration::WithoutName;
                 let declaration = self.parse_function_declaration_for_export(has_default_name);
-                if !has_default_name {
-                    if let StatementKind::FunctionDeclaration {
+                if !has_default_name
+                    && let StatementKind::FunctionDeclaration {
                         name: Some(ref name_id),
                         ..
                     } = declaration.inner
                     {
                         local_name = Some(name_id.name.clone());
                     }
-                }
                 statement = Some(Box::new(declaration));
             } else if self.match_token(TokenType::Class) {
                 let next = self.next_token();
                 if next.token_type != TokenType::CurlyOpen && next.token_type != TokenType::Extends
                 {
                     let declaration = self.parse_class_declaration();
-                    if let StatementKind::ClassDeclaration(ref class) = declaration.inner {
-                        if let Some(ref name_id) = class.name {
+                    if let StatementKind::ClassDeclaration(ref class) = declaration.inner
+                        && let Some(ref name_id) = class.name {
                             local_name = Some(name_id.name.clone());
                         }
-                    }
                     statement = Some(Box::new(declaration));
                 } else {
                     // Unnamed class declaration - don't consume semicolon,
@@ -2071,8 +2067,8 @@ impl<'a> Parser<'a> {
 
         // Check for duplicate exported names.
         for entry in &entries {
-            if let Some(ref name) = entry.export_name {
-                if !self.exported_names.insert(name.clone()) {
+            if let Some(ref name) = entry.export_name
+                && !self.exported_names.insert(name.clone()) {
                     self.syntax_error_at_position(
                         &format!(
                             "Duplicate export with name: '{}'",
@@ -2081,7 +2077,6 @@ impl<'a> Parser<'a> {
                         start,
                     );
                 }
-            }
         }
 
         self.statement(
@@ -2131,11 +2126,10 @@ impl<'a> Parser<'a> {
             // https://tc39.es/ecma262/#sec-module-semantics-static-semantics-early-errors
             // It is a Syntax Error if IsStringWellFormedUnicode of the StringValue
             // of StringLiteral is false.
-            if let Some(&last) = value.last() {
-                if (0xD800..=0xDBFF).contains(&last) {
+            if let Some(&last) = value.last()
+                && (0xD800..=0xDBFF).contains(&last) {
                     self.syntax_error("StringValue ending with unpaired high surrogate");
                 }
-            }
             (value, true)
         } else {
             self.expected("export specifier (string or identifier)");

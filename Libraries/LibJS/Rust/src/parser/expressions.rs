@@ -199,8 +199,8 @@ impl<'a> Parser<'a> {
         // C++ checks for freestanding `arguments` references here (after
         // parse_primary_expression), NOT during consume(). This avoids
         // falsely flagging parameter names like `function f(arguments)`.
-        if let ExpressionKind::Identifier(ref id) = expression.inner {
-            if id.name == utf16!("arguments")
+        if let ExpressionKind::Identifier(ref id) = expression.inner
+            && id.name == utf16!("arguments")
                 && !self.flags.strict_mode
                 && !self
                     .scope_collector
@@ -209,7 +209,6 @@ impl<'a> Parser<'a> {
                 self.scope_collector
                     .set_contains_access_to_arguments_object_in_non_strict_mode();
             }
-        }
 
         if !should_continue {
             // Yield/Await expressions don't participate in secondary expression
@@ -796,8 +795,8 @@ impl<'a> Parser<'a> {
                     // lhs_start. When the expression is parenthesized (e.g.
                     // `([a,b]) = ...`), lhs_start points to `(` but we need
                     // to re-lex from `[` to correctly synthesize the pattern.
-                    if let Some(binding_pattern) = self.synthesize_binding_pattern(lhs.range.start)
-                    {
+                    match self.synthesize_binding_pattern(lhs.range.start)
+                    { Some(binding_pattern) => {
                         // Register synthesized identifiers with the scope collector so
                         // they get resolved as locals during analyze().
                         for (name, id) in self.pattern_bound_names.drain(..) {
@@ -818,9 +817,9 @@ impl<'a> Parser<'a> {
                             ),
                             ForbiddenTokens::none(),
                         );
-                    } else {
+                    } _ => {
                         self.pattern_bound_names = saved_bound_names;
-                    }
+                    }}
                 }
                 let allow_call = !matches!(
                     tt,
@@ -1091,11 +1090,10 @@ impl<'a> Parser<'a> {
                         rhs_start.column,
                     );
                 }
-                if let ExpressionKind::Member { property, .. } = &expression.inner {
-                    if matches!(property.inner, ExpressionKind::PrivateIdentifier(_)) {
+                if let ExpressionKind::Member { property, .. } = &expression.inner
+                    && matches!(property.inner, ExpressionKind::PrivateIdentifier(_)) {
                         self.syntax_error("Private fields cannot be deleted");
                     }
-                }
                 self.expression(
                     start,
                     ExpressionKind::Unary {
@@ -1194,12 +1192,11 @@ impl<'a> Parser<'a> {
         let arguments = self.parse_arguments();
         // Check the actual callee expression kind, matching C++ which does
         // is<Identifier>(callee) && callee.string() == "eval".
-        if let ExpressionKind::Identifier(ref id) = callee.inner {
-            if id.name == utf16!("eval") {
+        if let ExpressionKind::Identifier(ref id) = callee.inner
+            && id.name == utf16!("eval") {
                 self.scope_collector.set_contains_direct_call_to_eval();
                 self.scope_collector.set_uses_this();
             }
-        }
         self.expression(
             start,
             ExpressionKind::Call(CallExpressionData {
@@ -1623,8 +1620,8 @@ impl<'a> Parser<'a> {
         // target. We parse the initializer to advance the lexer, but roll back scope records
         // since this expression is discarded. synthesize_binding_pattern will
         // re-parse from source and create the real scope records.
-        if self.match_token(TokenType::Equals) && is_identifier {
-            if let Some(kv) = &key_value {
+        if self.match_token(TokenType::Equals) && is_identifier
+            && let Some(kv) = &key_value {
                 let id = self.make_identifier(obj_start, kv.clone());
                 self.scope_collector
                     .register_identifier(id.clone(), &id.name, None);
@@ -1647,7 +1644,6 @@ impl<'a> Parser<'a> {
                     is_computed: false,
                 };
             }
-        }
 
         // Shorthand property: { x }
         // Only identifiers can be shorthand properties, not string/numeric literals.
