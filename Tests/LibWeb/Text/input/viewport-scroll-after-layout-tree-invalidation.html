@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    div {
+        height: 5000px;
+    }
+</style>
+<div></div>
+<dialog id="d">Hello</dialog>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // Scroll down first. This triggers update_layout and sets viewport offset.
+        window.scrollTo(0, 100);
+
+        // showModal() adds the dialog to the top layer, which calls
+        // invalidate_layout_tree(), tearing down the paintable tree
+        // (setting m_paintable to null on the Document).
+        d.showModal();
+
+        // Scroll to (0, 0). Window::scroll has an optimization that skips
+        // update_layout when scrolling to (0, 0), but since the viewport is
+        // currently at y=100, it still calls perform_a_scroll_of_the_viewport.
+        // Without the update_layout call inside perform_a_scroll_of_the_viewport,
+        // this would null-deref paintable_box().
+        window.scrollTo(0, 0);
+
+        println("PASS (didn't crash)");
+    });
+</script>
