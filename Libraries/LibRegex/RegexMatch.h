@@ -528,20 +528,19 @@ struct MatchState {
         return flat_capture_group_matches.mutable_span().slice(match_index * capture_group_count, capture_group_count);
     }
 
-    // For size_t in {0..100}, ips in {0..500} and repetitions in {0..30}, there are zero collisions.
-    // For the full range, zero collisions were found in 8 million random samples.
+    // For size_t in {0..300}, ips in {0..750} and repetitions in {0..50}, there are zero collisions.
     u64 u64_hash() const
     {
         u64 hash = 0xcbf29ce484222325;
         auto combine = [&hash](auto value) {
-            hash ^= value + 0x9e3779b97f4a7c15 + (hash << 6) + (hash >> 2);
+            hash ^= static_cast<u64>(value);
+            hash *= 0x9e3779b97f4a7c15;
         };
-        auto combine_vector = [&hash](auto const& vector, auto tag) {
-            hash ^= tag * (vector.size() + 1);
-            for (auto& value : vector) {
-                hash ^= value;
-                hash *= 0x100000001b3;
-            }
+        auto combine_vector = [&combine](auto const& vector, auto tag) {
+            combine(tag);
+            combine(vector.size());
+            for (auto& value : vector)
+                combine(value);
         };
 
         combine(string_position_before_match);
