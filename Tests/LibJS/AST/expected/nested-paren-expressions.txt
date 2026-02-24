@@ -1,0 +1,35 @@
+Program (script) @5:1
+├─ VariableDeclaration (var) @5:1
+│  └─ VariableDeclarator @5:1
+│     ├─ Identifier "x" [global] (var) @5:5
+│     └─ AssignmentExpression (=) @5:12
+│        ├─ Identifier "a" [global] @5:10
+│        └─ AssignmentExpression (=) @5:17
+│           ├─ Identifier "b" [global] @5:15
+│           └─ AssignmentExpression (=) @5:22
+│              ├─ Identifier "c" [global] @5:20
+│              └─ AssignmentExpression (=) @5:27
+│                 ├─ Identifier "d" [global] @5:25
+│                 └─ AssignmentExpression (=) @5:32
+│                    ├─ Identifier "e" [global] @5:30
+│                    └─ AssignmentExpression (=) @5:37
+│                       ├─ Identifier "f" [global] @5:35
+│                       └─ AssignmentExpression (=) @5:42
+│                          ├─ Identifier "g" [global] @5:40
+│                          └─ AssignmentExpression (=) @5:47
+│                             ├─ Identifier "h" [global] @5:45
+│                             └─ NumericLiteral 0 @5:49
+└─ VariableDeclaration (var) @6:1
+   └─ VariableDeclarator @6:1
+      ├─ Identifier "y" [global] (var) @6:5
+      └─ AssignmentExpression (=) @6:12
+         ├─ Identifier "a" [global] @6:10
+         └─ ArrayExpression @6:14
+            ├─ Identifier "b" [global] @6:15
+            └─ AssignmentExpression (=) @6:21
+               ├─ Identifier "c" [global] @6:19
+               └─ ArrayExpression @6:23
+                  ├─ Identifier "d" [global] @6:24
+                  └─ AssignmentExpression (=) @6:30
+                     ├─ Identifier "e" [global] @6:28
+                     └─ NumericLiteral 0 @6:32

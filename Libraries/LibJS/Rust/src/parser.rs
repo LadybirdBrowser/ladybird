@@ -284,6 +284,12 @@ pub struct Parser<'a> {
 
     /// Side table owning all FunctionData produced during parsing.
     pub function_table: FunctionTable,
+
+    /// Memoization: offsets where arrow function parsing has already failed.
+    /// Prevents exponential re-processing of nested expressions like
+    /// `(a=(b=(c=0)))` where each failed arrow attempt would otherwise
+    /// re-attempt inner positions during grouping expression re-parse.
+    arrow_function_failed_positions: HashSet<usize>,
 }
 
 impl<'a> Parser<'a> {
@@ -329,6 +335,7 @@ impl<'a> Parser<'a> {
             scope_collector: ScopeCollector::new(),
             exported_names: HashSet::new(),
             function_table: FunctionTable::new(),
+            arrow_function_failed_positions: HashSet::new(),
         }
     }
 

@@ -299,7 +299,7 @@ impl<'a> Parser<'a> {
                 let paren_start = self.position();
                 self.consume_token(TokenType::ParenOpen);
                 if let Some(arrow) =
-                    self.try_parse_arrow_function_expression_impl(true, false, Some(paren_start))
+                    self.try_parse_arrow_function_expression(true, false, Some(paren_start))
                 {
                     return (arrow, false);
                 }
@@ -459,6 +459,7 @@ impl<'a> Parser<'a> {
                 if let Some(arrow) = self.try_parse_arrow_function_expression(
                     next.token_type == TokenType::ParenOpen,
                     true,
+                    None,
                 ) {
                     return (arrow, false);
                 }
@@ -591,7 +592,9 @@ impl<'a> Parser<'a> {
                     || self.match_token(TokenType::Await)
                     || self.match_token(TokenType::Yield)
                 {
-                    if let Some(arrow) = self.try_parse_arrow_function_expression(false, false) {
+                    if let Some(arrow) =
+                        self.try_parse_arrow_function_expression(false, false, None)
+                    {
                         return (arrow, false);
                     }
                     if self.match_token(TokenType::Await)
@@ -2194,7 +2197,12 @@ fn process_escape_sequences_impl(input: &[u16], mode: EscapeMode) -> EscapeResul
 }
 
 impl<'a> Parser<'a> {
-    /// Try to parse an arrow function expression. Returns `None` on failure.
+    /// Try to parse an arrow function expression, with memoization.
+    /// If a previous attempt at this position already failed, returns `None`
+    /// immediately. Otherwise attempts the parse and caches the failure.
+    /// This prevents exponential re-processing of nested expressions like
+    /// `(a=(b=(c=0)))` where each outer failed arrow attempt would re-trigger
+    /// inner attempts during grouping expression re-parse.
     // https://tc39.es/ecma262/#sec-arrow-function-definitions
     // ArrowFunction : ArrowParameters [no LineTerminator here] `=>` ConciseBody
     // ConciseBody   : [lookahead != `{`] ExpressionBody
@@ -2203,11 +2211,24 @@ impl<'a> Parser<'a> {
         &mut self,
         expect_parens: bool,
         is_async: bool,
+        source_start_override: Option<Position>,
     ) -> Option<Expression> {
-        self.try_parse_arrow_function_expression_impl(expect_parens, is_async, None)
+        let offset = source_start_override.map_or(self.current_token.offset, |p| p.offset) as usize;
+        if self.arrow_function_failed_positions.contains(&offset) {
+            return None;
+        }
+        let result = self.try_parse_arrow_function_expression_impl(
+            expect_parens,
+            is_async,
+            source_start_override,
+        );
+        if result.is_none() {
+            self.arrow_function_failed_positions.insert(offset);
+        }
+        result
     }
 
-    pub(crate) fn try_parse_arrow_function_expression_impl(
+    fn try_parse_arrow_function_expression_impl(
         &mut self,
         expect_parens: bool,
         is_async: bool,
