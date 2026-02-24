@@ -1,0 +1,27 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (ImagePaintable(ImageBox<IMG>))
+
+DisplayList:
+SaveLayer@0
+  Save@1
+    AddClipRect@1 rect=[8,13 300x200]
+    PaintNestedDisplayList@1 rect=[8,13 300x200]
+      SaveLayer@0
+        FillPath@1 path_bounding_rect=[5,0 55x56]
+        FillPath@1 path_bounding_rect=[1,50 55x55]
+        Save@1
+          AddClipRect@1 rect=[0,0 300x200]
+          SaveLayer@1
+            FillPath@1 path_bounding_rect=[5,0 55x56]
+            FillPath@1 path_bounding_rect=[1,50 55x55]
+            ApplyEffects@1 opacity=1 has_filter=false
+              PaintNestedDisplayList@1 rect=[0,0 300x200]
+                Translate@0 delta=[0,0]
+                FillPath@0 path_bounding_rect=[4,10 55x56]
+            Restore@1
+          Restore@1
+        Restore@1
+      Restore@0
+  Restore@1
+Restore@0
+

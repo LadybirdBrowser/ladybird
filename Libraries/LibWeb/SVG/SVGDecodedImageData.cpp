@@ -96,6 +96,13 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root_element);
 }
 
+RefPtr<Painting::DisplayList> SVGDecodedImageData::record_display_list(Gfx::IntSize size) const
+{
+    m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
+    m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
+    return m_document->record_display_list({});
+}
+
 RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize size) const
 {
     VERIFY(m_document->navigable());
@@ -112,11 +119,7 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
         m_cached_rendered_surfaces.remove(m_cached_rendered_surfaces.begin());
 
     auto surface = Gfx::PaintingSurface::create_with_size(m_document->navigable()->skia_backend_context(), size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-
-    m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
-    m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
-
-    auto display_list = m_document->record_display_list({});
+    auto display_list = record_display_list(size);
     if (!display_list)
         return nullptr;
 
@@ -217,13 +220,16 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::surface(size_t, Gfx::IntSize s
     return render_to_surface(size);
 }
 
-void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect, Gfx::ScalingMode scaling_mode) const
+void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode) const
 {
-    auto immutable_bitmap = bitmap(0, dst_rect.size());
-    if (!immutable_bitmap)
+    auto display_list = record_display_list(dst_rect.size());
+    if (!display_list)
         return;
 
-    context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *immutable_bitmap, scaling_mode);
+    context.display_list_recorder().save();
+    context.display_list_recorder().add_clip_rect(clip_rect);
+    context.display_list_recorder().paint_nested_display_list(display_list, dst_rect);
+    context.display_list_recorder().restore();
 }
 
 }
