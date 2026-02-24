@@ -1807,9 +1807,9 @@ void Document::update_animated_style_if_needed()
 
     for (auto& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
-            if (animation->is_idle())
+            if (animation.is_idle())
                 continue;
-            if (auto effect = animation->effect())
+            if (auto effect = animation.effect())
                 effect->update_computed_properties(context);
         }
     }
@@ -5734,12 +5734,14 @@ void Document::update_animations_and_send_events(double timestamp)
         for (auto const& timeline : timelines_to_update) {
             timeline->update_current_time(timestamp);
 
-            for (auto const& animation : timeline->associated_animations())
-                animation->update();
+            for (auto& animation : timeline->associated_animations())
+                animation.update();
 
-            auto animations = GC::RootVector { heap(), timeline->associated_animations().values() };
+            auto animations = GC::RootVector<GC::Ref<Animations::Animation>> { heap() };
+            for (auto& animation : timeline->associated_animations())
+                animations.append(animation);
             for (auto& animation : animations)
-                dispatch_events_for_animation_if_necessary(animation.as_nonnull());
+                dispatch_events_for_animation_if_necessary(animation);
         }
 
         // 2. Remove replaced animations for doc.
@@ -5810,21 +5812,21 @@ void Document::remove_replaced_animations()
 
     Vector<GC::Ref<Animations::Animation>> replaceable_animations;
     for (auto const& timeline : m_associated_animation_timelines) {
-        for (auto const& animation : timeline->associated_animations()) {
-            if (!animation->effect() || !animation->effect()->target() || &animation->effect()->target()->document() != this)
+        for (auto& animation : timeline->associated_animations()) {
+            if (!animation.effect() || !animation.effect()->target() || &animation.effect()->target()->document() != this)
                 continue;
 
-            if (!animation->is_replaceable())
+            if (!animation.is_replaceable())
                 continue;
 
-            if (animation->replace_state() != Bindings::AnimationReplaceState::Active)
+            if (animation.replace_state() != Bindings::AnimationReplaceState::Active)
                 continue;
 
             // Composite order is only defined for KeyframeEffects
-            if (!animation->effect()->is_keyframe_effect())
+            if (!animation.effect()->is_keyframe_effect())
                 continue;
 
-            replaceable_animations.append(animation.as_nonnull());
+            replaceable_animations.append(animation);
         }
     }
 

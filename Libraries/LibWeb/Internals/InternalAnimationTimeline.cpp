@@ -31,8 +31,8 @@ void InternalAnimationTimeline::set_time(Optional<double> time)
     //   updated.
     // - Queueing animation events for any such animations.
     // NB: This mirrors what the event loop does for DocumentTimeline in Document::update_animations_and_send_events().
-    for (auto const& animation : associated_animations())
-        animation->update();
+    for (auto& animation : associated_animations())
+        animation.update();
 }
 
 InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm)
