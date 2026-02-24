@@ -70,10 +70,17 @@ void Thread::start()
     // Set this first so that the other thread starts out seeing m_state == Running.
     m_state = Threading::ThreadState::Running;
 
+    pthread_attr_t attr;
+    pthread_attr_t* attr_ptr = nullptr;
+    if (m_stack_size > 0) {
+        pthread_attr_init(&attr);
+        pthread_attr_setstacksize(&attr, m_stack_size);
+        attr_ptr = &attr;
+    }
+
     int rc = pthread_create(
         &m_tid,
-        // FIXME: Use pthread_attr_t to start a thread detached if that was requested by the user before the call to start().
-        nullptr,
+        attr_ptr,
         [](void* arg) -> void* {
             auto self = adopt_ref(*static_cast<Thread*>(arg));
 
@@ -111,6 +118,9 @@ void Thread::start()
             return reinterpret_cast<void*>(exit_code);
         },
         &NonnullRefPtr(*this).leak_ref());
+
+    if (attr_ptr)
+        pthread_attr_destroy(attr_ptr);
 
     VERIFY(rc == 0);
 }
