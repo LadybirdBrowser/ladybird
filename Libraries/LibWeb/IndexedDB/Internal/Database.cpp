@@ -80,12 +80,17 @@ RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey con
     return new_connection->request_list;
 }
 
-Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
+GC::Ptr<Database> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
-    auto database_mapping = m_databases.ensure(key, [] { return HashMap<String, GC::Weak<Database>>(); });
-    if (auto maybe_database = database_mapping.get(name); maybe_database.has_value())
-        return *maybe_database.value();
-    return {};
+    auto maybe_database_mapping = m_databases.get(key);
+    if (!maybe_database_mapping.has_value())
+        return nullptr;
+
+    auto maybe_database = maybe_database_mapping.value().get(name);
+    if (!maybe_database.has_value())
+        return nullptr;
+
+    return maybe_database.value().ptr();
 }
 
 ErrorOr<GC::Root<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey const& key, String const& name)

@@ -7,8 +7,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Cell.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
@@ -127,9 +129,17 @@ void IDBRequest::unregister_request_observer(Badge<IDBRequestObserver>, IDBReque
 void IDBRequest::set_processed(bool processed)
 {
     m_processed = processed;
-    notify_each_request_observer([](IDBRequestObserver const& request_observer) {
-        return request_observer.request_processed_changed_observer();
-    });
+
+    // Queue a task to notify observers to prevent synchronous recursion
+    // when processing a large queue of database requests.
+    HTML::queue_global_task(HTML::Task::Source::DatabaseAccess, realm().global_object(), GC::create_function(realm().heap(), [this_request = GC::Ref { *this }]() {
+        if (this_request->realm().global_object().state() == GC::Cell::State::Dead)
+            return;
+
+        this_request->notify_each_request_observer([](IDBRequestObserver const& request_observer) {
+            return request_observer.request_processed_changed_observer();
+        });
+    }));
 }
 
 }

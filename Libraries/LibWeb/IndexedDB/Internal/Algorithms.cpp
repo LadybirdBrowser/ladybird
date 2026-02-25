@@ -96,18 +96,14 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
     queue.all_previous_requests_processed(realm.heap(), request, GC::create_function(realm.heap(), [&realm, storage_key = move(storage_key), name = move(name), maybe_version = move(maybe_version), request, on_complete] -> void {
         // 4. Let db be the database named name in storageKey, or null otherwise.
-        GC::Ptr<Database> db;
-        auto maybe_db = Database::for_key_and_name(storage_key, name);
-        if (maybe_db.has_value()) {
-            db = &maybe_db.value();
-        }
+        auto db = Database::for_key_and_name(storage_key, name);
 
         // 5. If version is undefined, let version be 1 if db is null, or db’s version otherwise.
-        auto version = maybe_version.value_or(maybe_db.has_value() ? maybe_db.value().version() : 1);
+        auto version = maybe_version.value_or(db ? db->version() : 1);
 
         // 6. If db is null, let db be a new database with name name, version 0 (zero), and with no object stores.
         // If this fails for any reason, return an appropriate error (e.g. a "QuotaExceededError" or "UnknownError" DOMException).
-        if (!maybe_db.has_value()) {
+        if (!db) {
             auto maybe_database = Database::create_for_key_and_name(realm, storage_key, name);
 
             if (maybe_database.is_error()) {
@@ -500,13 +496,11 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
 
     queue.all_previous_requests_processed(realm.heap(), request, GC::create_function(realm.heap(), [&realm, storage_key = move(storage_key), name = move(name), on_complete] -> void {
         // 4. Let db be the database named name in storageKey, if one exists. Otherwise, return 0 (zero).
-        auto maybe_db = Database::for_key_and_name(storage_key, name);
-        if (!maybe_db.has_value()) {
+        auto db = Database::for_key_and_name(storage_key, name);
+        if (!db) {
             on_complete->function()(0);
             return;
         }
-
-        GC::Ref db = maybe_db.value();
 
         // 5. Let openConnections be the set of all connections associated with db.
         auto open_connections = db->associated_connections();
