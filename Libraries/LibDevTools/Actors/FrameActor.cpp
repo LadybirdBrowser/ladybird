@@ -45,10 +45,9 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
 
         devtools.delegate().listen_for_console_messages(
             tab->description(),
-            [weak_self = make_weak_ptr<FrameActor>()](WebView::ConsoleOutput console_output) {
-                if (auto self = weak_self.strong_ref())
-                    self->on_console_message(move(console_output));
-            });
+            weak_callback(*this, [](auto& self, WebView::ConsoleOutput console_output) {
+                self.on_console_message(move(console_output));
+            }));
 
         // FIXME: We should adopt WebContent to inform us when style sheets are available or removed.
         devtools.delegate().retrieve_style_sheets(tab->description(),
@@ -58,33 +57,27 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
 
         devtools.delegate().listen_for_network_events(
             tab->description(),
-            [weak_self = make_weak_ptr<FrameActor>()](DevToolsDelegate::NetworkRequestData data) {
-                if (auto self = weak_self.strong_ref())
-                    self->on_network_request_started(move(data));
-            },
-            [weak_self = make_weak_ptr<FrameActor>()](DevToolsDelegate::NetworkResponseData data) {
-                if (auto self = weak_self.strong_ref())
-                    self->on_network_response_headers_received(move(data));
-            },
-            [weak_self = make_weak_ptr<FrameActor>()](u64 request_id, ByteBuffer data) {
-                if (auto self = weak_self.strong_ref())
-                    self->on_network_response_body_received(request_id, move(data));
-            },
-            [weak_self = make_weak_ptr<FrameActor>()](DevToolsDelegate::NetworkRequestCompleteData data) {
-                if (auto self = weak_self.strong_ref())
-                    self->on_network_request_finished(move(data));
-            });
+            weak_callback(*this, [](auto& self, DevToolsDelegate::NetworkRequestData data) {
+                self.on_network_request_started(move(data));
+            }),
+            weak_callback(*this, [](auto& self, DevToolsDelegate::NetworkResponseData data) {
+                self.on_network_response_headers_received(move(data));
+            }),
+            weak_callback(*this, [](auto& self, u64 request_id, ByteBuffer data) {
+                self.on_network_response_body_received(request_id, move(data));
+            }),
+            weak_callback(*this, [](auto& self, DevToolsDelegate::NetworkRequestCompleteData data) {
+                self.on_network_request_finished(move(data));
+            }));
 
         devtools.delegate().listen_for_navigation_events(
             tab->description(),
-            [weak_self = make_weak_ptr<FrameActor>()](String url) {
-                if (auto self = weak_self.strong_ref())
-                    self->on_navigation_started(move(url));
-            },
-            [weak_self = make_weak_ptr<FrameActor>()](String url, String title) {
-                if (auto self = weak_self.strong_ref())
-                    self->on_navigation_finished(move(url), move(title));
-            });
+            weak_callback(*this, [](auto& self, String url) {
+                self.on_navigation_started(move(url));
+            }),
+            weak_callback(*this, [](auto& self, String url, String title) {
+                self.on_navigation_finished(move(url), move(title));
+            }));
     }
 }
 

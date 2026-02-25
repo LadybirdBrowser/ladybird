@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Forward.h>
 #include <AK/Weakable.h>
 
 namespace AK {
@@ -173,6 +174,16 @@ private:
     RefPtr<WeakLink> m_link;
 };
 
+template<typename T, typename Callback>
+auto weak_callback(T& obj, Callback&& callback)
+requires(!IsBaseOf<AtomicRefCountedBase, T>)
+{
+    return [weak = obj.template make_weak_ptr<T>(), cb = forward<Callback>(callback)](auto&&... args) {
+        if (weak)
+            cb(*weak, forward<decltype(args)>(args)...);
+    };
+}
+
 template<typename T>
 struct Formatter<WeakPtr<T>> : Formatter<T const*> {
     ErrorOr<void> format(FormatBuilder& builder, WeakPtr<T> const& value)
@@ -193,5 +204,6 @@ struct Traits<WeakPtr<T>> : public DefaultTraits<WeakPtr<T>> {
 }
 
 #if USING_AK_GLOBALLY
+using AK::weak_callback;
 using AK::WeakPtr;
 #endif

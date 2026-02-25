@@ -69,21 +69,21 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
 
     if (m_resource_request) {
         m_resource_request->add_callbacks(
-            [this, weak_this = make_weak_ptr()] {
-                if (!weak_this || !m_document)
+            weak_callback(*this, [](auto& self) {
+                if (!self.m_document)
                     return;
 
-                for (auto* client : m_clients)
-                    client->image_style_value_did_update(*this);
+                for (auto* client : self.m_clients)
+                    client->image_style_value_did_update(self);
 
-                auto image_data = m_resource_request->image_data();
+                auto image_data = self.m_resource_request->image_data();
                 if (image_data->is_animated() && image_data->frame_count() > 1) {
-                    m_timer = Platform::Timer::create(m_document->heap());
-                    m_timer->set_interval(image_data->frame_duration(0));
-                    m_timer->on_timeout = GC::create_function(m_document->heap(), [this] { animate(); });
-                    m_timer->start();
+                    self.m_timer = Platform::Timer::create(self.m_document->heap());
+                    self.m_timer->set_interval(image_data->frame_duration(0));
+                    self.m_timer->on_timeout = GC::create_function(self.m_document->heap(), [ptr = &self] { ptr->animate(); });
+                    self.m_timer->start();
                 }
-            },
+            }),
             nullptr);
     }
 }
