@@ -1524,12 +1524,21 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
     });
 
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [fetch_data](auto& self, auto&& error) {
-        // 1. The user agent should cancel the fetching process.
-        self.cancel_the_fetching_process();
+    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [fetch_data = fetch_data](auto& self, Media::DecoderError&& error) mutable {
+        // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
+        //     call forget_media_resource_specific_tracks().
+        self.queue_a_media_element_task([self = GC::Weak(self), fetch_data = fetch_data, error = move(error)] {
+            if (!self)
+                return;
+            if (self->m_error)
+                return;
 
-        // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-        fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
+            // 1. The user agent should cancel the fetching process.
+            self->cancel_the_fetching_process();
+
+            // 2. Abort this subalgorithm, returning to the resource selection algorithm.
+            fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
+        });
     });
 
     // -> If the media data is corrupted
@@ -1636,6 +1645,7 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     // this; the error and emptied events, fired by the algorithms that invoke this one, can be used instead.
     m_audio_tracks->remove_all_tracks({});
     m_video_tracks->remove_all_tracks({});
+    m_playback_manager.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#ready-states:media-element-3
