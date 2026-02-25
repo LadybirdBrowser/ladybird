@@ -22,6 +22,7 @@
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/Internals.h>
@@ -55,7 +56,7 @@
 static ErrorOr<void> load_content_filters(StringView config_path);
 
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
-static ErrorOr<void> reinitialize_resource_loader(IPC::File const& image_decoder_socket);
+static ErrorOr<void> reinitialize_resource_loader(IPC::File const& request_server_socket);
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
@@ -230,7 +231,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             dbgln("Failed to reinitialize image decoder: {}", result.error());
     };
 
-    return event_loop.exec();
+    int const exit_code = event_loop.exec();
+
+    Web::HTML::shutdown_all_navigables();
+    Web::Bindings::main_thread_vm().heap().collect_garbage(GC::Heap::CollectionType::CollectEverything);
+
+    return exit_code;
 }
 
 static ErrorOr<void> load_content_filters(StringView config_path)

@@ -296,6 +296,7 @@ private:
 };
 
 WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
+WEB_API void shutdown_all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
 void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>);

@@ -166,6 +166,12 @@ static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
     return g_cached_skia_backend_context;
 }
 
+void shutdown_all_navigables()
+{
+    all_navigables().clear();
+    g_cached_skia_backend_context = nullptr;
+}
+
 Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
     : m_page(page)
     , m_event_handler({}, *this)
