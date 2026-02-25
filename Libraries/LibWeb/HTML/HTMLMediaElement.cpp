@@ -650,7 +650,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
     return {};
 }
 
-enum class SelectMode {
+enum class SelectMode : u8 {
     Object,
     Attribute,
     Children,
@@ -711,7 +711,7 @@ public:
 
         // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
-        m_media_element->fetch_resource(*url_record, [self = GC::make_root(this)](auto) { self->failed_with_elements().release_value_but_fixme_should_propagate_errors(); });
+        m_media_element->fetch_resource(*url_record, [self = GC::make_root(this)](auto const&) { self->failed_with_elements().release_value_but_fixme_should_propagate_errors(); });
 
         return {};
     }
@@ -1133,7 +1133,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
 
             // 4. If the result of verifying response given the current media resource and byteRange is false, then abort these steps.
             // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
-            auto maybe_verify_response_failure = weak_self->verify_response_or_get_failure_reason(response, byte_range, fetch_data);
+            auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range, fetch_data);
             if (maybe_verify_response_failure.has_value()) {
                 fetch_data->failure_callback(maybe_verify_response_failure.value());
                 return;

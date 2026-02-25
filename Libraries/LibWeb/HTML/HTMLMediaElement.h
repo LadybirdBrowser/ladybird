@@ -26,7 +26,7 @@
 
 namespace Web::HTML {
 
-enum class MediaSeekMode {
+enum class MediaSeekMode : u8 {
     Accurate,
     ApproximateForSpeed,
 };
@@ -56,7 +56,7 @@ public:
     String const& current_src() const { return m_current_src; }
     void select_resource();
 
-    enum class NetworkState : u16 {
+    enum class NetworkState : u8 {
         Empty,
         Idle,
         Loading,
@@ -68,13 +68,13 @@ public:
     [[nodiscard]] GC::Ref<TimeRanges> played() const;
     [[nodiscard]] GC::Ref<TimeRanges> seekable() const;
 
-    static inline constexpr auto supported_video_subtypes = Array {
+    static constexpr auto supported_video_subtypes = Array {
         "webm"sv,
         "mp4"sv,
         "mpeg"sv,
         "ogg"sv,
     };
-    static inline constexpr auto supported_audio_subtypes = Array {
+    static constexpr auto supported_audio_subtypes = Array {
         "flac"sv,
         "mp3"sv,
         "mpeg"sv,
@@ -84,7 +84,7 @@ public:
     };
     Bindings::CanPlayTypeResult can_play_type(StringView type) const;
 
-    enum class ReadyState : u16 {
+    enum class ReadyState : u8 {
         HaveNothing,
         HaveMetadata,
         HaveCurrentData,
@@ -183,12 +183,12 @@ private:
     struct FetchData;
     void fetch_resource(NonnullRefPtr<FetchData> const&, ByteRange const&);
 
-    Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&, NonnullRefPtr<FetchData> const&);
+    static Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&, NonnullRefPtr<FetchData> const&);
 
     void restart_fetch_at_offset(FetchData&, u64 offset);
 
     void set_up_playback_manager(NonnullRefPtr<FetchData> const&);
-    enum class FetchingStatus {
+    enum class FetchingStatus : u8 {
         Ongoing,
         Complete,
     };
@@ -229,7 +229,7 @@ private:
 
     void dispatch_time_update_event();
 
-    enum class TimeMarchesOnReason {
+    enum class TimeMarchesOnReason : u8 {
         NormalPlayback,
         Other,
     };
@@ -250,7 +250,7 @@ private:
     }
 
     // https://html.spec.whatwg.org/multipage/media.html#media-element-event-task-source
-    UniqueTaskSource m_media_element_event_task_source {};
+    UniqueTaskSource m_media_element_event_task_source;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-error
     GC::Ptr<MediaError> m_error;
