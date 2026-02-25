@@ -675,7 +675,7 @@ public:
         visitor.visit(m_previously_failed_candidate);
     }
 
-    WebIDL::ExceptionOr<void> process_candidate()
+    void process_candidate()
     {
         // 2. ⌛ Process candidate: If candidate does not have a src attribute, or if its src attribute's value is the
         //    empty string, then end the synchronous section, and jump down to the failed with elements step below.
@@ -684,8 +684,8 @@ public:
             candidate_src = *maybe_src;
 
         if (candidate_src.is_empty()) {
-            TRY(failed_with_elements());
-            return {};
+            failed_with_elements();
+            return;
         }
 
         // FIXME: 3: ⌛ If candidate has a media attribute whose value does not match the environment,
@@ -696,8 +696,8 @@ public:
 
         // 5. ⌛ If urlRecord is failure, then end the synchronous section, and jump down to the failed with elements step below.
         if (!url_record.has_value()) {
-            TRY(failed_with_elements());
-            return {};
+            failed_with_elements();
+            return;
         }
 
         // FIXME: 6. ⌛ If candidate has a type attribute whose value, when parsed as a MIME type (including any codecs described
@@ -711,22 +711,19 @@ public:
 
         // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
-        m_media_element->fetch_resource(*url_record, [self = GC::make_root(this)](auto const&) { self->failed_with_elements().release_value_but_fixme_should_propagate_errors(); });
-
-        return {};
+        m_media_element->fetch_resource(*url_record, [self = GC::make_root(this)](auto const&) { self->failed_with_elements(); });
     }
 
-    WebIDL::ExceptionOr<void> process_next_candidate()
+    void process_next_candidate()
     {
         if (!m_previously_failed_candidate)
-            return {};
+            return;
 
-        TRY(wait_for_next_candidate(*m_previously_failed_candidate));
-        return {};
+        wait_for_next_candidate(*m_previously_failed_candidate);
     }
 
 private:
-    WebIDL::ExceptionOr<void> failed_with_elements()
+    void failed_with_elements()
     {
         // 9. Failed with elements: Queue a media element task given the media element to fire an event named error at candidate.
         m_media_element->queue_a_media_element_task([this]() {
@@ -741,12 +738,11 @@ private:
             // 11. ⌛ Forget the media element's media-resource-specific tracks.
             m_media_element->forget_media_resource_specific_tracks();
 
-            find_next_candidate(m_candidate).release_value_but_fixme_should_propagate_errors();
+            find_next_candidate(m_candidate);
         });
-        return {};
     }
 
-    WebIDL::ExceptionOr<void> find_next_candidate(GC::Ref<DOM::Node> previous_candidate)
+    void find_next_candidate(GC::Ref<DOM::Node> previous_candidate)
     {
         // 12. ⌛ Find next candidate: Let candidate be null.
         GC::Ptr<HTMLSourceElement> candidate;
@@ -754,8 +750,8 @@ private:
         // 13. ⌛ Search loop: If the node after pointer is the end of the list, then jump to the waiting step below.
         auto* next_sibling = previous_candidate->next_sibling();
         if (!next_sibling) {
-            TRY(waiting(previous_candidate));
-            return {};
+            waiting(previous_candidate);
+            return;
         }
 
         // 14. ⌛ If the node after pointer is a source element, let candidate be that element.
@@ -767,17 +763,15 @@ private:
 
         // 16. ⌛ If candidate is null, jump back to the search loop step. Otherwise, jump back to the process candidate step.
         if (!candidate) {
-            TRY(find_next_candidate(*next_sibling));
-            return {};
+            find_next_candidate(*next_sibling);
+            return;
         }
 
         m_candidate = *candidate;
-        TRY(process_candidate());
-
-        return {};
+        process_candidate();
     }
 
-    WebIDL::ExceptionOr<void> waiting(GC::Ref<DOM::Node> previous_candidate)
+    void waiting(GC::Ref<DOM::Node> previous_candidate)
     {
         // 17. ⌛ Waiting: Set the element's networkState attribute to the NETWORK_NO_SOURCE value.
         m_media_element->m_network_state = HTMLMediaElement::NetworkState::NoSource;
@@ -794,18 +788,16 @@ private:
         // 20. End the synchronous section, continuing the remaining steps in parallel.
 
         // 21. Wait until the node after pointer is a node other than the end of the list. (This step might wait forever.)
-        TRY(wait_for_next_candidate(previous_candidate));
-
-        return {};
+        wait_for_next_candidate(previous_candidate);
     }
 
-    WebIDL::ExceptionOr<void> wait_for_next_candidate(GC::Ref<DOM::Node> previous_candidate)
+    void wait_for_next_candidate(GC::Ref<DOM::Node> previous_candidate)
     {
         // NOTE: If there isn't another candidate to check, we implement the "waiting" step by returning until the media
         //       element's children have changed.
         if (previous_candidate->next_sibling() == nullptr) {
             m_previously_failed_candidate = previous_candidate;
-            return {};
+            return;
         }
 
         m_previously_failed_candidate = nullptr;
@@ -821,9 +813,7 @@ private:
         m_media_element->m_network_state = HTMLMediaElement::NetworkState::Loading;
 
         // 25. ⌛ Jump back to the find next candidate step above.
-        TRY(find_next_candidate(previous_candidate));
-
-        return {};
+        find_next_candidate(previous_candidate);
     }
 
     GC::Ref<HTMLMediaElement> m_media_element;
@@ -838,7 +828,7 @@ void HTMLMediaElement::children_changed(ChildrenChangedMetadata const* metadata)
     Base::children_changed(metadata);
 
     if (m_source_element_selector)
-        m_source_element_selector->process_next_candidate().release_value_but_fixme_should_propagate_errors();
+        m_source_element_selector->process_next_candidate();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-algorithm
@@ -984,7 +974,7 @@ void HTMLMediaElement::select_resource()
             //       with the headache of auto-updating this pointer as the DOM changes.
 
             m_source_element_selector = realm.create<SourceElementSelector>(*this, *candidate);
-            m_source_element_selector->process_candidate().release_value_but_fixme_should_propagate_errors();
+            m_source_element_selector->process_candidate();
 
             break;
         }
