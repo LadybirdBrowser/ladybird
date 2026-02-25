@@ -1,0 +1,16 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 58 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+      BlockContainer <div.a> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+      BlockContainer <div.b> at [108,48] floating [0+0+0 100 0+0+0] [0+0+40 10 0+0+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x58]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,8 100x20]
+      PaintableWithLines (BlockContainer<DIV>.b) [108,8 100x50]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x58] [children: 0] (z-index: auto)

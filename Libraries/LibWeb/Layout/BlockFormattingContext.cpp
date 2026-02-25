@@ -1082,7 +1082,7 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_horizontal
 
     if ((!m_left_floats.current_boxes.is_empty() || !m_right_floats.current_boxes.is_empty())
         && box_should_avoid_floats_because_it_establishes_fc(child_box)) {
-        auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(box_state, root());
+        auto box_in_root_rect = margin_box_rect_in_ancestor_coordinate_space(box_state, root());
         auto space_and_containing_margin = space_used_and_containing_margin_for_floats(box_in_root_rect.y());
         available_width_within_containing_block -= space_and_containing_margin.left_used_space + space_and_containing_margin.right_used_space;
 
@@ -1178,7 +1178,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
                 offset_from_edge = box_state.content_width() + box_state.margin_box_right();
         };
 
-        auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(box_state, root());
+        auto box_in_root_rect = margin_box_rect_in_ancestor_coordinate_space(box_state, root());
         CSSPixels y_in_root = box_in_root_rect.y();
         CSSPixels y = box_state.offset.y();
 
@@ -1248,7 +1248,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
                     lowest_margin_edge = max(lowest_margin_edge, current_rect.bottom());
                 }
 
-                side_data.y_offset += max<CSSPixels>(0, lowest_margin_edge - y_in_root + box_state.margin_box_top());
+                side_data.y_offset += max<CSSPixels>(0, lowest_margin_edge - y_in_root);
 
                 // Also, forget all previous boxes floated to this side while since they're no longer relevant.
                 side_data.clear();
