@@ -756,18 +756,23 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn token_is_identifier(&self, token: &Token) -> bool {
+        use TokenType::*;
+
         let tt = token.token_type;
-        tt == TokenType::Identifier
-            || (tt == TokenType::EscapedKeyword && !self.match_invalid_escaped_keyword())
-            || (tt == TokenType::Let && !self.flags.strict_mode)
-            || (tt == TokenType::Yield
-                && !self.flags.strict_mode
-                && !self.flags.in_generator_function_context)
-            || (tt == TokenType::Await
-                && !self.flags.await_expression_is_valid
-                && self.program_type != ProgramType::Module
-                && !self.flags.in_class_static_init_block)
-            || tt == TokenType::Async
+
+        match tt {
+            Identifier => true,
+            EscapedKeyword => !self.match_invalid_escaped_keyword(),
+            Let => !self.flags.strict_mode,
+            Yield => !self.flags.strict_mode && !self.flags.in_generator_function_context,
+            Await => {
+                !self.flags.await_expression_is_valid
+                    && self.program_type != ProgramType::Module
+                    && !self.flags.in_class_static_init_block
+            }
+            Async => true,
+            _ => false,
+        }
     }
 
     pub(crate) fn match_identifier_name(&self) -> bool {
