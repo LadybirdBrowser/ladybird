@@ -10,6 +10,7 @@
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
 #include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
+#include <LibWeb/SVG/SVGFEDisplacementMapElement.h>
 #include <LibWeb/SVG/SVGFEDropShadowElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
@@ -59,6 +60,7 @@ template class SVGFilterPrimitiveStandardAttributes<SVGFEBlendElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEColorMatrixElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEComponentTransferElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFECompositeElement>;
+template class SVGFilterPrimitiveStandardAttributes<SVGFEDisplacementMapElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEDropShadowElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEFloodElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEGaussianBlurElement>;

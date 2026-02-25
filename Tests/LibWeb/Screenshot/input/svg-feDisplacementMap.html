@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; }
+    body { background-color: white; }
+</style>
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="displacement">
+            <feTurbulence baseFrequency="0.05" numOctaves="2" result="turbulence" />
+            <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="20" />
+        </filter>
+    </defs>
+    <rect width="200" height="200" fill="blue" filter="url(#displacement)" />
+</svg>

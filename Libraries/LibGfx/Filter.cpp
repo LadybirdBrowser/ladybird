@@ -88,6 +88,32 @@ Filter Filter::flood(Gfx::Color color, float opacity)
     return Filter(Impl::create(SkImageFilters::Shader(SkShaders::Color(color_skia))));
 }
 
+Filter Filter::displacement_map(Optional<Filter const&> color, Optional<Filter const&> displacement, float scale, ChannelSelector x_channel_selector, ChannelSelector y_channel_selector)
+{
+    sk_sp<SkImageFilter> color_skia = color.has_value() ? color->m_impl->filter : nullptr;
+    sk_sp<SkImageFilter> displacement_skia = displacement.has_value() ? displacement->m_impl->filter : nullptr;
+
+    auto convert_channel_selector = [](ChannelSelector channel_selector) {
+        switch (channel_selector) {
+        case ChannelSelector::Red:
+            return SkColorChannel::kR;
+        case ChannelSelector::Green:
+            return SkColorChannel::kG;
+        case ChannelSelector::Blue:
+            return SkColorChannel::kB;
+        case ChannelSelector::Alpha:
+            return SkColorChannel::kA;
+        }
+
+        VERIFY_NOT_REACHED();
+    };
+
+    auto x_channel_selector_skia = convert_channel_selector(x_channel_selector);
+    auto y_channel_selector_skia = convert_channel_selector(y_channel_selector);
+    auto filter = SkImageFilters::DisplacementMap(x_channel_selector_skia, y_channel_selector_skia, scale, displacement_skia, color_skia);
+    return Filter(Impl::create(filter));
+}
+
 Filter Filter::drop_shadow(float offset_x, float offset_y, float radius, Gfx::Color color,
     Optional<Filter const&> input)
 {

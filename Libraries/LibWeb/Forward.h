@@ -1217,6 +1217,7 @@ class SVGFEBlendElement;
 class SVGFEColorMatrixElement;
 class SVGFEComponentTransferElement;
 class SVGFECompositeElement;
+class SVGFEDisplacementMapElement;
 class SVGFEFloodElement;
 class SVGFEFuncAElement;
 class SVGFEFuncBElement;
