@@ -1,0 +1,5 @@
+both-zero: marginLeft=0px marginRight=0px
+both-set: marginLeft=20px marginRight=30px
+left-auto: marginLeft=370px marginRight=30px
+right-auto: marginLeft=20px marginRight=380px
+both-auto: marginLeft=200px marginRight=200px

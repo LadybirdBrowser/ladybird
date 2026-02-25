@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/2328">
+<script src="../include.js"></script>
+<style>
+.container {
+    width: 500px;
+}
+.box {
+    width: 100px;
+    height: 10px;
+}
+</style>
+<div class="container">
+    <div class="box" id="both-zero" style="margin-left: 0px; margin-right: 0px;"></div>
+    <div class="box" id="both-set" style="margin-left: 20px; margin-right: 30px;"></div>
+    <div class="box" id="left-auto" style="margin-left: auto; margin-right: 30px;"></div>
+    <div class="box" id="right-auto" style="margin-left: 20px; margin-right: auto;"></div>
+    <div class="box" id="both-auto" style="margin-left: auto; margin-right: auto;"></div>
+</div>
+<script>
+    test(() => {
+        // Over-constrained: both margins explicit, width explicit, don't fill container.
+        // All major browsers return the declared margin-right, not an inflated value.
+        // See https://github.com/w3c/csswg-drafts/issues/2328
+        const bothZero = getComputedStyle(document.getElementById("both-zero"));
+        println(`both-zero: marginLeft=${bothZero.marginLeft} marginRight=${bothZero.marginRight}`);
+
+        const bothSet = getComputedStyle(document.getElementById("both-set"));
+        println(`both-set: marginLeft=${bothSet.marginLeft} marginRight=${bothSet.marginRight}`);
+
+        // Auto margins should resolve to used values (these are correct already)
+        const leftAuto = getComputedStyle(document.getElementById("left-auto"));
+        println(`left-auto: marginLeft=${leftAuto.marginLeft} marginRight=${leftAuto.marginRight}`);
+
+        const rightAuto = getComputedStyle(document.getElementById("right-auto"));
+        println(`right-auto: marginLeft=${rightAuto.marginLeft} marginRight=${rightAuto.marginRight}`);
+
+        const bothAuto = getComputedStyle(document.getElementById("both-auto"));
+        println(`both-auto: marginLeft=${bothAuto.marginLeft} marginRight=${bothAuto.marginRight}`);
+    });
+</script>
