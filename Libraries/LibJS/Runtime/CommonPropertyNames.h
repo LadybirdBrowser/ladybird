@@ -613,6 +613,7 @@ namespace JS {
     P(years)                                 \
     P(yearsDisplay)                          \
     P(zip)                                   \
+    P(zipKeyed)                              \
     P(zonedDateTimeISO)
 
 struct CommonPropertyNames {

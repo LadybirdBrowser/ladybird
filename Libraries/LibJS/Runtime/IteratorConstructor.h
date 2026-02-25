@@ -29,6 +29,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(concat);
     JS_DECLARE_NATIVE_FUNCTION(from);
     JS_DECLARE_NATIVE_FUNCTION(zip);
+    JS_DECLARE_NATIVE_FUNCTION(zip_keyed);
 };
 
 }

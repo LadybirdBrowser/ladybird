@@ -38,6 +38,7 @@ void IteratorConstructor::initialize(Realm& realm)
     define_native_function(realm, vm.names.concat, concat, 0, attr);
     define_native_function(realm, vm.names.from, from, 1, attr);
     define_native_function(realm, vm.names.zip, zip, 1, attr);
+    define_native_function(realm, vm.names.zipKeyed, zip_keyed, 1, attr);
 
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
 }
@@ -249,7 +250,7 @@ class ZipIterator : public Cell {
     GC_DECLARE_ALLOCATOR(ZipIterator);
 
 public:
-    using FinishResults = GC::Function<Value(Realm&, ReadonlySpan<Value>)>;
+    using FinishResults = GC::Function<Value(Realm&, ZipIterator const&, ReadonlySpan<Value>)>;
 
     ThrowCompletionOr<IteratorHelper::IterationResult> next(VM& vm)
     {
@@ -372,7 +373,7 @@ public:
         }
 
         // iv. Set results to finishResults(results).
-        auto results_array = m_finish_results->function()(m_realm, results);
+        auto results_array = m_finish_results->function()(m_realm, *this, results);
 
         // v. Let completion be Completion(Yield(results)).
         return IteratorHelper::IterationResult { results_array, false };
@@ -386,12 +387,19 @@ public:
     }
 
     ReadonlySpan<GC::Ref<IteratorRecord>> open_iterators() const { return m_open_iterators; }
+    ReadonlySpan<PropertyKey> keys() const { return m_keys; }
+
     void set_finish_results(GC::Ref<FinishResults> finish_results) { m_finish_results = finish_results; }
 
     void append_iterator(GC::Ref<IteratorRecord> iterator)
     {
         m_iterators.append(iterator);
         m_open_iterators.append(iterator);
+    }
+
+    auto append_key(PropertyKey key)
+    {
+        m_keys.append(move(key));
     }
 
     void append_padding(Value padding)
@@ -414,6 +422,9 @@ private:
         visitor.visit(m_open_iterators);
         visitor.visit(m_padding);
         visitor.visit(m_finish_results);
+
+        for (auto const& key : m_keys)
+            key.visit_edges(visitor);
     }
 
     void remove_iterator_from_open_iterators(GC::Ptr<IteratorRecord> iterarator)
@@ -435,6 +446,8 @@ private:
 
     Vector<GC::Ptr<IteratorRecord>> m_iterators;
     Vector<GC::Ref<IteratorRecord>> m_open_iterators;
+
+    Vector<PropertyKey> m_keys;
 
     Vector<Value> m_padding;
 
@@ -629,9 +642,123 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorConstructor::zip)
 
     // 15. Let finishResults be a new Abstract Closure with parameters (results) that captures nothing and performs the
     //     following steps when called:
-    zip_iterator->set_finish_results(GC::create_function(vm.heap(), [](Realm& realm, ReadonlySpan<Value> results) -> Value {
+    zip_iterator->set_finish_results(GC::create_function(vm.heap(), [](Realm& realm, ZipIterator const&, ReadonlySpan<Value> results) -> Value {
         // a. Return CreateArrayFromList(results).
         return Array::create_from(realm, results);
+    }));
+
+    // 16. Return IteratorZip(iters, mode, padding, finishResults).
+    return iterator_zip(realm, zip_iterator);
+}
+
+// 2 Iterator.zipKeyed ( iterables [ , options ] ), https://tc39.es/proposal-joint-iteration/#sec-iterator.zipkeyed
+JS_DEFINE_NATIVE_FUNCTION(IteratorConstructor::zip_keyed)
+{
+    auto& realm = *vm.current_realm();
+
+    auto iterables_value = vm.argument(0);
+    auto options_value = vm.argument(1);
+
+    // 1. If iterables is not an Object, throw a TypeError exception.
+    if (!iterables_value.is_object())
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, iterables_value);
+
+    auto const& iterables = iterables_value.as_object();
+
+    // 2. Set options to ? GetOptionsObject(options).
+    auto options = TRY(get_options_object(vm, options_value));
+
+    // 3. Let mode be ? Get(options, "mode").
+    // 4. If mode is undefined, set mode to "shortest".
+    // 5. If mode is not one of "shortest", "longest", or "strict", throw a TypeError exception.
+    auto mode = TRY(get_zip_mode(vm, options));
+
+    // 6. Let paddingOption be undefined.
+    // 7. If mode is "longest", then
+    //     a. Set paddingOption to ? Get(options, "padding").
+    //     b. If paddingOption is not undefined and paddingOption is not an Object, throw a TypeError exception.
+    auto padding_option = TRY(get_padding_option(vm, options, mode));
+
+    // 8. Let iters be a new empty List.
+    // 9. Let padding be a new empty List.
+    // 11. Let keys be a new empty List.
+    auto zip_iterator = realm.create<ZipIterator>(realm, mode);
+
+    // 10. Let allKeys be ? iterables.[[OwnPropertyKeys]]().
+    auto all_keys = TRY(iterables.internal_own_property_keys());
+
+    // 12. For each element key of allKeys, do
+    for (auto key_value : all_keys) {
+        auto key = MUST(PropertyKey::from_value(vm, key_value));
+
+        // a. Let desc be Completion(iterables.[[GetOwnProperty]](key)).
+        // b. IfAbruptCloseIterators(desc, iters).
+        auto description = TRY_OR_CLOSE_ITERATORS(vm, zip_iterator->open_iterators(), iterables.internal_get_own_property(key));
+
+        // c. If desc is not undefined and desc.[[Enumerable]] is true, then
+        if (description.has_value() && description->enumerable == true) {
+            // i. Let value be Completion(Get(iterables, key)).
+            // ii. IfAbruptCloseIterators(value, iters).
+            auto value = TRY_OR_CLOSE_ITERATORS(vm, zip_iterator->open_iterators(), iterables.get(key));
+
+            // iii. If value is not undefined, then
+            if (!value.is_undefined()) {
+                // 1. Append key to keys.
+                zip_iterator->append_key(move(key));
+
+                // 2. Let iter be Completion(GetIteratorFlattenable(value, REJECT-PRIMITIVES)).
+                // 3. IfAbruptCloseIterators(iter, iters).
+                auto iterator = TRY_OR_CLOSE_ITERATORS(vm, zip_iterator->open_iterators(), get_iterator_flattenable(vm, value, PrimitiveHandling::RejectPrimitives));
+
+                // 4. Append iter to iters.
+                zip_iterator->append_iterator(iterator);
+            }
+        }
+    }
+
+    // 13. Let iterCount be the number of elements in iters.
+    auto iterator_count = zip_iterator->open_iterators().size();
+
+    // 14. If mode is "longest", then
+    if (mode == ZipMode::Longest) {
+        // a. If paddingOption is undefined, then
+        if (!padding_option) {
+            // i. Perform the following steps iterCount times:
+            for (size_t i = 0; i < iterator_count; ++i) {
+                // 1. Append undefined to padding.
+                zip_iterator->append_padding(js_undefined());
+            }
+        }
+        // b. Else,
+        else {
+            // i. For each element key of keys, do
+            for (auto const& key : zip_iterator->keys()) {
+                // 1. Let value be Completion(Get(paddingOption, key)).
+                // 2. IfAbruptCloseIterators(value, iters).
+                auto value = TRY_OR_CLOSE_ITERATORS(vm, zip_iterator->open_iterators(), padding_option->get(key));
+
+                // 3. Append value to padding.
+                zip_iterator->append_padding(value);
+            }
+        }
+    }
+
+    // 15. Let finishResults be a new Abstract Closure with parameters (results) that captures keys and iterCount and
+    //     performs the following steps when called:
+    zip_iterator->set_finish_results(GC::create_function(vm.heap(), [iterator_count](Realm& realm, ZipIterator const& zip_iterator, ReadonlySpan<Value> results) -> Value {
+        auto keys = zip_iterator.keys();
+
+        // a. Let obj be OrdinaryObjectCreate(null).
+        auto object = Object::create(realm, nullptr);
+
+        // b. For each integer i such that 0 ≤ i < iterCount, in ascending order, do
+        for (size_t i = 0; i < iterator_count; ++i) {
+            // i. Perform ! CreateDataPropertyOrThrow(obj, keys[i], results[i]).
+            MUST(object->create_data_property_or_throw(keys[i], results[i]));
+        }
+
+        // c. Return obj.
+        return object;
     }));
 
     // 16. Return IteratorZip(iters, mode, padding, finishResults).
