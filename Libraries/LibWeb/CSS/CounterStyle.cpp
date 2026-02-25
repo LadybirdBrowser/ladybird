@@ -73,7 +73,7 @@ CounterStyle CounterStyle::from_counter_style_definition(CounterStyleDefinition 
         });
 }
 
-Optional<String> CounterStyle::generate_an_initial_representation_for_the_counter_value(i32 value) const
+Optional<String> CounterStyle::generate_an_initial_representation_for_the_counter_value(i64 value) const
 {
     return m_algorithm.visit(
         [&](AdditiveCounterStyleAlgorithm const& additive_algorithm) -> Optional<String> {
@@ -304,7 +304,7 @@ static String generate_a_counter_representation_impl(Optional<CounterStyle const
     // 3. Using the counter value and the counter algorithm for the counter style, generate an initial representation
     //    for the counter value. If the counter value is negative and the counter style uses a negative sign, instead
     //    generate an initial representation using the absolute value of the counter value.
-    auto maybe_representation = counter_style->generate_an_initial_representation_for_the_counter_value(value_is_negative_and_uses_negative_sign ? AK::clamp_to<i32>(-static_cast<i64>(value)) : value);
+    auto maybe_representation = counter_style->generate_an_initial_representation_for_the_counter_value(value_is_negative_and_uses_negative_sign ? abs(static_cast<i64>(value)) : static_cast<i64>(value));
 
     // AD-HOC: Algorithms are sometimes unable to produce a representation and require us to use the fallback - we
     //         represent this by returning an empty Optional.

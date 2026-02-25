@@ -36,7 +36,7 @@ public:
     Optional<FlyString> const& fallback() const { return m_fallback; }
     CounterStylePad const& pad() const { return m_pad; }
 
-    Optional<String> generate_an_initial_representation_for_the_counter_value(i32 value) const;
+    Optional<String> generate_an_initial_representation_for_the_counter_value(i64 value) const;
     bool uses_a_negative_sign() const;
 
     virtual ~CounterStyle() = default;
