@@ -221,7 +221,13 @@ void ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Op
         return;
     }
 
-    m_pending_jobs.set(request_id, make_decode_image_job(request_id, move(encoded_buffer), ideal_size, move(mime_type)));
+    auto set_result = m_pending_jobs.set(request_id, make_decode_image_job(request_id, move(encoded_buffer), ideal_size, move(mime_type)), AK::HashSetExistingEntryBehavior::Keep);
+
+    if (set_result != HashSetResult::InsertedNewEntry) {
+        m_pending_jobs.take(request_id).value()->cancel();
+        did_misbehave("Duplicate decode request id");
+        return;
+    }
 }
 
 void ConnectionFromClient::cancel_decoding(i64 request_id)
