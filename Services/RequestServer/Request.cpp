@@ -332,18 +332,18 @@ void Request::handle_read_cache_state()
 
     m_cache_entry_reader->send_to(
         m_client_request_pipe->writer_fd(),
-        [this](auto bytes_sent) {
-            m_bytes_transferred_to_client = bytes_sent;
-            m_curl_result_code = CURLE_OK;
+        weak_callback(*this, [](auto& self, auto bytes_sent) {
+            self.m_bytes_transferred_to_client = bytes_sent;
+            self.m_curl_result_code = CURLE_OK;
 
-            transition_to_state(State::Complete);
-        },
-        [this](auto bytes_sent) {
-            m_bytes_transferred_to_client = bytes_sent;
-            m_network_error = Requests::NetworkError::CacheReadFailed;
+            self.transition_to_state(State::Complete);
+        }),
+        weak_callback(*this, [](auto& self, auto bytes_sent) {
+            self.m_bytes_transferred_to_client = bytes_sent;
+            self.m_network_error = Requests::NetworkError::CacheReadFailed;
 
-            transition_to_state(State::Error);
-        });
+            self.transition_to_state(State::Error);
+        }));
 }
 
 void Request::handle_failed_cache_only_state()
@@ -436,23 +436,23 @@ void Request::handle_dns_lookup_state()
     auto const& dns_info = DNSInfo::the();
 
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = dns_info.validate_dnssec_locally })
-        ->when_rejected([this, host](auto const& error) {
+        ->when_rejected(weak_callback(*this, [host](auto& self, auto const& error) {
             dbgln("Request::handle_dns_lookup_state: DNS lookup failed for '{}': {}", host, error);
-            m_network_error = Requests::NetworkError::UnableToResolveHost;
-            transition_to_state(State::Error);
-        })
-        .when_resolved([this, host](NonnullRefPtr<DNS::LookupResult const> dns_result) mutable {
+            self.m_network_error = Requests::NetworkError::UnableToResolveHost;
+            self.transition_to_state(State::Error);
+        }))
+        .when_resolved(weak_callback(*this, [host](auto& self, NonnullRefPtr<DNS::LookupResult const> dns_result) {
             if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
                 dbgln("Request::handle_dns_lookup_state: DNS lookup failed for '{}'", host);
-                m_network_error = Requests::NetworkError::UnableToResolveHost;
-                transition_to_state(State::Error);
-            } else if (m_type == Type::Fetch || m_type == Type::BackgroundRevalidation) {
-                m_dns_result = move(dns_result);
-                transition_to_state(State::RetrieveCookie);
+                self.m_network_error = Requests::NetworkError::UnableToResolveHost;
+                self.transition_to_state(State::Error);
+            } else if (first_is_one_of(self.m_type, Type::Fetch, Type::BackgroundRevalidation)) {
+                self.m_dns_result = move(dns_result);
+                self.transition_to_state(State::RetrieveCookie);
             } else {
-                transition_to_state(State::Complete);
+                self.transition_to_state(State::Complete);
             }
-        });
+        }));
 }
 
 void Request::handle_retrieve_cookie_state()
@@ -819,10 +819,10 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         m_client_writer_notifier = Core::Notifier::construct(m_client_request_pipe->writer_fd(), Core::NotificationType::Write);
         m_client_writer_notifier->set_enabled(false);
 
-        m_client_writer_notifier->on_activation = [this] {
-            if (auto result = write_queued_bytes_without_blocking(); result.is_error())
+        m_client_writer_notifier->on_activation = weak_callback(*this, [](auto& self) {
+            if (auto result = self.write_queued_bytes_without_blocking(); result.is_error())
                 dbgln("Warning: Failed to write buffered request data (it's likely the client disappeared): {}", result.error());
-        };
+        });
     }
 
     auto result = m_client_request_pipe->write(bytes_to_send);
