@@ -170,18 +170,24 @@ void HTMLMediaElement::set_decoder_error(String error_message)
 {
     auto& realm = this->realm();
 
+    if (m_error)
+        return;
+
     // -> If the media data is corrupted
+
     // Fatal errors in decoding the media data that occur after the user agent has established whether the current media
     // resource is usable (i.e. once the media element's readyState attribute is no longer HAVE_NOTHING) must cause the
     // user agent to execute the following steps:
-    if (m_ready_state == ReadyState::HaveNothing)
-        return;
+
+    // NB: This is only invoked by PlaybackManager after the metadata has been retrieved, so we should be sure that
+    //     the ready state indicates we have that metadata.
+    VERIFY(m_ready_state != ReadyState::HaveNothing);
 
     // 1. The user agent should cancel the fetching process.
     cancel_the_fetching_process();
 
     // 2. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_DECODE.
-    m_error = realm.create<MediaError>(realm, MediaError::Code::Decode, move(error_message));
+    m_error = realm.create<MediaError>(realm, MediaError::Code::Decode, error_message);
 
     // 3. Set the element's networkState attribute to the NETWORK_IDLE value.
     m_network_state = NetworkState::Idle;
@@ -192,7 +198,8 @@ void HTMLMediaElement::set_decoder_error(String error_message)
     // 5. Fire an event named error at the media element.
     dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
 
-    // FIXME: 6. Abort the overall resource selection algorithm.
+    // 6. Abort the overall resource selection algorithm.
+    // NB: Cancelling the fetching process stops the resource selection algorithm when the error is set.
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-buffered
@@ -1510,6 +1517,11 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
         fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
+    });
+
+    // -> If the media data is corrupted
+    m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
+        self.set_decoder_error(MUST(String::from_utf8(error.description())));
     });
 
     m_playback_manager->add_media_source(*fetch_data->stream);
