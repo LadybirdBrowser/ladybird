@@ -15,6 +15,13 @@
 
 namespace Gfx {
 
+enum class ChannelSelector {
+    Red,
+    Green,
+    Blue,
+    Alpha,
+};
+
 enum class ColorFilterType {
     Brightness,
     Contrast,
@@ -43,6 +50,7 @@ public:
     static Filter compose(Filter const& outer, Filter const& inner);
     static Filter blend(Optional<Filter const&> background, Optional<Filter const&> foreground, CompositingAndBlendingOperator mode);
     static Filter flood(Gfx::Color color, float opacity);
+    static Filter displacement_map(Optional<Filter const&> color, Optional<Filter const&> displacement, float scale, ChannelSelector x_channel_selector, ChannelSelector y_channel_selector);
     static Filter drop_shadow(float offset_x, float offset_y, float radius, Gfx::Color color, Optional<Filter const&> input = {});
     static Filter blur(float radius_x, float radius_y, Optional<Filter const&> input = {});
     static Filter color(ColorFilterType type, float amount, Optional<Filter const&> input = {});
