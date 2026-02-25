@@ -73,6 +73,109 @@ CounterStyle CounterStyle::from_counter_style_definition(CounterStyleDefinition 
         });
 }
 
+// https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
+static String generate_an_initial_representation_for_extended_cjk_system(i64 value, ExtendedCJKCounterStyleAlgorithm::Type type, Array<FlyString, 10> const& digit_strings, Array<FlyString, 3> const& digit_marker_strings, Array<FlyString, 3> const& group_marker_strings)
+{
+    // 1. If the counter value is 0, the representation is the character for 0 specified for the given counter style.
+    //    Skip the rest of this algorithm.
+    if (value == 0)
+        return digit_strings[0].to_string();
+
+    // 2. If the counter value is negative, instead use the absolute value of the counter value for the remaining steps
+    //    of this algorithm.
+    // NB: This is handled within `generate_a_counter_representation_impl`
+
+    // 3. Initially represent the counter value as a decimal number. Starting from the right (ones place), split the
+    //    decimal number into groups of four digits.
+    Vector<u16> groups;
+    while (value > 0) {
+        groups.append(value % 10000);
+        value /= 10000;
+    }
+
+    StringBuilder builder;
+
+    for (i32 group_index = static_cast<i32>(groups.size()) - 1; group_index >= 0; --group_index) {
+        auto const group_value = groups[group_index];
+
+        Vector<u8> digits;
+
+        auto temp_group_value = group_value;
+        while (temp_group_value > 0) {
+            digits.append(temp_group_value % 10);
+            temp_group_value /= 10;
+        }
+
+        // NB: Pad the group with zeroes up to four digits, unless this is the most significant group.
+        if (group_index != static_cast<i32>(groups.size()) - 1) {
+            while (digits.size() < 4)
+                digits.append(0);
+        }
+
+        // NB: We move around the order of spec steps to work with a string builder rather than replacing characters in
+        //     a string.
+        for (i32 digit_index = static_cast<i32>(digits.size()) - 1; digit_index >= 0; --digit_index) {
+            auto const digit_value = digits[digit_index];
+
+            bool should_drop_digit = false;
+            // 6. Drop ones:
+            //  - For the Chinese informal styles, for any group with a value between ten and nineteen, remove the tens
+            //    digit (leave the digit marker).
+            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal, ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal))
+                should_drop_digit |= group_value >= 10 && group_value < 20 && digit_index == 1;
+
+            // FIXME: - For the Japanese informal and Korean informal styles, if any of the digit markers are preceded
+            //          by the digit 1, and that digit is not the first digit of the group, remove the digit (leave the
+            //          digit marker).
+            // FIXME: - For Korean informal styles, if the value of the ten-thousands group is 1, drop the digit (leave
+            //          the digit marker).
+
+            // 7. Drop zeros:
+            // FIXME: - For the Japanese and Korean styles, drop all zero digits.
+
+            //  - For the Chinese styles, drop any trailing zeros for all non-zero groups and collapse (across groups)
+            //    each remaining consecutive group of zeros into a single zero digit.
+            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal, ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseFormal, ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal, ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal)) {
+                bool is_trailing_zero = true;
+                for (i32 trailing_zero_index = digit_index; trailing_zero_index >= 0; --trailing_zero_index) {
+                    if (digits[trailing_zero_index] != 0) {
+                        is_trailing_zero = false;
+                        break;
+                    }
+                }
+
+                should_drop_digit |= is_trailing_zero;
+
+                // NB: We don't need to worry about collapsing across groups since dropping trailing zeroes above means
+                //     that a run of zeroes can't occur at the end of a group.
+                should_drop_digit |= digit_value == 0 && digit_index != 3 && digits[digit_index + 1] == 0;
+            }
+
+            // 9. Replace the digits 0-9 with the appropriate character for the given counter style.
+            if (!should_drop_digit)
+                builder.append(digit_strings[digit_value]);
+
+            // 5. Within each group, for each digit that is not 0, append the appropriate digit marker to the digit.
+            //    The ones digit of each group has no marker.
+            if (digit_value != 0 && digit_index != 0)
+                builder.append(digit_marker_strings[digit_index - 1]);
+        }
+
+        // 4. For each group with a non-zero value, append the appropriate group marker to the group. The ones group has no marker.
+        if (groups[group_index] != 0 && group_index != 0)
+            builder.append(group_marker_strings[group_index - 1]);
+
+        // FIXME: 8. For the Korean styles, insert a space (" " U+0020) between each group.
+    }
+
+    // 10. If the counter value was negative, prepend the appropriate negative sign character for the given counter
+    //     style as specified in the table of characters for each style.
+    // NB: This is handled within `generate_a_counter_representation_impl`
+
+    // 11. Return the resultant string as the representation of the counter value.
+    return MUST(builder.to_string());
+}
+
 Optional<String> CounterStyle::generate_an_initial_representation_for_the_counter_value(i64 value) const
 {
     return m_algorithm.visit(
@@ -303,6 +406,63 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
 
             // 8. Concatenate the groups into one string, and return it.
             return MUST(builder.to_string());
+        },
+        [&](ExtendedCJKCounterStyleAlgorithm const& extended_cjk_algorithm) -> Optional<String> {
+            // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
+            // All of the styles are defined by almost identical algorithms (specified as a single algorithm here, with
+            // the differences called out when relevant), but use different sets of characters.
+            // The following tables define the characters used in these styles:
+
+            switch (extended_cjk_algorithm.type) {
+            // | Values                | Codepoints
+            // |                       | simp-chinese-informal |  simp-chinese-formal |  trad-chinese-informal | trad-chinese-formal
+            // | Digit 0               | 零 U+96F6             | 零 U+96F6            | 零 U+96F6              | 零 U+96F6
+            // | Digit 1               | 一 U+4E00             | 壹 U+58F9            | 一 U+4E00              | 壹 U+58F9
+            // | Digit 2               | 二 U+4E8C             | 贰 U+8D30            | 二 U+4E8C              | 貳 U+8CB3
+            // | Digit 3               | 三 U+4E09             | 叁 U+53C1            | 三 U+4E09              | 參 U+53C3
+            // | Digit 4               | 四 U+56DB             | 肆 U+8086            | 四 U+56DB              | 肆 U+8086
+            // | Digit 5               | 五 U+4E94             | 伍 U+4F0D            | 五 U+4E94              | 伍 U+4F0D
+            // | Digit 6               | 六 U+516D             | 陆 U+9646            | 六 U+516D              | 陸 U+9678
+            // | Digit 7               | 七 U+4E03             | 柒 U+67D2            | 七 U+4E03              | 柒 U+67D2
+            // | Digit 8               | 八 U+516B             | 捌 U+634C            | 八 U+516B              | 捌 U+634C
+            // | Digit 9               | 九 U+4E5D             | 玖 U+7396            | 九 U+4E5D              | 玖 U+7396
+            // | Second Digit Marker   | 十 U+5341             | 拾 U+62FE            | 十 U+5341              | 拾 U+62FE
+            // | Third Digit Marker    | 百 U+767E             | 佰 U+4F70            | 百 U+767E              | 佰 U+4F70
+            // | Fourth Digit Marker   | 千 U+5343             | 仟 U+4EDF            | 千 U+5343              | 仟 U+4EDF
+            // | Second Group Marker   | 万 U+4E07             | 万 U+4E07            | 萬 U+842C              | 萬 U+842C
+            // | Third Group Marker    | 亿 U+4EBF             | 亿 U+4EBF            | 億 U+5104              | 億 U+5104
+            // | Fourth Group Marker   | 万亿 U+4E07 U+4EBF    | 万亿 U+4E07 U+4EBF    | 兆 U+5146             | 兆 U+5146
+            case ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal,
+                    { "\U000096F6"_fly_string, "\U00004E00"_fly_string, "\U00004E8C"_fly_string, "\U00004E09"_fly_string, "\U000056DB"_fly_string, "\U00004E94"_fly_string, "\U0000516D"_fly_string, "\U00004E03"_fly_string, "\U0000516B"_fly_string, "\U00004E5D"_fly_string },
+                    { "\U00005341"_fly_string, "\U0000767E"_fly_string, "\U00005343"_fly_string },
+                    { "\U00004E07"_fly_string, "\U00004EBF"_fly_string, "\U00004E07\U00004EBF"_fly_string });
+            case ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseFormal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseFormal,
+                    { "\U000096F6"_fly_string, "\U000058F9"_fly_string, "\U00008D30"_fly_string, "\U000053C1"_fly_string, "\U00008086"_fly_string, "\U00004F0D"_fly_string, "\U00009646"_fly_string, "\U000067D2"_fly_string, "\U0000634C"_fly_string, "\U00007396"_fly_string },
+                    { "\U000062FE"_fly_string, "\U00004F70"_fly_string, "\U00004EDF"_fly_string },
+                    { "\U00004E07"_fly_string, "\U00004EBF"_fly_string, "\U00004E07\U00004EBF"_fly_string });
+            case ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal,
+                    { "\U000096F6"_fly_string, "\U00004E00"_fly_string, "\U00004E8C"_fly_string, "\U00004E09"_fly_string, "\U000056DB"_fly_string, "\U00004E94"_fly_string, "\U0000516D"_fly_string, "\U00004E03"_fly_string, "\U0000516B"_fly_string, "\U00004E5D"_fly_string },
+                    { "\U00005341"_fly_string, "\U0000767E"_fly_string, "\U00005343"_fly_string },
+                    { "\U0000842C"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
+            case ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal,
+                    { "\U000096F6"_fly_string, "\U000058F9"_fly_string, "\U00008CB3"_fly_string, "\U000053C3"_fly_string, "\U00008086"_fly_string, "\U00004F0D"_fly_string, "\U00009678"_fly_string, "\U000067D2"_fly_string, "\U0000634C"_fly_string, "\U00007396"_fly_string },
+                    { "\U000062FE"_fly_string, "\U00004F70"_fly_string, "\U00004EDF"_fly_string },
+                    { "\U0000842C"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
+            }
+
+            VERIFY_NOT_REACHED();
         });
 }
 
@@ -336,6 +496,11 @@ bool CounterStyle::uses_a_negative_sign() const
             VERIFY_NOT_REACHED();
         },
         [](EthiopicNumericCounterStyleAlgorithm const&) {
+            // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
+            // All of the counter styles defined in this section have a spoken form of numbers, and use a negative sign.
+            return true;
+        },
+        [](ExtendedCJKCounterStyleAlgorithm const&) {
             // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
             // All of the counter styles defined in this section have a spoken form of numbers, and use a negative sign.
             return true;

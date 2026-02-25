@@ -7820,6 +7820,89 @@ void Document::build_counter_style_cache()
                 Vector<CSS::CounterStyleRangeEntry> { { 1, AK::NumericLimits<i64>::max() } },
                 {},
                 {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
+        // For all of these counter styles, the descriptors are the same as for the limited range variants, except for
+        // the range, which is calc(-1 * pow(10, 16) + 1) calc(pow(10, 16) - 1).
+        Vector<CSS::CounterStyleRangeEntry> extended_cjk_range { { -9999999999999999, 9999999999999999 } };
+
+        // https://drafts.csswg.org/css-counter-styles-3/#limited-chinese
+        // For all of these counter styles, the suffix is "、" U+3001, the fallback is cjk-decimal, the range is -9999
+        // 9999, and the negative value is given in the table of symbols for each style.
+
+        //                  simp-chinese-informal simp-chinese-formal trad-chinese-informal trad-chinese-formal
+        // Negative Sign    负 U+8D1F             负 U+8D1F           負 U+8CA0              負 U+8CA0
+
+        // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-informal
+        // simp-chinese-informal
+        counter_style_definitions.set(
+            "simp-chinese-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "simp-chinese-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal } },
+                CSS::CounterStyleNegativeSign { "\U00008D1F"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-formal
+        // simp-chinese-formal
+        counter_style_definitions.set(
+            "simp-chinese-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "simp-chinese-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseFormal } },
+                CSS::CounterStyleNegativeSign { "\U00008D1F"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-informal
+        // trad-chinese-informal
+        counter_style_definitions.set(
+            "trad-chinese-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "trad-chinese-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-formal
+        // trad-chinese-formal
+        counter_style_definitions.set(
+            "trad-chinese-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "trad-chinese-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal } },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#cjk-ideographic
+        // cjk-ideographic
+        // This counter style is identical to trad-chinese-informal. (It exists for legacy reasons.)
+        counter_style_definitions.set(
+            "cjk-ideographic"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "cjk-ideographic"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
     };
 
     CSS::ComputationContext computation_context {

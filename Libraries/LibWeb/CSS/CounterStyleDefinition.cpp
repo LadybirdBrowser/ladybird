@@ -46,6 +46,10 @@ Vector<CounterStyleRangeEntry> AutoRange::resolve(CounterStyleAlgorithm const& a
         [](EthiopicNumericCounterStyleAlgorithm const&) -> Vector<CounterStyleRangeEntry> {
             // NB: All complex predefined counter styles define their range explicitly (i.e. not via auto)
             VERIFY_NOT_REACHED();
+        },
+        [](ExtendedCJKCounterStyleAlgorithm const&) -> Vector<CounterStyleRangeEntry> {
+            // NB: All complex predefined counter styles define their range explicitly (i.e. not via auto)
+            VERIFY_NOT_REACHED();
         });
 }
 

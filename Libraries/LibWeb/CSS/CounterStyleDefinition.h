@@ -53,7 +53,16 @@ struct GenericCounterStyleAlgorithm {
 
 struct EthiopicNumericCounterStyleAlgorithm { };
 
-using CounterStyleAlgorithm = Variant<AdditiveCounterStyleAlgorithm, FixedCounterStyleAlgorithm, GenericCounterStyleAlgorithm, EthiopicNumericCounterStyleAlgorithm>;
+struct ExtendedCJKCounterStyleAlgorithm {
+    enum class Type : u8 {
+        SimpChineseInformal,
+        SimpChineseFormal,
+        TradChineseInformal,
+        TradChineseFormal,
+    } type;
+};
+
+using CounterStyleAlgorithm = Variant<AdditiveCounterStyleAlgorithm, FixedCounterStyleAlgorithm, GenericCounterStyleAlgorithm, EthiopicNumericCounterStyleAlgorithm, ExtendedCJKCounterStyleAlgorithm>;
 using CounterStyleAlgorithmOrExtends = Variant<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends>;
 
 struct AutoRange {
