@@ -305,7 +305,8 @@
     M(URIMalformed, "URI malformed") /* LibWeb bindings */                                                                          \
     M(WrappedFunctionCallThrowCompletion, "Call of wrapped target function did not complete normally")                              \
     M(WrappedFunctionCopyNameAndLengthThrowCompletion, "Trying to copy target name and length did not complete normally")           \
-    M(YieldFromIteratorMissingThrowMethod, "yield* protocol violation: iterator must have a throw method")
+    M(YieldFromIteratorMissingThrowMethod, "yield* protocol violation: iterator must have a throw method")                          \
+    M(ZipIteratorNotEnoughResults, "Not enough iterator results in 'strict' mode")
 
 namespace JS {
 

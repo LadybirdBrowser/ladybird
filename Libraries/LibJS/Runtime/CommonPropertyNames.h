@@ -353,6 +353,7 @@ namespace JS {
     P(minute)                                \
     P(minutes)                               \
     P(minutesDisplay)                        \
+    P(mode)                                  \
     P(month)                                 \
     P(monthCode)                             \
     P(months)                                \
@@ -385,6 +386,7 @@ namespace JS {
     P(opener)                                \
     P(overflow)                              \
     P(ownKeys)                               \
+    P(padding)                               \
     P(padEnd)                                \
     P(padStart)                              \
     P(parse)                                 \
@@ -610,6 +612,7 @@ namespace JS {
     P(yearOfWeek)                            \
     P(years)                                 \
     P(yearsDisplay)                          \
+    P(zip)                                   \
     P(zonedDateTimeISO)
 
 struct CommonPropertyNames {
