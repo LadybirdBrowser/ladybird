@@ -11,9 +11,12 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Blending.h>
+#include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -166,7 +169,22 @@ static CSSPixelRect effective_css_clip_rect(CSSPixelRect const& css_clip)
     return css_clip;
 }
 
-static Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
+// Converts a CSS-pixel-space 4x4 matrix to device-pixel-space.
+// - Translation column (column 3, rows 0-2) is scaled up by DPR
+// - Perspective row (row 3, columns 0-2) is scaled down by DPR
+// - All other elements are unaffected (the scale factors cancel out)
+static FloatMatrix4x4 scale_matrix_for_device_pixels(FloatMatrix4x4 matrix, float scale)
+{
+    matrix[0, 3] *= scale;
+    matrix[1, 3] *= scale;
+    matrix[2, 3] *= scale;
+    matrix[3, 0] /= scale;
+    matrix[3, 1] /= scale;
+    matrix[3, 2] /= scale;
+    return matrix;
+}
+
+static Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
 {
     if (!paintable_box.has_css_transform())
         return {};
@@ -182,9 +200,13 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
         matrix = matrix * transform->to_matrix(paintable_box).release_value();
     auto const& css_transform_origin = computed_values.transform_origin();
     auto reference_box = paintable_box.transform_reference_box();
-    auto origin_x = reference_box.left() + css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width());
-    auto origin_y = reference_box.top() + css_transform_origin.y.to_px(paintable_box.layout_node(), reference_box.height());
-    return TransformData { matrix, { origin_x, origin_y } };
+    CSSPixelPoint origin {
+        reference_box.left() + css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width()),
+        reference_box.top() + css_transform_origin.y.to_px(paintable_box.layout_node(), reference_box.height()),
+    };
+    auto scale = static_cast<float>(pixel_ratio);
+    auto device_origin = origin.to_type<float>() * scale;
+    return TransformData { scale_matrix_for_device_pixels(matrix, scale), device_origin };
 }
 
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
@@ -217,7 +239,7 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox con
     return perspective_matrix;
 }
 
-static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
+static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter)
 {
     auto overflow_x = computed_values.overflow_x();
     auto overflow_y = computed_values.overflow_y();
@@ -273,7 +295,7 @@ static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, C
         //   clipping region is not rounded.
         // FIXME: Adjust the border radii for the overflow-clip-margin case. (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
         auto radii = (overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible) ? paintable_box.normalized_border_radii_data(PaintableBox::ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
-        return ClipData { clip_rect, radii };
+        return ClipData { converter.rounded_device_rect(clip_rect), radii.as_corners(converter) };
     }
 
     return {};
@@ -283,16 +305,21 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     m_next_accumulated_visual_context_id = 1;
 
+    auto pixel_ratio = document().page().client().device_pixels_per_css_pixel();
+    DevicePixelConverter converter { pixel_ratio };
+    auto scale = static_cast<float>(pixel_ratio);
+
     auto append_node = [&](RefPtr<AccumulatedVisualContext const> parent, VisualContextData data) {
         return AccumulatedVisualContext::create(allocate_accumulated_visual_context_id(), move(data), parent);
     };
 
-    auto make_effects_data = [](PaintableBox const& box) -> Optional<EffectsData> {
+    auto make_effects_data = [&](PaintableBox const& box) -> Optional<EffectsData> {
         auto const& computed_values = box.computed_values();
+        auto gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
         EffectsData effects {
             computed_values.opacity(),
             mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
-            box.filter()
+            move(gfx_filter)
         };
         if (!effects.needs_layer())
             return {};
@@ -303,7 +330,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
     m_visual_viewport_context = nullptr;
     auto transform = document().visual_viewport()->transform();
     if (!transform.is_identity()) {
-        m_visual_viewport_context = append_node(nullptr, TransformData { transform.to_matrix(), CSSPixelPoint { 0, 0 } });
+        auto matrix = scale_matrix_for_device_pixels(transform.to_matrix(), scale);
+        m_visual_viewport_context = append_node(nullptr, TransformData { matrix, { 0.f, 0.f } });
     }
 
     RefPtr<AccumulatedVisualContext const> viewport_state_for_descendants = m_visual_viewport_context;
@@ -364,15 +392,17 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (auto effects = make_effects_data(paintable_box); effects.has_value())
             own_state = append_node(own_state, effects.release_value());
 
-        if (auto transform_data = compute_transform(paintable_box, computed_values); transform_data.has_value()) {
+        if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
             paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
             own_state = append_node(own_state, *transform_data);
         } else {
             paintable_box.set_has_non_invertible_css_transform(false);
         }
 
-        if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value())
-            own_state = append_node(own_state, ClipData { effective_css_clip_rect(*css_clip), {} });
+        if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
+            auto effective_rect = effective_css_clip_rect(*css_clip);
+            own_state = append_node(own_state, ClipData { converter.rounded_device_rect(effective_rect), {} });
+        }
 
         // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
         if (auto const& clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
@@ -385,7 +415,9 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
                 [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
                 [](CSS::Path const& path) { return path.fill_rule; },
                 [](auto const&) { return Gfx::WindingRule::Nonzero; });
-            own_state = append_node(own_state, ClipPathData { move(path), masking_area, fill_rule });
+            auto device_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(scale, scale));
+            auto device_bounding_rect = converter.rounded_device_rect(masking_area);
+            own_state = append_node(own_state, ClipPathData { move(device_path), device_bounding_rect, fill_rule });
         }
 
         paintable_box.set_accumulated_visual_context(own_state);
@@ -393,10 +425,12 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         // Build state for descendants: own state + perspective + clip + scroll.
         RefPtr<AccumulatedVisualContext const> state_for_descendants = own_state;
 
-        if (auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values); perspective_matrix.has_value())
-            state_for_descendants = append_node(state_for_descendants, PerspectiveData { *perspective_matrix });
+        if (auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values); perspective_matrix.has_value()) {
+            auto scaled_matrix = scale_matrix_for_device_pixels(*perspective_matrix, scale);
+            state_for_descendants = append_node(state_for_descendants, PerspectiveData { scaled_matrix });
+        }
 
-        if (auto clip_data = compute_clip_data(paintable_box, computed_values); clip_data.has_value())
+        if (auto clip_data = compute_clip_data(paintable_box, computed_values, converter); clip_data.has_value())
             state_for_descendants = append_node(state_for_descendants, clip_data.value());
 
         if (paintable_box.own_scroll_frame()) {
@@ -471,7 +505,7 @@ void ViewportPaintable::refresh_scroll_state()
         scroll_frame->set_own_offset(-scroll_frame->paintable_box().scroll_offset());
     });
 
-    m_scroll_state_snapshot = m_scroll_state.snapshot();
+    m_scroll_state_snapshot = m_scroll_state.snapshot(document().page().client().device_pixels_per_css_pixel());
 }
 
 static void resolve_paint_only_properties_in_subtree(Paintable& root)

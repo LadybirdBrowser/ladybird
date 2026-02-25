@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <LibGfx/Point.h>
+#include <LibGfx/Rect.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Export.h>
 
@@ -52,20 +54,8 @@ struct CornerRadii {
     {
         return top_left || top_right || bottom_right || bottom_left;
     }
-};
 
-struct BorderRadiiData {
-    BorderRadiusData top_left;
-    BorderRadiusData top_right;
-    BorderRadiusData bottom_right;
-    BorderRadiusData bottom_left;
-
-    inline bool has_any_radius() const
-    {
-        return top_left || top_right || bottom_right || bottom_left;
-    }
-
-    bool contains(CSSPixelPoint point, CSSPixelRect const& rect) const
+    bool contains(Gfx::IntPoint point, Gfx::IntRect const& rect) const
     {
         if (!rect.contains(point))
             return false;
@@ -76,10 +66,10 @@ struct BorderRadiiData {
         auto const px = point.x();
         auto const py = point.y();
 
-        auto outside_ellipse = [&](BorderRadiusData const& r, CSSPixels cx, CSSPixels cy) {
-            auto dx = (px - cx).to_float() / r.horizontal_radius.to_float();
-            auto dy = (py - cy).to_float() / r.vertical_radius.to_float();
-            return dx * dx + dy * dy > 1.0f;
+        auto outside_ellipse = [&](CornerRadius const& r, int cx, int cy) {
+            auto dx = static_cast<float>(px - cx) / r.horizontal_radius;
+            auto dy = static_cast<float>(py - cy) / r.vertical_radius;
+            return dx * dx + dy * dy > 1.f;
         };
 
         if (top_left) {
@@ -111,6 +101,33 @@ struct BorderRadiiData {
         }
 
         return true;
+    }
+};
+
+struct BorderRadiiData {
+    BorderRadiusData top_left;
+    BorderRadiusData top_right;
+    BorderRadiusData bottom_right;
+    BorderRadiusData bottom_left;
+
+    inline bool has_any_radius() const
+    {
+        return top_left || top_right || bottom_right || bottom_left;
+    }
+
+    bool contains(CSSPixelPoint point, CSSPixelRect const& rect) const
+    {
+        if (!rect.contains(point))
+            return false;
+
+        if (!has_any_radius())
+            return true;
+
+        auto to_corner = [](BorderRadiusData const& r) -> CornerRadius {
+            return { static_cast<int>(r.horizontal_radius.to_float()), static_cast<int>(r.vertical_radius.to_float()) };
+        };
+        CornerRadii corners { to_corner(top_left), to_corner(top_right), to_corner(bottom_right), to_corner(bottom_left) };
+        return corners.contains(point.to_type<int>(), rect.to_type<int>());
     }
 
     inline void shrink(CSSPixels top, CSSPixels right, CSSPixels bottom, CSSPixels left)

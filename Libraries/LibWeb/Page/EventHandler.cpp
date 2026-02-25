@@ -206,8 +206,9 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
         visual_context = containing_block->accumulated_visual_context();
     }
     if (visual_context) {
-        auto transformed = visual_context->inverse_transform_point(position);
-        precision_offset = { transformed.x().to_double(), transformed.y().to_double() };
+        auto pixel_ratio = static_cast<float>(paintable.document().page().client().device_pixels_per_css_pixel());
+        auto result = visual_context->inverse_transform_point(position.to_type<float>() * pixel_ratio);
+        precision_offset = result / pixel_ratio;
     }
 
     // relative to the origin of the padding edge of the target node

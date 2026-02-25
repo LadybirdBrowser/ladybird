@@ -6,9 +6,7 @@
 
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/ResolvedCSSFilter.h>
 
 namespace Web::Painting {
 
@@ -75,27 +73,9 @@ static RefPtr<AccumulatedVisualContext const> find_common_ancestor(RefPtr<Accumu
     return a;
 }
 
-// Converts a CSS-pixel-space 4x4 matrix to device-pixel-space.
-// - Translation column (column 3, rows 0-2) is scaled up by DPR
-// - Perspective row (row 3, columns 0-2) is scaled down by DPR
-// - All other elements are unaffected (the scale factors cancel out)
-static FloatMatrix4x4 scale_matrix_for_device_pixels(FloatMatrix4x4 matrix, float scale)
-{
-    matrix[0, 3] *= scale;
-    matrix[1, 3] *= scale;
-    matrix[2, 3] *= scale;
-    matrix[3, 0] /= scale;
-    matrix[3, 1] /= scale;
-    matrix[3, 2] /= scale;
-    return matrix;
-}
-
 void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state)
 {
     auto const& commands = display_list.commands();
-    auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
-
-    DevicePixelConverter device_pixel_converter { device_pixels_per_css_pixel };
 
     VERIFY(m_surface);
 
@@ -109,43 +89,35 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
     auto apply_accumulated_visual_context = [&](AccumulatedVisualContext const& node) {
         node.data().visit(
             [&](EffectsData const& effects) {
-                Optional<Gfx::Filter> gfx_filter;
-                if (effects.filter.has_filters())
-                    gfx_filter = to_gfx_filter(effects.filter, device_pixels_per_css_pixel);
-                apply_effects({ .opacity = effects.opacity, .compositing_and_blending_operator = effects.blend_mode, .filter = gfx_filter });
+                apply_effects({ .opacity = effects.opacity, .compositing_and_blending_operator = effects.blend_mode, .filter = effects.gfx_filter });
             },
             [&](PerspectiveData const& perspective) {
                 save({});
-                auto matrix = scale_matrix_for_device_pixels(perspective.matrix, static_cast<float>(device_pixels_per_css_pixel));
-                apply_transform({ 0, 0 }, matrix);
+                apply_transform({ 0, 0 }, perspective.matrix);
             },
             [&](ScrollData const& scroll) {
                 save({});
-                auto own_offset = scroll_state.own_offset_for_frame_with_id(scroll.scroll_frame_id);
-                if (!own_offset.is_zero()) {
-                    auto scroll_offset = own_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
-                    translate({ .delta = scroll_offset });
+                auto const& offsets = scroll_state.device_offsets();
+                if (scroll.scroll_frame_id < offsets.size()) {
+                    auto const& offset = offsets[scroll.scroll_frame_id];
+                    if (!offset.is_zero())
+                        translate({ .delta = offset.to_type<int>() });
                 }
             },
             [&](TransformData const& transform) {
                 save({});
-                auto origin = transform.origin.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<float>();
-                auto matrix = scale_matrix_for_device_pixels(transform.matrix, static_cast<float>(device_pixels_per_css_pixel));
-                apply_transform(origin, matrix);
+                apply_transform(transform.origin, transform.matrix);
             },
             [&](ClipData const& clip) {
                 save({});
-                auto device_rect = device_pixel_converter.rounded_device_rect(clip.rect).to_type<int>();
-                auto corner_radii = clip.corner_radii.as_corners(device_pixel_converter);
-                if (corner_radii.has_any_radius())
-                    add_rounded_rect_clip({ .corner_radii = corner_radii, .border_rect = device_rect, .corner_clip = CornerClip::Outside });
+                if (clip.corner_radii.has_any_radius())
+                    add_rounded_rect_clip({ .corner_radii = clip.corner_radii, .border_rect = clip.rect.to_type<int>(), .corner_clip = CornerClip::Outside });
                 else
-                    add_clip_rect({ .rect = device_rect });
+                    add_clip_rect({ .rect = clip.rect.to_type<int>() });
             },
             [&](ClipPathData const& clip_path) {
                 save({});
-                auto transformed_path = clip_path.path.copy_transformed(Gfx::AffineTransform {}.set_scale(static_cast<float>(device_pixels_per_css_pixel), static_cast<float>(device_pixels_per_css_pixel)));
-                add_clip_path(transformed_path);
+                add_clip_path(clip_path.path);
             });
     };
 
@@ -195,13 +167,13 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         if (command.has<PaintScrollBar>()) {
             auto translated_command = command;
             auto& paint_scroll_bar = translated_command.get<PaintScrollBar>();
-            auto scroll_offset = scroll_state.own_offset_for_frame_with_id(paint_scroll_bar.scroll_frame_id);
-            if (paint_scroll_bar.vertical) {
-                auto offset = scroll_offset.y() * paint_scroll_bar.scroll_size;
-                paint_scroll_bar.thumb_rect.translate_by(0, -offset.to_int() * device_pixels_per_css_pixel);
-            } else {
-                auto offset = scroll_offset.x() * paint_scroll_bar.scroll_size;
-                paint_scroll_bar.thumb_rect.translate_by(-offset.to_int() * device_pixels_per_css_pixel, 0);
+            auto const& offsets = scroll_state.device_offsets();
+            if (paint_scroll_bar.scroll_frame_id < static_cast<int>(offsets.size())) {
+                auto const& device_offset = offsets[paint_scroll_bar.scroll_frame_id];
+                if (paint_scroll_bar.vertical)
+                    paint_scroll_bar.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * paint_scroll_bar.scroll_size));
+                else
+                    paint_scroll_bar.thumb_rect.translate_by(static_cast<int>(-device_offset.x() * paint_scroll_bar.scroll_size), 0);
             }
             paint_scrollbar(paint_scroll_bar);
             continue;

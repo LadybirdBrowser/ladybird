@@ -7279,7 +7279,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (m_cached_display_list && m_cached_display_list_paint_config == config)
         return m_cached_display_list;
 
-    auto display_list = Painting::DisplayList::create(page().client().device_pixels_per_css_pixel());
+    auto display_list = Painting::DisplayList::create();
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect

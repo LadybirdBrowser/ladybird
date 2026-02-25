@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
@@ -49,8 +50,10 @@ static Optional<CSSPixelRect> scrollport_rect_in_viewport(Painting::PaintableBox
     auto const* viewport_paintable = paintable_box.document().paintable();
     if (!viewport_paintable)
         return {};
+    auto pixel_ratio = static_cast<float>(paintable_box.document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
-    return accumulated_visual_context->transform_rect_to_viewport(scrollport, scroll_state);
+    auto result = accumulated_visual_context->transform_rect_to_viewport(scrollport.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+    return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
 }
 
 // Returns scroll speed in CSS pixels per second for each axis, based on how far the mouse is past the auto scroll edge.

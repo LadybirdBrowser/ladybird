@@ -1434,10 +1434,10 @@ Vector<CSSPixelRect> Element::get_client_rects() const
         auto absolute_rect = paintable_box->absolute_border_box_rect();
 
         if (auto const& accumulated_visual_context = paintable_box->accumulated_visual_context()) {
-            auto const& viewport_paintable = *document().paintable();
-            auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
-            auto transformed_rect = accumulated_visual_context->transform_rect_to_viewport(absolute_rect, scroll_state);
-            rects.append(transformed_rect);
+            auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
+            auto const& scroll_state = document().paintable()->scroll_state_snapshot();
+            auto result = accumulated_visual_context->transform_rect_to_viewport(absolute_rect.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+            rects.append((result * (1.f / pixel_ratio)).to_type<CSSPixels>());
         } else {
             rects.append(absolute_rect);
         }

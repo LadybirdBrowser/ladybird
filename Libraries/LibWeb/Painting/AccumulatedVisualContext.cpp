@@ -16,12 +16,12 @@ NonnullRefPtr<AccumulatedVisualContext> AccumulatedVisualContext::create(size_t 
     return adopt_ref(*new AccumulatedVisualContext(id, move(data), move(parent)));
 }
 
-bool ClipData::contains(CSSPixelPoint point) const
+bool ClipData::contains(DevicePixelPoint point) const
 {
-    return corner_radii.contains(point, rect);
+    return corner_radii.contains(point.to_type<int>(), rect.to_type<int>());
 }
 
-Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(CSSPixelPoint screen_point, ScrollStateSnapshot const& scroll_state) const
+Optional<Gfx::FloatPoint> AccumulatedVisualContext::transform_point_for_hit_test(Gfx::FloatPoint screen_point, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const
 {
     Vector<AccumulatedVisualContext const*, 8> chain;
     chain.ensure_capacity(m_depth);
@@ -33,47 +33,47 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
         auto const* node = chain[i - 1];
 
         auto result = node->data().visit(
-            [&](PerspectiveData const& perspective) -> Optional<CSSPixelPoint> {
+            [&](PerspectiveData const& perspective) -> Optional<Gfx::FloatPoint> {
                 auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
                 auto inverse = affine.inverse();
                 if (!inverse.has_value())
                     return {};
-                point = inverse->map(point.to_type<float>()).to_type<CSSPixels>();
+                point = inverse->map(point);
                 return point;
             },
-            [&](ScrollData const& scroll) -> Optional<CSSPixelPoint> {
-                auto offset = scroll_state.own_offset_for_frame_with_id(scroll.scroll_frame_id);
-                point.translate_by(-offset);
+            [&](ScrollData const& scroll) -> Optional<Gfx::FloatPoint> {
+                if (scroll.scroll_frame_id < scroll_offsets.size())
+                    point.translate_by(-scroll_offsets[scroll.scroll_frame_id]);
                 return point;
             },
-            [&](TransformData const& transform) -> Optional<CSSPixelPoint> {
+            [&](TransformData const& transform) -> Optional<Gfx::FloatPoint> {
                 auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
                 auto inverse = affine.inverse();
                 if (!inverse.has_value())
                     return {};
 
                 auto offset_point = point - transform.origin;
-                auto transformed = inverse->map(offset_point.to_type<float>()).to_type<CSSPixels>();
+                auto transformed = inverse->map(offset_point);
                 point = transformed + transform.origin;
                 return point;
             },
-            [&](ClipData const& clip) -> Optional<CSSPixelPoint> {
-                // NOTE: The clip rect is stored in absolute (layout) coordinates. After inverse-transforming, `point`
-                //       is also in layout coordinates, so we compare them directly without mapping back to screen space.
-                if (!clip.contains(point))
+            [&](ClipData const& clip) -> Optional<Gfx::FloatPoint> {
+                // NOTE: The clip rect is in absolute device-pixel coordinates. After inverse-transforming, `point`
+                //       is also in device-pixel coordinates, so we compare them directly.
+                if (!clip.contains(point.to_type<int>().to_type<DevicePixels>()))
                     return {};
                 return point;
             },
-            [&](ClipPathData const& clip_path) -> Optional<CSSPixelPoint> {
-                // NOTE: The clip path is stored in absolute (layout) coordinates. After inverse-transforming, `point`
-                //       is also in layout coordinates, so we compare them directly without mapping back to screen space.
-                if (!clip_path.bounding_rect.contains(point))
+            [&](ClipPathData const& clip_path) -> Optional<Gfx::FloatPoint> {
+                // NOTE: The clip path is in absolute device-pixel coordinates. After inverse-transforming, `point`
+                //       is also in device-pixel coordinates, so we compare them directly.
+                if (!clip_path.bounding_rect.contains(point.to_type<int>().to_type<DevicePixels>()))
                     return {};
-                if (!clip_path.path.contains(point.to_type<float>(), clip_path.fill_rule))
+                if (!clip_path.path.contains(point, clip_path.fill_rule))
                     return {};
                 return point;
             },
-            [&](EffectsData const&) -> Optional<CSSPixelPoint> {
+            [&](EffectsData const&) -> Optional<Gfx::FloatPoint> {
                 // Effects don't affect coordinate transforms
                 return point;
             });
@@ -85,7 +85,7 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
     return point;
 }
 
-CSSPixelPoint AccumulatedVisualContext::inverse_transform_point(CSSPixelPoint screen_point) const
+Gfx::FloatPoint AccumulatedVisualContext::inverse_transform_point(Gfx::FloatPoint screen_point) const
 {
     Vector<AccumulatedVisualContext const*, 8> chain;
     chain.ensure_capacity(m_depth);
@@ -101,14 +101,14 @@ CSSPixelPoint AccumulatedVisualContext::inverse_transform_point(CSSPixelPoint sc
                 auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
                 auto inverse = affine.inverse();
                 if (inverse.has_value())
-                    point = inverse->map(point.to_type<float>()).to_type<CSSPixels>();
+                    point = inverse->map(point);
             },
             [&](TransformData const& transform) {
                 auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
                 auto inverse = affine.inverse();
                 if (inverse.has_value()) {
                     auto offset_point = point - transform.origin;
-                    auto transformed = inverse->map(offset_point.to_type<float>()).to_type<CSSPixels>();
+                    auto transformed = inverse->map(offset_point);
                     point = transformed + transform.origin;
                 }
             },
@@ -118,32 +118,31 @@ CSSPixelPoint AccumulatedVisualContext::inverse_transform_point(CSSPixelPoint sc
     return point;
 }
 
-CSSPixelRect AccumulatedVisualContext::transform_rect_to_viewport(CSSPixelRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
+Gfx::FloatRect AccumulatedVisualContext::transform_rect_to_viewport(Gfx::FloatRect const& source_rect, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const
 {
-    auto rect = source_rect.to_type<float>();
+    auto rect = source_rect;
     for (auto const* node = this; node; node = node->parent().ptr()) {
         node->data().visit(
             [&](TransformData const& transform) {
                 auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
-                auto origin = transform.origin.to_type<float>();
-                rect.translate_by(-origin);
+                rect.translate_by(-transform.origin);
                 rect = affine.map(rect);
-                rect.translate_by(origin);
+                rect.translate_by(transform.origin);
             },
             [&](PerspectiveData const& perspective) {
                 auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
                 rect = affine.map(rect);
             },
             [&](ScrollData const& scroll) {
-                auto offset = scroll_state.own_offset_for_frame_with_id(scroll.scroll_frame_id);
-                rect.translate_by(offset.to_type<float>());
+                if (scroll.scroll_frame_id < scroll_offsets.size())
+                    rect.translate_by(scroll_offsets[scroll.scroll_frame_id]);
             },
             [&](ClipData const&) { /* clips don't affect rect coordinates */ },
             [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
             [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
     }
 
-    return rect.to_type<CSSPixels>();
+    return rect;
 }
 
 void AccumulatedVisualContext::dump(StringBuilder& builder) const
@@ -160,11 +159,11 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
         [&](TransformData const& transform) {
             auto const& matrix = transform.matrix.elements();
             auto const& origin = transform.origin;
-            builder.appendff("transform=[{},{},{},{},{},{}] origin=({},{})", matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1], matrix[0][3], matrix[1][3], origin.x().to_float(), origin.y().to_float());
+            builder.appendff("transform=[{},{},{},{},{},{}] origin=({},{})", matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1], matrix[0][3], matrix[1][3], origin.x(), origin.y());
         },
         [&](ClipData const& clip) {
             auto const& rect = clip.rect;
-            builder.appendff("clip=[{},{} {}x{}]", rect.x().to_float(), rect.y().to_float(), rect.width().to_float(), rect.height().to_float());
+            builder.appendff("clip=[{},{} {}x{}]", rect.x(), rect.y(), rect.width(), rect.height());
 
             if (clip.corner_radii.has_any_radius()) {
                 auto const& corner_radii = clip.corner_radii;
@@ -173,7 +172,7 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
         },
         [&](ClipPathData const& clip_path) {
             auto const& rect = clip_path.bounding_rect;
-            builder.appendff("clip_path=[bounds: {},{} {}x{}, path: {}]", rect.x().to_float(), rect.y().to_float(), rect.width().to_float(), rect.height().to_float(), clip_path.path.to_svg_string());
+            builder.appendff("clip_path=[bounds: {},{} {}x{}, path: {}]", rect.x(), rect.y(), rect.width(), rect.height(), clip_path.path.to_svg_string());
         },
         [&](EffectsData const& effects) {
             builder.append("effects=["sv);
@@ -188,10 +187,10 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
                 builder.appendff("blend_mode={}", static_cast<int>(effects.blend_mode));
                 has_content = true;
             }
-            if (effects.filter.has_filters()) {
+            if (effects.gfx_filter.has_value()) {
                 if (has_content)
                     builder.append(' ');
-                effects.filter.dump(builder);
+                builder.append("filter"sv);
                 has_content = true;
             }
             builder.append("]"sv);

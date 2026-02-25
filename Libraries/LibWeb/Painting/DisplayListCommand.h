@@ -269,7 +269,7 @@ struct ApplyBackdropFilter {
     static constexpr StringView command_name = "ApplyBackdropFilter"sv;
 
     Gfx::IntRect backdrop_region;
-    BorderRadiiData border_radii_data;
+    CornerRadii corner_radii;
     Optional<Gfx::Filter> backdrop_filter;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
@@ -344,7 +344,7 @@ struct PaintScrollBar {
     int scroll_frame_id { 0 };
     Gfx::IntRect gutter_rect;
     Gfx::IntRect thumb_rect;
-    CSSPixelFraction scroll_size;
+    double scroll_size;
     Color thumb_color;
     Color track_color;
     bool vertical;

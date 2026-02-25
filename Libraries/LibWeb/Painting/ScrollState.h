@@ -6,23 +6,27 @@
 
 #pragma once
 
+#include <LibGfx/Point.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 
 namespace Web::Painting {
 
 class ScrollStateSnapshot {
 public:
-    static ScrollStateSnapshot create(Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames);
+    static ScrollStateSnapshot create(Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames, double device_pixels_per_css_pixel);
 
-    CSSPixelPoint own_offset_for_frame_with_id(size_t id) const
+    ReadonlySpan<Gfx::FloatPoint> device_offsets() const { return m_device_offsets; }
+
+    CSSPixelPoint css_offset_for_frame_with_id(size_t id) const
     {
-        if (id >= own_offsets.size())
+        if (id >= m_css_offsets.size())
             return {};
-        return own_offsets[id];
+        return m_css_offsets[id];
     }
 
 private:
-    Vector<CSSPixelPoint> own_offsets;
+    Vector<CSSPixelPoint> m_css_offsets;
+    Vector<Gfx::FloatPoint> m_device_offsets;
 };
 
 class ScrollState {
@@ -69,9 +73,9 @@ public:
 private:
     friend class ViewportPaintable;
 
-    ScrollStateSnapshot snapshot() const
+    ScrollStateSnapshot snapshot(double device_pixels_per_css_pixel) const
     {
-        return ScrollStateSnapshot::create(m_scroll_frames);
+        return ScrollStateSnapshot::create(m_scroll_frames, device_pixels_per_css_pixel);
     }
 
     Vector<NonnullRefPtr<ScrollFrame>> m_scroll_frames;

@@ -75,7 +75,7 @@ static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
     bool is_clip_path)
 {
     auto mask_rect = context.enclosing_device_rect(area);
-    auto display_list = DisplayList::create(context.device_pixels_per_css_pixel());
+    auto display_list = DisplayList::create();
     DisplayListRecorder display_list_recorder(*display_list);
     display_list_recorder.translate(-mask_rect.location().to_type<int>());
     auto paint_context = context.clone(display_list_recorder);

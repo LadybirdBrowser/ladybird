@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -532,7 +533,7 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
 
     if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->own_offset_for_frame_with_id(own_scroll_frame_id().value());
+        auto own_offset = scroll_state_snapshot->css_offset_for_frame_with_id(own_scroll_frame_id().value());
         CSSPixels scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
         CSSPixels thumb_offset = scroll_offset * scrollbar_data.thumb_travel_to_scroll_ratio;
 
@@ -608,7 +609,7 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
                     own_scroll_frame_id().value(),
                     context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>(),
                     context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
-                    scrollbar_data->thumb_travel_to_scroll_ratio,
+                    scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
                     scrollbar_colors.thumb_color,
                     scrollbar_colors.track_color,
                     direction == ScrollDirection::Vertical);
@@ -720,7 +721,7 @@ void PaintableBox::paint_backdrop_filter(DisplayListRecordingContext& context) c
     auto border_radii_data = normalized_border_radii_data();
     ScopedCornerRadiusClip corner_clipper { context, backdrop_region, border_radii_data };
     if (auto resolved_backdrop_filter = to_gfx_filter(m_backdrop_filter, context.device_pixels_per_css_pixel()); resolved_backdrop_filter.has_value())
-        context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data, *resolved_backdrop_filter);
+        context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data.as_corners(context.device_pixel_converter()), *resolved_backdrop_filter);
 }
 
 void PaintableBox::paint_background(DisplayListRecordingContext& context) const
@@ -782,10 +783,12 @@ CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_
     if (!accumulated_visual_context())
         return screen_position;
 
-    auto const& viewport_paintable = *document().paintable();
-    auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
-    auto local_pos = accumulated_visual_context()->transform_point_for_hit_test(screen_position, scroll_state);
-    return local_pos.value_or(screen_position);
+    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
+    auto const& scroll_state = document().paintable()->scroll_state_snapshot();
+    auto result = accumulated_visual_context()->transform_point_for_hit_test(screen_position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+    if (!result.has_value())
+        return screen_position;
+    return (*result / pixel_ratio).to_type<CSSPixels>();
 }
 
 bool PaintableBox::has_resizer() const
@@ -1038,13 +1041,16 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (!is_visible || !visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    auto const& viewport_paintable = *document().paintable();
-    auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
+    auto const& scroll_state = document().paintable()->scroll_state_snapshot();
     Optional<CSSPixelPoint> local_position;
-    if (auto state = accumulated_visual_context())
-        local_position = state->transform_point_for_hit_test(position, scroll_state);
-    else
+    if (auto state = accumulated_visual_context()) {
+        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+        if (result.has_value())
+            local_position = (*result / pixel_ratio).to_type<CSSPixels>();
+    } else {
         local_position = position;
+    }
 
     if (!local_position.has_value())
         return TraversalDecision::Continue;

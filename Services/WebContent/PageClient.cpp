@@ -221,7 +221,7 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
 void PageClient::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;
-    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size));
+    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::Yes);
 }
 
 void PageClient::set_maximum_frames_per_second(u64 maximum_frames_per_second)

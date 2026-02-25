@@ -21,7 +21,7 @@ namespace Web::Painting {
 
 static RefPtr<DisplayList> compute_text_clip_paths(DisplayListRecordingContext& context, Paintable const& paintable, CSSPixelPoint containing_block_location)
 {
-    auto text_clip_paths = DisplayList::create(context.device_pixels_per_css_pixel());
+    auto text_clip_paths = DisplayList::create();
     DisplayListRecorder display_list_recorder(*text_clip_paths);
     // Remove containing block offset, so executing the display list will produce mask at (0, 0)
     display_list_recorder.translate(-context.floored_device_point(containing_block_location).to_type<int>());

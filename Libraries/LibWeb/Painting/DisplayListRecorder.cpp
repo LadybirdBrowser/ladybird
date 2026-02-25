@@ -285,13 +285,13 @@ void DisplayListRecorder::restore()
     APPEND(Restore {});
 }
 
-void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, Gfx::Filter const& backdrop_filter)
+void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter)
 {
     if (backdrop_region.is_empty())
         return;
     APPEND(ApplyBackdropFilter {
         .backdrop_region = backdrop_region,
-        .border_radii_data = border_radii_data,
+        .corner_radii = corner_radii,
         .backdrop_filter = backdrop_filter,
     });
 }
@@ -349,7 +349,7 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
             { bottom_left_radius, bottom_left_radius } });
 }
 
-void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, Color thumb_color, Color track_color, bool vertical)
+void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, double scroll_size, Color thumb_color, Color track_color, bool vertical)
 {
     APPEND(PaintScrollBar {
         .scroll_frame_id = scroll_frame_id,

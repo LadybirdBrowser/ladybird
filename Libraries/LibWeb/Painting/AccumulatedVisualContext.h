@@ -9,19 +9,16 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Variant.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
+#include <LibGfx/Point.h>
+#include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
-#include <LibWeb/Painting/ResolvedCSSFilter.h>
-#include <LibWeb/Painting/ScrollState.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
-
-struct ClipRect {
-    CSSPixelRect rect;
-    BorderRadiiData corner_radii;
-};
 
 struct ScrollData {
     size_t scroll_frame_id;
@@ -29,27 +26,21 @@ struct ScrollData {
 };
 
 struct ClipData {
-    CSSPixelRect rect;
-    BorderRadiiData corner_radii;
+    DevicePixelRect rect;
+    CornerRadii corner_radii;
 
-    explicit ClipData(ClipRect const& clip_rect)
-        : rect(clip_rect.rect)
-        , corner_radii(clip_rect.corner_radii)
-    {
-    }
-
-    ClipData(CSSPixelRect r, BorderRadiiData radii)
+    ClipData(DevicePixelRect r, CornerRadii radii)
         : rect(r)
         , corner_radii(radii)
     {
     }
 
-    bool contains(CSSPixelPoint point) const;
+    bool contains(DevicePixelPoint point) const;
 };
 
 struct TransformData {
     Gfx::FloatMatrix4x4 matrix;
-    CSSPixelPoint origin;
+    Gfx::FloatPoint origin;
 };
 
 struct PerspectiveData {
@@ -58,20 +49,20 @@ struct PerspectiveData {
 
 struct ClipPathData {
     Gfx::Path path;
-    CSSPixelRect bounding_rect;
+    DevicePixelRect bounding_rect;
     Gfx::WindingRule fill_rule;
 };
 
 struct EffectsData {
     float opacity { 1.0f };
     Gfx::CompositingAndBlendingOperator blend_mode { Gfx::CompositingAndBlendingOperator::Normal };
-    ResolvedCSSFilter filter;
+    Optional<Gfx::Filter> gfx_filter;
 
     bool needs_layer() const
     {
         return opacity < 1.0f
             || blend_mode != Gfx::CompositingAndBlendingOperator::Normal
-            || filter.has_filters();
+            || gfx_filter.has_value();
     }
 };
 
@@ -92,9 +83,9 @@ public:
 
     void dump(StringBuilder&) const;
 
-    Optional<CSSPixelPoint> transform_point_for_hit_test(CSSPixelPoint screen_point, ScrollStateSnapshot const& scroll_state) const;
-    CSSPixelPoint inverse_transform_point(CSSPixelPoint point) const;
-    CSSPixelRect transform_rect_to_viewport(CSSPixelRect const&, ScrollStateSnapshot const&) const;
+    Optional<Gfx::FloatPoint> transform_point_for_hit_test(Gfx::FloatPoint, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const;
+    Gfx::FloatPoint inverse_transform_point(Gfx::FloatPoint) const;
+    Gfx::FloatRect transform_rect_to_viewport(Gfx::FloatRect const&, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const;
 
 private:
     AccumulatedVisualContext(size_t id, VisualContextData data, RefPtr<AccumulatedVisualContext const> parent)

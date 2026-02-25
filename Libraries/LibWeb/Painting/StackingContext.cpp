@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -313,7 +314,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     Vector<DisplayListRecorder::MaskInfo> masks;
 
     if (mask_image) {
-        auto mask_display_list = DisplayList::create(context.device_pixels_per_css_pixel());
+        auto mask_display_list = DisplayList::create();
         DisplayListRecorder display_list_recorder(*mask_display_list);
         auto mask_painting_context = context.clone(display_list_recorder);
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
@@ -391,13 +392,16 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
         // Hit test the stacking context root's own fragments if it's a PaintableWithLines.
         if (is<PaintableWithLines>(paintable_box())) {
             auto const& paintable_with_lines = as<PaintableWithLines>(paintable_box());
-            auto const& viewport_paintable = *paintable_box().document().paintable();
-            auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+            auto pixel_ratio = static_cast<float>(paintable_box().document().page().client().device_pixels_per_css_pixel());
+            auto const& scroll_state = paintable_box().document().paintable()->scroll_state_snapshot();
             Optional<CSSPixelPoint> local_position;
-            if (auto state = paintable_box().accumulated_visual_context())
-                local_position = state->transform_point_for_hit_test(position, scroll_state);
-            else
+            if (auto state = paintable_box().accumulated_visual_context()) {
+                auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+                if (result.has_value())
+                    local_position = (*result / pixel_ratio).to_type<CSSPixels>();
+            } else {
                 local_position = position;
+            }
 
             if (local_position.has_value()) {
                 if (paintable_with_lines.hit_test_fragments(position, local_position.value(), type, callback) == TraversalDecision::Break)
@@ -439,13 +443,16 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     if (!is_visible || !paintable_box().visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    auto const& viewport_paintable = *paintable_box().document().paintable();
-    auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+    auto pixel_ratio = static_cast<float>(paintable_box().document().page().client().device_pixels_per_css_pixel());
+    auto const& scroll_state = paintable_box().document().paintable()->scroll_state_snapshot();
     Optional<CSSPixelPoint> local_position;
-    if (auto state = paintable_box().accumulated_visual_context())
-        local_position = state->transform_point_for_hit_test(position, scroll_state);
-    else
+    if (auto state = paintable_box().accumulated_visual_context()) {
+        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+        if (result.has_value())
+            local_position = (*result / pixel_ratio).to_type<CSSPixels>();
+    } else {
         local_position = position;
+    }
 
     if (local_position.has_value() && paintable_box().absolute_border_box_rect().contains(local_position.value())) {
         if (callback({ const_cast<PaintableBox&>(paintable_box()) }) == TraversalDecision::Break)
