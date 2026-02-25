@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from TextNode start: 0, length: 11, rect: [12,12 100.484375x18] baseline: 13.796875
                 "programming"
             TextNode <#text> (not painted)
-        BlockContainer <div.second> at [12,32] [0+1+0 50 0+1+50.484375] [0+1+0 50 0+1+0] children: not-inline
+        BlockContainer <div.second> at [12,32] [0+1+0 50 0+1+0] [0+1+0 50 0+1+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x85]

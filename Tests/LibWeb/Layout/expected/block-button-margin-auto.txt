@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 38 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 22 0+0+8] children: not-inline
-      BlockContainer <div.container> at [8,8] [0+0+0 400 0+0+384] [0+0+0 22 0+0+0] children: not-inline
+      BlockContainer <div.container> at [8,8] [0+0+0 400 0+0+0] [0+0+0 22 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [8,8] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <button> at [189.390625,10] [176.390625+1+4 37.21875 4+1+176.390625] [0+1+1 18 1+1+0] [BFC] children: not-inline

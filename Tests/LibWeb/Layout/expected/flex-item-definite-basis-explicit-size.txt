@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 430 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 430 0+0+0] children: not-inline
-      Box <div.container> at [1,1] flex-container(row) [0+1+0 500 0+1+298] [0+1+0 52 0+1+0] [FFC] children: not-inline
+      Box <div.container> at [1,1] flex-container(row) [0+1+0 500 0+1+0] [0+1+0 52 0+1+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [2,2] flex-item [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
@@ -24,7 +24,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [0,54] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      Box <div.container> at [1,65] flex-container(row) [0+1+0 500 0+1+298] [10+1+0 52 0+1+0] [FFC] children: not-inline
+      Box <div.container> at [1,65] flex-container(row) [0+1+0 500 0+1+0] [10+1+0 52 0+1+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [2,66] flex-item [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline

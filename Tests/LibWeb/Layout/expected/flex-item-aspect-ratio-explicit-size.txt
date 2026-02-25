@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 416 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 416 0+0+0] children: not-inline
-      Box <div.container> at [1,1] flex-container(row) [0+1+0 500 0+1+298] [0+1+0 102 0+1+0] [FFC] children: not-inline
+      Box <div.container> at [1,1] flex-container(row) [0+1+0 500 0+1+0] [0+1+0 102 0+1+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.item> at [2,2] flex-item [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline

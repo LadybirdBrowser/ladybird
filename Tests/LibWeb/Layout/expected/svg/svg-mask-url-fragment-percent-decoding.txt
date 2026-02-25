@@ -9,7 +9,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         SVGForeignObjectBox <foreignObject> at [12,12] [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [12,12] [0+0+0 40 0+0+0] [0+0+0 0 0+0+0] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div> at [12,12] [0+0+0 100 0+0+-60] [0+0+0 100 0+0+0] children: not-inline
+          BlockContainer <div> at [12,12] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
           BlockContainer <(anonymous)> at [12,112] [0+0+0 40 0+0+0] [0+0+0 0 0+0+0] children: inline
             TextNode <#text> (not painted)
           SVGMaskBox <mask#«r1»> at [12,12] [0+0+0 48 0+0+0] [0+0+0 48 0+0+0] children: not-inline

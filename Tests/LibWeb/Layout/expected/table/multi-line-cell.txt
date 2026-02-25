@@ -1,8 +1,8 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 86 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 70 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at [8,8] [0+0+0 81.4375 0+0+702.5625] [0+0+0 70 0+0+0] [BFC] children: not-inline
-        Box <table> at [9,9] table-box [0+1+0 79.4375 0+1+71.4375] [0+1+0 68 0+1+0] [TFC] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 81.4375 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
+        Box <table> at [9,9] table-box [0+1+0 79.4375 0+1+0] [0+1+0 68 0+1+0] [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)
           Box <tbody> at [11,11] table-row-group [0+0+0 75.4375 0+0+0] [0+0+0 64 0+0+0] children: not-inline

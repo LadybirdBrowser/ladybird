@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 976 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 600 0+0+192] [8+0+0 960 0+0+8] children: not-inline
-      BlockContainer <div.normal> at [18,18] [0+10+0 300 0+10+280] [0+10+0 300 0+10+0] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 600 0+0+8] [8+0+0 960 0+0+8] children: not-inline
+      BlockContainer <div.normal> at [18,18] [0+10+0 300 0+10+0] [0+10+0 300 0+10+0] children: not-inline
       BlockContainer <div#top> at [8,328] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [8,328 26.640625x18] baseline: 13.796875
             "top"
@@ -14,8 +14,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 0 from TextNode start: 0, length: 5, rect: [108,428 37.109375x18] baseline: 13.796875
             "right"
         TextNode <#text> (not painted)
-      BlockContainer <div.normal> at [18,338] [0+10+0 300 0+10+280] [0+10+0 300 0+10+0] children: not-inline
-      BlockContainer <div.normal> at [18,658] [0+10+0 300 0+10+280] [0+10+0 300 0+10+0] children: not-inline
+      BlockContainer <div.normal> at [18,338] [0+10+0 300 0+10+0] [0+10+0 300 0+10+0] children: not-inline
+      BlockContainer <div.normal> at [18,658] [0+10+0 300 0+10+0] [0+10+0 300 0+10+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x976]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x976]
