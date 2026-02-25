@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include <AK/Assertions.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
-#include <AK/StdLibExtras.h>
 
 namespace AK {
 
@@ -61,11 +59,11 @@ public:
     template<typename U = T>
     WeakPtr<U> make_weak_ptr() const
     {
-        return MUST(try_make_weak_ptr<U>());
-    }
+        if (!m_link)
+            m_link = adopt_ref(*new (nothrow) WeakLink(const_cast<T&>(static_cast<T const&>(*this))));
 
-    template<typename U = T>
-    ErrorOr<WeakPtr<U>> try_make_weak_ptr() const;
+        return m_link;
+    }
 
 protected:
     Weakable() = default;
@@ -75,7 +73,7 @@ protected:
         revoke_weak_ptrs();
     }
 
-    void revoke_weak_ptrs()
+    void revoke_weak_ptrs() const
     {
         if (auto link = move(m_link))
             link->revoke();
