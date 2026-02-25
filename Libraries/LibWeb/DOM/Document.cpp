@@ -788,9 +788,11 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     // because subsequent steps will modify "initial about:blank" to false, which would cause
     // initial navigation to fail in case it was "about:blank".
     if (auto navigable = this->navigable(); navigable && navigable->container() && !navigable->container()->content_navigable_has_session_history_entry_and_ready_for_navigation()) {
-        HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, GC::create_function(heap(), [navigable_container = navigable->container()] {
+        auto result = HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, GC::create_function(heap(), [navigable_container = navigable->container()] {
             return navigable_container->content_navigable_has_session_history_entry_and_ready_for_navigation();
         }));
+        if (result == HTML::EventLoop::SpinResult::ExitRequested)
+            return this;
     }
 
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
@@ -4888,7 +4890,7 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
         }));
     }
 
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
+    (void)HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
         return number_unloaded == unloaded_documents_count;
     }));
 

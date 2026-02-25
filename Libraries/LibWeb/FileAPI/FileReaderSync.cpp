@@ -84,9 +84,11 @@ WebIDL::ExceptionOr<Result> FileReaderSync::read_as(Blob& blob, FileReader::Type
 
     // 4. Wait for promise to be fulfilled or rejected.
     // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
+    auto spin_result = HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
         return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
     }));
+    if (spin_result == HTML::EventLoop::SpinResult::ExitRequested)
+        return WebIDL::NetworkError::create(realm(), "File read aborted by shutdown"_utf16);
 
     // 5. If promise fulfilled with a byte sequence bytes:
     auto result = promise->result();

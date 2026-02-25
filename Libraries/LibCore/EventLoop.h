@@ -106,6 +106,7 @@ class StrongEventLoopReference;
 class CORE_API WeakEventLoopReference : public AtomicRefCounted<WeakEventLoopReference> {
 public:
     StrongEventLoopReference take();
+    void deferred_invoke(ESCAPING Function<void()> invokee);
 
 private:
     friend class EventLoop;

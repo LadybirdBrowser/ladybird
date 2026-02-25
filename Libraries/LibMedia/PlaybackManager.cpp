@@ -76,8 +76,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(WeakPlayb
 
     auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
 
-    auto main_thread_event_loop = main_thread_event_loop_reference->take();
-    main_thread_event_loop->deferred_invoke([self, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration] mutable {
+    main_thread_event_loop_reference->deferred_invoke([self, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration] mutable {
         if (!self)
             return;
 
@@ -111,7 +110,6 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(WeakPlayb
         if (self->on_metadata_parsed)
             self->on_metadata_parsed();
     });
-
     return {};
 }
 
@@ -139,8 +137,7 @@ void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStrea
     auto thread = Threading::Thread::construct("Media Init"sv, [self = weak(), stream = stream, main_thread_event_loop_reference = Core::EventLoop::current_weak()] mutable -> int {
         auto maybe_error = prepare_playback_from_media_data(self, stream, main_thread_event_loop_reference);
         if (maybe_error.is_error()) {
-            auto main_thread_event_loop = main_thread_event_loop_reference->take();
-            main_thread_event_loop->deferred_invoke([self = move(self), error = maybe_error.release_error()] mutable {
+            main_thread_event_loop_reference->deferred_invoke([self = move(self), error = maybe_error.release_error()] mutable {
                 if (!self)
                     return;
                 if (self->on_unsupported_format_error)

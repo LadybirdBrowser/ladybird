@@ -35,6 +35,11 @@ class WEB_API EventLoop : public JS::Cell {
     };
 
 public:
+    enum class SpinResult : u8 {
+        GoalConditionMet,
+        ExitRequested,
+    };
+
     enum class Type {
         // https://html.spec.whatwg.org/multipage/webappapis.html#window-event-loop
         Window,
@@ -56,8 +61,8 @@ public:
     TaskQueue& microtask_queue() { return *m_microtask_queue; }
     TaskQueue const& microtask_queue() const { return *m_microtask_queue; }
 
-    void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
-    void spin_processing_tasks_with_source_until(Task::Source, GC::Ref<GC::Function<bool()>> goal_condition);
+    [[nodiscard]] SpinResult spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
+    [[nodiscard]] SpinResult spin_processing_tasks_with_source_until(Task::Source, GC::Ref<GC::Function<bool()>> goal_condition);
     void process();
     void queue_task_to_update_the_rendering();
 

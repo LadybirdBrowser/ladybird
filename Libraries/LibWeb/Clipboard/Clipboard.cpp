@@ -490,7 +490,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
                     //        https://github.com/w3c/clipboard-apis/issues/237
                     auto& reaction_promise = as<JS::Promise>(*reaction->promise());
 
-                    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.heap(), [&reaction_promise]() {
+                    (void)HTML::main_thread_event_loop().spin_until(GC::create_function(realm.heap(), [&reaction_promise]() {
                         return reaction_promise.state() != JS::Promise::State::Pending;
                     }));
 

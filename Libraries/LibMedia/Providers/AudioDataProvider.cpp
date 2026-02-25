@@ -236,10 +236,7 @@ void AudioDataProvider::ThreadData::invoke_on_main_thread_while_locked(Invokee i
 {
     if (m_requested_state == RequestedState::Exit)
         return;
-    auto event_loop = m_main_thread_event_loop->take();
-    if (!event_loop.is_alive())
-        return;
-    event_loop->deferred_invoke([self = NonnullRefPtr(*this), invokee = move(invokee)] mutable {
+    m_main_thread_event_loop->deferred_invoke([self = NonnullRefPtr(*this), invokee = move(invokee)] mutable {
         invokee(self);
     });
 }

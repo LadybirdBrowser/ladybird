@@ -184,12 +184,12 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
             // 1. Wait for chunkPromise to be fulfilled or rejected.
             // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
-            HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
+            auto spin_result = HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
                 return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
             }));
-
-            if (m_is_aborted)
+            if (spin_result == HTML::EventLoop::SpinResult::ExitRequested || m_is_aborted) {
                 return;
+            }
 
             // 2. If chunkPromise is fulfilled, and isFirstChunk is true, queue a task to fire a progress event called loadstart at fr.
             // NOTE: ISSUE 2 We might change loadstart to be dispatched synchronously, to align with XMLHttpRequest behavior. [Issue #119]

@@ -19,7 +19,7 @@ public:
 
     ~EventLoopPlugin();
 
-    void spin_until(GC::Root<GC::Function<bool()>> goal_condition);
+    [[nodiscard]] bool spin_until(GC::Root<GC::Function<bool()>> goal_condition);
     void deferred_invoke(ESCAPING GC::Root<GC::Function<void()>>);
     void quit();
 };

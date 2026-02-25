@@ -384,7 +384,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
         // FIXME: This feels.. uncomfortable but it should work to block the current task until the fetch has progressed past our processResponse hook or aborted
         auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::main_thread_event_loop();
-        event_loop.spin_until(GC::create_function(realm.heap(), [fetch_controller, &realm, &process_response_completion_result]() -> bool {
+        auto spin_result = event_loop.spin_until(GC::create_function(realm.heap(), [fetch_controller, &realm, &process_response_completion_result]() -> bool {
             if (process_response_completion_result.has_value())
                 return true;
             if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated || fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted) {
@@ -393,6 +393,8 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             }
             return false;
         }));
+        if (spin_result == HTML::EventLoop::SpinResult::ExitRequested)
+            process_response_completion_result = WebIDL::AbortError::create(realm, "Service Worker fetch aborted by shutdown"_utf16);
 
         return process_response_completion_result.release_value();
     };

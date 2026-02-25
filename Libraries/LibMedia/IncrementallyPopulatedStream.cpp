@@ -141,10 +141,7 @@ void IncrementallyPopulatedStream::begin_new_request_while_locked(u64 position)
     if (m_expected_size.has_value() && position >= m_expected_size.value())
         return;
 
-    auto event_loop = m_callback_event_loop->take();
-    if (!event_loop)
-        return;
-    event_loop->deferred_invoke([stream = NonnullRefPtr(*this), position] {
+    m_callback_event_loop->deferred_invoke([stream = NonnullRefPtr(*this), position] {
         if (stream->m_data_request_callback)
             stream->m_data_request_callback(position);
     });

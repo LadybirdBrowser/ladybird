@@ -76,7 +76,7 @@ EventLoop& main_thread_event_loop()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop
-void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
+EventLoop::SpinResult EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 {
     // FIXME: The spec wants us to do the rest of the enclosing algorithm (i.e. the caller)
     //    in the context of the currently running task on entry. That's not possible with this implementation.
@@ -99,7 +99,7 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     //       2. Perform any steps that appear after this spin the event loop instance in the original algorithm.
     //       NOTE: This is achieved by returning from the function.
 
-    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, goal_condition] {
+    bool is_goal_condition_met = Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, goal_condition] {
         if (goal_condition->function()())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
@@ -114,9 +114,12 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 
     // 7. Stop task, allowing whatever algorithm that invoked it to resume.
     // NOTE: This is achieved by returning from the function.
+    if (is_goal_condition_met)
+        return SpinResult::GoalConditionMet;
+    return SpinResult::ExitRequested;
 }
 
-void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC::Ref<GC::Function<bool()>> goal_condition)
+EventLoop::SpinResult EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC::Ref<GC::Function<bool()>> goal_condition)
 {
     auto& vm = this->vm();
     vm.save_execution_context_stack();
@@ -127,7 +130,7 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC:
     // NOTE: HTML event loop processing steps could run a task with arbitrary source
     m_skip_event_loop_processing_steps = true;
 
-    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, source, goal_condition] {
+    bool is_goal_condition_met = Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, source, goal_condition] {
         if (goal_condition->function()())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
@@ -152,6 +155,10 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC:
     schedule();
 
     vm.restore_execution_context_stack();
+
+    if (is_goal_condition_met)
+        return SpinResult::GoalConditionMet;
+    return SpinResult::ExitRequested;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model

@@ -26,13 +26,16 @@ void EventLoopPlugin::install(EventLoopPlugin& plugin)
 
 EventLoopPlugin::~EventLoopPlugin() = default;
 
-void EventLoopPlugin::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
+bool EventLoopPlugin::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
-    Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
+    bool goal_condition_met = false;
+    Core::EventLoop::current().spin_until([goal_condition = move(goal_condition), &goal_condition_met]() {
         if (Core::EventLoop::current().was_exit_requested())
-            ::exit(0);
-        return goal_condition->function()();
+            return true;
+        goal_condition_met = goal_condition->function()();
+        return goal_condition_met;
     });
+    return goal_condition_met;
 }
 
 void EventLoopPlugin::deferred_invoke(GC::Root<GC::Function<void()>> function)

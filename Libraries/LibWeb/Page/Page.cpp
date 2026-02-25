@@ -333,11 +333,11 @@ static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Opti
     auto& event_loop = Web::HTML::current_principal_settings_object().responsible_event_loop();
     auto pause_handle = event_loop.pause();
 
-    Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(event_loop.heap(), [&]() {
+    auto spin_result = event_loop.spin_until(GC::create_function(event_loop.heap(), [&]() {
         return response.has_value() || !client.is_connection_open();
     }));
 
-    if (!client.is_connection_open()) {
+    if (spin_result == Web::HTML::EventLoop::SpinResult::ExitRequested || !client.is_connection_open()) {
         dbgln("WebContent client disconnected during {}. Exiting peacefully.", location.function_name());
         exit(0);
     }

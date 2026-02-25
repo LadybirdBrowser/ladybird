@@ -151,7 +151,9 @@ void SVGScriptElement::process_the_script_element()
         (void)Fetch::Fetching::fetch(realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
         // Block until the resource has been fetched or determined invalid
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return fetch_done; }));
+        auto spin_result = HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return fetch_done; }));
+        if (spin_result == HTML::EventLoop::SpinResult::ExitRequested)
+            return;
 
         if (script_content.is_empty()) {
             // Failed to fetch or decode
@@ -174,8 +176,11 @@ void SVGScriptElement::process_the_script_element()
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
-    if (!m_document->ready_to_run_scripts())
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+    if (!m_document->ready_to_run_scripts()) {
+        auto spin_result = HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+        if (spin_result == HTML::EventLoop::SpinResult::ExitRequested)
+            return;
+    }
 
     m_script = HTML::ClassicScript::create(script_url.basename(), script_content, realm(), m_document->base_url(), m_source_line_number);
 

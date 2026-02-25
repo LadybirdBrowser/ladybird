@@ -5,15 +5,15 @@
  */
 
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
 
 void Agent::spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
-    Platform::EventLoopPlugin::the().spin_until(move(goal_condition));
+    (void)event_loop->spin_until(*goal_condition);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent
