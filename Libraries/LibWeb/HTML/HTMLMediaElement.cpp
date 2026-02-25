@@ -920,7 +920,7 @@ void HTMLMediaElement::select_resource()
                 //    pending play promises and queue a media element task given the media element to run the dedicated media source failure steps with the result.
                 queue_a_media_element_task([this, &ran_media_element_task, error_message = move(error_message)]() mutable {
                     auto promises = take_pending_play_promises();
-                    handle_media_source_failure(promises, move(error_message)).release_value_but_fixme_should_propagate_errors();
+                    handle_media_source_failure(promises, move(error_message));
 
                     ran_media_element_task = true;
                 });
@@ -1155,7 +1155,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
                 fetch_data->offset += media_data.size();
 
                 weak_self->queue_a_media_element_task([self = weak_self.as_nonnull()] {
-                    self->process_media_data(FetchingStatus::Ongoing).release_value_but_fixme_should_propagate_errors();
+                    self->process_media_data(FetchingStatus::Ongoing);
                 });
             });
 
@@ -1171,7 +1171,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
 
                 fetch_data->stream->close();
                 weak_self->queue_a_media_element_task([self = weak_self.as_nonnull()] {
-                    self->process_media_data(FetchingStatus::Complete).release_value_but_fixme_should_propagate_errors();
+                    self->process_media_data(FetchingStatus::Complete);
                 });
             });
 
@@ -1534,7 +1534,7 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
+void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
 {
     // -> Once the entire media resource has been fetched (but potentially before any of it has been decoded)
     if (fetching_status == FetchingStatus::Complete) {
@@ -1554,12 +1554,10 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(FetchingStatus fe
     // FIXME: -> If the media data can be fetched but has non-fatal errors or uses, in part, codecs that are unsupported, preventing the user agent from
     //           rendering the content completely correctly but not preventing playback altogether
     // FIXME: -> If the media resource is found to declare a media-resource-specific text track that the user agent supports
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dedicated-media-source-failure-steps
-WebIDL::ExceptionOr<void> HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message)
+void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message)
 {
     auto& realm = this->realm();
 
@@ -1583,8 +1581,6 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::handle_media_source_failure(Span<GC:
 
     // 7. Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
     m_delaying_the_load_event.clear();
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#forget-the-media-element's-media-resource-specific-tracks
