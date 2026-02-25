@@ -6,22 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
 
-class ImagePaintable final
-    : public PaintableBox
-    , public DOM::ViewportClient {
+class ImagePaintable final : public PaintableBox {
     GC_CELL(ImagePaintable, PaintableBox);
     GC_DECLARE_ALLOCATOR(ImagePaintable);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<ImagePaintable> create(Layout::ImageBox const& layout_box);
     static GC::Ref<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
 
@@ -31,10 +26,6 @@ public:
 private:
     // ^JS::Cell
     virtual void visit_edges(Visitor&) override;
-    virtual void finalize() override;
-
-    // ^Document::ViewportClient
-    virtual void did_set_viewport_rect(CSSPixelRect const&) final;
 
     ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, String alt_text, bool is_svg_image);
 

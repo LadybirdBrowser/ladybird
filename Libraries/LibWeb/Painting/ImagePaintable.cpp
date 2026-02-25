@@ -7,7 +7,6 @@
 
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
@@ -39,22 +38,12 @@ ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvi
     , m_image_provider(image_provider)
     , m_is_svg_image(is_svg_image)
 {
-    const_cast<DOM::Document&>(layout_box.document()).register_viewport_client(*this);
 }
 
 void ImagePaintable::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_image_provider.image_provider_visit_edges(visitor);
-}
-
-void ImagePaintable::finalize()
-{
-    Base::finalize();
-
-    // NOTE: We unregister from the document in finalize() to avoid trouble
-    //       in the scenario where our Document has already been swept by GC.
-    document().unregister_viewport_client(*this);
 }
 
 void ImagePaintable::reset_for_relayout()
@@ -176,11 +165,6 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                 context.display_list_recorder().fill_rect(image_rect_device_pixels.to_type<int>(), selection_background_color);
         }
     }
-}
-
-void ImagePaintable::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
-{
-    const_cast<Layout::ImageProvider&>(m_image_provider).set_visible_in_viewport(viewport_rect.intersects(absolute_rect()));
 }
 
 }

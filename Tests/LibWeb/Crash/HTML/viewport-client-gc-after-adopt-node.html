@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- Test: Create an image in an iframe (which creates an ImagePaintable registered
+     as a ViewportClient with the iframe's document), then adopt the image into the
+     main document. Force the iframe to re-layout so the old ImagePaintable becomes
+     unreachable. When GC runs, the old ImagePaintable's finalize() must not crash
+     trying to unregister from the wrong document. -->
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../Assets/blank.html";
+    iframe.onload = () => {
+        const img = iframe.contentDocument.createElement("img");
+        img.src = new URL("../../Assets/120.png", document.baseURI).href;
+        iframe.contentDocument.body.appendChild(img);
+
+        img.onload = () => {
+            // Force layout so an ImagePaintable is created and registered
+            // as a ViewportClient with the iframe's document.
+            img.offsetWidth;
+
+            // Adopt the image into the main document.
+            document.adoptNode(img);
+            document.body.appendChild(img);
+
+            // Force the iframe's document to re-layout. This rebuilds its
+            // layout/paintable tree without the adopted image, making the
+            // old ImagePaintable unreachable.
+            iframe.contentDocument.body.offsetHeight;
+
+            // Trigger GC to finalize the old ImagePaintable.
+            if (window.internals !== undefined)
+                internals.gc();
+
+            document.documentElement.classList.remove("test-wait");
+        };
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>
