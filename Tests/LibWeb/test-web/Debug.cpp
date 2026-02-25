@@ -44,8 +44,8 @@ ByteBuffer strip_sgr_sequences(StringView input)
 
 static bool stdin_and_stdout_are_ttys()
 {
-    auto stdin_is_tty_or_error = Core::System::isatty(0);
-    auto stdout_is_tty_or_error = Core::System::isatty(1);
+    auto stdin_is_tty_or_error = Core::System::isatty(STDIN_FILENO);
+    auto stdout_is_tty_or_error = Core::System::isatty(STDOUT_FILENO);
 
     return !stdin_is_tty_or_error.is_error() && stdin_is_tty_or_error.value()
         && !stdout_is_tty_or_error.is_error() && stdout_is_tty_or_error.value();
@@ -170,8 +170,8 @@ static ErrorOr<void> run_tool_and_append_output(StringBuilder& builder, StringVi
 
     Vector<Core::ProcessSpawnOptions::FileActionType> file_actions;
     file_actions.append(Core::FileAction::CloseFile { .fd = read_fd });
-    file_actions.append(Core::FileAction::DupFd { .write_fd = write_fd, .fd = 1 });
-    file_actions.append(Core::FileAction::DupFd { .write_fd = write_fd, .fd = 2 });
+    file_actions.append(Core::FileAction::DupFd { .write_fd = write_fd, .fd = STDOUT_FILENO });
+    file_actions.append(Core::FileAction::DupFd { .write_fd = write_fd, .fd = STDERR_FILENO });
     file_actions.append(Core::FileAction::CloseFile { .fd = write_fd });
 
     auto process_or_error = Core::Process::spawn({
