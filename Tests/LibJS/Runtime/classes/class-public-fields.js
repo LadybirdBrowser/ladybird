@@ -155,6 +155,21 @@ test("using 'arguments' via indirect eval throws at runtime instead of parse tim
     }).toThrowWithMessage(ReferenceError, "'arguments' is not defined");
 });
 
+test("regex field initializer", () => {
+    class A {
+        pattern = /hello/;
+        flags = /world/gi;
+        static s_pattern = /static/m;
+    }
+
+    const a = new A();
+    expect(a.pattern).toBeInstanceOf(RegExp);
+    expect(a.pattern.source).toBe("hello");
+    expect(a.flags.flags).toBe("gi");
+    expect(A.s_pattern.source).toBe("static");
+    expect(A.s_pattern.flags).toBe("m");
+});
+
 describe("class fields with a 'special' name", () => {
     test("static", () => {
         class A {

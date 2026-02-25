@@ -656,7 +656,7 @@ impl<'a> Parser<'a> {
             ExpressionKind::RegExpLiteral(RegExpLiteralData {
                 pattern: pattern.into(),
                 flags: flags.into(),
-                compiled_regex: CompiledRegex::new(compiled_regex),
+                compiled_regex: Rc::new(CompiledRegex::new(compiled_regex)),
             }),
         )
     }

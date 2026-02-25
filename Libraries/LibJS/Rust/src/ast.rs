@@ -1042,12 +1042,11 @@ unsafe extern "C" {
     fn rust_free_compiled_regex(ptr: *mut c_void);
 }
 
-/// Unique handle to a compiled regex from C++.
+/// Handle to a compiled regex from C++.
 ///
-/// The FFI handle has unique ownership semantics: it must be consumed
-/// exactly once via `take()`. `Clone` panics to prevent accidental
-/// sharing (the derive on `ExpressionKind` requires the trait to exist).
-/// `Drop` frees the handle if it was never taken (e.g. on parse error).
+/// Wrapped in `Rc` in `RegExpLiteralData` so that AST clones (e.g. for
+/// class field initializers) share the handle cheaply. The first codegen
+/// path to call `take()` gets the handle; `Drop` frees it if untaken.
 pub struct CompiledRegex(Cell<*mut c_void>);
 
 impl CompiledRegex {
@@ -1059,12 +1058,6 @@ impl CompiledRegex {
     /// so the destructor won't free it.
     pub fn take(&self) -> *mut c_void {
         self.0.replace(std::ptr::null_mut())
-    }
-}
-
-impl Clone for CompiledRegex {
-    fn clone(&self) -> Self {
-        panic!("CompiledRegex cannot be cloned: FFI handle has unique ownership");
     }
 }
 
@@ -1087,7 +1080,7 @@ impl fmt::Debug for CompiledRegex {
 pub struct RegExpLiteralData {
     pub pattern: Utf16String,
     pub flags: Utf16String,
-    pub compiled_regex: CompiledRegex,
+    pub compiled_regex: Rc<CompiledRegex>,
 }
 
 // =============================================================================
