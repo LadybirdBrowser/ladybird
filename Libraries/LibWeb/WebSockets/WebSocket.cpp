@@ -221,30 +221,18 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     m_websocket = request_client->websocket_connect(url_record, origin_string, protocol_byte_strings, {}, additional_headers);
 
-    m_websocket->on_open = [weak_this = GC::Weak { *this }] {
-        if (!weak_this)
-            return;
-        auto& websocket = const_cast<WebSocket&>(*weak_this);
-        websocket.on_open();
-    };
-    m_websocket->on_message = [weak_this = GC::Weak { *this }](auto message) {
-        if (!weak_this)
-            return;
-        auto& websocket = const_cast<WebSocket&>(*weak_this);
-        websocket.on_message(move(message.data), message.is_text);
-    };
-    m_websocket->on_close = [weak_this = GC::Weak { *this }](auto code, auto reason, bool was_clean) {
-        if (!weak_this)
-            return;
-        auto& websocket = const_cast<WebSocket&>(*weak_this);
-        websocket.on_close(code, String::from_byte_string(reason).release_value_but_fixme_should_propagate_errors(), was_clean);
-    };
-    m_websocket->on_error = [weak_this = GC::Weak { *this }](auto) {
-        if (!weak_this)
-            return;
-        auto& websocket = const_cast<WebSocket&>(*weak_this);
-        websocket.on_error();
-    };
+    m_websocket->on_open = GC::weak_callback(*this, [](auto& self) {
+        self.on_open();
+    });
+    m_websocket->on_message = GC::weak_callback(*this, [](auto& self, auto message) {
+        self.on_message(move(message.data), message.is_text);
+    });
+    m_websocket->on_close = GC::weak_callback(*this, [](auto& self, auto code, auto reason, bool was_clean) {
+        self.on_close(code, String::from_byte_string(reason).release_value_but_fixme_should_propagate_errors(), was_clean);
+    });
+    m_websocket->on_error = GC::weak_callback(*this, [](auto& self, auto) {
+        self.on_error();
+    });
 
     return {};
 }

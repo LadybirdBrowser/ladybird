@@ -1010,11 +1010,9 @@ void HTMLMediaElement::fetch_resource(URL::URL const& url_record, Function<void(
     auto fetch_data = make_ref_counted<FetchData>();
     fetch_data->url_record = url_record;
     fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
-    fetch_data->stream->set_data_request_callback([self = GC::Weak(*this), &fetch_data = *fetch_data](u64 offset) {
-        if (!self)
-            return;
-        self->restart_fetch_at_offset(fetch_data, offset);
-    });
+    fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [&fetch_data = *fetch_data](auto& self, u64 offset) {
+        self.restart_fetch_at_offset(fetch_data, offset);
+    }));
     fetch_data->failure_callback = [&stream = *fetch_data->stream, failure_callback = move(failure_callback)](String error_message) {
         // Ensure that we unblock any reads if we stop the fetch due to some failure.
         stream.close();
@@ -1431,10 +1429,9 @@ void HTMLMediaElement::on_metadata_parsed()
 
     // NB: Register the duration change handler here so that we don't set the duration when the
     //     playback manager updates the duration after parsing.
-    m_playback_manager->on_duration_change = [weak_self = GC::Weak(*this)](AK::Duration duration) {
-        if (weak_self)
-            weak_self->set_duration(duration.to_seconds_f64());
-    };
+    m_playback_manager->on_duration_change = GC::weak_callback(*this, [](auto& self, AK::Duration duration) {
+        self.set_duration(duration.to_seconds_f64());
+    });
 
     // 5. For video elements, set the videoWidth and videoHeight attributes, and queue a media element task given the media element to fire an event
     //    named resize at the media element.
@@ -1509,41 +1506,32 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
 
     // -> If the media resource is found to have an audio track
     // -> If the media resource is found to have a video track
-    m_playback_manager->on_track_added = [weak_self = GC::Weak(*this)](auto track_type, auto& track) {
-        if (!weak_self)
-            return;
-        if (track_type == Media::TrackType::Audio) {
-            weak_self->on_audio_track_added(track);
-        } else {
-            weak_self->on_video_track_added(track);
-        }
-    };
+    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto track_type, auto& track) {
+        if (track_type == Media::TrackType::Audio)
+            self.on_audio_track_added(track);
+        else
+            self.on_video_track_added(track);
+    });
 
     // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
-    m_playback_manager->on_metadata_parsed = [weak_self = GC::Weak(*this)] {
-        if (!weak_self)
-            return;
-        weak_self->on_metadata_parsed();
-    };
+    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [](auto& self) {
+        self.on_metadata_parsed();
+    });
 
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    m_playback_manager->on_unsupported_format_error = [weak_self = GC::Weak(*this), fetch_data](auto&& error) mutable {
-        if (!weak_self)
-            return;
-
+    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [fetch_data](auto& self, auto&& error) {
         // 1. The user agent should cancel the fetching process.
-        weak_self->cancel_the_fetching_process();
+        self.cancel_the_fetching_process();
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
         fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
-    };
+    });
 
     m_playback_manager->add_media_source(*fetch_data->stream);
 
-    m_playback_manager->on_playback_state_change = [weak_self = GC::Weak(*this)] {
-        if (weak_self)
-            weak_self->on_playback_manager_state_change();
-    };
+    m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
+        self.on_playback_manager_state_change();
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list

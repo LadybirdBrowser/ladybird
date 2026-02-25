@@ -33,10 +33,9 @@ GC_DEFINE_ALLOCATOR(HTMLTextAreaElement);
 
 HTMLTextAreaElement::HTMLTextAreaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
-    , m_input_event_timer(Core::Timer::create_single_shot(0, [weak_this = GC::Weak { *this }]() {
-        if (weak_this)
-            weak_this->queue_firing_input_event();
-    }))
+    , m_input_event_timer(Core::Timer::create_single_shot(0, GC::weak_callback(*this, [](auto& self) {
+        self.queue_firing_input_event();
+    })))
 {
 }
 
