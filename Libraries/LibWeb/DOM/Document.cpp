@@ -1372,6 +1372,11 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
             break;
     }
 
+    // Pre-populate the viewport for position:fixed elements inside <foreignObject>.
+    auto& viewport = svg_root.root();
+    if (auto const* paintable = viewport.paintable_box())
+        layout_state.populate_from_paintable(viewport, *paintable);
+
     auto const& svg_state = layout_state.get(svg_root);
     auto content_width = svg_state.content_width();
     auto content_height = svg_state.content_height();

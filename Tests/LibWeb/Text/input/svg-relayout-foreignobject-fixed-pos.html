@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<svg width="200" height="200">
+    <path id="p" d="M 10 10 L 50 50" fill="none" stroke="black"/>
+    <foreignObject x="0" y="0" width="200" height="200">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="position: fixed; top: 0; left: 0;">Hello</div>
+    </foreignObject>
+</svg>
+<script>
+    asyncTest(async (done) => {
+        // Force initial layout to complete.
+        document.body.offsetHeight;
+
+        // Trigger SVG-only relayout by changing path data.
+        // This calls set_needs_layout_update() directly, which marks the SVG root
+        // for relayout without causing a full layout tree rebuild.
+        document.getElementById("p").setAttribute("d", "M 10 10 L 100 100");
+
+        // Force layout update. This should take the SVG relayout path because:
+        // 1. No layout tree rebuild is needed
+        // 2. The SVG root is marked for relayout
+        // 3. The viewport doesn't need layout update
+        //
+        // During SVG relayout, the BFC for foreignObject will process the
+        // position:fixed div. ensure_used_values_for() will try to access the
+        // containing block (viewport) which is outside the SVG subtree.
+        document.body.offsetHeight;
+
+        println("PASS");
+        done();
+    });
+</script>
