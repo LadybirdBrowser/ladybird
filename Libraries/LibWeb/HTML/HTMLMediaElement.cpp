@@ -1534,18 +1534,23 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
 {
+    auto& realm = this->realm();
+
     // -> Once the entire media resource has been fetched (but potentially before any of it has been decoded)
     if (fetching_status == FetchingStatus::Complete) {
         // Fire an event named progress at the media element.
-        dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::progress));
+        dispatch_event(DOM::Event::create(realm, HTML::EventNames::progress));
 
         // Set the networkState to NETWORK_IDLE and fire an event named suspend at the media element.
         m_network_state = NetworkState::Idle;
-        dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::suspend));
+        dispatch_event(DOM::Event::create(realm, HTML::EventNames::suspend));
+    } else if (fetching_status == FetchingStatus::Ongoing) {
+        // If the user agent ever discards any media data and then needs to resume the network activity to obtain it again, then it must queue a media
+        // element task given the media element to set the networkState to NETWORK_LOADING.
+        queue_a_media_element_task(GC::weak_callback(*this, [](auto& self) {
+            self.m_network_state = NetworkState::Loading;
+        }));
     }
-
-    // FIXME: If the user agent ever discards any media data and then needs to resume the network activity to obtain it again, then it must queue a media
-    //        element task given the media element to set the networkState to NETWORK_LOADING.
 
     // FIXME: -> If the connection is interrupted after some media data has been received, causing the user agent to give up trying to fetch the resource
     // FIXME: -> If the media data fetching process is aborted by the user
