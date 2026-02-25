@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Property dominant-baseline value 'auto'
+Pass	Property dominant-baseline value 'text-bottom'
+Pass	Property dominant-baseline value 'alphabetic'
+Pass	Property dominant-baseline value 'ideographic'
+Pass	Property dominant-baseline value 'middle'
+Pass	Property dominant-baseline value 'central'
+Pass	Property dominant-baseline value 'mathematical'
+Pass	Property dominant-baseline value 'hanging'
+Pass	Property dominant-baseline value 'text-top'

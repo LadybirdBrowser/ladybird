@@ -1820,6 +1820,18 @@
       "display-legacy"
     ]
   },
+  "dominant-baseline": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "baseline-metric"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
   "empty-cells": {
     "animation-type": "discrete",
     "inherited": true,

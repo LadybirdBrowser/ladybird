@@ -15,6 +15,7 @@
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
+#include <LibWeb/Layout/DominantBaseline.h>
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
@@ -380,6 +381,9 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
     default:
         VERIFY_NOT_REACHED();
     }
+
+    auto baseline_metric = resolve_dominant_baseline_metric(text_box.computed_values());
+    text_offset.translate_by(0, dominant_baseline_offset(baseline_metric, font.pixel_metrics()));
 
     Gfx::Path path;
     path.move_to(text_offset);

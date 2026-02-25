@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: parsing dominant-baseline with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#dominant-baseline-property">
+<meta name="assert" content="dominant-baseline supports the full grammar 'auto | text-bottom | alphabetic | ideographic | middle | central | mathematical | hanging | text-top'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("dominant-baseline", "auto");
+test_valid_value("dominant-baseline", "text-bottom");
+test_valid_value("dominant-baseline", "alphabetic");
+test_valid_value("dominant-baseline", "ideographic");
+test_valid_value("dominant-baseline", "middle");
+test_valid_value("dominant-baseline", "central");
+test_valid_value("dominant-baseline", "mathematical");
+test_valid_value("dominant-baseline", "hanging");
+test_valid_value("dominant-baseline", "text-top");
+</script>
+</body>
+</html>

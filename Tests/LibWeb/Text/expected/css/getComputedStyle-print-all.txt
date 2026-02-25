@@ -10,6 +10,7 @@ color-interpolation: srgb
 color-scheme: normal
 cursor: auto
 direction: ltr
+dominant-baseline: auto
 empty-cells: show
 fill: rgb(0, 0, 0)
 fill-opacity: 1
@@ -102,7 +103,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1560px
+block-size: 1575px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -188,7 +189,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2850px
+height: 2865px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

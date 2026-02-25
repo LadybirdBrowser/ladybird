@@ -127,6 +127,16 @@
     "padding-box",
     "text"
   ],
+  "baseline-metric": [
+    "text-bottom",
+    "alphabetic",
+    "ideographic",
+    "middle",
+    "central",
+    "mathematical",
+    "hanging",
+    "text-top"
+  ],
   "border-collapse": [
     "separate",
     "collapse"

@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 58 tests
+Found 59 tests
 
-57 Pass
+58 Pass
 1 Fail
 Pass	clip-path presentation attribute supported on a relevant element
 Pass	clip-rule presentation attribute supported on a relevant element
@@ -13,6 +13,7 @@ Pass	cx presentation attribute supported on a relevant element
 Pass	cy presentation attribute supported on a relevant element
 Pass	direction presentation attribute supported on a relevant element
 Pass	display presentation attribute supported on a relevant element
+Pass	dominant-baseline presentation attribute supported on a relevant element
 Pass	fill presentation attribute supported on a relevant element
 Pass	fill-opacity presentation attribute supported on a relevant element
 Pass	fill-rule presentation attribute supported on a relevant element

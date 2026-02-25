@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['dominant-baseline'] = "normal" should not set the property value
+Pass	e.style['dominant-baseline'] = "none" should not set the property value
+Pass	e.style['dominant-baseline'] = "alphabetic, ideographic" should not set the property value
+Pass	e.style['dominant-baseline'] = "middle central" should not set the property value

@@ -71,6 +71,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::Cy, { SVG::TagNames::circle, SVG::TagNames::ellipse }),
         NamedPropertyID(CSS::PropertyID::Direction),
         NamedPropertyID(CSS::PropertyID::Display),
+        NamedPropertyID(CSS::PropertyID::DominantBaseline),
         NamedPropertyID(CSS::PropertyID::FillOpacity),
         NamedPropertyID(CSS::PropertyID::FillRule),
         NamedPropertyID(CSS::PropertyID::Filter),

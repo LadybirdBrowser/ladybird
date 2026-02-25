@@ -893,6 +893,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_stop_opacity(computed_style.stop_opacity());
 
     computed_values.set_text_anchor(computed_style.text_anchor());
+    computed_values.set_dominant_baseline(computed_style.dominant_baseline());
 
     // FIXME: Support calc()
     if (auto const& column_count = computed_style.property(CSS::PropertyID::ColumnCount); column_count.is_integer())

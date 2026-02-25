@@ -260,6 +260,7 @@ public:
     static TransformBox transform_box() { return TransformBox::ViewBox; }
     static TransformStyle transform_style() { return TransformStyle::Flat; }
     static Direction direction() { return Direction::Ltr; }
+    static Optional<BaselineMetric> dominant_baseline() { return {}; }
     static UnicodeBidi unicode_bidi() { return UnicodeBidi::Normal; }
     static WritingMode writing_mode() { return WritingMode::HorizontalTb; }
     static UserSelect user_select() { return UserSelect::Auto; }
@@ -594,6 +595,7 @@ public:
     ObjectFit object_fit() const { return m_noninherited.object_fit; }
     Position object_position() const { return m_noninherited.object_position; }
     Direction direction() const { return m_inherited.direction; }
+    Optional<BaselineMetric> dominant_baseline() const { return m_inherited.dominant_baseline; }
     UnicodeBidi unicode_bidi() const { return m_noninherited.unicode_bidi; }
     WritingMode writing_mode() const { return m_inherited.writing_mode; }
     UserSelect user_select() const { return m_noninherited.user_select; }
@@ -749,6 +751,7 @@ protected:
         ListStyleType list_style_type { InitialValues::list_style_type() };
         QuotesData quotes { InitialValues::quotes() };
         Direction direction { InitialValues::direction() };
+        Optional<BaselineMetric> dominant_baseline { InitialValues::dominant_baseline() };
         WritingMode writing_mode { InitialValues::writing_mode() };
         FillRule fill_rule { InitialValues::fill_rule() };
         StrokeLinecap stroke_linecap { InitialValues::stroke_linecap() };
@@ -1078,6 +1081,7 @@ public:
     void set_object_fit(ObjectFit value) { m_noninherited.object_fit = value; }
     void set_object_position(Position value) { m_noninherited.object_position = move(value); }
     void set_direction(Direction value) { m_inherited.direction = value; }
+    void set_dominant_baseline(Optional<BaselineMetric> value) { m_inherited.dominant_baseline = value; }
     void set_unicode_bidi(UnicodeBidi value) { m_noninherited.unicode_bidi = value; }
     void set_writing_mode(WritingMode value) { m_inherited.writing_mode = value; }
     void set_user_select(UserSelect value) { m_noninherited.user_select = value; }

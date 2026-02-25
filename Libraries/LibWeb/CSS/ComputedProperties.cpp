@@ -971,6 +971,12 @@ TextAnchor ComputedProperties::text_anchor() const
     return keyword_to_text_anchor(value.to_keyword()).release_value();
 }
 
+Optional<BaselineMetric> ComputedProperties::dominant_baseline() const
+{
+    auto const& value = property(PropertyID::DominantBaseline);
+    return keyword_to_baseline_metric(value.to_keyword());
+}
+
 TextAlign ComputedProperties::text_align() const
 {
     auto const& value = property(PropertyID::TextAlign);

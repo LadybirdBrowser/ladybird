@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: getComputedStyle().dominantBaseline</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#dominant-baseline-property">
+<meta name="assert" content="dominant-baseline computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("dominant-baseline", "auto");
+test_computed_value("dominant-baseline", "text-bottom");
+test_computed_value("dominant-baseline", "alphabetic");
+test_computed_value("dominant-baseline", "ideographic");
+test_computed_value("dominant-baseline", "middle");
+test_computed_value("dominant-baseline", "central");
+test_computed_value("dominant-baseline", "mathematical");
+test_computed_value("dominant-baseline", "hanging");
+test_computed_value("dominant-baseline", "text-top");
+</script>
+</body>
+</html>

@@ -95,6 +95,7 @@ public:
     ColorInterpolation color_interpolation() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
     TextAnchor text_anchor() const;
+    Optional<BaselineMetric> dominant_baseline() const;
     TextAlign text_align() const;
     TextJustify text_justify() const;
     TextOverflow text_overflow() const;

@@ -443,6 +443,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'cy': '0px'
 'direction': 'ltr'
 'display': 'block'
+'dominantBaseline': 'auto'
+'dominant-baseline': 'auto'
 'emptyCells': 'show'
 'empty-cells': 'show'
 'fill': 'rgb(0, 0, 0)'
