@@ -731,15 +731,18 @@ private:
         // 9. Failed with elements: Queue a media element task given the media element to fire an event named error at candidate.
         m_media_element->queue_a_media_element_task([this]() {
             m_candidate->dispatch_event(DOM::Event::create(m_candidate->realm(), HTML::EventNames::error));
+
+            // 10. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm until
+            //     the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
+            // FIXME: Also run the next steps within this task, instead of waiting for a stable state.
+            //        This seems to match the intent in https://github.com/whatwg/html/issues/2882#issuecomment-1108531815.
+            //        Update this if the spec is clarified in regard to this step.
+
+            // 11. ⌛ Forget the media element's media-resource-specific tracks.
+            m_media_element->forget_media_resource_specific_tracks();
+
+            find_next_candidate(m_candidate).release_value_but_fixme_should_propagate_errors();
         });
-
-        // FIXME: 10. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm until
-        //            the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
-
-        // 11. ⌛ Forget the media element's media-resource-specific tracks.
-        m_media_element->forget_media_resource_specific_tracks();
-
-        TRY(find_next_candidate(m_candidate));
         return {};
     }
 
