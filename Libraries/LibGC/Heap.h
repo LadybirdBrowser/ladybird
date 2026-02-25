@@ -81,6 +81,8 @@ public:
 
     void enqueue_post_gc_task(AK::Function<void()>);
 
+    void dump_leaked_roots();
+
     WeakImpl* create_weak_impl(void*);
 
 private:

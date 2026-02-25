@@ -230,7 +230,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             dbgln("Failed to reinitialize image decoder: {}", result.error());
     };
 
-    return event_loop.exec();
+    auto result = event_loop.exec();
+
+    GC::Heap::the().dump_leaked_roots();
+
+    return result;
 }
 
 static ErrorOr<void> load_content_filters(StringView config_path)

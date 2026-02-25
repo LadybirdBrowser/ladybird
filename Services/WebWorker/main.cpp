@@ -100,7 +100,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>());
 
-    return event_loop.exec();
+    auto result = event_loop.exec();
+
+    GC::Heap::the().dump_leaked_roots();
+
+    return result;
 }
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket)

@@ -56,7 +56,10 @@ void HeapBlock::deallocate(Cell* cell)
     // We can't poision the cell tracking data, nor the FreeListEntry's vtable or next pointer
     // This means there's sizeof(FreelistEntry) data at the front of each cell that is always read/write
     // On x86_64, this ends up being 24 bytes due to the size of the FreeListEntry's vtable, while on x86, it's only 12 bytes.
-    ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(dword_after_freelist), m_cell_size - sizeof(FreelistEntry));
+    auto bytes_after_freelist = m_cell_size - (dword_after_freelist - reinterpret_cast<uintptr_t>(freelist_entry));
+    // Zero the memory after the FreelistEntry so that LSan doesn't find stale pointers in dead cells.
+    memset(reinterpret_cast<void*>(dword_after_freelist), 0, bytes_after_freelist);
+    ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(dword_after_freelist), bytes_after_freelist);
 #endif
 }
 

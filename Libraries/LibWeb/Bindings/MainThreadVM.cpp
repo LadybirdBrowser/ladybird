@@ -53,6 +53,10 @@
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
+#ifdef HAS_ADDRESS_SANITIZER
+#    include <sanitizer/lsan_interface.h>
+#endif
+
 namespace Web::Bindings {
 
 static RefPtr<JS::VM> s_main_thread_vm;
@@ -107,6 +111,9 @@ void initialize_main_thread_vm(AgentType type)
     // NOTE: We intentionally leak the main thread JavaScript VM.
     //       This avoids doing an exhaustive garbage collection on process exit.
     s_main_thread_vm->ref();
+#ifdef HAS_ADDRESS_SANITIZER
+    __lsan_ignore_object(s_main_thread_vm.ptr());
+#endif
 
     // 8.1.6.1 HostEnsureCanAddPrivateElement(O), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostensurecanaddprivateelement-implementation
     s_main_thread_vm->host_ensure_can_add_private_element = [](JS::Object const& object) -> JS::ThrowCompletionOr<void> {

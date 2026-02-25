@@ -39,6 +39,7 @@ Heap& Heap::the()
 Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots)
     : m_gather_embedder_roots(move(gather_embedder_roots))
 {
+    VERIFY(!s_the);
     s_the = this;
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
@@ -53,6 +54,16 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
 Heap::~Heap()
 {
     collect_garbage(CollectionType::CollectEverything);
+    s_the = nullptr;
+}
+
+void Heap::dump_leaked_roots()
+{
+    if (!m_roots.is_empty()) {
+        dbgln("GC::Heap: {} root handle(s) still alive:", m_roots.size_slow());
+        for (auto& root : m_roots)
+            dbgln("  - {} @ {}", root.cell()->class_name(), root.source_location());
+    }
 }
 
 void Heap::will_allocate(size_t size)
