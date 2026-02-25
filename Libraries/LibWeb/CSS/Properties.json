@@ -1829,6 +1829,17 @@
       "empty-cells"
     ]
   },
+  "field-sizing": {
+    "affects-layout": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "fixed",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "fixed", 
+      "content"
+    ]
+  },
   "fill": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
