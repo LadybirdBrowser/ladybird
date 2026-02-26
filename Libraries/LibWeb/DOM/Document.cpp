@@ -7903,6 +7903,34 @@ void Document::build_counter_style_cache()
                 extended_cjk_range,
                 "cjk-decimal"_fly_string,
                 {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#japanese-informal
+        // japanese-informal
+        counter_style_definitions.set(
+            "japanese-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "japanese-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal } },
+                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#japanese-formal
+        // japanese-formal
+        counter_style_definitions.set(
+            "japanese-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "japanese-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal } },
+                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
     };
 
     CSS::ComputationContext computation_context {

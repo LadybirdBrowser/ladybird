@@ -124,14 +124,21 @@ static String generate_an_initial_representation_for_extended_cjk_system(i64 val
             if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal, ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal))
                 should_drop_digit |= group_value >= 10 && group_value < 20 && digit_index == 1;
 
-            // FIXME: - For the Japanese informal and Korean informal styles, if any of the digit markers are preceded
-            //          by the digit 1, and that digit is not the first digit of the group, remove the digit (leave the
-            //          digit marker).
+            //  - For the Japanese informal and Korean informal styles, if any of the digit markers are preceded
+            //   by the digit 1, and that digit is not the first digit of the group, remove the digit (leave the
+            //    digit marker).
+            // FIXME: Support Korean
+            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal))
+                should_drop_digit |= digit_value == 1 && digit_index != 0;
+
             // FIXME: - For Korean informal styles, if the value of the ten-thousands group is 1, drop the digit (leave
             //          the digit marker).
 
             // 7. Drop zeros:
-            // FIXME: - For the Japanese and Korean styles, drop all zero digits.
+            //  - For the Japanese and Korean styles, drop all zero digits.
+            // FIXME: Support Korean styles
+            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal))
+                should_drop_digit |= digit_value == 0;
 
             //  - For the Chinese styles, drop any trailing zeros for all non-zero groups and collapse (across groups)
             //    each remaining consecutive group of zeros into a single zero digit.
@@ -459,6 +466,39 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
                     ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal,
                     { "\U000096F6"_fly_string, "\U000058F9"_fly_string, "\U00008CB3"_fly_string, "\U000053C3"_fly_string, "\U00008086"_fly_string, "\U00004F0D"_fly_string, "\U00009678"_fly_string, "\U000067D2"_fly_string, "\U0000634C"_fly_string, "\U00007396"_fly_string },
                     { "\U000062FE"_fly_string, "\U00004F70"_fly_string, "\U00004EDF"_fly_string },
+                    { "\U0000842C"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
+
+            // Values              | Codepoints
+            //                     | japanese-informal | japanese-formal
+            // Digit 0             | 〇 U+3007         | 零 U+96F6
+            // Digit 1             | 一 U+4E00         | 壱 U+58F1
+            // Digit 2             | 二 U+4E8C         | 弐 U+5F10
+            // Digit 3             | 三 U+4E09         | 参 U+53C2
+            // Digit 4             | 四 U+56DB         | 四 U+56DB
+            // Digit 5             | 五 U+4E94         | 伍 U+4f0D
+            // Digit 6             | 六 U+516D         | 六 U+516D
+            // Digit 7             | 七 U+4E03         | 七 U+4E03
+            // Digit 8             | 八 U+516B         | 八 U+516B
+            // Digit 9             | 九 U+4E5D         | 九 U+4E5D
+            // Second Digit Marker | 十 U+5341         | 拾 U+62FE
+            // Third Digit Marker  | 百 U+767E         | 百 U+767E
+            // Fourth Digit Marker | 千 U+5343         | 阡 U+9621
+            // Second Group Marker | 万 U+4E07         | 萬 U+842C
+            // Third Group Marker  | 億 U+5104         | 億 U+5104
+            // Fourth Group Marker | 兆 U+5146         | 兆 U+5146
+            case ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal,
+                    { "\U00003007"_fly_string, "\U00004E00"_fly_string, "\U00004E8C"_fly_string, "\U00004E09"_fly_string, "\U000056DB"_fly_string, "\U00004E94"_fly_string, "\U0000516D"_fly_string, "\U00004E03"_fly_string, "\U0000516B"_fly_string, "\U00004E5D"_fly_string },
+                    { "\U00005341"_fly_string, "\U0000767E"_fly_string, "\U00005343"_fly_string },
+                    { "\U00004E07"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
+            case ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal,
+                    { "\U000096F6"_fly_string, "\U000058F1"_fly_string, "\U00005F10"_fly_string, "\U000053C2"_fly_string, "\U000056DB"_fly_string, "\U00004F0D"_fly_string, "\U0000516D"_fly_string, "\U00004E03"_fly_string, "\U0000516B"_fly_string, "\U00004E5D"_fly_string },
+                    { "\U000062FE"_fly_string, "\U0000767E"_fly_string, "\U00009621"_fly_string },
                     { "\U0000842C"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
             }
 
