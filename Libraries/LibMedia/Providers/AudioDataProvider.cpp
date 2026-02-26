@@ -213,8 +213,7 @@ bool AudioDataProvider::ThreadData::handle_suspension()
         if (result.is_error()) {
             m_is_in_error_state = true;
             invoke_on_main_thread_while_locked([error = result.release_error()](auto const& self) mutable {
-                if (self->m_error_handler)
-                    self->m_error_handler(move(error));
+                self->dispatch_error(move(error));
             });
         }
     }
@@ -267,6 +266,14 @@ void AudioDataProvider::ThreadData::queue_block(AudioBlock&& block)
     dispatch_block_end_time(block);
     m_queue.enqueue(move(block));
     VERIFY(!m_queue.tail().is_empty());
+}
+
+void AudioDataProvider::ThreadData::dispatch_error(DecoderError&& error)
+{
+    if (error.category() == DecoderErrorCategory::Aborted)
+        return;
+    if (m_error_handler)
+        m_error_handler(move(error));
 }
 
 void AudioDataProvider::ThreadData::flush_decoder()
@@ -325,8 +332,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
             m_queue.clear();
             process_seek_on_main_thread(seek_id,
                 [error = move(error)](auto& self) mutable {
-                    if (self->m_error_handler)
-                        self->m_error_handler(move(error));
+                    self->dispatch_error(move(error));
                     self->m_seek_completion_handler = nullptr;
                 });
         }
@@ -425,8 +431,7 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
             auto locker = take_lock();
             m_is_in_error_state = true;
             invoke_on_main_thread_while_locked([error = move(error)](auto const& self) mutable {
-                if (self->m_error_handler)
-                    self->m_error_handler(move(error));
+                self->dispatch_error(move(error));
             });
         }
 

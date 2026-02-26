@@ -88,6 +88,7 @@ private:
         void invoke_on_main_thread(Invokee);
         void dispatch_frame_end_time(CodedFrame const&);
         void queue_frame(NonnullOwnPtr<VideoFrame> const&);
+        void dispatch_error(DecoderError&&);
         bool handle_seek();
         template<typename Callback>
         void process_seek_on_main_thread(u32 seek_id, Callback);
