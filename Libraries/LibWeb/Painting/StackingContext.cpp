@@ -396,7 +396,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
             auto const& scroll_state = paintable_box().document().paintable()->scroll_state_snapshot();
             Optional<CSSPixelPoint> local_position;
             if (auto state = paintable_box().accumulated_visual_context()) {
-                auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+                auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
                 if (result.has_value())
                     local_position = (*result / pixel_ratio).to_type<CSSPixels>();
             } else {
@@ -447,7 +447,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     auto const& scroll_state = paintable_box().document().paintable()->scroll_state_snapshot();
     Optional<CSSPixelPoint> local_position;
     if (auto state = paintable_box().accumulated_visual_context()) {
-        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
         if (result.has_value())
             local_position = (*result / pixel_ratio).to_type<CSSPixels>();
     } else {

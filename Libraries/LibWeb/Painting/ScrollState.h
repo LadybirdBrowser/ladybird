@@ -15,17 +15,14 @@ class ScrollStateSnapshot {
 public:
     static ScrollStateSnapshot create(Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames, double device_pixels_per_css_pixel);
 
-    ReadonlySpan<Gfx::FloatPoint> device_offsets() const { return m_device_offsets; }
-
-    CSSPixelPoint css_offset_for_frame_with_id(size_t id) const
+    Gfx::FloatPoint device_offset_for_frame_with_id(size_t id) const
     {
-        if (id >= m_css_offsets.size())
+        if (id >= m_device_offsets.size())
             return {};
-        return m_css_offsets[id];
+        return m_device_offsets[id];
     }
 
 private:
-    Vector<CSSPixelPoint> m_css_offsets;
     Vector<Gfx::FloatPoint> m_device_offsets;
 };
 

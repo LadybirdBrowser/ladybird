@@ -97,12 +97,9 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             },
             [&](ScrollData const& scroll) {
                 save({});
-                auto const& offsets = scroll_state.device_offsets();
-                if (scroll.scroll_frame_id < offsets.size()) {
-                    auto const& offset = offsets[scroll.scroll_frame_id];
-                    if (!offset.is_zero())
-                        translate({ .delta = offset.to_type<int>() });
-                }
+                auto offset = scroll_state.device_offset_for_frame_with_id(scroll.scroll_frame_id);
+                if (!offset.is_zero())
+                    translate({ .delta = offset.to_type<int>() });
             },
             [&](TransformData const& transform) {
                 save({});
@@ -167,14 +164,11 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         if (command.has<PaintScrollBar>()) {
             auto translated_command = command;
             auto& paint_scroll_bar = translated_command.get<PaintScrollBar>();
-            auto const& offsets = scroll_state.device_offsets();
-            if (paint_scroll_bar.scroll_frame_id < static_cast<int>(offsets.size())) {
-                auto const& device_offset = offsets[paint_scroll_bar.scroll_frame_id];
-                if (paint_scroll_bar.vertical)
-                    paint_scroll_bar.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * paint_scroll_bar.scroll_size));
-                else
-                    paint_scroll_bar.thumb_rect.translate_by(static_cast<int>(-device_offset.x() * paint_scroll_bar.scroll_size), 0);
-            }
+            auto device_offset = scroll_state.device_offset_for_frame_with_id(paint_scroll_bar.scroll_frame_id);
+            if (paint_scroll_bar.vertical)
+                paint_scroll_bar.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * paint_scroll_bar.scroll_size));
+            else
+                paint_scroll_bar.thumb_rect.translate_by(static_cast<int>(-device_offset.x() * paint_scroll_bar.scroll_size), 0);
             paint_scrollbar(paint_scroll_bar);
             continue;
         }

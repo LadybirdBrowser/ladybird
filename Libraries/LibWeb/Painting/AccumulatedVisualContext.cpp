@@ -8,6 +8,7 @@
 #include <AK/StringBuilder.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
@@ -21,7 +22,7 @@ bool ClipData::contains(DevicePixelPoint point) const
     return corner_radii.contains(point.to_type<int>(), rect.to_type<int>());
 }
 
-Optional<Gfx::FloatPoint> AccumulatedVisualContext::transform_point_for_hit_test(Gfx::FloatPoint screen_point, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const
+Optional<Gfx::FloatPoint> AccumulatedVisualContext::transform_point_for_hit_test(Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
 {
     Vector<AccumulatedVisualContext const*, 8> chain;
     chain.ensure_capacity(m_depth);
@@ -42,8 +43,7 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContext::transform_point_for_hit_test
                 return point;
             },
             [&](ScrollData const& scroll) -> Optional<Gfx::FloatPoint> {
-                if (scroll.scroll_frame_id < scroll_offsets.size())
-                    point.translate_by(-scroll_offsets[scroll.scroll_frame_id]);
+                point.translate_by(-scroll_state.device_offset_for_frame_with_id(scroll.scroll_frame_id));
                 return point;
             },
             [&](TransformData const& transform) -> Optional<Gfx::FloatPoint> {
@@ -118,7 +118,7 @@ Gfx::FloatPoint AccumulatedVisualContext::inverse_transform_point(Gfx::FloatPoin
     return point;
 }
 
-Gfx::FloatRect AccumulatedVisualContext::transform_rect_to_viewport(Gfx::FloatRect const& source_rect, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const
+Gfx::FloatRect AccumulatedVisualContext::transform_rect_to_viewport(Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
 {
     auto rect = source_rect;
     for (auto const* node = this; node; node = node->parent().ptr()) {
@@ -134,8 +134,7 @@ Gfx::FloatRect AccumulatedVisualContext::transform_rect_to_viewport(Gfx::FloatRe
                 rect = affine.map(rect);
             },
             [&](ScrollData const& scroll) {
-                if (scroll.scroll_frame_id < scroll_offsets.size())
-                    rect.translate_by(scroll_offsets[scroll.scroll_frame_id]);
+                rect.translate_by(scroll_state.device_offset_for_frame_with_id(scroll.scroll_frame_id));
             },
             [&](ClipData const&) { /* clips don't affect rect coordinates */ },
             [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },

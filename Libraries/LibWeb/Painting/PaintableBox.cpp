@@ -533,10 +533,10 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
 
     if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->css_offset_for_frame_with_id(own_scroll_frame_id().value());
-        CSSPixels scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
-        CSSPixels thumb_offset = scroll_offset * scrollbar_data.thumb_travel_to_scroll_ratio;
-
+        auto own_offset = scroll_state_snapshot->device_offset_for_frame_with_id(own_scroll_frame_id().value());
+        auto device_scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
+        auto device_pixels_per_css_pixel = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
+        CSSPixels thumb_offset = CSSPixels::nearest_value_for(device_scroll_offset / device_pixels_per_css_pixel) * scrollbar_data.thumb_travel_to_scroll_ratio;
         scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_offset);
     }
 
@@ -785,7 +785,7 @@ CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_
 
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = document().paintable()->scroll_state_snapshot();
-    auto result = accumulated_visual_context()->transform_point_for_hit_test(screen_position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+    auto result = accumulated_visual_context()->transform_point_for_hit_test(screen_position.to_type<float>() * pixel_ratio, scroll_state);
     if (!result.has_value())
         return screen_position;
     return (*result / pixel_ratio).to_type<CSSPixels>();
@@ -1045,7 +1045,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     auto const& scroll_state = document().paintable()->scroll_state_snapshot();
     Optional<CSSPixelPoint> local_position;
     if (auto state = accumulated_visual_context()) {
-        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
         if (result.has_value())
             local_position = (*result / pixel_ratio).to_type<CSSPixels>();
     } else {

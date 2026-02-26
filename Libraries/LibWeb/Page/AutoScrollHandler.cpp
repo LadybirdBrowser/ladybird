@@ -52,7 +52,7 @@ static Optional<CSSPixelRect> scrollport_rect_in_viewport(Painting::PaintableBox
         return {};
     auto pixel_ratio = static_cast<float>(paintable_box.document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
-    auto result = accumulated_visual_context->transform_rect_to_viewport(scrollport.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+    auto result = accumulated_visual_context->transform_rect_to_viewport(scrollport.to_type<float>() * pixel_ratio, scroll_state);
     return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
 }
 

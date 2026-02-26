@@ -88,7 +88,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
             return;
 
         if (auto state = accumulated_visual_context()) {
-            auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+            auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
             if (result.has_value())
                 local_position = (*result / pixel_ratio).to_type<CSSPixels>();
         } else {
@@ -144,7 +144,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     auto avc_for_descendants = accumulated_visual_context_for_descendants();
     Optional<CSSPixelPoint> local_position_for_fragments;
     if (avc_for_descendants) {
-        auto result = avc_for_descendants->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+        auto result = avc_for_descendants->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
         if (result.has_value())
             local_position_for_fragments = (*result / pixel_ratio).to_type<CSSPixels>();
     } else {
