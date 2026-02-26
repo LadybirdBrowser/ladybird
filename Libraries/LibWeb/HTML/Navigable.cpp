@@ -2469,10 +2469,8 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.
-    if (auto container = navigable->container()) {
-        if (auto layout_node = container->layout_node())
-            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
-    }
+    if (auto container = navigable->container())
+        container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#url-and-history-update-steps
@@ -2608,8 +2606,7 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
         document->set_needs_media_query_evaluation();
-        if (auto layout_node = document->layout_node())
-            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
+        document->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
 
     if (auto document = active_document()) {
@@ -2625,7 +2622,7 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
 void Navigable::clamp_viewport_scroll_offset()
 {
     auto document = active_document();
-    if (!document)
+    if (!document || !document->layout_is_up_to_date())
         return;
     if (!document->paintable_box())
         return;

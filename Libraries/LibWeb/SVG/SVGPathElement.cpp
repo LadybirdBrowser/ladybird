@@ -33,8 +33,7 @@ void SVGPathElement::attribute_changed(FlyString const& name, Optional<String> c
 
     if (name == "d") {
         m_path = AttributeParser::parse_path_data(value.value_or(String {}));
-        if (layout_node())
-            layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }
 }
 

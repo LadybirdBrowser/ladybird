@@ -545,7 +545,11 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         if (!abstract_element.element().is_connected())
             return {};
 
-        Layout::NodeWithStyle* layout_node = abstract_element.layout_node();
+        // NB: We grab the layout node before deciding whether update_layout() is needed.
+        //     For properties that don't need layout or a layout node (the else branch below),
+        //     we skip update_layout() entirely and use whatever layout node already exists.
+        //     For the other paths, we call update_layout() and re-fetch below.
+        Layout::NodeWithStyle* layout_node = abstract_element.unsafe_layout_node();
 
         // Determine what work is needed for this property:
         // 1. Properties that need layout computation (used values) - always run update_layout()

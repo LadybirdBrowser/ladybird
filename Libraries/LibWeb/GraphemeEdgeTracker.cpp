@@ -71,7 +71,8 @@ static size_t translate_position_across_lines(Layout::TextNode const& text_node,
 
 Optional<size_t> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset)
 {
-    auto const* layout_node = as_if<Layout::TextNode>(dom_node.layout_node());
+    // NB: Called during text editing, layout may not be current.
+    auto const* layout_node = as_if<Layout::TextNode>(dom_node.unsafe_layout_node());
     if (!layout_node)
         return {};
 
@@ -94,7 +95,8 @@ Optional<size_t> compute_cursor_position_on_next_line(DOM::Text const& dom_node,
 
 Optional<size_t> compute_cursor_position_on_previous_line(DOM::Text const& dom_node, size_t current_offset)
 {
-    auto const* layout_node = as_if<Layout::TextNode>(dom_node.layout_node());
+    // NB: Called during text editing, layout may not be current.
+    auto const* layout_node = as_if<Layout::TextNode>(dom_node.unsafe_layout_node());
     if (!layout_node)
         return {};
 

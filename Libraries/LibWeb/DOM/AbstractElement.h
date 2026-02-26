@@ -27,6 +27,9 @@ public:
     GC::Ptr<Layout::NodeWithStyle> layout_node();
     GC::Ptr<Layout::NodeWithStyle const> layout_node() const { return const_cast<AbstractElement*>(this)->layout_node(); }
 
+    GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node();
+    GC::Ptr<Layout::NodeWithStyle const> unsafe_layout_node() const { return const_cast<AbstractElement*>(this)->unsafe_layout_node(); }
+
     struct TreeCountingFunctionResolutionContext {
         size_t sibling_count;
         size_t sibling_index;

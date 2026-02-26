@@ -949,7 +949,8 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
     auto text_node = form_associated_element_to_text_node();
     if (!text_node)
         return;
-    auto* text_paintable = text_node->paintable();
+    // NB: Called during selection change handling, layout may be stale.
+    auto* text_paintable = text_node->unsafe_paintable();
     if (!text_paintable)
         return;
 

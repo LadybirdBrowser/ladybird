@@ -72,6 +72,13 @@ GC::Ptr<Layout::NodeWithStyle> AbstractElement::layout_node()
     return m_element->layout_node();
 }
 
+GC::Ptr<Layout::NodeWithStyle> AbstractElement::unsafe_layout_node()
+{
+    if (m_pseudo_element.has_value())
+        return m_element->get_pseudo_element_node(*m_pseudo_element);
+    return m_element->unsafe_layout_node();
+}
+
 GC::Ptr<Element const> AbstractElement::parent_element() const
 {
     if (m_pseudo_element.has_value())
@@ -94,7 +101,8 @@ Optional<AbstractElement> AbstractElement::element_to_inherit_style_from() const
 
 Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_method)
 {
-    GC::Ptr<Layout::Node> node = layout_node();
+    // NB: Called during style recalculation.
+    GC::Ptr<Layout::Node> node = unsafe_layout_node();
     if (!node)
         return OptionalNone {};
 
@@ -120,8 +128,9 @@ Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_meth
 
 bool AbstractElement::is_before(AbstractElement const& other) const
 {
-    auto this_node = layout_node();
-    auto other_node = other.layout_node();
+    // NB: Called during style recalculation.
+    auto this_node = unsafe_layout_node();
+    auto other_node = other.unsafe_layout_node();
     return this_node && other_node && this_node->is_before(*other_node);
 }
 

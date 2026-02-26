@@ -304,8 +304,9 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
     // FIXME: This + ListItemBox + ListItemMarkerBox will disappear once ::marker pseudo-elements with 'normal' content
     //        are rendered using the special list-item counter.
     //        See: https://github.com/LadybirdBrowser/ladybird/issues/4782
+    // NB: Called during layout tree construction.
     if (pseudo_element == CSS::PseudoElement::Marker && pseudo_element_content.type == CSS::ContentData::Type::Normal)
-        if (auto* list_box = as_if<ListItemBox>(*element.layout_node())) {
+        if (auto* list_box = as_if<ListItemBox>(*element.unsafe_layout_node())) {
             // https://www.w3.org/TR/css-lists-3/#content-property
             // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
             // ::marker content is already excluded by the outer condition checking for Type::Normal.
@@ -568,10 +569,11 @@ static bool is_ignorable_whitespace(Layout::Node const& node)
 
 void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree)
 {
+    // NB: Called during layout tree construction.
     bool should_create_layout_node = must_create_subtree == MustCreateSubtree::Yes
         || dom_node.needs_layout_tree_update()
         || dom_node.document().needs_full_layout_tree_update()
-        || (dom_node.is_document() && !dom_node.layout_node());
+        || (dom_node.is_document() && !dom_node.unsafe_layout_node());
 
     if (dom_node.is_element()) {
         auto& element = static_cast<DOM::Element&>(dom_node);
@@ -586,7 +588,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             dom_node.document().style_computer().pop_ancestor(static_cast<DOM::Element const&>(dom_node));
     };
 
-    GC::Ptr<Layout::Node> old_layout_node = dom_node.layout_node();
+    // NB: Called during layout tree construction.
+    GC::Ptr<Layout::Node> old_layout_node = dom_node.unsafe_layout_node();
     GC::Ptr<Layout::Node> layout_node;
     Optional<TemporaryChange<bool>> has_svg_root_change;
 
@@ -597,7 +600,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             dom_node.for_each_in_inclusive_subtree([&](auto& node) {
                 node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
                 node.set_child_needs_layout_tree_update(false);
-                auto layout_node = node.layout_node();
+                // NB: Called during layout tree construction.
+                auto layout_node = node.unsafe_layout_node();
                 if (layout_node && layout_node->parent()) {
                     layout_node->remove();
                 }
@@ -627,7 +631,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             style = element.computed_properties();
             display = style->display();
         }
-        layout_node = dom_node.layout_node();
+        // NB: Called during layout tree construction.
+        layout_node = dom_node.unsafe_layout_node();
     } else {
         if (is<DOM::Element>(dom_node)) {
             auto& element = static_cast<DOM::Element&>(dom_node);
@@ -918,7 +923,8 @@ GC::Ptr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
     m_quote_nesting_level = 0;
     update_layout_tree(dom_node, context, MustCreateSubtree::No);
 
-    if (auto* root = dom_node.document().layout_node())
+    // NB: Called during layout tree construction.
+    if (auto* root = dom_node.document().unsafe_layout_node())
         fixup_tables(*root);
 
     return m_layout_root;

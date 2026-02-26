@@ -523,9 +523,9 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
             return;
 
         auto node = cursor_position->node();
-        if (node->paintable()) {
+        if (node->unsafe_paintable()) {
             m_cursor_blink_state = !m_cursor_blink_state;
-            node->paintable()->set_needs_display();
+            node->set_needs_display();
         }
     });
 
@@ -1163,15 +1163,16 @@ void Document::tear_down_layout_tree()
 Color Document::background_color() const
 {
     // CSS2 says we should use the HTML element's background color unless it's transparent...
-    if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
-        auto color = html_element->layout_node()->computed_values().background_color();
+    // NB: Called during resolve_paint_properties() inside update_layout().
+    if (auto* html_element = this->html_element(); html_element && html_element->unsafe_layout_node()) {
+        auto color = html_element->unsafe_layout_node()->computed_values().background_color();
         if (color.alpha())
             return color;
     }
 
     // ...in which case we use the BODY element's background color.
-    if (auto* body_element = body(); body_element && body_element->layout_node()) {
-        auto color = body_element->layout_node()->computed_values().background_color();
+    if (auto* body_element = body(); body_element && body_element->unsafe_layout_node()) {
+        auto color = body_element->unsafe_layout_node()->computed_values().background_color();
         return color;
     }
 
@@ -1186,7 +1187,8 @@ Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
     if (!body_element)
         return {};
 
-    auto body_layout_node = body_element->layout_node();
+    // NB: Called during resolve_paint_properties() inside update_layout().
+    auto body_layout_node = body_element->unsafe_layout_node();
     if (!body_layout_node)
         return {};
 
@@ -1199,7 +1201,8 @@ CSS::ImageRendering Document::background_image_rendering() const
     if (!body_element)
         return CSS::ImageRendering::Auto;
 
-    auto body_layout_node = body_element->layout_node();
+    // NB: Called during resolve_paint_properties() inside update_layout().
+    auto body_layout_node = body_element->unsafe_layout_node();
     if (!body_layout_node)
         return CSS::ImageRendering::Auto;
 
@@ -1396,7 +1399,8 @@ static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout:
     // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
     // UAs must apply the scrollbar-color value set on the root element to the viewport.
     auto& viewport_computed_values = viewport.mutable_computed_values();
-    auto& root_element_computed_values = root_element.layout_node()->computed_values();
+    // NB: Called during layout tree construction.
+    auto& root_element_computed_values = root_element.unsafe_layout_node()->computed_values();
     viewport_computed_values.set_scrollbar_width(root_element_computed_values.scrollbar_width());
 }
 
@@ -1417,7 +1421,8 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
 
     // UAs must apply the overflow-* values set on the root element to the viewport
     // when the root element’s display value is not none.
-    auto overflow_origin_node = root_element.layout_node();
+    // NB: Called during layout tree construction.
+    auto overflow_origin_node = root_element.unsafe_layout_node();
     auto& viewport_computed_values = viewport.mutable_computed_values();
 
     // However, when the root element is an [HTML] html element (including XML syntax for HTML)
@@ -1425,12 +1430,12 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     // a body element whose display value is also not none,
     // user agents must instead apply the overflow-* values of the first such child element to the viewport.
     if (root_element.is_html_html_element()) {
-        auto root_element_layout_node = root_element.layout_node();
+        auto root_element_layout_node = root_element.unsafe_layout_node();
         auto& root_element_computed_values = root_element_layout_node->mutable_computed_values();
         if (root_element_computed_values.overflow_x() == CSS::Overflow::Visible && root_element_computed_values.overflow_y() == CSS::Overflow::Visible) {
             auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
-            if (body_element && body_element->layout_node())
-                overflow_origin_node = body_element->layout_node();
+            if (body_element && body_element->unsafe_layout_node())
+                overflow_origin_node = body_element->unsafe_layout_node();
         }
     }
 
@@ -1463,12 +1468,16 @@ void Document::update_layout(UpdateLayoutReason reason)
     if (!navigable || navigable->active_document() != this)
         return;
 
+    VERIFY(!m_is_running_update_layout);
+    ScopeGuard guard = [&] { m_is_running_update_layout = false; };
+    m_is_running_update_layout = true;
+
     update_style();
 
-    auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
-
-    if (m_layout_root && !m_layout_root->needs_layout_update() && svg_roots_to_relayout.is_empty())
+    if (layout_is_up_to_date())
         return;
+
+    auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
 
     // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
     if (m_created_for_appropriate_template_contents)
@@ -1505,7 +1514,8 @@ void Document::update_layout(UpdateLayoutReason reason)
         Layout::TreeBuilder tree_builder;
         m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
 
-        if (document_element && document_element->layout_node()) {
+        // NB: Called during layout update.
+        if (document_element && document_element->unsafe_layout_node()) {
             propagate_overflow_to_viewport(*document_element, *m_layout_root);
             propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
         }
@@ -1560,8 +1570,9 @@ void Document::update_layout(UpdateLayoutReason reason)
         viewport_state.set_content_width(viewport_rect.width());
         viewport_state.set_content_height(viewport_rect.height());
 
-        if (document_element && document_element->layout_node()) {
-            auto& icb_state = layout_state.get_mutable(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->layout_node()));
+        // NB: Called during layout update.
+        if (document_element && document_element->unsafe_layout_node()) {
+            auto& icb_state = layout_state.get_mutable(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()));
             icb_state.set_content_width(viewport_rect.width());
         }
 
@@ -1579,18 +1590,19 @@ void Document::update_layout(UpdateLayoutReason reason)
     m_document->set_needs_display();
     set_needs_to_resolve_paint_only_properties();
 
-    paintable()->assign_scroll_frames();
+    // NB: Called during layout update.
+    unsafe_paintable()->assign_scroll_frames();
 
     set_needs_accumulated_visual_contexts_update(true);
     update_paint_and_hit_testing_properties_if_needed();
 
     if (auto range = get_selection()->range()) {
-        paintable()->recompute_selection_states(*range);
+        unsafe_paintable()->recompute_selection_states(*range);
     }
 
     // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
     Vector<GC::Ref<Painting::PaintableBox>> paintable_boxes_with_auto_content_visibility;
-    paintable()->for_each_in_subtree_of_type<Painting::PaintableBox>([&](auto& paintable_box) {
+    unsafe_paintable()->for_each_in_subtree_of_type<Painting::PaintableBox>([&](auto& paintable_box) {
         if (paintable_box.dom_node()
             && paintable_box.dom_node()->is_element()
             && paintable_box.computed_values().content_visibility() == CSS::ContentVisibility::Auto) {
@@ -1598,7 +1610,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
         return TraversalDecision::Continue;
     });
-    paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintable_boxes_with_auto_content_visibility));
+    unsafe_paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintable_boxes_with_auto_content_visibility));
 
     m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
         node.reset_needs_layout_update();
@@ -1608,6 +1620,21 @@ void Document::update_layout(UpdateLayoutReason reason)
     if constexpr (UPDATE_LAYOUT_DEBUG) {
         dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());
     }
+
+    VERIFY(layout_is_up_to_date());
+}
+
+bool Document::layout_is_up_to_date() const
+{
+    if (!navigable() || navigable()->active_document() != this)
+        return true;
+    if (!m_layout_root)
+        return false;
+    return !m_layout_root->needs_layout_update()
+        && !needs_layout_tree_update()
+        && !child_needs_layout_tree_update()
+        && !needs_full_layout_tree_update()
+        && m_svg_roots_needing_relayout.is_empty();
 }
 
 [[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer, bool needs_inherited_style_update, bool recompute_elements_depending_on_custom_properties, bool parent_display_changed)
@@ -1649,9 +1676,8 @@ void Document::update_layout(UpdateLayoutReason reason)
             }
         }
     }
-    if (node_invalidation.relayout && node.layout_node()) {
-        node.layout_node()->set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
-    }
+    if (node_invalidation.relayout)
+        node.set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
     if (node_invalidation.rebuild_layout_tree) {
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
         // "display" property change to/from "contents" value.
@@ -1819,20 +1845,21 @@ void Document::update_animated_style_if_needed()
 
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
-    if (auto* paintable = this->paintable()) {
+    // NB: Called during paint property resolution.
+    if (auto* paintable = this->unsafe_paintable()) {
         paintable->refresh_scroll_state();
     }
 
     if (m_needs_to_resolve_paint_only_properties) {
         m_needs_to_resolve_paint_only_properties = false;
-        if (auto* paintable = this->paintable()) {
+        if (auto* paintable = this->unsafe_paintable()) {
             paintable->resolve_paint_only_properties();
         }
     }
 
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
-        if (auto* paintable = this->paintable()) {
+        if (auto* paintable = this->unsafe_paintable()) {
             paintable->assign_accumulated_visual_contexts();
         }
     }
@@ -1921,8 +1948,9 @@ void Document::obtain_theme_color()
             // 4. If color is not failure, then return color.
             if (!css_value.is_null() && css_value->has_color()) {
                 CSS::ColorResolutionContext color_resolution_context {};
-                if (html_element() && html_element()->layout_node()) {
-                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*html_element()->layout_node());
+                // NB: Called during theme color computation, layout may be stale.
+                if (html_element() && html_element()->unsafe_layout_node()) {
+                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*html_element()->unsafe_layout_node());
                 }
 
                 theme_color = css_value->to_color(color_resolution_context).value();
@@ -1945,6 +1973,16 @@ Layout::Viewport const* Document::layout_node() const
 Layout::Viewport* Document::layout_node()
 {
     return static_cast<Layout::Viewport*>(Node::layout_node());
+}
+
+Layout::Viewport const* Document::unsafe_layout_node() const
+{
+    return static_cast<Layout::Viewport const*>(Node::unsafe_layout_node());
+}
+
+Layout::Viewport* Document::unsafe_layout_node()
+{
+    return static_cast<Layout::Viewport*>(Node::unsafe_layout_node());
 }
 
 void Document::set_inspected_node(GC::Ptr<Node> node)
@@ -1972,8 +2010,9 @@ GC::Ptr<Layout::Node> Document::highlighted_layout_node()
     if (!m_highlighted_node)
         return nullptr;
 
+    // NB: Called during resolve_paint_properties() inside update_layout().
     if (!m_highlighted_pseudo_element.has_value() || !m_highlighted_node->is_element())
-        return m_highlighted_node->layout_node();
+        return m_highlighted_node->unsafe_layout_node();
 
     auto const& element = static_cast<Element const&>(*m_highlighted_node);
     return element.get_pseudo_element_node(m_highlighted_pseudo_element.value());
@@ -2751,8 +2790,7 @@ void Document::set_focused_area(GC::Ptr<Node> node)
 
     reset_cursor_blink_cycle();
 
-    if (paintable())
-        paintable()->set_needs_display();
+    set_needs_display();
 
     // Scroll the viewport if necessary to make the newly focused element visible.
     if (new_focused_element) {
@@ -2801,8 +2839,7 @@ void Document::set_active_element(GC::Ptr<Element> element)
 
     m_active_element = element;
 
-    if (paintable())
-        paintable()->set_needs_display();
+    set_needs_display();
 }
 
 void Document::set_target_element(GC::Ptr<Element> element)
@@ -2833,8 +2870,7 @@ void Document::set_target_element(GC::Ptr<Element> element)
 
     m_target_element = element;
 
-    if (paintable())
-        paintable()->set_needs_display();
+    set_needs_display();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
@@ -4017,7 +4053,8 @@ void Document::set_page_showing(bool page_showing)
 
 void Document::invalidate_stacking_context_tree()
 {
-    if (auto* paintable_box = this->paintable_box())
+    // NB: Called during stacking context invalidation.
+    if (auto* paintable_box = this->unsafe_paintable_box())
         paintable_box->invalidate_stacking_context();
 }
 
@@ -5546,6 +5583,16 @@ Painting::ViewportPaintable* Document::paintable()
     return static_cast<Painting::ViewportPaintable*>(Node::paintable());
 }
 
+Painting::ViewportPaintable const* Document::unsafe_paintable() const
+{
+    return static_cast<Painting::ViewportPaintable const*>(Node::unsafe_paintable());
+}
+
+Painting::ViewportPaintable* Document::unsafe_paintable()
+{
+    return static_cast<Painting::ViewportPaintable*>(Node::unsafe_paintable());
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-the-history-object-state
 void Document::restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntry> entry)
 {
@@ -6626,9 +6673,10 @@ void Document::process_top_layer_removals()
     // 1. For each element el in doc’s pending top layer removals: if el’s computed value of overlay is none, or el is
     //    not rendered, remove el from doc’s top layer and pending top layer removals.
     GC::RootVector<GC::Ref<Element>> elements_to_remove(heap());
+    // NB: Called during top layer processing.
     for (auto& element : m_top_layer_pending_removals) {
         // FIXME: Implement overlay property
-        if (!element->paintable()) {
+        if (!element->unsafe_paintable()) {
             elements_to_remove.append(element);
         }
     }
@@ -6661,7 +6709,8 @@ GC::Ptr<HTML::HTMLElement> Document::topmost_auto_or_hint_popover()
 
 void Document::set_needs_to_refresh_scroll_state(bool b)
 {
-    if (auto* paintable = this->paintable())
+    // NB: Propagating scroll state invalidation.
+    if (auto* paintable = this->unsafe_paintable())
         paintable->set_needs_to_refresh_scroll_state(b);
 }
 

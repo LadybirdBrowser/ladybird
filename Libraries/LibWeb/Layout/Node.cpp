@@ -307,8 +307,9 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                 if (dom_ancestor.ptr() == containing_block_dom_node)
                     break;
 
+                // NB: Called during containing block recomputation as part of layout.
                 // Check if this DOM element has an InlineNode in the layout tree.
-                auto layout_node = dom_ancestor->layout_node();
+                auto layout_node = dom_ancestor->unsafe_layout_node();
                 if (!layout_node || !is<InlineNode>(*layout_node))
                     continue;
 
@@ -506,14 +507,16 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
 
 Viewport const& Node::root() const
 {
-    VERIFY(document().layout_node());
-    return *document().layout_node();
+    // NB: Called during layout, which is in progress.
+    VERIFY(document().unsafe_layout_node());
+    return *document().unsafe_layout_node();
 }
 
 Viewport& Node::root()
 {
-    VERIFY(document().layout_node());
-    return *document().layout_node();
+    // NB: Called during layout, which is in progress.
+    VERIFY(document().unsafe_layout_node());
+    return *document().unsafe_layout_node();
 }
 
 bool Node::is_floating() const

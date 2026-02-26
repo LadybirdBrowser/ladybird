@@ -826,7 +826,8 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     }
 
     if (is_connected()) {
-        if (layout_node() && layout_node()->display().is_contents() && parent_element()) {
+        // NB: Called during DOM insertion, layout is not up to date.
+        if (unsafe_layout_node() && unsafe_layout_node()->display().is_contents() && parent_element()) {
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
@@ -966,9 +967,10 @@ void Node::remove(bool suppress_observers)
         // In the future, we should find a way to only invalidate the parts that actually need it.
         invalidate_style(StyleInvalidationReason::NodeRemove);
 
-        // NOTE: If we didn't have a layout node before, rebuilding the layout tree isn't gonna give us one
-        //       after we've been removed from the DOM.
-        if (layout_node())
+        // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
+        //       after we’ve been removed from the DOM.
+        // NB: Called during DOM removal, layout is not up to date.
+        if (unsafe_layout_node())
             parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
     }
 
@@ -1280,9 +1282,10 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         // In the future, we should find a way to only invalidate the parts that actually need it.
         old_parent->invalidate_style(StyleInvalidationReason::NodeRemove);
 
-        // NOTE: If we didn't have a layout node before, rebuilding the layout tree isn't gonna give us one
-        //       after we've been removed from the DOM.
-        if (layout_node())
+        // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
+        //       after we’ve been removed from the DOM.
+        // NB: Called during DOM node move, layout is not up to date.
+        if (unsafe_layout_node())
             old_parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
     }
 
@@ -1755,7 +1758,8 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             }
         }
 
-        if (auto layout_node = this->layout_node()) {
+        // NB: Propagating layout invalidation, layout is not up to date.
+        if (auto layout_node = this->unsafe_layout_node()) {
             layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
 
             // If the layout node has an anonymous parent, rebuild from the nearest non-anonymous ancestor.
@@ -2647,6 +2651,16 @@ size_t Node::length() const
     return child_count();
 }
 
+Layout::Node const* Node::layout_node() const
+{
+    return m_layout_node;
+}
+
+Layout::Node* Node::layout_node()
+{
+    return m_layout_node;
+}
+
 void Node::set_paintable(GC::Ptr<Painting::Paintable> paintable)
 {
     m_paintable = paintable;
@@ -2655,6 +2669,24 @@ void Node::set_paintable(GC::Ptr<Painting::Paintable> paintable)
 void Node::clear_paintable()
 {
     m_paintable = nullptr;
+}
+
+void Node::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
+{
+    if (auto* p = unsafe_paintable())
+        p->set_needs_display(should_invalidate_display_list);
+}
+
+void Node::set_needs_paint_only_properties_update()
+{
+    if (auto* p = unsafe_paintable())
+        p->set_needs_paint_only_properties_update(true);
+}
+
+void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
+{
+    if (auto* node = unsafe_layout_node())
+        node->set_needs_layout_update(reason);
 }
 
 Painting::Paintable const* Node::paintable() const
@@ -2669,15 +2701,29 @@ Painting::Paintable* Node::paintable()
 
 Painting::PaintableBox const* Node::paintable_box() const
 {
-    if (paintable() && paintable()->is_paintable_box())
-        return static_cast<Painting::PaintableBox const*>(paintable());
+    if (auto* p = paintable(); p && p->is_paintable_box())
+        return static_cast<Painting::PaintableBox const*>(p);
     return nullptr;
 }
 
 Painting::PaintableBox* Node::paintable_box()
 {
-    if (paintable() && paintable()->is_paintable_box())
-        return static_cast<Painting::PaintableBox*>(paintable());
+    if (auto* p = paintable(); p && p->is_paintable_box())
+        return static_cast<Painting::PaintableBox*>(p);
+    return nullptr;
+}
+
+Painting::PaintableBox const* Node::unsafe_paintable_box() const
+{
+    if (m_paintable && m_paintable->is_paintable_box())
+        return static_cast<Painting::PaintableBox const*>(m_paintable.ptr());
+    return nullptr;
+}
+
+Painting::PaintableBox* Node::unsafe_paintable_box()
+{
+    if (m_paintable && m_paintable->is_paintable_box())
+        return static_cast<Painting::PaintableBox*>(m_paintable.ptr());
     return nullptr;
 }
 

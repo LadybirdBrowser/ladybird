@@ -139,12 +139,13 @@ void ScrollTimeline::update_current_time(double)
 
     // If the source of a ScrollTimeline is an element whose principal box does not exist or is not a scroll container,
     // or if there is no scrollable overflow, then the ScrollTimeline is inactive.
-    auto const& layout_node = propagated_source.visit([](auto const& source) -> Layout::NodeWithStyle const* { return source->layout_node(); });
+    // NB: Called during animation timeline update, which runs before layout is up to date.
+    auto const& layout_node = propagated_source.visit([](auto const& source) -> Layout::NodeWithStyle const* { return source->unsafe_layout_node(); });
 
     if (!layout_node || !layout_node->is_scroll_container())
         return;
 
-    auto const& paintable_box = propagated_source.visit([](auto const& source) -> Painting::PaintableBox const* { return source->paintable_box(); });
+    auto const& paintable_box = propagated_source.visit([](auto const& source) -> Painting::PaintableBox const* { return source->unsafe_paintable_box(); });
 
     if (!paintable_box || !paintable_box->has_scrollable_overflow())
         return;

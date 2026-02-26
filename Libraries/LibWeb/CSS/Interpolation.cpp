@@ -1200,8 +1200,9 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
             break;
         default:
             generic_function = TransformFunction::Matrix3d;
+            // NB: Called during animation interpolation.
             auto paintable_box = [&] -> Optional<Painting::PaintableBox const&> {
-                if (auto* box = element.paintable_box())
+                if (auto* box = element.unsafe_paintable_box())
                     return *box;
                 return {};
             }();
@@ -1302,8 +1303,9 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     //     transform functions in each of Va and Vb respectively to produce two 4x4 matrices. Interpolate these two
     //     matrices as described in § 11 Interpolation of Matrices, append the result to Vresult, and cease
     //     iterating over Va and Vb.
+    // NB: Called during animation interpolation.
     Optional<Painting::PaintableBox const&> paintable_box;
-    if (auto* paintable = as_if<Painting::PaintableBox>(element.paintable()))
+    if (auto* paintable = as_if<Painting::PaintableBox>(element.unsafe_paintable()))
         paintable_box = *paintable;
 
     auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) {
@@ -1418,9 +1420,10 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
     StyleValueVector result_shadows;
     result_shadows.ensure_capacity(from_shadows.size());
 
+    // NB: Called during style interpolation.
     ColorResolutionContext color_resolution_context {};
-    if (auto node = element.layout_node()) {
-        color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.layout_node());
+    if (auto node = element.unsafe_layout_node()) {
+        color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.unsafe_layout_node());
     }
 
     for (size_t i = 0; i < from_shadows.size(); i++) {
@@ -1774,9 +1777,10 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return BorderRadiusRectStyleValue::create(interpolated_top_left.release_nonnull(), interpolated_top_right.release_nonnull(), interpolated_bottom_right.release_nonnull(), interpolated_bottom_left.release_nonnull());
     }
     case StyleValue::Type::Color: {
+        // NB: Called during style interpolation.
         ColorResolutionContext color_resolution_context {};
-        if (auto node = element.layout_node()) {
-            color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.layout_node());
+        if (auto node = element.unsafe_layout_node()) {
+            color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.unsafe_layout_node());
         }
 
         auto color_syntax = ColorSyntax::Legacy;

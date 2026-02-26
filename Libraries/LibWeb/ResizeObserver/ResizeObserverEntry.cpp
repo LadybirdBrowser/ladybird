@@ -42,14 +42,17 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_an
     double height = content_box_size->block_size();
 
     // 7. If target is not an SVG element or target is an SVG element with an associated CSS layout box do these steps:
-    if (!target.is_svg_element() && target.paintable_box()) {
-        auto const& paintable_box = *target.paintable_box();
+    // NB: Layout was up to date when observations were gathered, but a previous
+    //     observer's callback may have invalidated it before we get here.
+    //     This matches the behavior of all major browsers.
+    if (!target.is_svg_element() && target.unsafe_paintable_box()) {
+        auto const& paintable_box = *target.unsafe_paintable_box();
         auto absolute_padding_rect = paintable_box.absolute_padding_box_rect();
         // Set this.contentRect.top to target.padding top.
         y = absolute_padding_rect.y().to_double();
         // Set this.contentRect.left to target.padding left.
         x = absolute_padding_rect.x().to_double();
-    } else if (target.is_svg_element() && target.paintable_box()) {
+    } else if (target.is_svg_element() && target.unsafe_paintable_box()) {
         // 8. If target is an SVG element without an associated CSS layout box do these steps:
         // Set this.contentRect.top and this.contentRect.left to 0.
         // NOTE: This is already done by the default constructor.

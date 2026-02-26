@@ -175,8 +175,9 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
     } else {
         auto const* root_element = node.document().document_element();
         VERIFY(root_element);
-        VERIFY(root_element->layout_node());
-        root_layout_node = root_element->layout_node();
+        // NB: Called during CSS length resolution, which may happen during style recalculation.
+        VERIFY(root_element->unsafe_layout_node());
+        root_layout_node = root_element->unsafe_layout_node();
     }
 
     return Length::ResolutionContext {
@@ -198,7 +199,8 @@ CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
 
     if (is_font_relative()) {
         auto* root_element = layout_node.document().document_element();
-        if (!root_element || !root_element->layout_node())
+        // NB: Called during CSS length resolution, which may happen during style recalculation.
+        if (!root_element || !root_element->unsafe_layout_node())
             return 0;
 
         FontMetrics font_metrics {
@@ -207,8 +209,8 @@ CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
             layout_node.computed_values().line_height()
         };
         FontMetrics root_font_metrics {
-            root_element->layout_node()->computed_values().font_size(),
-            root_element->layout_node()->first_available_font().pixel_metrics(),
+            root_element->unsafe_layout_node()->computed_values().font_size(),
+            root_element->unsafe_layout_node()->first_available_font().pixel_metrics(),
             layout_node.computed_values().line_height()
         };
 

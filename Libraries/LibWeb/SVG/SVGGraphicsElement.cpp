@@ -49,8 +49,7 @@ void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Strin
         auto transform_list = AttributeParser::parse_transform(value.value_or(String {}));
         if (transform_list.has_value())
             m_transform = transform_from_transform_list(*transform_list);
-        if (layout_node())
-            layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGGraphicsElementTransformChange);
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGGraphicsElementTransformChange);
     }
 }
 
@@ -64,18 +63,19 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_g
     return {};
 }
 
+// NB: SVG property accessors below are called during painting.
 Optional<Painting::PaintStyle> SVGGraphicsElement::fill_paint_style(SVGPaintContext const& paint_context) const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().fill());
+    return svg_paint_computed_value_to_gfx_paint_style(paint_context, unsafe_layout_node()->computed_values().fill());
 }
 
 Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintContext const& paint_context) const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().stroke());
+    return svg_paint_computed_value_to_gfx_paint_style(paint_context, unsafe_layout_node()->computed_values().stroke());
 }
 
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
@@ -101,7 +101,8 @@ GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const&
 
 GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
 {
-    auto const& mask_reference = layout_node()->computed_values().mask();
+    // NB: unsafe_layout_node() because this is called during painting to resolve SVG references.
+    auto const& mask_reference = unsafe_layout_node()->computed_values().mask();
     if (!mask_reference.has_value())
         return {};
     return try_resolve_url_to<SVG::SVGMaskElement const>(mask_reference->url());
@@ -109,7 +110,8 @@ GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
 
 GC::Ptr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path() const
 {
-    auto const& clip_path_reference = layout_node()->computed_values().clip_path();
+    // NB: unsafe_layout_node() because this is called during painting to resolve SVG references.
+    auto const& clip_path_reference = unsafe_layout_node()->computed_values().clip_path();
     if (!clip_path_reference.has_value() || !clip_path_reference->is_url())
         return {};
     return try_resolve_url_to<SVG::SVGClipPathElement const>(clip_path_reference->url());
@@ -162,24 +164,24 @@ static FillRule to_svg_fill_rule(CSS::FillRule fill_rule)
 
 Optional<FillRule> SVGGraphicsElement::fill_rule() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return to_svg_fill_rule(layout_node()->computed_values().fill_rule());
+    return to_svg_fill_rule(unsafe_layout_node()->computed_values().fill_rule());
 }
 
 Optional<ClipRule> SVGGraphicsElement::clip_rule() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return to_svg_fill_rule(layout_node()->computed_values().clip_rule());
+    return to_svg_fill_rule(unsafe_layout_node()->computed_values().clip_rule());
 }
 
 Optional<Gfx::Color> SVGGraphicsElement::fill_color() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
 
-    auto paint = layout_node()->computed_values().fill();
+    auto paint = unsafe_layout_node()->computed_values().fill();
     if (!paint.has_value())
         return {};
 
@@ -195,10 +197,10 @@ Optional<Gfx::Color> SVGGraphicsElement::fill_color() const
 
 Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
 
-    auto paint = layout_node()->computed_values().stroke();
+    auto paint = unsafe_layout_node()->computed_values().stroke();
     if (!paint.has_value())
         return {};
 
@@ -214,44 +216,44 @@ Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
 
 Optional<float> SVGGraphicsElement::fill_opacity() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return layout_node()->computed_values().fill_opacity();
+    return unsafe_layout_node()->computed_values().fill_opacity();
 }
 
 CSS::PaintOrderList SVGGraphicsElement::paint_order() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return CSS::InitialValues::paint_order();
-    return layout_node()->computed_values().paint_order();
+    return unsafe_layout_node()->computed_values().paint_order();
 }
 
 Optional<CSS::StrokeLinecap> SVGGraphicsElement::stroke_linecap() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return layout_node()->computed_values().stroke_linecap();
+    return unsafe_layout_node()->computed_values().stroke_linecap();
 }
 
 Optional<CSS::StrokeLinejoin> SVGGraphicsElement::stroke_linejoin() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return layout_node()->computed_values().stroke_linejoin();
+    return unsafe_layout_node()->computed_values().stroke_linejoin();
 }
 
 Optional<double> SVGGraphicsElement::stroke_miterlimit() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return layout_node()->computed_values().stroke_miterlimit();
+    return unsafe_layout_node()->computed_values().stroke_miterlimit();
 }
 
 Optional<float> SVGGraphicsElement::stroke_opacity() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return layout_node()->computed_values().stroke_opacity();
+    return unsafe_layout_node()->computed_values().stroke_opacity();
 }
 
 float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
@@ -263,22 +265,22 @@ float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentag
     CSSPixels viewport_width = 0;
     CSSPixels viewport_height = 0;
     if (auto* svg_svg_element = first_flat_tree_ancestor_of_type<SVGSVGElement>()) {
-        if (auto svg_svg_layout_node = svg_svg_element->layout_node()) {
+        if (auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node()) {
             viewport_width = svg_svg_layout_node->computed_values().width().to_px(*svg_svg_layout_node, 0);
             viewport_height = svg_svg_layout_node->computed_values().height().to_px(*svg_svg_layout_node, 0);
         }
     }
     auto scaled_viewport_size = (viewport_width + viewport_height) * CSSPixels(0.5);
-    return length_percentage.to_px(*layout_node(), scaled_viewport_size).to_double();
+    return length_percentage.to_px(*unsafe_layout_node(), scaled_viewport_size).to_double();
 }
 
 Vector<float> SVGGraphicsElement::stroke_dasharray() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
 
     Vector<float> dasharray;
-    for (auto const& value : layout_node()->computed_values().stroke_dasharray()) {
+    for (auto const& value : unsafe_layout_node()->computed_values().stroke_dasharray()) {
         value.visit(
             [&](CSS::LengthPercentage const& length_percentage) {
                 dasharray.append(resolve_relative_to_viewport_size(length_percentage));
@@ -309,16 +311,16 @@ Vector<float> SVGGraphicsElement::stroke_dasharray() const
 
 Optional<float> SVGGraphicsElement::stroke_dashoffset() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return resolve_relative_to_viewport_size(layout_node()->computed_values().stroke_dashoffset());
+    return resolve_relative_to_viewport_size(unsafe_layout_node()->computed_values().stroke_dashoffset());
 }
 
 Optional<float> SVGGraphicsElement::stroke_width() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    return resolve_relative_to_viewport_size(layout_node()->computed_values().stroke_width());
+    return resolve_relative_to_viewport_size(unsafe_layout_node()->computed_values().stroke_width());
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox

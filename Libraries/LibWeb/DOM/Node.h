@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/TraversalDecision.h>
 #include <LibWeb/TreeNode.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -302,16 +303,28 @@ public:
     virtual void adopted_from(Document&) { }
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const { return {}; }
 
-    Layout::Node const* layout_node() const { return m_layout_node; }
-    Layout::Node* layout_node() { return m_layout_node; }
+    Layout::Node const* layout_node() const;
+    Layout::Node* layout_node();
+
+    Layout::Node const* unsafe_layout_node() const { return m_layout_node; }
+    Layout::Node* unsafe_layout_node() { return m_layout_node; }
 
     Painting::PaintableBox const* paintable_box() const;
     Painting::PaintableBox* paintable_box();
     Painting::Paintable const* paintable() const;
     Painting::Paintable* paintable();
 
+    Painting::PaintableBox const* unsafe_paintable_box() const;
+    Painting::PaintableBox* unsafe_paintable_box();
+    Painting::Paintable const* unsafe_paintable() const { return m_paintable; }
+    Painting::Paintable* unsafe_paintable() { return m_paintable; }
+
     void set_paintable(GC::Ptr<Painting::Paintable>);
     void clear_paintable();
+
+    void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    void set_needs_paint_only_properties_update();
+    void set_needs_layout_update(SetNeedsLayoutReason);
 
     void set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node>);
     void detach_layout_node(Badge<Layout::TreeBuilder>);

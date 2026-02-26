@@ -99,9 +99,7 @@ void WebGL2RenderingContext::needs_to_present()
 {
     m_canvas_element->set_canvas_content_dirty();
 
-    if (!m_canvas_element->paintable())
-        return;
-    m_canvas_element->paintable()->set_needs_display();
+    m_canvas_element->set_needs_display();
 }
 
 bool WebGL2RenderingContext::is_context_lost() const

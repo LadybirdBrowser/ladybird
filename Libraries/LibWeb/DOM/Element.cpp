@@ -930,29 +930,31 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     if (invalidation.is_none())
         return invalidation;
 
-    if (invalidation.repaint && paintable())
-        paintable()->set_needs_paint_only_properties_update(true);
+    // NB: We use unsafe accessors here because we're in the middle of style recalculation.
+    //     Layout is inherently stale while we're applying new styles to existing layout nodes.
+    if (invalidation.repaint)
+        set_needs_paint_only_properties_update();
 
-    if (!invalidation.rebuild_layout_tree && layout_node()) {
+    if (!invalidation.rebuild_layout_tree && unsafe_layout_node()) {
         // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
-        layout_node()->apply_style(*m_computed_properties);
-        if (invalidation.repaint && paintable()) {
-            paintable()->set_needs_paint_only_properties_update(true);
-            paintable()->set_needs_display();
+        unsafe_layout_node()->apply_style(*m_computed_properties);
+        if (invalidation.repaint) {
+            set_needs_paint_only_properties_update();
+            set_needs_display();
         }
 
         // Do the same for pseudo-elements.
         for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
             auto pseudo_element_type = static_cast<CSS::PseudoElement>(i);
             auto pseudo_element = get_pseudo_element(pseudo_element_type);
-            if (!pseudo_element.has_value() || !pseudo_element->layout_node())
+            if (!pseudo_element.has_value() || !pseudo_element->unsafe_layout_node())
                 continue;
 
             auto pseudo_element_style = computed_properties(pseudo_element_type);
             if (!pseudo_element_style)
                 continue;
 
-            if (auto node_with_style = pseudo_element->layout_node()) {
+            if (auto node_with_style = pseudo_element->unsafe_layout_node()) {
                 node_with_style->apply_style(*pseudo_element_style);
                 if (invalidation.repaint && node_with_style->first_paintable()) {
                     node_with_style->first_paintable()->set_needs_paint_only_properties_update(true);
@@ -968,7 +970,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 {
     auto computed_properties = this->computed_properties();
-    if (!m_cascaded_properties || !computed_properties || !layout_node())
+    // NB: We use unsafe_layout_node() because we're in the middle of style recalculation
+    //     and layout is inherently stale while recomputing inherited styles.
+    if (!m_cascaded_properties || !computed_properties || !unsafe_layout_node())
         return {};
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1028,7 +1032,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     if (invalidation.is_none())
         return invalidation;
 
-    layout_node()->apply_style(*computed_properties);
+    // NB: unsafe_layout_node() because we're applying recomputed inherited styles during
+    //     style recalculation, before layout has been updated.
+    unsafe_layout_node()->apply_style(*computed_properties);
     return invalidation;
 }
 
@@ -3463,6 +3469,16 @@ GC::Ptr<Layout::NodeWithStyle const> Element::layout_node() const
     return static_cast<Layout::NodeWithStyle const*>(Node::layout_node());
 }
 
+GC::Ptr<Layout::NodeWithStyle> Element::unsafe_layout_node()
+{
+    return static_cast<Layout::NodeWithStyle*>(Node::unsafe_layout_node());
+}
+
+GC::Ptr<Layout::NodeWithStyle const> Element::unsafe_layout_node() const
+{
+    return static_cast<Layout::NodeWithStyle const*>(Node::unsafe_layout_node());
+}
+
 bool Element::has_attributes() const
 {
     return m_attributes && !m_attributes->is_empty();
@@ -3874,7 +3890,9 @@ GC::Ptr<Element> Element::list_owner() const
         return nullptr;
 
     // 1. If the element is not being rendered, return null; the element has no list owner.
-    if (!layout_node())
+    // NB: unsafe_layout_node() because list ordinal computation happens during style recalculation
+    //     when layout is inherently stale.
+    if (!unsafe_layout_node())
         return nullptr;
 
     // 2. Let ancestor be the element's parent.
@@ -3895,7 +3913,9 @@ GC::Ptr<Element> Element::list_owner() const
 
     // 4. Return the closest inclusive ancestor of ancestor that produces a CSS box.
     ancestor->for_each_inclusive_ancestor([&ancestor](GC::Ref<Node> node) {
-        if (is<Element>(*node) && node->paintable_box()) {
+        // NB: unsafe_paintable_box() because this runs during list ordinal computation as part of
+        //     style recalculation, when layout is inherently stale.
+        if (is<Element>(*node) && node->unsafe_paintable_box()) {
             ancestor = static_cast<Element*>(node.ptr());
             return IterationDecision::Break;
         }
@@ -4569,7 +4589,9 @@ void Element::for_each_numbered_item_owned_by_list_owner(Callback callback)
             continue;
         }
 
-        if (!node->layout_node())
+        // NB: unsafe_layout_node() because list ordinal computation happens during style
+        //     recalculation when layout is inherently stale.
+        if (!node->unsafe_layout_node())
             continue; // Skip nodes that do not participate in the layout.
 
         if (!element->computed_properties()->display().is_list_item())

@@ -390,8 +390,7 @@ void HTMLMediaElement::set_duration(double duration)
 
     upon_has_ended_playback_possibly_changed();
 
-    if (auto* paintable = this->paintable())
-        paintable->set_needs_display();
+    set_needs_display();
 }
 
 GC::Ref<WebIDL::Promise> HTMLMediaElement::play()
@@ -1287,8 +1286,7 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
             ensure_external_content_source().update(m_selected_video_track_sink->current_frame());
-            if (paintable())
-                paintable()->set_needs_display();
+            set_needs_display();
         }
     }
 
@@ -1401,9 +1399,7 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
     auto event = TrackEvent::create(realm, HTML::EventNames::addtrack, move(event_init));
     m_video_tracks->dispatch_event(event);
 
-    // Update the VideoPaintable, so that it can potentially change representations based on the new video track count.
-    if (paintable())
-        paintable()->set_needs_display();
+    set_needs_display();
 }
 
 void HTMLMediaElement::on_metadata_parsed()
@@ -2001,8 +1997,7 @@ void HTMLMediaElement::set_show_poster(bool show_poster)
 
     m_show_poster = show_poster;
 
-    if (auto* paintable = this->paintable())
-        paintable->set_needs_display();
+    set_needs_display();
 }
 
 void HTMLMediaElement::set_paused(bool paused)
@@ -2020,8 +2015,7 @@ void HTMLMediaElement::set_paused(bool paused)
             document().page().client().page_did_change_audio_play_state(AudioPlayState::Paused);
     }
 
-    if (auto* paintable = this->paintable())
-        paintable->set_needs_display();
+    set_needs_display();
     set_needs_style_update(true);
 }
 

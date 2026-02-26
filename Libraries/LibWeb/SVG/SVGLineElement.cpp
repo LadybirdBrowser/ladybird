@@ -41,10 +41,8 @@ void SVGLineElement::attribute_changed(FlyString const& name, Optional<String> c
         m_y2 = AttributeParser::parse_number_percentage(value.value_or(String {}));
     }
 
-    if (name.is_one_of(SVG::AttributeNames::x1, SVG::AttributeNames::y1, SVG::AttributeNames::x2, SVG::AttributeNames::y2)) {
-        if (layout_node())
-            layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
-    }
+    if (name.is_one_of(SVG::AttributeNames::x1, SVG::AttributeNames::y1, SVG::AttributeNames::x2, SVG::AttributeNames::y2))
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
 }
 
 Gfx::Path SVGLineElement::get_path(CSSPixelSize viewport_size)

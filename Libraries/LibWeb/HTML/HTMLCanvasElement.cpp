@@ -209,8 +209,7 @@ void HTMLCanvasElement::attribute_changed(FlyString const& local_name, Optional<
     if (local_name.is_one_of(HTML::AttributeNames::width, HTML::AttributeNames::height)) {
         notify_context_about_canvas_size_change();
         reset_context_to_default_state();
-        if (auto layout_node = this->layout_node())
-            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLCanvasElementWidthOrHeightChange);
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLCanvasElementWidthOrHeightChange);
     }
 }
 

@@ -211,8 +211,7 @@ void HTMLInputElement::set_checked(bool checked)
         },
         {});
 
-    if (auto* paintable = this->paintable())
-        paintable->set_needs_display();
+    set_needs_display();
 }
 
 void HTMLInputElement::set_checked_binding(bool checked)

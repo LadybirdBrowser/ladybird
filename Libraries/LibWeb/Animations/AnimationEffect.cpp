@@ -829,16 +829,17 @@ AnimationUpdateContext::~AnimationUpdateContext()
             return TraversalDecision::Continue;
         });
 
+        // NB: Called from animation update context destructor during style recalculation.
         if (!element.pseudo_element().has_value()) {
-            if (target->layout_node())
-                target->layout_node()->apply_style(*style);
+            if (target->unsafe_layout_node())
+                target->unsafe_layout_node()->apply_style(*style);
         } else {
             if (auto pseudo_element_node = target->get_pseudo_element_node(element.pseudo_element().value()))
                 pseudo_element_node->apply_style(*style);
         }
 
-        if (invalidation.relayout && target->layout_node())
-            target->layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
+        if (invalidation.relayout)
+            target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
         if (invalidation.rebuild_layout_tree) {
             // We mark layout tree for rebuild starting from parent element to correctly invalidate
             // "display" property change to/from "contents" value.
@@ -849,8 +850,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
             }
         }
         if (invalidation.repaint) {
-            if (target->paintable())
-                target->paintable()->set_needs_paint_only_properties_update(true);
+            target->set_needs_paint_only_properties_update();
 
             if (invalidation.rebuild_accumulated_visual_contexts)
                 element.document().set_needs_accumulated_visual_contexts_update(true);
