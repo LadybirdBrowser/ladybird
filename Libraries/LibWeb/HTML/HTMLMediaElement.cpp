@@ -1990,9 +1990,15 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     // 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
     //     synchronous section are marked with ⌛.)
     if (m_playback_manager) {
-        // NOTE: The final steps are triggered by our playback manager exiting the seeking state its playing/paused state.
+        // NB: The final steps are triggered by our playback manager exiting the seeking state its playing/paused state.
     } else {
-        finish_seeking_element();
+        // NB: Queue a media element task to ensure that that the seeking attribute is true while the seeking event fires.
+        //     Awaiting a stable state seems to require a task to be queued anyway, and we use media element tasks to cancel
+        //     ongoing operations when load_element() is called.
+        //     See: https://github.com/whatwg/html/issues/2882#issuecomment-1108531815
+        queue_a_media_element_task([this]() {
+            finish_seeking_element();
+        });
     }
 }
 
