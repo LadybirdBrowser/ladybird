@@ -336,6 +336,12 @@ pub unsafe extern "C" fn rust_compile_program(
 
             let program = parser.parse_program(starts_in_strict_mode);
 
+            // Compile deferred regex literals.
+            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            if !regex_errors.is_empty() {
+                return std::ptr::null_mut();
+            }
+
             if check_errors(&mut parser) {
                 return std::ptr::null_mut();
             }
@@ -405,6 +411,18 @@ pub unsafe extern "C" fn rust_compile_script(
             );
 
             let program = parser.parse_program(false);
+
+            // Compile deferred regex literals.
+            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            if !regex_errors.is_empty() {
+                if let Some(cb) = error_callback {
+                    for err in &regex_errors {
+                        let msg = err.message.as_bytes();
+                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+                    }
+                }
+                return std::ptr::null_mut();
+            }
 
             if check_errors_with_callback(&mut parser, error_context, error_callback) {
                 return std::ptr::null_mut();
@@ -504,6 +522,18 @@ pub unsafe extern "C" fn rust_compile_eval(
             parser.flags.in_class_field_initializer = in_class_field_initializer;
 
             let program = parser.parse_program(starts_in_strict_mode);
+
+            // Compile deferred regex literals.
+            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            if !regex_errors.is_empty() {
+                if let Some(cb) = error_callback {
+                    for err in &regex_errors {
+                        let msg = err.message.as_bytes();
+                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+                    }
+                }
+                return std::ptr::null_mut();
+            }
 
             if check_errors_with_callback(&mut parser, error_context, error_callback) {
                 return std::ptr::null_mut();
@@ -689,6 +719,18 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             let mut parser = Parser::new(full_slice, ProgramType::Script);
             let program = parser.parse_program(false);
 
+            // Compile deferred regex literals.
+            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            if !regex_errors.is_empty() {
+                if let Some(cb) = error_callback {
+                    for err in &regex_errors {
+                        let msg = err.message.as_bytes();
+                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+                    }
+                }
+                return std::ptr::null_mut();
+            }
+
             if check_errors_with_callback(&mut parser, error_context, error_callback) {
                 return std::ptr::null_mut();
             }
@@ -800,6 +842,16 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
 
             let mut parser = Parser::new(source_slice, ProgramType::Script);
             let program = parser.parse_program(true); // strict mode
+
+            // Compile deferred regex literals.
+            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            if !regex_errors.is_empty() {
+                let errors: Vec<String> = regex_errors
+                    .iter()
+                    .map(|e| format!("{}:{}: {}", e.line, e.column, e.message))
+                    .collect();
+                panic!("Regex errors in builtin file: {}", errors.join("; "));
+            }
 
             if parser.has_errors() {
                 let errors: Vec<String> = parser
@@ -1034,6 +1086,18 @@ pub unsafe extern "C" fn rust_compile_module(
             // 1. Parse as module.
             let mut parser = Parser::new(source_slice, ProgramType::Module);
             let program = parser.parse_program(false);
+
+            // Compile deferred regex literals.
+            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            if !regex_errors.is_empty() {
+                if let Some(cb) = error_callback {
+                    for err in &regex_errors {
+                        let msg = err.message.as_bytes();
+                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+                    }
+                }
+                return std::ptr::null_mut();
+            }
 
             if check_errors_with_callback(&mut parser, error_context, error_callback) {
                 return std::ptr::null_mut();

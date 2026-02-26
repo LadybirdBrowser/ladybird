@@ -1059,6 +1059,11 @@ impl CompiledRegex {
     pub fn take(&self) -> *mut c_void {
         self.0.replace(std::ptr::null_mut())
     }
+
+    /// Set the compiled regex handle (used by deferred compilation).
+    pub fn set(&self, ptr: *mut c_void) {
+        self.0.set(ptr);
+    }
 }
 
 impl Drop for CompiledRegex {
