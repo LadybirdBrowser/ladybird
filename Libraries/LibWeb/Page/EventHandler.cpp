@@ -874,7 +874,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     }
 
     // NOTE: Dispatching an event may have disturbed the world.
-    if (!paint_root() || paint_root() != node->document().paintable_box())
+    if (m_navigable->active_document() != document)
+        return EventResult::Accepted;
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+    if (!paint_root())
         return EventResult::Accepted;
 
     if (button != UIEvents::MouseButton::Primary)
@@ -889,6 +892,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
     else if (auto focused_area = document->focused_area())
         HTML::run_unfocusing_steps(focused_area);
+
+    // NOTE: Focusing may have invalidated layout.
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+    if (!paint_root())
+        return EventResult::Handled;
 
     // Now we can do selection with a cursor hit test.
     auto cursor_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
@@ -1077,8 +1085,11 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             if (!continue_)
                 return EventResult::Cancelled;
 
-            // NB: Dispatching an event may have disturbed the world.
-            if (!paint_root() || paint_root() != node->document().paintable_box())
+            // NOTE: Dispatching an event may have disturbed the world.
+            if (m_navigable->active_document() != &document)
+                return EventResult::Accepted;
+            document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+            if (!paint_root())
                 return EventResult::Accepted;
         }
 
@@ -1187,8 +1198,11 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
     auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
     node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::dblclick, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
 
-    // NB: Dispatching an event may have disturbed the world.
-    if (!paint_root() || paint_root() != node->document().paintable_box())
+    // NOTE: Dispatching an event may have disturbed the world.
+    if (m_navigable->active_document() != &document)
+        return EventResult::Accepted;
+    document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleDoubleClick);
+    if (!paint_root())
         return EventResult::Accepted;
 
     if (button == UIEvents::MouseButton::Primary) {
