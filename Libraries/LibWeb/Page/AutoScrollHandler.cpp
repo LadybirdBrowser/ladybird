@@ -111,6 +111,8 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 {
     m_mouse_position = mouse_position;
 
+    m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
+
     auto* paintable_box = auto_scroll_paintable(m_container_element);
     if (!paintable_box)
         return mouse_position;
