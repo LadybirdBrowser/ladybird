@@ -109,6 +109,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLInputElementWidth)               \
     X(InternalsHitTest)                    \
     X(MediaQueryListMatches)               \
+    X(NavigableSelectedText)               \
     X(NavigableViewportScroll)             \
     X(NodeNameOrDescription)               \
     X(RangeGetClientRects)                 \

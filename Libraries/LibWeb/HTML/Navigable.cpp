@@ -2755,6 +2755,8 @@ String Navigable::selected_text() const
     if (!document)
         return String {};
 
+    document->update_layout(DOM::UpdateLayoutReason::NavigableSelectedText);
+
     auto const* input_element = as_if<HTML::HTMLInputElement>(document->active_element());
     if (input_element && input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Password) {
         // Apparently nobody wants bullet characters. We leave the clipboard alone here like other browsers.
