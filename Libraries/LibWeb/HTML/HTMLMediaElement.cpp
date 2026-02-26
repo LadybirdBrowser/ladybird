@@ -1236,6 +1236,9 @@ Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref
 
 void HTMLMediaElement::restart_fetch_at_offset(FetchData& fetch_data, u64 offset)
 {
+    if (m_error)
+        return;
+
     if (!fetch_data.accepts_byte_ranges)
         return;
     cancel_the_fetching_process();
