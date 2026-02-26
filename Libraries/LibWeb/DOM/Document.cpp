@@ -3526,6 +3526,8 @@ void Document::set_bg_color(String const& value)
 
 String Document::dump_dom_tree_as_json() const
 {
+    const_cast<Document&>(*this).update_layout(UpdateLayoutReason::InspectDOMTree);
+
     StringBuilder builder;
     auto json = MUST(JsonObjectSerializer<>::try_create(builder));
     serialize_tree_as_json(json);
