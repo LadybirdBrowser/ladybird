@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video" src="nonexistent-video.webm"></video>
+<script>
+    // The video must exist before DOMContentLoaded can fire, so that the load event is
+    // delayed. Therefore, we must attach handlers to the events and cache all the events
+    // outside the async test.
+    const video = document.getElementById("video");
+    const events = [];
+
+    function logEvent(name) {
+        let entry = `${name}: readyState=${video.readyState}`;
+        if (name === "durationchange")
+            entry += ` duration=${video.duration}`;
+        events.push(entry);
+    }
+
+    for (const name of [
+        "loadstart", "abort", "error", "emptied",
+        "loadedmetadata", "loadeddata", "canplay",
+        "canplaythrough", "durationchange", "ended",
+    ]) {
+        video.addEventListener(name, () => logEvent(name));
+    }
+
+    video.addEventListener("error", () => {
+        logEvent("error handler: setting good src");
+        video.src = "../../../Assets/test-webm.webm";
+        logEvent("error handler: src setter returned");
+    });
+
+    let documentLoaded = false;
+    let videoLoaded = false;
+    let videoCanPlayThrough = false;
+    let triggerCompletion = null;
+
+    function checkCompletion() {
+        if (documentLoaded && videoLoaded && videoCanPlayThrough) {
+            println("Events:");
+            for (const e of events)
+                println(`  ${e}`);
+            println(`Final: readyState=${video.readyState} duration=${video.duration}`);
+            triggerCompletion();
+        }
+    }
+
+    window.addEventListener("load", () => {
+        logEvent("document load");
+        documentLoaded = true;
+        checkCompletion();
+    });
+
+    video.addEventListener("loadeddata", () => {
+        videoLoaded = true;
+        checkCompletion();
+    });
+
+    video.addEventListener("canplaythrough", () => {
+        videoCanPlayThrough = true;
+        checkCompletion();
+    });
+
+    asyncTest(done => {
+        triggerCompletion = done;
+        checkCompletion();
+    });
+</script>

@@ -1,0 +1,14 @@
+Events:
+  loadstart: readyState=0
+  error: readyState=0
+  error handler: setting good src: readyState=0
+  error handler: src setter returned: readyState=0
+  emptied: readyState=0
+  document load: readyState=0
+  loadstart: readyState=0
+  durationchange: readyState=4 duration=12.043
+  loadedmetadata: readyState=4
+  loadeddata: readyState=4
+  canplay: readyState=4
+  canplaythrough: readyState=4
+Final: readyState=4 duration=12.043
