@@ -2701,7 +2701,6 @@ Optional<FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>
     // @counter-style rule, and in the counter() functions.
 
     // NB: The "names defined in this specification" are defined in the `CounterStyleNameKeyword` enum
-    // FIXME: Include the rest of the defined names in `CounterStyleNameKeyword`
     auto const& keyword = keyword_from_string(custom_ident.value());
     if (keyword.has_value() && keyword_to_counter_style_name_keyword(keyword.value()).has_value())
         custom_ident = custom_ident->to_ascii_lowercase();

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Reference: symbols function, invalid</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org/">
+<style type="text/css">
+  ol, div, p {
+    padding: 0; margin: 0;
+    line-height: 150%;
+  }
+  ol {
+    list-style-position: inside;
+  }
+  li, div, p {
+    float: left;
+  }
+  @counter-style decimal-leading-zero {
+    system: extends decimal;
+    pad: 3 '0';
+  }
+  @counter-style custom-style {
+    system: cyclic;
+    symbols: \2023;
+  }
+</style>
+
+<!-- list-style -->
+<ol><li style="list-style: hiragana inside;"></li></ol>
+<ol><li style="list-style: decimal-leading-zero inside;"></li></ol>
+<ol><li style="list-style: custom-style inside;"></li></ol>
+<ol><li style="list-style: decimal inside;"></li></ol>
+
+<!-- list-style-type -->
+<ol><li style="list-style-type: hiragana;"></li></ol>
+<ol><li style="list-style-type: decimal-leading-zero;"></li></ol>
+<ol><li style="list-style-type: custom-style;"></li></ol>
+<ol><li style="list-style-type: decimal;"></li></ol>
+
+<!-- counter() -->
+<style type="text/css">
+  #counter { counter-reset: a 1; }
+  #counter-a::before { content: counter(a, hiragana); }
+  #counter-b::before { content: counter(a, decimal-leading-zero); }
+  #counter-c::before { content: counter(a, custom-style); }
+  #counter-d::before { content: counter(a, decimal); }
+</style>
+<div id="counter">
+  <p id="counter-a"></p>
+  <p id="counter-b"></p>
+  <p id="counter-c"></p>
+  <p id="counter-d"></p>
+</div>
+
+<!-- counters() -->
+<style type="text/css">
+  #counters { counter-reset: a 1; }
+  #counters-a::before { content: counters(a, '', hiragana); }
+  #counters-b::before { content: counters(a, '', decimal-leading-zero); }
+  #counters-c::before { content: counters(a, '', custom-style); }
+  #counters-d::before { content: counters(a, '', decimal); }
+</style>
+<div id="counters">
+  <p id="counters-a"></p>
+  <p id="counters-b"></p>
+  <p id="counters-c"></p>
+  <p id="counters-d"></p>
+</div>
+
+<style type="text/css">
+  @counter-style a { system: extends hiragana; }
+  @counter-style b { system: extends decimal-leading-zero; }
+  @counter-style c { system: extends custom-style; }
+  @counter-style d { system: extends decimal; }
+</style>
+<ol><li style="list-style-type: a;"></li></ol>
+<ol><li style="list-style-type: b;"></li></ol>
+<ol><li style="list-style-type: c;"></li></ol>
+<ol><li style="list-style-type: d;"></li></ol>
