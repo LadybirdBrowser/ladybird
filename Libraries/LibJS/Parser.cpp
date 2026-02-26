@@ -254,6 +254,7 @@ NonnullRefPtr<Program> Parser::parse_program(bool starts_in_strict_mode)
             parse_module(program);
     }
 
+    compile_regex_literals();
     scope_collector().analyze(m_is_dynamic_function);
 
     program->set_end_offset({}, position().offset);
@@ -1365,21 +1366,10 @@ NonnullRefPtr<RegExpLiteral const> Parser::parse_regexp_literal()
             parsed_flags = parsed_flags_or_error.release_value();
     }
 
-    String parsed_pattern;
-    auto parsed_pattern_result = parse_regex_pattern(pattern, parsed_flags.has_flag_set(ECMAScriptFlags::Unicode), parsed_flags.has_flag_set(ECMAScriptFlags::UnicodeSets));
-    if (parsed_pattern_result.is_error()) {
-        syntax_error(parsed_pattern_result.release_error().error, rule_start.position());
-        parsed_pattern = ""_string;
-    } else {
-        parsed_pattern = parsed_pattern_result.release_value();
-    }
-    auto parsed_regex = Regex<ECMA262>::parse_pattern(parsed_pattern, parsed_flags);
-
-    if (parsed_regex.error != regex::Error::NoError)
-        syntax_error(MUST(String::formatted("RegExp compile error: {}", Regex<ECMA262>(parsed_regex, parsed_pattern.to_byte_string(), parsed_flags).error_string())), rule_start.position());
-
     SourceRange range { m_source_code, rule_start.position(), position() };
-    return create_ast_node<RegExpLiteral>(move(range), move(parsed_regex), move(parsed_pattern), parsed_flags, move(pattern), move(flags));
+    auto literal = create_ast_node<RegExpLiteral>(move(range), move(pattern), move(flags), parsed_flags);
+    m_deferred_regex_literals.append({ literal, rule_start.position() });
+    return literal;
 }
 
 static bool is_simple_assignment_target(Expression const& expression, bool allow_web_reality_call_expression = true)
@@ -4054,20 +4044,44 @@ void Parser::syntax_error(String const& message, Optional<Position> position)
     m_state.errors.append({ message, position });
 }
 
+void Parser::compile_regex_literals()
+{
+    for (auto& deferred : m_deferred_regex_literals) {
+        auto const& pattern = deferred.literal->pattern();
+        auto const& parsed_flags = deferred.literal->parsed_flags();
+        auto parsed_pattern_result = parse_regex_pattern(pattern, parsed_flags.has_flag_set(ECMAScriptFlags::Unicode), parsed_flags.has_flag_set(ECMAScriptFlags::UnicodeSets));
+        String parsed_pattern;
+        if (parsed_pattern_result.is_error()) {
+            syntax_error(parsed_pattern_result.release_error().error, deferred.position);
+            parsed_pattern = ""_string;
+        } else {
+            parsed_pattern = parsed_pattern_result.release_value();
+        }
+        auto parsed_regex = Regex<ECMA262>::parse_pattern(parsed_pattern, parsed_flags);
+        if (parsed_regex.error != regex::Error::NoError)
+            syntax_error(MUST(String::formatted("RegExp compile error: {}", Regex<ECMA262>(parsed_regex, parsed_pattern.to_byte_string(), parsed_flags).error_string())), deferred.position);
+        deferred.literal->set_compiled_regex(move(parsed_regex), move(parsed_pattern));
+    }
+    m_deferred_regex_literals.clear();
+}
+
 void Parser::save_state()
 {
     m_saved_state.append(m_state);
+    m_saved_deferred_regex_sizes.append(m_deferred_regex_literals.size());
 }
 
 void Parser::load_state()
 {
     VERIFY(!m_saved_state.is_empty());
     m_state = m_saved_state.take_last();
+    m_deferred_regex_literals.shrink(m_saved_deferred_regex_sizes.take_last());
 }
 
 void Parser::discard_saved_state()
 {
     m_saved_state.take_last();
+    m_saved_deferred_regex_sizes.take_last();
 }
 
 void Parser::check_identifier_name_for_assignment_validity(Utf16FlyString const& name, bool force_strict)
@@ -4719,7 +4733,7 @@ Parser Parser::parse_function_body_from_string(ByteString const& body_string, u1
         function_body = body_parser.parse_function_body(move(parameters), kind, parsing_insights);
     }
 
-    body_parser.scope_collector().analyze();
+    body_parser.run_scope_analysis();
 
     return body_parser;
 }

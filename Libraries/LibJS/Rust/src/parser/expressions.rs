@@ -650,13 +650,20 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
         self.validate_regex_flags(&flags);
-        let compiled_regex = self.compile_regex_pattern(&pattern, &flags);
+        let compiled_regex = Rc::new(CompiledRegex::new(std::ptr::null_mut()));
+        self.deferred_regexes.push(super::DeferredRegex {
+            compiled_regex: compiled_regex.clone(),
+            pattern: pattern.clone(),
+            flags: flags.clone(),
+            line: start.line,
+            column: start.column,
+        });
         self.expression(
             start,
             ExpressionKind::RegExpLiteral(RegExpLiteralData {
                 pattern: pattern.into(),
                 flags: flags.into(),
-                compiled_regex: Rc::new(CompiledRegex::new(compiled_regex)),
+                compiled_regex,
             }),
         )
     }
