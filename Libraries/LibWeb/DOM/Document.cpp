@@ -1605,11 +1605,6 @@ void Document::update_layout(UpdateLayoutReason reason)
         return TraversalDecision::Continue;
     });
 
-    // Scrolling by zero offset will clamp scroll offset back to valid range if it was out of bounds
-    // after the viewport size change.
-    if (auto window = this->window())
-        window->scroll_by(0, 0);
-
     if constexpr (UPDATE_LAYOUT_DEBUG) {
         dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());
     }

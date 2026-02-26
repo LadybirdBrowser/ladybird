@@ -2622,6 +2622,26 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     }
 }
 
+void Navigable::clamp_viewport_scroll_offset()
+{
+    auto document = active_document();
+    if (!document)
+        return;
+    if (!document->paintable_box())
+        return;
+    auto scrollable_overflow_rect = document->paintable_box()->scrollable_overflow_rect();
+    if (!scrollable_overflow_rect.has_value())
+        return;
+    auto max_x = scrollable_overflow_rect->width() - m_viewport_size.width();
+    auto max_y = scrollable_overflow_rect->height() - m_viewport_size.height();
+    CSSPixelPoint clamped = {
+        max(CSSPixels(0), min(m_viewport_scroll_offset.x(), max_x)),
+        max(CSSPixels(0), min(m_viewport_scroll_offset.y(), max_y)),
+    };
+    if (clamped != m_viewport_scroll_offset)
+        perform_scroll_of_viewport_scrolling_box(clamped);
+}
+
 void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
 {
     // NB: This method is ad-hoc, but is currently called where "perform a scroll of a scrolling box" would be,

@@ -449,6 +449,11 @@ void EventLoop::update_the_rendering()
             // NOTE: Recalculation of styles is handled by update_layout()
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 
+            // Clamp viewport scroll offset to valid range after layout, in case the
+            // scrollable overflow area has shrunk (e.g. after a viewport size change).
+            if (auto navigable = document->navigable())
+                navigable->clamp_viewport_scroll_offset();
+
             // 2. Let hadInitialVisibleContentVisibilityDetermination be false.
             bool had_initial_visible_content_visibility_determination = false;
 
