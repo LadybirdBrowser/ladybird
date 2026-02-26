@@ -223,6 +223,8 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
     // 1. Let document be transition’s relevant global object’s associated document.
     auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
 
+    document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
+
     // 2. Let namedElements be transition’s named elements.
     auto& named_elements = m_named_elements;
 
@@ -353,6 +355,8 @@ ErrorOr<void> ViewTransition::capture_the_new_state()
 
     // 1. Let document be transition’s relevant global object’s associated document.
     auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+
+    document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
 
     // 2. Let namedElements be transition’s named elements.
     // NOTE: We just use m_named_elements

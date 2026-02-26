@@ -118,6 +118,7 @@ enum class InvalidateLayoutTreeReason {
     X(ProcessScreenshot)                   \
     X(SVGGraphicsElementGetBBox)           \
     X(SourceSetNormalizeSourceDensities)   \
+    X(ViewTransitionCapture)               \
     X(WindowScroll)
 
 enum class UpdateLayoutReason {
