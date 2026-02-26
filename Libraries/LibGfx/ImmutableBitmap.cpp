@@ -189,6 +189,17 @@ ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat 
 
 RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
 {
+    if (!m_impl->bitmap && m_impl->sk_image) {
+        auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { m_impl->sk_image->width(), m_impl->sk_image->height() }));
+        auto image_info = SkImageInfo::Make(bitmap->width(), bitmap->height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
+        SkPixmap pixmap(image_info, bitmap->begin(), bitmap->pitch());
+        if (m_impl->context)
+            m_impl->context->lock();
+        m_impl->sk_image->readPixels(pixmap, 0, 0);
+        if (m_impl->context)
+            m_impl->context->unlock();
+        m_impl->bitmap = move(bitmap);
+    }
     return m_impl->bitmap;
 }
 
@@ -398,20 +409,15 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bit
 
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> painting_surface)
 {
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, painting_surface->size()));
-    painting_surface->read_into_bitmap(bitmap);
-
-    SkBitmap sk_bitmap;
-    auto info = SkImageInfo::Make(bitmap->width(), bitmap->height(), to_skia_color_type(bitmap->format()), to_skia_alpha_type(bitmap->alpha_type()), SkColorSpace::MakeSRGB());
-    sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap->scanline(0))), bitmap->pitch());
-    sk_bitmap.setImmutable();
-    auto sk_image = sk_bitmap.asImage();
+    painting_surface->lock_context();
+    auto sk_image = painting_surface->sk_image_snapshot<sk_sp<SkImage>>();
+    painting_surface->unlock_context();
 
     ImmutableBitmapImpl impl {
-        .context = nullptr,
+        .context = painting_surface->skia_backend_context(),
         .sk_image = move(sk_image),
-        .sk_bitmap = move(sk_bitmap),
-        .bitmap = move(bitmap),
+        .sk_bitmap = {},
+        .bitmap = nullptr,
         .color_space = {},
         .yuv_data = nullptr,
     };

@@ -57,6 +57,8 @@ public:
     template<typename T>
     T sk_image_snapshot() const;
 
+    RefPtr<SkiaBackendContext> skia_backend_context() const;
+
     void flush();
 
     ~PaintingSurface();
