@@ -1,0 +1,298 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 484 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 468 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,8] [0+0+0 11.6875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,8 11.6875x18] baseline: 13.796875
+              "일만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,26] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,26] [0+0+0 11.6875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,26 11.6875x18] baseline: 13.796875
+              "이만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,44] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,44] [0+0+0 11.6875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,44 11.6875x18] baseline: 13.796875
+              "오만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,62] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,62] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,62] [0+0+0 60.59375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 10, rect: [8,62 60.59375x18] baseline: 13.796875
+              "구만 구천구백구십구"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,80] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,80] [0+0+0 60.59375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 10, rect: [8,80 60.59375x18] baseline: 13.796875
+              "일만 이천삼백사십오"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,98] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,98] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,98] [0+0+0 25.53125 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [8,98 25.53125x18] baseline: 13.796875
+              "일만 일"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,116] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,116] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,116] [0+0+0 31.375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [8,116 31.375x18] baseline: 13.796875
+              "일만 일십"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,134] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,134] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,134] [0+0+0 31.375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [8,134 31.375x18] baseline: 13.796875
+              "일만 일백"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,152] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,152] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,152] [0+0+0 31.375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [8,152 31.375x18] baseline: 13.796875
+              "일만 일천"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,170] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,170] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,170] [0+0+0 11.6875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,170 11.6875x18] baseline: 13.796875
+              "일억"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,188] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,188] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,188] [0+0+0 11.6875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,188 11.6875x18] baseline: 13.796875
+              "이억"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,206] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,206] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,206] [0+0+0 11.6875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,206 11.6875x18] baseline: 13.796875
+              "오억"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,224] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,224] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,224] [0+0+0 115.34375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 19, rect: [8,224 115.34375x18] baseline: 13.796875
+              "구억 구천구백구십구만 구천구백구십구"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,242] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,242] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,242] [0+0+0 115.34375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 19, rect: [8,242 115.34375x18] baseline: 13.796875
+              "일억 이천삼백사십오만 육천칠백팔십구"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,260] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,260] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,260] [0+0+0 25.53125 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [8,260 19.6875x18] baseline: 13.796875
+              "일억 "
+          frag 1 from TextNode start: 4, length: 1, rect: [27.6875,260 5.84375x18] baseline: 13.796875
+              "일"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,278] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,278] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,278] [0+0+0 31.375 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [8,278 31.375x18] baseline: 13.796875
+              "일억 일만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,296] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,296] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,296] [0+0+0 37.21875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 6, rect: [8,296 37.21875x18] baseline: 13.796875
+              "일억 일십만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,314] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,314] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,314] [0+0+0 37.21875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 6, rect: [8,314 37.21875x18] baseline: 13.796875
+              "일억 일백만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,332] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,332] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,332] [0+0+0 37.21875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 6, rect: [8,332 37.21875x18] baseline: 13.796875
+              "일억 일천만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,350] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,350] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,350] [0+0+0 17.53125 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [8,350 17.53125x18] baseline: 13.796875
+              "일십억"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,368] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,368] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,368] [0+0+0 17.53125 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [8,368 17.53125x18] baseline: 13.796875
+              "일백만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,386] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,386] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,386] [0+0+0 11.6875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,386 11.6875x18] baseline: 13.796875
+              "일천"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,404] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,404] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,404] [0+0+0 43.0625 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 7, rect: [8,404 43.0625x18] baseline: 13.796875
+              "마이너스 일만"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,422] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,422] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,422] [0+0+0 43.0625 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 7, rect: [8,422 43.0625x18] baseline: 13.796875
+              "마이너스 일억"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,440] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,440] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,440] [0+0+0 158.40625 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 26, rect: [8,440 158.40625x18] baseline: 13.796875
+              "마이너스 이십일억 사천칠백사십팔만 삼천육백사십팔"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,458] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,458] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,458] [0+0+0 37.21875 0+0+0] [0+0+0 18 0+0+0]
+          frag 0 from TextNode start: 0, length: 6, rect: [8,458 37.21875x18] baseline: 13.796875
+              "마이너스 일"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,476] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x484]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x468]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,8 11.6875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,26 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,26 11.6875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,44 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,44 11.6875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,62 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,62 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,62 60.59375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,80 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,80 60.59375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,98 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,98 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,98 25.53125x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,116 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,116 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,116 31.375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,134 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,134 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,134 31.375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,152 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,152 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,152 31.375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,170 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,170 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,170 11.6875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,188 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,188 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,188 11.6875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,206 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,206 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,206 11.6875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,224 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,224 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,224 115.34375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,242 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,242 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,242 115.34375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,260 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,260 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,260 25.53125x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,278 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,278 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,278 31.375x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,296 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,296 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,296 37.21875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,314 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,314 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,314 37.21875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,332 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,332 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,332 37.21875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,350 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,350 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,350 17.53125x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,368 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,368 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,368 17.53125x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,386 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,386 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,386 11.6875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,404 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,404 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,404 43.0625x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,422 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,422 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,422 43.0625x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,440 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,440 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,440 158.40625x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,458 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,458 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,458 37.21875x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,476 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x484] [children: 0] (z-index: auto)

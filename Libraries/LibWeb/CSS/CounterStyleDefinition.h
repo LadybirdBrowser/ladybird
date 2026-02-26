@@ -60,7 +60,10 @@ struct ExtendedCJKCounterStyleAlgorithm {
         TradChineseInformal,
         TradChineseFormal,
         JapaneseInformal,
-        JapaneseFormal
+        JapaneseFormal,
+        KoreanHangulFormal,
+        KoreanHanjaInformal,
+        KoreanHanjaFormal,
     } type;
 };
 

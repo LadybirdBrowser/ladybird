@@ -127,17 +127,17 @@ static String generate_an_initial_representation_for_extended_cjk_system(i64 val
             //  - For the Japanese informal and Korean informal styles, if any of the digit markers are preceded
             //   by the digit 1, and that digit is not the first digit of the group, remove the digit (leave the
             //    digit marker).
-            // FIXME: Support Korean
-            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal))
+            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal))
                 should_drop_digit |= digit_value == 1 && digit_index != 0;
 
-            // FIXME: - For Korean informal styles, if the value of the ten-thousands group is 1, drop the digit (leave
-            //          the digit marker).
+            //  - For Korean informal styles, if the value of the ten-thousands group is 1, drop the digit (leave the
+            //    digit marker).
+            if (type == ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal)
+                should_drop_digit |= group_index == 1 && group_value == 1 && digit_index == 0;
 
             // 7. Drop zeros:
             //  - For the Japanese and Korean styles, drop all zero digits.
-            // FIXME: Support Korean styles
-            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal))
+            if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal, ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal))
                 should_drop_digit |= digit_value == 0;
 
             //  - For the Chinese styles, drop any trailing zeros for all non-zero groups and collapse (across groups)
@@ -172,7 +172,9 @@ static String generate_an_initial_representation_for_extended_cjk_system(i64 val
         if (groups[group_index] != 0 && group_index != 0)
             builder.append(group_marker_strings[group_index - 1]);
 
-        // FIXME: 8. For the Korean styles, insert a space (" " U+0020) between each group.
+        // 8. For the Korean styles, insert a space (" " U+0020) between each group.
+        if (first_is_one_of(type, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal, ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal) && group_index != 0)
+            builder.append(' ');
     }
 
     // 10. If the counter value was negative, prepend the appropriate negative sign character for the given counter
@@ -499,6 +501,46 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
                     ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal,
                     { "\U000096F6"_fly_string, "\U000058F1"_fly_string, "\U00005F10"_fly_string, "\U000053C2"_fly_string, "\U000056DB"_fly_string, "\U00004F0D"_fly_string, "\U0000516D"_fly_string, "\U00004E03"_fly_string, "\U0000516B"_fly_string, "\U00004E5D"_fly_string },
                     { "\U000062FE"_fly_string, "\U0000767E"_fly_string, "\U00009621"_fly_string },
+                    { "\U0000842C"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
+
+            // Values              | Codepoints
+            //                     | korean-hangul-formal | korean-hanja-informal | korean-hanja-formal
+            // Digit 0             | 영 U+C601            |  零 U+96F6            | 零 U+96F6
+            // Digit 1             | 일 U+C77C            |  一 U+4E00            | 壹 U+58F9
+            // Digit 2             | 이 U+C774            |  二 U+4E8C            | 貳 U+8CB3
+            // Digit 3             | 삼 U+C0BC            |  三 U+4E09            | 參 U+53C3
+            // Digit 4             | 사 U+C0AC            |  四 U+56DB            | 四 U+56DB
+            // Digit 5             | 오 U+C624            |  五 U+4E94            | 五 U+4E94
+            // Digit 6             | 육 U+C721            |  六 U+516D            | 六 U+516D
+            // Digit 7             | 칠 U+CE60            |  七 U+4E03            | 七 U+4E03
+            // Digit 8             | 팔 U+D314            |  八 U+516B            | 八 U+516B
+            // Digit 9             | 구 U+AD6C            |  九 U+4E5D            | 九 U+4E5D
+            // Second Digit Marker | 십 U+C2ED            |  十 U+5341            | 拾 U+62FE
+            // Third Digit Marker  | 백 U+BC31            |  百 U+767E            | 百 U+767E
+            // Fourth Digit Marker | 천 U+CC9C            |  千 U+5343            | 仟 U+4EDF
+            // Second Group Marker | 만 U+B9CC            |  萬 U+842C            | 萬 U+842C
+            // Third Group Marker  | 억 U+C5B5            |  億 U+5104            | 億 U+5104
+            // Fourth Group Marker | 조 U+C870            |  兆 U+5146            | 兆 U+5146
+            case ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal,
+                    { "\U0000C601"_fly_string, "\U0000C77C"_fly_string, "\U0000C774"_fly_string, "\U0000C0BC"_fly_string, "\U0000C0AC"_fly_string, "\U0000C624"_fly_string, "\U0000C721"_fly_string, "\U0000CE60"_fly_string, "\U0000D314"_fly_string, "\U0000AD6C"_fly_string },
+                    { "\U0000C2ED"_fly_string, "\U0000BC31"_fly_string, "\U0000CC9C"_fly_string },
+                    { "\U0000B9CC"_fly_string, "\U0000C5B5"_fly_string, "\U0000C870"_fly_string });
+            case ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal,
+                    { "\U000096F6"_fly_string, "\U00004E00"_fly_string, "\U00004E8C"_fly_string, "\U00004E09"_fly_string, "\U000056DB"_fly_string, "\U00004E94"_fly_string, "\U0000516D"_fly_string, "\U00004E03"_fly_string, "\U0000516B"_fly_string, "\U00004E5D"_fly_string },
+                    { "\U00005341"_fly_string, "\U0000767E"_fly_string, "\U00005343"_fly_string },
+                    { "\U0000842C"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
+            case ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal:
+                return generate_an_initial_representation_for_extended_cjk_system(
+                    value,
+                    ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal,
+                    { "\U000096F6"_fly_string, "\U000058F9"_fly_string, "\U00008CB3"_fly_string, "\U000053C3"_fly_string, "\U000056DB"_fly_string, "\U00004E94"_fly_string, "\U0000516D"_fly_string, "\U00004E03"_fly_string, "\U0000516B"_fly_string, "\U00004E5D"_fly_string },
+                    { "\U000062FE"_fly_string, "\U0000767E"_fly_string, "\U00004EDF"_fly_string },
                     { "\U0000842C"_fly_string, "\U00005104"_fly_string, "\U00005146"_fly_string });
             }
 

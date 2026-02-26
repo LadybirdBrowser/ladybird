@@ -7931,6 +7931,48 @@ void Document::build_counter_style_cache()
                 extended_cjk_range,
                 "cjk-decimal"_fly_string,
                 {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#korean-hangul-formal
+        // korean-hangul-formal
+        counter_style_definitions.set(
+            "korean-hangul-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "korean-hangul-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal } },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                {},
+                ", "_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-informal
+        // korean-hanja-informal
+        counter_style_definitions.set(
+            "korean-hanja-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "korean-hanja-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal } },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                {},
+                ", "_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-formal
+        // korean-hanja-formal
+        counter_style_definitions.set(
+            "korean-hanja-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "korean-hanja-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal } },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                {},
+                ", "_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
     };
 
     CSS::ComputationContext computation_context {
