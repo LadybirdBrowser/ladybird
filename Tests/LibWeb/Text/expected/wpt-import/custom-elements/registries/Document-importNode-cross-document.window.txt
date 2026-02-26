@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 12 tests
 
-4 Pass
-8 Fail
-Fail	Cloning with global registry
-Fail	Cloning with explicit global registry
+6 Pass
+6 Fail
+Pass	Cloning with global registry
+Pass	Cloning with explicit global registry
 Fail	Cloning with scoped registry
 Fail	Cloning including shadow tree with global registry
 Fail	Cloning including shadow tree with explicit global registry
