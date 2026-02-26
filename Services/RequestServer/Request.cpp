@@ -673,7 +673,7 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
             space_index = header_line.find(' ', *space_index + 1);
 
         if (space_index.has_value()) {
-            if (auto reason_phrase = header_line.substring_view(*space_index + 1).trim_whitespace(); !reason_phrase.is_empty()) {
+            if (auto reason_phrase = HTTP::normalize_header_value(header_line.substring_view(*space_index + 1)); !reason_phrase.is_empty()) {
                 auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
                 VERIFY(decoder.has_value());
 
@@ -684,8 +684,8 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
     }
 
     if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
-        auto name = header_line.substring_view(0, *colon_index).trim_whitespace();
-        auto value = header_line.substring_view(*colon_index + 1).trim_whitespace();
+        auto name = HTTP::normalize_header_value(header_line.substring_view(0, *colon_index));
+        auto value = HTTP::normalize_header_value(header_line.substring_view(*colon_index + 1));
         request.m_response_headers->append({ name, value });
     }
 

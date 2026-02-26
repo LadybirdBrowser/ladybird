@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        try {
+            const httpServer = httpTestServer();
+            const url = await httpServer.createEcho("GET", `/header-whitespace-normalization`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Expose-Headers": "X-Test-Header",
+                    "X-Test-Header": '\u000B' + "hello" + '\u000C',
+                },
+            });
+            const resp = await fetch(url);
+            const value = resp.headers.get("X-Test-Header");
+            if (value !== '\u000Bhello\u000C') {
+                println("FAIL - got: " + JSON.stringify(value));
+                return;
+            }
+            println("PASS");
+        } catch (err) {
+            println("FAIL - " + err);
+        }
+    });
+</script>
