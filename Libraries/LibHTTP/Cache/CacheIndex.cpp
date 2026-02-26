@@ -38,11 +38,11 @@ static NonnullRefPtr<HeaderList> deserialize_headers(StringView serialized_heade
         if (!index.has_value())
             return;
 
-        auto name = serialized_header.substring_view(0, *index).trim_whitespace();
+        auto name = serialized_header.substring_view(0, *index);
         if (is_header_exempted_from_storage(name))
             return;
 
-        auto value = serialized_header.substring_view(*index + 1).trim_whitespace();
+        auto value = serialized_header.substring_view(*index + 1);
         headers->append({ name, value });
     });
 

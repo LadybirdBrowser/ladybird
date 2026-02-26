@@ -83,7 +83,7 @@ public:
             IterationDecision result;
 
             value.for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView header) -> IterationDecision {
-                result = callback(header.trim_whitespace());
+                result = callback(normalize_header_value(header));
                 return result;
             });
 
