@@ -2653,11 +2653,15 @@ size_t Node::length() const
 
 Layout::Node const* Node::layout_node() const
 {
+    if (m_layout_node)
+        VERIFY(document().layout_is_up_to_date());
     return m_layout_node;
 }
 
 Layout::Node* Node::layout_node()
 {
+    if (m_layout_node)
+        VERIFY(document().layout_is_up_to_date());
     return m_layout_node;
 }
 
@@ -2691,11 +2695,15 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
 
 Painting::Paintable const* Node::paintable() const
 {
+    if (m_paintable)
+        VERIFY(document().layout_is_up_to_date());
     return m_paintable;
 }
 
 Painting::Paintable* Node::paintable()
 {
+    if (m_paintable)
+        VERIFY(document().layout_is_up_to_date());
     return m_paintable;
 }
 
