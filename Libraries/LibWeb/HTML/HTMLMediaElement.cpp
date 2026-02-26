@@ -1629,6 +1629,12 @@ void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>
     // 5. Fire an event named error at the media element.
     dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
 
+    // NB: If the error has been reset, that means we've entered load_element() within the error
+    //     event handler. If that's the case, as part of the resource selection algorithm, these
+    //     steps must abort.
+    if (!m_error)
+        return;
+
     // 6. Reject pending play promises with promises and a "NotSupportedError" DOMException.
     reject_pending_play_promises<WebIDL::NotSupportedError>(promises, "Media is not supported"_utf16);
 
