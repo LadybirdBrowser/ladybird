@@ -429,7 +429,6 @@ enum class AnimationPlayState : u8;
 enum class Axis : u8;
 enum class CommonLigValue : u8;
 enum class ContextualAltValue : u8;
-enum class CounterStyleNameKeyword : u8;
 enum class CounterStyleSystem : u8;
 enum class CrossOriginModifierValue : u8;
 enum class Direction : u8;

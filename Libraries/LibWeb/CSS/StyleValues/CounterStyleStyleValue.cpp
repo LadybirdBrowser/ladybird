@@ -15,13 +15,6 @@ void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode
     builder.append(m_name);
 }
 
-Optional<CounterStyleNameKeyword> CounterStyleStyleValue::to_counter_style_name_keyword() const
-{
-    return keyword_from_string(m_name)
-        .map([](auto keyword) { return keyword_to_counter_style_name_keyword(keyword); })
-        .value_or(OptionalNone {});
-}
-
 Optional<CounterStyle const&> CounterStyleStyleValue::resolve_counter_style(HashMap<FlyString, CounterStyle> const& registered_counter_styles) const
 {
     // FIXME: Support symbols() function for anonymous counter style

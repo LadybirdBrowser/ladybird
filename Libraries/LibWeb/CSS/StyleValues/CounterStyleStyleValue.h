@@ -22,8 +22,6 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
-    Optional<CounterStyleNameKeyword> to_counter_style_name_keyword() const;
-
     Optional<CounterStyle const&> resolve_counter_style(HashMap<FlyString, CounterStyle> const& registered_counter_styles) const;
 
     bool properties_equal(CounterStyleStyleValue const& other) const { return m_name == other.m_name; }
