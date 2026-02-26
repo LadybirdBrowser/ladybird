@@ -191,6 +191,7 @@ private:
     enum class FetchingStatus : u8 {
         Ongoing,
         Complete,
+        Interrupted,
     };
     void process_media_data(FetchingStatus);
 

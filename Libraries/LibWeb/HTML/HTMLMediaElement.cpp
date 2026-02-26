@@ -1168,11 +1168,21 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
                 });
             });
 
-            VERIFY(response->body());
-            auto empty_algorithm = GC::create_function(weak_self->heap(), [](JS::Value) { });
-
             // 5. Otherwise, incrementally read response's body given updateMedia, processEndOfMedia, an empty algorithm, and global.
-            response->body()->incrementally_read(update_media, process_end_of_media, empty_algorithm, GC::Ref { global });
+
+            // AD-HOC: We need to pass a non-empty error algorithm in order to invoke the requisite steps.
+            auto process_body_error = GC::create_function(weak_self->heap(), [weak_self, fetch_generation](JS::Value) {
+                if (!weak_self)
+                    return;
+                if (fetch_generation != weak_self->m_current_fetch_generation)
+                    return;
+                weak_self->queue_a_media_element_task([self = weak_self.as_nonnull()] {
+                    self->process_media_data(FetchingStatus::Interrupted);
+                });
+            });
+
+            VERIFY(response->body());
+            response->body()->incrementally_read(update_media, process_end_of_media, process_body_error, GC::Ref { global });
         };
 
         m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
@@ -1555,7 +1565,35 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
         }));
     }
 
-    // FIXME: -> If the connection is interrupted after some media data has been received, causing the user agent to give up trying to fetch the resource
+    // -> If the connection is interrupted after some media data has been received, causing the user agent to give up trying
+    //    to fetch the resource
+    if (fetching_status == FetchingStatus::Interrupted) {
+        // Fatal network errors that occur after the user agent has established whether the current media resource is usable
+        // (i.e. once the media element's readyState attribute is no longer HAVE_NOTHING) must cause the user agent to
+        // execute the following steps:
+        if (m_ready_state > ReadyState::HaveNothing) {
+            VERIFY(!m_error);
+
+            // 1. The user agent should cancel the fetching process.
+            cancel_the_fetching_process();
+
+            // 2. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_NETWORK.
+            m_error = realm.create<MediaError>(realm, MediaError::Code::Network, "Connection interrupted"_string);
+
+            // 3. Set the element's networkState attribute to the NETWORK_IDLE value.
+            m_network_state = NetworkState::Idle;
+
+            // 4. Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
+            m_delaying_the_load_event.clear();
+
+            // 5. Fire an event named error at the media element.
+            dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+
+            // 6. Abort the overall resource selection algorithm.
+            // NB: Stopping the fetch stops the resource selection algorithm when the error is set.
+        }
+    }
+
     // FIXME: -> If the media data fetching process is aborted by the user
     // FIXME: -> If the media data can be fetched but has non-fatal errors or uses, in part, codecs that are unsupported, preventing the user agent from
     //           rendering the content completely correctly but not preventing playback altogether
