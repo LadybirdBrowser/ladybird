@@ -614,7 +614,7 @@ public:
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
 
-    void mark_svg_root_as_needing_relayout(Layout::SVGSVGBox&);
+    void mark_subtree_as_needing_relayout(Layout::Box&);
 
     void set_needs_to_refresh_scroll_state(bool b);
 
@@ -1208,7 +1208,7 @@ private:
     bool m_needs_full_style_update { false };
     bool m_needs_full_layout_tree_update { false };
 
-    HashTable<GC::Ref<Layout::SVGSVGBox>> m_svg_roots_needing_relayout;
+    HashTable<GC::Ref<Layout::Box>> m_subtrees_needing_relayout;
 
     bool m_needs_animated_style_update { false };
 

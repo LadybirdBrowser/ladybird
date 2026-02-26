@@ -51,6 +51,8 @@ public:
 
     virtual ~Box() override;
 
+    bool can_be_partial_relayout_boundary() const;
+
     virtual void did_set_content_size() { }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;

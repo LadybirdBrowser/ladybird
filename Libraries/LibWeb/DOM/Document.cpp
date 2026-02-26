@@ -172,7 +172,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
-#include <LibWeb/Layout/SVGFormattingContext.h>
+#include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -633,7 +633,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     for (auto& resize_observer : m_resize_observers)
         visitor.visit(resize_observer);
 
-    visitor.visit(m_svg_roots_needing_relayout);
+    visitor.visit(m_subtrees_needing_relayout);
 
     visitor.visit(m_shared_resource_requests);
 
@@ -1348,44 +1348,49 @@ void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
     tear_down_layout_tree();
 }
 
-void Document::mark_svg_root_as_needing_relayout(Layout::SVGSVGBox& svg_root)
+void Document::mark_subtree_as_needing_relayout(Layout::Box& box)
 {
-    m_svg_roots_needing_relayout.set(svg_root);
+    m_subtrees_needing_relayout.set(box);
 }
 
-static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
+static void relayout_subtree(Layout::Box& root)
 {
     Layout::LayoutState layout_state;
-    layout_state.set_subtree_root(svg_root);
+    layout_state.set_subtree_root(root);
 
-    // Pre-populate the svg_root itself.
-    if (auto const* paintable = svg_root.paintable_box())
-        layout_state.populate_from_paintable(svg_root, *paintable);
+    // Pre-populate the root box itself — dimensions/offset are unchanged.
+    if (auto const* paintable = root.paintable_box())
+        layout_state.populate_from_paintable(root, *paintable);
 
-    // Pre-populate SVGGraphicsBox ancestors (up to outer SVG) for get_parent_svg_transform().
-    for (auto* ancestor = svg_root.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (auto const* svg_graphics_ancestor = as_if<Layout::SVGGraphicsBox>(*ancestor)) {
-            if (auto const* paintable = svg_graphics_ancestor->paintable_box())
-                layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
+    // SVG-specific: pre-populate SVGGraphicsBox ancestors for get_parent_svg_transform().
+    if (root.is_svg_svg_box()) {
+        for (auto* ancestor = root.parent(); ancestor; ancestor = ancestor->parent()) {
+            if (auto const* svg_graphics_ancestor = as_if<Layout::SVGGraphicsBox>(*ancestor)) {
+                if (auto const* paintable = svg_graphics_ancestor->paintable_box())
+                    layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
+            }
+            if (is<Layout::SVGSVGBox>(*ancestor))
+                break;
         }
-        if (is<Layout::SVGSVGBox>(*ancestor))
-            break;
     }
 
-    // Pre-populate the viewport for position:fixed elements inside <foreignObject>.
-    auto& viewport = svg_root.root();
+    // Pre-populate the viewport for position:fixed descendants.
+    auto& viewport = root.root();
     if (auto const* paintable = viewport.paintable_box())
         layout_state.populate_from_paintable(viewport, *paintable);
 
-    auto const& svg_state = layout_state.get(svg_root);
-    auto content_width = svg_state.content_width();
-    auto content_height = svg_state.content_height();
+    auto const& root_state = layout_state.get(root);
+    auto content_width = root_state.content_width();
+    auto content_height = root_state.content_height();
+    auto available_space = Layout::AvailableSpace(Layout::AvailableSize::make_definite(content_width), Layout::AvailableSize::make_definite(content_height));
 
-    Layout::SVGFormattingContext svg_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
-    svg_context.run(Layout::AvailableSpace(Layout::AvailableSize::make_definite(content_width), Layout::AvailableSize::make_definite(content_height)));
-    layout_state.commit(svg_root);
+    auto context = Layout::FormattingContext::create_independent_formatting_context(layout_state, Layout::LayoutMode::Normal, root);
+    context->run(available_space);
+    context->parent_context_did_dimension_child_root_box();
 
-    svg_root.for_each_in_inclusive_subtree([](auto& node) {
+    layout_state.commit(root);
+
+    root.for_each_in_inclusive_subtree([](auto& node) {
         node.reset_needs_layout_update();
         return TraversalDecision::Continue;
     });
@@ -1465,9 +1470,9 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     update_style();
 
-    auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
+    auto subtrees_to_relayout = move(m_subtrees_needing_relayout);
 
-    if (m_layout_root && !m_layout_root->needs_layout_update() && svg_roots_to_relayout.is_empty())
+    if (m_layout_root && !m_layout_root->needs_layout_update() && subtrees_to_relayout.is_empty())
         return;
 
     // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
@@ -1476,10 +1481,10 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
 
-    // Partial SVG relayout
-    if (!needs_layout_tree_rebuild && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update()) {
-        for (auto const& svg_root : svg_roots_to_relayout)
-            relayout_svg_root(*svg_root);
+    // Partial relayout path
+    if (!needs_layout_tree_rebuild && !subtrees_to_relayout.is_empty() && !m_layout_root->needs_layout_update()) {
+        for (auto const& subtree_root : subtrees_to_relayout)
+            relayout_subtree(*subtree_root);
 
         invalidate_stacking_context_tree();
         invalidate_display_list();

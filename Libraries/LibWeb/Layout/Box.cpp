@@ -63,6 +63,54 @@ Painting::PaintableBox const* Box::paintable_box() const
     return static_cast<Painting::PaintableBox const*>(Node::first_paintable());
 }
 
+bool Box::can_be_partial_relayout_boundary() const
+{
+    if (is_svg_svg_box())
+        return true;
+
+    if (!is_absolutely_positioned())
+        return false;
+
+    auto const& computed_values = this->computed_values();
+
+    // Must clip overflow (not visible) — prevents stale ancestor overflow rects.
+    if (computed_values.overflow_x() == CSS::Overflow::Visible || computed_values.overflow_y() == CSS::Overflow::Visible)
+        return false;
+
+    auto const& inset = computed_values.inset();
+    auto is_fixed_inset = [](CSS::LengthPercentageOrAuto const& v) {
+        return !v.is_auto() && v.is_length();
+    };
+
+    // Width: must be a fixed length, OR auto with both left+right being fixed insets.
+    // When auto + fixed insets, width = CB_width - left - right - margins - padding - borders,
+    // which is stable during partial relayout since the CB doesn't change.
+    bool has_deterministic_width = computed_values.width().is_length()
+        || (computed_values.width().is_auto() && is_fixed_inset(inset.left()) && is_fixed_inset(inset.right()));
+    bool has_deterministic_height = computed_values.height().is_length()
+        || (computed_values.height().is_auto() && is_fixed_inset(inset.top()) && is_fixed_inset(inset.bottom()));
+    if (!has_deterministic_width || !has_deterministic_height)
+        return false;
+
+    // Min/max sizes must not contain percentages or be intrinsic.
+    for (auto const* size : { &computed_values.min_width(), &computed_values.max_width(), &computed_values.min_height(), &computed_values.max_height() }) {
+        if (size->contains_percentage() || size->is_intrinsic_sizing_constraint())
+            return false;
+    }
+
+    // Padding must not contain percentages.
+    auto const& padding = computed_values.padding();
+    if (padding.top().contains_percentage() || padding.right().contains_percentage() || padding.bottom().contains_percentage() || padding.left().contains_percentage())
+        return false;
+
+    // Margin must not contain percentages.
+    auto const& margin = computed_values.margin();
+    if (margin.top().contains_percentage() || margin.right().contains_percentage() || margin.bottom().contains_percentage() || margin.left().contains_percentage())
+        return false;
+
+    return true;
+}
+
 Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
 {
     auto const& computed_aspect_ratio = computed_values().aspect_ratio();

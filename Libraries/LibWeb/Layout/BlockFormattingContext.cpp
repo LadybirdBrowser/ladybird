@@ -789,7 +789,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     if (box_state.has_definite_height() || box_is_html_element_in_quirks_mode)
         resolve_used_height_if_treated_as_auto(box, available_space);
 
-    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box);
+    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box, this);
 
     // NOTE: It is possible to encounter SVGMaskBox nodes while doing layout of formatting context established by <foreignObject> with a mask.
     //       We should skip and let SVGFormattingContext take care of them.
@@ -877,7 +877,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // min-height. If so, we run layout with min-height as the available height.
         if (should_treat_height_as_auto(box, available_space) && !box.computed_values().min_height().is_auto()) {
             LayoutState throwaway_state;
-            auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
+            auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box, this);
             measuring_context->run(inner_available_space);
             auto content_height = measuring_context->automatic_content_height();
             auto min_height = calculate_inner_height(box, available_space, box.computed_values().min_height());
@@ -1126,7 +1126,7 @@ void BlockFormattingContext::layout_viewport(AvailableSpace const& available_spa
         auto const& svg_root = as<SVGSVGBox>(*root().first_child());
         auto content_height = m_state.get(*svg_root.containing_block()).content_height();
         m_state.get_mutable(svg_root).set_content_height(content_height);
-        auto svg_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, svg_root);
+        auto svg_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, svg_root, this);
         svg_formatting_context->run(available_space);
     } else {
         if (root().children_are_inline())
