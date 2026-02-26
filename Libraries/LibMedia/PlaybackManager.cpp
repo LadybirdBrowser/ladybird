@@ -205,6 +205,9 @@ void PlaybackManager::check_for_duration_change(AK::Duration duration)
 
 void PlaybackManager::dispatch_error(DecoderError&& error)
 {
+    if (error.category() == DecoderErrorCategory::EndOfStream)
+        return;
+
     if (m_is_in_error_state)
         return;
     m_is_in_error_state = true;
