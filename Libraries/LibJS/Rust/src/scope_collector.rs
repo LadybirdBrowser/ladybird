@@ -1245,9 +1245,8 @@ impl ScopeCollector {
     // - arguments object metadata (has_argument_parameter, has_function_named_arguments, etc.)
     fn build_function_scope_data(records: &[ScopeRecord], index: usize) {
         let record = &records[index];
-        let scope_data = match record.scope_data {
-            Some(ref sd) => sd,
-            None => return,
+        let Some(ref scope_data) = record.scope_data else {
+            return;
         };
 
         let has_argument_parameter = record

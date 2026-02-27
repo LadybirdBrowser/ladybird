@@ -5024,9 +5024,8 @@ fn generate_tagged_template_literal(
 
     // Build template strings for GetTemplateObject.
     // expressions has alternating: string_0, expression_0, string_1, expression_1, ..., string_n
-    let data = match &template_literal.inner {
-        ExpressionKind::TemplateLiteral(d) => d,
-        _ => unreachable!("TaggedTemplateLiteral template must be TemplateLiteral"),
+    let ExpressionKind::TemplateLiteral(data) = &template_literal.inner else {
+        unreachable!("TaggedTemplateLiteral template must be TemplateLiteral");
     };
 
     // Collect cooked strings (even indices). NullLiteral means invalid escape → undefined.
