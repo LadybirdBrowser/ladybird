@@ -44,7 +44,7 @@ public:
     ~VideoDataProvider();
 
     void set_error_handler(ErrorHandler&&);
-    void set_frame_end_time_handler(FrameEndTimeHandler&&);
+    void set_duration_change_handler(FrameEndTimeHandler&&);
     void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
     void start();
@@ -60,11 +60,11 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration, RefPtr<MediaTimeProvider> const&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
-        void set_frame_end_time_handler(FrameEndTimeHandler&&);
+        void set_duration_change_handler(FrameEndTimeHandler&&);
         void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
         void start();
@@ -115,6 +115,7 @@ private:
 
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
+        AK::Duration m_duration;
         OwnPtr<VideoDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
 
@@ -122,7 +123,7 @@ private:
 
         size_t m_queue_max_size { 4 };
         ImageQueue m_queue;
-        FrameEndTimeHandler m_frame_end_time_handler;
+        FrameEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
         bool m_is_in_error_state { false };
         FramesQueueIsFullHandler m_frames_queue_is_full_handler;

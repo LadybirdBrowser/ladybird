@@ -168,7 +168,7 @@ void PlaybackManager::set_up_data_providers()
                 return;
             self->dispatch_error(move(error));
         });
-        video_track_data.provider->set_frame_end_time_handler([self = weak()](AK::Duration time) {
+        video_track_data.provider->set_duration_change_handler([self = weak()](AK::Duration time) {
             if (!self)
                 return;
             self->check_for_duration_change(time);
@@ -186,7 +186,7 @@ void PlaybackManager::set_up_data_providers()
                 return;
             self->dispatch_error(move(error));
         });
-        audio_track_data.provider->set_block_end_time_handler([self = weak()](AK::Duration time) {
+        audio_track_data.provider->set_duration_change_handler([self = weak()](AK::Duration time) {
             if (!self)
                 return;
             self->check_for_duration_change(time);
