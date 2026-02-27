@@ -18,7 +18,7 @@ enum LocalForInit {
     Expression(Expression),
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_statement(&mut self, allow_labelled_function: bool) -> Statement {
         let start = self.position();
         let tt = self.current_token_type();
