@@ -1402,8 +1402,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
                 union_platform_object_type_generator.set("platform_object_type", type->name());
 
                 union_platform_object_type_generator.append(R"~~~(
-                if (is<@platform_object_type@>(@js_name@@js_suffix@_object))
-                    return GC::make_root(static_cast<@platform_object_type@&>(@js_name@@js_suffix@_object));
+                if (auto* @js_name@@js_suffix@_result = as_if<@platform_object_type@>(@js_name@@js_suffix@_object))
+                    return GC::make_root(*@js_name@@js_suffix@_result);
 )~~~");
             }
 
@@ -1429,8 +1429,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
         if (includes_window_proxy) {
             union_generator.append(R"~~~(
-            if (is<WindowProxy>(@js_name@@js_suffix@_object))
-                return GC::make_root(static_cast<WindowProxy&>(@js_name@@js_suffix@_object));
+            if (auto* @js_name@@js_suffix@_result = as_if<WindowProxy>(@js_name@@js_suffix@_object))
+                return GC::make_root(*@js_name@@js_suffix@_result);
 )~~~");
         }
 
