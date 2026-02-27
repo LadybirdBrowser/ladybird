@@ -144,6 +144,7 @@ struct ThreadData {
 EventLoopImplementationWindows::EventLoopImplementationWindows()
     : m_wake_event(ThreadData::the()->wake_data->wait_event.handle)
 {
+    VERIFY(m_wake_event);
 }
 
 EventLoopImplementationWindows::~EventLoopImplementationWindows()
