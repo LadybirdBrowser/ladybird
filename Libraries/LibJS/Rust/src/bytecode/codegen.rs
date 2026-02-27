@@ -9570,7 +9570,7 @@ fn format_double_for_display(n: f64) -> String {
         return "0".to_string();
     }
     // Get the scientific notation representation to extract the exponent.
-    let e_str = format!("{:e}", n);
+    let e_str = format!("{n:e}");
     if let Some(e_pos) = e_str.find('e') {
         let exp_str = &e_str[e_pos + 1..];
         let displayed_exponent = exp_str.parse::<i32>().unwrap_or(0);
@@ -9579,11 +9579,11 @@ fn format_double_for_display(n: f64) -> String {
         if !(-6..=20).contains(&displayed_exponent) {
             let mantissa_part = &e_str[..e_pos];
             if displayed_exponent < 0 {
-                return format!("{}e{}", mantissa_part, displayed_exponent);
+                return format!("{mantissa_part}e{displayed_exponent}");
             } else {
-                return format!("{}e+{}", mantissa_part, displayed_exponent);
+                return format!("{mantissa_part}e+{displayed_exponent}");
             }
         }
     }
-    format!("{}", n)
+    format!("{n}")
 }

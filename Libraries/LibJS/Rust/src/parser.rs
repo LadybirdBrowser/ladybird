@@ -483,8 +483,7 @@ impl<'a> Parser<'a> {
             if is_strict_reserved_word(value) {
                 let name = String::from_utf16_lossy(value);
                 self.syntax_error(&format!(
-                    "Identifier must not be a reserved word in strict mode ('{}')",
-                    name
+                    "Identifier must not be a reserved word in strict mode ('{name}')"
                 ));
             }
         }
@@ -651,8 +650,7 @@ impl<'a> Parser<'a> {
         if !self.register_referenced_private_name(&value) {
             let name = String::from_utf16_lossy(&value);
             self.syntax_error(&format!(
-                "Reference to undeclared private field or method '{}'",
-                name
+                "Reference to undeclared private field or method '{name}'"
             ));
         }
         let token = self.consume();
@@ -846,8 +844,7 @@ impl<'a> Parser<'a> {
             } else if is_strict_reserved_word(name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Identifier must not be a reserved word in strict mode ('{}')",
-                    name_str
+                    "Identifier must not be a reserved word in strict mode ('{name_str}')"
                 ));
             }
         }
@@ -865,8 +862,7 @@ impl<'a> Parser<'a> {
             if !seen_names.insert(&**name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Duplicate parameter '{}' not allowed in arrow function",
-                    name_str
+                    "Duplicate parameter '{name_str}' not allowed in arrow function"
                 ));
             }
         }
@@ -890,8 +886,7 @@ impl<'a> Parser<'a> {
             if !seen_names.insert(&**name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Duplicate parameter '{}' not allowed in strict mode",
-                    name_str
+                    "Duplicate parameter '{name_str}' not allowed in strict mode"
                 ));
             }
         }

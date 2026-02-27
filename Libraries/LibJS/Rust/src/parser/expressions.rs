@@ -1671,7 +1671,7 @@ impl<'a> Parser<'a> {
             // Strict-mode reserved words cannot be used as shorthand properties.
             if self.flags.strict_mode && is_strict_reserved_word(&kv) {
                 let name_str = String::from_utf16_lossy(&kv);
-                self.syntax_error(&format!("'{}' is a reserved keyword", name_str));
+                self.syntax_error(&format!("'{name_str}' is a reserved keyword"));
             }
             let id = self.make_identifier(obj_start, kv);
             self.scope_collector
