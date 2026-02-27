@@ -45,10 +45,10 @@ static ThrowCompletionOr<GC::Ref<BigInt>> this_bigint_value(VM& vm, Value value)
         return value.as_bigint();
 
     // 2. If value is an Object and value has a [[BigIntData]] internal slot, then
-    if (value.is_object() && is<BigIntObject>(value.as_object())) {
+    if (auto bigint = value.as_if<BigIntObject>()) {
         // a. Assert: value.[[BigIntData]] is a BigInt.
         // b. Return value.[[BigIntData]].
-        return static_cast<BigIntObject&>(value.as_object()).bigint();
+        return bigint->bigint();
     }
 
     // 3. Throw a TypeError exception.

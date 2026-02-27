@@ -237,9 +237,9 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
     auto new_array_buffer = TRY(construct(vm, *constructor, Value(new_length)));
 
     // 17. Perform ? RequireInternalSlot(new, [[ArrayBufferData]]).
-    if (!is<ArrayBuffer>(new_array_buffer.ptr()))
+    auto* new_array_buffer_object = as_if<ArrayBuffer>(*new_array_buffer);
+    if (!new_array_buffer_object)
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorDidNotCreate, "an ArrayBuffer");
-    auto* new_array_buffer_object = static_cast<ArrayBuffer*>(new_array_buffer.ptr());
 
     // 18. If IsSharedArrayBuffer(new) is true, throw a TypeError exception.
     if (new_array_buffer_object->is_shared_array_buffer())

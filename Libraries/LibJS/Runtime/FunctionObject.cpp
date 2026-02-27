@@ -53,9 +53,11 @@ GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey,
     }
 
     // 4. If F has an [[InitialName]] internal slot, then
-    if (is<NativeFunction>(this)) {
+    auto* native_function = as_if<NativeFunction>(this);
+
+    if (native_function) {
         // a. Set F.[[InitialName]] to name.
-        static_cast<NativeFunction&>(*this).set_initial_name({}, name);
+        native_function->set_initial_name({}, name);
     }
 
     // 5. If prefix is present, then
@@ -64,9 +66,9 @@ GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey,
         name = Utf16String::formatted("{} {}", *prefix, name);
 
         // b. If F has an [[InitialName]] internal slot, then
-        if (is<NativeFunction>(this)) {
+        if (native_function) {
             // i. Optionally, set F.[[InitialName]] to name.
-            static_cast<NativeFunction&>(*this).set_initial_name({}, name);
+            native_function->set_initial_name({}, name);
         }
     }
 

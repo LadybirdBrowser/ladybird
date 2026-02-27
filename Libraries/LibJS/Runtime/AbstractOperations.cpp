@@ -620,17 +620,15 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         auto this_environment_record = get_this_environment(vm);
 
         // b. If thisEnvRec is a function Environment Record, then
-        if (is<FunctionEnvironment>(*this_environment_record)) {
-            auto& this_function_environment_record = static_cast<FunctionEnvironment&>(*this_environment_record);
-
+        if (auto* this_function_environment_record = as_if<FunctionEnvironment>(*this_environment_record)) {
             // i. Let F be thisEnvRec.[[FunctionObject]].
-            auto& function = as<ECMAScriptFunctionObject>(this_function_environment_record.function_object());
+            auto& function = as<ECMAScriptFunctionObject>(this_function_environment_record->function_object());
 
             // ii. Set inFunction to true.
             in_function = true;
 
             // iii. Set inMethod to thisEnvRec.HasSuperBinding().
-            in_method = this_function_environment_record.has_super_binding();
+            in_method = this_function_environment_record->has_super_binding();
 
             // iv. If F.[[ConstructorKind]] is derived, set inDerivedConstructor to true.
             if (function.constructor_kind() == ConstructorKind::Derived)

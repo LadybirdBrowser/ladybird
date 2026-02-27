@@ -37,11 +37,11 @@ static ThrowCompletionOr<bool> this_boolean_value(VM& vm, Value value)
         return value.as_bool();
 
     // 2. If value is an Object and value has a [[BooleanData]] internal slot, then
-    if (value.is_object() && is<BooleanObject>(value.as_object())) {
+    if (auto boolean = value.as_if<BooleanObject>()) {
         // a. Let b be value.[[BooleanData]].
         // b. Assert: b is a Boolean.
         // c. Return b.
-        return static_cast<BooleanObject&>(value.as_object()).boolean();
+        return boolean->boolean();
     }
 
     // 3. Throw a TypeError exception.

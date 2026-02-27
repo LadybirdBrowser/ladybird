@@ -244,11 +244,11 @@ static ThrowCompletionOr<GC::Ref<PrimitiveString>> this_string_value(VM& vm, Val
         return value.as_string();
 
     // 2. If value is an Object and value has a [[StringData]] internal slot, then
-    if (value.is_object() && is<StringObject>(value.as_object())) {
+    if (auto string = value.as_if<StringObject>()) {
         // a. Let s be value.[[StringData]].
         // b. Assert: s is a String.
         // c. Return s.
-        return static_cast<StringObject&>(value.as_object()).primitive_string();
+        return string->primitive_string();
     }
 
     // 3. Throw a TypeError exception.

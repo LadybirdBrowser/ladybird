@@ -57,7 +57,7 @@ ThrowCompletionOr<GC::Ref<Object>> SharedArrayBufferConstructor::construct(Funct
 
     if (byte_length_or_error.is_error()) {
         auto error = byte_length_or_error.release_error();
-        if (error.value().is_object() && is<RangeError>(error.value().as_object())) {
+        if (error.value().is<RangeError>()) {
             // Re-throw more specific RangeError
             return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "shared array buffer");
         }

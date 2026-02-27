@@ -46,32 +46,30 @@ ThrowCompletionOr<GC::Ref<Object>> DataViewConstructor::construct(FunctionObject
 {
     auto& vm = this->vm();
 
-    auto buffer = vm.argument(0);
+    auto buffer = vm.argument(0).as_if<ArrayBuffer>();
     auto byte_offset = vm.argument(1);
     auto byte_length = vm.argument(2);
 
     // 2. Perform ? RequireInternalSlot(buffer, [[ArrayBufferData]]).
-    if (!buffer.is_object() || !is<ArrayBuffer>(buffer.as_object()))
+    if (!buffer)
         return vm.throw_completion<TypeError>(ErrorType::IsNotAn, buffer, vm.names.ArrayBuffer);
-
-    auto& array_buffer = static_cast<ArrayBuffer&>(buffer.as_object());
 
     // 3. Let offset be ? ToIndex(byteOffset).
     auto offset = TRY(byte_offset.to_index(vm));
 
     // 4. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-    if (array_buffer.is_detached())
+    if (buffer->is_detached())
         return vm.throw_completion<TypeError>(ErrorType::DetachedArrayBuffer);
 
     // 5. Let bufferByteLength be ArrayBufferByteLength(buffer, seq-cst).
-    auto buffer_byte_length = array_buffer_byte_length(array_buffer, ArrayBuffer::Order::SeqCst);
+    auto buffer_byte_length = array_buffer_byte_length(*buffer, ArrayBuffer::Order::SeqCst);
 
     // 6. If offset > bufferByteLength, throw a RangeError exception.
     if (offset > buffer_byte_length)
         return vm.throw_completion<RangeError>(ErrorType::DataViewOutOfRangeByteOffset, offset, buffer_byte_length);
 
     // 7. Let bufferIsFixedLength be IsFixedLengthArrayBuffer(buffer).
-    auto buffer_is_fixed_length = array_buffer.is_fixed_length();
+    auto buffer_is_fixed_length = buffer->is_fixed_length();
 
     ByteLength view_byte_length { 0 };
 
@@ -101,14 +99,14 @@ ThrowCompletionOr<GC::Ref<Object>> DataViewConstructor::construct(FunctionObject
     }
 
     // 10. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%DataView.prototype%", « [[DataView]], [[ViewedArrayBuffer]], [[ByteLength]], [[ByteOffset]] »).
-    auto data_view = TRY(ordinary_create_from_constructor<DataView>(vm, new_target, &Intrinsics::data_view_prototype, &array_buffer, move(view_byte_length), offset));
+    auto data_view = TRY(ordinary_create_from_constructor<DataView>(vm, new_target, &Intrinsics::data_view_prototype, buffer, move(view_byte_length), offset));
 
     // 11. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-    if (array_buffer.is_detached())
+    if (buffer->is_detached())
         return vm.throw_completion<TypeError>(ErrorType::DetachedArrayBuffer);
 
     // 12. Set bufferByteLength to ArrayBufferByteLength(buffer, seq-cst).
-    buffer_byte_length = array_buffer_byte_length(array_buffer, ArrayBuffer::Order::SeqCst);
+    buffer_byte_length = array_buffer_byte_length(*buffer, ArrayBuffer::Order::SeqCst);
 
     // 13. If offset > bufferByteLength, throw a RangeError exception.
     if (offset > buffer_byte_length)

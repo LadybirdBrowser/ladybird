@@ -107,13 +107,13 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncDisposableStackPrototype::dispose_async)
     auto& realm = *vm.current_realm();
 
     // 1. Let asyncDisposableStack be the this value.
-    auto async_disposable_stack_value = vm.this_value();
+    auto async_disposable_stack = vm.this_value().as_if<AsyncDisposableStack>();
 
     // 2. Let promiseCapability be ! NewPromiseCapability(%Promise%).
     auto promise_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
 
     // 3. If asyncDisposableStack does not have an [[AsyncDisposableState]] internal slot, then
-    if (!async_disposable_stack_value.is_object() || !is<AsyncDisposableStack>(async_disposable_stack_value.as_object())) {
+    if (!async_disposable_stack) {
         // a. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
         auto error = vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, display_name());
         MUST(call(vm, *promise_capability->reject(), js_undefined(), error.value()));
@@ -122,10 +122,8 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncDisposableStackPrototype::dispose_async)
         return promise_capability->promise();
     }
 
-    auto& async_disposable_stack = static_cast<AsyncDisposableStack&>(async_disposable_stack_value.as_object());
-
     // 4. If asyncDisposableStack.[[AsyncDisposableState]] is disposed, then
-    if (async_disposable_stack.async_disposable_state() == AsyncDisposableStack::AsyncDisposableState::Disposed) {
+    if (async_disposable_stack->async_disposable_state() == AsyncDisposableStack::AsyncDisposableState::Disposed) {
         // a. Perform ! Call(promiseCapability.[[Resolve]], undefined, « undefined »).
         MUST(call(vm, *promise_capability->resolve(), js_undefined(), js_undefined()));
 
@@ -134,11 +132,11 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncDisposableStackPrototype::dispose_async)
     }
 
     // 5. Set asyncDisposableStack.[[AsyncDisposableState]] to disposed.
-    async_disposable_stack.set_disposed();
+    async_disposable_stack->set_disposed();
 
     // 6. Let result be DisposeResources(asyncDisposableStack.[[DisposeCapability]], NormalCompletion(undefined)).
     // 7. IfAbruptRejectPromise(result, promiseCapability).
-    auto result = TRY_OR_REJECT(vm, promise_capability, dispose_resources(vm, async_disposable_stack.dispose_capability(), normal_completion(js_undefined())));
+    auto result = TRY_OR_REJECT(vm, promise_capability, dispose_resources(vm, async_disposable_stack->dispose_capability(), normal_completion(js_undefined())));
 
     // 8. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result »).
     MUST(call(vm, *promise_capability->resolve(), js_undefined(), result));
