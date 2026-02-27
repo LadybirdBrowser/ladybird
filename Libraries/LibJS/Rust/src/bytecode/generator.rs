@@ -1342,7 +1342,7 @@ impl Generator {
             block_offsets.push(offset);
             let block = &self.basic_blocks[block_index];
             let mut block_actions = Vec::with_capacity(block.instructions.len());
-            for (instruction, _) in block.instructions.iter() {
+            for (instruction, _) in &block.instructions {
                 match instruction {
                     Instruction::Jump { target } => {
                         let target_block = target.0 as usize;
