@@ -1556,12 +1556,9 @@ impl<'a> Parser<'a> {
                             if Self::is_object_expression(&expression)
                                 || Self::is_array_expression(&expression)
                             {
-                                if let Some(pattern) =
-                                    self.synthesize_binding_pattern(expression_start)
-                                {
-                                    entry_alias =
-                                        Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
-                                }
+                                let pattern = self.synthesize_binding_pattern(expression_start);
+                                entry_alias =
+                                    Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                             } else if Self::is_member_expression(&expression) {
                                 entry_alias =
                                     Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
@@ -1614,9 +1611,8 @@ impl<'a> Parser<'a> {
                 );
                 if Self::is_object_expression(&expression) || Self::is_array_expression(&expression)
                 {
-                    if let Some(pattern) = self.synthesize_binding_pattern(expression_start) {
-                        entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
-                    }
+                    let pattern = self.synthesize_binding_pattern(expression_start);
+                    entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                 } else if Self::is_member_expression(&expression) {
                     entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
                 } else if Self::is_identifier(&expression) {
