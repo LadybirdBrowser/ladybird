@@ -8,6 +8,7 @@
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebView/Application.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Event.h>
@@ -36,6 +37,16 @@ struct HideCursor {
         [NSCursor unhide];
     }
 };
+
+@interface LadybirdWebViewContentLayer : CALayer
+@end
+
+@implementation LadybirdWebViewContentLayer
+- (void)display
+{
+    [self.delegate displayLayer:self];
+}
+@end
 
 @interface LadybirdWebView () <NSDraggingDestination>
 {
@@ -101,8 +112,10 @@ struct HideCursor {
     if (self = [super init]) {
         self.observer = observer;
 
-        m_metal_device = MTLCreateSystemDefaultDevice();
-        m_metal_queue = [m_metal_device newCommandQueue];
+        if (WebView::Application::web_content_options().force_cpu_painting != WebView::ForceCPUPainting::Yes) {
+            m_metal_device = MTLCreateSystemDefaultDevice();
+            m_metal_queue = [m_metal_device newCommandQueue];
+        }
 
         auto* screens = [NSScreen screens];
 
@@ -256,13 +269,12 @@ struct HideCursor {
 
     m_web_view_bridge->on_ready_to_paint = [weak_self]() {
         LadybirdWebView* self = weak_self;
-        if (self == nil) {
+        if (self == nil)
             return;
-        }
         if (m_metal_device)
             [self presentMetalFrame];
         else
-            [self setNeedsDisplay:YES];
+            [self.layer setNeedsDisplay];
     };
 
     m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, auto page_index) {
@@ -940,6 +952,12 @@ struct HideCursor {
 
 - (CALayer*)makeBackingLayer
 {
+    if (!m_metal_device) {
+        CALayer* layer = [LadybirdWebViewContentLayer layer];
+        layer.contentsGravity = kCAGravityTopLeft;
+        return layer;
+    }
+
     CAMetalLayer* layer = [CAMetalLayer layer];
     layer.device = m_metal_device;
     layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
@@ -949,20 +967,15 @@ struct HideCursor {
     return layer;
 }
 
-- (BOOL)wantsUpdateLayer
-{
-    return YES;
-}
-
 - (void)presentMetalFrame
 {
+    VERIFY(m_metal_device);
+
     auto paintable = m_web_view_bridge->paintable();
     if (!paintable.has_value())
         return;
-
     auto [bitmap, bitmap_size, iosurface_ref] = *paintable;
-    if (!iosurface_ref)
-        return;
+    VERIFY(iosurface_ref);
 
     CAMetalLayer* metal_layer = (CAMetalLayer*)self.layer;
     metal_layer.drawableSize = CGSizeMake(bitmap_size.width(), bitmap_size.height());
@@ -1010,16 +1023,13 @@ struct HideCursor {
     self.layerContentsPlacement = NSViewLayerContentsPlacementScaleAxesIndependently;
 }
 
-- (void)updateLayer
+- (void)displayLayer:(CALayer*)layer
 {
-    // Metal path is driven directly by on_ready_to_paint via presentMetalFrame.
-    if (m_metal_device)
-        return;
+    VERIFY(!m_metal_device);
 
-    // Fallback for non-IOSurface path (e.g. Intel Macs)
     auto paintable = m_web_view_bridge->paintable();
     if (!paintable.has_value()) {
-        self.layer.contents = nil;
+        layer.contents = nil;
         return;
     }
 
@@ -1029,7 +1039,7 @@ struct HideCursor {
 
     static constexpr size_t BITS_PER_COMPONENT = 8;
     static constexpr size_t BITS_PER_PIXEL = 32;
-    static auto color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    static auto* color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
 
     auto* provider = CGDataProviderCreateWithData(nil, bitmap.scanline_u8(0), bitmap.size_in_bytes(), nil);
 
@@ -1049,12 +1059,8 @@ struct HideCursor {
         NO,
         kCGRenderingIntentDefault);
 
-    self.layer.contentsScale = m_web_view_bridge->device_pixel_ratio();
-    self.layer.contentsGravity = kCAGravityTopLeft;
-    self.layer.contentsRect = CGRectMake(0, 0,
-        (CGFloat)bitmap_size.width() / bitmap.width(),
-        (CGFloat)bitmap_size.height() / bitmap.height());
-    self.layer.contents = (__bridge id)bitmap_image;
+    layer.contentsScale = m_web_view_bridge->device_pixel_ratio();
+    layer.contents = (__bridge id)bitmap_image;
 
     CGDataProviderRelease(provider);
     CGImageRelease(bitmap_image);
