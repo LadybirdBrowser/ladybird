@@ -351,6 +351,11 @@ static void collect_builtin_function(void* ctx, void* sfd_ptr, uint16_t const*, 
 
 // --- Compile functions ---
 
+bool rust_pipeline_available()
+{
+    return rust_pipeline_enabled() && !compare_pipelines_enabled();
+}
+
 RustParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset)
 {
     if (!rust_pipeline_enabled() && !compare_pipelines_enabled())
@@ -1340,6 +1345,11 @@ extern "C" uint64_t get_abstract_operation_function(void* vm_ptr, uint16_t const
 #else // !ENABLE_RUST
 
 namespace JS::RustIntegration {
+
+bool rust_pipeline_available()
+{
+    return false;
+}
 
 RustParsedProgram* parse_program(u16 const*, size_t, ProgramType, size_t)
 {
