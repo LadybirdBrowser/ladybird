@@ -8894,14 +8894,12 @@ fn try_constant_fold_to_boolean(
 fn try_constant_loosely_equals(lhs: &ConstantValue, rhs: &ConstantValue) -> Option<bool> {
     // Same type: use strict equality rules.
     match (lhs, rhs) {
-        (ConstantValue::Null, ConstantValue::Null)
-        | (ConstantValue::Null, ConstantValue::Undefined)
-        | (ConstantValue::Undefined, ConstantValue::Null)
-        | (ConstantValue::Undefined, ConstantValue::Undefined) => return Some(true),
-        (ConstantValue::Null, _)
-        | (ConstantValue::Undefined, _)
-        | (_, ConstantValue::Null)
-        | (_, ConstantValue::Undefined) => return Some(false),
+        (
+            ConstantValue::Null | ConstantValue::Undefined,
+            ConstantValue::Null | ConstantValue::Undefined,
+        ) => return Some(true),
+        (ConstantValue::Null | ConstantValue::Undefined, _)
+        | (_, ConstantValue::Null | ConstantValue::Undefined) => return Some(false),
         (ConstantValue::Number(a), ConstantValue::Number(b)) => return Some(a == b),
         (ConstantValue::String(a), ConstantValue::String(b)) => return Some(a == b),
         (ConstantValue::Boolean(a), ConstantValue::Boolean(b)) => return Some(a == b),
