@@ -264,7 +264,7 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
 
     Object* object = nullptr;
     // 3. If Type(locales) is String or Type(locales) is Object and locales has an [[InitializedLocale]] internal slot, then
-    if (locales.is_string() || (locales.is_object() && is<Locale>(locales.as_object()))) {
+    if (locales.is_string() || locales.is<Locale>()) {
         // a. Let O be CreateArrayFromList(« locales »).
         object = Array::create_from(realm, { locales });
     }
@@ -299,9 +299,9 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
             String tag;
 
             // iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]] internal slot, then
-            if (key_value.is_object() && is<Locale>(key_value.as_object())) {
+            if (auto locale = key_value.as_if<Locale>()) {
                 // 1. Let tag be kValue.[[Locale]].
-                tag = static_cast<Locale const&>(key_value.as_object()).locale();
+                tag = locale->locale();
             }
             // iv. Else,
             else {

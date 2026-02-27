@@ -285,10 +285,8 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     auto tag = TRY([&]() -> ThrowCompletionOr<String> {
         // 8. If tag is an Object and tag has an [[InitializedLocale]] internal slot, then
         //     a. Let tag be tag.[[Locale]].
-        if (tag_value.is_object()) {
-            if (auto* locale_tag = as_if<Locale>(tag_value.as_object()))
-                return locale_tag->locale();
-        }
+        if (auto locale_tag = tag_value.as_if<Locale>())
+            return locale_tag->locale();
         // 9. Else,
         //     a. Let tag be ? ToString(tag).
         return tag_value.to_string(vm);
