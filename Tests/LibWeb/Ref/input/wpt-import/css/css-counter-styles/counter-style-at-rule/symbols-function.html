@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Test: symbols function</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org/">
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#symbols-function">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-counter-styles/counter-style-at-rule/symbols-function-ref.html">
+<link rel="stylesheet" href="support/test-common.css">
+<style type="text/css">
+  .default {
+    list-style-type: symbols('*' '\2020' '\2021' '\A7');
+  }
+  .cyclic {
+    list-style-type: symbols(cyclic '*' '\2020' '\2021' '\A7');
+  }
+  .numeric {
+    list-style-type: symbols(numeric '0' '1' '2');
+  }
+  .alphabetic {
+    list-style-type: symbols(alphabetic '\26AA' '\26AB');
+  }
+  .symbolic {
+    list-style-type: symbols(symbolic '*' '\2020' '\2021' '\A7');
+  }
+  .fixed {
+    list-style-type: symbols(fixed '\25F0' '\25F1' '\25F2' '\25F3');
+  }
+  .counter, .counters {
+    list-style-type: none;
+    counter-reset: a;
+  }
+  .counter li, .counters li {
+    counter-increment: a;
+    padding-right: .5em;
+  }
+  .counter li::after {
+    content: counter(a, symbols('*'));
+  }
+  .counters .counters li::after {
+    content: counters(a, '.', symbols(numeric '0' '1'));
+  }
+</style>
+<ol start="-2" class="default">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" class="cyclic">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" class="numeric">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" class="alphabetic">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" class="symbolic">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" class="fixed">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol class="counter">
+  <li><li><li><li><li>
+</ol>
+<ol class="counters">
+  <li><ol class="counters"><li><li><li><li><li></ol></li>
+  <li><ol class="counters"><li><li><li><li><li></ol></li>
+</ol>

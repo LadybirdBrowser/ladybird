@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 27 tests
 
-21 Pass
-6 Fail
+27 Pass
 Pass	e.style['list-style-type'] = "none" should set the property value
 Pass	e.style['list-style-type'] = "disc" should set the property value
 Pass	e.style['list-style-type'] = "circle" should set the property value
@@ -25,9 +24,9 @@ Pass	e.style['list-style-type'] = "\"marker string\"" should set the property va
 Pass	e.style['list-style-type'] = "\"Note: \"" should set the property value
 Pass	e.style['list-style-type'] = "counter-Style-Name" should set the property value
 Pass	e.style['list-style-type'] = "CounterStyleName" should set the property value
-Fail	e.style['list-style-type'] = "symbols(cyclic \"string\")" should set the property value
-Fail	e.style['list-style-type'] = "symbols(cyclic \"○\" \"●\")" should set the property value
-Fail	e.style['list-style-type'] = "symbols(fixed \"1\")" should set the property value
-Fail	e.style['list-style-type'] = "symbols(symbolic \"string\")" should set the property value
-Fail	e.style['list-style-type'] = "symbols(alphabetic \"first\" \"second\")" should set the property value
-Fail	e.style['list-style-type'] = "symbols(numeric \"first\" \"second\")" should set the property value
+Pass	e.style['list-style-type'] = "symbols(cyclic \"string\")" should set the property value
+Pass	e.style['list-style-type'] = "symbols(cyclic \"○\" \"●\")" should set the property value
+Pass	e.style['list-style-type'] = "symbols(fixed \"1\")" should set the property value
+Pass	e.style['list-style-type'] = "symbols(symbolic \"string\")" should set the property value
+Pass	e.style['list-style-type'] = "symbols(alphabetic \"first\" \"second\")" should set the property value
+Pass	e.style['list-style-type'] = "symbols(numeric \"first\" \"second\")" should set the property value

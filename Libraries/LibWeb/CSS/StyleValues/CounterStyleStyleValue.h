@@ -13,9 +13,16 @@ namespace Web::CSS {
 class CounterStyleStyleValue : public StyleValueWithDefaultOperators<CounterStyleStyleValue> {
 
 public:
-    static ValueComparingNonnullRefPtr<CounterStyleStyleValue const> create(FlyString name)
+    struct SymbolsFunction {
+        SymbolsType type;
+        Vector<FlyString> symbols;
+
+        bool operator==(SymbolsFunction const& other) const = default;
+    };
+
+    static ValueComparingNonnullRefPtr<CounterStyleStyleValue const> create(Variant<FlyString, SymbolsFunction> value)
     {
-        return adopt_ref(*new (nothrow) CounterStyleStyleValue(move(name)));
+        return adopt_ref(*new (nothrow) CounterStyleStyleValue(move(value)));
     }
 
     virtual ~CounterStyleStyleValue() override = default;
@@ -24,16 +31,16 @@ public:
 
     RefPtr<CounterStyle const> resolve_counter_style(HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles) const;
 
-    bool properties_equal(CounterStyleStyleValue const& other) const { return m_name == other.m_name; }
+    bool properties_equal(CounterStyleStyleValue const& other) const { return m_value == other.m_value; }
 
 private:
-    explicit CounterStyleStyleValue(FlyString name)
+    explicit CounterStyleStyleValue(Variant<FlyString, SymbolsFunction> value)
         : StyleValueWithDefaultOperators(Type::CounterStyle)
-        , m_name(move(name))
+        , m_value(move(value))
     {
     }
 
-    FlyString m_name;
+    Variant<FlyString, SymbolsFunction> m_value;
 };
 
 }

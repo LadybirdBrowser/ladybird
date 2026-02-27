@@ -465,6 +465,7 @@ enum class Scroller : u8;
 enum class StepPosition : u8;
 enum class StrokeLinecap : u8;
 enum class StrokeLinejoin : u8;
+enum class SymbolsType : u8;
 enum class TextRendering : u8;
 enum class TextUnderlinePositionHorizontal : u8;
 enum class TextUnderlinePositionVertical : u8;

@@ -965,6 +965,13 @@
     "round",
     "bevel"
   ],
+  "symbols-type": [
+    "cyclic",
+    "numeric",
+    "alphabetic",
+    "symbolic",
+    "fixed"
+  ],
   "table-layout": [
     "auto",
     "fixed"
