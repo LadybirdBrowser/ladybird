@@ -749,14 +749,17 @@ static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Bo
 
 void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContainer const& block_container, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const& available_space)
 {
-    auto& box_state = m_state.get_mutable(box);
-
     if (box.is_absolutely_positioned()) {
-        StaticPositionRect static_position;
-        static_position.rect = { { 0, m_y_offset_of_current_block_container.value() }, { 0, 0 } };
-        box_state.set_static_position_rect(static_position);
+        if (m_layout_mode == LayoutMode::Normal) {
+            auto& box_state = m_state.get_mutable(box);
+            StaticPositionRect static_position;
+            static_position.rect = { { 0, m_y_offset_of_current_block_container.value() }, { 0, 0 } };
+            box_state.set_static_position_rect(static_position);
+        }
         return;
     }
+
+    auto& box_state = m_state.get_mutable(box);
 
     // NOTE: ListItemMarkerBoxes are placed by their corresponding ListItemBox.
     if (is<ListItemMarkerBox>(box))
