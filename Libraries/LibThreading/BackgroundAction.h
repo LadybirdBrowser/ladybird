@@ -42,10 +42,6 @@ class BackgroundAction final
     C_OBJECT(BackgroundAction);
 
 public:
-    // Promise is an implementation detail of BackgroundAction in order to communicate with EventLoop.
-    // All of the promise's callbacks and state are either managed by us or by EventLoop.
-    using Promise = Core::Promise<NonnullRefPtr<Core::EventReceiver>>;
-
     virtual ~BackgroundAction() = default;
 
     Optional<Result> const& result() const { return m_result; }
@@ -58,85 +54,40 @@ public:
     bool is_canceled() const { return m_canceled.load(AK::MemoryOrder::memory_order_relaxed); }
 
 private:
-    BackgroundAction(ESCAPING Function<ErrorOr<Result>(BackgroundAction&)> action, ESCAPING Function<ErrorOr<void>(Result)> on_complete, ESCAPING Optional<Function<void(Error)>> on_error = {})
+    BackgroundAction(ESCAPING Function<ErrorOr<Result>(BackgroundAction&)> action, ESCAPING Function<void(Result)> on_complete, ESCAPING Function<void(Error)> on_error = {})
         : m_action(move(action))
         , m_on_complete(move(on_complete))
+        , m_on_error(move(on_error))
     {
-        auto promise = Promise::construct();
-
-        if (m_on_complete) {
-            auto self = NonnullRefPtr(*this);
-            promise->on_resolution = [](NonnullRefPtr<Core::EventReceiver>& object) -> ErrorOr<void> {
-                auto self = static_ptr_cast<BackgroundAction<Result>>(object);
-                VERIFY(self->m_result.has_value());
-                if (auto maybe_error = self->m_on_complete(self->m_result.release_value()); maybe_error.is_error()) {
-                    // If on_complete returns an error, we pass it along to your on_error handler.
-                    if (self->m_on_error)
-                        self->m_on_error(maybe_error.release_error());
-                }
-                return {};
-            };
-            promise->on_rejection = [self](Error& error) {
-                if (error.is_errno() && error.code() == ECANCELED)
-                    self->m_canceled.store(true, AK::MemoryOrder::memory_order_relaxed);
-            };
-            Core::EventLoop::current().add_job(promise);
-        }
-
-        if (on_error.has_value())
-            m_on_error = on_error.release_value();
-
-        enqueue_work([self = NonnullRefPtr(*this), promise = move(promise), origin_event_loop = Core::EventLoop::current_weak()]() mutable {
-            auto* self_ptr = self.ptr();
-            auto post_to_origin = [&](StringView message_type, Function<void()> callback) {
-                if (auto origin = origin_event_loop->take()) {
-                    origin->deferred_invoke(move(callback));
-                } else {
-                    dbgln("BackgroundAction {:p}: dropped {} (origin loop gone)", self_ptr, message_type);
-                }
-            };
-
+        enqueue_work([self = NonnullRefPtr(*this), origin_event_loop = Core::EventLoop::current_weak()]() mutable {
             auto result = self->m_action(*self);
-            auto const has_job = static_cast<bool>(self->m_on_complete);
-            auto const canceled = self->m_canceled.load(AK::MemoryOrder::memory_order_relaxed);
 
-            if (canceled) {
-                if (has_job) {
-                    post_to_origin("promise rejection"sv, [promise = move(promise)]() mutable {
-                        promise->reject(Error::from_errno(ECANCELED));
-                    });
-                }
+            auto event_loop = origin_event_loop->take();
+            if (!event_loop) {
+                dbgln("BackgroundAction {:p} was dropped, the origin loop is gone.", self.ptr());
                 return;
             }
-            if (!result.is_error()) {
-                self->m_result = result.release_value();
-                if (has_job) {
-                    post_to_origin("on_complete"sv, [self = move(self), promise = move(promise)]() mutable {
-                        // Our promise's resolution function will never error.
-                        (void)promise->resolve(*self);
-                    });
+            event_loop->deferred_invoke([self = move(self), result = move(result)]() mutable {
+                auto const canceled = self->m_canceled.load(AK::MemoryOrder::memory_order_relaxed);
+
+                if (canceled)
+                    return;
+
+                if (result.is_error()) {
+                    if (self->m_on_error)
+                        self->m_on_error(result.release_error());
+                    return;
                 }
-                return;
-            }
-            auto error = result.release_error();
-            if (has_job) {
-                post_to_origin("promise rejection"sv, [promise = move(promise), error = Error::copy(error)]() mutable {
-                    promise->reject(Error::copy(error));
-                });
-            }
-            if (self->m_on_error) {
-                post_to_origin("on_error"sv, [self = move(self), error = Error::copy(error)]() mutable {
-                    self->m_on_error(Error::copy(error));
-                });
-            }
+
+                if (self->m_on_complete)
+                    self->m_on_complete(result.release_value());
+            });
         });
     }
 
     Function<ErrorOr<Result>(BackgroundAction&)> m_action;
-    Function<ErrorOr<void>(Result)> m_on_complete;
-    Function<void(Error)> m_on_error = [](Error error) {
-        dbgln("Error occurred while running a BackgroundAction: {}", error);
-    };
+    Function<void(Result)> m_on_complete;
+    Function<void(Error)> m_on_error;
     Optional<Result> m_result;
     Atomic<bool> m_canceled { false };
 };
