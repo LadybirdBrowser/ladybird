@@ -1962,7 +1962,7 @@ impl<'a> Parser<'a> {
                         ),
                         // C++ uses rule_start (template literal start) for NullLiteral.
                         None => {
-                            expressions.push(self.expression(start, ExpressionKind::NullLiteral))
+                            expressions.push(self.expression(start, ExpressionKind::NullLiteral));
                         }
                     }
                 } else {
