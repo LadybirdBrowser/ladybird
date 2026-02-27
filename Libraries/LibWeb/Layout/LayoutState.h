@@ -278,12 +278,12 @@ struct LayoutState {
         Optional<StaticPositionRect> m_static_position_rect;
     };
 
+    LayoutState() = default;
+    explicit LayoutState(NodeWithStyle const& subtree_root);
     ~LayoutState();
 
     // Commits the used values produced by layout and builds a paintable tree.
     void commit(Box& root);
-
-    void set_subtree_root(NodeWithStyle const& node) { m_subtree_root = &node; }
 
     void ensure_capacity(u32 node_count);
 
@@ -291,6 +291,7 @@ struct LayoutState {
     UsedValues const& get(NodeWithStyle const&) const;
 
     UsedValues& populate_from_paintable(NodeWithStyle const&, Painting::PaintableBox const&);
+    UsedValues& populate_node_from(LayoutState const& source, NodeWithStyle const& node);
 
     UsedValues const* try_get(NodeWithStyle const&) const;
     UsedValues* try_get_mutable(NodeWithStyle const&);

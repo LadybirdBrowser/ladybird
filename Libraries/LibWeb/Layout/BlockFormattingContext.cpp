@@ -609,7 +609,9 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
         auto used_width_px = context.automatic_content_width();
         // https://www.w3.org/TR/css-sizing-3/#sizing-values
         // Percentages are resolved against the width/height, as appropriate, of the box’s containing block.
-        auto containing_block_width = m_state.get(*block_container.containing_block()).content_width();
+        CSSPixels containing_block_width = 0;
+        if (auto const* containing_block_used_values = m_state.try_get(*block_container.containing_block()))
+            containing_block_width = containing_block_used_values->content_width();
         auto available_width = AvailableSize::make_definite(containing_block_width);
         if (!should_treat_max_width_as_none(block_container, available_space.width)) {
             auto max_width_px = calculate_inner_width(block_container, available_width, block_container.computed_values().max_width());
@@ -714,13 +716,20 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
 
 static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Box const& box, LayoutState const& state)
 {
+    auto content_height_of = [&](NodeWithStyleAndBoxModelMetrics const& node) -> CSSPixels {
+        auto const* node_used_values = state.try_get(node);
+        if (!node_used_values)
+            return 0;
+        return node_used_values->content_height();
+    };
+
     // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
     auto containing_block = box.containing_block();
     while (containing_block) {
         // 1. Let element be the nearest ancestor containing block of element, if there is one.
         //    Otherwise, return the initial containing block.
         if (containing_block->is_viewport()) {
-            return state.get(*containing_block).content_height();
+            return content_height_of(*containing_block);
         }
 
         // 2. If element has a computed value of the display property that is table-cell, then return a
@@ -732,13 +741,13 @@ static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Bo
 
         // 3. If element has a computed value of the height property that is not auto, then return element.
         if (!containing_block->computed_values().height().is_auto()) {
-            return state.get(*containing_block).content_height();
+            return content_height_of(*containing_block);
         }
 
         // 4. If element has a computed value of the position property that is absolute, or if element is a
         //    not a block container or a table wrapper box, then return element.
         if (containing_block->is_absolutely_positioned() || !is<BlockContainer>(*containing_block) || is<TableWrapper>(*containing_block)) {
-            return state.get(*containing_block).content_height();
+            return content_height_of(*containing_block);
         }
 
         // 5. Jump to the first step.
@@ -879,7 +888,9 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // For boxes with auto height but non-auto min-height, we need to determine if the content height is less than
         // min-height. If so, we run layout with min-height as the available height.
         if (should_treat_height_as_auto(box, available_space) && !box.computed_values().min_height().is_auto()) {
-            LayoutState throwaway_state;
+            LayoutState throwaway_state(box);
+            throwaway_state.populate_node_from(m_state, *box.containing_block());
+
             auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
             measuring_context->run(inner_available_space);
             auto content_height = measuring_context->automatic_content_height();

@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [125.59375,8] floating [0+0+0 478.234375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: not-inline
-        Box <table.middle> at [125.59375,8] table-box [0+0+0 478.234375 0+0+190.328125] [0+0+0 24 0+0+0] [TFC] children: not-inline
+        Box <table.middle> at [125.59375,8] table-box [0+0+0 478.234375 0+0+186.515625] [0+0+0 24 0+0+0] [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)
           Box <tbody> at [127.59375,10] table-row-group [0+0+0 474.234375 0+0+0] [0+0+0 20 0+0+0] children: not-inline

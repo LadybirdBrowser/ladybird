@@ -1358,8 +1358,7 @@ void Document::mark_svg_root_as_needing_relayout(Layout::SVGSVGBox& svg_root)
 
 static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
 {
-    Layout::LayoutState layout_state;
-    layout_state.set_subtree_root(svg_root);
+    Layout::LayoutState layout_state(svg_root);
 
     // Pre-populate the svg_root itself.
     if (auto const* paintable = svg_root.paintable_box())
