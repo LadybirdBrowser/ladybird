@@ -107,9 +107,13 @@ Optional<Result<EvalResult, String>> compile_eval(
 Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
     PrimitiveString& source_text, VM& vm);
 
+// Compile a previously parsed module. Must be called on the main thread.
+// Consumes and frees the RustParsedProgram.
+// Returns nullopt if Rust is not available.
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
+
 // Compile a module. Returns nullopt if Rust is not available.
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(
-    StringView source_text, Realm& realm, StringView filename);
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename);
 
 // Compile a dynamic function (new Function()). Returns nullopt if Rust is not available.
 // On success, returns a SharedFunctionInstanceData with source_text set.
