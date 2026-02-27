@@ -15,10 +15,10 @@ void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode
     builder.append(m_name);
 }
 
-Optional<CounterStyle const&> CounterStyleStyleValue::resolve_counter_style(HashMap<FlyString, CounterStyle> const& registered_counter_styles) const
+RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles) const
 {
     // FIXME: Support symbols() function for anonymous counter style
-    return registered_counter_styles.get(m_name);
+    return registered_counter_styles.get(m_name).value_or(nullptr);
 }
 
 }

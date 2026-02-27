@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-counter-styles-3/#decimal
-CounterStyle CounterStyle::decimal()
+NonnullRefPtr<CounterStyle const> CounterStyle::decimal()
 {
     return CounterStyle::create(
         "decimal"_fly_string,
@@ -25,7 +25,7 @@ CounterStyle CounterStyle::decimal()
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#disc
-CounterStyle CounterStyle::disc()
+NonnullRefPtr<CounterStyle const> CounterStyle::disc()
 {
     return CounterStyle::create(
         "disc"_fly_string,
@@ -38,26 +38,26 @@ CounterStyle CounterStyle::disc()
         CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
 }
 
-CounterStyle CounterStyle::from_counter_style_definition(CounterStyleDefinition const& definition, HashMap<FlyString, CounterStyle> const& registered_counter_styles)
+NonnullRefPtr<CounterStyle const> CounterStyle::from_counter_style_definition(CounterStyleDefinition const& definition, HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles)
 {
     return definition.algorithm().visit(
         [&](CounterStyleSystemStyleValue::Extends const& extends) {
             // NB: The caller should ensure that this is always set (i.e. by ensuring the relevant rule is registered
             //     before this one, and replacing the extended counter style with "decimal" if it is not defined).
-            auto extended_counter_style = registered_counter_styles.get(extends.name).value();
+            auto const* extended_counter_style = registered_counter_styles.get(extends.name).value();
 
             return CounterStyle::create(
                 definition.name(),
-                extended_counter_style.algorithm(),
-                definition.negative_sign().value_or(extended_counter_style.negative_sign()),
-                definition.prefix().value_or(extended_counter_style.prefix()),
-                definition.suffix().value_or(extended_counter_style.suffix()),
+                extended_counter_style->algorithm(),
+                definition.negative_sign().value_or(extended_counter_style->negative_sign()),
+                definition.prefix().value_or(extended_counter_style->prefix()),
+                definition.suffix().value_or(extended_counter_style->suffix()),
                 definition.range().visit(
-                    [&](Empty const&) { return extended_counter_style.range(); },
+                    [&](Empty const&) { return extended_counter_style->range(); },
                     [](Vector<CounterStyleRangeEntry> const& range) { return range; },
-                    [&](AutoRange const&) { return AutoRange::resolve(extended_counter_style.algorithm()); }),
-                definition.fallback().value_or(extended_counter_style.fallback().value_or("decimal"_fly_string)),
-                definition.pad().value_or(extended_counter_style.pad()));
+                    [&](AutoRange const&) { return AutoRange::resolve(extended_counter_style->algorithm()); }),
+                definition.fallback().value_or(extended_counter_style->fallback().value_or("decimal"_fly_string)),
+                definition.pad().value_or(extended_counter_style->pad()));
         },
         [&](CounterStyleAlgorithm const& algorithm) {
             return CounterStyle::create(
@@ -590,14 +590,14 @@ bool CounterStyle::uses_a_negative_sign() const
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#generate-a-counter
-static String generate_a_counter_representation_impl(Optional<CounterStyle const&> const& counter_style, HashMap<FlyString, CounterStyle> const& registered_counter_styles, i32 value, HashTable<FlyString>& fallback_history)
+static String generate_a_counter_representation_impl(RefPtr<CounterStyle const> const& counter_style, HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles, i32 value, HashTable<FlyString>& fallback_history)
 {
     // When asked to generate a counter representation using a particular counter style for a particular
     // counter value, follow these steps:
 
     // 1. If the counter style is unknown, exit this algorithm and instead generate a counter representation using the
     //    decimal style and the same counter value.
-    if (!counter_style.has_value())
+    if (!counter_style)
         return generate_a_counter_representation_impl(CounterStyle::decimal(), registered_counter_styles, value, fallback_history);
 
     auto const generate_a_counter_representation_using_fallback = [&]() {
@@ -616,7 +616,7 @@ static String generate_a_counter_representation_impl(Optional<CounterStyle const
 
         fallback_history.set(counter_style->name());
 
-        return generate_a_counter_representation_impl(fallback, registered_counter_styles, value, fallback_history);
+        return generate_a_counter_representation_impl(fallback.value(), registered_counter_styles, value, fallback_history);
     };
 
     // 2. If the counter value is outside the range of the counter style, exit this algorithm and instead generate a
@@ -666,7 +666,7 @@ static String generate_a_counter_representation_impl(Optional<CounterStyle const
     return representation;
 }
 
-String generate_a_counter_representation(Optional<CounterStyle const&> const& counter_style, HashMap<FlyString, CounterStyle> const& registered_counter_styles, i32 value)
+String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles, i32 value)
 {
     HashTable<FlyString> fallback_history;
     return generate_a_counter_representation_impl(counter_style, registered_counter_styles, value, fallback_history);

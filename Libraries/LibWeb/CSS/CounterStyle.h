@@ -13,18 +13,18 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-counter-styles-3/#counter-styles
-class CounterStyle {
+class CounterStyle : public RefCounted<CounterStyle> {
 public:
-    static CounterStyle decimal();
-    static CounterStyle disc();
-    static CounterStyle from_counter_style_definition(CounterStyleDefinition const&, HashMap<FlyString, CounterStyle> const&);
+    static NonnullRefPtr<CounterStyle const> decimal();
+    static NonnullRefPtr<CounterStyle const> disc();
+    static NonnullRefPtr<CounterStyle const> from_counter_style_definition(CounterStyleDefinition const&, HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const&);
 
-    static CounterStyle create(FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, FlyString prefix, FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<FlyString> fallback, CounterStylePad pad)
+    static NonnullRefPtr<CounterStyle const> create(FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, FlyString prefix, FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<FlyString> fallback, CounterStylePad pad)
     {
         // NB: All counter styles apart from 'decimal' must have a fallback.
         VERIFY(fallback.has_value() || name == "decimal"_fly_string);
 
-        return CounterStyle(move(name), move(algorithm), move(negative_sign), move(prefix), move(suffix), move(range), move(fallback), move(pad));
+        return adopt_ref(*new (nothrow) CounterStyle(move(name), move(algorithm), move(negative_sign), move(prefix), move(suffix), move(range), move(fallback), move(pad)));
     }
 
     FlyString const& name() const { return m_name; }
@@ -83,6 +83,6 @@ private:
     CounterStylePad m_pad;
 };
 
-String generate_a_counter_representation(Optional<CounterStyle const&> const& counter_style, HashMap<FlyString, CounterStyle> const& registered_counter_styles, i32 value);
+String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles, i32 value);
 
 }
