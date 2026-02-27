@@ -1292,8 +1292,8 @@ unsafe fn call_export_callback(
     callback: ModuleExportEntryCallback,
     ctx: *mut c_void,
     kind: u8,
-    export_name: &Option<ast::Utf16String>,
-    local_or_import_name: &Option<ast::Utf16String>,
+    export_name: Option<&ast::Utf16String>,
+    local_or_import_name: Option<&ast::Utf16String>,
     module_request: Option<&ast::ModuleRequest>,
 ) {
     unsafe {
@@ -1497,8 +1497,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                                 cb.push_local_export,
                                 ctx,
                                 entry.kind as u8,
-                                &entry.export_name,
-                                &entry.local_or_import_name,
+                                entry.export_name.as_ref(),
+                                entry.local_or_import_name.as_ref(),
                                 None,
                             );
                         } else {
@@ -1507,8 +1507,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                                 cb.push_indirect_export,
                                 ctx,
                                 ExportEntryKind::NamedExport as u8,
-                                &entry.export_name,
-                                &import_entry.import_name,
+                                entry.export_name.as_ref(),
+                                import_entry.import_name.as_ref(),
                                 Some(&import_entry.module_request),
                             );
                         }
@@ -1518,8 +1518,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                             cb.push_local_export,
                             ctx,
                             entry.kind as u8,
-                            &entry.export_name,
-                            &entry.local_or_import_name,
+                            entry.export_name.as_ref(),
+                            entry.local_or_import_name.as_ref(),
                             None,
                         );
                     }
@@ -1529,8 +1529,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                         cb.push_star_export,
                         ctx,
                         entry.kind as u8,
-                        &entry.export_name,
-                        &entry.local_or_import_name,
+                        entry.export_name.as_ref(),
+                        entry.local_or_import_name.as_ref(),
                         export_data.module_request.as_ref(),
                     );
                 } else {
@@ -1539,8 +1539,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                         cb.push_indirect_export,
                         ctx,
                         entry.kind as u8,
-                        &entry.export_name,
-                        &entry.local_or_import_name,
+                        entry.export_name.as_ref(),
+                        entry.local_or_import_name.as_ref(),
                         export_data.module_request.as_ref(),
                     );
                 }
