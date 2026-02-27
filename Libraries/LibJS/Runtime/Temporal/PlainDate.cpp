@@ -76,9 +76,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
         auto const& object = item.as_object();
 
         // a. If item has an [[InitializedTemporalDate]] internal slot, then
-        if (is<PlainDate>(object)) {
-            auto const& plain_date = static_cast<PlainDate const&>(object);
-
+        if (auto const* plain_date = as_if<PlainDate>(object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -86,15 +84,13 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
             TRY(get_temporal_overflow_option(vm, resolved_options));
 
             // iii. Return ! CreateTemporalDate(item.[[ISODate]], item.[[Calendar]]).
-            return MUST(create_temporal_date(vm, plain_date.iso_date(), plain_date.calendar()));
+            return MUST(create_temporal_date(vm, plain_date->iso_date(), plain_date->calendar()));
         }
 
         // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        if (is<ZonedDateTime>(object)) {
-            auto const& zoned_date_time = static_cast<ZonedDateTime const&>(object);
-
+        if (auto const* zoned_date_time = as_if<ZonedDateTime>(object)) {
             // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
-            auto iso_date_time = get_iso_date_time_for(zoned_date_time.time_zone(), zoned_date_time.epoch_nanoseconds()->big_integer());
+            auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
 
             // ii. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
@@ -103,13 +99,11 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
             TRY(get_temporal_overflow_option(vm, resolved_options));
 
             // iv. Return ! CreateTemporalDate(isoDateTime.[[ISODate]], item.[[Calendar]]).
-            return MUST(create_temporal_date(vm, iso_date_time.iso_date, zoned_date_time.calendar()));
+            return MUST(create_temporal_date(vm, iso_date_time.iso_date, zoned_date_time->calendar()));
         }
 
         // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
-        if (is<PlainDateTime>(object)) {
-            auto const& plain_date_time = static_cast<PlainDateTime const&>(object);
-
+        if (auto const* plain_date_time = as_if<PlainDateTime>(object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -117,7 +111,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
             TRY(get_temporal_overflow_option(vm, resolved_options));
 
             // iii. Return ! CreateTemporalDate(item.[[ISODateTime]].[[ISODate]], item.[[Calendar]]).
-            return MUST(create_temporal_date(vm, plain_date_time.iso_date_time().iso_date, plain_date_time.calendar()));
+            return MUST(create_temporal_date(vm, plain_date_time->iso_date_time().iso_date, plain_date_time->calendar()));
         }
 
         // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).

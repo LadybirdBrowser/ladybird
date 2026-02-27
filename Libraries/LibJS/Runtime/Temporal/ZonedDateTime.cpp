@@ -151,9 +151,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         auto const& object = item.as_object();
 
         // a. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        if (is<ZonedDateTime>(object)) {
-            auto const& zoned_date_time = static_cast<ZonedDateTime const&>(object);
-
+        if (auto const* zoned_date_time = as_if<ZonedDateTime>(object)) {
             // i. NOTE: The following steps, and similar ones below, read options and perform independent validation in
             //    alphabetical order (GetTemporalDisambiguationOption reads "disambiguation", GetTemporalOffsetOption
             //    reads "offset", and GetTemporalOverflowOption reads "overflow").
@@ -171,7 +169,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
             TRY(get_temporal_overflow_option(vm, resolved_options));
 
             // vi. Return ! CreateTemporalZonedDateTime(item.[[EpochNanoseconds]], item.[[TimeZone]], item.[[Calendar]]).
-            return MUST(create_temporal_zoned_date_time(vm, zoned_date_time.epoch_nanoseconds(), zoned_date_time.time_zone(), zoned_date_time.calendar()));
+            return MUST(create_temporal_zoned_date_time(vm, zoned_date_time->epoch_nanoseconds(), zoned_date_time->time_zone(), zoned_date_time->calendar()));
         }
 
         // b. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
