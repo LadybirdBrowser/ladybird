@@ -29,6 +29,7 @@
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
@@ -1067,6 +1068,22 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
         if (Application::the().rebaseline) {
             TRY(Core::Directory::create(LexicalPath { test.expectation_path }.parent().string(), Core::Directory::CreateDirectories::Yes));
             TRY(dump_screenshot_to_file(actual, test.expectation_path));
+
+            auto optipng_or_error = Core::Process::spawn({
+                .executable = "optipng"sv,
+                .search_for_executable_in_path = true,
+                .arguments = { "-strip"sv, "all"sv, test.expectation_path },
+            });
+            if (optipng_or_error.is_error()) {
+                warnln("Warning: Failed to run optipng: {}", optipng_or_error.error());
+            } else {
+                auto exit_code_or_error = optipng_or_error.value().wait_for_termination();
+                if (exit_code_or_error.is_error())
+                    warnln("Warning: Failed to wait for optipng: {}", exit_code_or_error.error());
+                else if (exit_code_or_error.value() != 0)
+                    warnln("Warning: optipng exited with code {}", exit_code_or_error.value());
+            }
+
             return TestResult::Pass;
         }
 
