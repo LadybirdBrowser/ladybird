@@ -462,41 +462,46 @@ Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::Abstract
 Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, Vector<ComponentValue> const& values)
 {
     // Equivalent to `<declaration-value> , <declaration-value>?`, used by multiple argument grammars.
-    auto parse_declaration_value_then_optional_declaration_value = [](Vector<ComponentValue> const& values) -> Optional<ArbitrarySubstitutionFunctionArguments> {
-        TokenStream tokens { values };
-
-        auto first_argument = Parser::parse_declaration_value(tokens, Parser::StopAtComma::Yes);
+    auto parse_declaration_value_then_optional_declaration_value = [](TokenStream<ComponentValue>& tokens, Token::Type separator) -> Optional<ArbitrarySubstitutionFunctionArguments> {
+        auto first_argument = Parser::parse_declaration_value(tokens, separator);
         if (!first_argument.has_value())
             return OptionalNone {};
 
         if (!tokens.has_next_token())
             return ArbitrarySubstitutionFunctionArguments { first_argument.release_value() };
 
-        if (!tokens.next_token().is(Token::Type::Comma))
+        if (!tokens.next_token().is(separator))
             return {};
 
-        tokens.discard_a_token(); // ,
+        tokens.discard_a_token(); // separator
 
-        auto second_argument = Parser::parse_declaration_value(tokens, Parser::StopAtComma::No);
-        if (tokens.has_next_token())
-            return OptionalNone {};
+        auto second_argument = Parser::parse_declaration_value(tokens);
+
         return ArbitrarySubstitutionFunctionArguments { first_argument.release_value(), second_argument.value_or({}) };
+    };
+
+    TokenStream tokens { values };
+
+    auto return_if_no_remaining_tokens = [&](Optional<ArbitrarySubstitutionFunctionArguments> value) -> Optional<ArbitrarySubstitutionFunctionArguments> {
+        if (tokens.has_next_token())
+            return {};
+        return value;
     };
 
     switch (function) {
     case ArbitrarySubstitutionFunction::Attr:
         // https://drafts.csswg.org/css-values-5/#attr-notation
         // <attr-args> = attr( <declaration-value> , <declaration-value>? )
-        return parse_declaration_value_then_optional_declaration_value(values);
+        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma));
     case ArbitrarySubstitutionFunction::Env:
         // https://drafts.csswg.org/css-env/#env-function
         // AD-HOC: This doesn't have an argument-grammar definition.
         //         However, it follows the same format of "some CVs, then an optional comma and a fallback".
-        return parse_declaration_value_then_optional_declaration_value(values);
+        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma));
     case ArbitrarySubstitutionFunction::Var:
         // https://drafts.csswg.org/css-variables/#funcdef-var
         // <var-args> = var( <declaration-value> , <declaration-value>? )
-        return parse_declaration_value_then_optional_declaration_value(values);
+        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma));
     }
     VERIFY_NOT_REACHED();
 }

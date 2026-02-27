@@ -119,7 +119,7 @@ RefPtr<StyleValueList const> Parser::parse_comma_separated_value_list(TokenStrea
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-declaration-value
-Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<ComponentValue>& tokens, StopAtComma stop_at_comma)
+Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type)
 {
     // The <declaration-value> production matches any sequence of one or more tokens, so long as the sequence does not
     // contain <bad-string-token>, <bad-url-token>, unmatched <)-token>, <]-token>, or <}-token>, or top-level
@@ -155,10 +155,8 @@ Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<Com
         case Token::Type::Delim:
             valid = peek.token().delim() != '!';
             break;
-        case Token::Type::Comma:
-            valid = stop_at_comma == StopAtComma::No;
-            break;
         default:
+            valid = !end_token_type.has_value() || !peek.is(end_token_type.value());
             break;
         }
 
