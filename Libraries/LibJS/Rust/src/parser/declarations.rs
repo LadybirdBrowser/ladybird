@@ -84,7 +84,7 @@ fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
     }
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_declaration(&mut self) -> Statement {
         if self.match_token(TokenType::Async) {
             let next = self.next_token();

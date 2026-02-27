@@ -26,7 +26,7 @@ enum EscapeMode {
     StringLiteral,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn match_expression(&mut self) -> bool {
         match self.current_token_type() {
             TokenType::BoolLiteral
@@ -2196,7 +2196,7 @@ fn process_escape_sequences_impl(input: &[u16], mode: EscapeMode) -> EscapeResul
     }
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Try to parse an arrow function expression, with memoization.
     /// If a previous attempt at this position already failed, returns `None`
     /// immediately. Otherwise attempts the parse and caches the failure.
