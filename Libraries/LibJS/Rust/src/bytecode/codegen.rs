@@ -2248,7 +2248,7 @@ fn generate_conditional(
 fn generate_with_completion(
     body: &Statement,
     generator: &mut Generator,
-    completion: &Option<ScopedOperand>,
+    completion: Option<&ScopedOperand>,
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
     let saved = generator.current_completion_register.clone();
@@ -2295,9 +2295,9 @@ fn generate_if_statement(
         // if-statements reuse the same register (matching C++).
         let child_dst = completion.as_ref().or(preferred_dst);
         if is_truthy {
-            generate_with_completion(consequent, generator, &completion, child_dst);
+            generate_with_completion(consequent, generator, completion.as_ref(), child_dst);
         } else if let Some(alt) = alternate {
-            generate_with_completion(alt, generator, &completion, child_dst);
+            generate_with_completion(alt, generator, completion.as_ref(), child_dst);
         }
         return completion;
     }
@@ -2390,7 +2390,7 @@ fn generate_while_statement(
     generator.begin_continuable_scope(test_block, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
 
     generator.end_breakable_scope();
     generator.end_continuable_scope();
@@ -2433,7 +2433,7 @@ fn generate_do_while_statement(
     generator.begin_continuable_scope(test_block, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
 
     generator.end_breakable_scope();
     generator.end_continuable_scope();
@@ -2577,7 +2577,7 @@ fn generate_for_statement(
     generator.begin_continuable_scope(continue_target, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
 
     generator.end_breakable_scope();
     generator.end_continuable_scope();
@@ -6641,7 +6641,7 @@ fn generate_for_in_statement(
     }
 
     if !generator.is_current_block_terminated() {
-        generate_with_completion(body, generator, &completion, preferred_dst);
+        generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
     }
 
     if needs_lexical_env {
@@ -6888,7 +6888,7 @@ fn generate_for_of_statement_inner(
     }
 
     if !generator.is_current_block_terminated() {
-        generate_with_completion(body, generator, &completion, preferred_dst);
+        generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
     }
 
     // Restore lexical env before continuing

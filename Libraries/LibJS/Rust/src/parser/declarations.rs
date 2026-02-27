@@ -416,7 +416,7 @@ impl<'a> Parser<'a> {
         self.scope_collector.set_is_function_declaration();
 
         let fd = self.parse_function_common(
-            &name,
+            name,
             &fn_name,
             kind,
             is_async,
@@ -486,7 +486,7 @@ impl<'a> Parser<'a> {
         self.scope_collector.open_function_scope(fn_name_for_scope);
 
         let fd = self.parse_function_common(
-            &name,
+            name,
             &fn_name_value,
             kind,
             is_async,
@@ -503,7 +503,7 @@ impl<'a> Parser<'a> {
     #[allow(clippy::too_many_arguments)]
     fn parse_function_common(
         &mut self,
-        name: &Option<Rc<Identifier>>,
+        name: Option<Rc<Identifier>>,
         fn_name: &[u16],
         kind: FunctionKind,
         is_async: bool,
