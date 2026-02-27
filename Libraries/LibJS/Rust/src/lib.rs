@@ -1144,6 +1144,92 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
 }
 
 // =============================================================================
+// Module compilation
+// =============================================================================
+
+/// Compile a previously parsed module. Consumes and frees the ParsedProgram.
+///
+/// Extracts import/export metadata, compiles the module body to bytecode,
+/// and extracts declaration data needed for initialize_environment().
+///
+/// Returns `Executable*` for non-TLA modules (tla_executable_out is null),
+/// or nullptr for TLA modules (tla_executable_out is set to the async wrapper).
+///
+/// # Safety
+/// - `parsed` must be a valid pointer from `rust_parse_program()` with no errors.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `module_context` must be a valid `ModuleBuilder*`.
+/// - `callbacks` must point to a valid `ModuleCallbacks`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compile_parsed_module(
+    parsed: *mut ParsedProgram,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    module_context: *mut c_void,
+    callbacks: *const ModuleCallbacks,
+    tla_executable_out: *mut *mut c_void,
+    source_len: usize,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            let mut parsed = Box::from_raw(parsed);
+            let cb = &*callbacks;
+
+            // 1. Report has_top_level_await.
+            (cb.set_has_top_level_await)(module_context, parsed.has_top_level_await);
+
+            // 2. Process imports and exports.
+            extract_module_metadata(&parsed.scope_ref.borrow(), module_context, cb);
+
+            // 3. Extract var declared names and lexical bindings.
+            extract_module_declarations(
+                &parsed.scope_ref.borrow(),
+                vm_ptr,
+                source_code_ptr,
+                module_context,
+                cb,
+                &mut parsed.function_table,
+            );
+
+            // 4. Compute requested modules (sorted by source offset).
+            extract_requested_modules(&parsed.scope_ref.borrow(), module_context, cb);
+
+            // 5. Compile module body.
+            if parsed.has_top_level_await {
+                let exec_ptr = compile_module_as_async(
+                    &parsed.program,
+                    &parsed.scope_ref,
+                    vm_ptr,
+                    source_code_ptr,
+                    std::ptr::null(),
+                    source_len,
+                    std::mem::take(&mut parsed.function_table),
+                );
+                if !tla_executable_out.is_null() {
+                    *tla_executable_out = exec_ptr;
+                }
+                std::ptr::null_mut()
+            } else {
+                if !tla_executable_out.is_null() {
+                    *tla_executable_out = std::ptr::null_mut();
+                }
+                let mut generator =
+                    new_program_generator(true, vm_ptr, source_code_ptr, source_len);
+                generator.function_table = std::mem::take(&mut parsed.function_table);
+                compile_program_body(
+                    &mut generator,
+                    &parsed.program,
+                    &parsed.scope_ref,
+                    vm_ptr,
+                    source_code_ptr,
+                )
+            }
+        })
+    }
+}
+
+// =============================================================================
 // FFI entry point: module compilation
 // =============================================================================
 
@@ -1279,9 +1365,8 @@ unsafe fn call_export_callback(
 
 /// Compile an ES module using the parser and bytecode generator.
 ///
-/// Parses the source as a module, extracts import/export metadata,
-/// compiles the module body to bytecode, and extracts declaration data
-/// needed for initialize_environment().
+/// This is the combined parse+compile path for modules. Internally calls
+/// `rust_parse_program()` + `rust_compile_parsed_module()`.
 ///
 /// Returns `Executable*` for non-TLA modules (tla_executable_out is null),
 /// or nullptr for TLA modules (tla_executable_out is set to the async wrapper executable).
@@ -1310,108 +1395,39 @@ pub unsafe extern "C" fn rust_compile_module(
 ) -> *mut c_void {
     unsafe {
         abort_on_panic(|| {
-            let Some(source_slice) = source_from_raw(source, source_len) else {
+            let parsed = rust_parse_program(source, source_len, 1, 0, dump_ast, use_color);
+
+            if parsed.is_null() {
                 return std::ptr::null_mut();
-            };
+            }
 
-            let cb = &*callbacks;
+            // Compile deferred regex literals before checking for errors.
+            rust_parsed_program_compile_regexes(parsed);
 
-            // 1. Parse as module.
-            let mut parser = Parser::new(source_slice, ProgramType::Module);
-            let program = parser.parse_program(false);
-
-            // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
-            if !regex_errors.is_empty() {
+            if rust_parsed_program_has_errors(parsed) {
                 if let Some(cb) = error_callback {
-                    for err in &regex_errors {
-                        let msg = err.message.as_bytes();
-                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
-                    }
+                    rust_parsed_program_take_errors(parsed, error_context, cb);
                 }
+                rust_free_parsed_program(parsed);
                 return std::ptr::null_mut();
-            }
-
-            if check_errors_with_callback(&mut parser, error_context, error_callback) {
-                return std::ptr::null_mut();
-            }
-
-            parser.scope_collector.analyze(false);
-
-            // Dump AST if requested (after scope analysis so identifier metadata is populated).
-            if dump_ast {
-                ast_dump::dump_program(&program, use_color, &parser.function_table);
             }
 
             write_ast_dump_output(
-                &program,
-                &parser.function_table,
+                &(*parsed).program,
+                &(*parsed).function_table,
                 ast_dump_output,
                 ast_dump_output_len,
             );
 
-            let program_data = if let StatementKind::Program(ref data) = program.inner {
-                data
-            } else {
-                return std::ptr::null_mut();
-            };
-
-            let scope_ref = program_data.scope.clone();
-            let has_top_level_await = program_data.has_top_level_await;
-
-            let mut function_table = std::mem::take(&mut parser.function_table);
-
-            // 2. Report has_top_level_await.
-            (cb.set_has_top_level_await)(module_context, has_top_level_await);
-
-            // 3. Process imports and exports.
-            extract_module_metadata(&scope_ref.borrow(), module_context, cb);
-
-            // 4. Extract var declared names and lexical bindings.
-            extract_module_declarations(
-                &scope_ref.borrow(),
+            rust_compile_parsed_module(
+                parsed,
                 vm_ptr,
                 source_code_ptr,
                 module_context,
-                cb,
-                &mut function_table,
-            );
-
-            // 5. Compute requested modules (sorted by source offset).
-            extract_requested_modules(&scope_ref.borrow(), module_context, cb);
-
-            // 6. Compile module body.
-            if has_top_level_await {
-                // Compile as an async wrapper function.
-                let exec_ptr = compile_module_as_async(
-                    &program,
-                    &scope_ref,
-                    vm_ptr,
-                    source_code_ptr,
-                    source,
-                    source_len,
-                    function_table,
-                );
-                if !tla_executable_out.is_null() {
-                    *tla_executable_out = exec_ptr;
-                }
-                std::ptr::null_mut()
-            } else {
-                // Compile as a regular program.
-                if !tla_executable_out.is_null() {
-                    *tla_executable_out = std::ptr::null_mut();
-                }
-                let mut generator =
-                    new_program_generator(true, vm_ptr, source_code_ptr, source_len);
-                generator.function_table = function_table;
-                compile_program_body(
-                    &mut generator,
-                    &program,
-                    &scope_ref,
-                    vm_ptr,
-                    source_code_ptr,
-                )
-            }
+                callbacks,
+                tla_executable_out,
+                source_len,
+            )
         })
     }
 }
