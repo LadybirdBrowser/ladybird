@@ -775,8 +775,32 @@ void fetch_single_module_script(JS::Realm& realm,
 
         // 7. If mimeType is a JavaScript MIME type and moduleType is "javascript", then set moduleScript to the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL, and options.
         // FIXME: Pass options.
-        if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript")
+        if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript") {
+            // If the Rust pipeline is available, parse off the main thread.
+            if (JS::RustIntegration::rust_pipeline_available()) {
+                auto on_complete_root = GC::make_root(on_complete);
+                auto realm_root = GC::make_root(&module_map_realm);
+                auto url_string = url.to_byte_string();
+                auto response_url = response->url().value_or({});
+                auto module_type_string = module_type.to_byte_string();
+                auto source_code = JS::SourceCode::create(
+                    String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors(),
+                    Utf16String::from_utf8(source_text));
+
+                parse_off_thread(move(source_code), JS::RustIntegration::ProgramType::Module, 0,
+                    [url = move(url), url_string = move(url_string), response_url = move(response_url),
+                        module_type_string = move(module_type_string),
+                        on_complete_root = move(on_complete_root),
+                        realm_root = move(realm_root)](auto* parsed, auto source_code) mutable {
+                        auto module_script = JavaScriptModuleScript::create_from_pre_parsed(url_string, move(source_code), *realm_root, move(response_url), parsed).release_value_but_fixme_should_propagate_errors();
+                        auto& mm = module_map_of_realm(*realm_root);
+                        mm.set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
+                        on_complete_root->function()(module_script);
+                    });
+                return;
+            }
             module_script = JavaScriptModuleScript::create(url.to_byte_string(), source_text, module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+        }
 
         // FIXME: 8. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to the result of creating a CSS module script given sourceText and settingsObject.
         // FIXME: 9. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of creating a JSON module script given sourceText and settingsObject.

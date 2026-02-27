@@ -36,7 +36,7 @@ public:
     virtual ~JavaScriptModuleScript() override;
 
     static WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> create(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url);
-    static WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> create_from_pre_parsed(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url, RustParsedProgram* parsed);
+    static WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm&, URL::URL base_url, RustParsedProgram* parsed);
 
     enum class PreventErrorReporting {
         Yes,

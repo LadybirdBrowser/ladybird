@@ -71,17 +71,14 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
     return script;
 }
 
-WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::create_from_pre_parsed(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url, RustParsedProgram* parsed)
+WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm& realm, URL::URL base_url, RustParsedProgram* parsed)
 {
-    if (HTML::is_scripting_disabled(realm))
-        source = ""sv;
-
     auto script = realm.create<JavaScriptModuleScript>(move(base_url), filename, realm);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, source, realm, filename.view(), script);
+    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, move(source_code), realm, script);
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
