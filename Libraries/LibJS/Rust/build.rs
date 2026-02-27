@@ -206,7 +206,7 @@ fn generate_encoded_size_method(
             } else {
                 format!("Instruction::{} {{ .. }}", op.name)
             };
-            writeln!(w, "            {} => {},", pat, final_size)?;
+            writeln!(w, "            {pat} => {final_size},")?;
         } else {
             // Variable-length: depends on array size
             // Compute fixed part size
@@ -239,7 +239,7 @@ fn generate_encoded_size_method(
                     if rname == arr_name {
                         rname
                     } else {
-                        format!("{}: _", rname)
+                        format!("{rname}: _")
                     }
                 })
                 .collect();
@@ -324,7 +324,7 @@ fn generate_encode_method(
             let aligned_offset = round_up(offset, info.align);
             let pad = aligned_offset - offset;
             if pad > 0 {
-                writeln!(w, "                buf.extend_from_slice(&[0u8; {}]);", pad)?;
+                writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
             }
             offset = aligned_offset;
 
@@ -357,10 +357,10 @@ fn generate_encode_method(
                 let aligned_offset = round_up(offset, info.align);
                 let pad = aligned_offset - offset;
                 if pad > 0 {
-                    writeln!(w, "                buf.extend_from_slice(&[0u8; {}]);", pad)?;
+                    writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
                 }
 
-                writeln!(w, "                for item in {} {{", rname)?;
+                writeln!(w, "                for item in {rname} {{")?;
                 emit_field_write(&mut w, "item", info.kind, true)?;
                 writeln!(w, "                }}")?;
 
@@ -398,8 +398,7 @@ fn generate_encode_method(
             if tail_pad > 0 {
                 writeln!(
                     w,
-                    "                buf.extend_from_slice(&[0u8; {}]);",
-                    tail_pad
+                    "                buf.extend_from_slice(&[0u8; {tail_pad}]);"
                 )?;
             }
         }
@@ -426,100 +425,73 @@ fn emit_field_write(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let prefix = " ".repeat(if is_loop_item { 20 } else { 16 });
     match kind {
-        "bool" => writeln!(w, "{}buf.push(*{} as u8);", prefix, name)?,
-        "u8" => writeln!(w, "{}buf.push(*{});", prefix, name)?,
-        "u32" => writeln!(
-            w,
-            "{}buf.extend_from_slice(&{}.to_ne_bytes());",
-            prefix, name
-        )?,
-        "u64" => writeln!(
-            w,
-            "{}buf.extend_from_slice(&{}.to_ne_bytes());",
-            prefix, name
-        )?,
+        "bool" => writeln!(w, "{prefix}buf.push(*{name} as u8);")?,
+        "u8" => writeln!(w, "{prefix}buf.push(*{name});")?,
+        "u32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
+        "u64" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
         "operand" => writeln!(
             w,
-            "{}buf.extend_from_slice(&{}.raw().to_ne_bytes());",
-            prefix, name
+            "{prefix}buf.extend_from_slice(&{name}.raw().to_ne_bytes());"
         )?,
         "optional_operand" => {
-            writeln!(w, "{}match {} {{", prefix, name)?;
+            writeln!(w, "{prefix}match {name} {{")?;
             writeln!(
                 w,
-                "{}    Some(op) => buf.extend_from_slice(&op.raw().to_ne_bytes()),",
-                prefix
+                "{prefix}    Some(op) => buf.extend_from_slice(&op.raw().to_ne_bytes()),"
             )?;
             writeln!(
                 w,
-                "{}    None => buf.extend_from_slice(&Operand::INVALID.to_ne_bytes()),",
-                prefix
+                "{prefix}    None => buf.extend_from_slice(&Operand::INVALID.to_ne_bytes()),"
             )?;
-            writeln!(w, "{}}}", prefix)?;
+            writeln!(w, "{prefix}}}")?;
         }
-        "label" => writeln!(
-            w,
-            "{}buf.extend_from_slice(&{}.0.to_ne_bytes());",
-            prefix, name
-        )?,
+        "label" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.0.to_ne_bytes());")?,
         "optional_label" => {
             // C++ Optional<Label> layw: u32 value, bool has_value, 3 bytes padding = 8 bytes total
-            writeln!(w, "{}match {} {{", prefix, name)?;
-            writeln!(w, "{}    Some(lbl) => {{", prefix)?;
+            writeln!(w, "{prefix}match {name} {{")?;
+            writeln!(w, "{prefix}    Some(lbl) => {{")?;
             writeln!(
                 w,
-                "{}        buf.extend_from_slice(&lbl.0.to_ne_bytes());",
-                prefix
+                "{prefix}        buf.extend_from_slice(&lbl.0.to_ne_bytes());"
             )?;
             writeln!(
                 w,
-                "{}        buf.push(1); buf.push(0); buf.push(0); buf.push(0);",
-                prefix
+                "{prefix}        buf.push(1); buf.push(0); buf.push(0); buf.push(0);"
             )?;
-            writeln!(w, "{}    }}", prefix)?;
-            writeln!(w, "{}    None => {{", prefix)?;
+            writeln!(w, "{prefix}    }}")?;
+            writeln!(w, "{prefix}    None => {{")?;
             writeln!(
                 w,
-                "{}        buf.extend_from_slice(&0u32.to_ne_bytes());",
-                prefix
+                "{prefix}        buf.extend_from_slice(&0u32.to_ne_bytes());"
             )?;
             writeln!(
                 w,
-                "{}        buf.push(0); buf.push(0); buf.push(0); buf.push(0);",
-                prefix
+                "{prefix}        buf.push(0); buf.push(0); buf.push(0); buf.push(0);"
             )?;
-            writeln!(w, "{}    }}", prefix)?;
-            writeln!(w, "{}}}", prefix)?;
+            writeln!(w, "{prefix}    }}")?;
+            writeln!(w, "{prefix}}}")?;
         }
-        "u32_newtype" => writeln!(
-            w,
-            "{}buf.extend_from_slice(&{}.0.to_ne_bytes());",
-            prefix, name
-        )?,
+        "u32_newtype" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.0.to_ne_bytes());")?,
         "optional_u32_newtype" => {
-            writeln!(w, "{}match {} {{", prefix, name)?;
+            writeln!(w, "{prefix}match {name} {{")?;
             writeln!(
                 w,
-                "{}    Some(idx) => buf.extend_from_slice(&idx.0.to_ne_bytes()),",
-                prefix
+                "{prefix}    Some(idx) => buf.extend_from_slice(&idx.0.to_ne_bytes()),"
             )?;
             writeln!(
                 w,
-                "{}    None => buf.extend_from_slice(&0xFFFF_FFFFu32.to_ne_bytes()),",
-                prefix
+                "{prefix}    None => buf.extend_from_slice(&0xFFFF_FFFFu32.to_ne_bytes()),"
             )?;
-            writeln!(w, "{}}}", prefix)?;
+            writeln!(w, "{prefix}}}")?;
         }
         "env_coord" => {
             writeln!(
                 w,
-                "{}buf.extend_from_slice(&{}.hops.to_ne_bytes());",
-                prefix, name
+                "{prefix}buf.extend_from_slice(&{name}.hops.to_ne_bytes());"
             )?;
             writeln!(
                 w,
-                "{}buf.extend_from_slice(&{}.index.to_ne_bytes());",
-                prefix, name
+                "{prefix}buf.extend_from_slice(&{name}.index.to_ne_bytes());"
             )?;
         }
         other => panic!("Unknown encoding kind: {other}"),
@@ -555,7 +527,7 @@ fn generate_visit_operands_method(
             } else {
                 format!("Instruction::{} {{ .. }}", op.name)
             };
-            writeln!(w, "            {} => {{}}", pat)?;
+            writeln!(w, "            {pat} => {{}}")?;
             continue;
         }
 
@@ -567,7 +539,7 @@ fn generate_visit_operands_method(
                 if f.ty == "Operand" || f.ty == "Optional<Operand>" {
                     rname
                 } else {
-                    format!("{}: _", rname)
+                    format!("{rname}: _")
                 }
             })
             .collect();
@@ -584,24 +556,21 @@ fn generate_visit_operands_method(
                 if f.ty == "Optional<Operand>" {
                     writeln!(
                         w,
-                        "                for op in {}.iter_mut().flatten() {{ visitor(op); }}",
-                        rname
+                        "                for op in {rname}.iter_mut().flatten() {{ visitor(op); }}"
                     )?;
                 } else {
                     writeln!(
                         w,
-                        "                for item in {}.iter_mut() {{ visitor(item); }}",
-                        rname
+                        "                for item in {rname}.iter_mut() {{ visitor(item); }}"
                     )?;
                 }
             } else if f.ty == "Optional<Operand>" {
                 writeln!(
                     w,
-                    "                if let Some(op) = {} {{ visitor(op); }}",
-                    rname
+                    "                if let Some(op) = {rname} {{ visitor(op); }}"
                 )?;
             } else {
-                writeln!(w, "                visitor({});", rname)?;
+                writeln!(w, "                visitor({rname});")?;
             }
         }
 
@@ -639,7 +608,7 @@ fn generate_visit_labels_method(
             } else {
                 format!("Instruction::{} {{ .. }}", op.name)
             };
-            writeln!(w, "            {} => {{}}", pat)?;
+            writeln!(w, "            {pat} => {{}}")?;
             continue;
         }
 
@@ -650,7 +619,7 @@ fn generate_visit_labels_method(
                 if f.ty == "Label" || f.ty == "Optional<Label>" {
                     rname
                 } else {
-                    format!("{}: _", rname)
+                    format!("{rname}: _")
                 }
             })
             .collect();
@@ -665,7 +634,7 @@ fn generate_visit_labels_method(
             let rname = rust_field_name(&f.name);
             if f.is_array {
                 if f.ty == "Optional<Label>" {
-                    writeln!(w, "                for item in {}.iter_mut() {{", rname)?;
+                    writeln!(w, "                for item in {rname}.iter_mut() {{")?;
                     writeln!(
                         w,
                         "                    if let Some(lbl) = item {{ visitor(lbl); }}"
@@ -674,18 +643,16 @@ fn generate_visit_labels_method(
                 } else {
                     writeln!(
                         w,
-                        "                for item in {}.iter_mut() {{ visitor(item); }}",
-                        rname
+                        "                for item in {rname}.iter_mut() {{ visitor(item); }}"
                     )?;
                 }
             } else if f.ty == "Optional<Label>" {
                 writeln!(
                     w,
-                    "                if let Some(lbl) = {} {{ visitor(lbl); }}",
-                    rname
+                    "                if let Some(lbl) = {rname} {{ visitor(lbl); }}"
                 )?;
             } else {
-                writeln!(w, "                visitor({});", rname)?;
+                writeln!(w, "                visitor({rname});")?;
             }
         }
 

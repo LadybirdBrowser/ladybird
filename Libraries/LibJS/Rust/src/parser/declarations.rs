@@ -518,8 +518,7 @@ impl<'a> Parser<'a> {
             {
                 let name_str = String::from_utf16_lossy(fn_name);
                 self.syntax_error(&format!(
-                    "async generator function is not allowed to be called '{}'",
-                    name_str
+                    "async generator function is not allowed to be called '{name_str}'"
                 ));
             }
             if self.flags.in_class_static_init_block && fn_name == utf16!("await") {
@@ -687,8 +686,7 @@ impl<'a> Parser<'a> {
             } else {
                 let name_str = String::from_utf16_lossy(&name);
                 self.syntax_error(&format!(
-                    "Reference to undeclared private field or method '{}'",
-                    name_str
+                    "Reference to undeclared private field or method '{name_str}'"
                 ));
             }
         }
@@ -1037,8 +1035,7 @@ impl<'a> Parser<'a> {
                     if is_error {
                         let name_str = String::from_utf16_lossy(name);
                         self.syntax_error(&format!(
-                            "Duplicate private field or method named '{}'",
-                            name_str
+                            "Duplicate private field or method named '{name_str}'"
                         ));
                     }
                 }
@@ -1049,8 +1046,7 @@ impl<'a> Parser<'a> {
             {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Duplicate private field or method named '{}'",
-                    name_str
+                    "Duplicate private field or method named '{name_str}'"
                 ));
             }
         }
@@ -1301,17 +1297,15 @@ impl<'a> Parser<'a> {
                     if self.flags.strict_mode {
                         let name_str = String::from_utf16_lossy(&value);
                         self.syntax_error(&format!(
-                            "Duplicate parameter '{}' not allowed in strict mode",
-                            name_str
+                            "Duplicate parameter '{name_str}' not allowed in strict mode"
                         ));
                     } else if has_seen_default {
                         let name_str = String::from_utf16_lossy(&value);
-                        self.syntax_error(&format!("Duplicate parameter '{}' not allowed in function with default parameter", name_str));
+                        self.syntax_error(&format!("Duplicate parameter '{name_str}' not allowed in function with default parameter"));
                     } else if has_seen_rest {
                         let name_str = String::from_utf16_lossy(&value);
                         self.syntax_error(&format!(
-                            "Duplicate parameter '{}' not allowed in function with rest parameter",
-                            name_str
+                            "Duplicate parameter '{name_str}' not allowed in function with rest parameter"
                         ));
                     }
                 }
