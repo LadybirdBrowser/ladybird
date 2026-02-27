@@ -49,8 +49,8 @@ using CompositorCommand = Variant<UpdateDisplayListCommand, UpdateBackingStoresC
 
 class RenderingThread::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
-    ThreadData(Core::EventLoop& main_thread_event_loop, RenderingThread::PresentationCallback presentation_callback)
-        : m_main_thread_event_loop(main_thread_event_loop)
+    ThreadData(NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop, RenderingThread::PresentationCallback presentation_callback)
+        : m_main_thread_event_loop(move(main_thread_event_loop))
         , m_presentation_callback(move(presentation_callback))
     {
     }
@@ -182,12 +182,15 @@ private:
     {
         if (m_exit)
             return;
-        m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), invokee = move(invokee)]() mutable {
+        auto event_loop = m_main_thread_event_loop->take();
+        if (!event_loop)
+            return;
+        event_loop->deferred_invoke([self = NonnullRefPtr(*this), invokee = move(invokee)]() mutable {
             invokee();
         });
     }
 
-    Core::EventLoop& m_main_thread_event_loop;
+    NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
     RenderingThread::PresentationCallback m_presentation_callback;
 
     mutable Threading::Mutex m_mutex;
@@ -218,23 +221,13 @@ public:
 };
 
 RenderingThread::RenderingThread(PresentationCallback presentation_callback)
-    : m_thread_data(adopt_ref(*new ThreadData(Core::EventLoop::current(), move(presentation_callback))))
-    , m_main_thread_exit_promise(Core::Promise<NonnullRefPtr<Core::EventReceiver>>::construct())
+    : m_thread_data(adopt_ref(*new ThreadData(Core::EventLoop::current_weak(), move(presentation_callback))))
 {
-    // FIXME: Come up with a better "event loop exited" notification mechanism.
-    m_main_thread_exit_promise->on_rejection = [thread_data = m_thread_data](Error const&) -> void {
-        thread_data->exit();
-    };
-    Core::EventLoop::current().add_job(m_main_thread_exit_promise);
 }
 
 RenderingThread::~RenderingThread()
 {
-    // Note: Promise rejection is expected to signal the thread to exit.
-    m_main_thread_exit_promise->reject(Error::from_errno(ECANCELED));
-    if (m_thread) {
-        (void)m_thread->join();
-    }
+    m_thread_data->exit();
 }
 
 void RenderingThread::start(DisplayListPlayerType)
@@ -245,6 +238,7 @@ void RenderingThread::start(DisplayListPlayerType)
         return static_cast<intptr_t>(0);
     });
     m_thread->start();
+    m_thread->detach();
 }
 
 void RenderingThread::set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player)

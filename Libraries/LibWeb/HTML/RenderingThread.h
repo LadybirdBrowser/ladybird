@@ -8,7 +8,6 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/Queue.h>
-#include <LibCore/Promise.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Forward.h>
 #include <LibThreading/Mutex.h>
@@ -42,7 +41,6 @@ public:
 private:
     NonnullRefPtr<ThreadData> m_thread_data;
     RefPtr<Threading::Thread> m_thread;
-    NonnullRefPtr<Core::Promise<NonnullRefPtr<Core::EventReceiver>>> m_main_thread_exit_promise;
 };
 
 }
