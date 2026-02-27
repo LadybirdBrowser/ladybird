@@ -42,7 +42,6 @@ struct ThreadEventQueue::Private {
 
     Threading::Mutex mutex;
     Vector<QueuedEvent> queued_events;
-    Vector<NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>, 16> pending_promises;
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
@@ -95,28 +94,12 @@ void ThreadEventQueue::deferred_invoke(Function<void()>&& invokee)
     Core::EventLoopManager::the().did_post_event();
 }
 
-void ThreadEventQueue::add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>> promise)
-{
-    Threading::MutexLocker lock(m_private->mutex);
-    m_private->pending_promises.append(move(promise));
-}
-
-void ThreadEventQueue::cancel_all_pending_jobs()
-{
-    Threading::MutexLocker lock(m_private->mutex);
-    for (auto const& promise : m_private->pending_promises)
-        promise->reject(Error::from_errno(ECANCELED));
-
-    m_private->pending_promises.clear();
-}
-
 size_t ThreadEventQueue::process()
 {
     decltype(m_private->queued_events) events;
     {
         Threading::MutexLocker locker(m_private->mutex);
         events = move(m_private->queued_events);
-        m_private->pending_promises.remove_all_matching([](auto& job) { return job->is_resolved() || job->is_rejected(); });
     }
 
     for (auto& queued_event : events) {
