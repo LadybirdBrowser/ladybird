@@ -452,9 +452,11 @@ void InlineFormattingContext::generate_line_boxes()
 
     line_builder.update_last_line();
 
-    for (auto* box : absolute_boxes) {
-        auto& box_state = m_state.get_mutable(*box);
-        box_state.set_static_position_rect(calculate_static_position_rect(*box));
+    if (m_layout_mode == LayoutMode::Normal) {
+        for (auto* box : absolute_boxes) {
+            auto& box_state = m_state.get_mutable(*box);
+            box_state.set_static_position_rect(calculate_static_position_rect(*box));
+        }
     }
 }
 
