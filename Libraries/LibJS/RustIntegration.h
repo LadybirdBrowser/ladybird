@@ -79,6 +79,10 @@ struct ModuleResult {
     GC::Root<SharedFunctionInstanceData> tla_shared_data;
 };
 
+// Check if the Rust pipeline is available for off-thread parsing.
+// Returns false when LIBJS_CPP=1 or LIBJS_COMPARE_PIPELINES=1.
+JS_API bool rust_pipeline_available();
+
 // Parse a program (script or module) without GC interaction. Thread-safe.
 // Returns nullptr if Rust is not available.
 JS_API RustParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset = 0);

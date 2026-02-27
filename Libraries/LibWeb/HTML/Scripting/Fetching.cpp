@@ -6,10 +6,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Function.h>
+#include <LibGC/Root.h>
 #include <LibJS/Runtime/ModuleRequest.h>
+#include <LibJS/RustIntegration.h>
+#include <LibJS/SourceCode.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibThreading/ThreadPool.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
@@ -32,6 +37,45 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::HTML {
+
+// Submit a parse_program() call to the thread pool, then bounce back to
+// the main thread via deferred_invoke once parsing completes.
+// `on_parsed` is called on the main thread with the RustParsedProgram*
+// and the SourceCode.
+// NB: The SourceCode stays on the main thread (inside the heap-allocated
+//     callback). The worker thread only receives raw UTF-16 data pointers.
+//     The callback is heap-allocated so that if the event loop is
+//     destroyed during parsing, we leak it (and any GC::Root objects it
+//     captures) rather than destroying them on the worker thread.
+static void parse_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, Function<void(RustParsedProgram*, NonnullRefPtr<JS::SourceCode const>)> on_parsed)
+{
+    // Extract the raw data the parser needs while still on the main thread.
+    auto const* utf16_data = source_code->utf16_data();
+    auto length = source_code->length_in_code_units();
+
+    // Capture source_code in the callback so it stays alive (on the main
+    // thread) for the duration of parsing and is available when we compile.
+    auto* callback = new Function<void(RustParsedProgram*)>(
+        [on_parsed = move(on_parsed), source_code = move(source_code)](RustParsedProgram* parsed) mutable {
+            on_parsed(parsed, move(source_code));
+        });
+
+    auto event_loop_weak = Core::EventLoop::current_weak();
+
+    Threading::ThreadPool::the().submit([utf16_data, length, type, line_number_offset,
+                                            callback,
+                                            event_loop_weak = move(event_loop_weak)]() {
+        auto* parsed = JS::RustIntegration::parse_program(utf16_data, length, type, line_number_offset);
+
+        auto origin = event_loop_weak->take();
+        if (!origin)
+            return;
+        origin->deferred_invoke([parsed, callback]() {
+            (*callback)(parsed);
+            delete callback;
+        });
+    });
+}
 
 GC_DEFINE_ALLOCATOR(FetchContext);
 
@@ -380,10 +424,29 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         //    options, and muted errors.
         // FIXME: Pass options.
         auto response_url = response->url().value_or({});
-        auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object.realm(), response_url, 1, muted_errors);
 
-        // 8. Run onComplete given script.
-        on_complete->function()(script);
+        // If the Rust pipeline is available, parse off the main thread.
+        if (JS::RustIntegration::rust_pipeline_available()) {
+            auto on_complete_root = GC::make_root(on_complete);
+            auto realm_root = GC::make_root(settings_object.realm());
+            auto response_url_string = response_url.to_byte_string();
+            auto source_code = JS::SourceCode::create(
+                String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
+                Utf16String::from_utf8(source_text));
+
+            parse_off_thread(move(source_code), JS::RustIntegration::ProgramType::Script, 1,
+                [response_url = move(response_url), response_url_string = move(response_url_string),
+                    muted_errors, on_complete_root = move(on_complete_root),
+                    realm_root = move(realm_root)](auto* parsed, auto source_code) mutable {
+                    auto script = ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *realm_root, move(response_url), parsed, muted_errors);
+                    on_complete_root->function()(script);
+                });
+        } else {
+            auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object.realm(), response_url, 1, muted_errors);
+
+            // 8. Run onComplete given script.
+            on_complete->function()(script);
+        }
     };
 
     Fetch::Fetching::fetch(element->realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));

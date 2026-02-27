@@ -73,6 +73,38 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
     return script;
 }
 
+GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm& realm, URL::URL base_url, RustParsedProgram* parsed, MutedErrors muted_errors)
+{
+    auto& vm = realm.vm();
+
+    if (muted_errors == MutedErrors::Yes)
+        base_url = URL::about_blank();
+
+    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), realm);
+
+    script->m_muted_errors = muted_errors;
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    auto parse_timer = Core::ElapsedTimer::start_new();
+    auto result = JS::Script::create_from_parsed(parsed, move(source_code), realm, script);
+    dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Compiled pre-parsed {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
+
+    if (result.is_error()) {
+        auto& parse_error = result.error().first();
+        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to compile: {}", parse_error.to_string());
+
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        script->set_error_to_rethrow(script->parse_error());
+
+        return script;
+    }
+
+    script->m_script_record = *result.release_value();
+
+    return script;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-classic-script
 // https://whatpr.org/html/9893/webappapis.html#run-a-classic-script
 JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Environment> lexical_environment_override)
