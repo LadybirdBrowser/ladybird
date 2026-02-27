@@ -234,17 +234,16 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
     auto const& object = as_object();
 
     // 2. If argument is an Array exotic object, return true.
-    if (is<Array>(object))
+    if (::is<Array>(object))
         return true;
 
     // 3. If argument is a Proxy exotic object, then
     if (auto const* proxy = ::as_if<ProxyObject>(object)) {
-
         // a. Perform ? ValidateNonRevokedProxy(argument).
         TRY(proxy->validate_non_revoked_proxy());
 
         // b. Let proxyTarget be argument.[[ProxyTarget]].
-        auto& proxy_target = proxy->target();
+        auto const& proxy_target = proxy->target();
 
         // c. Return ? IsArray(proxyTarget).
         return Value(&proxy_target).is_array(vm);
@@ -313,7 +312,7 @@ ThrowCompletionOr<bool> Value::is_regexp(VM& vm) const
 
     // 4. If argument has a [[RegExpMatcher]] internal slot, return true.
     // 5. Return false.
-    return is<RegExpObject>(as_object());
+    return ::is<RegExpObject>(as_object());
 }
 
 // 13.5.3 The typeof Operator, https://tc39.es/ecma262/#sec-typeof-operator

@@ -154,19 +154,23 @@ public:
         return !is_nan() && !is_infinity();
     }
 
-    template<typename T>
+    template<DerivedFrom<Object> T>
+    [[nodiscard]] ALWAYS_INLINE bool is() const
+    {
+        return is_object() && ::is<T>(as_object());
+    }
+
+    template<DerivedFrom<Object> T>
     ALWAYS_INLINE T* as_if()
     {
-        static_assert(IsBaseOf<Object, T>);
         if (!is_object())
             return nullptr;
         return ::as_if<T>(as_object());
     }
 
-    template<typename T>
+    template<DerivedFrom<Object> T>
     ALWAYS_INLINE T const* as_if() const
     {
-        static_assert(IsBaseOf<Object, T>);
         if (!is_object())
             return nullptr;
         return ::as_if<T>(as_object());
