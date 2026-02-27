@@ -607,16 +607,22 @@ Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
     return builder.to_result();
 }
 
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(
-    StringView source_text, Realm& realm, StringView filename)
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
-    bool const compare_pipelines = compare_pipelines_enabled();
-    if (!rust_pipeline_enabled() && !compare_pipelines)
+    if (!parsed)
         return {};
 
-    auto source_code = SourceCode::create(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(), Utf16String::from_utf8(source_text));
-    auto const& code_view = source_code->code_view();
-    auto length = code_view.length_in_code_units();
+    // Compile deferred regex literals (must happen on the main thread).
+    rust_parsed_program_compile_regexes(parsed);
+
+    if (rust_parsed_program_has_errors(parsed)) {
+        Vector<ParserError> parse_errors;
+        rust_parsed_program_take_errors(parsed, &parse_errors, collect_parse_errors);
+        rust_free_parsed_program(parsed);
+        return parse_errors;
+    }
+
+    auto length = source_code->length_in_code_units();
 
     GC::DeferGC defer_gc(realm.vm().heap());
     ModuleBuilder builder;
@@ -633,59 +639,13 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(
         .push_lexical_binding = module_push_lexical_binding,
     };
 
-    Vector<ParserError> errors;
-    auto error_callback = [](void* ctx, char const* message, size_t message_len, u32 line, u32 column) {
-        auto* error_list = static_cast<Vector<ParserError>*>(ctx);
-        auto msg = String::from_utf8({ message, message_len }).release_value_but_fixme_should_propagate_errors();
-        error_list->empend(move(msg), Position { .line = line, .column = column, .offset = 0 });
-    };
-
-    u8* rust_ast_data = nullptr;
-    size_t rust_ast_len = 0;
-    u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
-    size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
-
     void* tla_executable = nullptr;
 
-    auto const* source_ptr = source_code->utf16_data();
+    void* exec_ptr = rust_compile_parsed_module(parsed, &realm.vm(), source_code.ptr(),
+        &builder, &callbacks, &tla_executable, length);
 
-    void* exec_ptr = rust_compile_module(source_ptr, length,
-        &realm.vm(), source_code.ptr(),
-        &builder, &callbacks,
-        g_dump_ast, g_dump_ast_use_color,
-        &errors, error_callback,
-        &tla_executable,
-        rust_ast_data_ptr, rust_ast_len_ptr);
-
-    if (!exec_ptr && !tla_executable) {
-        if (rust_ast_data)
-            rust_free_string(rust_ast_data, rust_ast_len);
-        return errors;
-    }
-
-    if (compare_pipelines) {
-        auto rust_ast_dump = StringView { rust_ast_data, rust_ast_len };
-
-        auto parser = Parser(Lexer(source_code), Program::Type::Module);
-        auto cpp_program = parser.parse_program();
-
-        if (!parser.has_errors()) {
-            auto cpp_ast_dump = cpp_program->dump_to_string();
-            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, filename);
-
-            if (!tla_executable) {
-                auto& rust_executable = *static_cast<Bytecode::Executable*>(exec_ptr);
-                auto cpp_executable = Bytecode::Generator::generate_from_ast_node(realm.vm(), *cpp_program, {});
-                auto rust_bytecode_dump = rust_executable.dump_to_string();
-                auto cpp_bytecode_dump = cpp_executable->dump_to_string();
-                compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, filename, cpp_ast_dump);
-
-                pair_shared_function_data(rust_executable, *cpp_executable);
-            }
-        }
-
-        rust_free_string(rust_ast_data, rust_ast_len);
-    }
+    if (!exec_ptr && !tla_executable)
+        return Vector<ParserError> {};
 
     if (tla_executable) {
         auto& vm = realm.vm();
@@ -705,6 +665,58 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(
     }
 
     return builder.result;
+}
+
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename)
+{
+    bool const compare_pipelines = compare_pipelines_enabled();
+    if (!rust_pipeline_enabled() && !compare_pipelines)
+        return {};
+
+    auto source_code = SourceCode::create(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(), Utf16String::from_utf8(source_text));
+
+    // Parse (no GC interaction).
+    auto const* source_ptr = source_code->utf16_data();
+    auto length = source_code->length_in_code_units();
+    auto* parsed = rust_parse_program(source_ptr, length, static_cast<u8>(ProgramType::Module), 0, g_dump_ast, g_dump_ast_use_color);
+
+    // Pipeline comparison needs the AST dump before compilation consumes the ParsedProgram.
+    String rust_ast_owned;
+    if (compare_pipelines && parsed && !rust_parsed_program_has_errors(parsed)) {
+        u8 const* rust_ast_data = nullptr;
+        size_t rust_ast_len = 0;
+        rust_parsed_program_ast_dump(parsed, &rust_ast_data, &rust_ast_len);
+        rust_ast_owned = MUST(String::from_utf8({ rust_ast_data, rust_ast_len }));
+    }
+
+    // Compile (handles regex compilation, error checking, and codegen).
+    auto result = compile_parsed_module(parsed, source_code, realm);
+    if (!result.has_value() || result->is_error())
+        return result;
+
+    if (compare_pipelines) {
+        auto rust_ast_dump = rust_ast_owned.bytes_as_string_view();
+
+        auto parser = Parser(Lexer(source_code), Program::Type::Module);
+        auto cpp_program = parser.parse_program();
+
+        if (!parser.has_errors()) {
+            auto cpp_ast_dump = cpp_program->dump_to_string();
+            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, filename);
+
+            if (!result->value().tla_shared_data) {
+                auto& rust_executable = *result->value().executable;
+                auto cpp_executable = Bytecode::Generator::generate_from_ast_node(realm.vm(), *cpp_program, {});
+                auto rust_bytecode_dump = rust_executable.dump_to_string();
+                auto cpp_bytecode_dump = cpp_executable->dump_to_string();
+                compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, filename, cpp_ast_dump);
+
+                pair_shared_function_data(rust_executable, *cpp_executable);
+            }
+        }
+    }
+
+    return result;
 }
 
 Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
@@ -1372,6 +1384,11 @@ Optional<Result<EvalResult, String>> compile_eval(PrimitiveString&, VM&, CallerM
 }
 
 Optional<Result<EvalResult, String>> compile_shadow_realm_eval(PrimitiveString&, VM&)
+{
+    return {};
+}
+
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(RustParsedProgram*, NonnullRefPtr<SourceCode const>, Realm&)
 {
     return {};
 }

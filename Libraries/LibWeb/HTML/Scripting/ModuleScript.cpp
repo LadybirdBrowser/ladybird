@@ -71,6 +71,29 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
     return script;
 }
 
+WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::create_from_pre_parsed(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url, RustParsedProgram* parsed)
+{
+    if (HTML::is_scripting_disabled(realm))
+        source = ""sv;
+
+    auto script = realm.create<JavaScriptModuleScript>(move(base_url), filename, realm);
+
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, source, realm, filename.view(), script);
+
+    if (result.is_error()) {
+        auto& parse_error = result.error().first();
+        dbgln("JavaScriptModuleScript: Failed to parse: {}", parse_error.to_string());
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        return script;
+    }
+
+    script->m_record = result.value();
+    return script;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-module-script
 // https://whatpr.org/html/9893/webappapis.html#run-a-module-script
 JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)

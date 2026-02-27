@@ -10,6 +10,8 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 
+struct RustParsedProgram;
+
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-script
@@ -34,6 +36,7 @@ public:
     virtual ~JavaScriptModuleScript() override;
 
     static WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> create(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url);
+    static WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> create_from_pre_parsed(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url, RustParsedProgram* parsed);
 
     enum class PreventErrorReporting {
         Yes,
