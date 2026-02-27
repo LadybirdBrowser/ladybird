@@ -27,6 +27,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
+#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -792,8 +793,8 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
 // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token
 GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent)
 {
-    // FIXME: 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given given namespace, token's tag name, and token's attributes.
-    // FIXME: 2. Otherwise, optionally create a speculative mock element given given namespace, token's tag name, and token's attributes.
+    // FIXME: 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given namespace, token's tag name, and token's attributes.
+    // FIXME: 2. Otherwise, optionally create a speculative mock element given namespace, token's tag name, and token's attributes.
 
     // 3. Let document be intendedParent's node document.
     GC::Ref<DOM::Document> document = intended_parent.document();
@@ -804,11 +805,15 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // 5. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
     auto is_value = token.attribute(AttributeNames::is);
 
-    // FIXME: 6. Let registry be the result of looking up a custom element registry given intendedParent.
-    // 7. Let definition be the result of looking up a custom element definition given registry, namespace, localName, and is.
-    auto definition = document->lookup_custom_element_definition(namespace_, local_name, is_value);
+    // 6. Let registry be the result of looking up a custom element registry given intendedParent.
+    auto registry = look_up_a_custom_element_registry(intended_parent);
 
-    // 8. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML fragment parsing algorithm; otherwise false.
+    // 7. Let definition be the result of looking up a custom element definition given registry, namespace, localName,
+    //    and is.
+    auto definition = look_up_a_custom_element_definition(registry, namespace_, local_name, is_value);
+
+    // 8. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML
+    //    fragment parsing algorithm; otherwise false.
     bool will_execute_script = definition && !m_parsing_fragment;
 
     // 9. If willExecuteScript is true:
@@ -825,9 +830,9 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         relevant_similar_origin_window_agent(document).custom_element_reactions_stack.element_queue_stack.append({});
     }
 
-    // 10. Let element be the result of creating an element given document, localName, namespace, null, is, willExecuteScript, and registry.
-    // FIXME: and registry.
-    auto element = create_element(*document, local_name, namespace_, {}, is_value, will_execute_script).release_value_but_fixme_should_propagate_errors();
+    // 10. Let element be the result of creating an element given document, localName, namespace, null, is,
+    //     willExecuteScript, and registry.
+    auto element = create_element(*document, local_name, namespace_, {}, is_value, will_execute_script, registry).release_value_but_fixme_should_propagate_errors();
 
     // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is done.
     if (token.had_duplicate_attribute()) {
@@ -906,11 +911,11 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-foreign-element
 GC::Ref<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token, Optional<FlyString> const& namespace_, OnlyAddToElementStack only_add_to_element_stack)
 {
-    // 1. Let the adjusted insertion location be the appropriate place for inserting a node.
+    // 1. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
     auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
 
-    // 2. Let element be the result of creating an element for the token in the given namespace,
-    //    with the intended parent being the element in which the adjusted insertion location finds itself.
+    // 2. Let element be the result of creating an element for the token given token, namespace, and the element in
+    //    which the adjustedInsertionLocation finds itself.
     auto element = create_element_for(token, namespace_, *adjusted_insertion_location.parent);
 
     // 3. If onlyAddToElementStack is false, then run insert an element at the adjusted insertion location with element.
@@ -928,8 +933,8 @@ GC::Ref<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token,
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-html-element
 GC::Ref<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
 {
-    // When the steps below require the user agent to insert an HTML element for a token, the user agent must insert a
-    // foreign element for the token, with the HTML namespace and false.
+    // To insert an HTML element given a token token: insert a foreign element given token, the HTML namespace, and
+    // false.
     return insert_foreign_element(token, Namespace::HTML, OnlyAddToElementStack::No);
 }
 
@@ -1176,7 +1181,8 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         // 4. Switch the insertion mode to "in template".
         m_insertion_mode = InsertionMode::InTemplate;
 
-        // 5. Push "in template" onto the stack of template insertion modes so that it is the new current template insertion mode.
+        // 5. Push "in template" onto the stack of template insertion modes so that it is the new current template
+        //    insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InTemplate);
 
         // 6. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
@@ -1216,7 +1222,8 @@ void HTMLParser::handle_in_head(HTMLToken& token)
             // 1. Let declarativeShadowHostElement be adjusted current node.
             auto& declarative_shadow_host_element = *adjusted_current_node();
 
-            // 2. Let template be the result of insert a foreign element for templateStartTag, with HTML namespace and true.
+            // 2. Let template be the result of insert a foreign element for templateStartTag, with HTML namespace and
+            //    true.
             auto template_ = insert_foreign_element(template_start_tag, Namespace::HTML, OnlyAddToElementStack::Yes);
 
             // 3. Let mode be templateStartTag's shadowrootmode attribute's value.
@@ -1228,10 +1235,12 @@ void HTMLParser::handle_in_head(HTMLToken& token)
             // 5. Let serializable be true if templateStartTag has a shadowrootserializable attribute; otherwise false.
             auto serializable = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootserializable);
 
-            // 6. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise false.
+            // 6. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise
+            //    false.
             auto delegates_focus = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootdelegatesfocus);
 
-            // 7. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location with template.
+            // 7. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion
+            //    location with template.
             if (declarative_shadow_host_element.is_shadow_host()) {
                 // FIXME: We do manual "insert before" instead of "insert an element at the adjusted insertion location" here
                 //        Otherwise, two template elements in a row will cause the second to try to insert into itself.
@@ -1241,11 +1250,15 @@ void HTMLParser::handle_in_head(HTMLToken& token)
 
             // 8. Otherwise:
             else {
-                // FIXME: 1. Let registry be null if templateStartTag has a shadowrootcustomelementregistry attribute; otherwise declarativeShadowHostElement's node document's custom element registry.
+                // 1. Let registry be null if templateStartTag has a shadowrootcustomelementregistry attribute;
+                //    otherwise declarativeShadowHostElement's node document's custom element registry.
+                GC::Ptr<CustomElementRegistry> registry;
+                if (!template_start_tag.has_attribute(AttributeNames::shadowrootcustomelementregistry))
+                    registry = declarative_shadow_host_element.document().custom_element_registry();
 
-                // 2. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable, delegatesFocus, "named", and registry.
-                // FIXME: and registry.
-                auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named);
+                // 2. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable,
+                //    delegatesFocus, "named", and registry.
+                auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named, registry);
                 //    If an exception is thrown, then catch it and:
                 if (result.is_error()) {
                     // 1. Insert an element at the adjusted insertion location with template.
@@ -1273,7 +1286,10 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                 // 6. Set shadow's available to element internals to true.
                 shadow.set_available_to_element_internals(true);
 
-                // FIXME: 7. If templateStartTag has a shadowrootcustomelementregistry attribute, then set shadow's keep custom element registry null to true.
+                // 7. If templateStartTag has a shadowrootcustomelementregistry attribute, then set shadow's keep
+                //    custom element registry null to true.
+                if (template_start_tag.has_attribute(AttributeNames::shadowrootcustomelementregistry))
+                    shadow.set_keep_custom_element_registry_null(true);
             }
         }
 
@@ -4850,6 +4866,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
 
     // AD-HOC: We set the about base URL of the document to the same as the context element's document.
     //         This is required for Document::parse_url() to work inside iframe srcdoc documents.
+    //         Spec issue: https://github.com/whatwg/html/issues/12210
     temp_document->set_about_base_url(context_element.document().about_base_url());
 
     // 2. If context's node document is in quirks mode, then set document's mode to "quirks".
@@ -4906,8 +4923,9 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
         // Leave the tokenizer in the data state.
     }
 
-    // 7. Let root be the result of creating an element given document, "html", and the HTML namespace.
-    auto root = MUST(create_element(context_element.document(), HTML::TagNames::html, Namespace::HTML));
+    // 7. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
+    //    and context's custom element registry.
+    auto root = MUST(create_element(context_element.document(), HTML::TagNames::html, Namespace::HTML, {}, {}, false, context_element.custom_element_registry()));
 
     // 8. Append root to document.
     MUST(temp_document->append_child(root));
@@ -5155,14 +5173,39 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 if (shadow->clonable())
                     builder.append(" shadowrootclonable=\"\""sv);
 
-                // 7. Append ">".
+                // 7. Let shouldAppendRegistryAttribute be the result of running these steps:
+                auto should_append_registry_attribute = [&] {
+                    // 1. Let documentRegistry be shadow's node document's custom element registry.
+                    auto document_registry = shadow->document().custom_element_registry();
+
+                    // 2. Let shadowRegistry be shadow's custom element registry.
+                    auto shadow_registry = shadow->custom_element_registry();
+
+                    // 3. If documentRegistry is null and shadowRegistry is null, then return false.
+                    if (!document_registry && !shadow_registry)
+                        return false;
+
+                    // 4. If documentRegistry is a global custom element registry and shadowRegistry is a global custom
+                    //    element registry, then return false.
+                    if (is_a_global_custom_element_registry(document_registry) && is_a_global_custom_element_registry(shadow_registry))
+                        return false;
+
+                    // 5. Return true.
+                    return true;
+                }();
+
+                // 8. If shouldAppendRegistryAttribute is true, then append " shadowrootcustomelementregistry=""".
+                if (should_append_registry_attribute)
+                    builder.append(" shadowrootcustomelementregistry=\"\""sv);
+
+                // 9. Append ">".
                 builder.append('>');
 
-                // 8. Append the value of running the HTML fragment serialization algorithm with shadow,
+                // 10. Append the value of running the HTML fragment serialization algorithm with shadow,
                 //    serializableShadowRoots, and shadowRoots (thus recursing into this algorithm for that element).
                 builder.append(serialize_html_fragment(*shadow, serializable_shadow_roots, shadow_roots));
 
-                // 9. Append "</template>".
+                // 11. Append "</template>".
                 builder.append("</template>"sv);
             }
         }

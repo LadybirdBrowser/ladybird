@@ -1,3 +1,15 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 10 tests
+
+10 Pass
+Pass	createElement should use the global registry by default
+Pass	createElement should use the specified scoped registry
+Pass	createElement should create a builtin element regardless of a custom element registry specified
+Pass	createElement should use the specified global registry
+Pass	createElement should create an upgrade candidate when there is no matching definition in the specified registry
+Pass	document.createElement should create a builtin element with null registry if customElementRegistry is set to null
+Pass	document.createElement should create a custom element candidate with null registry if customElementRegistry is set to null
+Pass	document.createElement should create a custom element candidate with null registry if customElementRegistry is set to null even if there is a custom element of the same name in the glboal registry
+Pass	createElement should create an upgrade candidate and the candidate should be upgraded when the element is defined
+Pass	createElement on a non-HTML document should still handle registries correctly

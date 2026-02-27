@@ -160,8 +160,16 @@ struct DocumentUnloadTimingInfo {
     double unload_event_end_time { 0 };
 };
 
+// https://dom.spec.whatwg.org/#dictdef-elementcreationoptions
 struct ElementCreationOptions {
+    Optional<GC::Ptr<HTML::CustomElementRegistry>> custom_element_registry;
     Optional<String> is;
+};
+
+// https://dom.spec.whatwg.org/#dictdef-importnodeoptions
+struct ImportNodeOptions {
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry;
+    bool self_only = false;
 };
 
 enum class PolicyControlledFeature : u8 {
@@ -464,7 +472,7 @@ public:
     // https://dom.spec.whatwg.org/#xml-document
     bool is_xml_document() const { return m_type == Type::XML; }
 
-    WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, bool deep);
+    WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions>);
     void adopt_node(Node&);
     WebIDL::ExceptionOr<GC::Ref<Node>> adopt_node_binding(GC::Ref<Node>);
 
@@ -635,8 +643,6 @@ public:
 
     bool has_active_favicon() const { return m_active_favicon; }
     void check_favicon_after_loading_link_resource();
-
-    GC::Ptr<HTML::CustomElementDefinition> lookup_custom_element_definition(Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is) const;
 
     void increment_throw_on_dynamic_markup_insertion_counter(Badge<HTML::HTMLParser>);
     void decrement_throw_on_dynamic_markup_insertion_counter(Badge<HTML::HTMLParser>);
@@ -1037,6 +1043,9 @@ public:
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
+    GC::Ptr<HTML::CustomElementRegistry> effective_global_custom_element_registry() const;
+
+    void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, String local_name, Optional<String> name = {});
 
 protected:
     virtual void initialize(JS::Realm&) override;
@@ -1100,6 +1109,12 @@ private:
     void build_counter_style_cache();
 
     void ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url = {});
+
+    struct RegistryAndIs {
+        GC::Ptr<HTML::CustomElementRegistry> registry;
+        Optional<String> is;
+    };
+    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(Variant<String, ElementCreationOptions> const&) const;
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;

@@ -43,6 +43,11 @@ struct SimilarOriginWindowAgent : public Agent {
     auto& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
     auto const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
 
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#active-custom-element-constructor-map
+    // Each similar-origin window agent has an associated active custom element constructor map, which is a map of
+    // constructors to CustomElementRegistry objects.
+    HashMap<GC::Ref<JS::FunctionObject>, GC::Root<CustomElementRegistry>> active_custom_element_constructor_map;
+
 private:
     SimilarOriginWindowAgent(GC::Heap&, CanBlock);
 };

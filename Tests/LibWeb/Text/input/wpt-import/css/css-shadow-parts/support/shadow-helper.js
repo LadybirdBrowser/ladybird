@@ -18,15 +18,18 @@ function getElementByShadowIds(root, ids) {
 
 // Installs a mininal custom element based on this template.
 function installCustomElement(element_name, template_id) {
+  console.log(`install custom element '${element_name}' to ${window.customElements}`);
   ceClass = class extends HTMLElement {
     constructor() {
       super();
+      console.log(`Constructor for ${element_name}`);
       var template = document
         .getElementById(template_id)
         .content;
       this
         .attachShadow({mode: 'open'})
         .appendChild(template.cloneNode(true));
+      console.log(`End constructor for ${element_name}`);
     }
   };
   window.customElements.define(element_name, ceClass);

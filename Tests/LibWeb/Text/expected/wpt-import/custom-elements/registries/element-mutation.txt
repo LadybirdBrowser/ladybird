@@ -2,14 +2,15 @@ Harness status: OK
 
 Found 10 tests
 
-10 Fail
-Fail	An element with global registry should not change its registry when run append into a shadow tree with scoped registry.
-Fail	An element with scoped registry should not change its registry when run append out of the shadow tree.
-Fail	An element with scoped registry should not change its registry when run append into another shadow tree with different scoped registry.
-Fail	An element with global registry should not change its registry when run appendChild into a shadow tree with scoped registry.
-Fail	An element with scoped registry should not change its registry when run appendChild out of the shadow tree.
-Fail	An element with scoped registry should not change its registry when run appendChild into another shadow tree with different scoped registry.
-Fail	An element with global registry should not change its registry when run prepend into a shadow tree with scoped registry.
-Fail	An element with scoped registry should not change its registry when run prepend out of the shadow tree.
-Fail	An element with scoped registry should not change its registry when run prepend into another shadow tree with different scoped registry.
+9 Pass
+1 Fail
+Pass	An element with global registry should not change its registry when run append into a shadow tree with scoped registry.
+Pass	An element with scoped registry should not change its registry when run append out of the shadow tree.
+Pass	An element with scoped registry should not change its registry when run append into another shadow tree with different scoped registry.
+Pass	An element with global registry should not change its registry when run appendChild into a shadow tree with scoped registry.
+Pass	An element with scoped registry should not change its registry when run appendChild out of the shadow tree.
+Pass	An element with scoped registry should not change its registry when run appendChild into another shadow tree with different scoped registry.
+Pass	An element with global registry should not change its registry when run prepend into a shadow tree with scoped registry.
+Pass	An element with scoped registry should not change its registry when run prepend out of the shadow tree.
+Pass	An element with scoped registry should not change its registry when run prepend into another shadow tree with different scoped registry.
 Fail	Declarative shadow DOM with shadowrootcustomelementregistry attribute without registry initialized should remain null registry after adoption.

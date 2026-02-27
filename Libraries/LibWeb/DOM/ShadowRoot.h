@@ -100,6 +100,9 @@ public:
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry) { m_custom_element_registry = registry; }
 
+    bool keep_custom_element_registry_null() const { return m_keep_custom_element_registry_null; }
+    void set_keep_custom_element_registry_null(bool value) { m_keep_custom_element_registry_null = value; }
+
     virtual void finalize() override;
 
     GC::Ptr<Element> fullscreen_element_for_bindings() const;
@@ -150,6 +153,9 @@ private:
 
     // https://dom.spec.whatwg.org/#shadowroot-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
+
+    // https://dom.spec.whatwg.org/#shadowroot-keep-custom-element-registry-null
+    bool m_keep_custom_element_registry_null { false };
 
 public:
     using DocumentShadowRootList = IntrusiveList<&ShadowRoot::m_list_node>;

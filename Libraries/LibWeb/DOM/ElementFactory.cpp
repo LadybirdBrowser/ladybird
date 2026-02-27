@@ -629,7 +629,7 @@ GC::Ref<Element> create_element_internal(Document& document, Interface interface
 }
 
 // https://dom.spec.whatwg.org/#concept-create-element
-WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag)
+WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag, Variant<GC::Ptr<HTML::CustomElementRegistry>, Default> initial_registry)
 {
     auto& realm = document.realm();
 
@@ -638,8 +638,13 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
     // 2. If registry is "default", then set registry to the result of looking up a custom element registry given
     //    document.
-    // FIXME: For now, just use the document's registry directly.
-    auto registry = document.custom_element_registry();
+    GC::Ptr<HTML::CustomElementRegistry> registry = initial_registry.visit(
+        [&document](Default const&) {
+            return HTML::look_up_a_custom_element_registry(document);
+        },
+        [](GC::Ptr<HTML::CustomElementRegistry> pointer) {
+            return pointer;
+        });
 
     // 3. Let definition be the result of looking up a custom element definition given registry, namespace, localName,
     //    and is.
@@ -684,7 +689,8 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
             auto& constructor = definition->constructor();
 
             // 2. Set the surrounding agent’s active custom element constructor map[C] to registry.
-            // FIXME: Implement this.
+            auto& active_custom_element_constructor_map = HTML::relevant_similar_origin_window_agent(document).active_custom_element_constructor_map;
+            active_custom_element_constructor_map.set(static_cast<JS::FunctionObject&>(*constructor.callback), registry);
 
             // 3. Run these steps while catching any exceptions:
             auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<void> {
@@ -746,7 +752,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
             // 4. Remove the surrounding agent’s active custom element constructor map[C].
             // Note: Under normal circumstances it will already have been removed at this point.
-            // FIXME: Implement this.
+            active_custom_element_constructor_map.remove(static_cast<JS::FunctionObject&>(*constructor.callback));
         }
 
         // 2. Otherwise:

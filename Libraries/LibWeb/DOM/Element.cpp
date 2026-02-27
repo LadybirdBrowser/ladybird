@@ -17,6 +17,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
@@ -1072,7 +1073,7 @@ static bool is_valid_shadow_host_name(FlyString const& name)
 }
 
 // https://dom.spec.whatwg.org/#concept-attach-a-shadow-root
-WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment)
+WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry)
 {
     // 1. If element’s namespace is not the HTML namespace, then throw a "NotSupportedError" DOMException.
     if (namespace_uri() != Namespace::HTML)
@@ -1082,17 +1083,19 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
     if (!is_valid_shadow_host_name(local_name()))
         return WebIDL::NotSupportedError::create(realm(), "Element's local name is not a valid shadow host name"_utf16);
 
-    // 3. If element’s local name is a valid custom element name, or element’s is value is not null, then:
+    // 3. If element’s local name is a valid custom element name, or element’s is value is not null:
     if (HTML::is_valid_custom_element_name(local_name()) || m_is_value.has_value()) {
-        // 1. Let definition be the result of looking up a custom element definition given element’s node document, its namespace, its local name, and its is value.
-        auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), m_is_value);
+        // 1. Let definition be the result of looking up a custom element definition given element’s custom element
+        //    registry, its namespace, its local name, and its is value.
+        auto definition = HTML::look_up_a_custom_element_definition(custom_element_registry(), namespace_uri(), local_name(), m_is_value);
 
-        // 2. If definition is not null and definition’s disable shadow is true, then throw a "NotSupportedError" DOMException.
+        // 2. If definition is non-null and definition’s disable shadow is true, then throw a "NotSupportedError"
+        //    DOMException.
         if (definition && definition->disable_shadow())
             return WebIDL::NotSupportedError::create(realm(), "Cannot attach a shadow root to a custom element that has disabled shadow roots"_utf16);
     }
 
-    // 4. If element is a shadow host, then:
+    // 4. If element is a shadow host:
     if (is_shadow_host()) {
         // 1. Let currentShadowRoot be element’s shadow root.
         auto current_shadow_root = shadow_root();
@@ -1116,13 +1119,15 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
         return {};
     }
 
-    // 5. Let shadow be a new shadow root whose node document is element’s node document, host is this, and mode is mode.
+    // 5. Let shadow be a new shadow root whose node document is element’s node document, host is this, and mode is
+    //    mode.
     auto shadow = realm().create<ShadowRoot>(document(), *this, mode);
 
-    // 6. Set shadow’s delegates focus to delegatesFocus".
+    // 6. Set shadow’s delegates focus to delegatesFocus.
     shadow->set_delegates_focus(delegates_focus);
 
-    // 7. If element’s custom element state is "precustomized" or "custom", then set shadow’s available to element internals to true.
+    // 7. If element’s custom element state is "precustomized" or "custom", then set shadow’s available to element
+    //    internals to true.
     if (m_custom_element_state == CustomElementState::Precustomized || m_custom_element_state == CustomElementState::Custom)
         shadow->set_available_to_element_internals(true);
 
@@ -1138,7 +1143,10 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
     // 11. Set shadow’s serializable to serializable.
     shadow->set_serializable(serializable);
 
-    // 12. Set element’s shadow root to shadow.
+    // 12. Set shadow’s custom element registry to registry.
+    shadow->set_custom_element_registry(registry);
+
+    // 13. Set element’s shadow root to shadow.
     set_shadow_root(shadow);
     return {};
 }
@@ -1146,10 +1154,23 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 // https://dom.spec.whatwg.org/#dom-element-attachshadow
 WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootInit init)
 {
-    // 1. Run attach a shadow root with this, init["mode"], init["clonable"], init["serializable"], init["delegatesFocus"], and init["slotAssignment"].
-    TRY(attach_a_shadow_root(init.mode, init.clonable, init.serializable, init.delegates_focus, init.slot_assignment));
+    // 1. Let registry be this’s node document’s custom element registry.
+    auto registry = document().custom_element_registry();
 
-    // 2. Return this’s shadow root.
+    // 2. If init["customElementRegistry"] exists, then set registry to it.
+    if (init.custom_element_registry.has_value())
+        registry = init.custom_element_registry.value();
+
+    // 3. If registry is non-null, registry’s is scoped is false, and registry is not this’s node document’s custom
+    //    element registry, then throw a "NotSupportedError" DOMException.
+    if (registry && !registry->is_scoped() && registry != document().custom_element_registry())
+        return WebIDL::NotSupportedError::create(realm(), "'customElementRegistry' in ShadowRootInit must either be scoped or the document's custom element registry."_utf16);
+
+    // 4. Run attach a shadow root with this, init["mode"], init["clonable"], init["serializable"],
+    //    init["delegatesFocus"], init["slotAssignment"], and registry.
+    TRY(attach_a_shadow_root(init.mode, init.clonable, init.serializable, init.delegates_focus, init.slot_assignment, registry));
+
+    // 5. Return this’s shadow root.
     return GC::Ref { *shadow_root() };
 }
 
@@ -3208,8 +3229,9 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
     // 3. Set element's custom element state to "failed".
     set_custom_element_state(CustomElementState::Failed);
 
-    // 4. For each attribute in element's attribute list, in order, enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
-    //    and « attribute's local name, null, attribute's value, attribute's namespace ».
+    // 4. For each attribute in element's attribute list, in order, enqueue a custom element callback reaction with
+    //    element, callback name "attributeChangedCallback", and « attribute's local name, null, attribute's value,
+    //    attribute's namespace ».
     size_t attribute_count = m_attributes ? m_attributes->length() : 0;
     for (size_t attribute_index = 0; attribute_index < attribute_count; ++attribute_index) {
         auto const* attribute = m_attributes->item(attribute_index);
@@ -3225,7 +3247,8 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
     }
 
-    // 5. If element is connected, then enqueue a custom element callback reaction with element, callback name "connectedCallback", and « ».
+    // 5. If element is connected, then enqueue a custom element callback reaction with element, callback name
+    //    "connectedCallback", and « ».
     if (is_connected()) {
         GC::RootVector<JS::Value> empty_arguments { vm.heap() };
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
@@ -3237,9 +3260,14 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
     // 7. Let C be definition's constructor.
     auto& constructor = custom_element_definition->constructor();
 
-    // 8. Run the following substeps while catching any exceptions:
+    // 8. Set the surrounding agent's active custom element constructor map[C] to element's custom element registry.
+    auto& surrounding_agent = HTML::relevant_similar_origin_window_agent(*this);
+    surrounding_agent.active_custom_element_constructor_map.set(static_cast<JS::FunctionObject&>(*constructor.callback), custom_element_registry());
+
+    // 9. Run the following steps while catching any exceptions:
     auto attempt_to_construct_custom_element = [&]() -> JS::ThrowCompletionOr<void> {
-        // 1. If definition's disable shadow is true and element's shadow root is non-null, then throw a "NotSupportedError" DOMException.
+        // 1. If definition's disable shadow is true and element's shadow root is non-null, then throw a
+        //    "NotSupportedError" DOMException.
         if (custom_element_definition->disable_shadow() && shadow_root())
             return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_utf16));
 
@@ -3258,8 +3286,11 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 
     auto maybe_exception = attempt_to_construct_custom_element();
 
-    // Then, perform the following substep, regardless of whether the above steps threw an exception or not:
-    // 1. Remove the last entry from the end of definition's construction stack.
+    // Then, perform the following steps, regardless of whether the above steps threw an exception or not:
+    // 1. Remove the surrounding agent's active custom element constructor map[C].
+    surrounding_agent.active_custom_element_constructor_map.remove(static_cast<JS::FunctionObject&>(*constructor.callback));
+
+    // 2. Remove the last entry from the end of definition's construction stack.
     (void)custom_element_definition->construction_stack().take_last();
 
     // Finally, if the above steps threw an exception, then:
@@ -3275,7 +3306,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         return maybe_exception.release_error();
     }
 
-    // 9. If element is a form-associated custom element, then:
+    // 10. If element is a form-associated custom element, then:
     if (auto* html_element = as_if<HTML::HTMLElement>(this); html_element && html_element->is_form_associated_custom_element()) {
         // 1. Reset the form owner of element.
         // FIXME: If element is associated with a form element, then enqueue a custom element callback reaction with element, callback name "formAssociatedCallback", and « the associated form ».
@@ -3286,7 +3317,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         html_element->update_face_disabled_state();
     }
 
-    // 10. Set element's custom element state to "custom".
+    // 11. Set element's custom element state to "custom".
     set_custom_element_state(CustomElementState::Custom);
 
     return {};
@@ -3295,8 +3326,9 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-try-upgrade
 void Element::try_to_upgrade()
 {
-    // 1. Let definition be the result of looking up a custom element definition given element's node document, element's namespace, element's local name, and element's is value.
-    auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), m_is_value);
+    // 1. Let definition be the result of looking up a custom element definition given element's custom element
+    //    registry, element's namespace, element's local name, and element's is value.
+    auto definition = HTML::look_up_a_custom_element_definition(custom_element_registry(), namespace_uri(), local_name(), is_value());
 
     // 2. If definition is not null, then enqueue a custom element upgrade reaction given element and definition.
     if (definition)
