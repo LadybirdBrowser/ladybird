@@ -434,10 +434,10 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                 print_node(&init_state, &color_label(state, "init"));
                 match init {
                     ForInit::Expression(expr) => {
-                        dump_expression(expr, &child_state(&init_state, true))
+                        dump_expression(expr, &child_state(&init_state, true));
                     }
                     ForInit::Declaration(decl) => {
-                        dump_statement(decl, &child_state(&init_state, true))
+                        dump_statement(decl, &child_state(&init_state, true));
                     }
                 }
             }

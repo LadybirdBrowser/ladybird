@@ -1308,7 +1308,7 @@ impl Generator {
                         OperandType::Register => {} // stays as-is
                         OperandType::Local => op.offset_index_by(number_of_registers),
                         OperandType::Constant => {
-                            op.offset_index_by(number_of_registers + number_of_locals)
+                            op.offset_index_by(number_of_registers + number_of_locals);
                         }
                         OperandType::Argument => op.offset_index_by(
                             number_of_registers + number_of_locals + number_of_constants,

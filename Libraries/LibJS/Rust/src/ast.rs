@@ -441,10 +441,10 @@ impl FunctionTable {
             if let Some(ref alias) = entry.alias {
                 match alias {
                     BindingEntryAlias::BindingPattern(sub) => {
-                        self.collect_from_pattern(sub, result)
+                        self.collect_from_pattern(sub, result);
                     }
                     BindingEntryAlias::MemberExpression(expr) => {
-                        self.collect_from_expression(expr, result)
+                        self.collect_from_expression(expr, result);
                     }
                     BindingEntryAlias::Identifier(_) => {}
                 }

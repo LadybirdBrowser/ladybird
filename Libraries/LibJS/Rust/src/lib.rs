@@ -870,16 +870,16 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                 let mut validate_src: Vec<u16> = Vec::new();
                 match kind {
                     ast::FunctionKind::Generator => {
-                        validate_src.extend_from_slice(utf16!("function* test("))
+                        validate_src.extend_from_slice(utf16!("function* test("));
                     }
                     ast::FunctionKind::Async => {
-                        validate_src.extend_from_slice(utf16!("async function test("))
+                        validate_src.extend_from_slice(utf16!("async function test("));
                     }
                     ast::FunctionKind::AsyncGenerator => {
-                        validate_src.extend_from_slice(utf16!("async function* test("))
+                        validate_src.extend_from_slice(utf16!("async function* test("));
                     }
                     ast::FunctionKind::Normal => {
-                        validate_src.extend_from_slice(utf16!("function test("))
+                        validate_src.extend_from_slice(utf16!("function test("));
                     }
                 }
                 validate_src.extend_from_slice(parameters_slice);
@@ -1994,7 +1994,7 @@ unsafe fn extract_eval_gdi(
             &mut |name| eval_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
             &mut |name| eval_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
             &mut |name, is_const| {
-                eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+                eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const);
             },
             function_table,
         );
@@ -2057,7 +2057,7 @@ unsafe fn extract_script_gdi(
             &mut |name| script_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
             &mut |name| script_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
             &mut |name, is_const| {
-                script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+                script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const);
             },
             function_table,
         );

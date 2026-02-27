@@ -4864,7 +4864,7 @@ fn emit_compound_assignment(
                 dst: dst_op,
                 lhs: lhs_op,
                 rhs: rhs_op,
-            })
+            });
         }
         AssignmentOp::AndAssignment
         | AssignmentOp::OrAssignment
@@ -8237,7 +8237,7 @@ pub fn emit_function_declaration_instantiation(
                     match ident.local_type.get() {
                         Some(LocalType::Variable) => generator.mark_local_initialized(local_index),
                         Some(LocalType::Argument) => {
-                            generator.mark_argument_initialized(local_index)
+                            generator.mark_argument_initialized(local_index);
                         }
                         None => {}
                     }
