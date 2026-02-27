@@ -28,4 +28,5 @@ if(NOT WIN32)
     set_tests_properties(TestLibCoreMappedFile TestLibCoreStream PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
+target_link_libraries(TestLibCoreEventLoop PRIVATE LibThreading)
 target_link_libraries(TestLibCoreSharedSingleProducerCircularQueue PRIVATE LibThreading)
