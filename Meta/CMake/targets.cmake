@@ -18,6 +18,15 @@ function(lagom_generate_export_header name fs_name)
     generate_export_header(${name} EXPORT_MACRO_NAME ${fs_name_upper}_API EXPORT_FILE_NAME "Export.h")
 endfunction()
 
+function(lagom_generate_dsym target_name)
+    if (APPLE AND LADYBIRD_GENERATE_DSYM)
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND dsymutil -o "$<TARGET_FILE:${target_name}>.dSYM" "$<TARGET_FILE:${target_name}>"
+            COMMENT "Generating dSYM for ${target_name}"
+        )
+    endif()
+endfunction()
+
 function(lagom_copy_runtime_dlls target_name)
     if (WIN32 AND BUILD_SHARED_LIBS)
         add_custom_command(TARGET ${target_name} POST_BUILD
@@ -82,6 +91,10 @@ function(lagom_lib target_name fs_name)
         target_link_libraries(${target_name} PRIVATE ${MMAN_LIBRARY})
     endif()
 
+    if (NOT LAGOM_LIBRARY_LIBRARY_TYPE STREQUAL "STATIC")
+        lagom_generate_dsym(${target_name})
+    endif()
+
     # FIXME: Clean these up so that we don't need so many include dirs
     if (ENABLE_INSTALL_HEADERS)
         target_include_directories(${target_name} INTERFACE
@@ -116,6 +129,7 @@ function(lagom_test source)
     add_executable(${LAGOM_TEST_NAME} ${source})
     target_link_libraries(${LAGOM_TEST_NAME} PRIVATE AK LibCore LibFileSystem LibTest ${LAGOM_TEST_CUSTOM_MAIN} ${LAGOM_TEST_LIBS})
     lagom_windows_bin(${LAGOM_TEST_NAME} CONSOLE)
+    lagom_generate_dsym(${LAGOM_TEST_NAME})
 
     if (WIN32)
         target_include_directories(${LAGOM_TEST_NAME} PRIVATE ${PTHREAD_INCLUDE_DIR})
@@ -137,6 +151,7 @@ function(lagom_utility name)
 
     add_executable("${name}" ${LAGOM_UTILITY_SOURCES})
     target_link_libraries("${name}" PRIVATE AK LibCore ${LAGOM_UTILITY_LIBS})
+    lagom_generate_dsym(${name})
 endfunction()
 
 function(ladybird_test test_src sub_dir)
@@ -154,6 +169,7 @@ function(ladybird_bin name)
     add_executable(Lagom::${name} ALIAS ${name})
     target_link_libraries(${name} PUBLIC GenericClangPlugin)
     lagom_windows_bin(${name})
+    lagom_generate_dsym(${name})
     install(
             TARGETS ${target_name}
             EXPORT LagomTargets
