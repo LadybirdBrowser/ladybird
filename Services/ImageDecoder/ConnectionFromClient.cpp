@@ -189,7 +189,7 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
         [encoded_buffer = move(encoded_buffer), ideal_size = move(ideal_size), mime_type = move(mime_type)](auto&) mutable -> ErrorOr<DecodeResult> {
             return TRY(decode_image_to_details(move(encoded_buffer), ideal_size, mime_type));
         },
-        [strong_this = NonnullRefPtr(*this), request_id](DecodeResult result) -> ErrorOr<void> {
+        [strong_this = NonnullRefPtr(*this), request_id](DecodeResult result) {
             i64 session_id = 0;
 
             if (result.decoder) {
@@ -204,9 +204,8 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
 
             strong_this->async_did_decode_image(request_id, result.is_animated, result.loop_count, move(result.bitmaps), move(result.durations), result.scale, move(result.color_profile), session_id);
             strong_this->m_pending_jobs.remove(request_id);
-            return {};
         },
-        [strong_this = NonnullRefPtr(*this), request_id](Error error) -> void {
+        [strong_this = NonnullRefPtr(*this), request_id](Error error) {
             if (strong_this->is_open())
                 strong_this->async_did_fail_to_decode_image(request_id, MUST(String::formatted("Decoding failed: {}", error)));
             strong_this->m_pending_jobs.remove(request_id);
@@ -263,16 +262,15 @@ void ConnectionFromClient::request_animation_frames(i64 session_id, u32 start_fr
             }
             return frames;
         },
-        [strong_this = NonnullRefPtr(*this), session_id](Vector<Gfx::ImageFrameDescriptor> frames) -> ErrorOr<void> {
+        [strong_this = NonnullRefPtr(*this), session_id](Vector<Gfx::ImageFrameDescriptor> frames) {
             Vector<RefPtr<Gfx::Bitmap>> bitmaps;
             bitmaps.ensure_capacity(frames.size());
             for (auto& frame : frames)
                 bitmaps.unchecked_append(move(frame.image));
             strong_this->async_did_decode_animation_frames(session_id, Gfx::BitmapSequence { move(bitmaps) });
             strong_this->m_pending_frame_jobs.remove(session_id);
-            return {};
         },
-        [strong_this = NonnullRefPtr(*this), session_id](Error error) -> void {
+        [strong_this = NonnullRefPtr(*this), session_id](Error error) {
             if (strong_this->is_open())
                 strong_this->async_did_fail_animation_decode(session_id, MUST(String::formatted("Frame decode failed: {}", error)));
             strong_this->m_pending_frame_jobs.remove(session_id);

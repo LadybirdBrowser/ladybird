@@ -48,10 +48,9 @@ TEST_CASE(background_action_on_error_called_on_action_failure_and_on_origin_thre
             action_ran.store(true, AK::MemoryOrder::memory_order_relaxed);
             return Error::from_string_literal("action failed");
         },
-        [&](int) -> ErrorOr<void> {
+        [&](int) {
             on_complete_called.store(true, AK::MemoryOrder::memory_order_relaxed);
             loop.quit(1);
-            return {};
         },
         [&](Error error) {
             EXPECT(pthread_equal(origin_thread_id, pthread_self()));
@@ -67,51 +66,6 @@ TEST_CASE(background_action_on_error_called_on_action_failure_and_on_origin_thre
     EXPECT(!pthread_equal(action_thread_id.value(), origin_thread_id));
     EXPECT(on_error_called.load(AK::MemoryOrder::memory_order_relaxed));
     EXPECT(!on_complete_called.load(AK::MemoryOrder::memory_order_relaxed));
-
-    (void)background_action;
-}
-
-TEST_CASE(background_action_on_error_called_when_on_complete_returns_error)
-{
-    Core::EventLoop loop;
-
-    pthread_t const origin_thread_id = pthread_self();
-
-    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<int> on_error_count = 0;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<int> on_complete_count = 0;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<int> stage = 0;
-
-    Optional<pthread_t> action_thread_id;
-
-    auto background_action = Threading::BackgroundAction<int>::construct(
-        [&](auto&) -> ErrorOr<int> {
-            action_thread_id = pthread_self();
-            return 42;
-        },
-        [&](int value) -> ErrorOr<void> {
-            EXPECT(pthread_equal(origin_thread_id, pthread_self()));
-            EXPECT_EQ(value, 42);
-            on_complete_count.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
-            stage.store(1, AK::MemoryOrder::memory_order_relaxed);
-            return Error::from_string_literal("on_complete failed");
-        },
-        [&](Error error) {
-            EXPECT(pthread_equal(origin_thread_id, pthread_self()));
-            EXPECT_EQ(error.string_literal(), "on_complete failed"sv);
-            EXPECT_EQ(stage.load(AK::MemoryOrder::memory_order_relaxed), 1);
-            on_error_count.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
-            stage.store(2, AK::MemoryOrder::memory_order_relaxed);
-            loop.quit(0);
-        });
-
-    loop.exec();
-
-    EXPECT(action_thread_id.has_value());
-    EXPECT(!pthread_equal(action_thread_id.value(), origin_thread_id));
-
-    EXPECT_EQ(on_complete_count.load(AK::MemoryOrder::memory_order_relaxed), 1);
-    EXPECT_EQ(on_error_count.load(AK::MemoryOrder::memory_order_relaxed), 1);
-    EXPECT_EQ(stage.load(AK::MemoryOrder::memory_order_relaxed), 2);
 
     (void)background_action;
 }
@@ -136,9 +90,8 @@ TEST_CASE(background_action_cancel_suppresses_on_error_and_on_complete)
             finished.store(true, AK::MemoryOrder::memory_order_relaxed);
             return Error::from_string_literal("error after cancel");
         },
-        [&](int) -> ErrorOr<void> {
+        [&](int) {
             on_complete_count.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
-            return {};
         },
         [&](Error) {
             on_error_count.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
