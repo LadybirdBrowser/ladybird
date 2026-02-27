@@ -919,7 +919,7 @@ impl<'a> Parser<'a> {
 
     /// Re-parse the source range starting at `start` as a binding pattern
     /// with member expressions allowed (for destructuring assignment patterns).
-    pub(crate) fn synthesize_binding_pattern(&mut self, start: Position) -> Option<BindingPattern> {
+    pub(crate) fn synthesize_binding_pattern(&mut self, start: Position) -> BindingPattern {
         // Clear any syntax errors that occurred in the range of the expression
         // being reinterpreted as a binding pattern. This matches C++'s behavior
         // where errors like duplicate __proto__ in object literals are cleared
@@ -947,7 +947,7 @@ impl<'a> Parser<'a> {
         self.current_token = saved_token;
         self.allow_member_expressions = saved_allow;
 
-        Some(pattern)
+        pattern
     }
 
     pub(crate) fn is_simple_assignment_target(

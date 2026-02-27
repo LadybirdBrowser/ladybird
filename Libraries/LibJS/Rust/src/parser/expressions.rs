@@ -805,36 +805,29 @@ impl<'a> Parser<'a> {
                     // lhs_start. When the expression is parenthesized (e.g.
                     // `([a,b]) = ...`), lhs_start points to `(` but we need
                     // to re-lex from `[` to correctly synthesize the pattern.
-                    match self.synthesize_binding_pattern(lhs.range.start) {
-                        Some(binding_pattern) => {
-                            // Register synthesized identifiers with the scope collector so
-                            // they get resolved as locals during analyze().
-                            for (name, id) in self.pattern_bound_names.drain(..) {
-                                self.scope_collector.register_identifier(id, &name, None);
-                            }
-                            self.pattern_bound_names = saved_bound_names;
-                            self.consume();
-                            let rhs = self.parse_expression(
-                                min_precedence,
-                                Associativity::Right,
-                                forbidden,
-                            );
-                            return (
-                                self.expression(
-                                    start,
-                                    ExpressionKind::Assignment {
-                                        op,
-                                        lhs: AssignmentLhs::Pattern(binding_pattern),
-                                        rhs: Box::new(rhs),
-                                    },
-                                ),
-                                ForbiddenTokens::none(),
-                            );
-                        }
-                        _ => {
-                            self.pattern_bound_names = saved_bound_names;
-                        }
+
+                    let binding_pattern = self.synthesize_binding_pattern(lhs.range.start);
+
+                    // Register synthesized identifiers with the scope collector so
+                    // they get resolved as locals during analyze().
+                    for (name, id) in self.pattern_bound_names.drain(..) {
+                        self.scope_collector.register_identifier(id, &name, None);
                     }
+                    self.pattern_bound_names = saved_bound_names;
+                    self.consume();
+                    let rhs =
+                        self.parse_expression(min_precedence, Associativity::Right, forbidden);
+                    return (
+                        self.expression(
+                            start,
+                            ExpressionKind::Assignment {
+                                op,
+                                lhs: AssignmentLhs::Pattern(binding_pattern),
+                                rhs: Box::new(rhs),
+                            },
+                        ),
+                        ForbiddenTokens::none(),
+                    );
                 }
                 let allow_call = !matches!(
                     tt,

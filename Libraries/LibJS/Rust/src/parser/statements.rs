@@ -931,15 +931,12 @@ impl<'a> Parser<'a> {
             LocalForInit::Expression(expression) => {
                 if Self::is_array_expression(&expression) || Self::is_object_expression(&expression)
                 {
-                    match self.synthesize_binding_pattern(init_start) {
-                        Some(pattern) => {
-                            for (name, id) in self.pattern_bound_names.drain(..) {
-                                self.scope_collector.register_identifier(id, &name, None);
-                            }
-                            ForInOfLhs::Pattern(pattern)
-                        }
-                        _ => ForInOfLhs::Expression(Box::new(expression)),
+                    let pattern = self.synthesize_binding_pattern(init_start);
+
+                    for (name, id) in self.pattern_bound_names.drain(..) {
+                        self.scope_collector.register_identifier(id, &name, None);
                     }
+                    ForInOfLhs::Pattern(pattern)
                 } else {
                     ForInOfLhs::Expression(Box::new(expression))
                 }
