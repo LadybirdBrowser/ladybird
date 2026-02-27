@@ -214,8 +214,7 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
 {
     auto callback_function = JS::NativeFunction::create(
         realm, [handler = move(handler)](JS::VM& vm) {
-            T* event = vm.argument(0).as_if<T>();
-            if (event) {
+            if (auto event = vm.argument(0).as_if<T>()) {
                 if (handler(*event))
                     event->prevent_default();
             }

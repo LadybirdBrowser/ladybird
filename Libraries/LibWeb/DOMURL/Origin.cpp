@@ -42,11 +42,11 @@ WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
     auto& realm = *vm.current_realm();
 
     // NB: IDL only ever sees HTML::WindowProxy but we want to use HTML::Window.
-    if (auto* window_proxy = value.as_if<HTML::WindowProxy>())
+    if (auto window_proxy = value.as_if<HTML::WindowProxy>())
         value = window_proxy->window();
 
     // 1. If value is a platform object:
-    if (auto* object = value.as_if<Bindings::PlatformObject>()) {
+    if (auto object = value.as_if<Bindings::PlatformObject>()) {
         // 1. Let origin be the result of executing value's extract an origin operation.
         auto origin = object->extract_an_origin();
 

@@ -161,7 +161,7 @@ public:
     }
 
     template<DerivedFrom<Object> T>
-    ALWAYS_INLINE T* as_if()
+    [[nodiscard]] ALWAYS_INLINE GC::Ptr<T> as_if()
     {
         if (!is_object())
             return nullptr;
@@ -169,7 +169,7 @@ public:
     }
 
     template<DerivedFrom<Object> T>
-    ALWAYS_INLINE T const* as_if() const
+    [[nodiscard]] ALWAYS_INLINE GC::Ptr<T const> as_if() const
     {
         if (!is_object())
             return nullptr;
