@@ -343,6 +343,8 @@ TEST_CASE(local_socket_read)
     Core::EventLoop event_loop;
 
     auto socket_path = ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "test-socket"sv);
+    if (!Core::System::stat(socket_path).is_error())
+        TRY_OR_FAIL(Core::System::unlink(socket_path));
 
     auto local_server = Core::LocalServer::construct();
     EXPECT(local_server->listen(socket_path));
@@ -391,6 +393,9 @@ TEST_CASE(local_socket_write)
     Core::EventLoop event_loop;
 
     auto socket_path = ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "test-socket"sv);
+    if (!Core::System::stat(socket_path).is_error())
+        TRY_OR_FAIL(Core::System::unlink(socket_path));
+
     auto local_server = Core::LocalServer::construct();
     EXPECT(local_server->listen(socket_path));
 
