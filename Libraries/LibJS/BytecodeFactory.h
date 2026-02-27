@@ -76,6 +76,39 @@ extern "C" {
 // message is UTF-8, line and column are 1-based.
 typedef void (*RustParseErrorCallback)(void* ctx, char const* message, size_t message_len, uint32_t line, uint32_t column);
 
+// Opaque parsed program handle. Contains the parsed AST and scope data,
+// but no GC references. Can be created off-thread.
+struct RustParsedProgram;
+
+// Parse a program (script or module) without any GC interaction.
+// program_type: 0 = Script, 1 = Module.
+// Returns nullptr if source is null. Otherwise returns a non-null
+// RustParsedProgram*. Caller must check for errors via
+// rust_parsed_program_has_errors() before compiling.
+RustParsedProgram* rust_parse_program(uint16_t const* source, size_t source_len, uint8_t program_type, size_t initial_line_number, bool dump_ast, bool use_color);
+
+// Check whether a parsed program has parse errors.
+bool rust_parsed_program_has_errors(RustParsedProgram const* parsed);
+
+// Report parse errors via callback, then clear them.
+void rust_parsed_program_take_errors(RustParsedProgram* parsed, void* error_context, RustParseErrorCallback error_callback);
+
+// Compile deferred regex literals in a parsed program. Must be called
+// on the main thread. Errors are added to the program's error list.
+void rust_parsed_program_compile_regexes(RustParsedProgram* parsed);
+
+// Free a parsed program without compiling it.
+void rust_free_parsed_program(RustParsedProgram* parsed);
+
+// Get the AST dump string from a parsed program. The string is owned
+// by the RustParsedProgram and valid until it is freed or compiled.
+void rust_parsed_program_ast_dump(RustParsedProgram* parsed, uint8_t const** output_ptr, size_t* output_len);
+
+// Compile a previously parsed script. Consumes and frees the
+// RustParsedProgram. Performs codegen and GDI extraction.
+// Returns a Bytecode::Executable* cast to void*, or nullptr on failure.
+void* rust_compile_parsed_script(RustParsedProgram* parsed, void* vm_ptr, void const* source_code_ptr, void* gdi_context, size_t source_len);
+
 // Parse, compile, and extract GDI metadata for a script using the Rust
 // parser. Populates gdi_context (a ScriptGdiBuilder*) via callbacks.
 // On parse failure, calls error_callback for each error, then returns nullptr.

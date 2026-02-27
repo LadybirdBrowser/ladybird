@@ -351,8 +351,44 @@ static void collect_builtin_function(void* ctx, void* sfd_ptr, uint16_t const*, 
 
 // --- Compile functions ---
 
-Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(
-    StringView source_text, Realm& realm, StringView filename, size_t line_number_offset)
+RustParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset)
+{
+    if (!rust_pipeline_enabled() && !compare_pipelines_enabled())
+        return nullptr;
+
+    return rust_parse_program(utf16_data, length_in_code_units, static_cast<u8>(type), line_number_offset, g_dump_ast, g_dump_ast_use_color);
+}
+
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+{
+    if (!parsed)
+        return {};
+
+    // Compile deferred regex literals (must happen on the main thread).
+    rust_parsed_program_compile_regexes(parsed);
+
+    if (rust_parsed_program_has_errors(parsed)) {
+        Vector<ParserError> parse_errors;
+        rust_parsed_program_take_errors(parsed, &parse_errors, collect_parse_errors);
+        rust_free_parsed_program(parsed);
+        return parse_errors;
+    }
+
+    auto length = source_code->length_in_code_units();
+
+    GC::DeferGC defer_gc(realm.vm().heap());
+    ScriptGdiBuilder builder;
+
+    void* exec_ptr = rust_compile_parsed_script(parsed, &realm.vm(), source_code.ptr(), &builder, length);
+
+    if (!exec_ptr)
+        return Vector<ParserError> {};
+
+    builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
+    return builder.result;
+}
+
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView source_text, Realm& realm, StringView filename, size_t line_number_offset)
 {
     bool const compare_pipelines = compare_pipelines_enabled();
     if (!rust_pipeline_enabled() && !compare_pipelines)
@@ -362,32 +398,28 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(
         String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(),
         Utf16String::from_utf8(source_text));
 
-    auto const& code_view = source_code->code_view();
-    auto length = code_view.length_in_code_units();
-
-    GC::DeferGC defer_gc(realm.vm().heap());
-    ScriptGdiBuilder builder;
-    Vector<ParserError> parse_errors;
-
-    u8* rust_ast_data = nullptr;
-    size_t rust_ast_len = 0;
-    u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
-    size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
-
     auto const* source_ptr = source_code->utf16_data();
+    auto length = source_code->length_in_code_units();
 
-    void* exec_ptr = rust_compile_script(source_ptr, length, &realm.vm(), source_code.ptr(), &builder,
-        g_dump_ast, g_dump_ast_use_color,
-        &parse_errors, collect_parse_errors, rust_ast_data_ptr, rust_ast_len_ptr, line_number_offset);
+    // Parse (no GC interaction).
+    auto* parsed = rust_parse_program(source_ptr, length, static_cast<u8>(ProgramType::Script), line_number_offset, g_dump_ast, g_dump_ast_use_color);
 
-    if (!exec_ptr) {
-        if (rust_ast_data)
-            rust_free_string(rust_ast_data, rust_ast_len);
-        return parse_errors;
+    // Pipeline comparison needs the AST dump before compilation consumes the ParsedProgram.
+    String rust_ast_owned;
+    if (compare_pipelines && parsed && !rust_parsed_program_has_errors(parsed)) {
+        u8 const* rust_ast_data = nullptr;
+        size_t rust_ast_len = 0;
+        rust_parsed_program_ast_dump(parsed, &rust_ast_data, &rust_ast_len);
+        rust_ast_owned = MUST(String::from_utf8({ rust_ast_data, rust_ast_len }));
     }
 
+    // Compile (handles regex compilation, error checking, and codegen).
+    auto result = compile_parsed_script(parsed, source_code, realm);
+    if (!result.has_value() || result->is_error())
+        return result;
+
     if (compare_pipelines) {
-        auto rust_ast_dump = StringView { rust_ast_data, rust_ast_len };
+        auto rust_ast_dump = rust_ast_owned.bytes_as_string_view();
 
         auto parser = Parser(Lexer(source_code, line_number_offset));
         auto cpp_program = parser.parse_program();
@@ -409,7 +441,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(
                 }));
             }
 
-            auto& rust_executable = *static_cast<Bytecode::Executable*>(exec_ptr);
+            auto& rust_executable = *result->value().executable;
             auto cpp_executable = Bytecode::Generator::generate_from_ast_node(realm.vm(), *cpp_program, {});
             auto rust_bytecode_dump = rust_executable.dump_to_string();
             auto cpp_bytecode_dump = cpp_executable->dump_to_string();
@@ -417,12 +449,9 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(
 
             pair_shared_function_data(rust_executable, *cpp_executable);
         }
-
-        rust_free_string(rust_ast_data, rust_ast_len);
     }
 
-    builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
-    return builder.result;
+    return result;
 }
 
 Optional<Result<EvalResult, String>> compile_eval(
@@ -1311,6 +1340,16 @@ extern "C" uint64_t get_abstract_operation_function(void* vm_ptr, uint16_t const
 #else // !ENABLE_RUST
 
 namespace JS::RustIntegration {
+
+RustParsedProgram* parse_program(u16 const*, size_t, ProgramType, size_t)
+{
+    return nullptr;
+}
+
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(RustParsedProgram*, NonnullRefPtr<SourceCode const>, Realm&)
+{
+    return {};
+}
 
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView, Realm&, StringView, size_t)
 {
