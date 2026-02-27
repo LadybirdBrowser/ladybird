@@ -645,8 +645,8 @@
                 tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, diff: `${test.name}.diff.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
             }
 
-            if (test.hasStdout) tabs.push({ id: 'stdout', label: 'stdout', file: `${test.name}.stdout.txt`, type: 'text' });
-            if (test.hasStderr) tabs.push({ id: 'stderr', label: 'stderr', file: `${test.name}.stderr.txt`, type: 'text' });
+            if (test.hasStdout) tabs.push({ id: 'stdout', label: 'stdout', file: `${test.name}.stdout.html`, type: 'text' });
+            if (test.hasStderr) tabs.push({ id: 'stderr', label: 'stderr', file: `${test.name}.stderr.html`, type: 'text' });
 
             const bar = tabs.map((t, i) =>
                 `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="showTab('${test.name.replace(/[^a-zA-Z0-9]/g, '-')}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, this)">${t.label}</button>`

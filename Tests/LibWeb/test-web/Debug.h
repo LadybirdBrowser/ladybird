@@ -21,6 +21,6 @@ void maybe_attach_on_fail_fast_timeout(pid_t);
 void append_timeout_diagnostics_to_stderr(StringBuilder&, TestWebView&, Test const&, size_t view_id);
 void append_timeout_backtraces_to_stderr(StringBuilder&, TestWebView&, Test const&, size_t view_id);
 
-ByteBuffer strip_sgr_sequences(StringView);
+StringBuilder convert_ansi_to_html(StringView);
 
 }

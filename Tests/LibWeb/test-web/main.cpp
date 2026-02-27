@@ -293,22 +293,18 @@ static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& 
 
     // Write stdout if not empty
     if (!capture.stdout_buffer.is_empty()) {
-        auto stdout_path = ByteString::formatted("{}.stdout.txt", base_path);
+        auto stdout_path = ByteString::formatted("{}.stdout.html", base_path);
         auto file = TRY(Core::File::open(stdout_path, Core::File::OpenMode::Write));
-        TRY(file->write_until_depleted(capture.stdout_buffer.string_view().bytes()));
+        auto html = convert_ansi_to_html(capture.stdout_buffer.string_view());
+        TRY(file->write_until_depleted(html.string_view()));
     }
 
     // Write stderr if not empty
     if (!capture.stderr_buffer.is_empty()) {
-        auto stderr_path = ByteString::formatted("{}.stderr.txt", base_path);
+        auto stderr_path = ByteString::formatted("{}.stderr.html", base_path);
         auto file = TRY(Core::File::open(stderr_path, Core::File::OpenMode::Write));
-        auto stderr_view = capture.stderr_buffer.string_view();
-        if (stderr_view.contains('\x1b')) {
-            auto stripped = strip_sgr_sequences(stderr_view);
-            TRY(file->write_until_depleted(stripped.bytes()));
-        } else {
-            TRY(file->write_until_depleted(stderr_view.bytes()));
-        }
+        auto html = convert_ansi_to_html(capture.stderr_buffer.string_view());
+        TRY(file->write_until_depleted(html.string_view()));
     }
 
     // Clear buffers for next test
@@ -558,8 +554,8 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
 
         auto const& test = tests[result.test_index];
         auto base_path = TRY(prepare_output_path(test));
-        bool has_stdout = FileSystem::exists(ByteString::formatted("{}.stdout.txt", base_path));
-        bool has_stderr = FileSystem::exists(ByteString::formatted("{}.stderr.txt", base_path));
+        bool has_stdout = FileSystem::exists(ByteString::formatted("{}.stdout.html", base_path));
+        bool has_stderr = FileSystem::exists(ByteString::formatted("{}.stderr.html", base_path));
 
         js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasStdout\": {}, \"hasStderr\": {}",
             test.safe_relative_path,
