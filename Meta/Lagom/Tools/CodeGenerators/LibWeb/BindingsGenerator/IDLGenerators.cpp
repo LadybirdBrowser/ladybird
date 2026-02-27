@@ -2652,6 +2652,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
     }
 
     function_generator.append(R"~~~(
+    Optional<int> chosen_overload_callable_id;
     Optional<IDL::EffectiveOverloadSet> effective_overload_set;
 )~~~");
 
@@ -2681,61 +2682,78 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
             distinguishing_argument_index = resolve_distinguishing_argument_index(interface, effective_overload_set, argument_count);
 
         function_generator.set("current_argument_count", ByteString::number(argument_count));
-        function_generator.set("overload_count", ByteString::number(effective_overload_set.size()));
-        function_generator.appendln(R"~~~(
+
+        // When there's only a single overload for this argument count, we can skip constructing an EffectiveOverloadSet
+        // and calling resolve_overload() entirely, avoiding multiple heap allocations.
+        if (effective_overload_set.size() == 1) {
+            for (auto const& type : effective_overload_set[0].types) {
+                if (interface.dictionaries.contains(type->name()))
+                    dictionary_types.set(type->name());
+            }
+
+            function_generator.set("overload.callable_id", ByteString::number(effective_overload_set[0].callable_id));
+            function_generator.appendln(R"~~~(
+    case @current_argument_count@:
+        chosen_overload_callable_id = @overload.callable_id@;
+        break;
+)~~~");
+        } else {
+            function_generator.set("overload_count", ByteString::number(effective_overload_set.size()));
+            function_generator.appendln(R"~~~(
     case @current_argument_count@: {
         Vector<IDL::EffectiveOverloadSet::Item> overloads;
         overloads.ensure_capacity(@overload_count@);
 )~~~");
 
-        for (auto& overload : effective_overload_set) {
-            StringBuilder types_builder;
-            types_builder.append("Vector<NonnullRefPtr<IDL::Type const>> { "sv);
-            StringBuilder optionality_builder;
-            optionality_builder.append("Vector<IDL::Optionality> { "sv);
+            for (auto& overload : effective_overload_set) {
+                StringBuilder types_builder;
+                types_builder.append("Vector<NonnullRefPtr<IDL::Type const>> { "sv);
+                StringBuilder optionality_builder;
+                optionality_builder.append("Vector<IDL::Optionality> { "sv);
 
-            for (auto i = 0u; i < overload.types.size(); ++i) {
-                if (i > 0) {
-                    types_builder.append(", "sv);
-                    optionality_builder.append(", "sv);
+                for (auto i = 0u; i < overload.types.size(); ++i) {
+                    if (i > 0) {
+                        types_builder.append(", "sv);
+                        optionality_builder.append(", "sv);
+                    }
+
+                    auto const& type = overload.types[i];
+                    if (interface.dictionaries.contains(type->name()))
+                        dictionary_types.set(type->name());
+
+                    types_builder.append(generate_constructor_for_idl_type(overload.types[i]));
+
+                    optionality_builder.append("IDL::Optionality::"sv);
+                    switch (overload.optionality_values[i]) {
+                    case Optionality::Required:
+                        optionality_builder.append("Required"sv);
+                        break;
+                    case Optionality::Optional:
+                        optionality_builder.append("Optional"sv);
+                        break;
+                    case Optionality::Variadic:
+                        optionality_builder.append("Variadic"sv);
+                        break;
+                    }
                 }
 
-                auto const& type = overload.types[i];
-                if (interface.dictionaries.contains(type->name()))
-                    dictionary_types.set(type->name());
+                types_builder.append("}"sv);
+                optionality_builder.append("}"sv);
 
-                types_builder.append(generate_constructor_for_idl_type(overload.types[i]));
+                function_generator.set("overload.callable_id", ByteString::number(overload.callable_id));
+                function_generator.set("overload.types", types_builder.to_byte_string());
+                function_generator.set("overload.optionality_values", optionality_builder.to_byte_string());
 
-                optionality_builder.append("IDL::Optionality::"sv);
-                switch (overload.optionality_values[i]) {
-                case Optionality::Required:
-                    optionality_builder.append("Required"sv);
-                    break;
-                case Optionality::Optional:
-                    optionality_builder.append("Optional"sv);
-                    break;
-                case Optionality::Variadic:
-                    optionality_builder.append("Variadic"sv);
-                    break;
-                }
+                function_generator.appendln("        overloads.empend(@overload.callable_id@, @overload.types@, @overload.optionality_values@);");
             }
 
-            types_builder.append("}"sv);
-            optionality_builder.append("}"sv);
-
-            function_generator.set("overload.callable_id", ByteString::number(overload.callable_id));
-            function_generator.set("overload.types", types_builder.to_byte_string());
-            function_generator.set("overload.optionality_values", optionality_builder.to_byte_string());
-
-            function_generator.appendln("        overloads.empend(@overload.callable_id@, @overload.types@, @overload.optionality_values@);");
-        }
-
-        function_generator.set("overload_set.distinguishing_argument_index", ByteString::number(distinguishing_argument_index));
-        function_generator.append(R"~~~(
+            function_generator.set("overload_set.distinguishing_argument_index", ByteString::number(distinguishing_argument_index));
+            function_generator.append(R"~~~(
         effective_overload_set.emplace(move(overloads), @overload_set.distinguishing_argument_index@);
         break;
     }
 )~~~");
+        }
     }
 
     function_generator.append(R"~~~(
@@ -2746,11 +2764,13 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
 
     function_generator.append(R"~~~(
 
-    if (!effective_overload_set.has_value())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::OverloadResolutionFailed);
+    if (!chosen_overload_callable_id.has_value()) {
+        if (!effective_overload_set.has_value())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::OverloadResolutionFailed);
+        chosen_overload_callable_id = TRY(WebIDL::resolve_overload(vm, effective_overload_set.value(), dictionary_types)).callable_id;
+    }
 
-    auto chosen_overload = TRY(WebIDL::resolve_overload(vm, effective_overload_set.value(), dictionary_types));
-    switch (chosen_overload.callable_id) {
+    switch (chosen_overload_callable_id.value()) {
 )~~~");
 
     for (auto i = 0u; i < overload_set.value.size(); ++i) {
