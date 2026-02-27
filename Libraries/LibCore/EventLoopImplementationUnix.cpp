@@ -263,6 +263,9 @@ struct ThreadData {
 
     ~ThreadData()
     {
+        close(wake_pipe_fds[0]);
+        close(wake_pipe_fds[1]);
+
         Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id);
     }
@@ -286,8 +289,9 @@ struct ThreadData {
 }
 
 EventLoopImplementationUnix::EventLoopImplementationUnix()
-    : m_wake_pipe_fds(ThreadData::the().wake_pipe_fds)
+    : m_wake_pipe_write_fd(ThreadData::the().wake_pipe_fds[1])
 {
+    VERIFY(m_wake_pipe_write_fd >= 0);
 }
 
 EventLoopImplementationUnix::~EventLoopImplementationUnix() = default;
@@ -317,7 +321,12 @@ void EventLoopImplementationUnix::quit(int code)
 void EventLoopImplementationUnix::wake()
 {
     int wake_event = 0;
-    MUST(Core::System::write(m_wake_pipe_fds[1], { &wake_event, sizeof(wake_event) }));
+    auto result = Core::System::write(m_wake_pipe_write_fd, { &wake_event, sizeof(wake_event) });
+    // EBADF here just indicates that the ThreadData is destroyed, so we must be exiting the thread.
+    // Ignore it.
+    if (result.is_error() && result.error().code() == EBADF)
+        return;
+    MUST(move(result));
 }
 
 void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mode)
