@@ -430,6 +430,13 @@ struct ModuleCallbacks {
     void (*push_lexical_binding)(void* ctx, uint16_t const* name, size_t name_len, bool is_constant, int32_t function_index);
 };
 
+// Compile a previously parsed module. Consumes and frees the
+// RustParsedProgram. Performs codegen and metadata extraction.
+// Returns Executable* for non-TLA modules (tla_executable_out is null).
+// For TLA modules, returns nullptr and sets tla_executable_out to the
+// async wrapper Executable*.
+void* rust_compile_parsed_module(RustParsedProgram* parsed, void* vm_ptr, void const* source_code_ptr, void* module_context, ModuleCallbacks const* callbacks, void** tla_executable_out, size_t source_len);
+
 // Parse, compile, and extract module metadata using the Rust parser.
 // Populates module_context (a ModuleBuilder*) via callbacks.
 // On parse failure, calls error_callback for each error, then returns nullptr.
