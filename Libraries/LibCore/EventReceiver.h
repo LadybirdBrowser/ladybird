@@ -37,7 +37,7 @@ public:                                            \
     }
 
 class CORE_API EventReceiver
-    : public AtomicRefCounted<EventReceiver>
+    : public RefCounted<EventReceiver>
     , public Weakable<EventReceiver> {
     // NOTE: No C_OBJECT macro for Core::EventReceiver itself.
 
