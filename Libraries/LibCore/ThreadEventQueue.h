@@ -34,10 +34,6 @@ public:
     // Post a deferred invocation to the event queue.
     void deferred_invoke(Function<void()>&&);
 
-    // Used by Threading::BackgroundAction.
-    void add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>);
-    void cancel_all_pending_jobs();
-
     // Returns true if there are events waiting to be flushed.
     bool has_pending_events() const;
 
