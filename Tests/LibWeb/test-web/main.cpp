@@ -279,11 +279,17 @@ static void setup_output_capture_for_view(TestWebView& view)
     s_output_captures.set(&view, move(view_capture));
 }
 
-static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& capture)
+static ErrorOr<ByteString> prepare_output_path(Test const& test)
 {
     auto& app = Application::the();
+    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path);
+    TRY(Core::Directory::create(base_path.dirname(), Core::Directory::CreateDirectories::Yes));
+    return base_path.string();
+}
 
-    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& capture)
+{
+    auto base_path = TRY(prepare_output_path(test));
 
     // Write stdout if not empty
     if (!capture.stdout_buffer.is_empty()) {
@@ -551,7 +557,7 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
         first = false;
 
         auto const& test = tests[result.test_index];
-        auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+        auto base_path = TRY(prepare_output_path(test));
         bool has_stdout = FileSystem::exists(ByteString::formatted("{}.stdout.txt", base_path));
         bool has_stderr = FileSystem::exists(ByteString::formatted("{}.stderr.txt", base_path));
 
@@ -585,9 +591,7 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
 
 static ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer const& expectation)
 {
-    auto& app = Application::the();
-
-    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+    auto base_path = TRY(prepare_output_path(test));
 
     // Write expected output
     auto expected_path = ByteString::formatted("{}.expected.txt", base_path);
@@ -896,9 +900,7 @@ static ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringVi
 
 static ErrorOr<void> write_screenshot_failure_results(Test& test, Gfx::Bitmap const& actual, Gfx::Bitmap const& expected)
 {
-    auto& app = Application::the();
-
-    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+    auto base_path = TRY(prepare_output_path(test));
     TRY(dump_screenshot_to_file(actual, ByteString::formatted("{}.actual.png", base_path)));
     TRY(dump_screenshot_to_file(expected, ByteString::formatted("{}.expected.png", base_path)));
 
