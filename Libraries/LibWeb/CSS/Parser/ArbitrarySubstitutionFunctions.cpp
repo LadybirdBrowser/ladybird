@@ -87,8 +87,10 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     // 1. Let el be the element that the style containing the attr() function is being applied to.
     //    Let first arg be the first <declaration-value> in arguments.
     //    Let second arg be the <declaration-value>? passed after the comma, or null if there was no comma.
-    auto const& first_argument = arguments.first();
-    auto const second_argument = arguments.get(1);
+    auto declaration_value_list = arguments.get<DeclarationValueList>();
+
+    auto const& first_argument = declaration_value_list.first();
+    auto const second_argument = declaration_value_list.get(1);
 
     FlyString attribute_name;
 
@@ -247,9 +249,10 @@ static Vector<ComponentValue> replace_an_env_function(DOM::AbstractElement& elem
 {
     // AD-HOC: env() is not defined as an ASF (and was defined before the ASF concept was), but behaves a lot like one.
     // So, this is a combination of the spec's "substitute an env()" algorithm linked above, and the "replace a FOO function()" algorithms.
+    auto declaration_value_list = arguments.get<DeclarationValueList>();
 
-    auto const& first_argument = arguments.first();
-    auto const second_argument = arguments.get(1);
+    auto const& first_argument = declaration_value_list.first();
+    auto const second_argument = declaration_value_list.get(1);
 
     // AD-HOC: Substitute ASFs in the first argument.
     auto substituted_first_argument = substitute_arbitrary_substitution_functions(element, guarded_contexts, first_argument);
@@ -306,8 +309,10 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
     // 1. Let el be the element that the style containing the var() function is being applied to.
     //    Let first arg be the first <declaration-value> in arguments.
     //    Let second arg be the <declaration-value>? passed after the comma, or null if there was no comma.
-    auto const& first_argument = arguments.first();
-    auto const second_argument = arguments.get(1);
+    auto declaration_value_list = arguments.get<DeclarationValueList>();
+
+    auto const& first_argument = declaration_value_list.first();
+    auto const second_argument = declaration_value_list.get(1);
 
     // 2. Substitute arbitrary substitution functions in first arg, then parse it as a <custom-property-name>.
     //    If parsing returned a <custom-property-name>, let result be the computed value of the corresponding custom
@@ -462,13 +467,13 @@ Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::Abstract
 Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, Vector<ComponentValue> const& values)
 {
     // Equivalent to `<declaration-value> , <declaration-value>?`, used by multiple argument grammars.
-    auto parse_declaration_value_then_optional_declaration_value = [](TokenStream<ComponentValue>& tokens, Token::Type separator) -> Optional<ArbitrarySubstitutionFunctionArguments> {
+    auto parse_declaration_value_then_optional_declaration_value = [](TokenStream<ComponentValue>& tokens, Token::Type separator) -> Optional<DeclarationValueList> {
         auto first_argument = Parser::parse_declaration_value(tokens, separator);
         if (!first_argument.has_value())
             return OptionalNone {};
 
         if (!tokens.has_next_token())
-            return ArbitrarySubstitutionFunctionArguments { first_argument.release_value() };
+            return DeclarationValueList { first_argument.release_value() };
 
         if (!tokens.next_token().is(separator))
             return {};
@@ -477,7 +482,7 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
 
         auto second_argument = Parser::parse_declaration_value(tokens);
 
-        return ArbitrarySubstitutionFunctionArguments { first_argument.release_value(), second_argument.value_or({}) };
+        return DeclarationValueList { first_argument.release_value(), second_argument.value_or({}) };
     };
 
     TokenStream tokens { values };
@@ -492,16 +497,17 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
     case ArbitrarySubstitutionFunction::Attr:
         // https://drafts.csswg.org/css-values-5/#attr-notation
         // <attr-args> = attr( <declaration-value> , <declaration-value>? )
-        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma));
+        // FIXME: It would be nice if we had a nice way to create an Optional<Variant<T>> from Optional<T> without these maps.
+        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
     case ArbitrarySubstitutionFunction::Env:
         // https://drafts.csswg.org/css-env/#env-function
         // AD-HOC: This doesn't have an argument-grammar definition.
         //         However, it follows the same format of "some CVs, then an optional comma and a fallback".
-        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma));
+        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
     case ArbitrarySubstitutionFunction::Var:
         // https://drafts.csswg.org/css-variables/#funcdef-var
         // <var-args> = var( <declaration-value> , <declaration-value>? )
-        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma));
+        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
     }
     VERIFY_NOT_REACHED();
 }

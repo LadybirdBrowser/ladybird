@@ -48,7 +48,8 @@ bool contains_guaranteed_invalid_value(Vector<ComponentValue> const&);
 
 [[nodiscard]] Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::AbstractElement&, GuardedSubstitutionContexts&, Vector<ComponentValue> const&, Optional<SubstitutionContext> = {});
 
-using ArbitrarySubstitutionFunctionArguments = Vector<Vector<ComponentValue>>;
+using DeclarationValueList = Vector<Vector<ComponentValue>>;
+using ArbitrarySubstitutionFunctionArguments = Variant<DeclarationValueList>;
 [[nodiscard]] Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction, Vector<ComponentValue> const&);
 
 [[nodiscard]] Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionFunction, ArbitrarySubstitutionFunctionArguments const&);

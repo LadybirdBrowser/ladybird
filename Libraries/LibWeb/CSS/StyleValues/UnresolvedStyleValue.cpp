@@ -69,7 +69,7 @@ static GC::Root<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& real
     auto maybe_var_arguments = Parser::parse_according_to_argument_grammar(Parser::ArbitrarySubstitutionFunction::Var, function.value);
     if (!maybe_var_arguments.has_value())
         return nullptr;
-    auto var_arguments = maybe_var_arguments.release_value();
+    auto var_arguments = maybe_var_arguments.release_value().get<Parser::DeclarationValueList>();
     // NB: Try to parse the variable name. If we can't, return null as above.
 
     Parser::TokenStream tokens { var_arguments.first() };
