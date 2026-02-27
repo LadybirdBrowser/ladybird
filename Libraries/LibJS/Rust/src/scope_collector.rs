@@ -611,7 +611,7 @@ impl ScopeCollector {
         if scope_level != ScopeLevel::NotTopLevel && scope_level != ScopeLevel::ModuleTopLevel {
             let var = self.records[index].variable(name);
             var.flags |= VarFlags::VAR;
-            var.var_identifier = name_identifier.clone();
+            var.var_identifier = name_identifier;
         } else {
             // Check flags first, then modify. This avoids borrow checker issues
             // since we need to access both variables and functions_to_hoist.

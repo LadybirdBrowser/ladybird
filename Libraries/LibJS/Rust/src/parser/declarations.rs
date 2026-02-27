@@ -565,7 +565,7 @@ impl Parser<'_> {
         self.flags.function_might_need_arguments_object = saved_might_need_arguments;
 
         FunctionData {
-            name: name.clone(),
+            name,
             source_text_start: start.offset,
             source_text_end: self.source_text_end_offset(),
             body: Box::new(body),
