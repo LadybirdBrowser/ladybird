@@ -1456,9 +1456,7 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
 
         // Process export entries (matching SourceTextModule::parse steps 9-10).
         for child in &scope.children {
-            let export_data = if let StatementKind::Export(ref data) = child.inner {
-                data
-            } else {
+            let StatementKind::Export(ref export_data) = child.inner else {
                 continue;
             };
 
