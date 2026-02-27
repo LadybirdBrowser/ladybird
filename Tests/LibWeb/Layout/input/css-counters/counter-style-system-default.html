@@ -1,0 +1,11 @@
+<!doctype html>
+<style>
+    @counter-style counter {
+        symbols: "*";
+    }
+
+    div::after {
+        content: counter(a, counter);
+    }
+</style>
+<div style="counter-reset: a 5"></div>

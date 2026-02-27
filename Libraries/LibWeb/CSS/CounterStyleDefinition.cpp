@@ -55,10 +55,9 @@ Vector<CounterStyleRangeEntry> AutoRange::resolve(CounterStyleAlgorithm const& a
 
 Optional<CounterStyleDefinition> CounterStyleDefinition::from_counter_style_rule(CSSCounterStyleRule const& rule, ComputationContext const& computation_context)
 {
-    if (!rule.system_style_value())
-        return {};
+    auto system_style_value = rule.system_style_value() ? NonnullRefPtr<StyleValue const> { *rule.system_style_value() } : CounterStyleSystemStyleValue::create(CounterStyleSystem::Symbolic);
 
-    auto maybe_algorithm = resolve_algorithm(*rule.system_style_value(), rule.symbols_style_value(), rule.additive_symbols_style_value(), computation_context);
+    auto maybe_algorithm = resolve_algorithm(system_style_value, rule.symbols_style_value(), rule.additive_symbols_style_value(), computation_context);
 
     if (maybe_algorithm.has<Empty>())
         return {};
