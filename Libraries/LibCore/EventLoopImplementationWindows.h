@@ -47,7 +47,7 @@ private:
     int m_exit_code { 0 };
 
     // The wake event handle of this event loop needs to be accessible from other threads.
-    void*& m_wake_event;
+    void* m_wake_event;
 };
 
 using EventLoopManagerPlatform = EventLoopManagerWindows;
