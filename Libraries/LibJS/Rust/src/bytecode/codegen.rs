@@ -566,11 +566,10 @@ fn generate_function_expression(
 ) -> ScopedOperand {
     let data = generator.function_table.take(function_id);
     let has_name = data.name.is_some();
-    let mut name_id = None;
 
     // Named function expressions get an intermediate scope so the name
     // is visible inside the function body but not outside.
-    if has_name {
+    let name_id = if has_name {
         let parent = generator
             .lexical_environment_register_stack
             .last()
@@ -599,8 +598,10 @@ fn generate_function_expression(
             is_global: false,
             is_strict: false,
         });
-        name_id = Some(id);
-    }
+        Some(id)
+    } else {
+        None
+    };
 
     let dst = choose_dst(generator, preferred_dst);
     // For anonymous function expressions, use the pending LHS name
@@ -8120,15 +8121,15 @@ pub fn emit_function_declaration_instantiation(
     }
 
     // Determine if arguments object is needed (from parsing insights).
-    let mut arguments_object_needed = function_data.parsing_insights.might_need_arguments_object;
-
-    if is_arrow
+    let mut arguments_object_needed = if is_arrow
         || parameter_names
             .iter()
             .any(|p| p.name == utf16!("arguments"))
     {
-        arguments_object_needed = false;
-    }
+        false
+    } else {
+        function_data.parsing_insights.might_need_arguments_object
+    };
 
     let function_scope_data = body_scope.function_scope_data.as_ref();
 
