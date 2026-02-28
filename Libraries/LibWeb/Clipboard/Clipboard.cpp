@@ -464,11 +464,9 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
                                 // 3. Add blobData to itemList.
                                 item_list.append(blob_data);
                             }
-
                             // 2. If v is a Blob, then add v to itemList.
-                            else if (value.is_object()) {
-                                if (auto* blob = as_if<FileAPI::Blob>(value.as_object()))
-                                    item_list.append(*blob);
+                            else if (auto blob = value.as_if<FileAPI::Blob>()) {
+                                item_list.append(*blob);
                             }
 
                             return JS::js_undefined();

@@ -223,7 +223,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
     auto& vm = this->vm();
 
     // 1. If O and Receiver are the same object, then:
-    if (receiver.is_object() && &receiver.as_object() == this) {
+    if (receiver.as_if<JS::Object>() == this) {
         // 1. If O implements an interface with an indexed property setter and P is an array index, then:
         if (m_legacy_platform_object_flags->has_indexed_property_setter && property_name.is_number()) {
             // 1. Invoke the indexed property setter on O with P and V.

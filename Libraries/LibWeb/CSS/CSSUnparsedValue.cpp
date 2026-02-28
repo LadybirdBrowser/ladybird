@@ -87,11 +87,8 @@ Optional<JS::Value> CSSUnparsedValue::item_value(size_t index) const
 
 static WebIDL::ExceptionOr<CSSUnparsedSegment> unparsed_segment_from_js_value(JS::VM& vm, JS::Value& value)
 {
-    if (value.is_object()) {
-        if (auto* variable_reference = as_if<CSSVariableReferenceValue>(value.as_object())) {
-            return GC::Ref { *variable_reference };
-        }
-    }
+    if (auto variable_reference = value.as_if<CSSVariableReferenceValue>())
+        return GC::Ref { *variable_reference };
     return TRY(value.to_string(vm));
 }
 

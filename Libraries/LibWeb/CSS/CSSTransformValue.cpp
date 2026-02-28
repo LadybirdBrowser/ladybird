@@ -83,10 +83,8 @@ Optional<JS::Value> CSSTransformValue::item_value(size_t index) const
 
 static WebIDL::ExceptionOr<GC::Ref<CSSTransformComponent>> transform_component_from_js_value(JS::Value& value)
 {
-    if (value.is_object()) {
-        if (auto* transform_component = as_if<CSSTransformComponent>(value.as_object()))
-            return GC::Ref { *transform_component };
-    }
+    if (auto transform_component = value.as_if<CSSTransformComponent>())
+        return GC::Ref { *transform_component };
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be a CSSTransformComponent"sv };
 }
 

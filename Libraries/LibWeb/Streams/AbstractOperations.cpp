@@ -88,10 +88,7 @@ GC_DEFINE_ALLOCATOR(PromiseHolder);
 static void add_message_event_listener(JS::Realm& realm, HTML::MessagePort& port, FlyString const& name, Function<void(JS::VM&, HTML::MessageEvent const&)> handler)
 {
     auto behavior = [handler = GC::create_function(realm.heap(), move(handler))](JS::VM& vm) {
-        auto event = vm.argument(0);
-        VERIFY(event.is_object());
-
-        auto& message_event = as<HTML::MessageEvent>(event.as_object());
+        auto& message_event = vm.argument(0).as<HTML::MessageEvent>();
         handler->function()(vm, message_event);
 
         return JS::js_undefined();

@@ -87,11 +87,9 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
         return {};
     }
 
-    if (!unconverted_option.is_object() || !is<HTMLOptionElement>(unconverted_option.as_object())) {
+    auto option = unconverted_option.as_if<DOM::Element>();
+    if (!option)
         return WebIDL::TypeMismatchError::create(realm(), "The value provided is not an HTMLOptionElement"_utf16);
-    }
-
-    auto& option = static_cast<HTMLOptionElement&>(unconverted_option.as_object());
 
     // 2. Let length be the number of nodes represented by the collection.
     auto length = this->length();
@@ -112,9 +110,9 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
     // 5. If delta is greater than or equal to zero, append value to the select element. Otherwise, replace the indexth
     //    element in the collection by value.
     if (delta >= 0) {
-        TRY(root_element->append_child(option));
+        TRY(root_element->append_child(*option));
     } else {
-        TRY(root_element->replace_child(option, *item(index)));
+        TRY(root_element->replace_child(*option, *item(index)));
     }
 
     return {};

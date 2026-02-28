@@ -2195,7 +2195,7 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
 bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
 {
     // 1. If value is a key range, return true.
-    if (value.is_object() && is<IDBKeyRange>(value.as_object()))
+    if (value.is<IDBKeyRange>())
         return true;
 
     // 2. Else if Type(value) is Number, return true.

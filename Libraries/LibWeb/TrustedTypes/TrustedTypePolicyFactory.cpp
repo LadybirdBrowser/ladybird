@@ -156,21 +156,21 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
 bool TrustedTypePolicyFactory::is_html(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedHTML and has an associated data value set, false otherwise.
-    return value.is_object() && is<TrustedHTML>(value.as_object());
+    return value.is<TrustedHTML>();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscript
 bool TrustedTypePolicyFactory::is_script(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedScript and has an associated data value set, false otherwise.
-    return value.is_object() && is<TrustedScript>(value.as_object());
+    return value.is<TrustedScript>();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscripturl
 bool TrustedTypePolicyFactory::is_script_url(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedScriptURL and has an associated data value set, false otherwise.
-    return value.is_object() && is<TrustedScriptURL>(value.as_object());
+    return value.is<TrustedScriptURL>();
 }
 
 GC::Ref<TrustedHTML const> TrustedTypePolicyFactory::empty_html()

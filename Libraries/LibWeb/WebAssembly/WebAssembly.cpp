@@ -346,9 +346,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                         address = cache.abstract_machine().store().allocate({ type.type(), false }, cast_value);
                     }
                     // 3.5.2. Otherwise, if v implements Global,
-                    else if (import_.is_object() && is<Global>(import_.as_object())) {
+                    else if (auto global = import_.as_if<Global>()) {
                         // 3.5.2.1. Let globaladdr be v.[[Global]].
-                        address = as<Global>(import_.as_object()).address();
+                        address = global->address();
                     }
                     // 3.5.3. Otherwise,
                     else {
@@ -364,11 +364,11 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 // 3.6. If externtype is of the form mem memtype,
                 [&](Wasm::MemoryType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.6.1. If v does not implement Memory, throw a LinkError exception.
-                    if (!import_.is_object() || !is<WebAssembly::Memory>(import_.as_object())) {
+                    auto memory = import_.as_if<Memory>();
+                    if (!memory)
                         return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
-                    }
                     // 3.6.2. Let externmem be the external value mem v.[[Memory]].
-                    auto address = static_cast<WebAssembly::Memory const&>(import_.as_object()).address();
+                    auto address = memory->address();
                     // 3.6.3. Append externmem to imports.
                     resolved_imports.set(import_name, Wasm::ExternValue { address });
                     return {};
@@ -376,12 +376,12 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 // 3.7. If externtype is of the form table tabletype,
                 [&](Wasm::TableType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.7.1. If v does not implement Table, throw a LinkError exception.
-                    if (!import_.is_object() || !is<WebAssembly::Table>(import_.as_object())) {
+                    auto table = import_.as_if<Table>();
+                    if (!table)
                         return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
-                    }
                     // 3.7.2. Let tableaddr be v.[[Table]].
                     // 3.7.3. Let externtable be the external value table tableaddr.
-                    auto address = static_cast<WebAssembly::Table const&>(import_.as_object()).address();
+                    auto address = table->address();
                     // 3.7.4. Append externtable to imports.
                     resolved_imports.set(import_name, Wasm::ExternValue { address });
                     return {};
@@ -877,23 +877,20 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
 
     // 2. Upon fulfillment of promiseOfModule with value module:
     auto fulfillment_steps = GC::create_function(vm.heap(), [&vm, promise, import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
-        VERIFY(module_value.is_object() && is<Module>(module_value.as_object()));
-        auto module = GC::Ref { static_cast<Module&>(module_value.as_object()) };
+        auto& module = module_value.as<Module>();
 
         // 1. Instantiate the WebAssembly module module importing importObject, and let innerPromise be the result.
         auto inner_promise = asynchronously_instantiate_webassembly_module(vm, module, import_object);
 
         // 2. Upon fulfillment of innerPromise with value instance.
-        auto instantiate_fulfillment_steps = GC::create_function(vm.heap(), [promise, module](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
+        auto instantiate_fulfillment_steps = GC::create_function(vm.heap(), [promise, &module](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
             auto& realm = HTML::relevant_realm(*promise->promise());
-
-            VERIFY(instance_value.is_object() && is<Instance>(instance_value.as_object()));
-            auto instance = GC::Ref { static_cast<Instance&>(instance_value.as_object()) };
+            auto& instance = instance_value.as<Instance>();
 
             // 1. Let result be the WebAssemblyInstantiatedSource value «[ "module" → module, "instance" → instance ]».
             auto result = JS::Object::create(realm, nullptr);
-            result->define_direct_property("module"_utf16_fly_string, module, JS::default_attributes);
-            result->define_direct_property("instance"_utf16_fly_string, instance, JS::default_attributes);
+            result->define_direct_property("module"_utf16_fly_string, &module, JS::default_attributes);
+            result->define_direct_property("instance"_utf16_fly_string, &instance, JS::default_attributes);
 
             // 2. Resolve promise with result.
             WebIDL::resolve_promise(realm, promise, result);
@@ -951,12 +948,12 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         auto& realm = HTML::relevant_realm(*return_value->promise());
 
         // 1. Let response be unwrappedSource’s response.
-        if (!unwrapped_source.is_object() || !is<Fetch::Response>(unwrapped_source.as_object())) {
+        auto response_object = unwrapped_source.as_if<Fetch::Response>();
+        if (!response_object) {
             WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Response").value());
             return JS::js_undefined();
         }
-        auto& response_object = static_cast<Fetch::Response&>(unwrapped_source.as_object());
-        auto response = response_object.response();
+        auto response = response_object->response();
 
         // 2. Let mimeType be the result of getting `Content-Type` from response’s header list.
         // 3. If mimeType is null, reject returnValue with a TypeError and abort these substeps.
@@ -976,13 +973,13 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         }
 
         // 7. If response’s status is not an ok status, reject returnValue with a TypeError and abort these substeps.
-        if (!response_object.ok()) {
+        if (!response_object->ok()) {
             WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response does not represent an ok status"sv).value());
             return JS::js_undefined();
         }
 
         // 8. Consume response’s body as an ArrayBuffer, and let bodyPromise be the result.
-        auto body_promise_or_error = response_object.array_buffer();
+        auto body_promise_or_error = response_object->array_buffer();
         if (body_promise_or_error.is_error()) {
             auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), body_promise_or_error.release_error());
             WebIDL::reject_promise(realm, return_value, throw_completion.value());

@@ -22,10 +22,9 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
     // 3. Set attributes[message], attributes[filename], attributes[lineno], and attributes[colno] to
     //    implementation-defined values derived from exception.
     attributes.message = [&] {
-        if (exception.is_object()) {
-            auto& object = exception.as_object();
-            if (MUST(object.has_own_property(vm.names.message))) {
-                auto message = object.get_without_side_effects(vm.names.message);
+        if (auto object = exception.as_if<JS::Object>()) {
+            if (MUST(object->has_own_property(vm.names.message))) {
+                auto message = object->get_without_side_effects(vm.names.message);
                 return message.to_string_without_side_effects();
             }
         }
@@ -37,9 +36,8 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
     //        to the entire source document! Calculate that somehow.
 
     // NB: If we got an Error object, then try and extract the information from the location the object was made.
-    if (exception.is_object() && is<JS::Error>(exception.as_object())) {
-        auto const& error = static_cast<JS::Error&>(exception.as_object());
-        for (auto const& frame : error.traceback()) {
+    if (auto error = exception.as_if<JS::Error>()) {
+        for (auto const& frame : error->traceback()) {
             auto source_range = frame.source_range();
             if (source_range.start.line != 0 || source_range.start.column != 0) {
                 attributes.filename = MUST(String::from_byte_string(source_range.filename()));

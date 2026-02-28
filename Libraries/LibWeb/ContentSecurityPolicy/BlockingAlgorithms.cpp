@@ -479,7 +479,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
         auto const compilation_sink = compilation_type == JS::CompilationType::Function ? TrustedTypes::InjectionSink::Function : TrustedTypes::InjectionSink::Eval;
 
         // 2. Let isTrusted be true if bodyArg implements TrustedScript, and false otherwise.
-        auto is_trusted = body_arg.is_object() && is<TrustedTypes::TrustedScript>(body_arg.as_object());
+        auto is_trusted = body_arg.is<TrustedTypes::TrustedScript>();
 
         // 3. If isTrusted is true then:
         if (is_trusted) {
@@ -499,9 +499,9 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
                 auto const& arg = parameter_args[i];
 
                 // 2. If arg implements TrustedScript, then:
-                if (arg.is_object() && is<TrustedTypes::TrustedScript>(arg.as_object())) {
+                if (auto trusted_script = arg.as_if<TrustedTypes::TrustedScript>()) {
                     // 1. if parameterStrings[index] is not equal to arg’s data, set isTrusted to false.
-                    if (parameter_strings[i] != as<TrustedTypes::TrustedScript>(arg.as_object()).to_string()) {
+                    if (parameter_strings[i] != trusted_script->to_string()) {
                         is_trusted = false;
                         break;
                     }

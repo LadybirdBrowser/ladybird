@@ -604,9 +604,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
             VERIFY(vm.argument_count() == 1);
 
             // The argument must be an object and it must be an Event.
-            auto event_wrapper_argument = vm.argument(0);
-            VERIFY(event_wrapper_argument.is_object());
-            auto& event = as<DOM::Event>(event_wrapper_argument.as_object());
+            auto& event = vm.argument(0).as<DOM::Event>();
 
             TRY(event_target->process_event_handler_for_event(name, event));
             return JS::js_undefined();

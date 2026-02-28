@@ -193,10 +193,9 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         auto prototype_value = TRY(constructor->callback->get(vm.names.prototype));
 
         // 2. If prototype is not an Object, then throw a TypeError exception.
-        if (!prototype_value.is_object())
+        auto prototype = prototype_value.as_if<JS::Object>();
+        if (!prototype)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, prototype_value);
-
-        auto& prototype = prototype_value.as_object();
 
         // 3. Let lifecycleCallbacks be the ordered map «[ "connectedCallback" → null, "disconnectedCallback" → null, "adoptedCallback" → null,
         //    "connectedMoveCallback" → null, "attributeChangedCallback" → null ]».
@@ -209,7 +208,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         // 4. For each callbackName of the keys of lifecycleCallbacks:
         for (auto const& callback_name : { CustomElementReactionNames::connectedCallback, CustomElementReactionNames::disconnectedCallback, CustomElementReactionNames::adoptedCallback, CustomElementReactionNames::connectedMoveCallback, CustomElementReactionNames::attributeChangedCallback }) {
             // 1. Let callbackValue be ? Get(prototype, callbackName).
-            auto callback_value = TRY(prototype.get(Utf16FlyString::from_utf8(callback_name)));
+            auto callback_value = TRY(prototype->get(Utf16FlyString::from_utf8(callback_name)));
 
             // 2. If callbackValue is not undefined, then set the value of the entry in lifecycleCallbacks with key callbackName to the result of
             //    converting callbackValue to the Web IDL Function callback type.
@@ -260,7 +259,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         if (form_associated) {
             for (auto const& callback_name : { CustomElementReactionNames::formAssociatedCallback, CustomElementReactionNames::formResetCallback, CustomElementReactionNames::formDisabledCallback, CustomElementReactionNames::formStateRestoreCallback }) {
                 // 1. Let callbackValue be ? Get(prototype, callbackName).
-                auto callback_value = TRY(prototype.get(Utf16FlyString::from_utf8(callback_name)));
+                auto callback_value = TRY(prototype->get(Utf16FlyString::from_utf8(callback_name)));
 
                 // 2. If callbackValue is not undefined, then set lifecycleCallbacks[callbackName] to the result of converting callbackValue
                 //    to the Web IDL Function callback type.

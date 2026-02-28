@@ -651,10 +651,9 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
                 auto result = TRY(WebIDL::construct(constructor, {}));
 
                 // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
-                if (!result.is_object() || !is<HTML::HTMLElement>(result.as_object()))
+                auto element = result.as_if<HTML::HTMLElement>();
+                if (!element)
                     return JS::throw_completion(JS::TypeError::create(realm, "Custom element constructor must return an object that implements HTMLElement"_string));
-
-                GC::Ref<HTML::HTMLElement> element = as<HTML::HTMLElement>(result.as_object());
 
                 // FIXME: 3. Assert: result’s custom element state and custom element definition are initialized.
 
@@ -687,7 +686,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
                 // 11. Set result’s is value to null.
                 element->set_is_value(Optional<String> {});
-                return element;
+                return *element;
             };
 
             auto result = synchronously_upgrade_custom_element();
