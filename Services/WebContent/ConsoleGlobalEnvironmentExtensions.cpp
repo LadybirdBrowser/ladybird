@@ -42,11 +42,9 @@ void ConsoleGlobalEnvironmentExtensions::visit_edges(Visitor& visitor)
 
 static JS::ThrowCompletionOr<ConsoleGlobalEnvironmentExtensions*> get_console(JS::VM& vm)
 {
-    auto this_value = vm.this_value();
-    if (!this_value.is_object() || !is<ConsoleGlobalEnvironmentExtensions>(this_value.as_object()))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "ConsoleGlobalEnvironmentExtensions");
-
-    return &static_cast<ConsoleGlobalEnvironmentExtensions&>(this_value.as_object());
+    if (auto console = vm.this_value().as_if<ConsoleGlobalEnvironmentExtensions>())
+        return console.ptr();
+    return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "ConsoleGlobalEnvironmentExtensions");
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$0_getter)
@@ -74,14 +72,12 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
     auto selector = TRY(vm.argument(0).to_string(vm));
 
     if (vm.argument_count() > 1) {
-        auto element_value = vm.argument(1);
-        if (!(element_value.is_object() && is<Web::DOM::ParentNode>(element_value.as_object()))) {
+        auto node = vm.argument(1).as_if<Web::DOM::ParentNode>();
+        if (!node)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Node");
-        }
 
-        auto& element = static_cast<Web::DOM::ParentNode&>(element_value.as_object());
         return TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
-            return element.query_selector(selector);
+            return node->query_selector(selector);
         }));
     }
 
@@ -100,12 +96,10 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
     Web::DOM::ParentNode* element = &window.associated_document();
 
     if (vm.argument_count() > 1) {
-        auto element_value = vm.argument(1);
-        if (!(element_value.is_object() && is<Web::DOM::ParentNode>(element_value.as_object()))) {
+        auto node = vm.argument(1).as_if<Web::DOM::ParentNode>();
+        if (!node)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Node");
-        }
-
-        element = static_cast<Web::DOM::ParentNode*>(&element_value.as_object());
+        element = node;
     }
 
     auto node_list = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
