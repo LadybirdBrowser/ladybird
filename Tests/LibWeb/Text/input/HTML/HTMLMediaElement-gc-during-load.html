@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        {
+            let video = document.createElement("video");
+            video.src = "file:///nonexistent-media-file.webm";
+            video.addEventListener("error", () => {
+                println("error event fired");
+                done();
+            });
+        }
+
+        // Queue a task to GC after all pending tasks have run.
+        // If the element is not kept alive by the ongoing fetch of its
+        // src, then the error event will never fire, and this test will
+        // time out.
+        requestIdleCallback(() => {
+            internals.gc();
+        });
+    });
+</script>

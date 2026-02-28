@@ -167,6 +167,8 @@ protected:
 private:
     friend SourceElementSelector;
 
+    struct FetchData;
+
     virtual bool is_html_media_element() const final { return true; }
 
     struct EntireResource { };
@@ -180,14 +182,13 @@ private:
     WebIDL::ExceptionOr<void> load_element();
 
     void fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
-    struct FetchData;
-    void fetch_resource(NonnullRefPtr<FetchData> const&, ByteRange const&);
+    void fetch_resource(ByteRange const&);
 
-    static Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&, NonnullRefPtr<FetchData> const&);
+    Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
 
-    void restart_fetch_at_offset(FetchData&, u64 offset);
+    void restart_fetch_at_offset(u64 offset);
 
-    void set_up_playback_manager(NonnullRefPtr<FetchData> const&);
+    void set_up_playback_manager();
     enum class FetchingStatus : u8 {
         Ongoing,
         Complete,
@@ -330,7 +331,7 @@ private:
 
     GC::Ptr<SourceElementSelector> m_source_element_selector;
 
-    GC::Weak<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    OwnPtr<FetchData> m_fetch_data;
     u32 m_current_fetch_generation { 0 };
 
     OwnPtr<Media::PlaybackManager> m_playback_manager;

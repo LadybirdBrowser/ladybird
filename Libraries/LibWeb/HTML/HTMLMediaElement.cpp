@@ -51,6 +51,26 @@
 
 namespace Web::HTML {
 
+struct HTMLMediaElement::FetchData {
+    URL::URL url_record;
+    RefPtr<Media::IncrementallyPopulatedStream> stream;
+    GC::Weak<Fetch::Infrastructure::FetchController> fetch_controller;
+    Function<void(String)> failure_callback;
+    bool accepts_byte_ranges { false };
+    u64 offset { 0 };
+
+    ~FetchData()
+    {
+        if (stream) {
+            stream->set_data_request_callback(nullptr);
+            stream->close();
+        }
+
+        if (fetch_controller)
+            fetch_controller->stop_fetch();
+    }
+};
+
 HTMLMediaElement::HTMLMediaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
@@ -73,6 +93,22 @@ void HTMLMediaElement::initialize(JS::Realm& realm)
         // If the media element's node document stops being a fully active document, then the playback will stop until
         // the document is active again.
         pause_element();
+
+        // AD-HOC: Stop the fetch here so that the element can be reclaimed by GC. The fetch callbacks hold a strong
+        //         reference to their media element to ensure that load/error events are fired as expected.
+        if (m_fetch_data && m_fetch_data->fetch_controller) {
+            m_fetch_data->fetch_controller->stop_fetch();
+            m_fetch_data->fetch_controller = nullptr;
+        }
+    });
+
+    m_document_observer->set_document_became_active([this]() {
+        // AD-HOC: Restart the fetch from where the stream last received data so that playback can continue.
+        if (m_fetch_data) {
+            VERIFY(!m_fetch_data->fetch_controller);
+            if (m_fetch_data->stream->next_chunk_start() != m_fetch_data->stream->expected_size())
+                fetch_resource(UntilEnd { m_fetch_data->stream->next_chunk_start() });
+        }
     });
 
     document().page().register_media_element({}, unique_id());
@@ -161,8 +197,7 @@ void HTMLMediaElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 
 void HTMLMediaElement::cancel_the_fetching_process()
 {
-    if (m_fetch_controller)
-        m_fetch_controller->stop_fetch();
+    m_fetch_data.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#fatal-decode-error
@@ -984,39 +1019,23 @@ void HTMLMediaElement::select_resource()
     });
 }
 
-struct HTMLMediaElement::FetchData : public RefCounted<FetchData> {
-    URL::URL url_record;
-    RefPtr<Media::IncrementallyPopulatedStream> stream;
-    Function<void(String)> failure_callback;
-    bool accepts_byte_ranges { false };
-    u64 offset { 0 };
-
-    ~FetchData()
-    {
-        if (stream != nullptr) {
-            stream->set_data_request_callback(nullptr);
-            stream->close();
-        }
-    }
-};
-
 void HTMLMediaElement::fetch_resource(URL::URL const& url_record, Function<void(String)> failure_callback)
 {
-    auto fetch_data = make_ref_counted<FetchData>();
-    fetch_data->url_record = url_record;
-    fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
-    fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [&fetch_data = *fetch_data](auto& self, u64 offset) {
-        self.restart_fetch_at_offset(fetch_data, offset);
+    m_fetch_data = make<FetchData>();
+    m_fetch_data->url_record = url_record;
+    m_fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
+    m_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [&fetch_data = *m_fetch_data](auto& self, u64 offset) {
+        self.restart_fetch_at_offset(offset);
     }));
-    fetch_data->failure_callback = [&stream = *fetch_data->stream, failure_callback = move(failure_callback)](String error_message) {
+    m_fetch_data->failure_callback = [&stream = *m_fetch_data->stream, failure_callback = move(failure_callback)](String error_message) {
         // Ensure that we unblock any reads if we stop the fetch due to some failure.
         stream.close();
         failure_callback(move(error_message));
     };
 
-    set_up_playback_manager(fetch_data);
+    set_up_playback_manager();
 
-    fetch_resource(fetch_data, EntireResource {});
+    fetch_resource(EntireResource {});
 }
 
 enum class FetchMode : u8 {
@@ -1025,12 +1044,12 @@ enum class FetchMode : u8 {
 };
 
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-resource
-void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data, ByteRange const& byte_range)
+void HTMLMediaElement::fetch_resource(ByteRange const& byte_range)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
 
-    auto const& url_record = fetch_data->url_record;
+    auto const& url_record = m_fetch_data->url_record;
 
     auto fetch_generation = ++m_current_fetch_generation;
 
@@ -1087,14 +1106,14 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
         // NB: byte_range is passed as a parameter.
 
         // 7. If byteRange is not "entire resource", then:
-        fetch_data->offset = 0;
+        m_fetch_data->offset = 0;
 
         if (!byte_range.has<EntireResource>()) {
             // 1. If byteRange[1] is "until end", then add a range header to request given byteRange[0].
             if (byte_range.has<UntilEnd>()) {
                 auto const& range = byte_range.get<UntilEnd>();
                 request->add_range_header(range.first, {});
-                fetch_data->offset = range.first;
+                m_fetch_data->offset = range.first;
             } else {
                 // 2. Otherwise, add a range header to request given byteRange[0] and byteRange[1].
                 // NB: We don't currently have any need to request a range with a delimited end.
@@ -1105,16 +1124,15 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
         // 8. Fetch request, with processResponse set to the following steps given response response:
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
 
-        fetch_algorithms_input.process_response = [weak_self = GC::Weak(*this), byte_range = move(byte_range), fetch_data, fetch_generation](auto response) mutable {
-            if (!weak_self)
-                return;
+        fetch_algorithms_input.process_response = [self = GC::Ref(*this), byte_range = move(byte_range), fetch_generation](auto response) mutable {
+            auto& fetch_data = self->m_fetch_data;
 
             // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
             //        https://github.com/whatwg/html/issues/9355
             response = response->unsafe_response();
 
             // 1. Let global be the media element's node document's relevant global object.
-            auto& global = weak_self->document().realm().global_object();
+            auto& global = self->document().realm().global_object();
 
             if (auto content_length = response->header_list()->extract_length(); content_length.template has<u64>()) {
                 auto actual_length = fetch_data->offset + content_length.template get<u64>();
@@ -1126,7 +1144,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
 
             // 4. If the result of verifying response given the current media resource and byteRange is false, then abort these steps.
             // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
-            auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range, fetch_data);
+            auto maybe_verify_response_failure = self->verify_response_or_get_failure_reason(response, byte_range);
             if (maybe_verify_response_failure.has_value()) {
                 fetch_data->failure_callback(maybe_verify_response_failure.value());
                 return;
@@ -1135,11 +1153,12 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
             // 2. Let updateMedia be to queue a media element task given the media element to run the first appropriate steps from the media data processing
             //    steps list below. (A new task is used for this so that the work described below occurs relative to the appropriate media element event task
             //    source rather than using the networking task source.)
-            auto update_media = GC::create_function(weak_self->heap(), [weak_self, fetch_data, fetch_generation](ByteBuffer media_data) mutable {
+            auto update_media = GC::create_function(self->heap(), [weak_self = GC::Weak(self), fetch_generation](ByteBuffer media_data) mutable {
                 if (!weak_self)
                     return;
                 if (fetch_generation != weak_self->m_current_fetch_generation)
                     return;
+                auto& fetch_data = weak_self->m_fetch_data;
 
                 // 6. Update the media data with the contents of response's unsafe response obtained in this fashion. response can be CORS-same-origin or
                 //    CORS-cross-origin; this affects whether subtitles referenced in the media data are exposed in the API and, for video elements, whether
@@ -1156,13 +1175,13 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
             //    and if all of the data is available to the user agent without network access, then, the user agent must move on to the final step below.
             //    This might never happen, e.g. when streaming an infinite resource such as web radio, or if the resource is longer than the user agent's
             //    ability to cache data.
-            auto process_end_of_media = GC::create_function(weak_self->heap(), [weak_self, fetch_data, fetch_generation] {
+            auto process_end_of_media = GC::create_function(self->heap(), [weak_self = GC::Weak(self), fetch_generation] {
                 if (!weak_self)
                     return;
                 if (fetch_generation != weak_self->m_current_fetch_generation)
                     return;
 
-                fetch_data->stream->close();
+                weak_self->m_fetch_data->stream->close();
                 weak_self->queue_a_media_element_task([self = weak_self.as_nonnull()] {
                     self->process_media_data(FetchingStatus::Complete);
                 });
@@ -1171,7 +1190,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
             // 5. Otherwise, incrementally read response's body given updateMedia, processEndOfMedia, an empty algorithm, and global.
 
             // AD-HOC: We need to pass a non-empty error algorithm in order to invoke the requisite steps.
-            auto process_body_error = GC::create_function(weak_self->heap(), [weak_self, fetch_generation](JS::Value) {
+            auto process_body_error = GC::create_function(self->heap(), [weak_self = GC::Weak(self), fetch_generation](JS::Value) {
                 if (!weak_self)
                     return;
                 if (fetch_generation != weak_self->m_current_fetch_generation)
@@ -1185,7 +1204,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
             response->body()->incrementally_read(update_media, process_end_of_media, process_body_error, GC::Ref { global });
         };
 
-        m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+        m_fetch_data->fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
         break;
     }
 
@@ -1208,7 +1227,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#verify-a-media-response
-Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range, NonnullRefPtr<FetchData> const& fetch_data)
+Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
 {
     // 1. If response is a network error, then return false.
     if (response->is_network_error()) {
@@ -1237,23 +1256,29 @@ Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref
         return MUST(String::formatted("Failed to extract values from Content-Range: {}", internal_response->header_list()->get("Content-Range"sv)));
 
     auto const& content_range = maybe_content_range.get<HTTP::HeaderList::ContentRangeValues>();
-    fetch_data->offset = content_range.first_byte_pos;
+    m_fetch_data->offset = content_range.first_byte_pos;
     if (content_range.complete_length.has_value())
-        fetch_data->stream->set_expected_size(content_range.complete_length.value());
+        m_fetch_data->stream->set_expected_size(content_range.complete_length.value());
 
     return {};
 }
 
-void HTMLMediaElement::restart_fetch_at_offset(FetchData& fetch_data, u64 offset)
+void HTMLMediaElement::restart_fetch_at_offset(u64 offset)
 {
+    VERIFY(m_fetch_data);
+
     if (m_error)
         return;
 
-    if (!fetch_data.accepts_byte_ranges)
+    if (!m_fetch_data->accepts_byte_ranges)
         return;
-    cancel_the_fetching_process();
 
-    fetch_resource(fetch_data, UntilEnd { offset });
+    if (m_fetch_data->fetch_controller) {
+        m_fetch_data->fetch_controller->stop_fetch();
+        m_fetch_data->fetch_controller = nullptr;
+    }
+
+    fetch_resource(UntilEnd { offset });
 }
 
 void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool enabled)
@@ -1496,7 +1521,7 @@ void HTMLMediaElement::on_metadata_parsed()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& fetch_data)
+void HTMLMediaElement::set_up_playback_manager()
 {
     m_playback_manager = Media::PlaybackManager::create();
 
@@ -1524,17 +1549,20 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
     });
 
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [fetch_data = fetch_data](auto& self, Media::DecoderError&& error) mutable {
+    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) mutable {
         // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
         //     call forget_media_resource_specific_tracks().
-        self.queue_a_media_element_task([self = GC::Weak(self), fetch_data = fetch_data, error = move(error)] {
+        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
             if (!self)
                 return;
             if (self->m_error)
                 return;
 
             // 1. The user agent should cancel the fetching process.
-            self->cancel_the_fetching_process();
+            VERIFY(self->m_fetch_data);
+            auto fetch_data = move(self->m_fetch_data);
+            if (fetch_data->fetch_controller)
+                fetch_data->fetch_controller->stop_fetch();
 
             // 2. Abort this subalgorithm, returning to the resource selection algorithm.
             fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
@@ -1546,7 +1574,7 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
         self.set_decoder_error(MUST(String::from_utf8(error.description())));
     });
 
-    m_playback_manager->add_media_source(*fetch_data->stream);
+    m_playback_manager->add_media_source(*m_fetch_data->stream);
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();

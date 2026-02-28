@@ -39,6 +39,7 @@ public:
     void set_data_request_callback(DataRequestCallback);
 
     void add_chunk_at(u64 offset, ReadonlyBytes);
+    u64 next_chunk_start() const { return m_last_chunk_end; }
 
     void close();
 
