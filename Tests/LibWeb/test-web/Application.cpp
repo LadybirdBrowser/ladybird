@@ -87,8 +87,6 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
         // Force all tests to run in serial if we are interested in the GC graph.
         test_concurrency = 1;
     }
-
-    URL::set_file_scheme_urls_have_tuple_origins();
 }
 
 ErrorOr<void> Application::launch_test_fixtures()

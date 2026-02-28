@@ -1,1 +1,1 @@
-TypeError: Request with 'file:' or 'resource:' URL blocked
+TypeError: Request with 'cors' mode must have URL with HTTP or HTTPS scheme
