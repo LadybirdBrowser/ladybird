@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>SVG Test: Id change in template affects id selector matching in &lt;use&gt; element tree</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/struct.html#UseElement">
+<link rel="match" href="../../../../expected/wpt-import/svg/styling/use-element-selector-ref.html">
+<style>
+  #id > #rect { fill: green; }
+</style>
+<svg>
+  <use id="use_elm" xlink:href="#tmpl" />
+  <defs>
+    <g id="tmpl">
+      <g id="no_id">
+        <rect id="rect" width="100" height="100"></rect>
+      </g>
+    </g>
+  </defs>
+</svg>
+<script>
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      no_id.setAttribute("id", "id");
+      document.documentElement.classList.remove('reftest-wait');
+    });
+  });
+</script>

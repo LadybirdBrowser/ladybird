@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>SVG Test: CSS selector matching non-rendered descendant with :has() in &lt;use&gt; element tree</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/struct.html#UseElement">
+<link rel="match" href="../../../../expected/wpt-import/svg/styling/use-element-selector-ref.html">
+<style>
+  #rect:has(defs) { fill: green; }
+</style>
+<svg>
+  <use id="use_elm" xlink:href="#group" />
+  <defs>
+    <g id="group">
+      <rect id="rect" width="100" height="100">
+        <defs></defs>
+      </rect>
+    </g>
+  </defs>
+</svg>
