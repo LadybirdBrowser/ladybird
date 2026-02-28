@@ -179,10 +179,10 @@ class MultiOriginTestServer {
 
     // Helper: Create an iframe pointing to another origin
     createCrossOriginIframe(originIndex, path, options = {}) {
-        const url = path.startsWith('http') ? path : this.getStaticURL(originIndex, path);
-        const iframe = document.createElement('iframe');
+        const url = path.startsWith("http") ? path : this.getStaticURL(originIndex, path);
+        const iframe = document.createElement("iframe");
         iframe.src = url;
-        if (options.sandbox) iframe.setAttribute('sandbox', options.sandbox);
+        if (options.sandbox) iframe.setAttribute("sandbox", options.sandbox);
         if (options.id) iframe.id = options.id;
         if (options.style) iframe.style.cssText = options.style;
         return iframe;
@@ -190,8 +190,8 @@ class MultiOriginTestServer {
 
     // Helper: Create a cross-origin window.open
     openCrossOriginWindow(originIndex, path) {
-        const url = path.startsWith('http') ? path : this.getStaticURL(originIndex, path);
-        return window.open(url, '_blank');
+        const url = path.startsWith("http") ? path : this.getStaticURL(originIndex, path);
+        return window.open(url, "_blank");
     }
 
     // Helper: Check if two origin indices represent different origins
@@ -206,12 +206,10 @@ class MultiOriginTestServer {
 }
 
 const __multiOriginTestServer = (function () {
-    if (!globalThis.internals || !globalThis.internals.getOriginServerCount)
-        return null;
+    if (!globalThis.internals || !globalThis.internals.getOriginServerCount) return null;
 
     const count = internals.getOriginServerCount();
-    if (count === 0)
-        return null;
+    if (count === 0) return null;
 
     const origins = [];
     for (let i = 0; i < count; i++) {
@@ -228,7 +226,9 @@ const __multiOriginTestServer = (function () {
 
 function multiOriginTestServer() {
     if (!__multiOriginTestServer) {
-        throw new Error("Multi-origin test server not available. Ensure window.internals is exposed and multi-origin server is running.");
+        throw new Error(
+            "Multi-origin test server not available. Ensure window.internals is exposed and multi-origin server is running."
+        );
     }
     return __multiOriginTestServer;
 }
