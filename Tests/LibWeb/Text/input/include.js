@@ -137,3 +137,103 @@ function httpTestServer() {
     }
     return __httpTestServer;
 }
+
+// Multi-origin server support for cross-origin testing
+class MultiOriginTestServer {
+    constructor(origins) {
+        this.origins = origins;
+    }
+
+    // Get the number of available origins
+    get count() {
+        return this.origins.length;
+    }
+
+    // Get a specific origin by index
+    getOrigin(index) {
+        if (index < 0 || index >= this.origins.length) {
+            throw new Error(`Origin index ${index} out of range (0-${this.origins.length - 1})`);
+        }
+        return this.origins[index];
+    }
+
+    // Create an echo endpoint on a specific origin
+    async createEcho(originIndex, method, path, options = {}) {
+        const origin = this.getOrigin(originIndex);
+        const result = await fetch(`${origin.baseURL}/echo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...options, method, path }),
+        });
+        if (!result.ok) {
+            throw new Error(`Error creating echo on origin ${originIndex}: ${result.statusText}`);
+        }
+        return `${origin.baseURL}${path}`;
+    }
+
+    // Get static file URL for a specific origin
+    getStaticURL(originIndex, path) {
+        const origin = this.getOrigin(originIndex);
+        return `${origin.baseURL}/static/${path}`;
+    }
+
+    // Helper: Create an iframe pointing to another origin
+    createCrossOriginIframe(originIndex, path, options = {}) {
+        const url = path.startsWith('http') ? path : this.getStaticURL(originIndex, path);
+        const iframe = document.createElement('iframe');
+        iframe.src = url;
+        if (options.sandbox) iframe.setAttribute('sandbox', options.sandbox);
+        if (options.id) iframe.id = options.id;
+        if (options.style) iframe.style.cssText = options.style;
+        return iframe;
+    }
+
+    // Helper: Create a cross-origin window.open
+    openCrossOriginWindow(originIndex, path) {
+        const url = path.startsWith('http') ? path : this.getStaticURL(originIndex, path);
+        return window.open(url, '_blank');
+    }
+
+    // Helper: Check if two origin indices represent different origins
+    areDifferentOrigins(index1, index2) {
+        return this.getOrigin(index1).baseURL !== this.getOrigin(index2).baseURL;
+    }
+
+    // Get all origins as an array of base URLs
+    getAllOrigins() {
+        return this.origins.map(o => o.baseURL);
+    }
+}
+
+const __multiOriginTestServer = (function () {
+    if (!globalThis.internals || !globalThis.internals.getOriginServerCount)
+        return null;
+
+    const count = internals.getOriginServerCount();
+    if (count === 0)
+        return null;
+
+    const origins = [];
+    for (let i = 0; i < count; i++) {
+        const port = internals.getOriginServerPort(i);
+        origins.push({
+            index: i,
+            port: port,
+            baseURL: `http://127.0.0.1:${port}`,
+        });
+    }
+
+    return new MultiOriginTestServer(origins);
+})();
+
+function multiOriginTestServer() {
+    if (!__multiOriginTestServer) {
+        throw new Error("Multi-origin test server not available. Ensure window.internals is exposed and multi-origin server is running.");
+    }
+    return __multiOriginTestServer;
+}
+
+// Convenience function to check if multi-origin testing is available
+function hasMultiOriginSupport() {
+    return __multiOriginTestServer !== null && __multiOriginTestServer.count > 0;
+}

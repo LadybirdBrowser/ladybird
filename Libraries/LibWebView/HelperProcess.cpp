@@ -5,6 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/StringBuilder.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibWebView/Application.h>
@@ -134,6 +135,17 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     if (auto const maybe_echo_server_port = web_content_options.echo_server_port; maybe_echo_server_port.has_value()) {
         arguments.append("--echo-server-port"sv);
         arguments.append(ByteString::number(maybe_echo_server_port.value()));
+    }
+
+    if (!web_content_options.multi_origin_server_ports.is_empty()) {
+        StringBuilder ports_builder;
+        for (size_t i = 0; i < web_content_options.multi_origin_server_ports.size(); ++i) {
+            if (i > 0)
+                ports_builder.append(',');
+            ports_builder.append(ByteString::number(web_content_options.multi_origin_server_ports[i]));
+        }
+        arguments.append("--multi-origin-server-ports"sv);
+        arguments.append(ports_builder.to_byte_string());
     }
 
     if (web_content_options.default_time_zone.has_value()) {

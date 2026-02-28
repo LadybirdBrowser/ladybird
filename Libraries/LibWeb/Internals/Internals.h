@@ -82,6 +82,11 @@ public:
     static u16 get_echo_server_port();
     static void set_echo_server_port(u16 port);
 
+    static Vector<u16> const& get_multi_origin_server_ports();
+    static void set_multi_origin_server_ports(Vector<u16> ports);
+    u16 get_origin_server_port(u32 index);
+    u32 get_origin_server_count();
+
     void set_browser_zoom(double factor);
     void set_device_pixel_ratio(double ratio);
 

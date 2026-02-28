@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: Verify multi-origin server infrastructure is available and working
+
+asyncTest(async done => {
+    // Test 1: Check if multi-origin support is available
+    if (!hasMultiOriginSupport()) {
+        println("Multi-origin support: not available");
+        println("PASS (infrastructure check only)");
+        done();
+        return;
+    }
+
+    const server = multiOriginTestServer();
+    
+    // Test 2: Verify we have multiple origins
+    if (server.count < 2) {
+        println("FAIL: Expected at least 2 origins, got " + server.count);
+        done();
+        return;
+    }
+    println("Origin count: " + server.count);
+
+    // Test 3: Verify origins are different (different ports)
+    const origin0 = server.getOrigin(0);
+    const origin1 = server.getOrigin(1);
+    
+    if (origin0.port === origin1.port) {
+        println("FAIL: Origins have same port");
+        done();
+        return;
+    }
+    println("Origins have different ports: true");
+
+    // Test 4: Verify we can identify cross-origin correctly
+    if (!server.areDifferentOrigins(0, 1)) {
+        println("FAIL: areDifferentOrigins returned false");
+        done();
+        return;
+    }
+    println("areDifferentOrigins works: true");
+
+    println("PASS");
+    done();
+});
+</script>

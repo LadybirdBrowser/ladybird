@@ -442,6 +442,30 @@ void Internals::set_echo_server_port(u16 const port)
     s_echo_server_port = port;
 }
 
+static Vector<u16> s_multi_origin_server_ports;
+
+Vector<u16> const& Internals::get_multi_origin_server_ports()
+{
+    return s_multi_origin_server_ports;
+}
+
+void Internals::set_multi_origin_server_ports(Vector<u16> ports)
+{
+    s_multi_origin_server_ports = move(ports);
+}
+
+u16 Internals::get_origin_server_port(u32 index)
+{
+    if (index >= s_multi_origin_server_ports.size())
+        return 0;
+    return s_multi_origin_server_ports[index];
+}
+
+u32 Internals::get_origin_server_count()
+{
+    return static_cast<u32>(s_multi_origin_server_ports.size());
+}
+
 void Internals::set_browser_zoom(double factor)
 {
     page().client().page_did_set_browser_zoom(factor);
