@@ -947,11 +947,23 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
     handle_any_user_prompts([this]() {
         // 4. Restore the window.
         restore_the_window(GC::create_function(current_top_level_browsing_context()->heap(), [this]() {
-            // 5. FIXME: Call fullscreen an element with the current top-level browsing context’s active document’s document element.
-            //           As described in https://fullscreen.spec.whatwg.org/#fullscreen-an-element
-            //    NOTE: What we do here is basically `requestFullscreen(options)` with options["navigationUI"]="show"
-            current_top_level_browsing_context()->page().client().page_did_request_fullscreen_window();
+            auto* document = current_top_level_browsing_context()->active_document();
+
+            Web::HTML::TemporaryExecutionContext execution_context { document->realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+            // 5. Call fullscreen an element with session's current top-level browsing context's active document's
+            //    document element.
+            // FIXME: Spec issue: invoking "fullscreen an element" would not actually fullscreen the document.
+            //        https://github.com/w3c/webdriver/issues/1888
+            auto promise = document->document_element()->request_fullscreen(Web::DOM::Element::FullscreenRequester::WebDriver);
             ++m_pending_window_rect_requests;
+
+            Web::WebIDL::upon_rejection(promise, GC::create_function(document->heap(), [this, document](JS::Value) -> Web::WebIDL::ExceptionOr<JS::Value> {
+                async_driver_execution_complete(serialize_rect(compute_window_rect(document->page())));
+                --m_pending_window_rect_requests;
+
+                return JS::js_undefined();
+            }));
         }));
     });
 
