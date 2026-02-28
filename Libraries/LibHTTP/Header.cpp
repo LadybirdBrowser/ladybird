@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,30 +24,55 @@ Header Header::isomorphic_encode(StringView name, StringView value)
     return { TextCodec::isomorphic_encode(name), TextCodec::isomorphic_encode(value) };
 }
 
+static Optional<Vector<ByteString>> extract_token_headers(ByteString const& value)
+{
+    auto parts = value.split(',', SplitBehavior::Nothing);
+    for (auto& part : parts) {
+        part = part.trim(HTTP_WHITESPACE, TrimMode::Both);
+        if (part.is_empty())
+            return {};
+        if (!is_header_name(part))
+            return {};
+    }
+    return parts;
+}
+
 // https://fetch.spec.whatwg.org/#extract-header-values
 Optional<Vector<ByteString>> Header::extract_header_values() const
 {
-    // FIXME: 1. If parsing header’s value, per the ABNF for header’s name, fails, then return failure.
-    // FIXME: 2. Return one or more values resulting from parsing header’s value, per the ABNF for header’s name.
+    // NB: There is some specification work to try and rework this function, see: https://github.com/whatwg/fetch/issues/814
 
-    // For now we only parse some headers that are of the ABNF list form "#something"
+    // 1. If parsing header’s value, per the ABNF for header’s name, fails, then return failure.
+    // 2. Return one or more values resulting from parsing header’s value, per the ABNF for header’s name.
+
+    // ABNF taken from:
+    //  * https://fetch.spec.whatwg.org/#http-new-header-syntax
+    //  * https://httpwg.org/specs/rfc9110.html#field.accept-ranges
+
+    // Access-Control-Expose-Headers = #field-name (field-name = token)
+    // Access-Control-Allow-Headers  = #field-name (field-name = token)
+    // Access-Control-Allow-Methods  = #method     (method = token)
     if (name.is_one_of_ignoring_ascii_case(
-            "Accept-Ranges"sv,
-            "Access-Control-Request-Headers"sv,
             "Access-Control-Expose-Headers"sv,
             "Access-Control-Allow-Headers"sv,
-            "Access-Control-Allow-Methods"sv)
-        && !value.is_empty()) {
-        Vector<ByteString> trimmed_values;
-
-        value.view().for_each_split_view(',', SplitBehavior::Nothing, [&](auto value) {
-            trimmed_values.append(value.trim(" \t"sv));
-        });
-
-        return trimmed_values;
+            "Access-Control-Allow-Methods"sv)) {
+        return extract_token_headers(value);
     }
 
-    // This always ignores the ABNF rules for now and returns the header value as a single list item.
+    // Access-Control-Request-Headers = 1#field-name      (field-name = token)
+    // Accept-Ranges                  = acceptable-ranges (acceptable-ranges = 1#range-unit, range-unit = token)
+    if (name.is_one_of_ignoring_ascii_case(
+            "Access-Control-Request-Headers"sv,
+            "Accept-Ranges"sv)) {
+        if (auto headers = extract_token_headers(value); headers.has_value()) {
+            if (headers->is_empty())
+                return {};
+            return headers;
+        }
+        return {};
+    }
+
+    // FIXME: What other headers should we handle here (or elsewhere?)
     return Vector { value };
 }
 
