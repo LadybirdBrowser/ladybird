@@ -21,7 +21,7 @@ Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
         // AD-HOC: The secure context spec assumes file scheme origins are tuple origins.
         //         Therefore, we need to special case file scheme origins here. See spec issue:
         //         https://github.com/w3c/webappsec-secure-contexts/issues/66
-        return origin.opaque_data().type == URL::Origin::OpaqueData::Type::File ? Trustworthiness::PotentiallyTrustworthy : Trustworthiness::NotTrustworthy;
+        return origin.is_opaque_file_origin() ? Trustworthiness::PotentiallyTrustworthy : Trustworthiness::NotTrustworthy;
     }
 
     // 2. Assert: origin is a tuple origin.
