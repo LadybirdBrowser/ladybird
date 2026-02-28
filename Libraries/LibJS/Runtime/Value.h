@@ -184,6 +184,22 @@ public:
         }
     }
 
+    template<DerivedFrom<Object> T>
+    [[nodiscard]] ALWAYS_INLINE T& as()
+    {
+        auto ptr = as_if<T>();
+        VERIFY(ptr);
+        return *ptr;
+    }
+
+    template<DerivedFrom<Object> T>
+    [[nodiscard]] ALWAYS_INLINE T const& as() const
+    {
+        auto ptr = as_if<T>();
+        VERIFY(ptr);
+        return *ptr;
+    }
+
     constexpr Value()
         : Value(UNDEFINED_TAG << GC::TAG_SHIFT, (u64)0)
     {
