@@ -124,6 +124,8 @@ public:
 
     bool operator==(Origin const& other) const { return is_same_origin(other); }
 
+    bool is_opaque_file_origin() const { return is_opaque() && opaque_data().type == OpaqueData::Type::File; }
+
 private:
     struct Tuple {
         Optional<String> scheme;
