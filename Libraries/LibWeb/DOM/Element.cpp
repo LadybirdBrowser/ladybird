@@ -2433,7 +2433,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
-GC::Ref<WebIDL::Promise> Element::request_fullscreen()
+GC::Ref<WebIDL::Promise> Element::request_fullscreen(FullscreenRequester fullscreen_requester)
 {
     auto& realm = this->realm();
 
@@ -2451,7 +2451,7 @@ GC::Ref<WebIDL::Promise> Element::request_fullscreen()
 
     // 4. Let error be false.
     // 5. If any of conditions are false, set error to true
-    auto error = is_element_allowed_to_enter_fullscreen();
+    auto error = is_element_allowed_to_enter_fullscreen(fullscreen_requester);
 
     // 6. If error is false, then consume user activation given pendingDoc’s relevant global object.
     if (error == RequestFullscreenError::False) {
@@ -2590,7 +2590,7 @@ Utf16String Element::request_fullscreen_error_to_string(RequestFullscreenError e
 
 // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
 // 5. If any of conditions are false, set error to true
-Element::RequestFullscreenError Element::is_element_allowed_to_enter_fullscreen() const
+Element::RequestFullscreenError Element::is_element_allowed_to_enter_fullscreen(FullscreenRequester fullscreen_requester) const
 {
     // * This’s namespace is the HTML namespace or this is an SVG svg or MathML math element. [SVG] [MATHML]
     // FIXME: This likely wants to use is<MathML::MathMLMathElement> instead.
@@ -2610,9 +2610,13 @@ Element::RequestFullscreenError Element::is_element_allowed_to_enter_fullscreen(
     // * This’s relevant global object has transient activation or the algorithm is triggered by a user generated
     //   orientation change.
     // FIXME: Handle user generated orientation changes.
-    auto* window = as<HTML::Window>(&HTML::relevant_global_object(*this));
-    if (!window->has_transient_activation())
-        return RequestFullscreenError::NoTransientUserActivation;
+    // FIXME: Spec issue: We don't require transient activations for WebDriver.
+    //        https://github.com/w3c/webdriver/issues/1888
+    if (fullscreen_requester != FullscreenRequester::WebDriver) {
+        auto* window = as<HTML::Window>(&HTML::relevant_global_object(*this));
+        if (!window->has_transient_activation())
+            return RequestFullscreenError::NoTransientUserActivation;
+    }
 
     return RequestFullscreenError::False;
 }

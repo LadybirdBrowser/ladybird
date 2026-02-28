@@ -265,7 +265,11 @@ public:
 
     WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const&);
 
-    GC::Ref<WebIDL::Promise> request_fullscreen();
+    enum class FullscreenRequester {
+        Bindings,
+        WebDriver,
+    };
+    GC::Ref<WebIDL::Promise> request_fullscreen(FullscreenRequester = FullscreenRequester::Bindings);
 
     void set_fullscreen_flag(bool is_fullscreen) { m_fullscreen_flag = is_fullscreen; }
     bool is_fullscreen_element() const { return m_fullscreen_flag; }
@@ -595,7 +599,7 @@ private:
     static Utf16String request_fullscreen_error_to_string(RequestFullscreenError);
 
     void exit_fullscreen_on_element_removal();
-    RequestFullscreenError is_element_allowed_to_enter_fullscreen() const;
+    RequestFullscreenError is_element_allowed_to_enter_fullscreen(FullscreenRequester) const;
     bool is_element_ready_for_fullscreen() const;
 
     WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(StringView where, GC::Ref<Node> node);
