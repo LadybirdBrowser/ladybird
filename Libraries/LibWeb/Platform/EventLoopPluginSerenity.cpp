@@ -7,7 +7,6 @@
 #include "EventLoopPluginSerenity.h"
 #include <AK/NonnullRefPtr.h>
 #include <LibCore/EventLoop.h>
-#include <LibWeb/Platform/TimerSerenity.h>
 
 namespace Web::Platform {
 
@@ -28,11 +27,6 @@ void EventLoopPluginSerenity::deferred_invoke(GC::Root<GC::Function<void()>> fun
     Core::deferred_invoke([function = move(function)]() {
         function->function()();
     });
-}
-
-GC::Ref<Timer> EventLoopPluginSerenity::create_timer(GC::Heap& heap)
-{
-    return TimerSerenity::create(heap);
 }
 
 void EventLoopPluginSerenity::quit()

@@ -880,7 +880,6 @@ set(SOURCES
     Platform/FontPlugin.cpp
     Platform/ImageCodecPlugin.cpp
     Platform/Timer.cpp
-    Platform/TimerSerenity.cpp
     ReferrerPolicy/AbstractOperations.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
     RequestIdleCallback/IdleDeadline.cpp

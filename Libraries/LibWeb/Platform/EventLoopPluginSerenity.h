@@ -18,7 +18,6 @@ public:
 
     virtual void spin_until(GC::Root<GC::Function<bool()>> goal_condition) override;
     virtual void deferred_invoke(GC::Root<GC::Function<void()>>) override;
-    virtual GC::Ref<Timer> create_timer(GC::Heap&) override;
     virtual void quit() override;
 };
 
