@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/SourceLocation.h>
 #include <LibGC/Export.h>
 
@@ -26,6 +27,7 @@ struct GC_API HeapRoot {
 
     Type type;
     SourceLocation const* location { nullptr };
+    Optional<u32> stack_frame_index {};
 };
 
 }

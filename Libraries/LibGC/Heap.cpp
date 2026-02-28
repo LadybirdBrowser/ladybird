@@ -6,6 +6,7 @@
  */
 
 #include <AK/Badge.h>
+#include <AK/BinarySearch.h>
 #include <AK/Debug.h>
 #include <AK/Function.h>
 #include <AK/HashTable.h>
@@ -25,6 +26,10 @@
 
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
+#endif
+
+#ifdef LIBGC_HAS_CPPTRACE
+#    include <cpptrace/cpptrace.hpp>
 #endif
 
 namespace GC {
@@ -215,9 +220,13 @@ public:
                     break;
                 case HeapRoot::Type::RegisterPointer:
                     node.set("root"sv, "RegisterPointer"sv);
+                    if (it.value.root_origin->stack_frame_index.has_value())
+                        node.set("stack_frame_index"sv, it.value.root_origin->stack_frame_index.value());
                     break;
                 case HeapRoot::Type::StackPointer:
                     node.set("root"sv, "StackPointer"sv);
+                    if (it.value.root_origin->stack_frame_index.has_value())
+                        node.set("stack_frame_index"sv, it.value.root_origin->stack_frame_index.value());
                     break;
                 case HeapRoot::Type::VM:
                     node.set("root"sv, "VM"sv);
@@ -255,10 +264,20 @@ AK::JsonObject Heap::dump_graph()
 {
     HashMap<Cell*, HeapRoot> roots;
     HashTable<HeapBlock*> all_live_heap_blocks;
-    gather_roots(roots, all_live_heap_blocks);
+    Vector<String> stack_frames;
+    gather_roots(roots, all_live_heap_blocks, &stack_frames);
     GraphConstructorVisitor visitor(*this, roots);
     visitor.visit_all_cells();
-    return visitor.dump();
+    auto graph = visitor.dump();
+
+    if (!stack_frames.is_empty()) {
+        AK::JsonArray stack_frames_array;
+        for (auto const& frame : stack_frames)
+            stack_frames_array.must_append(frame);
+        graph.set("stack_frames"sv, move(stack_frames_array));
+    }
+
+    return graph;
 }
 
 void Heap::collect_garbage(CollectionType collection_type, bool print_report)
@@ -373,7 +392,7 @@ void Heap::enqueue_post_gc_task(AK::Function<void()> task)
     m_post_gc_tasks.append(move(task));
 }
 
-void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks)
+void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<String>* out_stack_frames)
 {
     for_each_block([&](auto& block) {
         all_live_heap_blocks.set(&block);
@@ -390,7 +409,7 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& 
     });
 
     m_gather_embedder_roots(roots);
-    gather_conservative_roots(roots, all_live_heap_blocks);
+    gather_conservative_roots(roots, all_live_heap_blocks, out_stack_frames);
 
     for (auto& root : m_roots)
         roots.set(root.cell(), HeapRoot { .type = HeapRoot::Type::Root, .location = &root.source_location() });
@@ -430,7 +449,7 @@ void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, Fl
 }
 #endif
 
-NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*> const& all_live_heap_blocks)
+NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*> const& all_live_heap_blocks, Vector<String>* out_stack_frames)
 {
     FlatPtr dummy;
 
@@ -450,10 +469,96 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         add_possible_value(possible_pointers, raw_jmp_buf[i], HeapRoot { .type = HeapRoot::Type::RegisterPointer }, min_block_address, max_block_address);
 
     auto stack_reference = bit_cast<FlatPtr>(&dummy);
+    auto stack_top = m_stack_info.top();
 
-    for (FlatPtr stack_address = stack_reference; stack_address < m_stack_info.top(); stack_address += sizeof(FlatPtr)) {
+    // Build frame boundary map for annotation if requested.
+    // Each entry maps a frame pointer address to the stack frame index in out_stack_frames.
+    struct FrameBoundary {
+        FlatPtr start;
+        u32 frame_index;
+    };
+    Vector<FrameBoundary> frame_boundaries;
+
+#ifdef LIBGC_HAS_CPPTRACE
+    if (out_stack_frames) {
+        // Walk the frame pointer chain to collect frame boundaries and return addresses.
+        Vector<FlatPtr> frame_starts;
+        std::vector<cpptrace::frame_ptr> return_addresses;
+
+        auto* fp = reinterpret_cast<FlatPtr*>(__builtin_frame_address(0));
+        while (fp != nullptr) {
+            auto fp_value = bit_cast<FlatPtr>(fp);
+            if (fp_value < stack_reference || fp_value >= stack_top)
+                break;
+
+            auto* previous_fp = reinterpret_cast<FlatPtr*>(fp[0]);
+
+            // Ensure the previous FP is above the current one (stack grows downward).
+            if (previous_fp != nullptr && bit_cast<FlatPtr>(previous_fp) <= fp_value)
+                break;
+
+            frame_starts.append(fp_value);
+            return_addresses.push_back(static_cast<cpptrace::frame_ptr>(fp[1]) - 1);
+            fp = previous_fp;
+        }
+
+        if (!frame_starts.is_empty()) {
+            auto resolved = cpptrace::raw_trace { move(return_addresses) }.resolve();
+
+            auto format_frame_label = [](cpptrace::stacktrace_frame const& frame) -> String {
+                StringBuilder label;
+                if (!frame.symbol.empty()) {
+                    label.append(StringView(frame.symbol.c_str(), frame.symbol.length()));
+                    if (frame.line.has_value()) {
+                        auto filename = StringView { frame.filename.c_str(), frame.filename.length() };
+                        auto last_slash = filename.find_last('/');
+                        if (last_slash.has_value())
+                            filename = filename.substring_view(*last_slash + 1);
+                        label.appendff(" {}:{}", filename, frame.line.value());
+                    }
+                }
+                return MUST(label.to_string());
+            };
+
+            // resolve() may expand inline frames, so there can be more resolved
+            // frames than return addresses. We want the non-inline frame for each
+            // return address, since that represents the actual function whose
+            // locals occupy the stack range.
+            frame_boundaries.ensure_capacity(frame_starts.size());
+            size_t raw_frame_index = 0;
+            for (size_t i = 0; i < resolved.frames.size() && raw_frame_index < frame_starts.size(); ++i) {
+                auto const& frame = resolved.frames[i];
+                if (frame.is_inline)
+                    continue;
+
+                auto frame_label_index = static_cast<u32>(out_stack_frames->size());
+                out_stack_frames->append(format_frame_label(frame));
+                frame_boundaries.append({ frame_starts[raw_frame_index], frame_label_index });
+                ++raw_frame_index;
+            }
+        }
+    }
+#else
+    (void)out_stack_frames;
+#endif
+
+    // Find the frame index for a given stack address. Frame boundaries are sorted ascending
+    // by start address. We want the last boundary whose start is <= the address.
+    auto frame_index_for_stack_address = [&](FlatPtr address) -> Optional<u32> {
+        if (frame_boundaries.is_empty())
+            return {};
+        if (address < frame_boundaries[0].start || address >= stack_top)
+            return {};
+        size_t nearby = 0;
+        binary_search(frame_boundaries, address, &nearby, [](FlatPtr addr, FrameBoundary const& boundary) {
+            return static_cast<int>(addr - boundary.start);
+        });
+        return frame_boundaries[nearby].frame_index;
+    };
+
+    for (FlatPtr stack_address = stack_reference; stack_address < stack_top; stack_address += sizeof(FlatPtr)) {
         auto data = *reinterpret_cast<FlatPtr*>(stack_address);
-        add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer }, min_block_address, max_block_address);
+        add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address) }, min_block_address, max_block_address);
         gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address);
     }
 
