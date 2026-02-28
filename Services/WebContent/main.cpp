@@ -30,7 +30,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/Platform/EventLoopPluginSerenity.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Tracing.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
@@ -81,7 +81,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     WebView::platform_init();
 
-    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
+    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
     StringView command_line {};
     StringView executable_path {};

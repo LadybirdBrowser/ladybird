@@ -17,11 +17,11 @@ public:
     static EventLoopPlugin& the();
     static void install(EventLoopPlugin&);
 
-    virtual ~EventLoopPlugin();
+    ~EventLoopPlugin();
 
-    virtual void spin_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
-    virtual void deferred_invoke(ESCAPING GC::Root<GC::Function<void()>>) = 0;
-    virtual void quit() = 0;
+    void spin_until(GC::Root<GC::Function<bool()>> goal_condition);
+    void deferred_invoke(ESCAPING GC::Root<GC::Function<void()>>);
+    void quit();
 };
 
 }

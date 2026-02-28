@@ -22,7 +22,7 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
-#include <LibWeb/Platform/EventLoopPluginSerenity.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
@@ -49,7 +49,7 @@ ErrorOr<int> service_main(int ipc_socket)
 {
     Core::EventLoop event_loop;
 
-    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
+    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
     auto image_decoder_client = TRY(bind_image_decoder_service());
     Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(image_decoder_client)));

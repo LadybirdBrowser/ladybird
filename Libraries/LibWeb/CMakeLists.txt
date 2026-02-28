@@ -876,7 +876,6 @@ set(SOURCES
     PermissionsPolicy/AutoplayAllowlist.cpp
     PixelUnits.cpp
     Platform/EventLoopPlugin.cpp
-    Platform/EventLoopPluginSerenity.cpp
     Platform/FontPlugin.cpp
     Platform/ImageCodecPlugin.cpp
     Platform/Timer.cpp

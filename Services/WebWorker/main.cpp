@@ -18,7 +18,6 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
@@ -90,7 +89,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::HTML::UniversalGlobalScopeMixin::set_experimental_interfaces_exposed(expose_experimental_interfaces);
 
-    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
+    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
     Web::Platform::FontPlugin::install(*new WebView::FontPlugin(false));
 
