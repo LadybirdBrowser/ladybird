@@ -532,8 +532,10 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
             size_t raw_frame_index = 0;
             for (size_t i = 0; i < resolved.frames.size() && raw_frame_index < frame_starts.size(); ++i) {
                 auto const& frame = resolved.frames[i];
-                if (frame.is_inline)
+                if (frame.is_inline) {
+                    out_stack_frames->append({ .label = format_frame_label(frame) });
                     continue;
+                }
 
                 auto frame_label_index = static_cast<u32>(out_stack_frames->size());
                 auto frame_start = frame_starts[raw_frame_index];

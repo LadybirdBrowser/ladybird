@@ -958,6 +958,22 @@
             color: var(--accent-cyan);
         }
 
+        .stack-frame-item.inline {
+            color: var(--text-muted);
+        }
+
+        .stack-frame-item.inline.highlighted {
+            color: var(--text-secondary);
+        }
+
+        .stack-frame-item.inline .stack-frame-size {
+            text-align: center;
+        }
+
+        .stack-frame-item.inline .stack-frame-symbol {
+            color: var(--text-secondary);
+        }
+
         .root-category-header {
             display: flex;
             align-items: center;
@@ -1738,10 +1754,11 @@
             stackFrameElements = [];
             for (let i = 0; i < stackFrames.length; i++) {
                 const frame = stackFrames[i];
+                const isInline = frame.size === 0;
                 const el = document.createElement('div');
-                el.className = 'stack-frame-item';
+                el.className = 'stack-frame-item' + (isInline ? ' inline' : '');
                 el.innerHTML = `<span class="stack-frame-index">${i}</span>`
-                    + `<span class="stack-frame-size">${formatSize(frame.size)}</span>`
+                    + `<span class="stack-frame-size">${isInline ? '-' : formatSize(frame.size)}</span>`
                     + `<span class="stack-frame-symbol">${escapeHtml(insertWordBreaks(frame.label) || '???')}</span>`;
                 content.appendChild(el);
                 stackFrameElements.push(el);
