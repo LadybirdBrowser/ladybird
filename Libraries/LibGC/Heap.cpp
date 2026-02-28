@@ -264,7 +264,7 @@ AK::JsonObject Heap::dump_graph()
 {
     HashMap<Cell*, HeapRoot> roots;
     HashTable<HeapBlock*> all_live_heap_blocks;
-    Vector<String> stack_frames;
+    Vector<StackFrameInfo> stack_frames;
     gather_roots(roots, all_live_heap_blocks, &stack_frames);
     GraphConstructorVisitor visitor(*this, roots);
     visitor.visit_all_cells();
@@ -272,8 +272,12 @@ AK::JsonObject Heap::dump_graph()
 
     if (!stack_frames.is_empty()) {
         AK::JsonArray stack_frames_array;
-        for (auto const& frame : stack_frames)
-            stack_frames_array.must_append(frame);
+        for (auto const& frame : stack_frames) {
+            AK::JsonObject frame_object;
+            frame_object.set("label"sv, frame.label);
+            frame_object.set("size"sv, frame.size_bytes);
+            stack_frames_array.must_append(move(frame_object));
+        }
         graph.set("stack_frames"sv, move(stack_frames_array));
     }
 
@@ -392,7 +396,7 @@ void Heap::enqueue_post_gc_task(AK::Function<void()> task)
     m_post_gc_tasks.append(move(task));
 }
 
-void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<String>* out_stack_frames)
+void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
 {
     for_each_block([&](auto& block) {
         all_live_heap_blocks.set(&block);
@@ -449,7 +453,7 @@ void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, Fl
 }
 #endif
 
-NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*> const& all_live_heap_blocks, Vector<String>* out_stack_frames)
+NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*> const& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
 {
     FlatPtr dummy;
 
@@ -532,8 +536,10 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
                     continue;
 
                 auto frame_label_index = static_cast<u32>(out_stack_frames->size());
-                out_stack_frames->append(format_frame_label(frame));
-                frame_boundaries.append({ frame_starts[raw_frame_index], frame_label_index });
+                auto frame_start = frame_starts[raw_frame_index];
+                auto frame_end = frame_starts.get(raw_frame_index + 1).value_or(stack_top);
+                out_stack_frames->append({ .label = format_frame_label(frame), .size_bytes = frame_end - frame_start });
+                frame_boundaries.append({ frame_start, frame_label_index });
                 ++raw_frame_index;
             }
         }

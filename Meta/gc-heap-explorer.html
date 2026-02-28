@@ -943,6 +943,13 @@
             flex-shrink: 0;
         }
 
+        .stack-frame-size {
+            min-width: 32px;
+            text-align: right;
+            flex-shrink: 0;
+            font-size: 10px;
+        }
+
         .stack-frame-symbol {
             color: var(--text-primary);
         }
@@ -1730,10 +1737,12 @@
 
             stackFrameElements = [];
             for (let i = 0; i < stackFrames.length; i++) {
+                const frame = stackFrames[i];
                 const el = document.createElement('div');
                 el.className = 'stack-frame-item';
                 el.innerHTML = `<span class="stack-frame-index">${i}</span>`
-                    + `<span class="stack-frame-symbol">${escapeHtml(insertWordBreaks(stackFrames[i]) || '???')}</span>`;
+                    + `<span class="stack-frame-size">${formatSize(frame.size)}</span>`
+                    + `<span class="stack-frame-symbol">${escapeHtml(insertWordBreaks(frame.label) || '???')}</span>`;
                 content.appendChild(el);
                 stackFrameElements.push(el);
             }
@@ -1905,10 +1914,16 @@
         }
 
         function rootLabel(node) {
-            const frameLabel = stackFrames?.[node.stack_frame_index];
-            if (frameLabel)
-                return `${node.root} ${frameLabel}`;
+            const frame = stackFrames?.[node.stack_frame_index];
+            if (frame)
+                return `${node.root} ${frame.label}`;
             return insertWordBreaks(node.root);
+        }
+
+        function formatSize(bytes) {
+            if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + 'M';
+            if (bytes >= 1024) return (bytes / 1024).toFixed(1) + 'K';
+            return bytes + 'B';
         }
 
         function toHex(addr) {
