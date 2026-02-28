@@ -794,6 +794,19 @@ public:
     {
         switch (message->message_id()) {)~~~");
     for (auto const& message : endpoint.messages) {
+        auto message_generator = generator.fork();
+        message_generator.set("message.pascal_name", pascal_case(message.name));
+        message_generator.append(R"~~~(
+        case (int)Messages::@endpoint.name@::MessageID::@message.pascal_name@:
+            return handle_@message.pascal_name@(*message);)~~~");
+    }
+    generator.appendln(R"~~~(
+        default:
+            return Error::from_string_literal("Unknown message ID for @endpoint.name@ endpoint");
+        }
+    })~~~");
+
+    for (auto const& message : endpoint.messages) {
         auto do_handle_message = [&](ByteString const& name, Vector<Parameter> const& parameters, bool returns_something) {
             auto message_generator = generator.fork();
 
@@ -815,36 +828,32 @@ public:
             message_generator.set("handler_name", name);
             message_generator.set("arguments", argument_generator.to_byte_string());
             message_generator.append(R"~~~(
-        case (int)Messages::@endpoint.name@::MessageID::@message.pascal_name@: {)~~~");
+    NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_@message.pascal_name@(IPC::Message& message)
+    {)~~~");
             if (returns_something) {
                 if (message.outputs.is_empty()) {
                     message_generator.append(R"~~~(
-            [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(*message);
-            @handler_name@(@arguments@);
-            auto response = Messages::@endpoint.name@::@message.response_type@ { };
-            return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
+        [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(message);
+        @handler_name@(@arguments@);
+        auto response = Messages::@endpoint.name@::@message.response_type@ { };
+        return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
                 } else {
                     message_generator.append(R"~~~(
-            [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(*message);
-            auto response = @handler_name@(@arguments@);
-            return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
+        [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(message);
+        auto response = @handler_name@(@arguments@);
+        return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
                 }
             } else {
                 message_generator.append(R"~~~(
-            [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(*message);
-            @handler_name@(@arguments@);
-            return nullptr;)~~~");
+        [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(message);
+        @handler_name@(@arguments@);
+        return nullptr;)~~~");
             }
             message_generator.append(R"~~~(
-        })~~~");
+    })~~~");
         };
         do_handle_message(message.name, message.inputs, message.is_synchronous);
     }
-    generator.appendln(R"~~~(
-        default:
-            return Error::from_string_literal("Unknown message ID for @endpoint.name@ endpoint");
-        }
-    })~~~");
 
     for (auto const& message : endpoint.messages) {
         auto message_generator = generator.fork();
@@ -899,6 +908,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
     generator.appendln(R"~~~(#include <AK/Error.h>
 #include <AK/MemoryStream.h>
 #include <AK/OwnPtr.h>
+#include <AK/Platform.h>
 #include <AK/Result.h>
 #include <AK/Utf8View.h>
 #include <LibIPC/Connection.h>
