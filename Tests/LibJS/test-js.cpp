@@ -93,12 +93,11 @@ TESTJS_GLOBAL_FUNCTION(mark_as_garbage, markAsGarbage)
 
 TESTJS_GLOBAL_FUNCTION(detach_array_buffer, detachArrayBuffer)
 {
-    auto array_buffer = vm.argument(0);
-    if (!array_buffer.is_object() || !is<JS::ArrayBuffer>(array_buffer.as_object()))
+    auto array_buffer = vm.argument(0).as_if<JS::ArrayBuffer>();
+    if (!array_buffer)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "ArrayBuffer");
 
-    auto& array_buffer_object = static_cast<JS::ArrayBuffer&>(array_buffer.as_object());
-    TRY(JS::detach_array_buffer(vm, array_buffer_object, vm.argument(1)));
+    TRY(JS::detach_array_buffer(vm, *array_buffer, vm.argument(1)));
     return JS::js_null();
 }
 
