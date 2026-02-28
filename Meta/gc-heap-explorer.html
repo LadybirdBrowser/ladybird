@@ -516,7 +516,6 @@
             font-size: 13px;
             color: var(--accent-orange);
             margin-bottom: 6px;
-            word-break: break-all;
         }
 
         .node-class {
@@ -711,7 +710,6 @@
             font-size: 10px;
             color: var(--root-color);
             margin-top: 4px;
-            word-break: break-all;
         }
 
         .no-selection {
@@ -1620,7 +1618,7 @@
                 <div class="selected-node-info">
                     <div class="node-address">${toHex(addr)}</div>
                     <div class="node-class">${escapeHtml(node.class_name)}</div>
-                    ${node.root ? `<div class="node-root-badge">ROOT: ${escapeHtml(node.root)}</div>` : ''}
+                    ${node.root ? `<div class="node-root-badge">ROOT: ${escapeHtml(insertWordBreaks(node.root))}</div>` : ''}
                 </div>
             `;
 
@@ -1687,7 +1685,7 @@
                         <div class="path-node-info">
                             <div class="path-node-class">${escapeHtml(node.class_name)}</div>
                             <div class="path-node-addr">${formatAddress(addr)}</div>
-                            ${node.root ? `<div class="path-root-info">${escapeHtml(node.root)}</div>` : ''}
+                            ${node.root ? `<div class="path-root-info">${escapeHtml(insertWordBreaks(node.root))}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -1796,6 +1794,11 @@
         }
 
         // Utility functions
+        const wordBreakRegEx = /(\W)(\w)/g;
+        function insertWordBreaks(text) {
+            return text.replace(wordBreakRegEx, '$1\u200B$2');
+        }
+
         function toHex(addr) {
             return '0x' + BigInt(addr).toString(16).toUpperCase();
         }
