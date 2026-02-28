@@ -44,6 +44,10 @@ Decision AutoplayAllowlist::is_allowed_for_origin(DOM::Document const& document,
                 for (auto const& pattern : patterns) {
                     if (pattern.is_same_origin_domain(origin))
                         return Decision::Enabled;
+
+                    // AD-HOC: Allow autoplay for file:// URLs if the document is also from a file:// URL.
+                    if (origin.is_opaque_file_origin() && document.origin().is_opaque_file_origin())
+                        return Decision::Enabled;
                 }
 
                 return Decision::Disabled;
@@ -55,6 +59,10 @@ Decision AutoplayAllowlist::is_allowed_for_origin(DOM::Document const& document,
     // NOTE: The "autoplay" feature's default allowlist is 'self'.
     //       https://html.spec.whatwg.org/multipage/infrastructure.html#autoplay-feature
     if (origin.is_same_origin(document.origin()))
+        return Decision::Enabled;
+
+    // AD-HOC: Allow autoplay for file:// URLs if the document is also from a file:// URL.
+    if (origin.is_opaque_file_origin() && document.origin().is_opaque_file_origin())
         return Decision::Enabled;
 
     // 6. Return "Disabled".
