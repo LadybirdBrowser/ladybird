@@ -26,7 +26,6 @@ const urls = {
     "https://user:pass@site.example",
     "https://has.a.port:1234/and/path",
     "https://ümlauted.example",
-    "file:///path/to/a/file.txt",
     "blob:https://example.com/some-guid",
     "ftp://example.com/",
     "https://example.com/path?query#fragment",

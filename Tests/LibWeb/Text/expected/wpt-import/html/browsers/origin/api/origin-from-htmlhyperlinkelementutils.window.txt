@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 54 tests
+Found 52 tests
 
-54 Pass
+52 Pass
 Pass	Origin.from(<a>) throws.
 Pass	Origin.from(<area>) throws.
 Pass	Origin.from(<a href="about:blank">) returns an opaque origin.
@@ -45,8 +45,6 @@ Pass	Origin.from(<a href="https://has.a.port:1234/and/path">) returns a tuple or
 Pass	Origin.from(<area href="https://has.a.port:1234/and/path">) returns a tuple origin.
 Pass	Origin.from(<a href="https://ümlauted.example">) returns a tuple origin.
 Pass	Origin.from(<area href="https://ümlauted.example">) returns a tuple origin.
-Pass	Origin.from(<a href="file:///path/to/a/file.txt">) returns a tuple origin.
-Pass	Origin.from(<area href="file:///path/to/a/file.txt">) returns a tuple origin.
 Pass	Origin.from(<a href="blob:https://example.com/some-guid">) returns a tuple origin.
 Pass	Origin.from(<area href="blob:https://example.com/some-guid">) returns a tuple origin.
 Pass	Origin.from(<a href="ftp://example.com/">) returns a tuple origin.
