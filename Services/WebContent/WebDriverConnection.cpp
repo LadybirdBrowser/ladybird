@@ -3,7 +3,7 @@
  * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -856,7 +856,8 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
 
     // 9. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, x, y, width, height]() {
-        // FIXME: 10. Fully exit fullscreen.
+        // 10. Fully exit fullscreen.
+        current_top_level_browsing_context()->active_document()->fully_exit_fullscreen();
 
         // 11. Restore the window.
         restore_the_window(GC::create_function(current_top_level_browsing_context()->heap(), [this, x, y, width, height]() {
@@ -896,7 +897,8 @@ Messages::WebDriverClient::MaximizeWindowResponse WebDriverConnection::maximize_
 
     // 3. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
-        // FIXME: 4. Fully exit fullscreen.
+        // 4. Fully exit fullscreen.
+        current_top_level_browsing_context()->active_document()->fully_exit_fullscreen();
 
         // 5. Restore the window.
         restore_the_window(GC::create_function(current_top_level_browsing_context()->heap(), [this]() {
@@ -919,7 +921,8 @@ Messages::WebDriverClient::MinimizeWindowResponse WebDriverConnection::minimize_
 
     // 3. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
-        // FIXME: 4. Fully exit fullscreen.
+        // 4. Fully exit fullscreen.
+        current_top_level_browsing_context()->active_document()->fully_exit_fullscreen();
 
         // 5. Iconify the window.
         iconify_the_window(GC::create_function(current_top_level_browsing_context()->heap(), [this]() {
