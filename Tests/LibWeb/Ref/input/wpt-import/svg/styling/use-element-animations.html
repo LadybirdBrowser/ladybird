@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<title>SVG Test: Independent CSS animations on svg:use instantiation and corresponding element</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/struct.html#UseElement">
+<link rel="match" href="../../../../expected/wpt-import/svg/styling/use-element-transitions-ref.html">
+<style>
+  use {
+    font-size: 40px;
+  }
+  g {
+    font-size: 120px;
+  }
+  @keyframes font-anim {
+    0% { /* starts from computed font-size */ }
+    100% { font-size: 80px; }
+  }
+  text {
+    animation: font-anim 100s steps(2, start);
+  }
+</style>
+<svg>
+  <use id="use_elm" xlink:href="#tmpl" />
+  <g id="g_elm">
+    <text id="tmpl" x="10" y="100">Hello!</text>
+  </g>
+</svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <title>Use property inheritance in SVG2</title>
+  <metadata>
+    <h:link rel="help" href="https://svgwg.org/svg2-draft/struct.html#UseStyleInheritance"/>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/struct/reftests/reference/green-100x100.svg"/>
+    <h:link rel="author" title="Mike Bremford" href="http://bfo.com"/>
+  </metadata>
+  <style>
+  use rect { stroke: red }
+  .container rect { fill: red; stroke: red }
+  rect { stroke-width: 40px; stroke: green }
+  rect:root { opacity: 0 }
+  </style>
+  <defs>
+    <g class="container">
+      <rect id="r" x="20" y="20" width="60" height="60" style="fill-opacity:1"/>
+    </g>
+  </defs>
+  <g>
+    <use href="#r" xlink:href="#r" style="fill: green; fill-opacity:0"/>
+  </g>
+  <!--
+  This presume the SVG2 use inheritance rules, in SVG1 it will display as red.
+
+  1. The "rect" cloned by the "use" element is in a shadow DOM, so it DOES NOT
+     inherit the stroke from the "use rect" or ".container rect" style rules.
+  2. The cloned "rect" DOES get the rules set by the "rect" style rule, as that
+     still matches elements in the shadow DOM.
+  3. The "rect" DOES inherit "fill: green" from the <use>
+  4. The "rect"'s own "fill-opacity: 1" overrides the "fill-opacity: 0" inherited
+     from the "use" element.
+  5. Even though "rect" is considered to have no parent, it is not a root element
+     so does not match the rect:root style rule
+  -->
+</svg>

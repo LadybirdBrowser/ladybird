@@ -182,6 +182,11 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone)
 {
     shadow_root()->remove_all_children();
 
+    // https://svgwg.org/svg2-draft/struct.html#UseStyleInheritance
+    // When the referenced element is from the same document as the ‘use’ element, the same document stylesheets will
+    // apply in both the original document and the shadow tree document fragment.
+    shadow_root()->set_uses_document_style_sheets(to_clone && is_referenced_element_same_document());
+
     if (to_clone && is_valid_reference_element(*to_clone)) {
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
         auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));

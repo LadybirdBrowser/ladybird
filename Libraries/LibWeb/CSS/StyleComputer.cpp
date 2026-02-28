@@ -272,7 +272,8 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             || (element_shadow_root && rule_root == element_shadow_root)
             || from_user_agent_or_user_stylesheet
             || rule_to_run.slotted
-            || rule_to_run.contains_part_pseudo_element;
+            || rule_to_run.contains_part_pseudo_element
+            || (shadow_root && !rule_root && shadow_root->uses_document_style_sheets());
 
         if (!rule_is_relevant_for_current_scope)
             return;
