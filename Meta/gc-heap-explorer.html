@@ -1279,6 +1279,9 @@
         const mainApp = document.getElementById('main-app');
         const fileInput = document.getElementById('file-input');
         const loading = document.getElementById('loading');
+        const classSearchInput = document.getElementById('class-search');
+        const rootSearchInput = document.getElementById('root-search');
+        let currentFilterButton = document.querySelector('.filter-btn.active');
 
         // File handling
         dropZone.addEventListener('dragover', (e) => {
@@ -1386,7 +1389,9 @@
             initGraph();
         }
 
-        function renderClassList(filter = '', sortBy = 'count') {
+        function renderClassList() {
+            const filter = classSearchInput.value;
+            const sortBy = currentFilterButton.dataset.sort;
             const list = document.getElementById('class-list');
             const maxCount = Math.max(...Object.values(classStats).map(s => s.count));
 
@@ -1420,7 +1425,8 @@
             `).join('');
         }
 
-        function renderRootList(filter = '') {
+        function renderRootList() {
+            const filter = rootSearchInput.value;
             const list = document.getElementById('root-list');
 
             // Group roots by type
@@ -1481,31 +1487,22 @@
                 });
             });
 
-            document.getElementById('class-search').addEventListener('input', (e) => {
-                renderClassList(e.target.value, getCurrentSort());
-            });
-
-            document.getElementById('root-search').addEventListener('input', (e) => {
-                renderRootList(e.target.value);
-            });
+            classSearchInput.addEventListener('input', renderClassList);
+            rootSearchInput.addEventListener('input', renderRootList);
 
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    currentFilterButton.classList.remove('active');
                     btn.classList.add('active');
-                    renderClassList(document.getElementById('class-search').value, btn.dataset.sort);
+                    currentFilterButton = btn;
+                    renderClassList();
                 });
             });
         }
 
-        function getCurrentSort() {
-            const active = document.querySelector('.filter-btn.active');
-            return active ? active.dataset.sort : 'count';
-        }
-
         function selectClass(className) {
             selectedClass = className;
-            renderClassList(document.getElementById('class-search').value, getCurrentSort());
+            renderClassList();
             visualizeClass(className);
         }
 
@@ -1983,7 +1980,7 @@
                 // Also select the class to show it in the graph
                 const className = heapData[decimalAddr].class_name;
                 selectedClass = className;
-                renderClassList(document.getElementById('class-search').value, getCurrentSort());
+                renderClassList();
                 visualizeClass(className);
             } else {
                 alert('Address not found in heap dump');
