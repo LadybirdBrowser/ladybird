@@ -658,7 +658,7 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
     } else {
         // Async messages silently ignore send failures (e.g. peer disconnected).
         message_generator.append(R"~~~());
-        (void)m_connection.post_message(move(message_buffer)); )~~~");
+        (void)m_connection.post_message(message_buffer); )~~~");
     }
 
     message_generator.appendln(R"~~~(
