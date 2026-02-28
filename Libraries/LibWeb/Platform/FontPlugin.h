@@ -6,9 +6,11 @@
 
 #pragma once
 
-#include <AK/Forward.h>
+#include <AK/FlyString.h>
+#include <AK/RefPtr.h>
+#include <AK/Vector.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontVariationSettings.h>
-#include <LibGfx/Forward.h>
 #include <LibGfx/ShapeFeature.h>
 #include <LibWeb/Export.h>
 
@@ -29,18 +31,28 @@ enum class GenericFont {
 
 class WEB_API FontPlugin {
 public:
+    FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* = nullptr);
+    ~FontPlugin();
+
     static FontPlugin& the();
     static void install(FontPlugin&);
 
-    virtual ~FontPlugin();
+    RefPtr<Gfx::Font> default_font(float point_size, Optional<Gfx::FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {});
+    Gfx::Font& default_fixed_width_font();
 
-    virtual RefPtr<Gfx::Font> default_font(float point_size, Optional<Gfx::FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) = 0;
-    virtual Gfx::Font& default_fixed_width_font() = 0;
+    FlyString generic_font_name(GenericFont);
+    Vector<FlyString> symbol_font_names();
 
-    virtual FlyString generic_font_name(GenericFont) = 0;
-    virtual Vector<FlyString> symbol_font_names() = 0;
+    bool is_layout_test_mode() const { return m_is_layout_test_mode; }
 
-    virtual bool is_layout_test_mode() const = 0;
+    void update_generic_fonts();
+
+private:
+    Vector<FlyString> m_generic_font_names;
+    Vector<FlyString> m_symbol_font_names;
+    FlyString m_default_font_name;
+    RefPtr<Gfx::Font> m_default_fixed_width_font;
+    bool m_is_layout_test_mode { false };
 };
 
 }

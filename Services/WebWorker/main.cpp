@@ -18,8 +18,8 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Platform/FontPlugin.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/Utilities.h>
 #include <WebWorker/ConnectionFromClient.h>
@@ -91,7 +91,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
-    Web::Platform::FontPlugin::install(*new WebView::FontPlugin(false));
+    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false));
 
     Web::Bindings::initialize_main_thread_vm(worker_type);
 

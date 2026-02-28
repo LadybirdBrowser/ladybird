@@ -1,3 +1,4 @@
+include(fontconfig)
 include(libweb_generators)
 include(vulkan)
 include(skia)
@@ -1214,6 +1215,10 @@ ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 find_package(LibXml2 REQUIRED)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
+
+if (HAS_FONTCONFIG)
+    target_link_libraries(LibWeb PRIVATE Fontconfig::Fontconfig)
+endif()
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)

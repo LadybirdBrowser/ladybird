@@ -23,8 +23,8 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Platform/FontPlugin.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
@@ -62,7 +62,7 @@ ErrorOr<int> service_main(int ipc_socket)
     bool is_test_mode = false;
 
     Web::HTML::Window::set_internals_object_exposed(is_test_mode);
-    Web::Platform::FontPlugin::install(*new WebView::FontPlugin(is_test_mode));
+    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(is_test_mode));
 
     // Currently site isolation doesn't work on Android since everything is running
     // in the same process. It would require an entire redesign of this port
