@@ -245,9 +245,8 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
         warnln("Uncaught exception: ");
         TRY(print(thrown_value, PrintTarget::StandardError));
 
-        if (!thrown_value.is_object() || !is<JS::Error>(thrown_value.as_object()))
-            return {};
-        warnln("{}", static_cast<JS::Error const&>(thrown_value.as_object()).stack_string(JS::CompactTraceback::Yes));
+        if (auto error = thrown_value.template as_if<JS::Error>())
+            warnln("{}", error->stack_string(JS::CompactTraceback::Yes));
         return {};
     };
 
@@ -782,12 +781,10 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
             auto variable = value_or_error.value();
             VERIFY(!variable.is_special_empty_value());
 
-            if (!variable.is_object())
-                break;
-
-            auto const object = MUST(variable.to_object(*g_vm));
-            auto const& shape = object->shape();
-            list_all_properties(shape, property_name);
+            if (auto object = variable.template as_if<JS::Object>()) {
+                auto const& shape = object->shape();
+                list_all_properties(shape, property_name);
+            }
             break;
         }
         case CompleteVariable: {
