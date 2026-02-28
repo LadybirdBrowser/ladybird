@@ -47,7 +47,18 @@ CSSPixelSize run_default_sizing_algorithm(
     // 1. If the object has a natural height or width, its size is resolved as if its natural dimensions were given as the specified size.
     if (natural.has_width() || natural.has_height())
         return run_default_sizing_algorithm(natural.width, natural.height, natural, default_size);
-    // FIXME: 2. Otherwise, its size is resolved as a contain constraint against the default object size.
+
+    // 2. Otherwise, its size is resolved as a contain constraint against the default object size.
+    if (natural.has_aspect_ratio() && !natural.aspect_ratio->might_be_saturated()) {
+        auto aspect_ratio = natural.aspect_ratio.value();
+        if (default_size.is_empty())
+            return default_size;
+        auto default_width = default_size.width().to_double();
+        auto default_height = default_size.height().to_double();
+        if (aspect_ratio.to_double() >= default_width / default_height)
+            return CSSPixelSize { default_size.width(), CSSPixels::nearest_value_for(default_width / aspect_ratio.to_double()) };
+        return CSSPixelSize { CSSPixels::nearest_value_for(default_height * aspect_ratio.to_double()), default_size.height() };
+    }
     return default_size;
 }
 

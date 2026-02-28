@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-size-auto-svg-no-intrinsic-size-ref.html">
+<style>
+div {
+    width: 100px;
+    height: 50px;
+    background: url(../data/50x50-green.svg) no-repeat;
+}
+</style>
+<div></div>
+<!-- FIXME: Workaround to ensure CSS background-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
+<img style="display: none" src="../data/50x50-green.svg">
