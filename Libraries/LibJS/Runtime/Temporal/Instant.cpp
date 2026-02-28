@@ -92,14 +92,12 @@ ThrowCompletionOr<GC::Ref<Instant>> create_temporal_instant(VM& vm, BigInt const
 ThrowCompletionOr<GC::Ref<Instant>> to_temporal_instant(VM& vm, Value item)
 {
     // 1. If item is an Object, then
-    if (item.is_object()) {
-        auto const& object = item.as_object();
-
+    if (auto object = item.as_if<Object>()) {
         // a. If item has an [[InitializedTemporalInstant]] or [[InitializedTemporalZonedDateTime]] internal slot, then
         //     i. Return ! CreateTemporalInstant(item.[[EpochNanoseconds]]).
-        if (auto const* instant = as_if<Instant>(object))
+        if (auto const* instant = as_if<Instant>(*object))
             return MUST(create_temporal_instant(vm, instant->epoch_nanoseconds()));
-        if (auto const* zoned_date_time = as_if<ZonedDateTime>(object))
+        if (auto const* zoned_date_time = as_if<ZonedDateTime>(*object))
             return MUST(create_temporal_instant(vm, zoned_date_time->epoch_nanoseconds()));
 
         // b. NOTE: This use of ToPrimitive allows Instant-like objects to be converted.

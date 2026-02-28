@@ -72,11 +72,9 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
     // 1. If options is not present, set options to undefined.
 
     // 2. If item is an Object, then
-    if (item.is_object()) {
-        auto const& object = item.as_object();
-
+    if (auto object = item.as_if<Object>()) {
         // a. If item has an [[InitializedTemporalDate]] internal slot, then
-        if (auto const* plain_date = as_if<PlainDate>(object)) {
+        if (auto const* plain_date = as_if<PlainDate>(*object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -88,7 +86,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
         }
 
         // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        if (auto const* zoned_date_time = as_if<ZonedDateTime>(object)) {
+        if (auto const* zoned_date_time = as_if<ZonedDateTime>(*object)) {
             // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
             auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
 
@@ -103,7 +101,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
         }
 
         // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
-        if (auto const* plain_date_time = as_if<PlainDateTime>(object)) {
+        if (auto const* plain_date_time = as_if<PlainDateTime>(*object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -115,10 +113,10 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
         }
 
         // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
-        auto calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));
+        auto calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, *object));
 
         // e. Let fields be ? PrepareCalendarFields(calendar, item, « YEAR, MONTH, MONTH-CODE, DAY », «», «»).
-        auto fields = TRY(prepare_calendar_fields(vm, calendar, object, { { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day } }, {}, CalendarFieldList {}));
+        auto fields = TRY(prepare_calendar_fields(vm, calendar, *object, { { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day } }, {}, CalendarFieldList {}));
 
         // f. Let resolvedOptions be ? GetOptionsObject(options).
         auto resolved_options = TRY(get_options_object(vm, options));

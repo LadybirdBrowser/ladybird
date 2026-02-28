@@ -208,11 +208,9 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
         }
     }
     // 4. Otherwise, if `tabularDataItem` is a map, then:
-    else if (tabular_data_item.is_object()) {
-        auto& object = tabular_data_item.as_object();
-
+    else if (auto object = tabular_data_item.as_if<Object>()) {
         // 4.1. For each `key` -> `value` of `tabularDataItem`
-        object.enumerate_object_properties([&](Value key_v) -> Optional<Completion> {
+        object->enumerate_object_properties([&](Value key_v) -> Optional<Completion> {
             auto key = TRY(PropertyKey::from_value(vm, key_v));
 
             // 4.1.1. If `properties` is not empty and `properties` does not contain `key`, continue
@@ -221,7 +219,7 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
             }
 
             // 4.1.2. Set `row[key]` to `value`
-            TRY(row->set(key, TRY(object.get(key)), Object::ShouldThrowExceptions::No));
+            TRY(row->set(key, TRY(object->get(key)), Object::ShouldThrowExceptions::No));
 
             // 4.1.3. If `finalColumns` does not contain `key`, append `key` to `finalColumns`
             add_column(key);
@@ -297,13 +295,11 @@ ThrowCompletionOr<Value> Console::table()
 
         }
         // 4. Otherwise, if `tabularData` is a map, then:
-        else if (tabular_data.is_object()) {
-            auto& object = tabular_data.as_object();
-
+        else if (auto object = tabular_data.as_if<Object>()) {
             // 4.1. For each `key` -> `value` of `tabularData`
-            object.enumerate_object_properties([&](Value key) -> Optional<Completion> {
+            object->enumerate_object_properties([&](Value key) -> Optional<Completion> {
                 auto index = TRY(PropertyKey::from_value(vm, key));
-                auto value = TRY(object.get(index));
+                auto value = TRY(object->get(index));
 
                 // 4.1.1. Perform create table row with `key`, `value`, `finalColumns`, and `properties` that returns `row`
                 auto row = TRY(create_table_row(realm(), key, value, final_columns, visited_columns, properties));

@@ -147,11 +147,9 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
     Variant<ParsedISODateTime::StartOfDay, Time> time { Time {} };
 
     // 4. If item is an Object, then
-    if (item.is_object()) {
-        auto const& object = item.as_object();
-
+    if (auto object = item.as_if<Object>()) {
         // a. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        if (auto const* zoned_date_time = as_if<ZonedDateTime>(object)) {
+        if (auto const* zoned_date_time = as_if<ZonedDateTime>(*object)) {
             // i. NOTE: The following steps, and similar ones below, read options and perform independent validation in
             //    alphabetical order (GetTemporalDisambiguationOption reads "disambiguation", GetTemporalOffsetOption
             //    reads "offset", and GetTemporalOverflowOption reads "overflow").
@@ -173,13 +171,13 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         }
 
         // b. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
-        calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));
+        calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, *object));
 
         // c. Let fields be ? PrepareCalendarFields(calendar, item, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET, TIME-ZONE », « TIME-ZONE »).
         static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
         static constexpr auto non_calendar_field_names = to_array({ CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond, CalendarField::Offset, CalendarField::TimeZone });
         static constexpr auto required_field_names = to_array({ CalendarField::TimeZone });
-        auto fields = TRY(prepare_calendar_fields(vm, calendar, object, calendar_field_names, non_calendar_field_names, required_field_names.span()));
+        auto fields = TRY(prepare_calendar_fields(vm, calendar, *object, calendar_field_names, non_calendar_field_names, required_field_names.span()));
 
         // d. Let timeZone be fields.[[TimeZone]].
         time_zone = fields.time_zone.release_value();

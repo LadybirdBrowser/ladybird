@@ -402,9 +402,9 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_zoned_date_time)
     Value temporal_time;
 
     // 3. If item is an Object, then
-    if (item.is_object()) {
+    if (auto object = item.as_if<Object>()) {
         // a. Let timeZoneLike be ? Get(item, "timeZone").
-        auto time_zone_like = TRY(item.as_object().get(vm.names.timeZone));
+        auto time_zone_like = TRY(object->get(vm.names.timeZone));
 
         // b. If timeZoneLike is undefined, then
         if (time_zone_like.is_undefined()) {
@@ -420,7 +420,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_zoned_date_time)
             time_zone = TRY(to_temporal_time_zone_identifier(vm, time_zone_like));
 
             // ii. Let temporalTime be ? Get(item, "plainTime").
-            temporal_time = TRY(item.as_object().get(vm.names.plainTime));
+            temporal_time = TRY(object->get(vm.names.plainTime));
         }
     }
     // 4. Else,

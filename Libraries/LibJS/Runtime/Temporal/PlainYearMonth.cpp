@@ -35,11 +35,9 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
     // 1. If options is not present, set options to undefined.
 
     // 2. If item is an Object, then
-    if (item.is_object()) {
-        auto const& object = item.as_object();
-
+    if (auto object = item.as_if<Object>()) {
         // a. If item has an [[InitializedTemporalYearMonth]] internal slot, then
-        if (auto const* plain_year_month = as_if<PlainYearMonth>(object)) {
+        if (auto const* plain_year_month = as_if<PlainYearMonth>(*object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -51,10 +49,10 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
         }
 
         // b. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
-        auto calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));
+        auto calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, *object));
 
         // c. Let fields be ? PrepareCalendarFields(calendar, item, « YEAR, MONTH, MONTH-CODE », «», «»).
-        auto fields = TRY(prepare_calendar_fields(vm, calendar, object, { { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode } }, {}, CalendarFieldList {}));
+        auto fields = TRY(prepare_calendar_fields(vm, calendar, *object, { { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode } }, {}, CalendarFieldList {}));
 
         // d. Let resolvedOptions be ? GetOptionsObject(options).
         auto resolved_options = TRY(get_options_object(vm, options));

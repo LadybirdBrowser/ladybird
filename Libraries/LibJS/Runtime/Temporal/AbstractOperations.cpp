@@ -483,23 +483,21 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     Variant<ParsedISODateTime::StartOfDay, Time> time { Time {} };
 
     // 5. If value is an Object, then
-    if (value.is_object()) {
-        auto& object = value.as_object();
-
+    if (auto object = value.as_if<Object>()) {
         // a. If value has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        if (auto* zoned_date_time = as_if<ZonedDateTime>(object)) {
+        if (auto* zoned_date_time = as_if<ZonedDateTime>(*object)) {
             // i. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: value }.
             return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = zoned_date_time };
         }
 
         // b. If value has an [[InitializedTemporalDate]] internal slot, then
-        if (auto* plain_date = as_if<PlainDate>(object)) {
+        if (auto* plain_date = as_if<PlainDate>(*object)) {
             // i. Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]: undefined }.
             return RelativeTo { .plain_relative_to = plain_date, .zoned_relative_to = {} };
         }
 
         // c. If value has an [[InitializedTemporalDateTime]] internal slot, then
-        if (auto const* plain_date_time = as_if<PlainDateTime>(object)) {
+        if (auto const* plain_date_time = as_if<PlainDateTime>(*object)) {
             // i. Let plainDate be ! CreateTemporalDate(value.[[ISODateTime]].[[ISODate]], value.[[Calendar]]).
             auto plain_date = MUST(create_temporal_date(vm, plain_date_time->iso_date_time().iso_date, plain_date_time->calendar()));
 
@@ -508,12 +506,12 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
         }
 
         // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
-        calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));
+        calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, *object));
 
         // e. Let fields be ? PrepareCalendarFields(calendar, value, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET, TIME-ZONE », «»).
         static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
         static constexpr auto non_calendar_field_names = to_array({ CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond, CalendarField::Offset, CalendarField::TimeZone });
-        auto fields = TRY(prepare_calendar_fields(vm, calendar, object, calendar_field_names, non_calendar_field_names, CalendarFieldList {}));
+        auto fields = TRY(prepare_calendar_fields(vm, calendar, *object, calendar_field_names, non_calendar_field_names, CalendarFieldList {}));
 
         // f. Let result be ? InterpretTemporalDateTimeFields(calendar, fields, CONSTRAIN).
         auto result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, Overflow::Constrain));

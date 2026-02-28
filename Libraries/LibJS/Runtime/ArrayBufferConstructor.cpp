@@ -80,14 +80,14 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferConstructor::is_view)
     auto arg = vm.argument(0);
 
     // 1. If arg is not an Object, return false.
-    if (!arg.is_object())
+    auto object = arg.as_if<Object>();
+    if (!object)
         return false;
-    auto const& object = arg.as_object();
 
     // 2. If arg has a [[ViewedArrayBuffer]] internal slot, return true.
-    if (object.is_typed_array())
+    if (object->is_typed_array())
         return true;
-    if (is<DataView>(object))
+    if (is<DataView>(*object))
         return true;
 
     // 3. Return false.

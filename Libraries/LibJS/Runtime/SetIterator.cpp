@@ -34,13 +34,9 @@ void SetIterator::visit_edges(Cell::Visitor& visitor)
 
 BuiltinIterator* SetIterator::as_builtin_iterator_if_next_is_not_redefined(Value next_method)
 {
-    if (next_method.is_object()) {
-        auto const& next_function = next_method.as_object();
-        if (next_function.is_native_function()) {
-            auto const& native_function = static_cast<NativeFunction const&>(next_function);
-            if (native_function.is_set_prototype_next_builtin())
-                return this;
-        }
+    if (auto native_function = next_method.as_if<NativeFunction>()) {
+        if (native_function->is_set_prototype_next_builtin())
+            return this;
     }
     return nullptr;
 }

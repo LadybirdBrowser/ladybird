@@ -100,11 +100,9 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
     Time time;
 
     // 2. If item is an Object, then
-    if (item.is_object()) {
-        auto const& object = item.as_object();
-
+    if (auto object = item.as_if<Object>()) {
         // a. If item has an [[InitializedTemporalTime]] internal slot, then
-        if (auto const* plain_time = as_if<PlainTime>(object)) {
+        if (auto const* plain_time = as_if<PlainTime>(*object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -116,7 +114,7 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
         }
 
         // b. If item has an [[InitializedTemporalDateTime]] internal slot, then
-        if (auto const* plain_date_time = as_if<PlainDateTime>(object)) {
+        if (auto const* plain_date_time = as_if<PlainDateTime>(*object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -128,7 +126,7 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
         }
 
         // c. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        if (auto const* zoned_date_time = as_if<ZonedDateTime>(object)) {
+        if (auto const* zoned_date_time = as_if<ZonedDateTime>(*object)) {
             // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
             auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
 
@@ -143,7 +141,7 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
         }
 
         // d. Let result be ? ToTemporalTimeRecord(item).
-        auto result = TRY(to_temporal_time_record(vm, object));
+        auto result = TRY(to_temporal_time_record(vm, *object));
 
         // e. Let resolvedOptions be ? GetOptionsObject(options).
         auto resolved_options = TRY(get_options_object(vm, options));
