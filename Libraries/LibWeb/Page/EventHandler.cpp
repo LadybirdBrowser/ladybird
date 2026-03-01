@@ -1293,6 +1293,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
         return EventResult::Accepted;
+    if (!document->is_fully_active())
+        return EventResult::Accepted;
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
     if (!paint_root())
         return EventResult::Accepted;
@@ -1553,7 +1555,10 @@ EventResult EventHandler::focus_previous_element()
 
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
 {
-    auto exact_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
+    auto root = paint_root();
+    if (!root)
+        return {};
+    auto exact_hit = root->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
     if (!exact_hit.has_value())
         return {};
 

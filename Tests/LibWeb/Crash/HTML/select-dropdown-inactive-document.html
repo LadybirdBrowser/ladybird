@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Regression test for https://github.com/LadybirdBrowser/ladybird/issues/8190 -->
+<!-- Ensure computed_values() does not crash when document becomes inactive during input event processing. -->
+<body>
+<iframe id="f"></iframe>
+<script>
+  const f = document.getElementById("f");
+  f.srcdoc = `
+    <select id="s">
+      <option>A</option><option>B</option>
+    </select>
+    <script>
+      const s = document.getElementById("s");
+      // Try to open the dropdown (not guaranteed, but gets close to real input timing)
+      s.focus();
+      s.click();
+      // Then mark document inactive by removal
+      setTimeout(() => parent.document.body.removeChild(parent.document.getElementById("f")), 0);
+    <\/script>
+  `;
+</script>
+</body>
