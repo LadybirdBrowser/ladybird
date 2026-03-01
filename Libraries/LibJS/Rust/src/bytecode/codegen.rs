@@ -4314,6 +4314,14 @@ fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &Scop
         }
         let local_index = ident.local_index.get();
         let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
+        // Match C++ emit_set_variable: skip self-move entirely (no TDZ check needed
+        // either, since the value was already read with a TDZ check at the use site).
+        let is_variable_self_move = ident.local_type.get() == Some(LocalType::Variable)
+            && value.operand().is_local()
+            && value.operand().index() == local_index;
+        if is_variable_self_move {
+            return;
+        }
         // TDZ check: throw ReferenceError if assigning to an uninitialized let/const binding.
         // For arguments, check argument initialization tracking.
         // For variables, check is_lexically_declared && !is_initialized.
@@ -4328,17 +4336,10 @@ fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &Scop
                 src: local.operand(),
             });
         }
-        // Match C++ emit_set_variable: only skip self-move for variable locals,
-        // not for arguments.
-        let is_variable_self_move = ident.local_type.get() == Some(LocalType::Variable)
-            && value.operand().is_local()
-            && value.operand().index() == local_index;
-        if !is_variable_self_move {
-            generator.emit(Instruction::Mov {
-                dst: local.operand(),
-                src: value.operand(),
-            });
-        }
+        generator.emit(Instruction::Mov {
+            dst: local.operand(),
+            src: value.operand(),
+        });
     } else if ident.is_global.get() {
         let id = generator.intern_identifier(&ident.name);
         let cache = generator.next_global_variable_cache();
