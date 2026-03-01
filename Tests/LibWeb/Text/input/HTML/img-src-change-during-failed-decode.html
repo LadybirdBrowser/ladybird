@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Test that changing img.src to a valid image while a previous invalid src is still
+    // being decoded works correctly. The stale failure callback from the first (invalid)
+    // src must not corrupt the state of the second (valid) image request.
+    asyncTest((done) => {
+        let img = document.createElement("img");
+        document.body.appendChild(img);
+
+        // Set src to data that will fail to decode (not valid image data).
+        img.src = "data:image/png;base64,dGhpcyBpcyBub3QgYW4gaW1hZ2U=";
+
+        // After a task boundary, the microtask for the first src will have run and
+        // started the decode via ImageDecoder. Change src to a valid 1x1 red PNG.
+        setTimeout(() => {
+            img.onload = () => {
+                println(`naturalWidth: ${img.naturalWidth}`);
+                println(`naturalHeight: ${img.naturalHeight}`);
+                done();
+            };
+            img.onerror = () => {
+                println("FAIL: error event fired for valid image");
+                done();
+            };
+            img.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==";
+        }, 0);
+    });
+</script>

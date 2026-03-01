@@ -1,0 +1,2 @@
+naturalWidth: 1
+naturalHeight: 1
