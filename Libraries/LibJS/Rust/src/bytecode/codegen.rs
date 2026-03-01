@@ -4997,6 +4997,9 @@ fn generate_switch_statement(
     // Block declaration instantiation: create lexical environment for
     // function declarations and let/const across all switch cases.
     let did_create_env = emit_switch_block_declaration_instantiation(generator, data);
+    if did_create_env {
+        generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
+    }
 
     // Create first test block and jump to it (matching C++ structure).
     let first_test_block = generator.make_block();
@@ -5115,6 +5118,7 @@ fn generate_switch_statement(
     generator.switch_to_basic_block(end_block);
 
     if did_create_env {
+        generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
         generator.lexical_environment_register_stack.pop();
         if !generator.is_current_block_terminated() {
             let parent = generator.current_lexical_environment();
