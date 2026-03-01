@@ -158,14 +158,6 @@ function (generate_css_implementation)
         NAMESPACE "Web::CSS"
     )
 
-    embed_as_string(
-        "MediaControlsStyleSheetSource.cpp"
-        "${LIBWEB_INPUT_FOLDER}/HTML/MediaControls.css"
-        "CSS/MediaControlsStyleSheetSource.cpp"
-        "media_controls_stylesheet_source"
-        NAMESPACE "Web::CSS"
-    )
-
     set(CSS_GENERATED_HEADERS
        "CSS/Enums.h"
        "CSS/EnvironmentVariable.h"
@@ -206,8 +198,29 @@ function (generate_html_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/HTML/Parser/Entities.json"
     )
 
+    invoke_py_generator(
+        "MediaControlsDOM.cpp"
+        "generate-dom-tree.py"
+        "${LIBWEB_INPUT_FOLDER}/HTML/MediaControls.html"
+        "HTML/MediaControlsDOM.h"
+        "HTML/MediaControlsDOM.cpp"
+        arguments -i "${LIBWEB_INPUT_FOLDER}/HTML/MediaControls.html"
+                  -s MediaControlsDOM
+                  -n "Web::HTML"
+                  --html-tags "${LIBWEB_INPUT_FOLDER}/HTML/TagNames.h"
+                  --html-attributes "${LIBWEB_INPUT_FOLDER}/HTML/AttributeNames.h"
+                  --svg-tags "${LIBWEB_INPUT_FOLDER}/SVG/TagNames.h"
+                  --svg-attributes "${LIBWEB_INPUT_FOLDER}/SVG/AttributeNames.h"
+        dependencies "${LIBWEB_INPUT_FOLDER}/HTML/TagNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/HTML/AttributeNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/SVG/TagNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/SVG/AttributeNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/HTML/MediaControls.css"
+    )
+
     set(HTML_GENERATED_HEADERS
        "HTML/Parser/NamedCharacterReferences.h"
+       "HTML/MediaControlsDOM.h"
     )
     list(TRANSFORM HTML_GENERATED_HEADERS PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
     if (ENABLE_INSTALL_HEADERS)
