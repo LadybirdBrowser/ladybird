@@ -1,0 +1,36 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:A, is_immutable:true, is_global:false, is_strict:false
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("m")]
+[  58]       InitializeLexicalBinding identifier:A, src:reg6
+[  70]       Jump target:@b0
+[  78]    1: Catch dst:reg5
+[  80]       SetLexicalEnvironment environment:reg4
+[  88]       Mov dst:reg6, src:Undefined
+[  98]       Mov dst:reg7, src:reg6
+[  a8]    2: End value:reg6
+[  b0]    3: Mov dst:reg5, src:Undefined
+[  c0]       GetGlobal dst:reg9, identifier:A
+[  d0]       CallConstruct dst:reg8, callee:reg9, A
+[  e8]       GetById dst:reg9, base:reg8, property:m
+[ 100]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
+[ 128]       Mov dst:reg5, src:reg6
+[ 138]       Mov dst:reg6, src:reg5
+[ 148]       End value:reg6
+
+Exception handlers:
+    from   b0 to  150 handler   78
+
+JS bytecode executable "A"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "m"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ResolveThisBinding
+[  10]       ResolveSuperBase dst:reg5
+[  18]       NewReferenceError dst:reg6, Can't delete a property on 'super'
+[  28]       Throw src:reg6
+[  30]    1: End value:Undefined

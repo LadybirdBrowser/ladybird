@@ -4378,14 +4378,17 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
             // Deleting a super property is always a ReferenceError.
             if matches!(object.inner, ExpressionKind::Super) {
                 let this_value = emit_resolve_this_binding(generator);
+                // Evaluate computed property for side effects before throwing.
+                // Per spec, property key evaluation precedes ResolveSuperBase.
+                let _computed_key = if *computed {
+                    Some(generate_expression_or_undefined(property, generator, None))
+                } else {
+                    None
+                };
                 let super_base = generator.allocate_register();
                 generator.emit(Instruction::ResolveSuperBase {
                     dst: super_base.operand(),
                 });
-                // Evaluate computed property for side effects before throwing.
-                if *computed {
-                    generate_expression_or_undefined(property, generator, None);
-                }
                 let exception = generator.allocate_register();
                 let error_string =
                     generator.intern_string(utf16!("Can't delete a property on 'super'"));
@@ -4399,7 +4402,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                 });
                 let dead_block = generator.make_block();
                 generator.switch_to_basic_block(dead_block);
-                let _ = this_value;
+                let _ = (this_value, _computed_key);
                 return generator.add_constant_undefined();
             }
             let base = generate_expression_or_undefined(object, generator, None);
