@@ -72,6 +72,8 @@ String MediaFeature::to_string() const
         VERIFY_NOT_REACHED();
     };
 
+    // NB: Even though we parse the parentheses as part of <media-in-parens> rather than <media-feature>, we serialize
+    //     them as part of <media-feature> to avoid having to create a whole MediaInParens class just for serialization.
     switch (m_type) {
     case Type::IsTrue:
         return MUST(String::formatted("({})", string_from_media_feature_id(m_id)));

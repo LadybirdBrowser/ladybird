@@ -146,23 +146,33 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
 // `<media-condition>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition
 OwnPtr<BooleanExpression> Parser::parse_media_condition(TokenStream<ComponentValue>& tokens)
 {
-    return parse_boolean_expression(tokens, MatchResult::Unknown, [this](TokenStream<ComponentValue>& tokens) -> OwnPtr<BooleanExpression> {
-        return parse_media_feature(tokens);
+    return parse_boolean_expression(tokens, MatchResult::Unknown, [this](TokenStream<ComponentValue>& outer_tokens) -> OwnPtr<BooleanExpression> {
+        auto transaction = outer_tokens.begin_transaction();
+
+        outer_tokens.discard_whitespace();
+
+        if (!(outer_tokens.next_token().is_block() && outer_tokens.next_token().block().is_paren()))
+            return nullptr;
+
+        auto const& block = outer_tokens.consume_a_token().block();
+
+        TokenStream inner_tokens { block.value };
+
+        if (auto maybe_media_feature = parse_media_feature(inner_tokens)) {
+            transaction.commit();
+            return maybe_media_feature;
+        }
+
+        return nullptr;
     });
 }
 
 // `<media-feature>`, https://drafts.csswg.org/mediaqueries-5/#typedef-media-feature
-OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& outer_tokens)
+OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& inner_tokens)
 {
+    // AD-HOC: We have already parsed the parentheses before this point. https://github.com/w3c/csswg-drafts/pull/13575
     // `<media-feature> = ( [ <mf-plain> | <mf-boolean> | <mf-range> ] )`
-    outer_tokens.discard_whitespace();
-
-    if (!(outer_tokens.next_token().is_block() && outer_tokens.next_token().block().is_paren()))
-        return nullptr;
-
-    auto transaction = outer_tokens.begin_transaction();
-    auto& block = outer_tokens.consume_a_token().block();
-    TokenStream inner_tokens { block.value };
+    auto transaction = inner_tokens.begin_transaction();
 
     // `<mf-name> = <ident>`
     struct MediaFeatureName {
