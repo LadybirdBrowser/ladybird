@@ -6605,20 +6605,21 @@ fn generate_for_of_statement_inner(
     preferred_dst: Option<&ScopedOperand>,
     is_await: bool,
 ) -> Option<ScopedOperand> {
+    // Match C++ block creation order: create end_block and update_block before
+    // evaluating the RHS expression. This ensures loop blocks get lower block
+    // numbers than any blocks created during RHS evaluation (e.g. conditional
+    // expressions), matching the C++ pipeline's block layout.
+    let end_block = generator.make_block();
+    let update_block = generator.make_block();
+
     // Create TDZ for lexical declarations before evaluating the RHS expression.
     let entered_tdz = enter_for_in_of_head_tdz(generator, lhs);
     let object = generate_expression_or_undefined(rhs, generator, None);
     if entered_tdz {
         leave_for_in_of_head_tdz(generator);
     }
-    let end_block = generator.make_block();
     let needs_lexical_env = for_in_of_needs_lexical_env(lhs);
     let old_handler = generator.current_unwind_handler;
-
-    // NB: Create update_block before exception blocks to match C++ block ordering
-    // (C++ creates loop_end and loop_update in ForOfStatement, then exception blocks
-    // in for_in_of_body_evaluation).
-    let update_block = generator.make_block();
 
     // Get iterator
     let iterator_object = generator.allocate_register();
