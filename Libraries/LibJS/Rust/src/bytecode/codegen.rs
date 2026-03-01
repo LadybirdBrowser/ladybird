@@ -7914,6 +7914,7 @@ pub fn emit_function_declaration_instantiation(
     generator: &mut Generator,
     function_data: &FunctionData,
     body_scope: &ScopeData,
+    var_environment_bindings_count: usize,
 ) {
     let strict = function_data.is_strict_mode || generator.strict;
     let is_arrow = function_data.is_arrow_function;
@@ -8166,7 +8167,7 @@ pub fn emit_function_declaration_instantiation(
 
             if has_non_local_vars {
                 generator.emit(Instruction::CreateVariableEnvironment {
-                    capacity: u32_from_usize(fsd.non_local_var_count_for_parameter_expressions),
+                    capacity: u32_from_usize(var_environment_bindings_count),
                 });
                 // After CreateVariableEnvironment, re-read the lexical environment
                 // (which was also updated) and push it onto the register stack.
