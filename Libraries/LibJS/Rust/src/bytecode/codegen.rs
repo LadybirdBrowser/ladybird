@@ -6747,6 +6747,9 @@ fn generate_for_of_statement_inner(
 
     // Body
     generator.begin_continuable_scope(update_block, labels, completion.clone());
+    if needs_lexical_env {
+        generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
+    }
 
     if !generator.is_current_block_terminated() {
         generate_with_completion(body, generator, &completion, preferred_dst);
@@ -6754,6 +6757,7 @@ fn generate_for_of_statement_inner(
 
     // Restore lexical env before continuing
     if needs_lexical_env {
+        generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
         generator.lexical_environment_register_stack.pop();
     }
     generator.end_continuable_scope();
