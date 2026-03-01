@@ -857,14 +857,7 @@ Generator::ReferenceOperands Generator::emit_load_from_reference(JS::ASTNode con
         emit<Bytecode::Op::NewReferenceError>(exception, intern_string(ErrorType::InvalidLeftHandAssignment.message()));
         perform_needed_unwinds<Op::Throw>();
         emit<Bytecode::Op::Throw>(exception);
-        switch_to_basic_block(make_block());
-        auto dummy = add_constant(js_undefined());
-        return ReferenceOperands {
-            .base = dummy,
-            .referenced_name = dummy,
-            .this_value = dummy,
-            .loaded_value = dummy,
-        };
+        return ReferenceOperands {};
     }
     auto& expression = static_cast<MemberExpression const&>(node);
 
@@ -1020,7 +1013,6 @@ void Generator::emit_store_to_reference(JS::ASTNode const& node, ScopedOperand v
     emit<Bytecode::Op::NewReferenceError>(exception, intern_string(ErrorType::InvalidLeftHandAssignment.message()));
     perform_needed_unwinds<Op::Throw>();
     emit<Bytecode::Op::Throw>(exception);
-    switch_to_basic_block(make_block());
 }
 
 void Generator::emit_store_to_reference(ReferenceOperands const& reference, ScopedOperand value)
@@ -1067,8 +1059,8 @@ Optional<ScopedOperand> Generator::emit_delete_reference(JS::ASTNode const& node
             perform_needed_unwinds<Op::Throw>();
             emit<Bytecode::Op::Throw>(exception);
 
-            // Switch to a new block so callers can continue emitting code
-            // (which will be unreachable, but avoids a terminated-block VERIFY).
+            // Keep a dead block so callers can continue emitting code.
+            // delete always produces a value, so callers call .value() on our result.
             switch_to_basic_block(make_block());
             return add_constant(js_undefined());
         }

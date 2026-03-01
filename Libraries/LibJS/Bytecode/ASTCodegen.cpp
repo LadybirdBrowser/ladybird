@@ -702,8 +702,7 @@ Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Genera
                     generator.emit<Bytecode::Op::NewReferenceError>(exception, generator.intern_string(ErrorType::InvalidLeftHandAssignment.message()));
                     generator.perform_needed_unwinds<Bytecode::Op::Throw>();
                     generator.emit<Bytecode::Op::Throw>(exception);
-                    generator.switch_to_basic_block(generator.make_block());
-                    return generator.add_constant(js_undefined());
+                    return {};
                 }
 
                 // c. If IsAnonymousFunctionDefinition(AssignmentExpression) and IsIdentifierRef of LeftHandSideExpression are both true, then
@@ -771,6 +770,10 @@ Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Genera
     auto& lhs_expression = m_lhs.get<NonnullRefPtr<Expression const>>();
 
     auto reference_operands = generator.emit_load_from_reference(lhs_expression);
+
+    if (!reference_operands.loaded_value.has_value())
+        return {};
+
     auto lhs = reference_operands.loaded_value.value();
 
     Bytecode::BasicBlock* rhs_block_ptr { nullptr };
@@ -2784,6 +2787,9 @@ Optional<ScopedOperand> UpdateExpression::generate_bytecode(Bytecode::Generator&
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto reference = generator.emit_load_from_reference(*m_argument);
 
+    if (!reference.loaded_value.has_value())
+        return {};
+
     Optional<ScopedOperand> previous_value_for_postfix;
 
     if (m_op == UpdateOp::Increment) {
@@ -3994,7 +4000,7 @@ static Optional<ScopedOperand> for_in_of_body_evaluation(Bytecode::Generator& ge
     //     by the synthetic FinallyContext set up above (for iterate/async-iterate).
 
     // l. Let result be the result of evaluating stmt.
-    {
+    if (!generator.is_current_block_terminated()) {
         Optional<Bytecode::Generator::CompletionRegisterScope> completion_scope;
         if (completion.has_value())
             completion_scope.emplace(generator, *completion);

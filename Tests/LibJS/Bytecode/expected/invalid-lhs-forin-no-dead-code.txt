@@ -1,0 +1,15 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewArray dst:reg5
+[  18]       JumpNullish condition:reg5, true_target:@58, false_target:@60
+[  28]    1: End value:reg5
+[  30]    2: IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+[  48]       JumpIf condition:reg10, true_target:@28, false_target:@90
+[  58]    3: End value:reg5
+[  60]    4: GetObjectPropertyIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, object:reg5
+[  78]       Mov dst:reg5, src:Undefined
+[  88]       Jump target:@30
+[  90]    5: GetGlobal dst:reg12, identifier:f
+[  a0]       Call dst:reg11, callee:reg12, this_value:Undefined, f
+[  c0]       NewReferenceError dst:reg11, Invalid left-hand side in assignment
+[  d0]       Throw src:reg11
