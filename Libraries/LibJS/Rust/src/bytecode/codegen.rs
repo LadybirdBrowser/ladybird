@@ -824,6 +824,7 @@ fn generate_yield_expression(
     generator.emit_jump_if(&type_is_throw, throw_value_block, return_value_block);
 
     generator.switch_to_basic_block(throw_value_block);
+    generator.perform_needed_unwinds();
     generator.emit(Instruction::Throw {
         src: received_completion_value.operand(),
     });
@@ -1256,6 +1257,7 @@ fn generate_await_with_completions(
     generator.emit_jump_if(&is_normal, normal_block, throw_block);
 
     generator.switch_to_basic_block(throw_block);
+    generator.perform_needed_unwinds();
     generator.emit(Instruction::Throw {
         src: received_completion_value.operand(),
     });
@@ -1580,6 +1582,7 @@ fn generate_yield_from(
         dst: exception.operand(),
         error_string,
     });
+    generator.perform_needed_unwinds();
     generator.emit(Instruction::Throw {
         src: exception.operand(),
     });
@@ -4041,6 +4044,7 @@ fn emit_invalid_lhs_error(generator: &mut Generator) {
         dst: exception.operand(),
         error_string,
     });
+    generator.perform_needed_unwinds();
     generator.emit(Instruction::Throw {
         src: exception.operand(),
     });
