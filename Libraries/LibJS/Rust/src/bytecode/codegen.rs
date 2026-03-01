@@ -6635,6 +6635,7 @@ fn generate_for_of_statement_inner(
         registered_jumps: Vec::new(),
         next_jump_index: FinallyContext::FIRST_JUMP_INDEX,
         lexical_environment_at_entry: lexical_env_at_entry.clone(),
+        saved_unwind_handler: None,
     });
 
     // Break scope wraps the ReturnToFinally so break hits ReturnToFinally first.
@@ -7487,6 +7488,7 @@ fn generate_try_statement(
             registered_jumps: Vec::new(),
             next_jump_index: FinallyContext::FIRST_JUMP_INDEX,
             lexical_environment_at_entry: Some(saved_env.clone()),
+            saved_unwind_handler: None,
         });
 
         // Generate exception preamble block:

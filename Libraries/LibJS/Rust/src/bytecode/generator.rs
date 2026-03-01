@@ -95,6 +95,7 @@ pub struct FinallyContext {
     pub registered_jumps: Vec<FinallyJump>,
     pub next_jump_index: i32,
     pub lexical_environment_at_entry: Option<ScopedOperand>,
+    pub saved_unwind_handler: Option<Label>,
 }
 
 impl FinallyContext {
@@ -934,8 +935,9 @@ impl Generator {
     // --- FinallyContext support ---
 
     /// Push a new FinallyContext and set it as current. Returns its index.
-    pub fn push_finally_context(&mut self, ctx: FinallyContext) -> usize {
+    pub fn push_finally_context(&mut self, mut ctx: FinallyContext) -> usize {
         let index = self.finally_contexts.len();
+        ctx.saved_unwind_handler = self.current_unwind_handler;
         self.finally_contexts.push(ctx);
         self.current_finally_context = Some(index);
         index
@@ -989,6 +991,7 @@ impl Generator {
         let index = self
             .current_finally_context
             .expect("no active finally context");
+        self.current_unwind_handler = self.finally_contexts[index].saved_unwind_handler;
         self.current_finally_context = self.finally_contexts[index].parent_index;
     }
 
