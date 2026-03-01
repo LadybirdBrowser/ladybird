@@ -4816,20 +4816,32 @@ fn generate_tagged_template_literal(
             computed,
         } if matches!(object.inner, ExpressionKind::Super) => {
             // super.func`` or super["func"]``
+            // Per spec, evaluation order: ResolveThisBinding, evaluate
+            // computed property, then ResolveSuperBase.
             let this_value = emit_resolve_this_binding(generator);
+            let computed_key = if *computed {
+                Some(generate_expression_or_undefined(property, generator, None))
+            } else {
+                None
+            };
             let super_base = generator.allocate_register();
             generator.emit(Instruction::ResolveSuperBase {
                 dst: super_base.operand(),
             });
             let method = generator.allocate_register();
-            emit_super_get(
-                generator,
-                &method,
-                &super_base,
-                property,
-                *computed,
-                &this_value,
-            );
+            if let Some(key) = computed_key {
+                emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
+            } else if let ExpressionKind::Identifier(ident) = &property.inner {
+                let prop_key = generator.intern_property_key(&ident.name);
+                let cache = generator.next_property_lookup_cache();
+                generator.emit(Instruction::GetByIdWithThis {
+                    dst: method.operand(),
+                    base: super_base.operand(),
+                    property: prop_key,
+                    this_value: this_value.operand(),
+                    cache_index: cache,
+                });
+            }
             (method, Some(this_value))
         }
         ExpressionKind::Member {
