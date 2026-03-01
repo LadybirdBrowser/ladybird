@@ -1,0 +1,49 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       NewArray dst:reg7
+[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+[  50]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewArray dst:t~1
+[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  28]       CreateVariable identifier:r, is_immutable:false, is_global:false, is_strict:false
+[  38]       SetLexicalEnvironment environment:reg4
+[  40]       GetIterator dst_iterator_object:reg5, dst_iterator_next:reg6, dst_iterator_done:reg7, iterable:arg0
+[  58]       Jump target:@68
+[  60]    1: Return value:t~1
+[  68]    2: IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg6, iterator_done:reg7
+[  80]       JumpIf condition:reg11, true_target:@60, false_target:@c8
+[  90]    3: Catch dst:reg9
+[  98]       SetLexicalEnvironment environment:reg4
+[  a0]       Mov dst:reg8, src:Int32(1)
+[  b0]    4: JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@228, false_target:@248
+[  c8]    5: CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0
+[  d8]       CreateVariable identifier:r, is_immutable:true, is_global:false, is_strict:true
+[  e8]       InitializeLexicalBinding identifier:r, src:reg10
+[ 100]       GetBinding dst:reg14, identifier:r
+[ 118]       Not dst:reg13, src:reg14
+[ 128]       JumpFalse condition:reg13, target:@1b0
+[ 138]    6: GetById dst:reg15, base:t~1, property:push, base_identifier:t
+[ 150]       Mov dst:reg16, src:t~1
+[ 160]       GetBinding dst:reg17, identifier:r
+[ 178]       Call dst:reg14, callee:reg15, this_value:reg16, t.push, arguments:[reg17]
+[ 1a0]       SetLexicalEnvironment environment:reg4
+[ 1a8]       Jump target:@68
+[ 1b0]    7: GetById dst:reg13, base:t~1, property:find, base_identifier:t
+[ 1c8]       Mov dst:reg14, src:t~1
+[ 1d8]       NewFunction dst:reg15, shared_function_data_index:0
+[ 1f0]       Call dst:o~0, callee:reg13, this_value:reg14, t.find, arguments:[reg15]
+[ 218]       SetLexicalEnvironment environment:reg4
+[ 220]       Jump target:@68
+[ 228]    8: IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:reg9
+[ 240]       Throw src:reg9
+[ 248]    9: IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:Undefined
+[ 260]       JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:@278, false_target:@280
+[ 278]   10: Return value:reg9
+[ 280]   11: Throw src:reg9
+
+Exception handlers:
+    from   c8 to  228 handler   90
