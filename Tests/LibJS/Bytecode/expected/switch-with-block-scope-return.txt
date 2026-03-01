@@ -1,0 +1,24 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+[  40]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateImmutableBinding environment:reg5, identifier:y, strict_binding:true
+[  28]    1: JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:@60, false_target:@40
+[  40]    2: JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:@70, false_target:@58
+[  58]    3: Jump target:@d0
+[  60]    4: SetLexicalEnvironment environment:reg4
+[  68]       Return value:String("one")
+[  70]    5: InitializeLexicalBinding identifier:y, src:String("two")
+[  88]       NewFunction dst:reg7, shared_function_data_index:0
+[  a0]       Call dst:reg6, callee:reg7, this_value:Undefined
+[  c0]       SetLexicalEnvironment environment:reg4
+[  c8]       Return value:reg6
+[  d0]    6: SetLexicalEnvironment environment:reg4
+[  d8]       Return value:String("other")
+[  e0]    7: SetLexicalEnvironment environment:reg4
+[  e8]       End value:Undefined
