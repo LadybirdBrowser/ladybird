@@ -1,0 +1,33 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
+[  40]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:a~0, src:Undefined
+[  18]       Mov dst:b~1, src:Undefined
+[  28]       Mov dst:reg5, src:arg0
+[  38]       JumpFalse condition:arg0, target:@c0
+[  48]    1: Call dst:reg6, callee:arg0, this_value:Undefined, t, arguments:[arg1]
+[  70]       Mov dst:reg7, src:Bool(false)
+[  80]       GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
+[  98]       IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+[  b0]       JumpIf condition:reg7, true_target:@c8, false_target:@e0
+[  c0]    2: End value:Undefined
+[  c8]    3: Mov dst:reg11, src:Undefined
+[  d8]       Jump target:@e0
+[  e0]    4: Mov dst:a~0, src:reg11
+[  f0]       JumpFalse condition:reg7, target:@118
+[ 100]    5: Mov dst:reg11, src:Undefined
+[ 110]       Jump target:@140
+[ 118]    6: IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+[ 130]       JumpTrue condition:reg7, target:@100
+[ 140]    7: Mov dst:b~1, src:reg11
+[ 150]       JumpFalse condition:reg7, target:@178
+[ 160]    8: Mov dst:reg5, src:reg6
+[ 170]       Jump target:@c0
+[ 178]    9: IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+[ 190]       Jump target:@160
+
