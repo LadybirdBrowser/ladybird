@@ -1,0 +1,15 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:postfixInLogicalAnd
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, postfixInLogicalAnd, arguments:[Int32(5)]
+[  40]       End value:reg5
+
+JS bytecode executable "postfixInLogicalAnd"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
+[  18]       Mov dst:reg6, src:reg5
+[  28]       JumpFalse condition:reg5, target:@68
+[  38]    1: PostfixDecrement dst:reg7, src:arg0
+[  48]       Mov dst:arg0, src:arg0
+[  58]       Mov dst:reg6, src:reg7
+[  68]    2: Return value:reg6
