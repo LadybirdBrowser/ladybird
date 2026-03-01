@@ -821,9 +821,10 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
         auto rust_dump = exec->dump_to_string();
         auto cpp_dump = cpp_executable->dump_to_string();
         auto context = MUST(String::formatted("function {}", shared_data.m_name));
-        auto ast_dump = shared_data.m_cpp_comparison_sfd->m_ecmascript_code
-            ? shared_data.m_cpp_comparison_sfd->m_ecmascript_code->dump_to_string()
-            : String {};
+        String ast_dump;
+        if (shared_data.m_cpp_comparison_sfd->m_ecmascript_code
+            && !is<ClassFieldInitializerStatement>(*shared_data.m_cpp_comparison_sfd->m_ecmascript_code))
+            ast_dump = shared_data.m_cpp_comparison_sfd->m_ecmascript_code->dump_to_string();
         compare_pipeline_bytecode(rust_dump, cpp_dump, context, ast_dump);
 
         pair_shared_function_data(*exec, *cpp_executable);
