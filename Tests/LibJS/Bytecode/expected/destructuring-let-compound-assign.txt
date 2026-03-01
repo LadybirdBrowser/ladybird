@@ -1,0 +1,19 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       NewObject dst:reg7
+[  28]       NewObject dst:reg8
+[  38]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
+[  60]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       ThrowIfNullish src:arg0
+[  10]       GetById dst:reg5, base:arg0, property:patchFlag
+[  28]       Mov dst:a~0, src:reg5
+[  38]       ThrowIfTDZ src:a~0
+[  40]       GetById dst:reg5, base:arg1, property:patchFlag, base_identifier:e
+[  58]       BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg5
+[  68]       BitwiseOr dst:a~0, lhs:a~0, rhs:reg6
+[  78]       End value:Undefined
+
