@@ -85,6 +85,7 @@ private:
         bool should_collapse_whitespace {};
         bool should_wrap_lines {};
         bool should_respect_linebreaks {};
+        bool added_trailing_empty_chunk { false };
         Optional<Gfx::GlyphRun::TextType> last_known_direction {};
     };
 
