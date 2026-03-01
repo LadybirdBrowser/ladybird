@@ -332,7 +332,7 @@ void EventLoop::process_input_events() const
     auto documents_of_traversable_navigables = documents_in_this_event_loop_matching([&](auto const& document) {
         if (document.is_decoded_svg())
             return false;
-        if (!document.navigable())
+        if (!document.is_fully_active())
             return false;
         if (!document.navigable()->is_traversable())
             return false;
