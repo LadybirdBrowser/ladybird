@@ -1,0 +1,32 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f
+[  38]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:x, is_immutable:false, is_global:false, is_strict:false
+[  28]       CreateArguments is_immutable:false
+[  38]       JumpUndefined condition:arg0, true_target:@48, false_target:@58
+[  48]    1: Mov dst:arg0, src:Int32(1)
+[  58]    2: InitializeLexicalBinding identifier:x, src:arg0
+[  70]       CreateVariableEnvironment capacity:3
+[  78]       GetLexicalEnvironment dst:reg6
+[  80]       Mov dst:reg7, src:Undefined
+[  90]       CreateVariable identifier:a, is_immutable:false, is_global:false, is_strict:false
+[  a0]       InitializeVariableBinding identifier:a, src:reg7
+[  b8]       Mov dst:reg7, src:Undefined
+[  c8]       CreateVariable identifier:b, is_immutable:false, is_global:false, is_strict:false
+[  d8]       InitializeVariableBinding identifier:b, src:reg7
+[  f0]       Mov dst:reg7, src:Undefined
+[ 100]       CreateVariable identifier:c, is_immutable:false, is_global:false, is_strict:false
+[ 110]       InitializeVariableBinding identifier:c, src:reg7
+[ 128]       GetCalleeAndThisFromEnvironment callee:reg8, this_value:reg9, identifier:eval
+[ 140]       CallDirectEval dst:reg7, callee:reg8, this_value:reg9, eval, arguments:[String("")]
+[ 168]       End value:Undefined
+
+JS bytecode executable "eval"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
