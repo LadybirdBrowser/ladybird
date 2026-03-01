@@ -3505,6 +3505,21 @@ fn generate_update_expression(
                         base_identifier: None,
                     });
                     Some(result)
+                } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &property.inner {
+                    let id = generator.intern_identifier(&priv_ident.name);
+                    let value = generator.allocate_register();
+                    generator.emit(Instruction::GetPrivateById {
+                        dst: value.operand(),
+                        base: base.operand(),
+                        property: id,
+                    });
+                    let result = emit_update_op(generator, op, prefixed, &value);
+                    generator.emit(Instruction::PutPrivateById {
+                        base: base.operand(),
+                        property: id,
+                        src: value.operand(),
+                    });
+                    Some(result)
                 } else {
                     // Fallback: just evaluate, no store-back
                     let value = generator.allocate_register();
