@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: CSS inline if() function</title>
+<meta name="assert" content="Test inline if() function">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#if-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<html>
+  <style>
+    @property --string {
+      syntax: "<string>";
+      inherits: true;
+      initial-value: "";
+    }
+    @property --color {
+      syntax: "<color>";
+      inherits: true;
+      initial-value: blue;
+    }
+    @property --length {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 3px;
+    }
+    @property --length-inherited {
+      syntax: "<length>";
+      inherits: true;
+      initial-value: 3px;
+    }
+    @property --percentage {
+      syntax: "<percentage>";
+      inherits: true;
+      initial-value: 30%;
+    }
+    @property --number {
+      syntax: "<number>";
+      inherits: true;
+      initial-value: 3;
+    }
+    @property --angle {
+      syntax: "<angle>";
+      inherits: true;
+      initial-value: 3deg;
+    }
+    @property --time {
+      syntax: "<time>";
+      inherits: true;
+      initial-value: 3s;
+    }
+    @property --resolution {
+      syntax: "<resolution>";
+      inherits: true;
+      initial-value: 3dpi;
+    }
+    div {
+      font-size: 30px;
+    }
+    .outer {
+      --inherited: outer_value;
+      --number: 30;
+      --x: 11;
+      --length: 30px;
+      --length-inherited: 30px;
+    }
+    .inner {
+      --inherited: inner_value;
+    }
+  </style>
+  <body>
+    <div class="outer">
+      <div id="if" class="inner" data-foo="30px" data-attr="attr"></div>
+    </div>
+  </body>
+</html>
+
+<script>
+  function set_custom_properties(customPropertiesData) {
+    customPropertiesData.forEach(entry => {
+      const [customPropertyName, customPropertyValue] = entry;
+      document.getElementById("if").style.setProperty(customPropertyName, customPropertyValue);
+    });
+  }
+
+  function clear_custom_properties(customPropertiesData) {
+    customPropertiesData.forEach(entry => {
+      const [customPropertyName, customPropertyValue] = entry;
+      document.getElementById("if").style.removeProperty(customPropertyName);
+    });
+  }
+
+  function test_if_with_custom_properties(ifValue, customPropertiesData, expectedValue) {
+    set_custom_properties(customPropertiesData);
+    var elem = document.getElementById("if");
+    var property = "--property";
+    elem.style.setProperty(property, ifValue);
+
+    test(() => {
+      assert_equals(window.getComputedStyle(elem).getPropertyValue(property),
+      expectedValue,
+        '"' + ifValue + '" should be substituted to "' + expectedValue + '".');
+    });
+
+    clear_custom_properties(customPropertiesData);
+    elem.style.removeProperty(property);
+  }
+
+  function test_if(ifValue, expectedValue) {
+    test_if_with_custom_properties(ifValue, [], expectedValue);
+  }
+
+  // Valid if() with unregistered custom properties in conditions.
+  test_if_with_custom_properties('if(style(--x: 3): true_value)', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties('if( style( --x : 3 ) : true_value )', [['--x', '3']], 'true_value ');
+  test_if_with_custom_properties('if(style(--x): true_value;)', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties('if(  style(--x)  : true_value; )', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties('if(style(--x: 3): true_value;)', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties('if(style(--x: 0): true_value;)', [['--x', '0']], 'true_value');
+  test_if_with_custom_properties('if(style(--x: 0): ;)', [['--x', '0']], '');
+  test_if_with_custom_properties('if(style(--x: 0): )', [['--x', '0']], '');
+  test_if_with_custom_properties('if(style(--x: blue): true_value;)', [['--x', 'blue']], 'true_value');
+  test_if_with_custom_properties('if(style(--x: 3): true_value; else: false_value)', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties('if(style(--non-existent: var(--non-existent)): true_value; else: false_value)', [], 'false_value');
+  test_if_with_custom_properties('if(style(--x: initial): true_value; else: false_value)', [['--x', '']], 'false_value');
+  test_if_with_custom_properties('if(style(--x: initial): true_value; else: false_value)', [['--x', 'initial']], 'true_value');
+  test_if_with_custom_properties('if(style(--non-existent: initial): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(--x: initial): true_value; else: false_value)', [['--x', '3']], 'false_value');
+  test_if_with_custom_properties(`if(style(--inherited: inherit): true_value;
+          else: false_value)`,
+        [['--inherited', 'outer_value']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--inherited: inherit): true_value;
+          else: false_value)`,
+        [['--inherited', 'inherit']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--inherited: inherit): true_value;
+          else: false_value)`,
+        [['--inherited', 'unset']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--inherited: inherit): true_value;
+          else: false_value)`,
+        [['--inherited', 'inner_value']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--inherited: unset): true_value;
+          else: false_value)`,
+        [['--inherited', 'outer_value']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--inherited: unset): true_value;
+          else: false_value)`,
+        [['--inherited', 'unset']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--inherited: unset): true_value;
+          else: false_value)`,
+        [['--inherited', 'inner_value']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--inherited: unset): true_value;
+          else: false_value)`,
+        [['--inherited', 'inherit']],
+        'true_value');
+  test_if_with_custom_properties('if(style(--x: 3): true_value; else:false_value)', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties('if(style(--x: 3): true_value; else: false_value;)', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties('if(style(--x: 0): true_value; else: false_value)', [['--x', '3']], 'false_value');
+  test_if_with_custom_properties('if( style( --x: 0 ) : true_value ;  else :  false_value)', [['--x', '3']], 'false_value');
+  test_if_with_custom_properties('if(style(not (--unknown)): true_value;)', [['--x', '3']], 'true_value');
+  test_if_with_custom_properties(`if(style(--x: 0): true_value;
+          else: )`,
+        [['--x', '3']],
+        '');
+  test_if_with_custom_properties(`if(style(--x: 3): ;
+          else: false_value)`,
+        [['--x', '3']],
+        '');
+  test_if_with_custom_properties(`if(style(--non-existent: 0): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'calc(1 + 2)']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: calc(1 + 2)): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--non-existent): true_value;
+          else: false_value;)`,
+        [['--x', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(style(--x)): true_value;
+          else: false_value;)`,
+        [['--x', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(var(--x)): true_value;
+          else: false_value;)`,
+        [['--x', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: revert): true_value;
+          else: false_value)`,
+        [['--x', '11']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: revert-layer): true_value;
+          else: false_value)`,
+        [['--x', '']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x):a)if(style(--x):b)`,
+        [['--x', '3']],
+        'a/**/b');
+  test_if_with_custom_properties(`if(style(--x!): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(color: green): true_value;
+          else: false_value)`,
+        [],
+        'false_value');
+  test_if_with_custom_properties(`if(not style(--non-existent): true_value;
+          else: false_value)`,
+        [],
+        'true_value');
+  test_if_with_custom_properties(`if(not style(--x: 0): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--x: 0) and style(--y: 3): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: 3) and style(--y: 3): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', '3']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--x: 0) or style(--y: 3): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', '3']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--x: 0) or (style(--y: 3) and style(--z: 3)): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', '3'], ['--z', '3']],
+        'true_value');
+
+  // Valid if() with multiple conditions with unregistered custom properties
+  test_if_with_custom_properties(`if(style(--non-existent): value1;
+          style(--x): value2;
+          else: value3;)`,
+        [['--x', '3']],
+        'value2');
+  test_if_with_custom_properties(`if(style(--x: 1): value1;
+          style(--x: 2): value2;
+          style(--x: 3): value3;)`,
+        [['--x', '3']],
+        'value3');
+  test_if_with_custom_properties(`if(style(--x: 1): value1;
+          style(--y: green): value2;
+          style(--z: 3px): value3;
+          else: value4;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        'value4');
+  test_if_with_custom_properties(`if(style(--x: 1): value1;
+          else: value2;
+          style(--y: green): value3;
+          style(--z: 3px): value4;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        'value2');
+  test_if_with_custom_properties(`if(style(--x: 1): value1;
+          else: value2;
+          style(--y: green): value3;
+          style(--z: 3px): value4;
+          else: value5;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        'value2');
+  test_if_with_custom_properties(`if(style(--x: 3): value1;
+          style(--y: green): value2;
+          style(--z: 3px): value3;
+          else: value4;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        'value1');
+  test_if_with_custom_properties(`if(style((--x: 3) and (not (--y: red) or (--z: 10px))): true_value;
+          else: false_value;)`,
+        [['--x', '3'], ['--y', 'green'], ['--z', '11px']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: 3): value1;
+          style((--x: 3) and (not (--y: red) or (--z: 10px))): value2;
+          else: value3;)`,
+        [['--x', '3'], ['--y', 'green'], ['--z', '11px']],
+        'value1');
+
+  // Valid if() with complicated style queries
+  test_if_with_custom_properties(`if(style((--x: 1) and (--y: green) and (--z: 3px)): true_value;
+          else: false_value;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        'false_value');
+  test_if_with_custom_properties(`if(style((--x: 3) and (--y: red) and (--z: 10px)): true_value;
+          else: false_value;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style((--x: 3) and ((not (--y: red)) or (--z: 10px))): true_value;
+          else: false_value;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '11px']],
+        'false_value');
+  test_if_with_custom_properties(`if(style((--x: 3) and ((not (--y: red)) or (--z: 10px))): true_value;
+          else: false_value;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style((--x: 3) and ((not (--y: red)) or (--z: 10px))): true_value;
+          else: false_value;)`,
+        [['--x', '3'], ['--y', 'green'], ['--z', '11px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style((--x: 3) and (not (--y: red))): value1;
+          style(--z: 15px): value2;
+          else: value3;)`,
+        [['--x', '3'], ['--y', 'green'], ['--z', '11px']],
+        'value1');
+  test_if_with_custom_properties(`if(style((--x: 3) and (not (--y: red))): value1;
+          style(--z: 15px): value2;
+          else: value3;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '15px']],
+        'value2');
+  test_if_with_custom_properties(`if(style((--x: 3) and (not (--y: red))): value1;
+          style(--z: 15px): value2;
+          else: value3;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '11px']],
+        'value3');
+
+  // Valid if() with registered custom properties in conditions.
+  test_if_with_custom_properties(`if(style(--string: "success"): true_value;
+          else: false_value)`,
+        [['--string', '"success"']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--string: "success"): true_value;
+          else: false_value)`,
+        [['--string', '"fail"']],
+        'false_value');
+
+  test_if_with_custom_properties(`if(style(--number: 1): true_value;
+          else: false_value)`,
+        [['--number', '1']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--number: 3): true_value;
+          else: false_value)`,
+        [['--number', '1']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--number: calc(1 + 2)): true_value;
+          else: false_value)`,
+        [['--number', '3']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--number: 3): true_value;
+          else: false_value)`,
+        [['--number', 'calc(1 + 2)']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--number: revert): true_value;
+          else: false_value)`,
+        [['--number', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--number: revert-layer): true_value;
+          else: false_value)`,
+        [['--number', '3']],
+        'false_value');
+
+  test_if_with_custom_properties(`if(style(--length: 1px): true_value;
+          else: false_value)`,
+        [['--length', '1px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: 3): true_value;
+          else: false_value)`,
+        [['--length', '3px']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--length: calc(1px + 2px)): true_value;
+          else: false_value)`,
+        [['--length', '3px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: 3px): true_value;
+          else: false_value)`,
+        [['--length', 'calc(1px + 2px)']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: 1em): true_value;
+          else: false_value)`,
+        [['--length', '30px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: 30px): true_value;
+          else: false_value)`,
+        [['--length', '1em']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: 3): true_value;
+          else: false_value)`,
+        [],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--length: initial): true_value;
+          else: false_value)`,
+        [['--length', '3px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: initial): true_value;
+          else: false_value)`,
+        [],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: inherit): true_value;
+          else: false_value)`,
+        [],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--length: inherit): true_value;
+          else: false_value)`,
+        [['--length', '30px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: unset): true_value;
+          else: false_value)`,
+        [['--length', '3px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length-inherited: inherit): true_value;
+          else: false_value)`,
+        [],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length-inherited: inherit): true_value;
+          else: false_value)`,
+        [['--length-inherited', '30px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length-inherited: inherit): true_value;
+          else: false_value)`,
+        [['--length-inherited', 'unset']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length-inherited: unset): true_value;
+          else: false_value)`,
+        [['--length-inherited', '30px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length-inherited: unset): true_value;
+          else: false_value)`,
+        [['--length-inherited', 'inherit']],
+        'true_value');
+
+  test_if_with_custom_properties(`if(style(--percentage: 30%): true_value;
+          else: false_value)`,
+        [['--percentage', '30%']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--percentage: 90px): true_value;
+          else: false_value)`,
+        [['--percentage', '30%']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--percentage: 30px): true_value;
+          else: false_value)`,
+        [['--percentage', '30%']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--percentage: 90%): true_value;
+          else: false_value)`,
+        [['--percentage', '3px']],
+        'false_value');
+
+  test_if_with_custom_properties(`if(style(--color: green): true_value;
+          else: false_value)`,
+        [['--color', 'green']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--color: rgb(0, 128, 0)): true_value;
+          else: false_value)`,
+        [['--color', 'green']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--color: green): true_value;
+          else: false_value)`,
+        [['--color', 'rgb(0, 128, 0)']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--color: #008000): true_value;
+          else: false_value)`,
+        [['--color', 'green']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--color: green): true_value;
+          else: false_value)`,
+        [['--color', '#008000']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--color: green): true_value;
+          else: false_value)`,
+        [['--color', 'blue']],
+        'false_value');
+
+  // Valid if() with substitution function in conditions.
+  test_if_with_custom_properties(`if(style(--x: var(--x)): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--non-existent: var(--non-existent)): true_value;
+          else: false_value)`,
+        [],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: var(--y)): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', '3']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--x: var(--y)): true_value;
+          else: false_value)`,
+        [['--x', '1'], ['--y', '3']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: attr(data-foo type(<length>))): true_value;
+          else: false_value)`,
+        [['--x', '30px']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--x: attr(data-foo)): true_value;
+          else: false_value)`,
+        [['--x', '"30px"']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: attr(data-foo type(<length>))): true_value;
+          else: false_value)`,
+        [['--length', '30px']],
+          'true_value');
+  test_if_with_custom_properties(`if(style(--length: attr(data-foo type(<length>))): true_value;
+          else: false_value)`,
+        [['--length', '30']],
+        'false_value');
+
+  // Valid if() with substitution function in custom properties.
+  test_if_with_custom_properties(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'var(--y)'], ['--y', '3']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'var(--y)'], ['--y', '1']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--x: "30px"): true_value;
+          else: false_value)`,
+        [['--x', 'attr(data-foo)']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'attr(data-foo)']],
+        'false_value');
+  test_if_with_custom_properties(`if(style(--length: 30px): true_value;
+          else: false_value)`,
+        [['--length', 'attr(data-foo type(<length>))']],
+        'true_value');
+  test_if_with_custom_properties(`if(style(--length: 30): true_value;
+          else: false_value)`,
+        [['--length', 'attr(data-foo type(<length>))']],
+        'false_value');
+
+  // style() queries with range syntax in the condition, literals on both sides of equation
+  test_if_with_custom_properties('if(style(5 > 3): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(0 = 0): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(0 = 0px): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(0 = 0%): true_value; else: false_value)', [], 'false_value');
+  test_if_with_custom_properties('if(style(0 < 3px): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(5 > 3 !invalid): true_value; else: false_value)', [], 'false_value');
+  test_if_with_custom_properties('if(style(5 !invalid > 3): true_value; else: false_value)', [], 'false_value');
+  test_if_with_custom_properties('if(style(5 > 3 !): true_value; else: false_value)', [], 'false_value');
+  test_if_with_custom_properties('if(style(5.5 > 3): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(5.5 > 3.3): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(10em > 3px): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(1em > 1px): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(7px > 3px): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(3px > 3px): true_value; else: false_value)', [], 'false_value');
+  test_if_with_custom_properties('if(style(3turn > 3deg): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(3turn <= 3deg): true_value; else: false_value)', [], 'false_value');
+  test_if_with_custom_properties('if(style(3% >= 3%): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(3s > 3ms): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(3dppx > 96dpi): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties(`if(style(--length > initial): true_value;
+          else: false_value)`,
+        [['--length', '5px']],
+        'false_value');
+  test_if_with_custom_properties('if(style(--x = initial): true_value; else: false_value)', [['--x', 'initial']], 'false_value');
+
+  // style() queries with range syntax in the condition, simple custom properties in the condition
+  test_if_with_custom_properties('if(style(--x <= 3): true_value; else: false_value)',
+                                  [['--x', '3']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--x >= --y): true_value; else: false_value)',
+                                  [['--x', '3'], ['--y', '3']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--length > 3px): true_value; else: false_value)',
+                                  [['--length', '11px']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--x > 3px): true_value; else: false_value)',
+                                  [['--x', '11px']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--number >= 3): true_value; else: false_value)',
+                                  [['--number', '3']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--x >= 3): true_value; else: false_value)',
+                                  [['--x', '3']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--percentage > 3%): true_value; else: false_value)',
+                                  [['--percentage', '5%']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--x > 3%): true_value; else: false_value)',
+                                  [['--x', '5%']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--angle < 1turn): true_value; else: false_value)',
+                                  [['--angle', '1deg']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--x < 1turn): true_value; else: false_value)',
+                                  [['--x', '1deg']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--time <= 1000ms): true_value; else: false_value)',
+                                  [['--time', '1s']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(var(--time) <= 1000ms): true_value; else: false_value)',
+                                  [['--time', '1s']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--x <= 1000ms): true_value; else: false_value)',
+                                  [['--x', '1s']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(3dppx > --resolution): true_value; else: false_value)',
+                                  [['--resolution', '96dpi']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(3dppx > --x): true_value; else: false_value)',
+                                  [['--x', '96dpi']],
+                                  'true_value');
+
+  // style() queries with range syntax in the condition, invalid custom properties in the condition
+  test_if_with_custom_properties('if(style(--x + 1 >= --y): true_value; else: false_value)',
+                                  [['--x', '5'], ['--y', '3']],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(--x >= --y + 1): true_value; else: false_value)',
+                                  [['--x', '5'], ['--y', '3']],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(calc(--x + 1) >= --y): true_value; else: false_value)',
+                                  [['--x', '5'], ['--y', '3']],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(--x >= calc(--y + 1)): true_value; else: false_value)',
+                                  [['--x', '5'], ['--y', '3']],
+                                  'false_value');
+
+  // style() queries with range syntax in the condition, custom properties with functions in the condition
+  test_if_with_custom_properties('if(style(--x >= calc(3px + 3px)): true_value; else: false_value)',
+                                  [['--x', '7px']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(calc(var(--x) + 1) >= var(--y)): true_value; else: false_value)',
+                                  [['--x', '5'], ['--y', '3']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(var(--x) >= --x): true_value; else: false_value)',
+                                  [['--x', '3']],
+                                  'true_value');
+
+  // style() queries with range syntax in the condition, incompatible types in the range.
+  test_if_with_custom_properties('if(style(3px > 3): true_value; else: false_value)',
+                                  [],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(3em > 3deg): true_value; else: false_value)',
+                                  [],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(1px >= 1%) or style(1px <= 1%): true_value; else: false_value)',
+                                  [],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(--length > 3): true_value; else: false_value)',
+                                  [['--length', '11em']],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(--number > 3px): true_value; else: false_value)',
+                                  [['--number', '11']],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(--x >= 3): true_value; else: false_value)',
+                                  [['--x', '3px']],
+                                  'false_value');
+  test_if_with_custom_properties(`if(style(--length >= 30px): true_value;
+                                    else: false_value)`,
+                                  [['--length', 'attr(data-foo type(<length>))']],
+                                  'true_value');
+
+  // style() queries with range syntax in the condition, double range
+  test_if_with_custom_properties('if(style(10px <= 10px < 11px): true_value; else: false_value)', [], 'true_value');
+  test_if_with_custom_properties('if(style(3 < --x <= 5): true_value; else: false_value)',
+                                  [['--x', '5']],
+                                  'true_value');
+  test_if_with_custom_properties('if(style(--x >= --y > --z): true_value; else: false_value)',
+                                  [['--x', '3'], ['--y', '3'], ['--z', '3']],
+                                  'false_value');
+  test_if_with_custom_properties('if(style(--x >= --y > --z): true_value; else: false_value)',
+                                  [['--x', '3'], ['--y', '3'], ['--z', '1']],
+                                  'true_value');
+
+  // media() queries in the condition
+  test_if(`if(media(max-width: 1px): true_value;
+          else: false_value)`,
+        'false_value');
+  test_if(`if(media((max-width: 1px)): true_value;
+          else: false_value)`,
+        'false_value');
+  test_if(`if(media(height <= 999999px): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if(media(min-color: 1): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if(media((min-color: 1) and (height <= 999999px)): true_value;
+          else: false_value)`,
+        'true_value');
+
+  // supports() queries in the condition
+  test_if(`if(supports((display: table-cell)): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if(supports(display: table-cell): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if(supports(display): true_value;
+          else: false_value)`,
+        'false_value');
+  test_if(`if(supports(display: invalid): true_value;
+          else: false_value)`,
+        'false_value');
+  test_if(`if(supports(not (transform-origin: 10em 10em 10em)): true_value;
+          else: false_value)`,
+        'false_value')
+  test_if(`if(supports(selector(h2 > p)): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if(supports((selector(h2 > p))): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if(supports((display: table-cell) and (display: list-item) and (display: contents)): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if(supports((display: invalid) and (display: list-item) and (display: contents)): true_value;
+          else: false_value)`,
+        'false_value');
+  test_if(`if(supports((display: table-cell) and (invalid: list-item) and (display: contents)): true_value;
+          else: false_value)`,
+        'false_value');
+
+  // media(), style() and supports() queries in the condition
+  test_if(`if((media(min-width: 1px)) or (style(--x)): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if((media(height <= 999999px)) and style(--non-existent): true_value;
+          else: false_value)`,
+        'false_value');
+  test_if(`if((media((min-color: 1) and (height <= 999999px))) and (style(--x)): true_value;
+          else: false_value)`,
+        'true_value');
+  test_if(`if((media((min-color: 8) and (height <= 600px)) and style(--x: 3px)) or supports(display: table-cell): true_value;
+          else: false_value)`,
+        'true_value');
+
+  // Invalid if() syntax
+  test_if_with_custom_properties('if()', [['--x', '3']], '');
+  test_if_with_custom_properties('if(style())', [['--x', '3']], '');
+  test_if_with_custom_properties('if(style(--x: 3) !)', [['--x', '3']], '');
+  test_if_with_custom_properties(`if(style(--x: 3) true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        '');
+  test_if_with_custom_properties(`if(style(--x: 3): true_value;
+          else: false_value!)`,
+        [['--x', '3']],
+        '');
+  test_if_with_custom_properties(`if(!style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        '');
+  test_if_with_custom_properties(`if(style(--x) and invalid: true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        '');
+  test_if_with_custom_properties(`if(invalid or style(--x): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        '');
+  test_if_with_custom_properties(`if(style(not (--x: 5) or (--z: 10px)): true_value;
+          else: false_value;)`,
+        [['--x', '3'], ['--y', 'green'], ['--z', '11px']],
+        '');
+
+  // IACVT
+  test_if_with_custom_properties('if(style(--x: 0): true_value;)', [['--x', '3']], '');
+  test_if_with_custom_properties('if(style(--non-existent): true_value;)', [['--x', '3']], '');
+  test_if_with_custom_properties('if(style(--non-existent: 3): true_value;)', [['--x', '3']], '');
+  test_if_with_custom_properties('if(style(--invalid): value)', [], '');
+  test_if_with_custom_properties('if(style(--invalid): var(--x))', [['--x', 'true_value']], '');
+  test_if_with_custom_properties(`if(style(--x: 1): value1;
+          style(--y: green): value2;
+          style(--z: 3px): value3;)`,
+        [['--x', '3'], ['--y', 'red'], ['--z', '10px']],
+        '');
+
+  // Equality of attr-tainted if()
+  test_if_with_custom_properties('if(style(--x: attr(data-attr type(*))): true_value; else: false_value)', [['--x', 'attr']], 'true_value');
+  test_if_with_custom_properties('if(style(--x: attr): true_value; else: false_value)', [['--x', 'attr(data-attr type(*))']], 'true_value');
+</script>

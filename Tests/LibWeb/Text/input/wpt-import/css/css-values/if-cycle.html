@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: CSS if() function cycles</title>
+<meta name="assert" content="Test cycles in if() function">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#if-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="attr"></div>
+<div id="expected"></div>
+
+<body>
+  <div id="if"></div>
+</body>
+
+<script>
+  function set_custom_properties(customPropertiesData) {
+    customPropertiesData.forEach(entry => {
+      const [customPropertyName, customPropertyValue] = entry;
+      document.getElementById("if").style.setProperty(customPropertyName, customPropertyValue);
+    });
+  }
+
+  function test_if(ifValue, customPropertiesData, expectedValue) {
+    set_custom_properties(customPropertiesData);
+    var elem = document.getElementById("if");
+    var property = "--prop";
+    elem.style.setProperty(property, ifValue);
+
+    test(() => {
+      assert_equals(window.getComputedStyle(elem).getPropertyValue(property),
+      expectedValue,
+        '"' + ifValue + '" should be substituted to "' + expectedValue + '".');
+    });
+
+    elem.style.setProperty(property, '');
+  }
+
+  var ifElem = document.getElementById("if");
+
+  // var() cycle in declaration value
+  //
+  // Note: 'test_if()' places the 'if()' in a custom property '--prop'.
+  test_if(`if(style(--x: 3): var(--prop); else: value)`,
+        [['--x', '3']],
+        '');
+  test_if(`if(style(--x: 3): value; else: var(--prop))`,
+        [['--x', '0']],
+        '');
+
+  // attr() cycle in declaration value
+  ifElem.setAttribute('data-foo', 'var(--prop)');
+  test_if(`if(style(--x: 3): attr(data-foo type(*)); else: value)`,
+        [['--x', '3']],
+        '');
+
+  ifElem.setAttribute('data-foo', 'var(--prop)');
+  test_if(`if(style(--x: 3): value; else: attr(data-foo type(*)))`,
+        [['--x', '0']],
+        '');
+
+  // Cycle in the condition
+  //
+  // Note: 'test_if()' places the 'if()' in a custom property '--prop'.
+  test_if(`if(style(--prop): var(--prop); else: value)`,
+        [],
+        '');
+  test_if(`if(style(--x): var(--prop); else: value)`,
+        [['--x', 'var(--prop)']],
+        '');
+  test_if(`if(style(--prop: 3): true_value;
+          else: false_value)`,
+        [['--prop', '3']],
+        '');
+  test_if(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'var(--prop)']],
+        '');
+  test_if(`if(style(not (--prop)): true_value;
+          else: false_value)`,
+        [],
+        '');
+  test_if(`if(style(not (--x: var(--y))): true_value;
+          else: false_value)`,
+        [['--x', '11'], ['--y', 'var(--prop)']],
+        '');
+  test_if(`if(style((--prop) or (--y)): true_value;
+          else: false_value)`,
+        [['--y', '3']],
+        '');
+  test_if(`if(style((--prop) and (--y)): true_value;
+          else: false_value)`,
+        [['--y', '3']],
+        '');
+  test_if(`if(style(--x: var(--prop)): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        '');
+  test_if(`if(style(--x: var(--y)): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', 'var(--prop)']],
+        '');
+
+  ifElem.setAttribute('data-foo', 'var(--prop)');
+  test_if(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'attr(data-foo type(*))']],
+        '');
+
+  ifElem.setAttribute('data-foo', 'var(--prop)');
+  test_if(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'var(--y)'], ['--y', 'attr(data-foo type(*))']],
+        '');
+
+  ifElem.setAttribute('data-foo', 'var(--prop)');
+  test_if(`if(style(--x: attr(data-foo type(*))): true_value;
+          else: false_value)`,
+        [['--x', '30px']],
+        '');
+
+  // var() cycle in condition's custom property
+  test_if(`if(style(--y): true_value;
+          else: false_value)`,
+        [['--y', 'var(--x)'], ['--x', 'var(--y)']],
+        'false_value');
+  test_if(`if(style(not (--x: var(--y))): true_value;
+          else: false_value)`,
+        [['--x', '11'], ['--y', 'var(--y)']],
+        'true_value');
+  test_if(`if(style(not (--x: var(--y))): true_value;
+          else: false_value)`,
+        [['--x', '11'], ['--y', 'var(--y)']],
+        'true_value');
+  test_if(`if(style((--x) or (--y)): true_value;
+          else: false_value)`,
+        [['--x', 'var(--x)'], ['--y', '3']],
+        'true_value');
+  test_if(`if(style((--x) and (--y)): true_value;
+          else: false_value)`,
+        [['--x', 'var(--x)'], ['--y', '3']],
+        'false_value');
+  test_if(`if(style((not (--z)) or (--y)): true_value;
+          else: false_value)`,
+        [['--z', 'var(--x)'], ['--x', 'var(--z)'], ['--y', '3']],
+        'true_value');
+  test_if(`if(style((not (--z)) and (--y)): true_value;
+          else: false_value)`,
+        [['--z', 'var(--x)'], ['--x', 'var(--z)'], ['--y', '3']],
+        'true_value');
+
+  // cycle with var() and attr() in condition's custom property
+  ifElem.setAttribute('data-foo', 'var(--x)');
+  test_if(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'attr(data-foo type(*))']],
+        'false_value');
+
+  ifElem.setAttribute('data-foo', 'var(--y)');
+  test_if(`if(style(--x: 3): true_value;
+          else: false_value)`,
+        [['--x', 'var(--y)'], ['--y', 'attr(data-foo type(*))']],
+        'false_value');
+
+  // var() cycle in condition specified value
+  test_if(`if(style(--x: var(--y)): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', 'var(--z)'], ['--z', 'var(--y)']],
+        'false_value');
+  test_if(`if(style(--x: var(--y)): true_value;
+          else: false_value)`,
+        [['--x', '3'], ['--y', 'var(--y)']],
+        'false_value');
+
+  // attr() cycle in condition specified value
+  ifElem.setAttribute('data-foo', 'attr(data-foo type(*))');
+  test_if(`if(style(--x: attr(data-foo type(*))): true_value;
+          else: false_value)`,
+        [['--x', '30px']],
+        'false_value');
+
+  ifElem.setAttribute('data-foo', '30px');
+  test_if(`if(style(--x: attr(data-foo, var(--y))): true_value;
+          else: false_value)`,
+        [['--x', '"30px"'], ['--y', 'var(--y)']],
+        'true_value');
+
+  // self cycle in unused condition
+  test_if(`if(style(--x: 0): value1; style(--prop): value2)`,
+        [['--x', '0']],
+        'value1');
+  test_if(`if(style(--x: 3): value1;
+          style(--y: 3): value2;
+          else: value3)`,
+        [['--x', '3'], ['--y', 'var(--prop)']],
+        'value1');
+
+  // cycle in unused condition
+  test_if(`if(style(--x: 0): value1; style(--y): value2)`,
+        [['--x', '0'], ['--y', 'var(--y)']],
+        'value1');
+  test_if(`if(style(--x: 3): value1;
+          style(--y: 3): value2;
+          else: value3)`,
+        [['--x', '3'], ['--y', 'var(--y)']],
+        'value1');
+
+  // var() cycle in unused declaration value
+  test_if(`if(style(--x: 0): var(--prop); else: value)`,
+        [['--x', '3']],
+        'value');
+  test_if(`if(style(--x: 0): value; else: var(--prop))`,
+        [['--x', '0']],
+        'value');
+  test_if(`if(style(--x: 3): value1;
+          style(--y: 3): var(--prop);
+          else: value3)`,
+        [['--x', '3'], ['--y', '0']],
+        'value1');
+  test_if(`if(style(--x: 3): var(--prop);
+          style(--y: 3): var(--prop);
+          else: value3)`,
+        [['--x', '0'], ['--y', '0']],
+        'value3');
+
+  // no cycle
+  test_if(`if(style(--x: 3): var(--x);
+          else: value)`,
+        [['--x', '3']],
+        '3');
+  test_if(`if(style(--x: var(--y)): var(--y);
+          else: value)`,
+        [['--x', '3'], ['--y', '3']],
+        '3');
+  test_if(`if(style(--x: var(--x)): true_value;
+          else: false_value)`,
+        [['--x', '3']],
+        'true_value');
+  test_if(`if(style(--non-existent: var(--non-existent)): true_value;
+          else: false_value)`,
+        [],
+        'false_value');
+  test_if(`if(style(--x: 3): true_value;
+          else: var(--x))`,
+        [['--x', '1']],
+        '1');
+  test_if(`if(style(--x: var(--x)): value1;
+          style(--x: 3): value2;
+          else: value3;)`,
+        [['--x', '3']],
+        'value1');
+  test_if(`if(style(--x: var(--y)): value1;
+          style(--z: 3): value2;
+          else: value3;)`,
+        [['--x', 'var(--y)'], ['--y', 'var(--y)'], ['--z', '3']],
+        'value2');
+  test_if(`if(style(--z: var(--y)): value1;
+          style(--z: 3): value2;
+          else: value3;)`,
+        [['--x', 'var(--y)'], ['--y', 'var(--y)'], ['--z', '3']],
+        'value2');
+</script>
