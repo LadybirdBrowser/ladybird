@@ -2121,7 +2121,10 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
     // §10.2.11 step 4: check for parameter expressions.
     let has_parameter_expressions = function_data.parameters.iter().any(|p| {
         p.default_value.is_some()
-            || matches!(p.binding, ast::FunctionParameterBinding::BindingPattern(_))
+            || matches!(
+                p.binding,
+                ast::FunctionParameterBinding::BindingPattern(ref pat) if pat.contains_expression()
+            )
     });
 
     // §10.2.11 steps 5-8: count non-local unique parameter names.

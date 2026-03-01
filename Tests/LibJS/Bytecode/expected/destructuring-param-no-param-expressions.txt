@@ -1,0 +1,20 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       NewObject dst:reg7
+[  28]       InitObjectLiteralProperty object:reg7, property:captured, src:Int32(1), shape_cache_index:0, property_slot:0
+[  40]       InitObjectLiteralProperty object:reg7, property:local, src:Int32(2), shape_cache_index:0, property_slot:1
+[  58]       CacheObjectShape object:reg7
+[  68]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+[  90]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateVariable identifier:captured, is_immutable:false, is_global:false, is_strict:false
+[  18]       ThrowIfNullish src:arg0
+[  20]       GetById dst:reg5, base:arg0, property:captured
+[  38]       InitializeLexicalBinding identifier:captured, src:reg5
+[  50]       GetById dst:reg5, base:arg0, property:local
+[  68]       Mov dst:local~0, src:reg5
+[  78]       NewFunction dst:reg5, shared_function_data_index:0
+[  90]       Return value:reg5

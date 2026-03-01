@@ -4263,9 +4263,13 @@ fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &Scop
             // Emit TDZ check before const assignment error, matching C++ which
             // calls emit_tdz_check_if_needed() in the caller before emit_set_variable().
             let local_index = ident.local_index.get();
-            if generator.is_local_lexically_declared(local_index)
-                && !generator.is_local_initialized(local_index)
-            {
+            let needs_tdz = if ident.local_type.get() == Some(LocalType::Argument) {
+                !generator.is_argument_initialized(local_index)
+            } else {
+                generator.is_local_lexically_declared(local_index)
+                    && !generator.is_local_initialized(local_index)
+            };
+            if needs_tdz {
                 let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
                 generator.emit(Instruction::ThrowIfTDZ {
                     src: local.operand(),
@@ -4277,10 +4281,15 @@ fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &Scop
         let local_index = ident.local_index.get();
         let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
         // TDZ check: throw ReferenceError if assigning to an uninitialized let/const binding.
-        // Matching C++ AssignmentExpression: check is_lexically_declared && !is_initialized.
-        if generator.is_local_lexically_declared(local_index)
-            && !generator.is_local_initialized(local_index)
-        {
+        // For arguments, check argument initialization tracking.
+        // For variables, check is_lexically_declared && !is_initialized.
+        let needs_tdz = if ident.local_type.get() == Some(LocalType::Argument) {
+            !generator.is_argument_initialized(local_index)
+        } else {
+            generator.is_local_lexically_declared(local_index)
+                && !generator.is_local_initialized(local_index)
+        };
+        if needs_tdz {
             generator.emit(Instruction::ThrowIfTDZ {
                 src: local.operand(),
             });
@@ -7887,10 +7896,13 @@ pub fn emit_function_declaration_instantiation(
 
     // --- Compute FDI metadata ---
 
-    // Check for parameter expressions (default values or binding patterns with defaults).
+    // Check for parameter expressions (default values or binding patterns with expressions).
     let has_parameter_expressions = function_data.parameters.iter().any(|p| {
         p.default_value.is_some()
-            || matches!(p.binding, FunctionParameterBinding::BindingPattern(_))
+            || matches!(
+                p.binding,
+                FunctionParameterBinding::BindingPattern(ref pat) if pat.contains_expression()
+            )
     });
 
     // Build parameter_names map and check for duplicates.
