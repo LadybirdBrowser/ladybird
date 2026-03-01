@@ -299,6 +299,7 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_executable);
+    visitor.visit(m_cpp_comparison_sfd);
     for (auto& function : m_functions_to_initialize)
         visitor.visit(function.shared_data);
     m_class_field_initializer_name.visit([&](PropertyKey const& key) { key.visit_edges(visitor); }, [](auto&) {});
@@ -380,6 +381,7 @@ void SharedFunctionInstanceData::clear_compile_inputs()
     m_lexical_bindings.clear();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
+    m_cpp_comparison_sfd = nullptr;
 }
 
 }

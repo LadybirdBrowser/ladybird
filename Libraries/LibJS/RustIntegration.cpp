@@ -46,6 +46,13 @@ static bool rust_pipeline_enabled()
     return enabled;
 }
 
+static void pair_shared_function_data(Bytecode::Executable& rust_executable, Bytecode::Executable& cpp_executable)
+{
+    VERIFY(rust_executable.shared_function_data.size() == cpp_executable.shared_function_data.size());
+    for (size_t i = 0; i < rust_executable.shared_function_data.size(); ++i)
+        rust_executable.shared_function_data[i]->m_cpp_comparison_sfd = cpp_executable.shared_function_data[i];
+}
+
 static Utf16FlyString utf16_fly_from(uint16_t const* data, size_t len)
 {
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(data), len });
@@ -407,6 +414,8 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(
             auto rust_bytecode_dump = rust_executable.dump_to_string();
             auto cpp_bytecode_dump = cpp_executable->dump_to_string();
             compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, filename, cpp_ast_dump);
+
+            pair_shared_function_data(rust_executable, *cpp_executable);
         }
 
         rust_free_string(rust_ast_data, rust_ast_len);
@@ -485,6 +494,8 @@ Optional<Result<EvalResult, String>> compile_eval(
             auto rust_bytecode_dump = rust_executable.dump_to_string();
             auto cpp_bytecode_dump = cpp_executable->dump_to_string();
             compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, "eval"sv, cpp_ast_dump);
+
+            pair_shared_function_data(rust_executable, *cpp_executable);
         }
 
         rust_free_string(rust_ast_data, rust_ast_len);
@@ -549,6 +560,8 @@ Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
             auto rust_bytecode_dump = rust_executable.dump_to_string();
             auto cpp_bytecode_dump = cpp_executable->dump_to_string();
             compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, "ShadowRealmEval"sv, cpp_ast_dump);
+
+            pair_shared_function_data(rust_executable, *cpp_executable);
         }
 
         rust_free_string(rust_ast_data, rust_ast_len);
@@ -632,6 +645,8 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(
                 auto rust_bytecode_dump = rust_executable.dump_to_string();
                 auto cpp_bytecode_dump = cpp_executable->dump_to_string();
                 compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, filename, cpp_ast_dump);
+
+                pair_shared_function_data(rust_executable, *cpp_executable);
             }
         }
 
@@ -796,6 +811,24 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
         shared_data.m_rust_function_ast,
         builtin_abstract_operations_enabled));
     shared_data.m_rust_function_ast = nullptr;
+
+    if (exec && shared_data.m_cpp_comparison_sfd) {
+        auto cpp_executable = Bytecode::Generator::generate_from_function(vm, *shared_data.m_cpp_comparison_sfd,
+            builtin_abstract_operations_enabled
+                ? Bytecode::BuiltinAbstractOperationsEnabled::Yes
+                : Bytecode::BuiltinAbstractOperationsEnabled::No);
+
+        auto rust_dump = exec->dump_to_string();
+        auto cpp_dump = cpp_executable->dump_to_string();
+        auto context = MUST(String::formatted("function {}", shared_data.m_name));
+        auto ast_dump = shared_data.m_cpp_comparison_sfd->m_ecmascript_code
+            ? shared_data.m_cpp_comparison_sfd->m_ecmascript_code->dump_to_string()
+            : String {};
+        compare_pipeline_bytecode(rust_dump, cpp_dump, context, ast_dump);
+
+        pair_shared_function_data(*exec, *cpp_executable);
+    }
+
     return exec;
 }
 

@@ -164,6 +164,10 @@ public:
     void* m_rust_function_ast { nullptr };
     bool m_use_rust_compilation { false };
 
+    // NB: When LIBJS_COMPARE_PIPELINES is set, this holds the C++ SFD
+    //     counterpart so compile_function can run both pipelines and compare.
+    GC::Ptr<SharedFunctionInstanceData> m_cpp_comparison_sfd;
+
     void clear_compile_inputs();
 
 private:
