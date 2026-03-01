@@ -2592,7 +2592,7 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
             auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
             auto point = paintable_box->absolute_position();
             point.translate_by(position);
-            position = accumulated_visual_context.transform_rect_to_viewport({ point, { 0, 0 } }, scroll_state).location();
+            position = accumulated_visual_context.transform_rect_to_viewport({ point, { 0, 0 } }, scroll_state).location().to_type<CSSPixels>();
         } else {
             position.translate_by(paintable->box_type_agnostic_position());
         }
