@@ -1,0 +1,54 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Null]
+[  40]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       JumpIf condition:arg0, true_target:@48, false_target:@78
+[  18]    1: End value:Undefined
+[  20]    2: IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg7, iterator_done:reg8
+[  38]       JumpIf condition:reg11, true_target:@18, false_target:@140
+[  48]    3: GetById dst:reg6, base:arg0, property:x, base_identifier:o
+[  60]       Mov dst:reg5, src:reg6
+[  70]       Jump target:@88
+[  78]    4: Mov dst:reg5, src:arg1
+[  88]    5: GetGlobal dst:reg7, identifier:Object
+[  98]       GetById dst:reg8, base:reg7, property:entries, base_identifier:Object
+[  b0]       NewObject dst:reg9
+[  c0]       Call dst:reg6, callee:reg8, this_value:reg7, Object.entries, arguments:[reg9]
+[  e8]       GetIterator dst_iterator_object:reg5, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg6
+[ 100]       Jump target:@20
+[ 108]    6: Catch dst:reg9
+[ 110]       SetLexicalEnvironment environment:reg4
+[ 118]       Mov dst:reg6, src:Int32(1)
+[ 128]    7: JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@258, false_target:@278
+[ 140]    8: Mov dst:reg12, src:Bool(false)
+[ 150]       GetIterator dst_iterator_object:reg13, dst_iterator_next:reg14, dst_iterator_done:reg15, iterable:reg10
+[ 168]       IteratorNextUnpack dst_value:reg16, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
+[ 180]       JumpFalse condition:reg12, target:@1a8
+[ 190]    9: Mov dst:reg16, src:Undefined
+[ 1a0]       Jump target:@1a8
+[ 1a8]   10: Mov dst:r~1, src:reg16
+[ 1b8]       JumpFalse condition:reg12, target:@1e0
+[ 1c8]   11: Mov dst:reg16, src:Undefined
+[ 1d8]       Jump target:@208
+[ 1e0]   12: IteratorNextUnpack dst_value:reg16, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
+[ 1f8]       JumpTrue condition:reg12, target:@1c8
+[ 208]   13: Mov dst:n~0, src:reg16
+[ 218]       JumpFalse condition:reg12, target:@238
+[ 228]   14: ThrowIfTDZ src:r~1
+[ 230]       Jump target:@20
+[ 238]   15: IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:Undefined
+[ 250]       Jump target:@228
+[ 258]   16: IteratorClose iterator_object:reg5, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+[ 270]       Throw src:reg9
+[ 278]   17: IteratorClose iterator_object:reg5, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+[ 290]       JumpStrictlyEquals lhs:reg6, rhs:Int32(2), true_target:@2a8, false_target:@2b0
+[ 2a8]   18: Return value:reg9
+[ 2b0]   19: Throw src:reg9
+
+Exception handlers:
+    from  140 to  258 handler  108
+
