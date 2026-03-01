@@ -1,0 +1,63 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:nestedTryFinallyContinue
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, nestedTryFinallyContinue
+[  38]       End value:reg5
+
+JS bytecode executable "nestedTryFinallyContinue"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:i~0, src:Int32(0)
+[  18]       Jump target:@38
+[  20]    1: Jump target:@f0
+[  28]    2: PostfixIncrement dst:reg5, src:i~0
+[  38]    3: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@20, false_target:@50
+[  50]    4: End value:Undefined
+[  58]    5: Catch dst:reg6
+[  60]       SetLexicalEnvironment environment:reg4
+[  68]       Mov dst:reg5, src:Int32(1)
+[  78]    6: GetGlobal dst:reg8, identifier:console
+[  88]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
+[  a0]       Mov dst:reg10, src:i~0
+[  b0]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer"), reg10]
+[  d8]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@268, false_target:@270
+[  f0]    7: Jump target:@190
+[  f8]    8: Catch dst:reg8
+[ 100]       SetLexicalEnvironment environment:reg4
+[ 108]       Mov dst:reg7, src:Int32(1)
+[ 118]    9: GetGlobal dst:reg10, identifier:console
+[ 128]       GetById dst:reg11, base:reg10, property:log, base_identifier:console
+[ 140]       Mov dst:reg12, src:i~0
+[ 150]       Call dst:reg9, callee:reg11, this_value:reg10, console.log, arguments:[String("inner"), reg12]
+[ 178]       JumpStrictlyEquals lhs:reg7, rhs:Int32(0), true_target:@1f0, false_target:@208
+[ 190]   10: JumpStrictlyEquals lhs:i~0, rhs:Int32(1), true_target:@1a8, false_target:@1c0
+[ 1a8]   11: Mov dst:reg7, src:Int32(3)
+[ 1b8]       Jump target:@118
+[ 1c0]   12: Mov dst:reg7, src:Int32(0)
+[ 1d0]       Jump target:@118
+[ 1d8]   13: Mov dst:reg5, src:Int32(3)
+[ 1e8]       Jump target:@78
+[ 1f0]   14: Mov dst:reg5, src:Int32(0)
+[ 200]       Jump target:@78
+[ 208]   15: JumpStrictlyEquals lhs:reg7, rhs:Int32(3), true_target:@1d8, false_target:@220
+[ 220]   16: JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:@238, false_target:@260
+[ 238]   17: Mov dst:reg5, src:reg7
+[ 248]       Mov dst:reg6, src:reg8
+[ 258]       Jump target:@78
+[ 260]   18: Throw src:reg8
+[ 268]   19: Jump target:@28
+[ 270]   20: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@28, false_target:@288
+[ 288]   21: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@2a0, false_target:@2a8
+[ 2a0]   22: Return value:reg6
+[ 2a8]   23: Throw src:reg6
+
+Exception handlers:
+    from   f0 to  190 handler   58
+    from  190 to  1f0 handler   f8
+    from  1f0 to  268 handler   58
+
+"inner" 0
+"outer" 0
+"inner" 1
+"outer" 1
+"inner" 2
+"outer" 2
