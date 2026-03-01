@@ -3905,7 +3905,7 @@ fn generate_assignment_expression(
             Some(generator.add_constant_undefined())
         }
         AssignmentLhs::Pattern(pattern) => {
-            let rhs_val = generate_expression(rhs, generator, preferred_dst)?;
+            let rhs_val = generate_expression(rhs, generator, None)?;
             generate_binding_pattern_bytecode(generator, pattern, BindingMode::Set, &rhs_val);
             Some(rhs_val)
         }
