@@ -705,15 +705,7 @@ fn generate_member_expression(
         if let Some(key) = computed_key {
             emit_get_by_value_with_this(generator, &dst, &super_base, &key, &this_value);
         } else if let ExpressionKind::Identifier(ident) = &property.inner {
-            let key = generator.intern_property_key(&ident.name);
-            let cache = generator.next_property_lookup_cache();
-            generator.emit(Instruction::GetByIdWithThis {
-                dst: dst.operand(),
-                base: super_base.operand(),
-                property: key,
-                this_value: this_value.operand(),
-                cache_index: cache,
-            });
+            emit_get_by_id_with_this(generator, &dst, &super_base, &ident.name, &this_value);
         }
         return Some(dst);
     }
@@ -3163,15 +3155,13 @@ fn generate_call_expression(
                 if let Some(key) = computed_key {
                     emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
                 } else if let ExpressionKind::Identifier(ident) = &property.inner {
-                    let key = generator.intern_property_key(&ident.name);
-                    let cache = generator.next_property_lookup_cache();
-                    generator.emit(Instruction::GetByIdWithThis {
-                        dst: method.operand(),
-                        base: super_base.operand(),
-                        property: key,
-                        this_value: this_value.operand(),
-                        cache_index: cache,
-                    });
+                    emit_get_by_id_with_this(
+                        generator,
+                        &method,
+                        &super_base,
+                        &ident.name,
+                        &this_value,
+                    );
                 }
                 (method, Some(this_value))
             }
@@ -3461,15 +3451,7 @@ fn generate_update_expression(
                 if let Some(ref key) = computed_key {
                     emit_get_by_value_with_this(generator, &value, &base, key, &this_value);
                 } else if let ExpressionKind::Identifier(ident) = &property.inner {
-                    let key = generator.intern_property_key(&ident.name);
-                    let cache = generator.next_property_lookup_cache();
-                    generator.emit(Instruction::GetByIdWithThis {
-                        dst: value.operand(),
-                        base: base.operand(),
-                        property: key,
-                        this_value: this_value.operand(),
-                        cache_index: cache,
-                    });
+                    emit_get_by_id_with_this(generator, &value, &base, &ident.name, &this_value);
                 }
                 let result = emit_update_op(generator, op, prefixed, &value, preferred_dst);
                 emit_super_put(
@@ -3679,15 +3661,13 @@ fn generate_assignment_expression(
                     if let Some(ref key) = computed_key {
                         emit_get_by_value_with_this(generator, &old_val, &base, key, &super_this);
                     } else if let ExpressionKind::Identifier(ident) = &property.inner {
-                        let key = generator.intern_property_key(&ident.name);
-                        let cache = generator.next_property_lookup_cache();
-                        generator.emit(Instruction::GetByIdWithThis {
-                            dst: old_val.operand(),
-                            base: base.operand(),
-                            property: key,
-                            this_value: super_this.operand(),
-                            cache_index: cache,
-                        });
+                        emit_get_by_id_with_this(
+                            generator,
+                            &old_val,
+                            &base,
+                            &ident.name,
+                            &super_this,
+                        );
                     }
                     let is_logical = matches!(
                         op,
@@ -3949,15 +3929,7 @@ fn emit_super_get(
         emit_get_by_value_with_this(generator, dst, base, &property, this_value);
         Some(property)
     } else if let ExpressionKind::Identifier(ident) = &property.inner {
-        let key = generator.intern_property_key(&ident.name);
-        let cache = generator.next_property_lookup_cache();
-        generator.emit(Instruction::GetByIdWithThis {
-            dst: dst.operand(),
-            base: base.operand(),
-            property: key,
-            this_value: this_value.operand(),
-            cache_index: cache,
-        });
+        emit_get_by_id_with_this(generator, dst, base, &ident.name, this_value);
         None
     } else {
         None
@@ -4021,6 +3993,37 @@ fn emit_get_by_id(
             base: base.operand(),
             property: key,
             base_identifier,
+            cache_index: cache,
+        });
+    }
+}
+
+/// Emit a property access by name with a this value, using GetLengthWithThis
+/// for the "length" property.
+fn emit_get_by_id_with_this(
+    generator: &mut Generator,
+    dst: &ScopedOperand,
+    base: &ScopedOperand,
+    property_name: &[u16],
+    this_value: &ScopedOperand,
+) {
+    let key = generator.intern_property_key(property_name);
+    if property_name == utf16!("length") {
+        generator.length_identifier = Some(key);
+        let cache = generator.next_property_lookup_cache();
+        generator.emit(Instruction::GetLengthWithThis {
+            dst: dst.operand(),
+            base: base.operand(),
+            this_value: this_value.operand(),
+            cache_index: cache,
+        });
+    } else {
+        let cache = generator.next_property_lookup_cache();
+        generator.emit(Instruction::GetByIdWithThis {
+            dst: dst.operand(),
+            base: base.operand(),
+            property: key,
+            this_value: this_value.operand(),
             cache_index: cache,
         });
     }
@@ -4107,14 +4110,25 @@ fn emit_get_by_value_with_this(
     this_value: &ScopedOperand,
 ) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
-        let cache = generator.next_property_lookup_cache();
-        generator.emit(Instruction::GetByIdWithThis {
-            dst: dst.operand(),
-            base: base.operand(),
-            property: key,
-            this_value: this_value.operand(),
-            cache_index: cache,
-        });
+        if generator.property_key_table[key.0 as usize].0 == utf16!("length") {
+            generator.length_identifier = Some(key);
+            let cache = generator.next_property_lookup_cache();
+            generator.emit(Instruction::GetLengthWithThis {
+                dst: dst.operand(),
+                base: base.operand(),
+                this_value: this_value.operand(),
+                cache_index: cache,
+            });
+        } else {
+            let cache = generator.next_property_lookup_cache();
+            generator.emit(Instruction::GetByIdWithThis {
+                dst: dst.operand(),
+                base: base.operand(),
+                property: key,
+                this_value: this_value.operand(),
+                cache_index: cache,
+            });
+        }
         return;
     }
     generator.emit(Instruction::GetByValueWithThis {
@@ -4832,15 +4846,7 @@ fn generate_tagged_template_literal(
             if let Some(key) = computed_key {
                 emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
             } else if let ExpressionKind::Identifier(ident) = &property.inner {
-                let prop_key = generator.intern_property_key(&ident.name);
-                let cache = generator.next_property_lookup_cache();
-                generator.emit(Instruction::GetByIdWithThis {
-                    dst: method.operand(),
-                    base: super_base.operand(),
-                    property: prop_key,
-                    this_value: this_value.operand(),
-                    cache_index: cache,
-                });
+                emit_get_by_id_with_this(generator, &method, &super_base, &ident.name, &this_value);
             }
             (method, Some(this_value))
         }
