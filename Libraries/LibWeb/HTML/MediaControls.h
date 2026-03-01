@@ -7,10 +7,12 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/MediaControlsDOM.h>
 
 namespace Web::HTML {
 
@@ -63,20 +65,7 @@ private:
 
     GC::Weak<HTMLMediaElement> m_media_element;
 
-    GC::Weak<DOM::Element> m_control_bar;
-    GC::Weak<DOM::Element> m_timeline_element;
-    GC::Weak<DOM::Element> m_timeline_fill;
-    GC::Weak<DOM::Element> m_play_button;
-    GC::Weak<DOM::Element> m_play_pause_icon;
-    GC::Weak<DOM::Element> m_timestamp_element;
-    GC::Weak<DOM::Element> m_mute_button;
-    GC::Weak<DOM::Element> m_volume_area;
-    GC::Weak<DOM::Element> m_volume_element;
-    GC::Weak<DOM::Element> m_volume_fill;
-    GC::Weak<DOM::Element> m_fullscreen_button;
-    GC::Weak<DOM::Element> m_fullscreen_icon;
-    GC::Weak<DOM::Element> m_video_overlay;
-    GC::Weak<DOM::Element> m_placeholder_circle;
+    Optional<MediaControlsDOM> m_dom;
 
     struct RegisteredEventListener {
         GC::Weak<DOM::EventTarget> target;

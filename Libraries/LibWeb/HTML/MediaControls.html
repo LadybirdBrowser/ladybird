@@ -1,0 +1,46 @@
+<link rel="stylesheet" href="MediaControls.css">
+<div data-name="container" class="container">
+    <div data-name="video-overlay" data-option="video" class="video-overlay">
+        <div data-name="placeholder-circle" class="placeholder-circle">
+            <svg class="placeholder-icon" viewBox="0 0 24 24">
+                <path class="play-path" d="m6 5 13 7-13 7Z"/>
+            </svg>
+        </div>
+    </div>
+    <div data-name="control-bar" class="controls">
+        <div data-name="timeline-element" class="timeline">
+            <div data-name="timeline-fill" class="timeline-fill"></div>
+        </div>
+        <div class="button-bar">
+            <button data-name="play-button" class="control-button play-pause-button">
+                <svg data-name="play-pause-icon" class="icon play-pause-icon" viewBox="0 0 24 24">
+                    <path class="play-path" d="m6 5 13 7-13 7Z"/>
+                    <path class="pause-path" d="M14 5h4v14h-4Zm-4 0H6v14h4z"/>
+                </svg>
+            </button>
+            <span data-name="timestamp-element" class="timestamp">0:00 / 0:00</span>
+            <button data-name="mute-button" class="control-button mute-button">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <defs><clipPath id="muted-clip">
+                        <path d="M3 0h21v21ZM0 0v24h24z"/>
+                    </clipPath></defs>
+                    <path class="muted-line" d="m5 5 14 14-1.5 1.5-14-14z"/>
+                    <path class="volume-high" d="M14 4.08v2.04c2.23.55 4 2.9 4 5.88 0 2.97-1.77 5.33-4 5.88v2.04c3.45-.56 6-3.96 6-7.92s-2.55-7.36-6-7.92Z"/>
+                    <path class="volume-low" d="M14 7.67v8.66c.35-.25.66-.55.92-.9A5.7 5.7 0 0 0 16 12c0-1.3-.39-2.5-1.08-3.43a4.24 4.24 0 0 0-.92-.9Z"/>
+                    <path class="speaker" d="M4 9v6h4l4 5V4L8 9Z"/>
+                </svg>
+            </button>
+            <div data-name="volume-area" class="volume-area">
+                <div data-name="volume-element" class="volume">
+                    <div data-name="volume-fill" class="volume-fill"></div>
+                </div>
+            </div>
+            <div data-name="fullscreen-button" data-option="video" class="control-button fullscreen-button">
+                <svg data-name="fullscreen-icon" class="icon fullscreen-icon" viewBox="0 0 24 24">
+                    <path class="fullscreen-maximize-path" d="M3 3h6v2H5v4H3Zm12 0h6v6h-2V5h-4Zm6 12v6h-6v-2h4v-4ZM3 15v6h6v-2H5v-4Z"/>
+                    <path class="fullscreen-minimize-path" d="M9 3v6H3V7h4V3Zm6 0v6h6V7h-4V3ZM3 15h6v6H7v-4H3Zm12 0v6h2v-4h4v-2Z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+</div>

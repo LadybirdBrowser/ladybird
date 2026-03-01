@@ -107,16 +107,6 @@
     display: inline;
 }
 
-.fullscreen-icon path {
-    display: none;
-}
-.fullscreen-icon:not(.fullscreen) .fullscreen-maximize-path {
-    display: inline;
-}
-.fullscreen-icon.fullscreen .fullscreen-minimize-path {
-    display: inline;
-}
-
 .mute-button {
     margin-left: auto;
 }
@@ -177,6 +167,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.fullscreen-icon path {
+    display: none;
+}
+.fullscreen-icon:not(.fullscreen) .fullscreen-maximize-path {
+    display: inline;
+}
+.fullscreen-icon.fullscreen .fullscreen-minimize-path {
+    display: inline;
 }
 
 .placeholder-circle {

@@ -1187,7 +1187,6 @@ generate_html_implementation()
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
-    CSS/MediaControlsStyleSheetSource.cpp
     CSS/DescriptorID.cpp
     CSS/Enums.cpp
     CSS/EnvironmentVariable.cpp
@@ -1208,6 +1207,7 @@ set(GENERATED_SOURCES
     SVG/SVGStyleSheetSource.cpp
     Worker/WebWorkerClientEndpoint.h
     Worker/WebWorkerServerEndpoint.h
+    HTML/MediaControlsDOM.cpp
     HTML/Parser/NamedCharacterReferences.cpp
 )
 

@@ -10,30 +10,19 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/MediaControls.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Namespace.h>
-#include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/CallbackType.h>
-
-namespace Web::CSS {
-
-extern String media_controls_stylesheet_source;
-
-}
 
 namespace Web::HTML {
 
@@ -51,92 +40,6 @@ MediaControls::~MediaControls()
         media_element->set_shadow_root(nullptr);
 }
 
-static GC::Ref<DOM::Element> create_html_element(DOM::Document& document, FlyString const& tag, StringView class_name = {})
-{
-    auto element = MUST(DOM::create_element(document, tag, Namespace::HTML));
-    if (!class_name.is_empty())
-        element->set_attribute_value(HTML::AttributeNames::class_, String::from_utf8(class_name).release_value());
-    return element;
-}
-
-static GC::Ref<DOM::Element> create_svg_element(DOM::Document& document, FlyString const& tag, StringView class_name = {})
-{
-    auto element = MUST(DOM::create_element(document, tag, Namespace::SVG));
-    if (!class_name.is_empty())
-        element->set_attribute_value(SVG::AttributeNames::class_, String::from_utf8(class_name).release_value());
-    return element;
-}
-
-static String s_icon_view_box = "0 0 24 24"_string;
-
-static GC::Ref<DOM::Element> create_play_icon(DOM::Document& document, StringView class_name)
-{
-    auto icon = create_svg_element(document, SVG::TagNames::svg, class_name);
-    icon->set_attribute_value(SVG::AttributeNames::viewBox, s_icon_view_box);
-
-    auto path = create_svg_element(document, SVG::TagNames::path, "play-path"sv);
-    path->set_attribute_value(SVG::AttributeNames::d, "m6 5 13 7-13 7Z"_string);
-    MUST(icon->append_child(path));
-
-    return icon;
-}
-
-static GC::Ref<DOM::Element> create_mute_icon(DOM::Document& document, StringView class_name)
-{
-    auto icon = create_svg_element(document, SVG::TagNames::svg, class_name);
-    icon->set_attribute_value(SVG::AttributeNames::viewBox, s_icon_view_box);
-
-    // Muted clipping path
-    auto defs = create_svg_element(document, SVG::TagNames::defs);
-    MUST(icon->append_child(defs));
-
-    auto muted_clip_path = create_svg_element(document, SVG::TagNames::clipPath);
-    muted_clip_path->set_attribute_value(AttributeNames::id, "muted-clip"_string);
-    MUST(defs->append_child(muted_clip_path));
-
-    auto muted_clip_path_path = create_svg_element(document, SVG::TagNames::path);
-    muted_clip_path_path->set_attribute_value(SVG::AttributeNames::d, "M3 0h21v21ZM0 0v24h24z"_string);
-    MUST(muted_clip_path->append_child(muted_clip_path_path));
-
-    // Muted cross-out line
-    auto muted_line = create_svg_element(document, SVG::TagNames::path, "muted-line"_string);
-    muted_line->set_attribute_value(SVG::AttributeNames::d, "m5 5 14 14-1.5 1.5-14-14z"_string);
-    MUST(icon->append_child(muted_line));
-
-    // High volume wave path
-    auto volume_high = create_svg_element(document, SVG::TagNames::path, "volume-high"_string);
-    volume_high->set_attribute_value(SVG::AttributeNames::d, "M14 4.08v2.04c2.23.55 4 2.9 4 5.88 0 2.97-1.77 5.33-4 5.88v2.04c3.45-.56 6-3.96 6-7.92s-2.55-7.36-6-7.92Z"_string);
-    MUST(icon->append_child(volume_high));
-
-    // Low volume wave path
-    auto volume_low = create_svg_element(document, SVG::TagNames::path, "volume-low"_string);
-    volume_low->set_attribute_value(SVG::AttributeNames::d, "M14 7.67v8.66c.35-.25.66-.55.92-.9A5.7 5.7 0 0 0 16 12c0-1.3-.39-2.5-1.08-3.43a4.24 4.24 0 0 0-.92-.9Z"_string);
-    MUST(icon->append_child(volume_low));
-
-    // Speaker path
-    auto speaker = create_svg_element(document, SVG::TagNames::path, "speaker"_string);
-    speaker->set_attribute_value(SVG::AttributeNames::d, "M4 9v6h4l4 5V4L8 9Z"_string);
-    MUST(icon->append_child(speaker));
-
-    return icon;
-}
-
-static GC::Ref<DOM::Element> create_fullscreen_icon(DOM::Document& document, StringView class_name)
-{
-    auto icon = create_svg_element(document, SVG::TagNames::svg, class_name);
-    icon->set_attribute_value(SVG::AttributeNames::viewBox, s_icon_view_box);
-
-    auto maximize_path = create_svg_element(document, SVG::TagNames::path, "fullscreen-maximize-path"sv);
-    maximize_path->set_attribute_value(SVG::AttributeNames::d, "M3 3h6v2H5v4H3Zm12 0h6v6h-2V5h-4Zm6 12v6h-6v-2h4v-4ZM3 15v6h6v-2H5v-4Z"_string);
-    MUST(icon->append_child(maximize_path));
-
-    auto minimize_path = create_svg_element(document, SVG::TagNames::path, "fullscreen-minimize-path"sv);
-    minimize_path->set_attribute_value(SVG::AttributeNames::d, "M9 3v6H3V7h4V3Zm6 0v6h6V7h-4V3ZM3 15h6v6H7v-4H3Zm12 0v6h2v-4h4v-2Z"_string);
-    MUST(icon->append_child(minimize_path));
-
-    return icon;
-}
-
 void MediaControls::create_shadow_tree()
 {
     auto& media_element = *m_media_element;
@@ -149,82 +52,14 @@ void MediaControls::create_shadow_tree()
     shadow_root->set_user_agent_internal(true);
     media_element.set_shadow_root(shadow_root);
 
-    // Scoped stylesheet
-    auto style_element = create_html_element(document, HTML::TagNames::style);
-    MUST(style_element->set_text_content(Utf16String::from_utf8(CSS::media_controls_stylesheet_source)));
-    MUST(shadow_root->append_child(style_element));
+    m_dom = MediaControlsDOM(document, *shadow_root, is_video ? MediaControlsDOM::Options::Video : MediaControlsDOM::Options::None);
 
-    // Controls container
-    auto controls_container = create_html_element(document, HTML::TagNames::div, is_video ? "container video"sv : "container audio"sv);
-    MUST(shadow_root->append_child(controls_container));
-
-    // Video overlay — covers the full video area to catch clicks for play/pause toggle.
-    // Also contains the placeholder circle shown when no video data is available.
-    if (is_video) {
-        m_video_overlay = create_html_element(document, HTML::TagNames::div, "video-overlay"sv);
-        MUST(controls_container->append_child(*m_video_overlay));
-
-        m_placeholder_circle = create_html_element(document, HTML::TagNames::div, "placeholder-circle"sv);
-        MUST(m_video_overlay->append_child(*m_placeholder_circle));
-
-        auto placeholder_icon = create_play_icon(document, "placeholder-icon"sv);
-        MUST(m_placeholder_circle->append_child(placeholder_icon));
-    }
-
-    // Control bar container
-    m_control_bar = create_html_element(document, HTML::TagNames::div, "controls"sv);
-    MUST(controls_container->append_child(*m_control_bar));
-
-    // Timeline
-    m_timeline_element = create_html_element(document, HTML::TagNames::div, "timeline"sv);
-    MUST(m_control_bar->append_child(*m_timeline_element));
-    m_timeline_fill = create_html_element(document, HTML::TagNames::div, "timeline-fill"sv);
-    MUST(m_timeline_element->append_child(*m_timeline_fill));
-
-    // Button bar
-    auto button_bar = create_html_element(document, HTML::TagNames::div, "button-bar"sv);
-    MUST(m_control_bar->append_child(button_bar));
-
-    // Play/pause button
-    m_play_button = create_html_element(document, HTML::TagNames::button, "control-button play-pause-button"sv);
-    MUST(button_bar->append_child(*m_play_button));
-
-    // Play/pause icon
-    m_play_pause_icon = create_play_icon(document, "icon play-pause-icon"sv);
-    MUST(m_play_button->append_child(*m_play_pause_icon));
-
-    auto pause_path = create_svg_element(document, SVG::TagNames::path, "pause-path"sv);
-    pause_path->set_attribute_value(SVG::AttributeNames::d, "M14 5h4v14h-4Zm-4 0H6v14h4z"_string);
-    MUST(m_play_pause_icon->append_child(pause_path));
-
-    // Timestamp
-    m_timestamp_element = create_html_element(document, HTML::TagNames::span, "timestamp"sv);
-    MUST(m_timestamp_element->set_text_content(Utf16String::from_utf8("0:00 / 0:00"sv)));
-    MUST(button_bar->append_child(*m_timestamp_element));
-
-    // Speaker button
-    m_mute_button = create_html_element(document, HTML::TagNames::button, "control-button mute-button"sv);
-    MUST(button_bar->append_child(*m_mute_button));
-
-    auto mute_icon = create_mute_icon(document, "icon"sv);
-    MUST(m_mute_button->append_child(mute_icon));
-
-    // Volume slider
-    m_volume_area = create_html_element(document, HTML::TagNames::div, "volume-area"sv);
-    MUST(button_bar->append_child(*m_volume_area));
-    m_volume_element = create_html_element(document, HTML::TagNames::div, "volume"sv);
-    MUST(m_volume_area->append_child(*m_volume_element));
-    m_volume_fill = create_html_element(document, HTML::TagNames::div, "volume-fill"sv);
-    MUST(m_volume_element->append_child(*m_volume_fill));
-
-    // Fullscreen button
-    if (is_video) {
-        m_fullscreen_button = create_html_element(document, HTML::TagNames::button, "control-button fullscreen-button"sv);
-        MUST(button_bar->append_child(*m_fullscreen_button));
-
-        m_fullscreen_icon = create_fullscreen_icon(document, "icon fullscreen-icon"sv);
-        MUST(m_fullscreen_button->append_child(*m_fullscreen_icon));
-    }
+    static Vector<String> s_video_class = { "video"_string };
+    static Vector<String> s_audio_class = { "audio"_string };
+    if (is_video)
+        MUST(m_dom->container->class_list()->add(s_video_class));
+    else
+        MUST(m_dom->container->class_list()->add(s_audio_class));
 
     // Initialize state
     update_play_pause_icon();
@@ -352,7 +187,7 @@ void MediaControls::set_up_event_listeners()
         return true;
     });
 
-    if (m_fullscreen_button) {
+    if (m_dom->fullscreen_button) {
         add_event_listener(realm, media_element.document(), HTML::EventNames::fullscreenchange, [this] {
             update_fullscreen_icon();
             return true;
@@ -360,14 +195,14 @@ void MediaControls::set_up_event_listeners()
     }
 
     // Play/pause button
-    add_event_listener(realm, *m_play_button, UIEvents::EventNames::click, [this] {
+    add_event_listener(realm, *m_dom->play_button, UIEvents::EventNames::click, [this] {
         toggle_playback();
         return true;
     });
 
     // Video overlay click — toggle playback when clicking outside the controls
-    if (m_video_overlay) {
-        add_event_listener(realm, *m_video_overlay, UIEvents::EventNames::click, [this] {
+    if (m_dom->video_overlay) {
+        add_event_listener(realm, *m_dom->video_overlay, UIEvents::EventNames::click, [this] {
             toggle_playback();
             return true;
         });
@@ -382,11 +217,11 @@ void MediaControls::set_up_event_listeners()
         return fraction * duration;
     };
 
-    add_event_listener(realm, *m_timeline_element, UIEvents::EventNames::mousedown, [this](UIEvents::MouseEvent const& event) {
+    add_event_listener(realm, *m_dom->timeline_element, UIEvents::EventNames::mousedown, [this](UIEvents::MouseEvent const& event) {
         VERIFY(m_media_element);
-        VERIFY(m_timeline_element);
+        VERIFY(m_dom->timeline_element);
 
-        auto position = compute_timeline_position(event, *m_timeline_element, m_media_element->duration());
+        auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
         if (!position.has_value())
             return false;
 
@@ -403,9 +238,9 @@ void MediaControls::set_up_event_listeners()
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
-            VERIFY(m_timeline_element);
+            VERIFY(m_dom->timeline_element);
 
-            auto position = compute_timeline_position(event, *m_timeline_element, m_media_element->duration());
+            auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
             if (!position.has_value())
                 return false;
 
@@ -415,12 +250,12 @@ void MediaControls::set_up_event_listeners()
 
         add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
-            VERIFY(m_timeline_element);
+            VERIFY(m_dom->timeline_element);
 
             auto was_playing = m_scrubbing_timeline == Scrubbing::WhilePlaying;
             m_scrubbing_timeline = Scrubbing::No;
 
-            auto position = compute_timeline_position(event, *m_timeline_element, m_media_element->duration());
+            auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
             if (position.has_value())
                 set_current_time(*position);
 
@@ -445,7 +280,7 @@ void MediaControls::set_up_event_listeners()
     });
 
     // Speaker button
-    add_event_listener(realm, *m_mute_button, UIEvents::EventNames::click, [this] {
+    add_event_listener(realm, *m_dom->mute_button, UIEvents::EventNames::click, [this] {
         VERIFY(m_media_element);
         m_media_element->set_muted(!m_media_element->muted());
         return true;
@@ -457,11 +292,11 @@ void MediaControls::set_up_event_listeners()
         return clamp((event.client_x() - rect.left().to_double()) / rect.width().to_double(), 0.0, 1.0);
     };
 
-    add_event_listener(realm, *m_volume_area, UIEvents::EventNames::mousedown, [this](UIEvents::MouseEvent const& event) {
+    add_event_listener(realm, *m_dom->volume_area, UIEvents::EventNames::mousedown, [this](UIEvents::MouseEvent const& event) {
         VERIFY(m_media_element);
-        VERIFY(m_volume_element);
+        VERIFY(m_dom->volume_element);
 
-        auto volume = compute_volume(event, *m_volume_element);
+        auto volume = compute_volume(event, *m_dom->volume_element);
         if (!volume.has_value())
             return false;
 
@@ -474,9 +309,9 @@ void MediaControls::set_up_event_listeners()
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
-            VERIFY(m_volume_element);
+            VERIFY(m_dom->volume_element);
 
-            auto volume = compute_volume(event, *m_volume_element);
+            auto volume = compute_volume(event, *m_dom->volume_element);
             if (!volume.has_value())
                 return false;
 
@@ -486,11 +321,11 @@ void MediaControls::set_up_event_listeners()
 
         add_event_listener(realm, window, UIEvents::EventNames::mouseup, ListenOnce::Yes, [this, mousemove_listener](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
-            VERIFY(m_volume_element);
+            VERIFY(m_dom->volume_element);
 
             m_scrubbing_volume = false;
 
-            auto volume = compute_volume(event, *m_volume_element);
+            auto volume = compute_volume(event, *m_dom->volume_element);
             if (volume.has_value())
                 set_volume(*volume);
 
@@ -503,18 +338,17 @@ void MediaControls::set_up_event_listeners()
     });
 
     // Fullscreen button
-    if (m_fullscreen_button) {
-        add_event_listener(realm, *m_fullscreen_button, UIEvents::EventNames::click, [this] {
+    if (m_dom->fullscreen_button) {
+        add_event_listener(realm, *m_dom->fullscreen_button, UIEvents::EventNames::click, [this] {
             toggle_fullscreen();
             return true;
         });
 
-        if (m_video_overlay) {
-            add_event_listener(realm, *m_video_overlay, UIEvents::EventNames::dblclick, [this] {
-                toggle_fullscreen();
-                return true;
-            });
-        }
+        VERIFY(m_dom->video_overlay);
+        add_event_listener(realm, *m_dom->video_overlay, UIEvents::EventNames::dblclick, [this] {
+            toggle_fullscreen();
+            return true;
+        });
     }
 
     // Hover detection for video controls visibility
@@ -531,12 +365,12 @@ void MediaControls::set_up_event_listeners()
             hide_controls();
             return true;
         });
-        add_event_listener(realm, *m_control_bar, UIEvents::EventNames::mouseenter, [this] {
+        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseenter, [this] {
             m_hovering_controls = true;
             show_controls();
             return true;
         });
-        add_event_listener(realm, *m_control_bar, UIEvents::EventNames::mouseleave, [this] {
+        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseleave, [this] {
             m_hovering_controls = false;
             show_controls();
             return true;
@@ -615,7 +449,7 @@ void MediaControls::toggle_fullscreen()
 void MediaControls::update_play_pause_icon()
 {
     VERIFY(m_media_element);
-    VERIFY(m_play_pause_icon);
+    VERIFY(m_dom->play_pause_icon);
 
     auto paused = [&] {
         if (m_scrubbing_timeline != Scrubbing::No)
@@ -624,49 +458,49 @@ void MediaControls::update_play_pause_icon()
     }();
 
     static String s_playing_class = "playing"_string;
-    MUST(m_play_pause_icon->class_list()->toggle(s_playing_class, !paused));
+    MUST(m_dom->play_pause_icon->class_list()->toggle(s_playing_class, !paused));
 }
 
 void MediaControls::update_timeline()
 {
     VERIFY(m_media_element);
-    VERIFY(m_timeline_fill);
+    VERIFY(m_dom->timeline_fill);
 
     auto duration = m_media_element->duration();
     double percentage = 0.0;
     if (!isnan(duration) && duration > 0.0)
         percentage = (m_media_element->current_time() / duration) * 100.0;
 
-    MUST(m_timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
+    MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
 }
 
 void MediaControls::update_timestamp()
 {
     VERIFY(m_media_element);
-    VERIFY(m_timestamp_element);
+    VERIFY(m_dom->timestamp_element);
 
     auto current = human_readable_digital_time(round_to<i64>(m_media_element->current_time()));
     auto duration = m_media_element->duration();
     auto total = human_readable_digital_time(isnan(duration) ? 0 : round_to<i64>(duration));
 
-    MUST(m_timestamp_element->set_text_content(Utf16String::formatted("{} / {}", current, total)));
+    MUST(m_dom->timestamp_element->set_text_content(Utf16String::formatted("{} / {}", current, total)));
 }
 
 void MediaControls::update_volume_and_mute_indicator()
 {
     VERIFY(m_media_element);
-    VERIFY(m_volume_fill);
-    VERIFY(m_mute_button);
+    VERIFY(m_dom->volume_fill);
+    VERIFY(m_dom->mute_button);
 
     auto volume = m_media_element->volume();
     auto has_audio = m_media_element->audio_tracks()->length() > 0;
     auto muted = !has_audio || m_media_element->muted();
 
     if (muted) {
-        MUST(m_volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, "0"sv));
+        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, "0"sv));
     } else {
         auto percentage = volume * 100.0;
-        MUST(m_volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
+        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
     }
 
     auto new_volume_icon_state = [&] {
@@ -694,27 +528,27 @@ void MediaControls::update_volume_and_mute_indicator()
     };
 
     if (new_volume_icon_state != m_mute_icon_state) {
-        MUST(m_mute_button->class_list()->remove(icon_class(m_mute_icon_state)));
-        MUST(m_mute_button->class_list()->add(icon_class(new_volume_icon_state)));
+        MUST(m_dom->mute_button->class_list()->remove(icon_class(m_mute_icon_state)));
+        MUST(m_dom->mute_button->class_list()->add(icon_class(new_volume_icon_state)));
         m_mute_icon_state = new_volume_icon_state;
     }
 
     static Vector<String> s_muted_class = { "muted"_string };
     if (muted != m_was_muted) {
-        MUST(m_mute_button->class_list()->toggle("muted"_string, muted));
+        MUST(m_dom->mute_button->class_list()->toggle("muted"_string, muted));
         m_was_muted = muted;
     }
 
     static Vector<String> s_hidden_class = { "hidden"_string };
     if (has_audio != m_had_audio) {
-        MUST(m_volume_area->class_list()->toggle("hidden"_string, !has_audio));
+        MUST(m_dom->volume_area->class_list()->toggle("hidden"_string, !has_audio));
         m_had_audio = has_audio;
     }
 }
 
 void MediaControls::update_fullscreen_icon()
 {
-    if (!m_fullscreen_icon)
+    if (!m_dom->fullscreen_icon)
         return;
 
     static auto s_fullscreen_class = "fullscreen"_string;
@@ -722,24 +556,24 @@ void MediaControls::update_fullscreen_icon()
     VERIFY(m_media_element);
 
     auto is_fullscreen_element = m_media_element->document().fullscreen_element() == m_media_element;
-    MUST(m_fullscreen_icon->class_list()->toggle(s_fullscreen_class, is_fullscreen_element));
+    MUST(m_dom->fullscreen_icon->class_list()->toggle(s_fullscreen_class, is_fullscreen_element));
 }
 
 void MediaControls::update_placeholder_visibility()
 {
     VERIFY(m_media_element);
 
-    if (!m_placeholder_circle)
+    if (!m_dom->placeholder_circle)
         return;
 
     auto display = should_show_placeholder() ? "flex"sv : "none"sv;
-    MUST(m_placeholder_circle->style_for_bindings()->set_property(CSS::PropertyID::Display, display));
+    MUST(m_dom->placeholder_circle->style_for_bindings()->set_property(CSS::PropertyID::Display, display));
 }
 
 bool MediaControls::should_show_placeholder() const
 {
     VERIFY(m_media_element);
-    VERIFY(m_placeholder_circle);
+    VERIFY(m_dom->placeholder_circle);
 
     auto const& video_element = as<HTMLVideoElement>(*m_media_element);
     return video_element.current_representation() != HTMLVideoElement::Representation::VideoFrame;
@@ -749,9 +583,9 @@ static Vector<String> s_visible_class = { "visible"_string };
 
 void MediaControls::show_controls()
 {
-    VERIFY(m_control_bar);
+    VERIFY(m_dom->control_bar);
 
-    MUST(m_control_bar->class_list()->add(s_visible_class));
+    MUST(m_dom->control_bar->class_list()->add(s_visible_class));
 
     if (!m_hover_timer) {
         constexpr int hover_timeout_ms = 1000;
@@ -766,14 +600,14 @@ void MediaControls::show_controls()
 
 void MediaControls::hide_controls()
 {
-    VERIFY(m_control_bar);
+    VERIFY(m_dom->control_bar);
 
     if (m_scrubbing_timeline != Scrubbing::No || m_scrubbing_volume || m_hovering_controls)
         return;
-    if (m_placeholder_circle && should_show_placeholder())
+    if (m_dom->placeholder_circle && should_show_placeholder())
         return;
 
-    MUST(m_control_bar->class_list()->remove(s_visible_class));
+    MUST(m_dom->control_bar->class_list()->remove(s_visible_class));
     m_hover_timer.clear();
 }
 
