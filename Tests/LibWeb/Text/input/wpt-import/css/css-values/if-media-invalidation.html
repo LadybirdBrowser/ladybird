@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: if() media() condition invalidation</title>
+<meta name="assert" content="Test if() media() condition invalidation">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#if-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  iframe {
+    width: 50px;
+    height: 50px;
+  }
+</style>
+<iframe id="iframe" srcdoc="
+  <div id=target></div>
+  <style>
+    #target {
+      --actual: if(media((height < 100px) or ((height >= 200px) and (height < 300px))): true_value; else: false_value;);
+    }
+  </style>
+"></iframe>
+
+<script>
+  function waitForLoad(w) {
+    return new Promise(resolve => w.addEventListener('load', resolve));
+  }
+
+  promise_test(async () => {
+    await waitForLoad(window);
+    const target = iframe.contentDocument.querySelector('#target');
+    let actualValue = () => getComputedStyle(target).getPropertyValue('--actual');
+
+    assert_equals(actualValue(), 'true_value', '--actual before resize');
+
+    // [<height of frame>, <expected function result>]
+    let data = [
+      ['100px', 'false_value'],
+      ['200px', 'true_value'],
+      ['300px', 'false_value']
+    ];
+
+    for (let d of data) {
+      iframe.style.height = d[0];
+      let expected = d[1];
+      assert_equals(actualValue(), expected, `--actual after resize to ${d[0]}`);
+    }
+  });
+</script>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: random() in if()</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#random">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<body>
+</body>
+<style id="style">
+  @property --number {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+  }
+  @property --number2 {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+  }
+  div {
+    --random1: random(1, 10);
+    --random2: random(11, 30);
+  }
+</style>
+<script>
+// Since actual and expected values are generated randomly, `assert_equals()`
+// does not generate deterministic test failure output. Chrome relies on test
+// failure output to be deterministic and stable for failing test expectations.
+function test_random_equals(actual, expected, message = "Random values should be equal") {
+  assert_true(actual == expected, message);
+}
+function test_random_not_equals(actual, expected, message = "Random values should be equal") {
+  assert_false(actual == expected, message);
+}
+
+function test_value_is_not_initial(value) {
+  assert_false(value == 0);
+}
+
+test(() => {
+  const holder = document.createElement('div');
+  document.body.appendChild(holder);
+  try {
+    const el = document.createElement('div');
+    el.style.setProperty('--unregistered', 'if(style(random(1, 10) < random(11, 30)): true; else: false;)');
+    holder.appendChild(el);
+
+    const elComputedValue = getComputedStyle(el).getPropertyValue('--unregistered');
+
+    assert_equals(elComputedValue, 'false');
+  } finally {
+    document.body.removeChild(holder);
+  }
+}, `random() should not be allowed in if() style() condition`);
+
+test(() => {
+  const holder = document.createElement('div');
+  document.body.appendChild(holder);
+  try {
+    const el = document.createElement('div');
+    el.style.setProperty('--unregistered', 'if(style(var(--random1) < var(--random2)): true; else: false;)');
+    holder.appendChild(el);
+
+    const elComputedValue = getComputedStyle(el).getPropertyValue('--unregistered');
+
+    assert_equals(elComputedValue, 'false');
+  } finally {
+    document.body.removeChild(holder);
+  }
+}, `random() in var() should not be allowed in if() style() condition`);
+
+test(() => {
+  const holder = document.createElement('div');
+  document.body.appendChild(holder);
+
+  try {
+    const el = document.createElement('div');
+    el.style.setProperty('--number', 'if(style(--unknown): ; else: random(1, 100000);)');
+    el.style.setProperty('--number2', 'if(style(--unknown): ; else: random(1, 100000);)');
+    holder.appendChild(el);
+
+    const elComputedValue1 = getComputedStyle(el).getPropertyValue('--number');
+    const elComputedValue2 = getComputedStyle(el).getPropertyValue('--number2');
+
+    test_value_is_not_initial(elComputedValue1);
+    test_value_is_not_initial(elComputedValue2);
+
+    test_random_not_equals(elComputedValue1, elComputedValue2);
+  } finally {
+    document.body.removeChild(holder);
+  }
+}, `random() with different property names should not be shared in if() declaration value`);
+
+test(() => {
+  const holder = document.createElement('div');
+  document.body.appendChild(holder);
+
+  try {
+    const el1 = document.createElement('div');
+    el1.style.setProperty('--number', 'if(style(--unknown): ; else: random(element-shared, 1, 100000);)');
+    holder.appendChild(el1);
+    const el2 = document.createElement('div');
+    el2.style.setProperty('--number', 'if(style(--unknown): ; else: random(element-shared, 1, 100000);)');
+    holder.appendChild(el2);
+
+    const elComputedValue1 = getComputedStyle(el1).getPropertyValue('--number');
+    const elComputedValue2 = getComputedStyle(el2).getPropertyValue('--number');
+
+    test_value_is_not_initial(elComputedValue1);
+    test_value_is_not_initial(elComputedValue2);
+
+    test_random_equals(elComputedValue1, elComputedValue2);
+  } finally {
+    document.body.removeChild(holder);
+  }
+}, `element-shared random() with same property name on different elements in if() declaration value should be equal`);
+
+</script>

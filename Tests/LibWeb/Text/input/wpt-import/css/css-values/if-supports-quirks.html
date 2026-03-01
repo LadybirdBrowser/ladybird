@@ -1,0 +1,20 @@
+<!-- quirks mode -->
+<title>CSS Values and Units Test: CSS inline if() function supports() in quirks mode</title>
+<meta name="assert" content="Test inline if() function with supports() query in quirks mode">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#if-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+    div {
+      color: red;
+      --x: if(supports(width: 30): true_value; else: false_value;)
+    }
+</style>
+<div id="if">test</div>
+<script>
+  setup({ single_test: true });
+  var elem = document.getElementById("if");
+  let val = window.getComputedStyle(elem).getPropertyValue("--x");
+  assert_equals(val, "true_value");
+  done();
+</script>
