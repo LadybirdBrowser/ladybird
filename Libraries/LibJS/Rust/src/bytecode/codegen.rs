@@ -4026,8 +4026,7 @@ fn emit_get_by_id(
     }
 }
 
-/// Emit a "Invalid left-hand side in assignment" ReferenceError followed by Throw,
-/// then switch to a dead block for subsequent codegen.
+/// Emit a "Invalid left-hand side in assignment" ReferenceError followed by Throw.
 fn emit_invalid_lhs_error(generator: &mut Generator) {
     let exception = generator.allocate_register();
     let error_string = generator.intern_string(utf16!("Invalid left-hand side in assignment"));
@@ -4038,8 +4037,6 @@ fn emit_invalid_lhs_error(generator: &mut Generator) {
     generator.emit(Instruction::Throw {
         src: exception.operand(),
     });
-    let dead_block = generator.make_block();
-    generator.switch_to_basic_block(dead_block);
 }
 
 /// Check if a UTF-16 string is a canonical array index (non-negative integer < 2^32 - 1).
