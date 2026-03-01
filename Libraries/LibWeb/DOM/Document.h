@@ -114,6 +114,7 @@ enum class InvalidateLayoutTreeReason {
     X(NavigableViewportScroll)             \
     X(NodeNameOrDescription)               \
     X(RangeGetClientRects)                 \
+    X(RangeToString)                       \
     X(ResolvedCSSStyleDeclarationProperty) \
     X(SVGDecodedImageDataRender)           \
     X(ScrollCursorIntoView)                \

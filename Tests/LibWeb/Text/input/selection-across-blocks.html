@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="d1">lorem</div><div id="d2">ipsum</div>
+<script>
+    test(() => {
+        var sel = window.getSelection();
+        sel.setBaseAndExtent(d1.firstChild, 2, d2.firstChild, 3);
+        var text = sel.toString();
+        if (text === "rem\nips") {
+            println("PASS");
+        } else {
+            println("FAIL: expected 'rem\\nips', got " + JSON.stringify(text));
+        }
+    });
+</script>
