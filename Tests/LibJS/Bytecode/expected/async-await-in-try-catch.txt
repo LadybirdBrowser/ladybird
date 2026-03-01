@@ -1,0 +1,28 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:f
+[  18]       NewObject dst:reg7
+[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+[  50]       End value:reg5
+
+JS bytecode executable "f"
+[   0]    0: Yield continuation_label:@10, value:Undefined
+[  10]    1: GetLexicalEnvironment dst:reg4
+[  18]       Jump target:@50
+[  20]    2: Catch dst:reg5
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       Mov dst:e~0, src:reg5
+[  40]    3: Yield value:Undefined
+[  50]    4: EnterObjectEnvironment dst:reg5, object:arg0
+[  60]       Mov dst:reg6, src:reg0
+[  70]       Await continuation_label:@80, argument:Int32(1)
+[  80]    5: Mov dst:reg6, src:reg0
+[  90]       GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+[  a0]       JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:@b8, false_target:@c8
+[  b8]    6: SetLexicalEnvironment environment:reg4
+[  c0]       Jump target:@40
+[  c8]    7: SetLexicalEnvironment environment:reg4
+[  d0]       Throw src:reg8
+
+Exception handlers:
+    from   50 to   d8 handler   20
