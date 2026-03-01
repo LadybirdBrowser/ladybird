@@ -242,9 +242,15 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         bool is_last_chunk = (m_text_node_context->next_chunk_index >= m_text_node_context->chunks.size());
 
         auto is_empty_editable = false;
-        if (!chunk_opt.has_value()) {
-            auto const is_only_chunk = is_first_chunk && is_last_chunk;
-            if (is_only_chunk && text_node->text_for_rendering().is_empty()) {
+        if (!chunk_opt.has_value() && !m_text_node_context->added_trailing_empty_chunk) {
+            auto const is_completely_empty = m_text_node_context->chunks.is_empty();
+            bool creates_empty_trailing_line = false;
+            if (!is_completely_empty) {
+                auto const& last_passed_chunk = m_text_node_context->chunks.last();
+                creates_empty_trailing_line = m_text_node_context->should_respect_linebreaks && last_passed_chunk.has_breaking_newline;
+            }
+
+            if (is_completely_empty || creates_empty_trailing_line) {
                 if (auto const* shadow_root = as_if<DOM::ShadowRoot>(text_node->dom_node().root()))
                     if (auto const* form_associated_element = as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
                         is_empty_editable = form_associated_element->is_mutable();
@@ -252,21 +258,22 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             }
 
             if (is_empty_editable) {
-                // Create an empty chunk for editable empty text fields
+                // Create an empty chunk for editable empty text fields or trailing newlines
                 chunk_opt = TextNode::Chunk {
                     .view = {},
                     .font = text_node->computed_values().font_list().first(),
                     .is_all_whitespace = true,
                     .text_type = Gfx::GlyphRun::TextType::Common,
                 };
-                // Advance the index so the next call will move to the next node
-                m_text_node_context->next_chunk_index = 1;
-            } else {
-                m_text_node_context = {};
-                m_previous_chunk_can_break_after = false;
-                skip_to_next();
-                return generate_next_item();
+                m_text_node_context->added_trailing_empty_chunk = true;
             }
+        }
+
+        if (!chunk_opt.has_value()) {
+            m_text_node_context = {};
+            m_previous_chunk_can_break_after = false;
+            skip_to_next();
+            return generate_next_item();
         }
 
         auto& chunk = chunk_opt.value();
