@@ -547,6 +547,8 @@ public:
     virtual Compositor::CompositorHost* compositor_host() { return nullptr; }
     virtual Compositor::CompositorHost const* compositor_host() const { return nullptr; }
 
+    virtual void show_notification(String const&) { }
+
 protected:
     virtual ~PageClient() = default;
 };

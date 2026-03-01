@@ -216,6 +216,7 @@ private:
     virtual void page_did_receive_network_response_body(u64 request_id, ReadonlyBytes) override;
     virtual void page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&) override;
     virtual void page_did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage const&) override;
+    virtual void show_notification(String const& title) override;
 
     void setup_palette();
     ConnectionFromClient& client() const;

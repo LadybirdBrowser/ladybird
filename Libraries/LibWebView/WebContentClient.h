@@ -187,6 +187,7 @@ private:
     virtual void did_request_clipboard_entries(u64 page_id, u64 request_id) override;
     virtual void did_request_primary_paste(u64 page_id) override;
     virtual void did_update_primary_selection(u64 page_id, String) override;
+    virtual void did_request_show_notification(u64 page_id, String title) override;
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request) override;

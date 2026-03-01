@@ -149,4 +149,6 @@ endpoint WebContentClient
 
     start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)
     close_worker_agent(u64 page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|
+
+    did_request_show_notification(u64 page_id, String title) =|
 }
