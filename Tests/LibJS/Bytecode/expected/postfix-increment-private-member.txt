@@ -1,0 +1,27 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
+[  28]       CreatePrivateEnvironment
+[  30]       AddPrivateName name:#c
+[  38]       SetLexicalEnvironment environment:reg4
+[  40]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("nextId")]
+[  68]       LeavePrivateEnvironment
+[  70]       InitializeLexicalBinding identifier:C, src:reg6
+[  88]       GetGlobal dst:reg7, identifier:C
+[  98]       CallConstruct dst:reg6, callee:reg7, C
+[  b0]       GetById dst:reg7, base:reg6, property:nextId
+[  c8]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.nextId
+[  e8]       End value:reg5
+
+JS bytecode executable "C"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       End value:Undefined
+
+JS bytecode executable "nextId"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetPrivateById dst:reg5, base:this, property:#c
+[  18]       PostfixIncrement dst:reg6, src:reg5
+[  28]       PutPrivateById base:this, property:#c, src:reg5
+[  38]       Add dst:reg5, lhs:String("id-"), rhs:reg6
+[  48]       Return value:reg5
