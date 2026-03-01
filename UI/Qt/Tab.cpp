@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Notification.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
@@ -221,6 +222,19 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_request_dismiss_dialog = [this]() {
         if (m_dialog)
             m_dialog->reject();
+    };
+
+    view().on_request_show_notification = [](String const& title) {
+        auto notification = Core::PlatformNotification::create();
+        if (notification.is_error()) {
+            warnln("Notification error: {}", notification.error());
+            return;
+        }
+        auto result = notification.value()->show_notification(title);
+        if (result.is_error()) {
+            warnln("Notification error: {}", notification.error());
+            return;
+        }
     };
 
     view().on_request_color_picker = [this](Color current_color) {

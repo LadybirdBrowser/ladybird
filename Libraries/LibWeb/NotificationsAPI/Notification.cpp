@@ -10,7 +10,9 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NotificationPrototype.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
 namespace Web::NotificationsAPI {
@@ -188,7 +190,10 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
     // FIXME: 1. If the result of getting the notifications permission state is not "granted",
     // then queue a task to fire an event named error on this, and abort these steps.
 
-    // FIXME: 2. Run the notification show steps for notification.
+    // 2. Run the notification show steps for notification.
+    if (auto* window = as_if<HTML::Window>(relevant_global_object)) {
+        window->page().client().show_notification(notification.title);
+    }
 
     return this_notification;
 }
