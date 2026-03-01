@@ -197,9 +197,7 @@ RefPtr<Supports> Parser::parse_a_supports(TokenStream<T>& tokens)
     auto transaction = tokens.begin_transaction();
     auto component_values = parse_a_list_of_component_values(tokens);
     TokenStream<ComponentValue> token_stream { component_values };
-    m_rule_context.append(RuleContext::SupportsCondition);
-    auto maybe_condition = parse_boolean_expression(token_stream, MatchResult::False, [this](auto& tokens) { return parse_supports_feature(tokens); });
-    m_rule_context.take_last();
+    auto maybe_condition = parse_supports_condition(token_stream);
     token_stream.discard_whitespace();
     if (maybe_condition && !token_stream.has_next_token()) {
         transaction.commit();
@@ -323,6 +321,16 @@ OwnPtr<BooleanExpression> Parser::parse_boolean_expression_group(TokenStream<Com
         return general_enclosed.release_nonnull();
 
     return {};
+}
+
+// https://drafts.csswg.org/css-conditional-3/#typedef-supports-condition
+OwnPtr<BooleanExpression> Parser::parse_supports_condition(TokenStream<ComponentValue>& tokens)
+{
+    m_rule_context.append(RuleContext::SupportsCondition);
+    auto maybe_condition = parse_boolean_expression(tokens, MatchResult::False, [this](auto& tokens) { return parse_supports_feature(tokens); });
+    m_rule_context.take_last();
+
+    return maybe_condition;
 }
 
 // https://drafts.csswg.org/css-conditional-5/#typedef-supports-feature
