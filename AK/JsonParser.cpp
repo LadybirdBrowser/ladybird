@@ -8,6 +8,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonParser.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StringConversions.h>
 #include <math.h>
 
@@ -17,6 +18,8 @@ constexpr bool is_space(int ch)
 {
     return ch == '\t' || ch == '\n' || ch == '\r' || ch == ' ';
 }
+
+constexpr StringView exceeded_max_nesting_depth_error = "JsonParser: Exceeded maximum nesting depth"sv;
 
 ErrorOr<JsonValue> JsonParser::parse(StringView input)
 {
@@ -137,6 +140,11 @@ ErrorOr<ByteString> JsonParser::consume_and_unescape_string()
 
 ErrorOr<JsonValue> JsonParser::parse_object()
 {
+    if (m_current_nesting_depth >= max_nesting_depth)
+        return Error::from_string_view(exceeded_max_nesting_depth_error);
+    ++m_current_nesting_depth;
+    ScopeGuard nesting_depth_guard { [this] { --m_current_nesting_depth; } };
+
     JsonObject object;
     if (!consume_specific('{'))
         return Error::from_string_literal("JsonParser: Expected '{'");
@@ -168,6 +176,11 @@ ErrorOr<JsonValue> JsonParser::parse_object()
 
 ErrorOr<JsonValue> JsonParser::parse_array()
 {
+    if (m_current_nesting_depth >= max_nesting_depth)
+        return Error::from_string_view(exceeded_max_nesting_depth_error);
+    ++m_current_nesting_depth;
+    ScopeGuard nesting_depth_guard { [this] { --m_current_nesting_depth; } };
+
     JsonArray array;
     if (!consume_specific('['))
         return Error::from_string_literal("JsonParser: Expected '['");
