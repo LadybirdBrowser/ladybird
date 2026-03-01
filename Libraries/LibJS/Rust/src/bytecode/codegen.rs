@@ -259,7 +259,7 @@ fn generate_expression_inner(
             op,
             argument,
             prefixed,
-        } => generate_update_expression(generator, *op, argument, *prefixed, preferred_dst),
+        } => generate_update_expression(generator, *op, argument, *prefixed),
 
         // === Assignment ===
         ExpressionKind::Assignment { op, lhs, rhs } => {
@@ -3385,7 +3385,6 @@ fn emit_update_op(
     op: UpdateOp,
     prefixed: bool,
     value: &ScopedOperand,
-    preferred_dst: Option<&ScopedOperand>,
 ) -> ScopedOperand {
     if prefixed {
         match op {
@@ -3398,7 +3397,8 @@ fn emit_update_op(
         }
         value.clone()
     } else {
-        let dst = choose_dst(generator, preferred_dst);
+        // Always allocate a fresh register for the old value, matching C++.
+        let dst = generator.allocate_register();
         match op {
             UpdateOp::Increment => generator.emit(Instruction::PostfixIncrement {
                 dst: dst.operand(),
@@ -3418,14 +3418,13 @@ fn generate_update_expression(
     op: UpdateOp,
     argument: &Expression,
     prefixed: bool,
-    preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
     // Load the value, keeping track of the base for member expressions
     // so we can store back without re-evaluating.
     match &argument.inner {
         ExpressionKind::Identifier(ident) => {
             let value = generate_identifier(ident, generator, None)?;
-            let result = emit_update_op(generator, op, prefixed, &value, preferred_dst);
+            let result = emit_update_op(generator, op, prefixed, &value);
             emit_set_variable(generator, ident, &value);
             Some(result)
         }
@@ -3458,7 +3457,7 @@ fn generate_update_expression(
                 } else if let ExpressionKind::Identifier(ident) = &property.inner {
                     emit_get_by_id_with_this(generator, &value, &base, &ident.name, &this_value);
                 }
-                let result = emit_update_op(generator, op, prefixed, &value, preferred_dst);
+                let result = emit_update_op(generator, op, prefixed, &value);
                 emit_super_put(
                     generator,
                     &base,
@@ -3482,7 +3481,7 @@ fn generate_update_expression(
                     generator.emit_mov(&saved_property, &property);
                     // FIXME: Remove these manual drop() calls when we no longer need to match C++ register allocation.
                     drop(property);
-                    let result = emit_update_op(generator, op, prefixed, &value, preferred_dst);
+                    let result = emit_update_op(generator, op, prefixed, &value);
                     emit_put_normal_by_value(generator, &base, &saved_property, &value, None);
                     // FIXME: Remove this manual drop() when we no longer need to match C++ register allocation.
                     if !prefixed {
@@ -3493,7 +3492,7 @@ fn generate_update_expression(
                     let value = generator.allocate_register();
                     emit_get_by_id(generator, &value, &base, &property_ident.name, base_id);
                     let key = generator.intern_property_key(&property_ident.name);
-                    let result = emit_update_op(generator, op, prefixed, &value, preferred_dst);
+                    let result = emit_update_op(generator, op, prefixed, &value);
                     let cache2 = generator.next_property_lookup_cache();
                     generator.emit(Instruction::PutNormalById {
                         base: base.operand(),
