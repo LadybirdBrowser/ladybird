@@ -2413,7 +2413,8 @@ fn generate_for_statement(
             has_lexical_environment = true;
             let is_const = *kind == DeclarationKind::Const;
 
-            // begin_variable_scope: CreateLexicalEnvironment
+            // begin_variable_scope: CreateLexicalEnvironment + boundary
+            generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
             generator.push_new_lexical_environment(0);
 
             for (name, _) in &non_local_names {
@@ -2478,6 +2479,7 @@ fn generate_for_statement(
             generator.emit(Instruction::Jump { target: end_block });
             generator.switch_to_basic_block(end_block);
             if has_lexical_environment {
+                generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
                 generator.lexical_environment_register_stack.pop();
                 if !generator.is_current_block_terminated() {
                     let parent = generator.current_lexical_environment();
@@ -2530,6 +2532,7 @@ fn generate_for_statement(
 
     // end_variable_scope: restore parent environment
     if has_lexical_environment {
+        generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
         generator.lexical_environment_register_stack.pop();
         if !generator.is_current_block_terminated() {
             let parent = generator.current_lexical_environment();
@@ -2564,6 +2567,7 @@ fn emit_per_iteration_bindings(generator: &mut Generator, bindings: &[Utf16Strin
     }
 
     // Pop current environment (end_variable_scope).
+    generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
     generator.lexical_environment_register_stack.pop();
     let parent = generator.current_lexical_environment();
     generator.emit(Instruction::SetLexicalEnvironment {
@@ -2571,6 +2575,7 @@ fn emit_per_iteration_bindings(generator: &mut Generator, bindings: &[Utf16Strin
     });
 
     // Push new environment (begin_variable_scope).
+    generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
     generator.push_new_lexical_environment(0);
 
     // Re-create variables and initialize from saved values.
@@ -6478,7 +6483,9 @@ fn generate_for_in_statement(
         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
     }
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    if !generator.is_current_block_terminated() {
+        generate_with_completion(body, generator, &completion, preferred_dst);
+    }
 
     if needs_lexical_env {
         generator.end_variable_scope();
@@ -6718,7 +6725,9 @@ fn generate_for_of_statement_inner(
     // Body
     generator.begin_continuable_scope(update_block, labels, completion.clone());
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    if !generator.is_current_block_terminated() {
+        generate_with_completion(body, generator, &completion, preferred_dst);
+    }
 
     // Restore lexical env before continuing
     if needs_lexical_env {
@@ -7024,10 +7033,6 @@ fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &
                 generator.emit(Instruction::Throw {
                     src: exception.operand(),
                 });
-                // Switch to a dead block so the caller can continue
-                // generating body code (matching C++ emit_store_to_reference).
-                let dead = generator.make_block();
-                generator.switch_to_basic_block(dead);
                 return;
             }
             // The declaration is a VariableDeclaration with a single declarator
