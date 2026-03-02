@@ -143,6 +143,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
         return font_face;
 
     HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font_face), GC::create_function(vm.heap(), [&realm, font_face] {
+        HTML::TemporaryExecutionContext context(font_face->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1.  Set font face’s status attribute to "loading".
         font_face->m_status = Bindings::FontFaceLoadStatus::Loading;
 
