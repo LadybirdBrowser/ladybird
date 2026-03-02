@@ -733,6 +733,9 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
                 //        then step 8 of this algorithm needs to be implemented in Navigable::choose_a_navigable:
                 //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 
+                // NOTE: Event dispatches above may have run JS that invalidated layout.
+                m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseUp);
+
                 auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
                 if (GC::Ptr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
                     GC::Ref<DOM::Document> document = *m_navigable->active_document();
