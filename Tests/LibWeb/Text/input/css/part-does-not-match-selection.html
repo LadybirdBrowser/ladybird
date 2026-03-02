@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    #host::part(p) { background-color: red; }
+</style>
+<div id="host"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<span id="inner" part="p">text</span>`;
+        const inner = shadow.getElementById("inner");
+        println(getComputedStyle(inner).backgroundColor);
+        println(getComputedStyle(inner, "::selection").backgroundColor);
+    });
+</script>

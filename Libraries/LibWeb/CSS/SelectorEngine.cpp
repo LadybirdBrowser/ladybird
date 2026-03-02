@@ -1170,7 +1170,9 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
     VERIFY_NOT_REACHED();
 }
 
-bool matches(CSS::Selector const& selector, int component_list_index, DOM::Element const& initial_element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
+bool matches(CSS::Selector const& selector, int component_list_index, DOM::Element const& initial_element,
+    GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope,
+    SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
     auto& compound_selector = selector.compound_selectors()[component_list_index];
     NonnullRawPtr element_for_compound_matching { initial_element };
@@ -1247,20 +1249,35 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
 
 bool fast_matches(CSS::Selector const& selector, DOM::Element const& element_to_match, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
 
-bool matches(CSS::Selector const& selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, Optional<CSS::PseudoElement> pseudo_element, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
+bool matches(CSS::Selector const& selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host,
+    MatchContext& context, Optional<CSS::PseudoElement> pseudo_element, GC::Ptr<DOM::ParentNode const> scope,
+    SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
-    if (selector_kind == SelectorKind::Normal && selector.can_use_fast_matches()) {
+    if (selector_kind == SelectorKind::Normal && selector.can_use_fast_matches())
         return fast_matches(selector, element, shadow_host, context);
-    }
+
     VERIFY(!selector.compound_selectors().is_empty());
-    // FIXME: Selectors can have multiple pseudo-elements, and we need to check them one by one, not just do a simple match.
-    //        Ignoring it for ::part() is a hack.
-    if (!selector.has_part_pseudo_element()) {
+    if (selector.has_part_pseudo_element()) {
+        // For ::part() selectors, find any additional pseudo-element beyond ::part() (e.g., the ::selection in
+        // ::part(foo)::selection) and verify it matches the target pseudo-element. A bare ::part(foo) selector has no
+        // additional pseudo-element and should only match base element styles.
+        Optional<CSS::PseudoElement> target_pseudo;
+        for (auto const& simple : selector.compound_selectors().last().simple_selectors) {
+            if (simple.type == CSS::Selector::SimpleSelector::Type::PseudoElement
+                && simple.pseudo_element().type() != CSS::PseudoElement::Part) {
+                target_pseudo = simple.pseudo_element().type();
+                break;
+            }
+        }
+        if (target_pseudo != pseudo_element)
+            return false;
+    } else {
         if (pseudo_element.has_value() && selector.pseudo_element().has_value() && selector.pseudo_element().value().type() != pseudo_element)
             return false;
         if (!pseudo_element.has_value() && selector.pseudo_element().has_value())
             return false;
     }
+
     return matches(selector, selector.compound_selectors().size() - 1, element, shadow_host, context, scope, selector_kind, anchor);
 }
 
