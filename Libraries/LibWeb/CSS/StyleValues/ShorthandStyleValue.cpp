@@ -75,6 +75,12 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 return;
         }
 
+        // If any non-reset-only longhand is not a value list, we can't serialize as a coordinating-list shorthand.
+        for (auto sub_property : m_properties.sub_properties) {
+            if (!reset_only_longhands.contains_slow(sub_property) && !longhand(sub_property)->is_value_list())
+                return;
+        }
+
         auto entry_count = longhand(m_properties.sub_properties[0])->as_value_list().size();
 
         // If we don't have the same number of values for each non-reset-only longhand, we can't serialize this shorthand.

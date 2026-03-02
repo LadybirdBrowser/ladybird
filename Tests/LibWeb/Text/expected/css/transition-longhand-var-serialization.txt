@@ -1,0 +1,1 @@
+.a { transition-property: var(--a); transition-duration: var(--b); transition-timing-function: var(--c); transition-delay: var(--d); transition-behavior: var(--e); }
