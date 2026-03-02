@@ -133,4 +133,10 @@ void BooleanOrExpression::dump(StringBuilder& builder, int indent_levels) const
         child->dump(builder, indent_levels + 1);
 }
 
+void ConstantBooleanExpression::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.appendff("CONSTANT: {}\n", to_string());
+}
+
 }
