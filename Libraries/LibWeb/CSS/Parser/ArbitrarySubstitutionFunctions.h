@@ -40,6 +40,7 @@ private:
 enum class ArbitrarySubstitutionFunction : u8 {
     Attr,
     Env,
+    If,
     Var,
 };
 [[nodiscard]] Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlyString const& name);
@@ -49,7 +50,14 @@ bool contains_guaranteed_invalid_value(Vector<ComponentValue> const&);
 [[nodiscard]] Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::AbstractElement&, GuardedSubstitutionContexts&, Vector<ComponentValue> const&, Optional<SubstitutionContext> = {});
 
 using DeclarationValueList = Vector<Vector<ComponentValue>>;
-using ArbitrarySubstitutionFunctionArguments = Variant<DeclarationValueList>;
+
+struct IfArgsBranch {
+    Vector<ComponentValue> condition;
+    Optional<Vector<ComponentValue>> value;
+};
+
+using IfArgs = Vector<IfArgsBranch>;
+using ArbitrarySubstitutionFunctionArguments = Variant<DeclarationValueList, IfArgs>;
 [[nodiscard]] Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction, Vector<ComponentValue> const&);
 
 [[nodiscard]] Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionFunction, ArbitrarySubstitutionFunctionArguments const&);

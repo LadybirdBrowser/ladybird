@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
-Fail	random() should not be allowed in if() style() condition
-Fail	random() in var() should not be allowed in if() style() condition
+3 Pass
+1 Fail
+Pass	random() should not be allowed in if() style() condition
+Pass	random() in var() should not be allowed in if() style() condition
 Fail	random() with different property names should not be shared in if() declaration value
 Pass	element-shared random() with same property name on different elements in if() declaration value should be equal

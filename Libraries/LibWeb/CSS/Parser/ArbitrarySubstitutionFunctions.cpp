@@ -67,6 +67,8 @@ Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlySt
         return ArbitrarySubstitutionFunction::Attr;
     if (name.equals_ignoring_ascii_case("env"sv))
         return ArbitrarySubstitutionFunction::Env;
+    if (name.equals_ignoring_ascii_case("if"sv))
+        return ArbitrarySubstitutionFunction::If;
     if (name.equals_ignoring_ascii_case("var"sv))
         return ArbitrarySubstitutionFunction::Var;
     return {};
@@ -303,6 +305,46 @@ static Vector<ComponentValue> replace_an_env_function(DOM::AbstractElement& elem
     return { ComponentValue { GuaranteedInvalidValue {} } };
 }
 
+// https://drafts.csswg.org/css-values-5/#replace-an-if-function
+static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
+{
+    // NB: We create a single parser and reuse that for parsing all the conditions
+    auto parser = Parser::create(ParsingParams { element.element().document() }, {});
+
+    // 1. For each <if-args-branch> branch in arguments:
+    for (auto const& branch : arguments.get<IfArgs>()) {
+        // 1. Substitute arbitrary substitution functions in the first <declaration-value> of branch, then parse the
+        //    result as an <if-condition>. If parsing returns failure, continue; otherwise, let the result be condition.
+        auto substituted_condition = substitute_arbitrary_substitution_functions(element, guarded_contexts, branch.condition);
+
+        TokenStream<ComponentValue> tokens { substituted_condition };
+        auto maybe_parsed_if_condition = parser.parse_if_condition(tokens);
+
+        if (!maybe_parsed_if_condition)
+            continue;
+
+        // 2. Evaluate condition.
+        //    If a <style-query> in condition tests the value of a property, and guarding a substitution context
+        //    «"property", referenced-property-name» would mark it as a cyclic substitution context, that query
+        //    evaluates to false.
+        //    If the result of condition is false, continue.
+        // FIXME: Implement the above behavior once we support style queries.
+        auto condition_evaluation_result = maybe_parsed_if_condition->evaluate(&element.element().document());
+
+        if (condition_evaluation_result == MatchResult::False)
+            continue;
+
+        // 3. Substitute arbitrary substitution functions in the second <declaration-value> of branch, and return the result.
+        if (!branch.value.has_value())
+            return {};
+
+        return substitute_arbitrary_substitution_functions(element, guarded_contexts, branch.value.value());
+    }
+
+    // 2. Return nothing (an empty sequence of component values).
+    return {};
+}
+
 // https://drafts.csswg.org/css-variables-1/#replace-a-var-function
 static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
@@ -504,6 +546,31 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
         // AD-HOC: This doesn't have an argument-grammar definition.
         //         However, it follows the same format of "some CVs, then an optional comma and a fallback".
         return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
+    case ArbitrarySubstitutionFunction::If: {
+        // https://drafts.csswg.org/css-values-5/#if-notation
+        // <if-args> = if( [ <if-args-branch> ; ]* <if-args-branch> ;? )
+        // <if-args-branch> = <declaration-value> : <declaration-value>?
+        IfArgs args;
+
+        while (tokens.has_next_token()) {
+            auto if_args_branch = parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Colon);
+
+            if (!if_args_branch.has_value())
+                break;
+
+            args.append({ if_args_branch->first(), if_args_branch->get(1).map([](auto const& value) { return value; }) });
+
+            if (!tokens.next_token().is(Token::Type::Semicolon))
+                break;
+
+            tokens.discard_a_token(); // ;
+        }
+
+        if (args.is_empty())
+            return {};
+
+        return return_if_no_remaining_tokens(args);
+    }
     case ArbitrarySubstitutionFunction::Var:
         // https://drafts.csswg.org/css-variables/#funcdef-var
         // <var-args> = var( <declaration-value> , <declaration-value>? )
@@ -520,6 +587,8 @@ Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractE
         return replace_an_attr_function(element, guarded_contexts, arguments);
     case ArbitrarySubstitutionFunction::Env:
         return replace_an_env_function(element, guarded_contexts, arguments);
+    case ArbitrarySubstitutionFunction::If:
+        return replace_an_if_function(element, guarded_contexts, arguments);
     case ArbitrarySubstitutionFunction::Var:
         return replace_a_var_function(element, guarded_contexts, arguments);
     }
