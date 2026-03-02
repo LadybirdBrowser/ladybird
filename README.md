@@ -31,7 +31,12 @@ At the moment, many core library support components are inherited from SerenityO
 
 ## How do I build and run this?
 
-See [build instructions](Documentation/BuildInstructionsLadybird.md) for information on how to build Ladybird.
+First, install the required dependencies for your platform:
+- Linux: See your distribution's packages in [build instructions](Documentation/BuildInstructionsLadybird.md)
+- macOS: `brew install autoconf autoconf-archive automake ccache cmake libtool nasm ninja pkg-config`
+- Other platforms: See [build instructions](Documentation/BuildInstructionsLadybird.md)
+
+Then see the [build instructions](Documentation/BuildInstructionsLadybird.md) for detailed build steps.
 
 Ladybird runs on Linux, macOS, Windows (with WSL2), and many other \*Nixes.
 
