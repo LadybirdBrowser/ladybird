@@ -1820,6 +1820,15 @@ bool Document::element_needs_style_update(AbstractElement const& abstract_elemen
             return true;
     }
 
+    // If the navigable has a container and that container needs a style update, then we need one as well, since the
+    // container's style can affect this element (e.g. via media queries or viewport units).
+    if (auto navigable = this->navigable()) {
+        if (auto container = navigable->container()) {
+            if (container->document().element_needs_style_update(AbstractElement { *container }))
+                return true;
+        }
+    }
+
     return false;
 }
 
