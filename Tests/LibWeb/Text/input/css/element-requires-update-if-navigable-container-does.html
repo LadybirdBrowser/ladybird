@@ -1,0 +1,40 @@
+<!doctype html>
+<style>
+    iframe {
+        width: 50px;
+        height: 0px;
+    }
+</style>
+<iframe
+    id="iframe"
+    srcdoc="
+  <div id=target></div>
+  <style>
+    #target {
+      order: calc(100vh / 1px);
+    }
+  </style>
+"
+></iframe>
+
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        iframe.addEventListener("load", () => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const target = iframe.contentDocument.querySelector("#target");
+
+                    println(getComputedStyle(target).order);
+
+                    for (let height of [1, 2, 3]) {
+                        iframe.style.height = `${height}px`;
+                        println(getComputedStyle(target).order);
+                    }
+
+                    done();
+                });
+            });
+        });
+    });
+</script>
