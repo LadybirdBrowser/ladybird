@@ -219,6 +219,23 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
         }
     }
 
+    if (auto const* svg_svg_box = as_if<SVGSVGBox>(context_box()); svg_svg_box && !svg_box_state.computed_svg_transforms().has_value()) {
+        bool has_svg_ancestor = false;
+        for (auto const* ancestor = svg_svg_box->parent(); ancestor; ancestor = ancestor->parent()) {
+            if (is<SVGSVGBox>(*ancestor) || is<SVGGraphicsBox>(*ancestor)) {
+                has_svg_ancestor = true;
+                break;
+            }
+        }
+        if (has_svg_ancestor) {
+            auto const& svg_graphics_element = as<SVG::SVGGraphicsElement>(*dom_node);
+            auto parent_svg_transform = get_parent_svg_transform(*svg_svg_box);
+            auto svg_transform = parent_svg_transform.multiply(svg_graphics_element.element_transform());
+            svg_box_state.set_computed_svg_transforms(
+                Painting::SVGGraphicsPaintable::ComputedTransforms(m_parent_viewbox_transform, svg_transform));
+        }
+    }
+
     m_current_viewbox_transform = m_parent_viewbox_transform;
     if (active_view_box.has_value()) {
         // FIXME: This should allow just one of width or height to be specified.
@@ -297,8 +314,8 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
 {
     if (is<SVG::SVGFitToViewBox>(child.dom_node())) {
         layout_nested_viewport(child);
-    } else if (is<SVG::SVGForeignObjectElement>(child.dom_node()) && is<BlockContainer>(child)) {
-        Layout::BlockFormattingContext bfc(m_state, m_layout_mode, static_cast<BlockContainer const&>(child), this);
+    } else if (auto* foreign_object_element = as_if<SVG::SVGForeignObjectElement>(child.dom_node()); foreign_object_element && is<BlockContainer>(child)) {
+        Layout::BlockFormattingContext bfc(m_state, m_layout_mode, as<BlockContainer>(child), this);
         auto& child_state = m_state.get_mutable(child);
         CSSPixelRect rect {
             {
@@ -310,7 +327,10 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
                 child.computed_values().height().to_px(child, m_available_space->height.to_px_or_zero()),
             }
         };
-        auto transformed_rect = m_current_viewbox_transform.map(rect.to_type<float>()).to_type<CSSPixels>();
+        auto parent_svg_transform = get_parent_svg_transform(child);
+        auto svg_transform = parent_svg_transform.multiply(foreign_object_element->element_transform());
+        auto to_css_pixels_transform = Gfx::AffineTransform {}.multiply(m_current_viewbox_transform).multiply(svg_transform);
+        auto transformed_rect = to_css_pixels_transform.map(rect.to_type<float>()).to_type<CSSPixels>();
         child_state.set_content_offset(transformed_rect.location());
         child_state.set_content_width(transformed_rect.width());
         child_state.set_content_height(transformed_rect.height());
@@ -474,14 +494,21 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
     graphics_box_state.set_computed_svg_path(move(path));
 }
 
-Gfx::AffineTransform SVGFormattingContext::get_parent_svg_transform(SVGGraphicsBox const& box) const
+Gfx::AffineTransform SVGFormattingContext::get_parent_svg_transform(Box const& box) const
 {
     // Mask/clip boxes are transform boundaries — the target's transform is applied separately at paint time.
     for (auto* ancestor = box.parent(); ancestor; ancestor = ancestor->parent()) {
         if (is<SVGMaskBox>(*ancestor) || is<SVGClipBox>(*ancestor) || is<SVGPatternBox>(*ancestor))
             return {};
-        if (auto const* svg_graphics_ancestor = as_if<SVGGraphicsBox>(*ancestor)) {
-            auto const& ancestor_state = m_state.get(*svg_graphics_ancestor);
+        if (auto const* svg_svg_box = as_if<SVGSVGBox>(*ancestor)) {
+            if (auto const* ancestor_state = m_state.try_get(*svg_svg_box)) {
+                if (ancestor_state->computed_svg_transforms().has_value())
+                    return ancestor_state->computed_svg_transforms()->svg_transform();
+            }
+            continue;
+        }
+        if (auto const* svg_graphics_box = as_if<SVGGraphicsBox>(*ancestor)) {
+            auto const& ancestor_state = m_state.get(*svg_graphics_box);
             if (ancestor_state.computed_svg_transforms().has_value())
                 return ancestor_state.computed_svg_transforms()->svg_transform();
         }

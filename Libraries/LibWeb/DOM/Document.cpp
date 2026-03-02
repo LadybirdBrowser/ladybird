@@ -1653,6 +1653,10 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
             if (auto paintable = svg_graphics_ancestor->paintable_box())
                 layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
         }
+        if (auto const* svg_svg_ancestor = as_if<Layout::SVGSVGBox>(*ancestor)) {
+            if (auto paintable = svg_svg_ancestor->paintable_box())
+                layout_state.populate_from_paintable(*svg_svg_ancestor, *paintable);
+        }
     }
 
     // Pre-populate the viewport for position:fixed elements inside <foreignObject>.
