@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <g transform="rotate(45)">
+    <svg width="50" height="50">
+      <rect width="50" height="50" fill="green"/>
+    </svg>
+  </g>
+</svg>

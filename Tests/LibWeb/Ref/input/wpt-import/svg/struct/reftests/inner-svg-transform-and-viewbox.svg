@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:html="http://www.w3.org/1999/xhtml">
+  <html:link rel="help" href="https://www.w3.org/TR/SVG2/struct.html#SVGElement"/>
+  <html:link rel="help" href="https://www.w3.org/TR/SVG2/coords.html#TransformProperty"/>
+  <html:link rel="help" href="https://www.w3.org/TR/SVG2/coords.html#ViewBoxAttribute"/>
+  <html:link rel="match" href="../../../../../expected/wpt-import/svg/struct/reftests/reference/inner-svg-transform-and-viewbox-ref.svg"/>
+  <title>Test that transforms the inner svg element with viewBox specified</title>
+  <svg width="50" height="50" transform="translate(100,50)" viewBox="0 0 40 40">
+    <rect width="50" height="50" fill="green"/>
+    <circle cx="25" cy="25" r="6"/>
+  </svg>
+</svg>

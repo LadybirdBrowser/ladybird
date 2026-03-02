@@ -1,7 +1,7 @@
 AccumulatedVisualContext Tree:
   [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
     [2] clip=[8,8 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
-      [3] clip=[8,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
+      [3] clip=[9,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0
@@ -23,9 +23,9 @@ SaveLayer@0
   Save@2
     AddClipRect@2 rect=[-2,-2 119x119]
     SaveLayer@2
-      CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[8,8 100x100]
-      CompositorWheelHitTestTarget@3 target_scroll_frame_index=0 rect=[8,8 100x100]
-      FillRect@3 rect=[8,8 100x100] color=rgb(0, 0, 0)
+      CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[9,8 100x100]
+      CompositorWheelHitTestTarget@3 target_scroll_frame_index=0 rect=[9,8 100x100]
+      FillRect@3 rect=[9,8 100x100] color=rgb(0, 0, 0)
       ApplyEffects@2 opacity=1 has_filter=false
         PaintNestedDisplayList@2 rect=[-2,-2 119x119]
           Translate@0 delta=[2,2]
