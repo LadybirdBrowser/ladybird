@@ -12,10 +12,14 @@
 #include <AK/HashTable.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/LexicalPath.h>
 #include <AK/Platform.h>
 #include <AK/StackInfo.h>
+#include <AK/StackUnwinder.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibCore/File.h>
+#include <LibCore/StandardPaths.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
@@ -489,22 +493,23 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         Vector<FlatPtr> frame_starts;
         std::vector<cpptrace::frame_ptr> return_addresses;
 
-        auto* fp = reinterpret_cast<FlatPtr*>(__builtin_frame_address(0));
-        while (fp != nullptr) {
-            auto fp_value = bit_cast<FlatPtr>(fp);
-            if (fp_value < stack_reference || fp_value >= stack_top)
-                break;
-
-            auto* previous_fp = reinterpret_cast<FlatPtr*>(fp[0]);
-
-            // Ensure the previous FP is above the current one (stack grows downward).
-            if (previous_fp != nullptr && bit_cast<FlatPtr>(previous_fp) <= fp_value)
-                break;
-
-            frame_starts.append(fp_value);
-            return_addresses.push_back(static_cast<cpptrace::frame_ptr>(fp[1]) - 1);
-            fp = previous_fp;
-        }
+        FlatPtr current_fp = bit_cast<FlatPtr>(__builtin_frame_address(0));
+        AK::unwind_stack_from_frame_pointer(
+            current_fp,
+            [&](FlatPtr address) -> Optional<FlatPtr> {
+                if (address < stack_reference || address >= stack_top)
+                    return {};
+                return *reinterpret_cast<FlatPtr*>(address);
+            },
+            [&](AK::StackFrame frame) -> IterationDecision {
+                // Ensure the previous FP is above the current one (stack grows downward).
+                if (frame.previous_frame_pointer != 0 && frame.previous_frame_pointer <= current_fp)
+                    return IterationDecision::Break;
+                frame_starts.append(current_fp);
+                return_addresses.push_back(static_cast<cpptrace::frame_ptr>(frame.return_address) - 1);
+                current_fp = frame.previous_frame_pointer;
+                return IterationDecision::Continue;
+            });
 
         if (!frame_starts.is_empty()) {
             auto resolved = cpptrace::raw_trace { move(return_addresses) }.resolve();
