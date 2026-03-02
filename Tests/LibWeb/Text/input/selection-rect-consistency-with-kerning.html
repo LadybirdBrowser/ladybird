@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+@font-face {
+    font-family: LatoBold;
+    src: url("../../Assets/Lato-Bold.ttf");
+}
+p {
+    font: 48px LatoBold;
+    margin: 0;
+}
+</style>
+<p>Table</p>
+<script>
+asyncTest(async done => {
+    await document.fonts.ready;
+
+    const text = document.querySelector("p").firstChild;
+
+    function rangeRect(start, end) {
+        const range = document.createRange();
+        range.setStart(text, start);
+        range.setEnd(text, end);
+        return range.getBoundingClientRect();
+    }
+
+    const full = rangeRect(0, 5);
+    const r01 = rangeRect(0, 1);
+    const r12 = rangeRect(1, 2);
+    const r23 = rangeRect(2, 3);
+    const r34 = rangeRect(3, 4);
+    const r45 = rangeRect(4, 5);
+
+    const charSum = r01.width + r12.width + r23.width + r34.width + r45.width;
+
+    println(`char widths: ${r01.width} ${r12.width} ${r23.width} ${r34.width} ${r45.width}`);
+    println(`char sum: ${charSum}`);
+    println(`full width: ${full.width}`);
+    println(`sum == full: ${charSum === full.width}`);
+    println(`T.right == a.left: ${r01.right === r12.left}`);
+
+    done();
+});
+</script>
