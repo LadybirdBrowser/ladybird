@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+.a {
+    transition-property: var(--a);
+    transition-duration: var(--b);
+    transition-timing-function: var(--c);
+    transition-delay: var(--d);
+    transition-behavior: var(--e);
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.styleSheets[0].cssRules[0].cssText);
+    });
+</script>
