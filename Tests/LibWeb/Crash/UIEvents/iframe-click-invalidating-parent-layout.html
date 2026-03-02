@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe id="frame" srcdoc="
+    <!DOCTYPE html>
+    <div style='width: 100px; height: 100px'
+         onclick='parent.document.body.insertBefore(parent.document.createElement(&quot;div&quot;), parent.document.getElementById(&quot;frame&quot;))'></div>
+"></iframe>
+<script>
+frame.onload = () => {
+    internals.click(50, 50);
+    document.documentElement.classList.remove("test-wait");
+};
+</script>
+</html>
