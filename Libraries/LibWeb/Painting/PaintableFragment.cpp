@@ -119,21 +119,32 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         pixel_offset = 0;
         pixel_width = rect.primary_size_for_orientation(orientation());
     } else {
-        auto letter_spacing = layout_node().computed_values().letter_spacing().to_float();
-        pixel_offset = CSSPixels { Gfx::measure_text_width(text().substring_view(0, offsets->start), font, letter_spacing) };
+        float offset_accumulator = 0.f;
+        float width_accumulator = 0.f;
 
-        // When start equals end, this is a cursor position.
-        if (offsets->start == offsets->end) {
-            pixel_width = 1;
-        } else {
-            pixel_width = CSSPixels { Gfx::measure_text_width(text().substring_view(offsets->start, offsets->end - offsets->start), font, letter_spacing) };
+        if (m_glyph_run) {
+            size_t code_units_seen = 0;
+            for (auto const& glyph : m_glyph_run->glyphs()) {
+                if (code_units_seen < offsets->start)
+                    offset_accumulator += glyph.glyph_width;
+                else if (code_units_seen < offsets->end)
+                    width_accumulator += glyph.glyph_width;
+                code_units_seen += glyph.length_in_code_units;
+            }
         }
+
+        pixel_offset = CSSPixels { offset_accumulator };
+        pixel_width = CSSPixels { width_accumulator };
     }
+
+    // When start equals end, this is a cursor position.
+    if (offsets->start == offsets->end)
+        pixel_width = 1;
 
     // Include an additional space at the end if we remembered that this fragment contained trailing whitespace. This
     // shows the user that at least one whitespace character was present when selecting text, even though we don't store
     // that whitespace in the glyph run or text fragment.
-    if (m_has_trailing_whitespace && offsets->include_trailing_whitespace && offsets->start != offsets->end)
+    if (offsets->start != offsets->end && m_has_trailing_whitespace && offsets->include_trailing_whitespace)
         pixel_width += CSSPixels { font.glyph_width(' ') };
 
     rect.translate_primary_offset_for_orientation(orientation(), pixel_offset);

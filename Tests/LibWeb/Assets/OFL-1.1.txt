@@ -1,3 +1,4 @@
+Lato-Bold.ttf: Copyright (c) 2010-2011 by tyPoland Lukasz Dziedzic (team@latofonts.com) with Reserved Font Name "Lato".
 NotoEmoji.ttf: Copyright 2013 Google LLC.
 NotoSansEthiopic.woff2: Copyright 2013 Google LLC.
 

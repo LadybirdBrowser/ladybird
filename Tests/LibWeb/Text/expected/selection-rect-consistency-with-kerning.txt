@@ -1,0 +1,5 @@
+char widths: 22.703125 25.125 27.359375 13.015625 25.65625
+char sum: 113.859375
+full width: 113.859375
+sum == full: true
+T.right == a.left: true
