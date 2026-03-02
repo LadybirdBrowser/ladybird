@@ -351,6 +351,14 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
     nested_viewport_state.set_content_height(nested_viewport_height);
     nested_viewport_state.set_has_definite_width(true);
     nested_viewport_state.set_has_definite_height(true);
+
+    if (auto* graphics_element = as_if<SVG::SVGGraphicsElement>(*viewport.dom_node())) {
+        auto parent_svg_transform = get_parent_svg_transform(viewport);
+        auto svg_transform = parent_svg_transform.multiply(graphics_element->element_transform());
+        nested_viewport_state.set_computed_svg_transforms(
+            Painting::SVGGraphicsPaintable::ComputedTransforms(m_current_viewbox_transform, svg_transform));
+    }
+
     nested_context.run(*m_available_space);
 }
 
@@ -455,14 +463,21 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
     graphics_box_state.set_computed_svg_path(move(path));
 }
 
-Gfx::AffineTransform SVGFormattingContext::get_parent_svg_transform(SVGGraphicsBox const& box) const
+Gfx::AffineTransform SVGFormattingContext::get_parent_svg_transform(Box const& box) const
 {
     // Mask/clip boxes are transform boundaries — the target's transform is applied separately at paint time.
     for (auto* ancestor = box.parent(); ancestor; ancestor = ancestor->parent()) {
         if (is<SVGMaskBox>(*ancestor) || is<SVGClipBox>(*ancestor) || is<SVGPatternBox>(*ancestor))
             return {};
-        if (auto const* svg_graphics_ancestor = as_if<SVGGraphicsBox>(*ancestor)) {
-            auto const& ancestor_state = m_state.get(*svg_graphics_ancestor);
+        if (auto const* svg_svg_box = as_if<SVGSVGBox>(*ancestor)) {
+            if (auto const* ancestor_state = m_state.try_get(*svg_svg_box)) {
+                if (ancestor_state->computed_svg_transforms().has_value())
+                    return ancestor_state->computed_svg_transforms()->svg_transform();
+            }
+            continue;
+        }
+        if (auto const* svg_graphics_box = as_if<SVGGraphicsBox>(*ancestor)) {
+            auto const& ancestor_state = m_state.get(*svg_graphics_box);
             if (ancestor_state.computed_svg_transforms().has_value())
                 return ancestor_state.computed_svg_transforms()->svg_transform();
         }
