@@ -5535,6 +5535,78 @@ RefPtr<TreeCountingFunctionStyleValue const> Parser::parse_tree_counting_functio
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-values-5/#typedef-if-condition
+OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>& tokens)
+{
+    // <if-condition> = <boolean-expr[ <if-test> ]> | else
+    // <if-test> =
+    //   supports( [ <ident> : <declaration-value> ] | <supports-condition> ) |
+    //   media( <media-feature> | <media-condition> ) |
+    //   style( <style-query> )
+
+    auto transaction = tokens.begin_transaction();
+
+    // <boolean-expr[ <if-test> ]>
+    auto parsed_boolean_expression = parse_boolean_expression(tokens, MatchResult::False, [&](TokenStream<ComponentValue>& test_tokens) -> OwnPtr<BooleanExpression> {
+        auto const& maybe_function_token = test_tokens.consume_a_token();
+
+        if (!maybe_function_token.is_function())
+            return nullptr;
+
+        auto const& function = maybe_function_token.function();
+        TokenStream argument_tokens { function.value };
+
+        // supports( [ <ident> : <declaration-value> ] | <supports-condition> )
+        if (function.name.equals_ignoring_ascii_case("supports"sv)) {
+            // [ <ident> : <declaration-value> ]
+            m_rule_context.append(RuleContext::SupportsCondition);
+            auto maybe_supports_declaration = parse_supports_declaration(argument_tokens);
+            m_rule_context.take_last();
+
+            if (maybe_supports_declaration)
+                return maybe_supports_declaration;
+
+            // <supports-condition>
+            if (auto maybe_supports_condition = parse_supports_condition(argument_tokens))
+                return maybe_supports_condition;
+
+            return nullptr;
+        }
+
+        // media( <media-feature> | <media-condition> )
+        if (function.name.equals_ignoring_ascii_case("media"sv)) {
+            // <media-feature>
+            if (auto maybe_media_feature = parse_media_feature(argument_tokens))
+                return maybe_media_feature;
+
+            // <media-condition>
+            if (auto maybe_media_condition = parse_media_condition(argument_tokens))
+                return maybe_media_condition;
+
+            return nullptr;
+        }
+
+        // FIXME: Support style()
+        return nullptr;
+    });
+
+    tokens.discard_whitespace();
+
+    if (parsed_boolean_expression && !tokens.has_next_token()) {
+        transaction.commit();
+        return parsed_boolean_expression;
+    }
+
+    // else
+    if (parse_all_as_single_keyword_value(tokens, Keyword::Else)) {
+        transaction.commit();
+        // The else keyword represents a condition that is always true.
+        return ConstantBooleanExpression::create(MatchResult::True);
+    }
+
+    return nullptr;
+}
+
 // https://drafts.csswg.org/css-color-4/#typedef-opacity-opacity-value
 RefPtr<StyleValue const> Parser::parse_opacity_value(TokenStream<ComponentValue>& tokens)
 {
@@ -5768,6 +5840,8 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     // AD-HOC: Report that we might rely on custom properties.
     if (unresolved.includes_attr_function())
         element.element().set_style_uses_attr_css_function();
+    if (unresolved.includes_if_function())
+        element.element().set_style_uses_if_css_function();
     if (unresolved.includes_var_function())
         element.element().set_style_uses_var_css_function();
 

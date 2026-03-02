@@ -175,6 +175,8 @@ public:
     RefPtr<CalculatedStyleValue const> parse_calculated_value(ComponentValue const&);
     RefPtr<TreeCountingFunctionStyleValue const> parse_tree_counting_function(TokenStream<ComponentValue>&, TreeCountingFunctionStyleValue::ComputedType);
 
+    OwnPtr<BooleanExpression> parse_if_condition(TokenStream<ComponentValue>&);
+
 private:
     Parser(ParsingParams const&, Vector<Token>);
 

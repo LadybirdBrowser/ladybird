@@ -63,9 +63,10 @@ struct Declaration {
 struct SubstitutionFunctionsPresence {
     bool attr { false };
     bool env { false };
+    bool if_ { false };
     bool var { false };
 
-    bool has_any() const { return attr || env || var; }
+    bool has_any() const { return attr || env || if_ || var; }
 };
 
 // https://drafts.csswg.org/css-syntax/#simple-block
