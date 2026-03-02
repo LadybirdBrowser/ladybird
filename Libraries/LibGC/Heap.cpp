@@ -208,10 +208,13 @@ public:
             auto node = AK::JsonObject();
             if (it.value.root_origin.has_value()) {
                 auto type = it.value.root_origin->type;
-                auto location = it.value.root_origin->location;
+                auto const* location = it.value.root_origin->location;
                 switch (type) {
                 case HeapRoot::Type::ConservativeVector:
                     node.set("root"sv, "ConservativeVector"sv);
+                    break;
+                case HeapRoot::Type::HeapFunctionCapturedPointer:
+                    node.set("root"sv, "HeapFunctionCapturedPointer"sv);
                     break;
                 case HeapRoot::Type::MustSurviveGC:
                     node.set("root"sv, "MustSurviveGC"sv);
@@ -221,6 +224,9 @@ public:
                     break;
                 case HeapRoot::Type::RootVector:
                     node.set("root"sv, "RootVector"sv);
+                    break;
+                case HeapRoot::Type::RootHashMap:
+                    node.set("root"sv, "RootHashMap"sv);
                     break;
                 case HeapRoot::Type::RegisterPointer:
                     node.set("root"sv, "RegisterPointer"sv);
@@ -235,9 +241,8 @@ public:
                 case HeapRoot::Type::VM:
                     node.set("root"sv, "VM"sv);
                     break;
-                default:
-                    VERIFY_NOT_REACHED();
                 }
+                VERIFY(node.has("root"sv));
             }
             node.set("class_name"sv, it.value.class_name);
             node.set("edges"sv, edges);
