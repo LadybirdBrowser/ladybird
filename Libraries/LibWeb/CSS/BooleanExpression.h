@@ -197,6 +197,27 @@ private:
     Vector<NonnullOwnPtr<BooleanExpression>> m_children;
 };
 
+class ConstantBooleanExpression final : public BooleanExpression {
+public:
+    static NonnullOwnPtr<ConstantBooleanExpression> create(MatchResult value)
+    {
+        return adopt_own(*new ConstantBooleanExpression(value));
+    }
+    virtual ~ConstantBooleanExpression() override = default;
+
+    virtual MatchResult evaluate(DOM::Document const*) const override { return m_value; }
+    virtual String to_string() const override { return MUST(String::from_utf8(CSS::to_string(m_value))); }
+    virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+private:
+    ConstantBooleanExpression(MatchResult value)
+        : m_value(value)
+    {
+    }
+
+    MatchResult m_value;
+};
+
 }
 
 template<>
