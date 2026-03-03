@@ -5726,9 +5726,12 @@ fn generate_class_expression(
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
     let has_super = data.super_class.is_some();
+    // Always consume pending_lhs_name. Named classes don't use it, but we
+    // must clear it to prevent it from leaking to nested expressions.
     let lhs_name = if data.name.is_none() {
         generator.pending_lhs_name.take()
     } else {
+        generator.pending_lhs_name = None;
         None
     };
 
