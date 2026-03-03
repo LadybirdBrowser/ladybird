@@ -1,0 +1,20 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewArray dst:reg5
+[  18]       Mov dst:reg6, src:Bool(false)
+[  28]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+[  40]       IteratorNextUnpack dst_value:reg10, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+[  58]       JumpFalse condition:reg6, target:@80
+[  68]    1: Mov dst:reg10, src:Undefined
+[  78]       Jump target:@80
+[  80]    2: JumpUndefined condition:reg10, true_target:@90, false_target:@e8
+[  90]    3: CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:0
+[  a0]       CreateVariable identifier:Foo, is_immutable:true, is_global:false, is_strict:false
+[  b0]       SetLexicalEnvironment environment:reg4
+[  b8]       NewClass dst:reg12, class_environment:reg11, class_blueprint_index:0
+[  d8]       Mov dst:reg10, src:reg12
+[  e8]    4: SetGlobal identifier:C, src:reg10
+[  f8]       JumpFalse condition:reg6, target:@110
+[ 108]    5: End value:Undefined
+[ 110]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+[ 128]       Jump target:@108
