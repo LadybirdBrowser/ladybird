@@ -107,6 +107,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLImageElementY)                   \
     X(HTMLInputElementHeight)              \
     X(HTMLInputElementWidth)               \
+    X(HTMLLabelElementActivationBehavior)  \
     X(InspectDOMTree)                      \
     X(InternalsHitTest)                    \
     X(MediaQueryListMatches)               \
