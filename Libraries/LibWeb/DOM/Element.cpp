@@ -930,18 +930,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     if (invalidation.is_none())
         return invalidation;
 
-    // NB: We use unsafe accessors here because we're in the middle of style recalculation.
-    //     Layout is inherently stale while we're applying new styles to existing layout nodes.
-    if (invalidation.repaint)
-        set_needs_paint_only_properties_update();
-
     if (!invalidation.rebuild_layout_tree && unsafe_layout_node()) {
         // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
         unsafe_layout_node()->apply_style(*m_computed_properties);
-        if (invalidation.repaint) {
-            set_needs_paint_only_properties_update();
+        if (invalidation.repaint)
             set_needs_repaint();
-        }
 
         // Do the same for pseudo-elements.
         for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
@@ -956,10 +949,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
             if (auto node_with_style = pseudo_element->unsafe_layout_node()) {
                 node_with_style->apply_style(*pseudo_element_style);
-                if (invalidation.repaint && node_with_style->first_paintable()) {
-                    node_with_style->first_paintable()->set_needs_paint_only_properties_update(true);
+                if (invalidation.repaint && node_with_style->first_paintable())
                     node_with_style->first_paintable()->set_needs_repaint();
-                }
             }
         }
     }
@@ -1035,6 +1026,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     // NB: unsafe_layout_node() because we're applying recomputed inherited styles during
     //     style recalculation, before layout has been updated.
     unsafe_layout_node()->apply_style(*computed_properties);
+    if (invalidation.repaint)
+        set_needs_repaint();
     return invalidation;
 }
 

@@ -243,17 +243,16 @@ TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position,
     return TraversalDecision::Continue;
 }
 
-void PaintableWithLines::resolve_paint_properties()
+static void resolve_text_fragment_properties(PaintableWithLines const& paintable_with_lines)
 {
-    Base::resolve_paint_properties();
-
-    auto const& layout_node = this->layout_node();
-    for (auto& fragment : fragments()) {
-        if (!fragment.m_layout_node->is_text_node())
+    auto const& parent_layout_node = paintable_with_lines.layout_node();
+    for (auto& fragment : const_cast<PaintableWithLines&>(paintable_with_lines).fragments()) {
+        auto const& fragment_layout_node = fragment.layout_node();
+        if (!fragment_layout_node.is_text_node())
             continue;
-        auto const& text_node = static_cast<Layout::TextNode const&>(*fragment.m_layout_node);
+        auto const& text_node = static_cast<Layout::TextNode const&>(fragment_layout_node);
 
-        auto const& font = fragment.m_layout_node->first_available_font();
+        auto const& font = fragment_layout_node.first_available_font();
         auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
         auto const css_line_thickness = [&] {
             auto const& thickness = text_node.computed_values().text_decoration_thickness();
@@ -271,7 +270,7 @@ void PaintableWithLines::resolve_paint_properties()
                     return max(glyph_height.scaled(0.1), 1);
                 },
                 [&](CSS::LengthPercentage const& length_percentage) {
-                    auto resolved_length = length_percentage.resolved(text_node, CSS::Length(1, CSS::LengthUnit::Em).to_px(text_node)).to_px(*fragment.m_layout_node);
+                    auto resolved_length = length_percentage.resolved(text_node, CSS::Length(1, CSS::LengthUnit::Em).to_px(text_node)).to_px(fragment_layout_node);
                     return max(resolved_length, 1);
                 });
         }();
@@ -281,15 +280,8 @@ void PaintableWithLines::resolve_paint_properties()
         Vector<ShadowData> resolved_shadow_data;
         if (!text_shadow.is_empty()) {
             resolved_shadow_data.ensure_capacity(text_shadow.size());
-            for (auto const& layer : text_shadow) {
-                resolved_shadow_data.empend(
-                    layer.color,
-                    layer.offset_x.to_px(layout_node),
-                    layer.offset_y.to_px(layout_node),
-                    layer.blur_radius.to_px(layout_node),
-                    layer.spread_distance.to_px(layout_node),
-                    ShadowPlacement::Outer);
-            }
+            for (auto const& layer : text_shadow)
+                resolved_shadow_data.append(ShadowData::from_css(layer, parent_layout_node));
         }
         fragment.set_shadows(move(resolved_shadow_data));
     }
@@ -303,6 +295,8 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
     PaintableBox::paint(context, phase);
 
     if (phase == PaintPhase::Foreground) {
+        resolve_text_fragment_properties(*this);
+
         Vector<PaintableFragment::FragmentSpan, 4> spans;
         for (auto const& fragment : m_fragments)
             compute_render_spans(fragment, spans);

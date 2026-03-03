@@ -45,8 +45,6 @@ public:
             visitor.visit(GC::Ref { fragment.layout_node() });
     }
 
-    virtual void resolve_paint_properties() override;
-
     size_t line_index() const { return m_line_index; }
 
 protected:

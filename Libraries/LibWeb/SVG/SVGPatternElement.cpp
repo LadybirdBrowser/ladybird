@@ -300,13 +300,6 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
         target_svg_transform = svg_graphics_paintable->computed_transforms().svg_transform();
     paint_context_copy.set_svg_transform(target_svg_transform);
 
-    // Pattern content paintables are in an unconnected subtree, so the global resolve_paint_only_properties pass won't
-    // reach them.
-    const_cast<Painting::PaintableBox&>(*pattern_paintable).for_each_in_inclusive_subtree([](Painting::Paintable& paintable) {
-        paintable.resolve_paint_properties();
-        return TraversalDecision::Continue;
-    });
-
     Painting::StackingContext::paint_svg(paint_context_copy, *pattern_paintable, Painting::PaintPhase::Foreground);
 
     Optional<Gfx::AffineTransform> user_space_pattern_transform;
