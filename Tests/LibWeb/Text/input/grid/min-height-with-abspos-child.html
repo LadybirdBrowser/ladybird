@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+#wrapper {
+    position: relative;
+    width: 200px;
+}
+#container {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 50px;
+}
+</style>
+<div id="wrapper">
+    <div id="container">
+        <div>
+            <div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px;"></div>
+            <div style="height: 200px;"></div>
+        </div>
+    </div>
+</div>
+<script>
+test(() => {
+    println(document.getElementById("container").getBoundingClientRect().height);
+});
+</script>
