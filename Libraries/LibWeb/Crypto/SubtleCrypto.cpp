@@ -229,7 +229,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algori
 
         // 9. If the [[usages]] internal slot of key does not contain an entry that is "decrypt", then throw an InvalidAccessError.
         if (!key->internal_usages().contains_slow(Bindings::KeyUsage::Decrypt)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support encryption"_utf16));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support decryption"_utf16));
             return;
         }
 
