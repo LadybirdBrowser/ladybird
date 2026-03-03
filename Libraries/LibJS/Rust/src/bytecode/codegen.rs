@@ -8437,6 +8437,15 @@ fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
                     return true;
                 }
             }
+            StatementKind::UsingDeclaration { declarations } => {
+                for declaration in declarations {
+                    let mut names = Vec::new();
+                    collect_target_names(&declaration.target, &mut names);
+                    if !names.is_empty() {
+                        return true;
+                    }
+                }
+            }
             _ => {}
         }
     }
