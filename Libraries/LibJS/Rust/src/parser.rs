@@ -174,7 +174,7 @@ impl ForbiddenTokens {
     }
 }
 
-pub struct ParserError {
+pub struct ParseError {
     pub message: String,
     pub line: u32,
     pub column: u32,
@@ -229,7 +229,7 @@ pub struct Parser<'a> {
     lexer: Lexer<'a>,
     /// `consume()` returns this and advances to the next token.
     current_token: Token,
-    errors: Vec<ParserError>,
+    errors: Vec<ParseError>,
     saved_states: Vec<SavedState>,
     program_type: ProgramType,
     /// UTF-16 source text.
@@ -612,7 +612,7 @@ impl<'a> Parser<'a> {
     // === Error reporting ===
 
     pub(crate) fn syntax_error(&mut self, message: &str) {
-        self.errors.push(ParserError {
+        self.errors.push(ParseError {
             message: message.to_string(),
             line: self.current_token.line_number,
             column: self.current_token.line_column,
@@ -620,7 +620,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn syntax_error_at(&mut self, message: &str, line: u32, column: u32) {
-        self.errors.push(ParserError {
+        self.errors.push(ParseError {
             message: message.to_string(),
             line,
             column,
@@ -683,13 +683,13 @@ impl<'a> Parser<'a> {
     }
 
     /// Batch-compile deferred regex literals. On error, returns the errors.
-    pub(crate) fn compile_deferred_regexes(deferred: Vec<DeferredRegex>) -> Vec<ParserError> {
+    pub(crate) fn compile_deferred_regexes(deferred: Vec<DeferredRegex>) -> Vec<ParseError> {
         let mut errors = Vec::new();
         for d in deferred {
             match crate::bytecode::ffi::compile_regex(&d.pattern, &d.flags) {
                 Ok(handle) => d.compiled_regex.set(handle),
                 Err(msg) => {
-                    errors.push(ParserError {
+                    errors.push(ParseError {
                         message: msg,
                         line: d.line,
                         column: d.column,
@@ -735,8 +735,12 @@ impl<'a> Parser<'a> {
         !self.errors.is_empty()
     }
 
-    pub fn errors(&self) -> &[ParserError] {
+    pub fn errors(&self) -> &[ParseError] {
         &self.errors
+    }
+
+    pub fn take_errors(&mut self) -> Vec<ParseError> {
+        std::mem::take(&mut self.errors)
     }
 
     pub fn error_messages(&self) -> Vec<String> {

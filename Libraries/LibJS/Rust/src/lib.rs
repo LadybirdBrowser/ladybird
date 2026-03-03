@@ -92,7 +92,7 @@ pub(crate) fn u32_from_usize(value: usize) -> u32 {
 }
 
 use ast::StatementKind;
-use parser::{Parser, ProgramType};
+use parser::{ParseError, Parser, ProgramType};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
@@ -111,15 +111,9 @@ pub struct ParsedProgram {
     scope_ref: Rc<RefCell<ast::ScopeData>>,
     is_strict_mode: bool,
     has_top_level_await: bool,
-    errors: Vec<ParsedError>,
+    errors: Vec<ParseError>,
     ast_dump: Option<Vec<u8>>,
     deferred_regexes: Vec<parser::DeferredRegex>,
-}
-
-struct ParsedError {
-    message: String,
-    line: u32,
-    column: u32,
 }
 
 // SAFETY: Full ownership transfer between threads, never concurrent access.
@@ -438,25 +432,9 @@ pub unsafe extern "C" fn rust_parse_program(
             let program = parser.parse_program(false);
 
             // Collect errors from both parser and scope collector.
-            let mut errors = Vec::new();
-            if parser.has_errors() {
-                for err in parser.errors() {
-                    errors.push(ParsedError {
-                        message: err.message.clone(),
-                        line: err.line,
-                        column: err.column,
-                    });
-                }
-            }
-
-            if errors.is_empty() && parser.scope_collector.has_errors() {
-                for err in parser.scope_collector.drain_errors() {
-                    errors.push(ParsedError {
-                        message: err.message.clone(),
-                        line: err.line,
-                        column: err.column,
-                    });
-                }
+            let mut errors = parser.take_errors();
+            if errors.is_empty() {
+                errors = parser.scope_collector.drain_errors();
             }
 
             if errors.is_empty() {
@@ -547,13 +525,9 @@ pub unsafe extern "C" fn rust_parsed_program_compile_regexes(parsed: *mut Parsed
     unsafe {
         let parsed = &mut *parsed;
         let deferred = std::mem::take(&mut parsed.deferred_regexes);
-        for err in Parser::compile_deferred_regexes(deferred) {
-            parsed.errors.push(ParsedError {
-                message: err.message,
-                line: err.line,
-                column: err.column,
-            });
-        }
+        parsed
+            .errors
+            .extend(Parser::compile_deferred_regexes(deferred));
     }
 }
 

@@ -57,7 +57,7 @@ use crate::ast::{
     FunctionScopeData, Identifier, LocalBinding, LocalVarKind, LocalVariable, ScopeData,
     Utf16String, VarToInit,
 };
-use crate::parser::{DeclarationKind, FunctionKind, ProgramType};
+use crate::parser::{DeclarationKind, FunctionKind, ParseError, ProgramType};
 use crate::u32_from_usize;
 
 // === Enums ===
@@ -296,12 +296,6 @@ fn last_function_scope(index: usize, records: &[ScopeRecord]) -> Option<usize> {
 
 // === ScopeCollector ===
 
-pub struct ScopeError {
-    pub message: String,
-    pub line: u32,
-    pub column: u32,
-}
-
 /// Saved flags for a scope record, used to restore state after
 /// speculative parsing (e.g. failed arrow function attempts).
 struct SavedScopeFlags {
@@ -324,7 +318,7 @@ pub struct ScopeCollectorState {
 pub struct ScopeCollector {
     records: Vec<ScopeRecord>,
     current: Option<usize>,
-    errors: Vec<ScopeError>,
+    errors: Vec<ParseError>,
 }
 
 impl Default for ScopeCollector {
@@ -342,12 +336,12 @@ impl ScopeCollector {
         }
     }
 
-    pub fn drain_errors(&mut self) -> Vec<ScopeError> {
+    pub fn drain_errors(&mut self) -> Vec<ParseError> {
         std::mem::take(&mut self.errors)
     }
 
     fn already_declared_error(&mut self, name: &[u16], line: u32, column: u32) {
-        self.errors.push(ScopeError {
+        self.errors.push(ParseError {
             message: format!(
                 "Identifier '{}' already declared",
                 String::from_utf16_lossy(name)
