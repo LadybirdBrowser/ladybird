@@ -1,0 +1,20 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
+[  28]       GetGlobal dst:reg6, identifier:Object
+[  38]       SetLexicalEnvironment environment:reg4
+[  40]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
+[  60]       InitializeLexicalBinding identifier:C, src:reg7
+[  78]       GetGlobal dst:reg6, identifier:C
+[  88]       CallConstruct dst:reg5, callee:reg6, C
+[  a0]       End value:reg5
+
+JS bytecode executable "C"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewArray dst:reg5
+[  18]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+[  28]       ResolveThisBinding
+[  30]       ResolveSuperBase dst:reg5
+[  38]       PutNormalByIdWithThis base:reg5, this_value:this, property:foo, src:Int32(1)
+[  50]       End value:Undefined
