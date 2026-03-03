@@ -1,0 +1,30 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Jump target:@58
+[  10]    1: Catch dst:reg5
+[  18]       SetLexicalEnvironment environment:reg4
+[  20]       Mov dst:e~0, src:reg5
+[  30]       Mov dst:reg6, src:Undefined
+[  40]       Mov dst:reg7, src:reg6
+[  50]    2: End value:reg6
+[  58]    3: Mov dst:reg5, src:Undefined
+[  68]       NewFunction dst:reg8, shared_function_data_index:0
+[  80]       Call dst:reg6, callee:reg8, this_value:Undefined
+[  a0]       Mov dst:reg5, src:reg6
+[  b0]       Mov dst:reg6, src:reg5
+[  c0]       End value:reg6
+
+Exception handlers:
+    from   58 to   c8 handler   10
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateImmutableBinding environment:reg5, identifier:x, strict_binding:true
+[  28]       NewTypeError dst:reg6, TODO: UsingDeclaration
+[  38]       SetLexicalEnvironment environment:reg4
+[  40]       Throw src:reg6
+[  48]    1: NewFunction dst:reg7, shared_function_data_index:0
+[  60]       Call dst:reg6, callee:reg7, this_value:Undefined
+[  80]       SetLexicalEnvironment environment:reg4
+[  88]       End value:Undefined
