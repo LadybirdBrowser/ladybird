@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+#container {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 50px;
+    width: 200px;
+}
+</style>
+<div id="container">
+    <div style="height: 200px;"></div>
+</div>
+<script>
+test(() => {
+    println(document.getElementById("container").getBoundingClientRect().height);
+});
+</script>
