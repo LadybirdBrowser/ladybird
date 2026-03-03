@@ -897,7 +897,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             LayoutState throwaway_state(box);
             throwaway_state.populate_node_from(m_state, *box.containing_block());
 
-            auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
+            auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
             measuring_context->run(inner_available_space);
             auto content_height = measuring_context->automatic_content_height();
             auto min_height = calculate_inner_height(box, available_space, box.computed_values().min_height());
