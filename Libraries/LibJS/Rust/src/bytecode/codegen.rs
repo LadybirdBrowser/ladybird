@@ -3871,10 +3871,11 @@ fn generate_assignment_expression(
                         let rhs_block = generator.make_block();
                         let lhs_block = generator.make_block();
                         let end_block = generator.make_block();
-                        let dst = choose_dst(generator, preferred_dst);
                         emit_logical_jump(generator, op, &old_val, rhs_block, lhs_block);
                         generator.switch_to_basic_block(rhs_block);
                         let rhs_val = generate_expression(rhs, generator, None)?;
+                        // Allocate dst after RHS evaluation to match C++ register order.
+                        let dst = choose_dst(generator, preferred_dst);
                         generator.emit_mov(&dst, &rhs_val);
                         let id2 = generator.intern_identifier(&priv_ident.name);
                         generator.emit(Instruction::PutPrivateById {
