@@ -221,7 +221,7 @@ Gfx::Painter* CanvasRenderingContext2D::painter()
     allocate_painting_surface_if_needed();
     auto surface = canvas_element().surface();
     if (!m_painter && surface) {
-        canvas_element().document().invalidate_display_list();
+        canvas_element().set_needs_repaint();
         m_painter = make<Gfx::PainterSkia>(*canvas_element().surface());
     }
     return m_painter.ptr();

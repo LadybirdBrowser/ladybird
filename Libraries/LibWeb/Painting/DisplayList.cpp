@@ -10,11 +10,12 @@
 
 namespace Web::Painting {
 
-void DisplayList::append(DisplayListCommand&& command, RefPtr<AccumulatedVisualContext const> context)
+bool DisplayList::append(DisplayListCommand&& command, RefPtr<AccumulatedVisualContext const> context)
 {
     if (context && context->has_empty_effective_clip())
-        return;
+        return false;
     m_commands.append({ move(context), move(command) });
+    return true;
 }
 
 static Optional<Gfx::IntRect> command_bounding_rectangle(DisplayListCommand const& command)

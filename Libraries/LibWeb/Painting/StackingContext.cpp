@@ -42,7 +42,17 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
             context.display_list_recorder().set_accumulated_visual_context(paintable_box->accumulated_visual_context());
     }
 
-    paintable.paint(context, phase);
+    bool const skip_cache = !paintable_box || context.should_show_line_box_borders();
+    if (!skip_cache && paintable_box->has_cached_commands(phase)) {
+        context.display_list_recorder().replay_cached_commands(paintable_box->cached_commands(phase));
+    } else if (!skip_cache) {
+        auto capture = context.display_list_recorder().begin_command_capture();
+        paintable.paint(context, phase);
+        paintable_box->set_cached_commands(phase, capture.take());
+    } else {
+        paintable.paint(context, phase);
+    }
+
     context.display_list_recorder().set_accumulated_visual_context({});
 
     VERIFY(context.display_list_recorder().m_save_nesting_level == 0);

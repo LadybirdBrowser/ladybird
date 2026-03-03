@@ -78,7 +78,7 @@ public:
         return adopt_ref(*new DisplayList());
     }
 
-    void append(DisplayListCommand&& command, RefPtr<AccumulatedVisualContext const> context);
+    bool append(DisplayListCommand&& command, RefPtr<AccumulatedVisualContext const> context);
 
     struct CommandListItem {
         RefPtr<AccumulatedVisualContext const> context;
