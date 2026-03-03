@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 205 tests
 
-169 Pass
-36 Fail
+205 Pass
 Pass	setup
 Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv
 Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv
@@ -23,24 +22,24 @@ Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv
 Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv
 Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv
 Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv
-Fail	AES-OCB 128-bit key, 64-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 128-bit key, 96-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 128-bit key, 128-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 192-bit key, 64-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 192-bit key, 96-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 192-bit key, 128-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 256-bit key, 64-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 256-bit key, 96-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 256-bit key, 128-bit tag, 120-bit iv with altered plaintext during call
-Fail	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv with altered plaintext during call
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext during call
 Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv with altered plaintext after call
 Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext after call
 Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv with altered plaintext after call
@@ -77,24 +76,24 @@ Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption
 Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption
 Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption
 Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption
-Fail	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 128-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 192-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 192-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 192-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 256-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
-Fail	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext during call
 Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext after call
 Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext after call
 Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext after call

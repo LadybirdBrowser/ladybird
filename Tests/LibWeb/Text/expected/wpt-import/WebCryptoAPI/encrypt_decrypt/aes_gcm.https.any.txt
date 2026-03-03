@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 409 tests
 
-325 Pass
-84 Fail
+409 Pass
 Pass	setup
 Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv
 Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv
@@ -47,48 +46,48 @@ Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv
 Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv
 Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv
 Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv
-Fail	AES-GCM 128-bit key, 32-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, 64-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, 96-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, 104-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, 112-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, 120-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, 128-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, 32-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, 64-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, 96-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, 104-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, 112-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, 120-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, 128-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, 32-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, 64-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, 96-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, 104-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, 112-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, 120-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, 128-bit tag, 96-bit iv with altered plaintext during call
-Fail	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv with altered plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext during call
 Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv with altered plaintext after call
 Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext after call
 Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv with altered plaintext after call
@@ -173,48 +172,48 @@ Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption
 Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption
 Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption
 Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption
-Fail	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
-Fail	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext during call
 Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext after call
 Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext after call
 Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext after call
