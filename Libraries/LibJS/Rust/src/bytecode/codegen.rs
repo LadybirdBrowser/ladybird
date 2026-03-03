@@ -4294,48 +4294,22 @@ fn emit_put_by_value(
 fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &ScopedOperand) {
     if ident.is_local() {
         if ident.declaration_kind.get() == Some(DeclarationKind::Const) {
-            // Emit TDZ check before const assignment error, matching C++ which
-            // calls emit_tdz_check_if_needed() in the caller before emit_set_variable().
-            let local_index = ident.local_index.get();
-            let needs_tdz = if ident.local_type.get() == Some(LocalType::Argument) {
-                !generator.is_argument_initialized(local_index)
-            } else {
-                generator.is_local_lexically_declared(local_index)
-                    && !generator.is_local_initialized(local_index)
-            };
-            if needs_tdz {
-                let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
-                generator.emit(Instruction::ThrowIfTDZ {
-                    src: local.operand(),
-                });
-            }
+            // The caller is responsible for emitting ThrowIfTDZ before calling
+            // emit_set_variable(), matching the C++ pipeline behavior.
             generator.emit(Instruction::ThrowConstAssignment {});
             return;
         }
         let local_index = ident.local_index.get();
         let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
-        // Match C++ emit_set_variable: skip self-move entirely (no TDZ check needed
-        // either, since the value was already read with a TDZ check at the use site).
+        // Match C++ emit_set_variable: skip self-move entirely.
         let is_variable_self_move = ident.local_type.get() == Some(LocalType::Variable)
             && value.operand().is_local()
             && value.operand().index() == local_index;
         if is_variable_self_move {
             return;
         }
-        // TDZ check: throw ReferenceError if assigning to an uninitialized let/const binding.
-        // For arguments, check argument initialization tracking.
-        // For variables, check is_lexically_declared && !is_initialized.
-        let needs_tdz = if ident.local_type.get() == Some(LocalType::Argument) {
-            !generator.is_argument_initialized(local_index)
-        } else {
-            generator.is_local_lexically_declared(local_index)
-                && !generator.is_local_initialized(local_index)
-        };
-        if needs_tdz {
-            generator.emit(Instruction::ThrowIfTDZ {
-                src: local.operand(),
-            });
-        }
+        // No TDZ check here: the caller is responsible for checking TDZ
+        // before calling emit_set_variable(), matching C++ pipeline behavior.
         generator.emit(Instruction::Mov {
             dst: local.operand(),
             src: value.operand(),
