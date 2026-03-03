@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Layout/LegendBox.h>
 #include <LibWeb/Painting/FieldSetPaintable.h>
 namespace Web::Layout {
 
@@ -23,7 +24,7 @@ public:
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
 
-    bool has_rendered_legend() const;
+    GC::Ptr<LegendBox const> rendered_legend() const;
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:

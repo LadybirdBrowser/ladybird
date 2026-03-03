@@ -106,6 +106,7 @@ private:
 
     void layout_block_level_children(BlockContainer const&, AvailableSpace const&);
     void layout_inline_children(BlockContainer const&, AvailableSpace const&);
+    void layout_fieldset_with_rendered_legend(FieldSetBox const&, AvailableSpace const&);
 
     void place_block_level_element_in_normal_flow_horizontally(Box const& child_box, AvailableSpace const&);
     void place_block_level_element_in_normal_flow_vertically(Box const&, CSSPixels y);
