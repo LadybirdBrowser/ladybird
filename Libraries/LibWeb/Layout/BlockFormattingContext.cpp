@@ -895,7 +895,14 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // min-height. If so, we run layout with min-height as the available height.
         if (should_treat_height_as_auto(box, available_space) && !box.computed_values().min_height().is_auto()) {
             LayoutState throwaway_state(box);
-            throwaway_state.populate_node_from(m_state, *box.containing_block());
+            // Populate the entire containing block chain: the throwaway BFC may encounter abspos
+            // elements whose containing block is an ancestor above `box`. We stop when the source
+            // state lacks an entry, which happens when it is itself a nested throwaway state.
+            for (auto cb = box.containing_block(); cb; cb = cb->containing_block()) {
+                if (!m_state.try_get(*cb))
+                    break;
+                throwaway_state.populate_node_from(m_state, *cb);
+            }
 
             auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
             measuring_context->run(inner_available_space);
