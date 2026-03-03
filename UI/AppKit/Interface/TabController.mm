@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -53,6 +53,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     u64 m_page_index;
 
     OwnPtr<WebView::Autocomplete> m_autocomplete;
+
+    bool m_fullscreen_requested_for_web_content;
+    bool m_fullscreen_should_restore_tab_bar;
 }
 
 @property (nonatomic, assign) BOOL already_requested_close;
@@ -104,6 +107,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];
 
         m_page_index = 0;
+        m_fullscreen_requested_for_web_content = false;
+        m_fullscreen_should_restore_tab_bar = false;
 
         self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
         m_autocomplete = make<WebView::Autocomplete>();
@@ -126,7 +131,10 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     if (self = [self init]) {
         self.parent = parent;
+
         m_page_index = page_index;
+        m_fullscreen_requested_for_web_content = false;
+        m_fullscreen_should_restore_tab_bar = false;
     }
 
     return self;
@@ -151,6 +159,22 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     // Don't steal focus from the location bar when loading the new tab page
     if (url != WebView::Application::settings().new_tab_page_url()) {
         [self.window makeFirstResponder:[self tab].web_view];
+    }
+}
+
+- (void)onEnterFullscreenWindow
+{
+    m_fullscreen_requested_for_web_content = true;
+
+    if (([self.window styleMask] & NSWindowStyleMaskFullScreen) == 0) {
+        [self.window toggleFullScreen:nil];
+    }
+}
+
+- (void)onExitFullscreenWindow
+{
+    if (([self.window styleMask] & NSWindowStyleMaskFullScreen) != 0) {
+        [self.window toggleFullScreen:nil];
     }
 }
 
@@ -453,9 +477,42 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [[[self tab] web_view] handleDisplayRefreshRateChange];
 }
 
+- (void)windowWillEnterFullScreen:(NSNotification*)notification
+{
+    if (m_fullscreen_requested_for_web_content) {
+        [self.toolbar setVisible:NO];
+
+        m_fullscreen_should_restore_tab_bar = [[self.window tabGroup] isTabBarVisible];
+        if (m_fullscreen_should_restore_tab_bar) {
+            [self.window toggleTabBar:nil];
+        }
+    }
+}
+
 - (void)windowDidExitFullScreen:(NSNotification*)notification
 {
+    if (exchange(m_fullscreen_requested_for_web_content, false)) {
+        [self.toolbar setVisible:YES];
+
+        if (m_fullscreen_should_restore_tab_bar && ![[self.window tabGroup] isTabBarVisible]) {
+            [self.window toggleTabBar:nil];
+        }
+    }
+
     [[[self tab] web_view] handleExitFullScreen];
+}
+
+- (NSApplicationPresentationOptions)window:(NSWindow*)window
+      willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposed_options
+{
+    if (m_fullscreen_requested_for_web_content) {
+        return NSApplicationPresentationAutoHideDock
+            | NSApplicationPresentationAutoHideToolbar
+            | NSApplicationPresentationAutoHideMenuBar
+            | NSApplicationPresentationFullScreen;
+    }
+
+    return proposed_options;
 }
 
 #pragma mark - NSToolbarDelegate
