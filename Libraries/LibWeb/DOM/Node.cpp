@@ -422,6 +422,19 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
     }
 }
 
+static bool reason_may_affect_has_selectors(StyleInvalidationReason reason)
+{
+    // :has() selectors match based on DOM state only (structure, attributes, pseudo-classes). Reasons that don't change
+    // any DOM state can't affect :has() matching, so we can skip scheduling :has() ancestor invalidation.
+    return !first_is_one_of(reason,
+        StyleInvalidationReason::BaseURLChanged,
+        StyleInvalidationReason::CSSFontLoaded,
+        StyleInvalidationReason::HTMLIFrameElementGeometryChange,
+        StyleInvalidationReason::HTMLObjectElementUpdateLayoutAndChildObjects,
+        StyleInvalidationReason::NavigableSetViewportSize,
+        StyleInvalidationReason::SettingsChange);
+}
+
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
     if (is_character_data())
@@ -439,7 +452,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
                     return IterationDecision::Continue;
                 });
             }
-        } else {
+        } else if (reason_may_affect_has_selectors(reason)) {
             style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
         }
     }
