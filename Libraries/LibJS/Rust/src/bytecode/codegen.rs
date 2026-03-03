@@ -5721,8 +5721,8 @@ fn generate_arguments_array(
         element_count: u32_from_usize(arg_ops.len()),
         elements: arg_ops,
     });
-    // FIXME: Remove this manual drop() when we no longer need to match C++ register allocation.
-    drop(arg_holders);
+    // NB: arg_holders stays alive until function return, matching C++ where
+    // the args Vector keeps registers held through the spread arguments loop.
 
     for argument in &arguments[first_spread..] {
         let val = generate_expression_or_undefined(&argument.value, generator, None);
@@ -5733,6 +5733,7 @@ fn generate_arguments_array(
         });
     }
 
+    drop(arg_holders);
     dst
 }
 
