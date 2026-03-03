@@ -302,8 +302,6 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
 
     PaintableBox::paint(context, phase);
 
-    context.display_list_recorder().set_accumulated_visual_context(accumulated_visual_context_for_descendants());
-
     if (phase == PaintPhase::Foreground) {
         Vector<PaintableFragment::FragmentSpan, 4> spans;
         for (auto const& fragment : m_fragments)
