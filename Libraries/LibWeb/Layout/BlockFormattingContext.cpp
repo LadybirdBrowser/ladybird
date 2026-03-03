@@ -91,35 +91,19 @@ void BlockFormattingContext::run(AvailableSpace const& available_space)
         return;
     }
 
+    if (auto const* fieldset_box = as_if<FieldSetBox>(root()); fieldset_box && fieldset_box->rendered_legend()) {
+        layout_fieldset_with_rendered_legend(*fieldset_box, available_space);
+        return;
+    }
+
     if (root().children_are_inline())
         layout_inline_children(root(), available_space);
     else
         layout_block_level_children(root(), available_space);
 
-    if (auto* fieldset_box = as_if<FieldSetBox>(root())) {
-        if (!fieldset_box->has_rendered_legend()) {
-            return;
-        }
-
-        auto const* legend = root().first_child_of_type<LegendBox>();
-        auto& legend_state = m_state.get_mutable(*legend);
-        auto& fieldset_state = m_state.get_mutable(root());
-
-        // The element is expected to be positioned in the block-flow direction such that
-        // its border box is centered over the border on the block-start side of the fieldset element.
-        // FIXME: this should take writing modes into consideration.
-        auto legend_height = legend_state.border_box_height();
-        auto new_y = -((legend_height) / 2) - fieldset_state.padding_top;
-        legend_state.set_content_y(new_y);
-
-        // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
-        if (legend->computed_values().width().is_auto()) {
-            auto width = calculate_fit_content_width(*legend, available_space);
-            legend_state.set_content_width(width);
-        }
-
+    // Fieldsets without a rendered legend skip collapsed margin assignment.
+    if (is<FieldSetBox>(root()))
         return;
-    }
 
     // Assign collapsed margin left after children layout of formatting context to the last child box
     if (m_margin_state.current_collapsed_margin() != 0) {
@@ -1012,6 +996,80 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
             block_container_state.set_content_height(bottom_of_lowest_margin_box);
         }
     }
+}
+
+// https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox const& fieldset_box, AvailableSpace const& available_space)
+{
+    auto& fieldset_state = m_state.get_mutable(fieldset_box);
+
+    auto legend = fieldset_box.rendered_legend();
+    VERIFY(legend);
+
+    // Lay out the legend to determine its dimensions.
+    {
+        TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, CSSPixels(0) };
+        CSSPixels dummy_bottom = 0;
+        layout_block_level_box(*legend, fieldset_box, dummy_bottom, available_space);
+    }
+
+    // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
+    auto& legend_state = m_state.get_mutable(*legend);
+    if (legend->computed_values().width().is_auto()) {
+        auto width = calculate_fit_content_width(*legend, available_space);
+        legend_state.set_content_width(width);
+    }
+
+    // The space allocated for the element's border on the block-start side is expected to be the element's
+    // 'border-block-start-width' or the rendered legend's margin box size in the fieldset's block-flow direction,
+    // whichever is greater.
+    auto effective_border = max(fieldset_state.border_top, legend_state.margin_box_height());
+    auto extra_top = effective_border - fieldset_state.border_top;
+
+    // NB: Replace the fieldset's border-top with the effective border area. This grows the border-box to include the
+    //     space needed for the legend. Shift the content area down by the same amount so the border-box top stays at
+    //     the same position (it was already set by the parent formatting context).
+    fieldset_state.border_top = effective_border;
+    fieldset_state.set_content_y(fieldset_state.offset.y() + extra_top);
+
+    // Lay out non-legend children.
+    m_margin_state.reset();
+
+    CSSPixels bottom_of_lowest_margin_box = 0;
+    {
+        TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, CSSPixels(0) };
+        fieldset_box.for_each_child_of_type<Box>([&](Box& child) {
+            if (&child == legend)
+                return IterationDecision::Continue;
+            layout_block_level_box(child, fieldset_box, bottom_of_lowest_margin_box, available_space);
+            return IterationDecision::Continue;
+        });
+    }
+
+    if (m_layout_mode == LayoutMode::IntrinsicSizing && !fieldset_state.has_definite_width()) {
+        auto width = greatest_child_width(fieldset_box);
+        auto const& computed_values = fieldset_box.computed_values();
+        if (fieldset_state.width_constraint == SizeConstraint::None) {
+            if (!should_treat_max_width_as_none(fieldset_box, available_space.width)) {
+                auto max_width = calculate_inner_width(fieldset_box, available_space.width, computed_values.max_width());
+                width = min(width, max_width);
+            }
+            if (!computed_values.min_width().is_auto()) {
+                auto min_width = calculate_inner_width(fieldset_box, available_space.width, computed_values.min_width());
+                width = max(width, min_width);
+            }
+        }
+        fieldset_state.set_content_width(width);
+        fieldset_state.set_content_height(bottom_of_lowest_margin_box);
+    }
+
+    // The element is expected to be positioned in the block-flow direction such that its border box is centered over
+    // the border on the block-start side of the fieldset element.
+    // FIXME: Take writing modes into consideration.
+    auto legend_border_box_centering_offset = (fieldset_state.border_top - legend_state.border_box_height()) / 2;
+    auto fieldset_border_box_top_in_content = -(fieldset_state.border_top + fieldset_state.padding_top);
+    auto legend_content_y = fieldset_border_box_top_in_content + legend_border_box_centering_offset + legend_state.border_box_top();
+    legend_state.set_content_y(legend_content_y);
 }
 
 void BlockFormattingContext::resolve_vertical_box_model_metrics(Box const& box, CSSPixels width_of_containing_block)

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<style>
+fieldset {
+    min-width: 0;
+    margin: 0;
+    margin-bottom: 16px;
+    padding: 0;
+}
+legend {
+    display: block;
+    padding: 0;
+}
+p {
+    margin: 0;
+}
+</style>
+
+<!-- Default border with legend -->
+<fieldset>
+    <legend>Default</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- No border -->
+<fieldset style="border: 0">
+    <legend>No border</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Thick border -->
+<fieldset style="border: 5px solid black">
+    <legend>Thick border</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Legend taller than border (large padding) -->
+<fieldset style="border: 2px solid black">
+    <legend style="padding: 10px; background: lightgray">Tall legend</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Legend shorter than border (very thick border) -->
+<fieldset style="border: 20px solid black">
+    <legend>Thin legend, thick border</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Legend with margins -->
+<fieldset style="border: 2px solid black">
+    <legend style="margin: 8px">Margins</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Narrow fieldset with long legend -->
+<fieldset style="width: 50px; border: 2px solid black">
+    <legend>Long legend text here</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Legend with explicit width -->
+<fieldset style="border: 2px solid black">
+    <legend style="width: 200px">Fixed width</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Fieldset with padding -->
+<fieldset style="border: 2px solid black; padding: 20px">
+    <legend>Padded fieldset</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Out-of-flow legend (floated, not rendered legend) -->
+<fieldset style="border: 2px solid black; overflow: hidden">
+    <legend style="float: left">Floated</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Out-of-flow legend (absolute, not rendered legend) -->
+<fieldset style="border: 2px solid black; position: relative">
+    <legend style="position: absolute">Absolute</legend>
+    <p>Content</p>
+</fieldset>
+
+<!-- Non-legend first child -->
+<fieldset style="border: 2px solid black">
+    <p>Not a legend</p>
+    <legend>After paragraph</legend>
+</fieldset>
+
