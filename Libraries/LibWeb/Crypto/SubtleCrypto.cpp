@@ -133,14 +133,24 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     return normalized_algorithm;
 }
 
-// https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-encrypt
+// https://w3c.github.io/webcrypto/#SubtleCrypto-method-encrypt
 GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
+    auto& global = realm.global_object();
+    auto& heap = realm.heap();
+
     // 1. Let algorithm and key be the algorithm and key parameters passed to the encrypt() method, respectively.
 
-    // 2. Let data be the result of getting a copy of the bytes held by the data parameter passed to the encrypt() method.
+    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "encrypt".
+    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "encrypt"_string);
+
+    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
+    if (normalized_algorithm.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
+
+    // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the encrypt() method.
     auto data_or_error = WebIDL::get_buffer_source_copy(*data_parameter->raw_object());
     if (data_or_error.is_error()) {
         VERIFY(data_or_error.error().code() == ENOMEM);
@@ -148,56 +158,74 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algori
     }
     auto data = data_or_error.release_value();
 
-    // 3. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "encrypt".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "encrypt"_string);
+    // 5. Let realm be the relevant realm of this.
 
-    // 4. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 5. Let promise be a new Promise.
+    // 6. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
-    // 6. Return promise and perform the remaining steps in parallel.
+    // 7. Return promise and perform the remaining steps in parallel.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &global, &heap, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 7. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
+        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
+        //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
+        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Value value) {
+            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, [&realm, promise, value] {
+                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                WebIDL::reject_promise(realm, promise, value);
+            }));
+        };
 
-        // 8. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
+        // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16));
+            throw_in_this_context(WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16));
             return;
         }
 
-        // 9. If the [[usages]] internal slot of key does not contain an entry that is "encrypt", then throw an InvalidAccessError.
+        // 10. If the [[usages]] internal slot of key does not contain an entry that is "encrypt", then throw an InvalidAccessError.
         if (!key->internal_usages().contains_slow(Bindings::KeyUsage::Encrypt)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support encryption"_utf16));
+            throw_in_this_context(WebIDL::InvalidAccessError::create(realm, "Key does not support encryption"_utf16));
             return;
         }
 
-        // 10. Let ciphertext be the result of performing the encrypt operation specified by normalizedAlgorithm using algorithm and key and with data as plaintext.
+        // 11. Let ciphertext be the result of performing the encrypt operation specified by normalizedAlgorithm using algorithm and key and with data as plaintext.
         auto cipher_text = normalized_algorithm.methods->encrypt(*normalized_algorithm.parameter, key, data);
         if (cipher_text.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), cipher_text.release_error()).release_value());
+            throw_in_this_context(Bindings::exception_to_throw_completion(realm.vm(), cipher_text.release_error()).release_value());
             return;
         }
 
-        // 9. Resolve promise with ciphertext.
-        WebIDL::resolve_promise(realm, promise, cipher_text.release_value());
+        // 12. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, [&realm, promise, cipher_text_bytes = cipher_text.release_value()] {
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+            // 13. Let result be the result of creating an ArrayBuffer in realm, containing ciphertext.
+            // 14. Resolve promise with result.
+            WebIDL::resolve_promise(realm, promise, cipher_text_bytes);
+        }));
     }));
 
     return promise;
 }
 
-// https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-decrypt
+// https://w3c.github.io/webcrypto/#SubtleCrypto-method-decrypt
 GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
+    auto& global = realm.global_object();
+    auto& heap = realm.heap();
+
     // 1. Let algorithm and key be the algorithm and key parameters passed to the decrypt() method, respectively.
 
-    // 2. Let data be the result of getting a copy of the bytes held by the data parameter passed to the decrypt() method.
+    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "decrypt".
+    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "decrypt"_string);
+
+    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
+    if (normalized_algorithm.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
+
+    // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the decrypt() method.
     auto data_or_error = WebIDL::get_buffer_source_copy(*data_parameter->raw_object());
     if (data_or_error.is_error()) {
         VERIFY(data_or_error.error().code() == ENOMEM);
@@ -205,43 +233,51 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algori
     }
     auto data = data_or_error.release_value();
 
-    // 3. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "decrypt".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "decrypt"_string);
+    // 5. Let realm be the relevant realm of this.
 
-    // 4. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 5. Let promise be a new Promise.
+    // 6. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
-    // 6. Return promise and perform the remaining steps in parallel.
+    // 7. Return promise and perform the remaining steps in parallel.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &global, &heap, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 7. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
+        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
+        //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
+        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Value value) {
+            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, [&realm, promise, value] {
+                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                WebIDL::reject_promise(realm, promise, value);
+            }));
+        };
 
-        // 8. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
+        // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16));
+            throw_in_this_context(WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16));
             return;
         }
 
-        // 9. If the [[usages]] internal slot of key does not contain an entry that is "decrypt", then throw an InvalidAccessError.
+        // 10. If the [[usages]] internal slot of key does not contain an entry that is "decrypt", then throw an InvalidAccessError.
         if (!key->internal_usages().contains_slow(Bindings::KeyUsage::Decrypt)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support decryption"_utf16));
+            throw_in_this_context(WebIDL::InvalidAccessError::create(realm, "Key does not support decryption"_utf16));
             return;
         }
 
-        // 10. Let plaintext be the result of performing the decrypt operation specified by normalizedAlgorithm using algorithm and key and with data as ciphertext.
+        // 11. Let plaintext be the result of performing the decrypt operation specified by normalizedAlgorithm using key and algorithm and with data as ciphertext.
         auto plain_text = normalized_algorithm.methods->decrypt(*normalized_algorithm.parameter, key, data);
         if (plain_text.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), plain_text.release_error()).release_value());
+            throw_in_this_context(Bindings::exception_to_throw_completion(realm.vm(), plain_text.release_error()).release_value());
             return;
         }
 
-        // 9. Resolve promise with plaintext.
-        WebIDL::resolve_promise(realm, promise, plain_text.release_value());
+        // 12. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, [&realm, promise, plain_text_bytes = plain_text.release_value()] {
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+            // 13. Let result be the result of creating an ArrayBuffer in realm, containing plaintext.
+            // 14. Resolve promise with result.
+            WebIDL::resolve_promise(realm, promise, plain_text_bytes);
+        }));
     }));
 
     return promise;
