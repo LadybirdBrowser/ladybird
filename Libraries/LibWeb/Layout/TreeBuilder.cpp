@@ -945,6 +945,43 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         create_pseudo_element_if_needed(element, CSS::PseudoElement::After, AppendOrPrepend::Append);
         pop_parent();
     }
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+    // The anonymous fieldset content box is expected to appear after the rendered legend and is expected to contain the
+    // content (including the '::before' and '::after' pseudo-elements) of the fieldset element except for the rendered
+    // legend, if there is one.
+    if (auto* fieldset_box = as_if<FieldSetBox>(*layout_node)) {
+        if (auto legend = fieldset_box->rendered_legend()) {
+            auto wrapper = fieldset_box->create_anonymous_wrapper();
+            auto& wrapper_mutable_values = wrapper->mutable_computed_values();
+            wrapper_mutable_values.set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
+
+            // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+            // The following properties are expected to inherit from the fieldset element:
+            //     align-content, align-items, border-radius, column-count, column-fill, column-gap, column-rule,
+            //     column-width, flex-direction, flex-wrap, grid (grid-auto-columns, grid-auto-flow, grid-auto-rows,
+            //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
+            //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
+            // FIXME: Transfer all of these properties, not just overflow.
+            auto& fieldset_mutable_values = fieldset_box->mutable_computed_values();
+
+            wrapper_mutable_values.set_overflow_x(fieldset_box->computed_values().overflow_x());
+            fieldset_mutable_values.set_overflow_x(CSS::InitialValues::overflow());
+
+            wrapper_mutable_values.set_overflow_y(fieldset_box->computed_values().overflow_y());
+            fieldset_mutable_values.set_overflow_y(CSS::InitialValues::overflow());
+
+            for (GC::Ptr<Node> child = fieldset_box->first_child(); child;) {
+                auto next = child->next_sibling();
+                if (child != legend) {
+                    fieldset_box->remove_child(*child);
+                    wrapper->append_child(*child);
+                }
+                child = next;
+            }
+            fieldset_box->append_child(*wrapper);
+        }
+    }
 }
 
 GC::Ptr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
