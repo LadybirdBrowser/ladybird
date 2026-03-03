@@ -6,10 +6,7 @@
 
 #pragma once
 
-#include <AK/RefPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/CSS/Display.h>
-#include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Layout {
