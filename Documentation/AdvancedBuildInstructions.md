@@ -187,3 +187,21 @@ After you’ve finished debugging your code changes with that build, you can rev
 
 That will restore your git environment to the state it was in before you patched the build file.
 
+## Debugging with Vulkan Validation Layers
+
+To turn on Vulkan validation layers for the release build, for example, use:
+
+```
+cmake -B Build/release -DVULKAN_VALIDATION_LAYERS_DEBUG=ON
+```
+
+and then build normally.
+
+When running Ladybird the message `Vulkan validation layers: active` will be visible during the creation of the VulkanContext if the Vulkan validation layers are properly setup.
+
+If instead `Vulkan validation layers: not available` appears then the system is most likely missing the validation layers. On Ubuntu adding the package `vulkan-validationlayers` will add them in, other distros may also have a package but the name could be different (for example, on Arch, Fedora and NixOS the name is `vulkan-validation-layers`.
+
+Another way to get the validation layers is to use the Vulkan SDK, for more info see:
+https://github.com/KhronosGroup/Vulkan-ValidationLayers
+
+If absolutely no output related to the Vulkan validation layers is received, then the initial `cmake` command in this section was not performed or the VulkanContext was not created successfully or was not created at all.
