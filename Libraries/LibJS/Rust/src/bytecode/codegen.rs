@@ -1142,7 +1142,11 @@ pub fn generate_statement(
             expression,
             field_name,
         } => {
-            generator.pending_lhs_name = Some(generator.intern_identifier(field_name));
+            // Only set pending_lhs_name for compile-time-known keys (non-empty names).
+            // For computed keys, field_name is empty and the name is set at runtime.
+            if !field_name.is_empty() {
+                generator.pending_lhs_name = Some(generator.intern_identifier(field_name));
+            }
             let value = generate_expression_or_undefined(expression, generator, None);
             generator.pending_lhs_name = None;
             generator.emit(Instruction::Return {

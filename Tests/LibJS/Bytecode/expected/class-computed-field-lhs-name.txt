@@ -14,5 +14,5 @@ JS bytecode executable "C"
 
 JS bytecode executable "field"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewFunction dst:reg5, shared_function_data_index:0, lhs_name:
+[   8]       NewFunction dst:reg5, shared_function_data_index:0
 [  20]       Return value:reg5
