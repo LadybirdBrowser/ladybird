@@ -1,0 +1,36 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
+[  50]       InitializeLexicalBinding identifier:C, src:reg6
+[  68]       GetGlobal dst:reg6, identifier:C
+[  78]       CallConstruct dst:reg5, callee:reg6, C
+[  90]       End value:reg5
+
+JS bytecode executable "C"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       NewPrimitiveArray dst:reg5, elements:[1, 2]
+[  28]       GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5
+[  40]       Jump target:@50
+[  48]    1: End value:Undefined
+[  50]    2: IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+[  68]       JumpIf condition:reg11, true_target:@48, false_target:@b0
+[  78]    3: Catch dst:reg9
+[  80]       SetLexicalEnvironment environment:reg4
+[  88]       Mov dst:reg5, src:Int32(1)
+[  98]    4: JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@e0, false_target:@100
+[  b0]    5: ResolveThisBinding
+[  b8]       ResolveSuperBase dst:reg12
+[  c0]       PutNormalByIdWithThis base:reg12, this_value:this, property:prop, src:reg10
+[  d8]       Jump target:@50
+[  e0]    6: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+[  f8]       Throw src:reg9
+[ 100]    7: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+[ 118]       JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@130, false_target:@138
+[ 130]    8: Return value:reg9
+[ 138]    9: Throw src:reg9
+
+Exception handlers:
+    from   b0 to   e0 handler   78

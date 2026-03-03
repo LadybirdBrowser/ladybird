@@ -4497,10 +4497,14 @@ fn emit_evaluate_member_reference(
     } = &target.inner
     {
         let is_super = matches!(object.inner, ExpressionKind::Super);
-        let base = generate_expression_or_undefined(object, generator, None);
 
         if is_super {
+            // Match C++ order: ResolveThisBinding first, then ResolveSuperBase.
             let this_value = emit_resolve_this_binding(generator);
+            let base = generator.allocate_register();
+            generator.emit(Instruction::ResolveSuperBase {
+                dst: base.operand(),
+            });
             if *computed {
                 let property = generate_expression_or_undefined(property, generator, None);
                 // If the computed property is a constant string (e.g. super["minutes"]),
@@ -4534,11 +4538,31 @@ fn emit_evaluate_member_reference(
             } else {
                 unreachable!("non-computed super member property must be an identifier")
             }
-        } else if *computed {
-            let property = generate_expression_or_undefined(property, generator, None);
-            // If the computed property is a constant string (e.g. obj["key"]),
-            // optimize to MemberId to match the C++ pipeline.
-            if let Some(key) = generator.try_constant_string_to_property_key(&property) {
+        } else {
+            let base = generate_expression_or_undefined(object, generator, None);
+            if *computed {
+                let property = generate_expression_or_undefined(property, generator, None);
+                // If the computed property is a constant string (e.g. obj["key"]),
+                // optimize to MemberId to match the C++ pipeline.
+                if let Some(key) = generator.try_constant_string_to_property_key(&property) {
+                    let cache = generator.next_property_lookup_cache();
+                    EvaluatedReference::MemberId {
+                        base,
+                        property: key,
+                        cache,
+                        base_identifier: None,
+                    }
+                } else {
+                    let saved_property = generator.allocate_register();
+                    generator.emit_mov(&saved_property, &property);
+                    EvaluatedReference::Member {
+                        base,
+                        property: saved_property,
+                        base_identifier: None,
+                    }
+                }
+            } else if let ExpressionKind::Identifier(ident) = &property.inner {
+                let key = generator.intern_property_key(&ident.name);
                 let cache = generator.next_property_lookup_cache();
                 EvaluatedReference::MemberId {
                     base,
@@ -4546,29 +4570,14 @@ fn emit_evaluate_member_reference(
                     cache,
                     base_identifier: None,
                 }
+            } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &property.inner {
+                let id = generator.intern_identifier(&priv_ident.name);
+                EvaluatedReference::PrivateMember { base, property: id }
             } else {
-                let saved_property = generator.allocate_register();
-                generator.emit_mov(&saved_property, &property);
-                EvaluatedReference::Member {
-                    base,
-                    property: saved_property,
-                    base_identifier: None,
-                }
+                unreachable!(
+                    "non-computed member property must be an identifier or private identifier"
+                )
             }
-        } else if let ExpressionKind::Identifier(ident) = &property.inner {
-            let key = generator.intern_property_key(&ident.name);
-            let cache = generator.next_property_lookup_cache();
-            EvaluatedReference::MemberId {
-                base,
-                property: key,
-                cache,
-                base_identifier: None,
-            }
-        } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &property.inner {
-            let id = generator.intern_identifier(&priv_ident.name);
-            EvaluatedReference::PrivateMember { base, property: id }
-        } else {
-            unreachable!("non-computed member property must be an identifier or private identifier")
         }
     } else {
         unreachable!("emit_evaluate_member_reference called on non-member expression")
@@ -4644,10 +4653,13 @@ fn emit_store_to_reference(generator: &mut Generator, target: &Expression, value
             property,
             computed,
         } => {
-            let is_super = matches!(object.inner, ExpressionKind::Super);
-            let base = generate_expression_or_undefined(object, generator, None);
-            if is_super {
+            if matches!(object.inner, ExpressionKind::Super) {
+                // Match C++ order: ResolveThisBinding first, then ResolveSuperBase.
                 let this_value = emit_resolve_this_binding(generator);
+                let base = generator.allocate_register();
+                generator.emit(Instruction::ResolveSuperBase {
+                    dst: base.operand(),
+                });
                 emit_super_put(
                     generator,
                     &base,
@@ -4658,6 +4670,7 @@ fn emit_store_to_reference(generator: &mut Generator, target: &Expression, value
                     None,
                 );
             } else {
+                let base = generate_expression_or_undefined(object, generator, None);
                 emit_put_to_member(generator, &base, property, *computed, value, None);
             }
         }
