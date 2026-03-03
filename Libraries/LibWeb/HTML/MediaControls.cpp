@@ -732,10 +732,17 @@ void MediaControls::update_placeholder_visibility()
     if (!m_placeholder_circle)
         return;
 
+    auto display = should_show_placeholder() ? "flex"sv : "none"sv;
+    MUST(m_placeholder_circle->style_for_bindings()->set_property(CSS::PropertyID::Display, display));
+}
+
+bool MediaControls::should_show_placeholder() const
+{
+    VERIFY(m_media_element);
+    VERIFY(m_placeholder_circle);
+
     auto const& video_element = as<HTMLVideoElement>(*m_media_element);
-    auto representation = video_element.current_representation();
-    auto show_placeholder = representation != HTML::HTMLVideoElement::Representation::VideoFrame;
-    MUST(m_placeholder_circle->style_for_bindings()->set_property(CSS::PropertyID::Display, show_placeholder ? "flex"_string : "none"_string));
+    return video_element.current_representation() != HTMLVideoElement::Representation::VideoFrame;
 }
 
 static Vector<String> s_visible_class = { "visible"_string };
@@ -762,6 +769,8 @@ void MediaControls::hide_controls()
     VERIFY(m_control_bar);
 
     if (m_scrubbing_timeline != Scrubbing::No || m_scrubbing_volume || m_hovering_controls)
+        return;
+    if (m_placeholder_circle && should_show_placeholder())
         return;
 
     MUST(m_control_bar->class_list()->remove(s_visible_class));

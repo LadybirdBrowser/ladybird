@@ -56,6 +56,8 @@ private:
     void update_fullscreen_icon();
     void update_placeholder_visibility();
 
+    bool should_show_placeholder() const;
+
     void show_controls();
     void hide_controls();
 
