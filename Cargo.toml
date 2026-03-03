@@ -12,3 +12,6 @@ inherits = "release"
 incremental = false
 codegen-units = 1
 lto = true
+
+[workspace.lints.clippy]
+all = "deny" # includes lintgroups: correctness, suspicious, style, complexity, perf
