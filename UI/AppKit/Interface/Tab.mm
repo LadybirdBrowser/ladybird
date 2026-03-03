@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -298,6 +298,16 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
         [[self tab] setAccessoryView:button];
         break;
     }
+}
+
+- (void)onEnterFullscreenWindow
+{
+    [[self tabController] onEnterFullscreenWindow];
+}
+
+- (void)onExitFullscreenWindow
+{
+    [[self tabController] onExitFullscreenWindow];
 }
 
 - (void)onFindInPageResult:(size_t)current_match_index
