@@ -26,6 +26,7 @@
 namespace Web::Painting {
 
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
+ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box);
 
 class WEB_API PaintableBox : public Paintable {
     GC_CELL(PaintableBox, Paintable);
@@ -196,30 +197,19 @@ public:
 
     BorderRadiiData normalized_border_radii_data(ShrinkRadiiForBorders shrink = ShrinkRadiiForBorders::No) const;
 
-    BorderRadiiData const& border_radii_data() const { return m_border_radii_data; }
-    void set_border_radii_data(BorderRadiiData const& border_radii_data) { m_border_radii_data = border_radii_data; }
+    BorderRadiiData border_radii_data() const;
 
-    void set_box_shadow_data(Vector<ShadowData> box_shadow_data) { m_box_shadow_data = move(box_shadow_data); }
-    Vector<ShadowData> const& box_shadow_data() const { return m_box_shadow_data; }
-
-    void set_outline_data(Optional<BordersData> outline_data) { m_outline_data = outline_data; }
-    Optional<BordersData> const& outline_data() const { return m_outline_data; }
-
-    void set_outline_offset(CSSPixels outline_offset) { m_outline_offset = outline_offset; }
-    CSSPixels outline_offset() const { return m_outline_offset; }
+    Optional<BordersData> outline_data() const;
+    CSSPixels outline_offset() const;
 
     void set_filter(ResolvedCSSFilter filter) { m_filter = move(filter); }
     ResolvedCSSFilter const& filter() const { return m_filter; }
-
-    void set_backdrop_filter(ResolvedCSSFilter backdrop_filter) { m_backdrop_filter = move(backdrop_filter); }
-    ResolvedCSSFilter const& backdrop_filter() const { return m_backdrop_filter; }
 
     Optional<CSSPixelRect> get_clip_rect() const;
 
     virtual bool wants_mouse_events() const override;
 
     CSSPixelRect transform_reference_box() const;
-    virtual void resolve_paint_properties() override;
 
     RefPtr<ScrollFrame const> nearest_scroll_frame() const;
 
@@ -340,21 +330,13 @@ private:
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;
 
-    BorderRadiiData m_border_radii_data;
-    Vector<ShadowData> m_box_shadow_data;
-    Optional<BordersData> m_outline_data;
-    CSSPixels m_outline_offset { 0 };
-
     ResolvedCSSFilter m_filter;
-    ResolvedCSSFilter m_backdrop_filter;
 
     Optional<CSSPixels> m_scroll_thumb_grab_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
     mutable bool m_draw_enlarged_horizontal_scrollbar { false };
     mutable bool m_draw_enlarged_vertical_scrollbar { false };
     bool m_has_non_invertible_css_transform { false };
-
-    ResolvedBackground m_resolved_background;
 
     OwnPtr<StickyInsets> m_sticky_insets;
 

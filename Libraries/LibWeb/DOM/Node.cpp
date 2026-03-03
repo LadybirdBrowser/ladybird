@@ -2681,12 +2681,6 @@ void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_lis
         p->set_needs_repaint(should_invalidate_display_list);
 }
 
-void Node::set_needs_paint_only_properties_update()
-{
-    if (auto* p = unsafe_paintable())
-        p->set_needs_paint_only_properties_update(true);
-}
-
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
 {
     if (auto* node = unsafe_layout_node())

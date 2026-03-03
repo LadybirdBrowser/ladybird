@@ -31,8 +31,6 @@ public:
 
     void assign_accumulated_visual_contexts();
 
-    void resolve_paint_only_properties();
-
     GC::Ptr<Selection::Selection> selection() const;
     void recompute_selection_states(DOM::Range&);
 

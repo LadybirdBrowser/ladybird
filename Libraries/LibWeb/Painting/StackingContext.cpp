@@ -319,6 +319,10 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto const& computed_values = paintable_box().computed_values();
     auto mask_image = computed_values.mask_image();
 
+    if (mask_image) {
+        mask_image->resolve_for_size(paintable_box().layout_node_with_style_and_box_metrics(), paintable_box().absolute_padding_box_rect().size());
+    }
+
     auto effective_state = paintable_box().accumulated_visual_context();
     context.display_list_recorder().set_accumulated_visual_context(effective_state);
 

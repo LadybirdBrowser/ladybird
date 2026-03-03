@@ -345,6 +345,13 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (!visual_parent)
             return TraversalDecision::Continue;
 
+        // Resolve filters before make_effects_data reads them.
+        auto const& paintable_box_computed_values = paintable_box.computed_values();
+        if (paintable_box_computed_values.filter().has_filters())
+            paintable_box.set_filter(resolve_css_filter(paintable_box_computed_values.filter(), paintable_box));
+        else
+            paintable_box.set_filter({});
+
         RefPtr<AccumulatedVisualContext const> inherited_state;
 
         if (paintable_box.is_fixed_position()) {
@@ -506,34 +513,6 @@ void ViewportPaintable::refresh_scroll_state()
     });
 
     m_scroll_state_snapshot = m_scroll_state.snapshot(document().page().client().device_pixels_per_css_pixel());
-}
-
-static void resolve_paint_only_properties_in_subtree(Paintable& root)
-{
-    root.for_each_in_inclusive_subtree([&](auto& paintable) {
-        paintable.resolve_paint_properties();
-        paintable.set_needs_paint_only_properties_update(false);
-        return TraversalDecision::Continue;
-    });
-}
-
-void ViewportPaintable::resolve_paint_only_properties()
-{
-    // Resolves layout-dependent properties not handled during layout and stores them in the paint tree.
-    // Properties resolved include:
-    // - Border radii
-    // - Box shadows
-    // - Text shadows
-    // - Transforms
-    // - Transform origins
-    // - Outlines
-    for_each_in_inclusive_subtree([&](Paintable& paintable) {
-        if (paintable.needs_paint_only_properties_update()) {
-            resolve_paint_only_properties_in_subtree(paintable);
-            return TraversalDecision::SkipChildrenAndContinue;
-        }
-        return TraversalDecision::Continue;
-    });
 }
 
 GC::Ptr<Selection::Selection> ViewportPaintable::selection() const

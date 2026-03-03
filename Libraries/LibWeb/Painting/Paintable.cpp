@@ -65,20 +65,6 @@ String Paintable::debug_description() const
     return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
 }
 
-void Paintable::resolve_paint_properties()
-{
-    auto const& cv = computed_values();
-    m_visible = cv.visibility() == CSS::Visibility::Visible && cv.opacity() != 0;
-
-    m_visible_for_hit_testing = true;
-    if (auto dom_node = this->dom_node(); dom_node && dom_node->is_inert()) {
-        // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
-        // When a node is inert:
-        // - Hit-testing must act as if the 'pointer-events' CSS property were set to 'none'.
-        m_visible_for_hit_testing = false;
-    }
-}
-
 DOM::Document const& Paintable::document() const
 {
     return layout_node().document();
@@ -106,7 +92,9 @@ CSS::ImmutableComputedValues const& Paintable::computed_values() const
 
 bool Paintable::visible_for_hit_testing() const
 {
-    return m_visible_for_hit_testing && computed_values().pointer_events() != CSS::PointerEvents::None;
+    if (auto node = dom_node(); node && node->is_inert())
+        return false;
+    return computed_values().pointer_events() != CSS::PointerEvents::None;
 }
 
 void Paintable::set_dom_node(GC::Ptr<DOM::Node> dom_node)
@@ -283,18 +271,6 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
     }
 
     return radii_px;
-}
-
-void Paintable::set_needs_paint_only_properties_update(bool needs_update)
-{
-    if (needs_update == m_needs_paint_only_properties_update)
-        return;
-
-    m_needs_paint_only_properties_update = needs_update;
-
-    if (needs_update) {
-        document().set_needs_to_resolve_paint_only_properties();
-    }
 }
 
 // https://drafts.csswg.org/css-pseudo-4/#highlight-styling

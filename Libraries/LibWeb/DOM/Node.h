@@ -323,7 +323,6 @@ public:
     void clear_paintable();
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
-    void set_needs_paint_only_properties_update();
     void set_needs_layout_update(SetNeedsLayoutReason);
 
     void set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node>);

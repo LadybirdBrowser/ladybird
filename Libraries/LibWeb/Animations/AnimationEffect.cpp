@@ -850,8 +850,6 @@ AnimationUpdateContext::~AnimationUpdateContext()
             }
         }
         if (invalidation.repaint) {
-            target->set_needs_paint_only_properties_update();
-
             if (invalidation.rebuild_accumulated_visual_contexts)
                 element.document().set_needs_accumulated_visual_contexts_update(true);
 

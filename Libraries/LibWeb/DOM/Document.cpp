@@ -1164,7 +1164,7 @@ void Document::tear_down_layout_tree()
 Color Document::background_color() const
 {
     // CSS2 says we should use the HTML element's background color unless it's transparent...
-    // NB: Called during resolve_paint_properties() inside update_layout().
+    // NB: Called during painting inside update_layout().
     if (auto* html_element = this->html_element(); html_element && html_element->unsafe_layout_node()) {
         auto color = html_element->unsafe_layout_node()->computed_values().background_color();
         if (color.alpha())
@@ -1188,7 +1188,7 @@ Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
     if (!body_element)
         return {};
 
-    // NB: Called during resolve_paint_properties() inside update_layout().
+    // NB: Called during painting inside update_layout().
     auto body_layout_node = body_element->unsafe_layout_node();
     if (!body_layout_node)
         return {};
@@ -1202,7 +1202,7 @@ CSS::ImageRendering Document::background_image_rendering() const
     if (!body_element)
         return CSS::ImageRendering::Auto;
 
-    // NB: Called during resolve_paint_properties() inside update_layout().
+    // NB: Called during painting inside update_layout().
     auto body_layout_node = body_element->unsafe_layout_node();
     if (!body_layout_node)
         return CSS::ImageRendering::Auto;
@@ -1492,7 +1492,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         invalidate_stacking_context_tree();
         invalidate_display_list();
-        set_needs_to_resolve_paint_only_properties();
+
         set_needs_accumulated_visual_contexts_update(true);
         update_paint_and_hit_testing_properties_if_needed();
         m_document->set_needs_repaint();
@@ -1588,7 +1588,6 @@ void Document::update_layout(UpdateLayoutReason reason)
     inform_all_viewport_clients_about_the_current_viewport_rect();
 
     m_document->set_needs_repaint();
-    set_needs_to_resolve_paint_only_properties();
 
     // NB: Called during layout update.
     unsafe_paintable()->assign_scroll_frames();
@@ -1850,13 +1849,6 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
         paintable->refresh_scroll_state();
     }
 
-    if (m_needs_to_resolve_paint_only_properties) {
-        m_needs_to_resolve_paint_only_properties = false;
-        if (auto* paintable = this->unsafe_paintable()) {
-            paintable->resolve_paint_only_properties();
-        }
-    }
-
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
         if (auto* paintable = this->unsafe_paintable()) {
@@ -2010,7 +2002,7 @@ GC::Ptr<Layout::Node> Document::highlighted_layout_node()
     if (!m_highlighted_node)
         return nullptr;
 
-    // NB: Called during resolve_paint_properties() inside update_layout().
+    // NB: Called during painting inside update_layout().
     if (!m_highlighted_pseudo_element.has_value() || !m_highlighted_node->is_element())
         return m_highlighted_node->unsafe_layout_node();
 
@@ -7268,7 +7260,13 @@ void Document::set_cached_navigable(GC::Ptr<HTML::Navigable> navigable)
 
 void Document::notify_css_background_image_loaded()
 {
-    set_needs_paint_only_properties_update();
+    // FIXME: Do less than a full repaint if possible?
+    if (auto* paintable = unsafe_paintable()) {
+        paintable->for_each_in_inclusive_subtree_of_type<Painting::PaintableBox>([](auto& paintable_box) {
+            paintable_box.invalidate_paint_cache();
+            return TraversalDecision::Continue;
+        });
+    }
     set_needs_repaint();
 }
 
