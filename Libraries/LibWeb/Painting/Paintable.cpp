@@ -16,6 +16,7 @@
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/StackingContext.h>
 
@@ -207,6 +208,10 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
 
 void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
+    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
+        if (auto* containing_block = this->containing_block())
+            containing_block->invalidate_paint_cache();
+    }
     document().set_needs_repaint(Badge<Painting::Paintable> {}, should_invalidate_display_list);
 }
 
@@ -368,6 +373,17 @@ Paintable::SelectionStyle Paintable::selection_style() const
     }
 
     return default_style;
+}
+
+void Paintable::set_selection_state(SelectionState state)
+{
+    if (m_selection_state == state)
+        return;
+    m_selection_state = state;
+    if (auto* box = as_if<PaintableBox>(this))
+        box->invalidate_paint_cache();
+    else if (auto* containing_block = this->containing_block())
+        containing_block->invalidate_paint_cache();
 }
 
 void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)

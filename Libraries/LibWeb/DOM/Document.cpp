@@ -182,6 +182,7 @@
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -7306,6 +7307,11 @@ void Document::invalidate_display_list()
         return;
 
     if (auto container = navigable->container()) {
+        // The container's paintable may have cached paint commands that include a PaintNestedDisplayList
+        // holding a stale reference to this document's old display list. Clear the cache so the container
+        // re-executes paint() and picks up the freshly recorded display list.
+        if (auto* paintable_box = container->unsafe_paintable_box())
+            paintable_box->invalidate_paint_cache();
         container->document().invalidate_display_list();
     }
 }

@@ -23,6 +23,7 @@
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
@@ -90,6 +91,27 @@ public:
     void set_accumulated_visual_context(RefPtr<AccumulatedVisualContext const> state) { m_accumulated_visual_context = move(state); }
     RefPtr<AccumulatedVisualContext const> accumulated_visual_context() const { return m_accumulated_visual_context; }
 
+    void replay_cached_commands(ReadonlySpan<DisplayListCommand> commands);
+
+    class CommandCapture {
+        AK_MAKE_NONCOPYABLE(CommandCapture);
+
+    public:
+        CommandCapture(CommandCapture&& other)
+            : m_recorder(exchange(other.m_recorder, nullptr))
+        {
+        }
+        ~CommandCapture();
+        Vector<DisplayListCommand> take();
+
+    private:
+        friend class DisplayListRecorder;
+        explicit CommandCapture(DisplayListRecorder&);
+        DisplayListRecorder* m_recorder { nullptr };
+    };
+
+    CommandCapture begin_command_capture();
+
     void save();
     void save_layer();
     void restore();
@@ -126,9 +148,13 @@ public:
     int m_save_nesting_level { 0 };
 
 private:
+    void end_capture();
+
     RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context;
     Vector<size_t> m_push_sc_index_stack;
     DisplayList& m_display_list;
+    bool m_is_capturing { false };
+    Vector<DisplayListCommand> m_captured_commands;
 };
 
 class DisplayListRecorderStateSaver {

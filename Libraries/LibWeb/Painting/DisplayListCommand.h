@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/LineStyle.h>
@@ -24,7 +25,6 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>

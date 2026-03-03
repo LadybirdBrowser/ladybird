@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Forward.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DisplayList.h>
+#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
@@ -144,6 +146,8 @@ public:
 
     void set_overflow_data(OverflowData data) { m_overflow_data = move(data); }
 
+    virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
+
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
 
@@ -240,6 +244,25 @@ public:
     [[nodiscard]] auto accumulated_visual_context() const { return m_accumulated_visual_context; }
     void set_accumulated_visual_context_for_descendants(auto state) { m_accumulated_visual_context_for_descendants = move(state); }
     [[nodiscard]] auto accumulated_visual_context_for_descendants() const { return m_accumulated_visual_context_for_descendants; }
+
+    static constexpr size_t paint_phase_count = to_underlying(PaintPhase::Overlay) + 1;
+
+    void invalidate_paint_cache() const { m_cached_phase_commands = {}; }
+
+    bool has_cached_commands(PaintPhase phase) const
+    {
+        return m_cached_phase_commands[to_underlying(phase)].has_value();
+    }
+
+    Vector<DisplayListCommand> const& cached_commands(PaintPhase phase) const
+    {
+        return m_cached_phase_commands[to_underlying(phase)].value();
+    }
+
+    void set_cached_commands(PaintPhase phase, Vector<DisplayListCommand> commands) const
+    {
+        m_cached_phase_commands[to_underlying(phase)] = move(commands);
+    }
 
     [[nodiscard]] RefPtr<ScrollFrame const> enclosing_scroll_frame() const { return m_enclosing_scroll_frame; }
     [[nodiscard]] Optional<int> scroll_frame_id() const;
@@ -339,6 +362,8 @@ private:
     RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_rows;
 
     BoxModelMetrics m_box_model;
+
+    mutable Array<Optional<Vector<DisplayListCommand>>, paint_phase_count> m_cached_phase_commands;
 };
 
 }

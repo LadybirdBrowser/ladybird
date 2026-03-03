@@ -146,7 +146,7 @@ public:
     };
 
     SelectionState selection_state() const { return m_selection_state; }
-    void set_selection_state(SelectionState state) { m_selection_state = state; }
+    void set_selection_state(SelectionState state);
 
     // https://drafts.csswg.org/css-pseudo-4/#highlight-styling
     struct TextDecorationStyle {

@@ -108,6 +108,8 @@ void PaintableBox::reset_for_relayout()
     m_used_values_for_grid_template_columns = nullptr;
     m_used_values_for_grid_template_rows = nullptr;
 
+    m_cached_phase_commands = {};
+
     invalidate_stacking_context();
 }
 
@@ -1118,6 +1120,13 @@ TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTes
     return TraversalDecision::Continue;
 }
 
+void PaintableBox::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
+{
+    if (should_invalidate_display_list == InvalidateDisplayList::Yes)
+        invalidate_paint_cache();
+    Paintable::set_needs_repaint(should_invalidate_display_list);
+}
+
 // https://www.w3.org/TR/css-transforms-1/#reference-box
 CSSPixelRect PaintableBox::transform_reference_box() const
 {
@@ -1186,6 +1195,7 @@ CSSPixelRect PaintableBox::transform_reference_box() const
 
 void PaintableBox::resolve_paint_properties()
 {
+    invalidate_paint_cache();
     Base::resolve_paint_properties();
 
     auto const& computed_values = this->computed_values();

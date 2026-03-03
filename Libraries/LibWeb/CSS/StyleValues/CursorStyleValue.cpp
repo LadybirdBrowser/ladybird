@@ -16,6 +16,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
 
