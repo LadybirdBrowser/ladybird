@@ -4502,12 +4502,24 @@ fn emit_evaluate_member_reference(
             let this_value = emit_resolve_this_binding(generator);
             if *computed {
                 let property = generate_expression_or_undefined(property, generator, None);
-                let saved_property = generator.allocate_register();
-                generator.emit_mov(&saved_property, &property);
-                EvaluatedReference::SuperMember {
-                    base,
-                    property: saved_property,
-                    this_value,
+                // If the computed property is a constant string (e.g. super["minutes"]),
+                // optimize to SuperMemberId to match the C++ pipeline.
+                if let Some(key) = generator.try_constant_string_to_property_key(&property) {
+                    let cache = generator.next_property_lookup_cache();
+                    EvaluatedReference::SuperMemberId {
+                        base,
+                        property: key,
+                        cache,
+                        this_value,
+                    }
+                } else {
+                    let saved_property = generator.allocate_register();
+                    generator.emit_mov(&saved_property, &property);
+                    EvaluatedReference::SuperMember {
+                        base,
+                        property: saved_property,
+                        this_value,
+                    }
                 }
             } else if let ExpressionKind::Identifier(ident) = &property.inner {
                 let key = generator.intern_property_key(&ident.name);
@@ -4523,12 +4535,24 @@ fn emit_evaluate_member_reference(
             }
         } else if *computed {
             let property = generate_expression_or_undefined(property, generator, None);
-            let saved_property = generator.allocate_register();
-            generator.emit_mov(&saved_property, &property);
-            EvaluatedReference::Member {
-                base,
-                property: saved_property,
-                base_identifier: None,
+            // If the computed property is a constant string (e.g. obj["key"]),
+            // optimize to MemberId to match the C++ pipeline.
+            if let Some(key) = generator.try_constant_string_to_property_key(&property) {
+                let cache = generator.next_property_lookup_cache();
+                EvaluatedReference::MemberId {
+                    base,
+                    property: key,
+                    cache,
+                    base_identifier: None,
+                }
+            } else {
+                let saved_property = generator.allocate_register();
+                generator.emit_mov(&saved_property, &property);
+                EvaluatedReference::Member {
+                    base,
+                    property: saved_property,
+                    base_identifier: None,
+                }
             }
         } else if let ExpressionKind::Identifier(ident) = &property.inner {
             let key = generator.intern_property_key(&ident.name);
