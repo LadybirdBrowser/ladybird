@@ -1,4 +1,5 @@
 const newTabPageURL = document.querySelector("#new-tab-page-url");
+const newTabPageURLReset = document.querySelector("#new-tab-page-url-reset");
 
 const loadSettings = settings => {
     newTabPageURL.classList.remove("error");
@@ -20,6 +21,11 @@ newTabPageURL.addEventListener("change", () => {
     setTimeout(() => {
         newTabPageURL.classList.remove("success");
     }, 1000);
+});
+
+newTabPageURLReset.addEventListener("click", () => {
+    newTabPageURL.value = "about:newtab";
+    newTabPageURL.dispatchEvent(new Event("change"));
 });
 
 document.addEventListener("WebUIMessage", event => {
