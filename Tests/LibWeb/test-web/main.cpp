@@ -334,6 +334,41 @@ static constexpr StringView test_result_to_string(TestResult result)
     VERIFY_NOT_REACHED();
 }
 
+static bool is_valid_test_name(StringView test_name)
+{
+    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv };
+    return AK::any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
+}
+
+static ErrorOr<void> enumerate_test_files_recursively(StringView directory, Vector<ByteString>& output)
+{
+    Core::DirIterator it(directory, Core::DirIterator::Flags::SkipDots);
+    while (it.has_next()) {
+        auto full_path = it.next_full_path();
+        if (FileSystem::is_directory(full_path)) {
+            TRY(enumerate_test_files_recursively(full_path, output));
+            continue;
+        }
+        if (!is_valid_test_name(full_path))
+            continue;
+        output.append(TRY(FileSystem::real_path(full_path)));
+    }
+    return {};
+}
+
+static ErrorOr<void> add_config_paths(StringView test_root_path, Vector<ByteString> const& keys, Vector<ByteString>& output)
+{
+    for (auto const& key : keys) {
+        auto path = LexicalPath::join(test_root_path, key).string();
+        if (key.ends_with('/')) {
+            TRY(enumerate_test_files_recursively(path, output));
+        } else {
+            output.append(TRY(FileSystem::real_path(path)));
+        }
+    }
+    return {};
+}
+
 static ErrorOr<void> load_test_config(StringView test_root_path)
 {
     auto config_path = LexicalPath::join(test_root_path, "TestConfig.ini"sv);
@@ -349,23 +384,15 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     auto config = config_or_error.release_value();
     for (auto const& group : config->groups()) {
         if (group == "Skipped"sv) {
-            for (auto& key : config->keys(group))
-                s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+            TRY(add_config_paths(test_root_path, config->keys(group), s_skipped_tests));
         } else if (group == "LoadFromHttpServer"sv) {
-            for (auto& key : config->keys(group))
-                s_loaded_from_http_server.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+            TRY(add_config_paths(test_root_path, config->keys(group), s_loaded_from_http_server));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
     }
 
     return {};
-}
-
-static bool is_valid_test_name(StringView test_name)
-{
-    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv };
-    return AK::any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
 }
 
 static ErrorOr<void> collect_dump_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail, TestMode mode)
