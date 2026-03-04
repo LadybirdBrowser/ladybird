@@ -98,6 +98,38 @@
                 gap: 10px;
             }
 
+            .input-with-reset {
+                position: relative;
+                display: flex;
+                width: 50%;
+            }
+
+            .input-with-reset input {
+                width: 100% !important;
+                padding-right: 32px;
+            }
+
+            .input-reset-button {
+                position: absolute;
+                right: 12px;
+                top: 50%;
+
+                transform: translateY(-50%);
+
+                background: none;
+                border: none;
+                padding: 0 4px;
+
+                font-size: 18px;
+                opacity: 0.4;
+
+                cursor: pointer;
+            }
+
+            .input-reset-button:hover {
+                opacity: 0.8;
+            }
+
             .inline-container input[type="number"],
             .inline-container input[type="text"],
             .inline-container input[type="url"],
@@ -381,7 +413,12 @@
                 <div class="card-body">
                     <div class="card-group inline-container">
                         <label for="new-tab-page-url">New Tab Page URL</label>
-                        <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
+                        <div class="input-with-reset">
+                            <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
+                            <button id="new-tab-page-url-reset" class="input-reset-button" title="Restore default">
+                                &times;
+                            </button>
+                        </div>
                     </div>
 
                     <div class="card-group inline-container">
