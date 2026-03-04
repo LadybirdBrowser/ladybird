@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLCompressedTextureS3tcPrototype.h>
@@ -27,6 +30,11 @@ WebGLCompressedTextureS3tc::WebGLCompressedTextureS3tc(JS::Realm& realm, GC::Ref
     m_context->context().request_extension("GL_EXT_texture_compression_dxt1");
     m_context->context().request_extension("GL_ANGLE_texture_compression_dxt3");
     m_context->context().request_extension("GL_ANGLE_texture_compression_dxt5");
+
+    m_context->enable_compressed_texture_format(GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
+    m_context->enable_compressed_texture_format(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT);
+    m_context->enable_compressed_texture_format(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT);
+    m_context->enable_compressed_texture_format(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT);
 }
 
 void WebGLCompressedTextureS3tc::initialize(JS::Realm& realm)
