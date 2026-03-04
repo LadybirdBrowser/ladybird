@@ -50,6 +50,8 @@ public:
     Optional<Vector<String>> get_supported_extensions();
     JS::Object* get_extension(String const& name);
 
+    void enable_compressed_texture_format(WebIDL::UnsignedLong format);
+
 protected:
     WebGLRenderingContextBase(JS::Realm&);
 
