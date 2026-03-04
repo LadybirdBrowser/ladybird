@@ -38,7 +38,7 @@ public:
     void set_done(bool done) { m_done = done; }
     void set_result(JS::Value result) { m_result = result; }
     void set_error(Optional<GC::Ptr<WebIDL::DOMException>> error) { m_error = error; }
-    void set_processed(bool processed);
+    void set_processed(bool processed) { m_processed = processed; }
     void set_source(IDBRequestSource source) { m_source = source; }
     void set_transaction(GC::Ptr<IDBTransaction> transaction) { m_transaction = transaction; }
 
@@ -49,9 +49,6 @@ public:
     void set_onerror(WebIDL::CallbackType*);
     WebIDL::CallbackType* onerror();
 
-    void register_request_observer(Badge<IDBRequestObserver>, IDBRequestObserver&);
-    void unregister_request_observer(Badge<IDBRequestObserver>, IDBRequestObserver&);
-
 protected:
     explicit IDBRequest(JS::Realm&, IDBRequestSource);
 
@@ -59,26 +56,6 @@ protected:
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
-    template<typename GetNotifier, typename... Args>
-    void notify_each_request_observer(GetNotifier&& get_notifier, Args&&... args)
-    {
-        ScopeGuard guard { [&]() { m_request_observers_being_notified.clear_with_capacity(); } };
-        m_request_observers_being_notified.ensure_capacity(m_request_observers.size());
-
-        for (auto observer : m_request_observers)
-            m_request_observers_being_notified.unchecked_append(observer);
-
-        for (auto request_observer : m_request_observers_being_notified) {
-            if (auto notifier = get_notifier(*request_observer))
-                notifier->function()(forward<Args>(args)...);
-        }
-    }
-
-    // IDBRequest should not visit IDBRequestObserver to avoid leaks.
-    // It's responsibility of object that requires IDBRequestObserver to keep it alive.
-    HashTable<GC::RawRef<IDBRequestObserver>> m_request_observers;
-    Vector<GC::Ref<IDBRequestObserver>> m_request_observers_being_notified;
-
     // A request has a processed flag which is initially false.
     bool m_processed { false };
 

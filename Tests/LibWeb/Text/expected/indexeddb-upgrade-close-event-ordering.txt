@@ -1,0 +1,7 @@
+setup.upgradeneeded
+setup.success
+connA.versionchange
+connA.close() called
+upgrade.upgradeneeded
+upgrade.success
+DONE

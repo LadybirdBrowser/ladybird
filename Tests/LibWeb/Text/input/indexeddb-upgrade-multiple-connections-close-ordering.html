@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-upgrade-multiple-connections-close-ordering.html");
+
+        // Test that when multiple existing connections must close before an
+        // upgrade can proceed, the upgrade waits for ALL of them. This
+        // exercises the vector of connections in PendingConnectionWait.
+
+        const dbName = "test-upgrade-multi-close-" + Date.now() + Math.random();
+
+        // Step 1: Create the database at version 1.
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = () => {
+            println("setup.upgradeneeded");
+        };
+        setupReq.onsuccess = (e) => {
+            println("setup.success");
+            const connA = e.target.result;
+
+            // Step 2: Open a second connection to the same database.
+            const secondReq = indexedDB.open(dbName, 1);
+            secondReq.onsuccess = (e) => {
+                println("second.success");
+                const connB = e.target.result;
+
+                // Both connections respond to versionchange by closing.
+                connA.onversionchange = () => {
+                    println("connA.versionchange");
+                    connA.close();
+                    println("connA.close() called");
+                };
+                connB.onversionchange = () => {
+                    println("connB.versionchange");
+                    connB.close();
+                    println("connB.close() called");
+                };
+
+                // Step 3: Open at version 2 to trigger upgrade.
+                const upgradeReq = indexedDB.open(dbName, 2);
+                upgradeReq.onupgradeneeded = () => {
+                    println("upgrade.upgradeneeded");
+                };
+                upgradeReq.onsuccess = (e) => {
+                    println("upgrade.success");
+                    e.target.result.close();
+                    indexedDB.deleteDatabase(dbName);
+                    println("DONE");
+                    done();
+                };
+                upgradeReq.onerror = (e) => {
+                    println("upgrade.error: " + e.target.error.name);
+                    indexedDB.deleteDatabase(dbName);
+                    println("DONE");
+                    done();
+                };
+            };
+            secondReq.onerror = (e) => {
+                println("second.error: " + e.target.error.name);
+                println("DONE");
+                done();
+            };
+        };
+        setupReq.onerror = (e) => {
+            println("setup.error: " + e.target.error.name);
+            println("DONE");
+            done();
+        };
+    }, 0);
+});
+</script>

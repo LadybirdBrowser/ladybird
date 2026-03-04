@@ -11,7 +11,6 @@
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
-#include <LibWeb/IndexedDB/Internal/IDBTransactionObserver.h>
 
 namespace Web::IndexedDB {
 
@@ -44,7 +43,6 @@ void IDBTransaction::initialize(JS::Realm& realm)
 void IDBTransaction::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_transaction_observers_being_notified);
     visitor.visit(m_connection);
     visitor.visit(m_error);
     visitor.visit(m_associated_request);
@@ -149,27 +147,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(String
     return IDBObjectStore::create(realm, *store, *this);
 }
 
-void IDBTransaction::register_transaction_observer(Badge<IDBTransactionObserver>, IDBTransactionObserver& database_observer)
-{
-    auto result = m_transaction_observers.set(database_observer);
-    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
-}
-
-void IDBTransaction::unregister_transaction_observer(Badge<IDBTransactionObserver>, IDBTransactionObserver& database_observer)
-{
-    bool was_removed = m_transaction_observers.remove(database_observer);
-    VERIFY(was_removed);
-}
-
 void IDBTransaction::set_state(TransactionState state)
 {
     m_state = state;
 
-    if (m_state == TransactionState::Finished) {
-        notify_each_transaction_observer([](IDBTransactionObserver const& transaction_observer) {
-            return transaction_observer.transaction_finished_observer();
-        });
-    }
+    if (m_state == TransactionState::Finished)
+        m_connection->check_pending_transaction_waits();
 }
 
 }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-close-during-upgrade-event-ordering.html");
+
+        // When db.close() is called during onupgradeneeded, the connection
+        // close must be processed before the upgrade completion. If the
+        // upgrade step 11 wait is registered before the close wait, the
+        // upgrade will complete first and fire onsuccess instead of onerror.
+
+        const dbName = "test-close-during-upgrade-" + Date.now() + Math.random();
+
+        const req = indexedDB.open(dbName, 1);
+
+        const oldPrintln = println;
+        println = (str) => {
+            console.log(str);
+            oldPrintln(str);
+        }
+
+        req.onupgradeneeded = (e) => {
+            println("upgradeneeded");
+            const db = e.target.result;
+            db.createObjectStore("store");
+            db.close();
+
+            e.target.transaction.oncomplete = (e) => {
+                println("upgrade tx complete");
+            };
+            e.target.transaction.onerror = (e) => {
+                println("upgrade tx error");
+            };
+        };
+
+        req.onsuccess = (e) => {
+            println("success");
+            println("FAIL: got success, expected error");
+            println("events: " + events.join(", "));
+            indexedDB.deleteDatabase(dbName);
+            done();
+        };
+
+        req.onerror = (e) => {
+            println("error:" + e.target.error.name);
+            indexedDB.deleteDatabase(dbName);
+            done();
+        };
+    }, 0);
+});
+</script>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+<script>
+setTimeout(() => {
+    internals.spoofCurrentURL("https://example.com/indexeddb-open-spam.html");
+
+    const dbName = "many-open-requests";
+
+    let requests = 0;
+    for (var i = 0; i < 50; i++) {
+        let request = indexedDB.open(dbName, 1);
+        request.onsuccess = () => {
+            requests--;
+            if (requests == 0) {
+                indexedDB.deleteDatabase(dbName);
+                document.documentElement.classList.remove("test-wait");
+            }
+        };
+        requests++;
+    }
+}, 0);
+</script>
+</body>
+</html>

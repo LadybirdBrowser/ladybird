@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/ConnectionQueueHandler.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
-#include <LibWeb/IndexedDB/Internal/IDBDatabaseObserver.h>
-#include <LibWeb/IndexedDB/Internal/RequestList.h>
 
 namespace Web::IndexedDB {
 
@@ -27,7 +27,6 @@ void Database::for_each_database(AK::Function<void(Database&)> const& visitor)
 }
 
 GC_DEFINE_ALLOCATOR(Database);
-GC_DEFINE_ALLOCATOR(Database::ConnectionCloseState);
 
 Database::~Database() = default;
 
@@ -40,9 +39,13 @@ void Database::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_connections);
-    visitor.visit(m_pending_connection_close_queue);
     visitor.visit(m_upgrade_transaction);
     visitor.visit(m_object_stores);
+
+    if (m_pending_connection_wait.has_value()) {
+        visitor.visit(m_pending_connection_wait->connections);
+        visitor.visit(m_pending_connection_wait->callback);
+    }
 }
 
 GC::Ptr<ObjectStore> Database::object_store_with_name(String const& name) const
@@ -143,61 +146,43 @@ GC::Ref<Database::AssociatedConnections> Database::associated_connections_except
     return connections;
 }
 
-void Database::ConnectionCloseState::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(database_observers);
-    visitor.visit(after_all);
-}
-
-void Database::ConnectionCloseState::add_connection_to_observe(GC::Ref<IDBDatabase> database)
-{
-    auto database_observer = heap().allocate<IDBDatabaseObserver>(database);
-    database_observer->set_connection_state_changed_observer(GC::create_function(heap(), [this] {
-        VERIFY(!database_observers.is_empty());
-        database_observers.remove_all_matching([](GC::Ref<IDBDatabaseObserver> const& database_observer) {
-            if (database_observer->database()->state() == ConnectionState::Closed) {
-                database_observer->unobserve();
-                return true;
-            }
-
-            return false;
-        });
-
-        if (database_observers.is_empty()) {
-            queue_a_database_task(after_all.as_nonnull());
-        }
-    }));
-
-    database_observers.append(database_observer);
-}
-
 void Database::wait_for_connections_to_close(ReadonlySpan<GC::Ref<IDBDatabase>> connections, GC::Ref<GC::Function<void()>> after_all)
 {
-    GC::Ptr<ConnectionCloseState> connection_close_state;
-
+    bool all_closed = true;
     for (auto const& entry : connections) {
         if (entry->state() != ConnectionState::Closed) {
-            if (!connection_close_state) {
-                connection_close_state = heap().allocate<ConnectionCloseState>();
-            }
-
-            connection_close_state->add_connection_to_observe(*entry);
+            all_closed = false;
+            break;
         }
     }
 
-    if (connection_close_state) {
-        connection_close_state->after_all = GC::create_function(heap(), [this, connection_close_state, after_all] {
-            bool was_removed = m_pending_connection_close_queue.remove_first_matching([connection_close_state](GC::Ref<ConnectionCloseState> pending_connection_close_state) {
-                return pending_connection_close_state == connection_close_state;
-            });
-            VERIFY(was_removed);
-            queue_a_database_task(after_all);
-        });
-        m_pending_connection_close_queue.append(connection_close_state.as_nonnull());
-    } else {
+    if (all_closed) {
         queue_a_database_task(after_all);
+        return;
     }
+
+    VERIFY(!m_pending_connection_wait.has_value());
+    m_pending_connection_wait = PendingConnectionWait {
+        .connections = Vector<GC::Ref<IDBDatabase>> { connections },
+        .callback = after_all,
+    };
+}
+
+void Database::check_pending_connection_wait()
+{
+    if (!m_pending_connection_wait.has_value())
+        return;
+
+    auto& wait = m_pending_connection_wait.value();
+    for (auto const& connection : wait.connections) {
+        if (connection->state() != ConnectionState::Closed)
+            return;
+    }
+
+    // All connections are closed - invoke the callback and clear the wait
+    auto callback = wait.callback;
+    m_pending_connection_wait.clear();
+    queue_a_database_task(callback);
 }
 
 }

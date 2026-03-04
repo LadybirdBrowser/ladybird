@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-close-waits-for-transaction.html");
+
+        // Test that closing a database connection waits for running
+        // transactions to finish before fully closing. This exercises
+        // wait_for_transactions_to_finish in close_a_database_connection.
+
+        const dbName = "test-close-waits-txn-" + Date.now() + Math.random();
+
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = (e) => {
+            println("setup.upgradeneeded");
+            const db = e.target.result;
+            db.createObjectStore("store");
+        };
+        setupReq.onsuccess = (e) => {
+            println("setup.success");
+            const conn = e.target.result;
+
+            // Start a readwrite transaction and do a put.
+            const tx = conn.transaction("store", "readwrite");
+            const store = tx.objectStore("store");
+            const putReq = store.put("value", "key");
+
+            putReq.onsuccess = () => {
+                println("put.success");
+            };
+            putReq.onerror = (e) => {
+                println("put.error: " + e.target.error.name);
+            };
+
+            tx.oncomplete = () => {
+                println("tx.complete");
+            };
+            tx.onerror = (e) => {
+                println("tx.error: " + e.target.error.name);
+            };
+
+            // Close the connection while the transaction is still running.
+            // The close should set the close pending flag but wait for
+            // the transaction to complete.
+            conn.close();
+            println("conn.close() called");
+
+            // Open a v2 upgrade to verify the connection actually closed.
+            // This should proceed after the transaction finishes and
+            // the connection fully closes.
+            const upgradeReq = indexedDB.open(dbName, 2);
+            upgradeReq.onupgradeneeded = () => {
+                println("upgrade.upgradeneeded");
+            };
+            upgradeReq.onsuccess = (e) => {
+                println("upgrade.success");
+                e.target.result.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+            upgradeReq.onerror = (e) => {
+                println("upgrade.error: " + e.target.error.name);
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+        };
+        setupReq.onerror = (e) => {
+            println("setup.error: " + e.target.error.name);
+            println("DONE");
+            done();
+        };
+    }, 0);
+});
+</script>

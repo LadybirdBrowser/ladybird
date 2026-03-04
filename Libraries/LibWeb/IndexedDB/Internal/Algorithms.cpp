@@ -36,7 +36,6 @@
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/Infra/Strings.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -81,20 +80,16 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
     // 1. Let queue be the connection queue for storageKey and name.
     auto& queue = ConnectionQueueHandler::for_key_and_name(storage_key, name);
 
+    dbgln_if(IDB_DEBUG, "open_a_database_connection: enqueuing request {}", request->uuid());
+
     // 2. Add request to queue.
-    queue.append(request);
-    dbgln_if(IDB_DEBUG, "open_a_database_connection: added request {} to queue", request->uuid());
-
     // 3. Wait until all previous requests in queue have been processed.
-    if constexpr (IDB_DEBUG) {
-        dbgln("open_a_database_connection: waiting for step 3");
-        dbgln("requests in queue:");
-        for (auto const& item : queue) {
-            dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
-        }
-    }
+    queue.enqueue(request, GC::create_function(realm.heap(), [&realm, &queue, storage_key = move(storage_key), name = move(name), maybe_version = move(maybe_version), request, on_complete] -> void {
+        static constexpr auto call_completion = [](auto& queue, auto completion, auto result) {
+            completion->function()(move(result));
+            queue.on_request_processed();
+        };
 
-    queue.all_previous_requests_processed(realm.heap(), request, GC::create_function(realm.heap(), [&realm, storage_key = move(storage_key), name = move(name), maybe_version = move(maybe_version), request, on_complete] -> void {
         // 4. Let db be the database named name in storageKey, or null otherwise.
         GC::Ptr<Database> db;
         auto maybe_db = Database::for_key_and_name(storage_key, name);
@@ -111,7 +106,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
             auto maybe_database = Database::create_for_key_and_name(realm, storage_key, name);
 
             if (maybe_database.is_error()) {
-                on_complete->function()(WebIDL::OperationError::create(realm, "Unable to create a new database"_utf16));
+                call_completion(queue, on_complete, WebIDL::OperationError::create(realm, "Unable to create a new database"_utf16));
                 return;
             }
 
@@ -120,7 +115,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
         // 7. If db’s version is greater than version, return a newly created "VersionError" DOMException and abort these steps.
         if (db->version() > version) {
-            on_complete->function()(WebIDL::VersionError::create(realm, "Database version is greater than the requested version"_utf16));
+            call_completion(queue, on_complete, WebIDL::VersionError::create(realm, "Database version is greater than the requested version"_utf16));
             return;
         }
 
@@ -161,7 +156,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                 dbgln("remaining tasks: {}", task_counter_state ? task_counter_state->remaining_tasks : 0);
             }
 
-            auto after_all = GC::create_function(realm.heap(), [&realm, open_connections, db, version, connection, request, on_complete] {
+            auto after_all = GC::create_function(realm.heap(), [&realm, &queue, open_connections, db, version, connection, request, on_complete] {
                 // 4. If any of the connections in openConnections are still not closed,
                 //    queue a database task to fire a version change event named blocked at request with db’s version and version.
                 for (auto const& entry : open_connections->elements()) {
@@ -181,18 +176,18 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                     }
                 }
 
-                db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(realm.heap(), [&realm, connection, version, request, on_complete] {
+                db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(realm.heap(), [&realm, &queue, connection, version, request, on_complete] {
                     dbgln_if(IDB_DEBUG, "open_a_database_connection: finished waiting for step 10.5");
 
                     // 6. Run upgrade a database using connection, version and request.
                     dbgln_if(IDB_DEBUG, "open_a_database_connection: waiting for step 10.6");
-                    upgrade_a_database(realm, connection, version, request, GC::create_function(realm.heap(), [&realm, connection, request, on_complete] {
+                    upgrade_a_database(realm, connection, version, request, GC::create_function(realm.heap(), [&realm, &queue, connection, request, on_complete] {
                         dbgln_if(IDB_DEBUG, "open_a_database_connection: finished waiting for step 10.6");
 
                         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
                         if (connection->state() == ConnectionState::Closed) {
                             dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.7: connection was closed, aborting");
-                            on_complete->function()(WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
+                            call_completion(queue, on_complete, (WebIDL::AbortError::create(realm, "Connection was closed"_utf16)));
                             return;
                         }
 
@@ -200,16 +195,16 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                         //    return a newly created "AbortError" DOMException and abort these steps.
                         if (request->has_error()) {
                             dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.8: request errored, waiting to close connection");
-                            close_a_database_connection(*connection, GC::create_function(realm.heap(), [&realm, on_complete] {
+                            close_a_database_connection(*connection, GC::create_function(realm.heap(), [&realm, &queue, on_complete] {
                                 dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.8: connection closed, aborting");
-                                on_complete->function()(WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
+                                call_completion(queue, on_complete, WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
                             }));
                             return;
                         }
 
                         // 11. Return connection.
                         dbgln_if(IDB_DEBUG, "open_a_database_connection: step 11: successfully upgraded database, completing with new connection");
-                        on_complete->function()(connection);
+                        call_completion(queue, on_complete, connection);
                     }));
                 }));
             });
@@ -227,7 +222,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
         // 11. Return connection.
         dbgln_if(IDB_DEBUG, "open_a_database_connection: step 11: no upgrade required, completing with new connection");
-        on_complete->function()(connection);
+        call_completion(queue, on_complete, connection);
     }));
 }
 
@@ -401,6 +396,8 @@ void close_a_database_connection(GC::Ref<IDBDatabase> connection, GC::Ptr<GC::Fu
 
         if (on_complete)
             queue_a_database_task(on_complete.as_nonnull());
+
+        connection->associated_database()->check_pending_connection_wait();
     }));
 }
 
@@ -433,7 +430,7 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     request->set_processed(true);
 
     // 10. Queue a database task to run these steps:
-    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
+    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version, on_complete]() {
         // 1. Set request’s result to connection.
         request->set_result(connection);
 
@@ -469,13 +466,10 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
             if (transaction->state() == IDBTransaction::TransactionState::Inactive && transaction->request_list().is_empty() && !transaction->aborted())
                 commit_a_transaction(realm, transaction);
         }
-    }));
 
-    // 11. Wait for transaction to finish.
-    dbgln_if(IDB_DEBUG, "upgrade_a_database: waiting for step 11");
-    connection->wait_for_transactions_to_finish({ &transaction, 1 }, GC::create_function(realm.heap(), [on_complete] {
-        dbgln_if(IDB_DEBUG, "upgrade_a_database: finished waiting for step 11, queuing completion task");
-        queue_a_database_task(on_complete);
+        // 11. Wait for transaction to finish.
+        dbgln_if(IDB_DEBUG, "upgrade_a_database: waiting for step 11");
+        connection->wait_for_transactions_to_finish({ &transaction, 1 }, on_complete);
     }));
 }
 
@@ -485,24 +479,20 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
     // 1. Let queue be the connection queue for storageKey and name.
     auto& queue = ConnectionQueueHandler::for_key_and_name(storage_key, name);
 
+    dbgln_if(IDB_DEBUG, "delete_a_database: enqueuing request {}", request->uuid());
+
     // 2. Add request to queue.
-    queue.append(request);
-    dbgln_if(IDB_DEBUG, "delete_a_database: added request {} to queue", request->uuid());
-
     // 3. Wait until all previous requests in queue have been processed.
-    if constexpr (IDB_DEBUG) {
-        dbgln("delete_a_database: waiting for step 3");
-        dbgln("requests in queue:");
-        for (auto const& item : queue) {
-            dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
-        }
-    }
+    queue.enqueue(request, GC::create_function(realm.heap(), [&realm, &queue, storage_key = move(storage_key), name = move(name), on_complete] -> void {
+        static constexpr auto call_completion = [](auto& queue, auto completion, auto result) {
+            completion->function()(move(result));
+            queue.on_request_processed();
+        };
 
-    queue.all_previous_requests_processed(realm.heap(), request, GC::create_function(realm.heap(), [&realm, storage_key = move(storage_key), name = move(name), on_complete] -> void {
         // 4. Let db be the database named name in storageKey, if one exists. Otherwise, return 0 (zero).
         auto maybe_db = Database::for_key_and_name(storage_key, name);
         if (!maybe_db.has_value()) {
-            on_complete->function()(0);
+            call_completion(queue, on_complete, 0);
             return;
         }
 
@@ -534,7 +524,7 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
             dbgln("remaining tasks: {}", task_counter_state ? task_counter_state->remaining_tasks : 0);
         }
 
-        auto after_all = GC::create_function(realm.heap(), [&realm, open_connections, db, storage_key = move(storage_key), name = move(name), on_complete] {
+        auto after_all = GC::create_function(realm.heap(), [&realm, &queue, open_connections, db, storage_key, name, on_complete] {
             // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a version change event named blocked at request with db’s version and null.
             for (auto const& entry : open_connections->elements()) {
                 if (entry->state() != ConnectionState::Closed) {
@@ -553,19 +543,19 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
                 }
             }
 
-            db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(realm.heap(), [&realm, db, storage_key = move(storage_key), name = move(name), on_complete] {
+            db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(realm.heap(), [&realm, &queue, db, storage_key, name, on_complete] {
                 // 10. Let version be db’s version.
                 auto version = db->version();
 
                 // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError" or "UnknownError" DOMException).
                 auto maybe_deleted = Database::delete_for_key_and_name(storage_key, name);
                 if (maybe_deleted.is_error()) {
-                    on_complete->function()(WebIDL::OperationError::create(realm, "Unable to delete database"_utf16));
+                    call_completion(queue, on_complete, WebIDL::OperationError::create(realm, "Unable to delete database"_utf16));
                     return;
                 }
 
                 // 12. Return version.
-                on_complete->function()(version);
+                call_completion(queue, on_complete, version);
             }));
         });
 
@@ -598,6 +588,11 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
 
     // 4. Set transaction’s state to finished.
     transaction->set_state(IDBTransaction::TransactionState::Finished);
+
+    // AD-HOC: Clear the cleanup event loop so that the microtask checkpoint doesn't set the state to inactive on a
+    //         finished transaction.
+    //         https://github.com/w3c/IndexedDB/issues/489
+    transaction->set_cleanup_event_loop(nullptr);
 
     // 5. Set transaction’s error to error.
     transaction->set_error(error);
@@ -657,6 +652,11 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
             // 5. Set request’s done flag to false.
             request->set_done(false);
         }
+
+        // AD-HOC: Now that all abort tasks are queued, notify pending transaction waits.
+        //         This is done after step 7 so that the abort cleanup tasks above are queued
+        //         before any waiting transactions (e.g. upgrade completion callbacks) proceed.
+        transaction->connection()->check_pending_transaction_waits();
     }));
 }
 
@@ -797,48 +797,52 @@ void commit_a_transaction(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
     // 1. Set transaction’s state to committing.
     transaction->set_state(IDBTransaction::TransactionState::Committing);
 
+    // AD-HOC: Clear the cleanup event loop so that the microtask checkpoint
+    //         does not reset the state back to inactive.
+    //         https://github.com/w3c/IndexedDB/issues/489
+    transaction->set_cleanup_event_loop(nullptr);
+
     dbgln_if(IDB_DEBUG, "commit_a_transaction: transaction {} is committing", transaction->uuid());
 
     // 2. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, transaction]() {
-        // 1. Wait until every item in transaction’s request list is processed.
-        if constexpr (IDB_DEBUG) {
-            dbgln("commit_a_transaction: waiting for step 1");
-            dbgln("requests in queue:");
-            for (auto const& request : transaction->request_list()) {
-                dbgln("  - {} = {}", request->uuid(), request->processed() ? "processed"sv : "not processed"sv);
+    //     1. Wait until every item in transaction’s request list is processed.
+    dbgln_if(IDB_DEBUG, "commit_a_transaction: registering wait for all requests to be processed");
+
+    transaction->request_list().set_on_all_processed(GC::create_function(realm.heap(), [transaction] {
+        dbgln_if(IDB_DEBUG, "finish_committing_transaction: all requests processed for transaction {}", transaction->uuid());
+
+        // 2. If transaction’s state is no longer committing, then terminate these steps.
+        if (transaction->state() != IDBTransaction::TransactionState::Committing)
+            return;
+
+        // FIXME: 3. Attempt to write any outstanding changes made by transaction to the database, considering transaction’s durability hint.
+        // FIXME: 4. If an error occurs while writing the changes to the database, then run abort a transaction with transaction and an appropriate type for the error, for example "QuotaExceededError" or "UnknownError" DOMException, and terminate these steps.
+
+        // 5. Queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
+            // 1. If transaction is an upgrade transaction, then set transaction’s connection’s associated database’s upgrade transaction to null.
+            if (transaction->is_upgrade_transaction())
+                transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
+
+            // 2. Set transaction’s state to finished.
+            transaction->set_state(IDBTransaction::TransactionState::Finished);
+
+            // 3. Fire an event named complete at transaction.
+            transaction->dispatch_event(DOM::Event::create(transaction->realm(), HTML::EventNames::complete));
+
+            // 4. If transaction is an upgrade transaction, then let request be the request associated with transaction and set request’s transaction to null.
+            if (transaction->is_upgrade_transaction()) {
+                auto request = transaction->associated_request();
+                request->set_transaction(nullptr);
+
+                // Ad-hoc: Clear the two-way binding.
+                transaction->set_associated_request(nullptr);
             }
-        }
 
-        transaction->request_list().all_requests_processed(realm.heap(), GC::create_function(realm.heap(), [transaction] {
-            // 2. If transaction’s state is no longer committing, then terminate these steps.
-            if (transaction->state() != IDBTransaction::TransactionState::Committing)
-                return;
-
-            // FIXME: 3. Attempt to write any outstanding changes made by transaction to the database, considering transaction’s durability hint.
-            // FIXME: 4. If an error occurs while writing the changes to the database, then run abort a transaction with transaction and an appropriate type for the error, for example "QuotaExceededError" or "UnknownError" DOMException, and terminate these steps.
-
-            // 5. Queue a database task to run these steps:
-            queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
-                // 1. If transaction is an upgrade transaction, then set transaction’s connection's associated database's upgrade transaction to null.
-                if (transaction->is_upgrade_transaction())
-                    transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
-
-                // 2. Set transaction’s state to finished.
-                transaction->set_state(IDBTransaction::TransactionState::Finished);
-
-                // 3. Fire an event named complete at transaction.
-                transaction->dispatch_event(DOM::Event::create(transaction->realm(), HTML::EventNames::complete));
-
-                // 4. If transaction is an upgrade transaction, then let request be the request associated with transaction and set request’s transaction to null.
-                if (transaction->is_upgrade_transaction()) {
-                    auto request = transaction->associated_request();
-                    request->set_transaction(nullptr);
-
-                    // Ad-hoc: Clear the two-way binding.
-                    transaction->set_associated_request(nullptr);
-                }
-            }));
+            // AD-HOC: Notify pending transaction waits after the complete event fires, so that
+            //         upgrade completion callbacks are queued after any tasks JS creates during
+            //         the complete event handler.
+            transaction->connection()->check_pending_transaction_waits();
         }));
     }));
 }
@@ -1195,74 +1199,72 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
     // 3. If request was not given, let request be a new request with source as source.
     GC::Ref<IDBRequest> request = request_input ? GC::Ref(*request_input) : IDBRequest::create(realm, source);
 
-    // 4. Add request to the end of transaction’s request list.
-    transaction->request_list().append(request);
-
     // Set the two-way binding. (Missing spec step)
     // FIXME: https://github.com/w3c/IndexedDB/issues/433
     request->set_transaction(transaction);
 
+    // 4. Add request to the end of transaction’s request list.
     // 5. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, transaction, operation, request]() {
-        // 1. Wait until request is the first item in transaction’s request list that is not processed.
-        if constexpr (IDB_DEBUG) {
-            dbgln("asynchronously_execute_a_request: waiting for step 5.1");
-            dbgln("requests in queue:");
-            for (auto const& item : transaction->request_list()) {
-                dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
-            }
+    //     1. Wait until request is the first item in transaction’s request list that is not processed.
+    transaction->request_list().enqueue(request, GC::create_function(realm.heap(), [&realm, transaction, operation, request]() {
+        dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.1: performing operation for request {}", request->uuid());
+
+        // 2. Let result be the result of performing operation.
+        auto result = operation->function()();
+
+        // 3. If result is an error and transaction’s state is committing, then run abort a transaction with transaction and result, and terminate these steps.
+        if (result.is_error() && transaction->state() == IDBTransaction::TransactionState::Committing) {
+            dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.3: request errored, aborting transaction");
+            abort_a_transaction(*transaction, result.exception().get<GC::Ref<WebIDL::DOMException>>());
+            return;
         }
 
-        transaction->request_list().all_previous_requests_processed(realm.heap(), request, GC::create_function(realm.heap(), [&realm, transaction, operation, request] {
-            dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: finished waiting for step 5.1, executing request");
+        // FIXME: 4. If result is an error, then revert all changes made by operation.
 
-            // 2. Let result be the result of performing operation.
-            auto result = operation->function()();
+        // 5. Set request’s processed flag to true.
+        request->set_processed(true);
 
-            // 3. If result is an error and transaction’s state is committing, then run abort a transaction with transaction and result, and terminate these steps.
-            if (result.is_error() && transaction->state() == IDBTransaction::TransactionState::Committing) {
-                dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.3: request errored, aborting transaction");
-                abort_a_transaction(*transaction, result.exception().get<GC::Ref<WebIDL::DOMException>>());
-                return;
+        // Allow the next operation in the queue to proceed.
+        transaction->request_list().on_request_processed();
+
+        // 6. Queue a database task to run these steps:
+        dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: request finished without error, queuing task to finish up");
+        queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
+            dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: finish up task executing");
+
+            // 1. Remove request from transaction’s request list.
+            transaction->request_list().remove(request);
+
+            // 2. Set request’s done flag to true.
+            request->set_done(true);
+
+            // 3. If result is an error, then:
+            if (result.is_error()) {
+                // 1. Set request’s result to undefined.
+                request->set_result(JS::js_undefined());
+
+                // 2. Set request’s error to result.
+                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
+
+                // 3. Fire an error event at request.
+                fire_an_error_event(realm, request);
+            } else {
+                // 1. Set request’s result to result.
+                request->set_result(result.release_value());
+
+                // 2. Set request’s error to undefined.
+                request->set_error(Optional<GC::Ptr<WebIDL::DOMException>> {});
+
+                // 3. Fire a success event at request.
+                fire_a_success_event(realm, request);
             }
 
-            // FIXME: 4. If result is an error, then revert all changes made by operation.
-
-            // 5. Set request’s processed flag to true.
-            request->set_processed(true);
-
-            // 6. Queue a database task to run these steps:
-            dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: request finished without error, queuing task to finish up");
-            queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
-                dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: finish up task executing");
-
-                // 1. Remove request from transaction’s request list.
-                transaction->request_list().remove_first_matching([&request](auto& entry) { return entry.ptr() == request.ptr(); });
-
-                // 2. Set request’s done flag to true.
-                request->set_done(true);
-
-                // 3. If result is an error, then:
-                if (result.is_error()) {
-                    // 1. Set request’s result to undefined.
-                    request->set_result(JS::js_undefined());
-
-                    // 2. Set request’s error to result.
-                    request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
-
-                    // 3. Fire an error event at request.
-                    fire_an_error_event(realm, request);
-                } else {
-                    // 1. Set request’s result to result.
-                    request->set_result(result.release_value());
-
-                    // 2. Set request’s error to undefined.
-                    request->set_error(Optional<GC::Ptr<WebIDL::DOMException>> {});
-
-                    // 3. Fire a success event at request.
-                    fire_a_success_event(realm, request);
-                }
-            }));
+            // NB: Check if the commit wait is satisfied after firing the result event, so that the commit completion
+            //     runs after it. This models the parallel nature of the processing according to the spec, where a
+            //     request being processed necessitates sending a message from the IDB worker thread/process to the
+            //     main thread (most likely also triggering this task), meaning that the above events will necessarily
+            //     be fired before the transaction can be committed.
+            transaction->request_list().check_all_processed();
         }));
     }));
 
@@ -2168,7 +2170,6 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
     Database::for_each_database([&has_matching_event_loop, event_loop](Database& database) {
         for (auto const& connection : database.associated_connections()->elements()) {
             for (auto const& transaction : connection->transactions()) {
-
                 // 2. For each transaction transaction with cleanup event loop matching the current event loop:
                 if (transaction->cleanup_event_loop() == event_loop) {
                     has_matching_event_loop = true;

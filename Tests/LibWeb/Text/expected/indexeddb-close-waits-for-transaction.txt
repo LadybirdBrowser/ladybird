@@ -1,0 +1,8 @@
+setup.upgradeneeded
+setup.success
+conn.close() called
+put.success
+tx.complete
+upgrade.upgradeneeded
+upgrade.success
+DONE

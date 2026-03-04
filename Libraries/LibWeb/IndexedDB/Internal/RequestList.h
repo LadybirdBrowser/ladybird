@@ -13,30 +13,57 @@
 
 namespace Web::IndexedDB {
 
-class RequestList final : public AK::Vector<GC::Weak<IDBRequest>> {
+class RequestList final {
     AK_MAKE_NONMOVABLE(RequestList);
     AK_MAKE_NONCOPYABLE(RequestList);
 
 public:
     RequestList() = default;
 
-    void all_requests_processed(GC::Heap&, GC::Ref<GC::Function<void()>> on_complete);
-    void all_previous_requests_processed(GC::Heap&, GC::Ref<IDBRequest> const& request, GC::Ref<GC::Function<void()>> on_complete);
+    void enqueue(GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void()>> steps);
+    void remove(GC::Ref<IDBRequest> request);
+
+    void on_request_processed();
+
+    bool is_empty() const;
+
+    void set_on_all_processed(GC::Ref<GC::Function<void()>> callback);
+    void check_all_processed();
 
 private:
-    struct PendingRequestProcess final : public GC::Cell {
-        GC_CELL(PendingRequestProcess, GC::Cell);
-        GC_DECLARE_ALLOCATOR(PendingRequestProcess);
-
-        virtual void visit_edges(Cell::Visitor&) override;
-
-        void add_request_to_observe(GC::Ref<IDBRequest>);
-
-        Vector<GC::Ref<IDBRequestObserver>> requests_waiting_on;
-        GC::Ptr<GC::Function<void()>> after_all;
+    struct Entry {
+        GC::Weak<IDBRequest> request;
+        GC::Root<GC::Function<void()>> steps;
     };
 
-    Vector<GC::Root<PendingRequestProcess>> m_pending_request_queue;
+    void maybe_process_next_request();
+
+    Vector<Entry> m_entries;
+    GC::Root<GC::Function<void()>> m_on_all_processed;
+
+public:
+    class RequestIterator {
+    public:
+        RequestIterator(Vector<Entry> const& entries, size_t index)
+            : m_entries(entries)
+            , m_index(index)
+        {
+            skip_null();
+        }
+
+        GC::Ref<IDBRequest> operator*() const;
+        RequestIterator& operator++();
+        bool operator!=(RequestIterator const& other) const { return m_index != other.m_index; }
+
+    private:
+        void skip_null();
+
+        Vector<Entry> const& m_entries;
+        size_t m_index;
+    };
+
+    RequestIterator begin() const { return { m_entries, 0 }; }
+    RequestIterator end() const { return { m_entries, m_entries.size() }; }
 };
 
 }

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-commit-event-ordering.html");
+
+        // Test that when transaction.commit() is called while requests are
+        // still processing, all request success events fire before the
+        // transaction's complete event. With two puts, the second put's
+        // success must not be reordered after complete.
+
+        const dbName = "test-commit-ordering-" + Date.now() + Math.random();
+
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = (e) => {
+            println("setup.upgradeneeded");
+            e.target.result.createObjectStore("store");
+        };
+        setupReq.onsuccess = (e) => {
+            println("setup.success");
+            const db = e.target.result;
+
+            const tx = db.transaction("store", "readwrite");
+            const store = tx.objectStore("store");
+
+            const putA = store.put("value1", "key1");
+            putA.onsuccess = () => {
+                println("putA.success");
+            };
+
+            const putB = store.put("value2", "key2");
+            putB.onsuccess = () => {
+                println("putB.success");
+            };
+
+            // Commit explicitly while both puts are still in flight.
+            tx.commit();
+            println("tx.commit() called");
+
+            tx.oncomplete = () => {
+                println("tx.complete");
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+            tx.onerror = (e) => {
+                println("tx.error: " + e.target.error.name);
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+        };
+        setupReq.onerror = (e) => {
+            println("setup.error: " + e.target.error.name);
+            println("DONE");
+            done();
+        };
+    }, 0);
+});
+</script>
