@@ -3566,6 +3566,9 @@ fn generate_assignment_expression(
                     generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
+                    if ident.is_local() {
+                        emit_tdz_check_if_needed(generator, ident);
+                    }
                     emit_set_variable(generator, ident, &rhs_val);
                     return Some(rhs_val);
                 }
@@ -4307,6 +4310,32 @@ fn emit_put_by_value(
                 kind: 2,
             });
         }
+    }
+}
+
+/// Emit a ThrowIfTDZ check for a local identifier if needed, matching C++
+/// Generator::emit_tdz_check_if_needed. This is used before assigning to a
+/// variable to ensure TDZ semantics for let/const bindings.
+fn emit_tdz_check_if_needed(generator: &mut Generator, ident: &Identifier) {
+    if !ident.is_local() {
+        return;
+    }
+    let local_index = ident.local_index.get();
+    let needs_tdz_check = if ident.local_type.get() == Some(LocalType::Argument) {
+        !generator.is_argument_initialized(local_index)
+    } else {
+        generator.is_local_lexically_declared(local_index)
+            && !generator.is_local_initialized(local_index)
+    };
+    if needs_tdz_check {
+        let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
+        if ident.local_type.get() == Some(LocalType::Argument) {
+            let empty = generator.add_constant_empty();
+            generator.emit_mov(&local, &empty);
+        }
+        generator.emit(Instruction::ThrowIfTDZ {
+            src: local.operand(),
+        });
     }
 }
 
@@ -5945,7 +5974,7 @@ fn generate_class_expression(
                 let (priv_ptr, priv_len) = get_private_identifier_ptr(key);
 
                 ffi_elements.push(super::ffi::FFIClassElement {
-                kind: ffi_kind,
+                    kind: ffi_kind,
                     is_static: *is_static,
                     is_private,
                     private_identifier: priv_ptr,
@@ -6097,7 +6126,7 @@ fn generate_class_expression(
                 };
 
                 ffi_elements.push(super::ffi::FFIClassElement {
-                kind: ClassElementKind::Field as u8,
+                    kind: ClassElementKind::Field as u8,
                     is_static: *is_static,
                     is_private,
                     private_identifier: priv_ptr,
@@ -6136,7 +6165,7 @@ fn generate_class_expression(
                 ));
 
                 ffi_elements.push(super::ffi::FFIClassElement {
-                kind: ClassElementKind::StaticInitializer as u8,
+                    kind: ClassElementKind::StaticInitializer as u8,
                     is_static: true,
                     is_private: false,
                     private_identifier: std::ptr::null(),
@@ -6457,7 +6486,7 @@ fn generate_for_in_statement(
     // Evaluate the initializer for `for (var x = init in obj)` before the RHS.
     if let ForInOfLhs::Declaration(statement) = lhs
         && let StatementKind::VariableDeclaration {
-        kind: DeclarationKind::Var,
+            kind: DeclarationKind::Var,
             declarations,
         } = &statement.inner
         && let Some(declaration) = declarations.first()
