@@ -598,7 +598,8 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
 
     // 6. For each request of transaction’s request list,
     for (auto const& request : transaction->request_list()) {
-        // FIXME: abort the steps to asynchronously execute a request for request,
+        // abort the steps to asynchronously execute a request for request,
+        request->set_aborted(true);
 
         // set request’s processed flag to true
         request->set_processed(true);
@@ -618,6 +619,9 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
             request->dispatch_event(DOM::Event::create(request->realm(), HTML::EventNames::error, { .bubbles = true, .cancelable = true }));
         }));
     }
+
+    // NB: Clear the commit wait callback, since the transaction is no longer committing.
+    transaction->request_list().clear_on_all_processed();
 
     // 7. Queue a database task to run these steps:
     queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
@@ -1211,6 +1215,11 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
     // 5. Run these steps in parallel:
     //     1. Wait until request is the first item in transaction’s request list that is not processed.
     transaction->request_list().enqueue(request, GC::create_function(realm.heap(), [&realm, transaction, operation, request]() {
+        if (request->aborted()) {
+            dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: executing request {} canceled due to abort", request->uuid());
+            return;
+        }
+
         dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.1: performing operation for request {}", request->uuid());
 
         // 2. Let result be the result of performing operation.
@@ -1234,6 +1243,11 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
         // 6. Queue a database task to run these steps:
         dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: request finished without error, queuing task to finish up");
         queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
+            if (request->aborted()) {
+                dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: aborted completion events for request {}", request->uuid());
+                return;
+            }
+
             dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: finish up task executing");
 
             // 1. Remove request from transaction’s request list.
