@@ -65,7 +65,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 
     FlyString font_family;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontFamily))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFamily)))
         font_family = string_from_style_value(*value);
 
     ComputationContext computation_context {
@@ -73,7 +73,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 
     Optional<FontWeightRange> weight;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWeight)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWeight))) {
         // https://drafts.csswg.org/css-fonts-4/#font-prop-desc
         // The auto values for these three descriptors have the following effects:
         //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
@@ -102,7 +102,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     Optional<int> slope;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontStyle)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontStyle))) {
         // https://drafts.csswg.org/css-fonts-4/#font-prop-desc
         // The auto values for these three descriptors have the following effects:
         //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
@@ -115,7 +115,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     Optional<int> width;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWidth)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth))) {
         // https://drafts.csswg.org/css-fonts-4/#font-prop-desc
         // The auto values for these three descriptors have the following effects:
         //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
@@ -128,45 +128,45 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     Vector<Source> sources;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::Src))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::Src)))
         sources = sources_from_style_value(*value);
 
     Vector<Gfx::UnicodeRange> unicode_ranges;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::UnicodeRange)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::UnicodeRange))) {
         for (auto const& range : value->as_value_list().values())
             unicode_ranges.append(range->as_unicode_range().unicode_range());
     }
 
     Optional<Percentage> ascent_override;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::AscentOverride))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::AscentOverride)))
         ascent_override = extract_percentage_or_normal(*value);
 
     Optional<Percentage> descent_override;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::DescentOverride))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::DescentOverride)))
         descent_override = extract_percentage_or_normal(*value);
 
     Optional<Percentage> line_gap_override;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::LineGapOverride))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::LineGapOverride)))
         line_gap_override = extract_percentage_or_normal(*value);
 
     FontDisplay font_display;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontDisplay))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontDisplay)))
         font_display = keyword_to_font_display(value->to_keyword()).value_or(FontDisplay::Auto);
 
     Optional<FlyString> font_named_instance;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontNamedInstance)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontNamedInstance))) {
         if (value->is_string())
             font_named_instance = value->as_string().string_value();
     }
 
     Optional<FlyString> font_language_override;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontLanguageOverride)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontLanguageOverride))) {
         if (value->is_string())
             font_language_override = value->as_string().string_value();
     }
 
     Optional<OrderedHashMap<FlyString, i32>> font_feature_settings;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontFeatureSettings)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings))) {
         if (value->to_keyword() == Keyword::Normal) {
             font_feature_settings.clear();
         } else if (value->is_value_list()) {
@@ -184,7 +184,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     Optional<OrderedHashMap<FlyString, double>> font_variation_settings;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontVariationSettings)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings))) {
         if (value->to_keyword() == Keyword::Normal) {
             font_variation_settings.clear();
         } else if (value->is_value_list()) {

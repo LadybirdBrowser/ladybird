@@ -96,7 +96,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
 
     Parser::ParsingParams parsing_params { realm };
     auto try_parse_descriptor = [&parsing_params, &font_face, &realm](DescriptorID descriptor_id, String const& string) -> String {
-        auto result = parse_css_descriptor(parsing_params, AtRuleID::FontFace, descriptor_id, string);
+        auto result = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(descriptor_id), string);
         if (!result) {
             font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, Utf16String::formatted("FontFace constructor: Invalid {}", to_string(descriptor_id))));
             return {};
@@ -120,7 +120,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     font_face->m_line_gap_override = try_parse_descriptor(DescriptorID::LineGapOverride, descriptors.line_gap_override);
     RefPtr<StyleValue const> parsed_source;
     if (auto* source_string = source.get_pointer<String>()) {
-        parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorID::Src, *source_string);
+        parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::Src), *source_string);
         if (!parsed_source) {
             font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, Utf16String::formatted("FontFace constructor: Invalid {}", to_string(DescriptorID::Src))));
         }
@@ -238,7 +238,7 @@ GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRu
     font_face->m_css_font_face_rule = &rule;
     font_face->reparse_connected_css_font_face_rule_descriptors();
 
-    if (auto src_value = rule.descriptors()->descriptor(DescriptorID::Src)) {
+    if (auto src_value = rule.descriptors()->descriptor(DescriptorNameAndID::from_id(DescriptorID::Src))) {
         font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
         font_face->m_urls.remove_all_matching(is_unsupported_source);
     }
@@ -252,17 +252,17 @@ void FontFace::reparse_connected_css_font_face_rule_descriptors()
 {
     auto const& descriptors = m_css_font_face_rule->descriptors();
 
-    set_family_impl(*descriptors->descriptor(DescriptorID::FontFamily));
-    set_style_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontStyle));
-    set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontWeight));
-    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontWidth));
-    set_unicode_range_impl(*descriptors->descriptor_or_initial_value(DescriptorID::UnicodeRange));
-    set_feature_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontFeatureSettings));
-    set_variation_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontVariationSettings));
-    set_display_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontDisplay));
-    set_ascent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorID::AscentOverride));
-    set_descent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorID::DescentOverride));
-    set_line_gap_override_impl(*descriptors->descriptor_or_initial_value(DescriptorID::LineGapOverride));
+    set_family_impl(*descriptors->descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)));
+    set_style_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontStyle)));
+    set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWeight)));
+    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth)));
+    set_unicode_range_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::UnicodeRange)));
+    set_feature_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings)));
+    set_variation_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings)));
+    set_display_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontDisplay)));
+    set_ascent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::AscentOverride)));
+    set_descent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::DescentOverride)));
+    set_line_gap_override_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::LineGapOverride)));
 }
 
 ParsedFontFace FontFace::parsed_font_face() const
@@ -342,7 +342,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontFamily, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFamily), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.family setter: Invalid descriptor value"_utf16);
 
@@ -366,7 +366,7 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontStyle, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontStyle), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.style setter: Invalid descriptor value"_utf16);
 
@@ -390,7 +390,7 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontWeight, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWeight), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.weight setter: Invalid descriptor value"_utf16);
 
@@ -415,7 +415,7 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
     // parsed value.
 
     // NOTE: font-stretch is now an alias for font-width
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontWidth, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWidth), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid descriptor value"_utf16);
 
@@ -439,7 +439,7 @@ WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::UnicodeRange, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::UnicodeRange), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.unicodeRange setter: Invalid descriptor value"_utf16);
 
@@ -463,7 +463,7 @@ WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontFeatureSettings, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.featureSettings setter: Invalid descriptor value"_utf16);
 
@@ -487,7 +487,7 @@ WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontVariationSettings, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.variationSettings setter: Invalid descriptor value"_utf16);
 
@@ -511,7 +511,7 @@ WebIDL::ExceptionOr<void> FontFace::set_display(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontDisplay, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontDisplay), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.display setter: Invalid descriptor value"_utf16);
 
@@ -535,7 +535,7 @@ WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::AscentOverride, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::AscentOverride), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.ascentOverride setter: Invalid descriptor value"_utf16);
 
@@ -559,7 +559,7 @@ WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::DescentOverride, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::DescentOverride), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.descentOverride setter: Invalid descriptor value"_utf16);
 
@@ -583,7 +583,7 @@ WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const& string)
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
 
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::LineGapOverride, string);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::LineGapOverride), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.lineGapOverride setter: Invalid descriptor value"_utf16);
 

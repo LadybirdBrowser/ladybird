@@ -173,10 +173,11 @@ The generated code provides:
 
 Each at-rule object has the following fields. Both are required.
 
-| Field         | Description                                                                                       |
-|---------------|---------------------------------------------------------------------------------------------------|
-| `spec`        | String. URL to the spec that defines this at-rule.                                                |
-| `descriptors` | Object, with keys being descriptor names and values being objects of their properties. See below. |
+| Field                | Description                                                                                                          |
+|----------------------|----------------------------------------------------------------------------------------------------------------------|
+| `spec`               | String. URL to the spec that defines this at-rule.                                                                   |
+| `descriptors`        | Object, with keys being descriptor names and values being objects of their properties. See below.                    |
+| `custom-descriptors` | Object, the configuration for custom descriptors (i.e. --foo). Omission means that custom descriptors are disallowed |
 
 ### Descriptor fields
 
@@ -188,6 +189,15 @@ Each descriptor object can have the following fields:
 | `legacy-alias-for` | No       | String. The name of a different descriptor that this is an alias for. |
 | `syntax`           | Yes      | Array of strings. Each string is one option, taken from the spec.     |
 | `FIXME` or `NOTE`  | No       | Strings, for when you want to leave a note.                           |
+
+### Custom descriptor fields
+
+Each custom descriptor object has the following fields
+
+| Field              | Required | Description                                  |
+|--------------------|----------|----------------------------------------------|
+| `syntax`           | Yes      | Array of strings. Each string is one option. |
+| `FIXME` or `NOTE`  | No       | Strings, for when you want to leave a note.  |
 
 ## Keywords.json
 

@@ -106,6 +106,7 @@ enum class DescriptorID : @descriptor_id_underlying_type@ {
         member_generator.appendln("    @name:titlecase@,");
     }
     generator.append(R"~~~(
+    Custom,
 };
 
 Optional<DescriptorID> descriptor_id_from_string(AtRuleID, StringView);
@@ -197,6 +198,13 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, StringView
     case AtRuleID::@at_rule:titlecase@:
 )~~~");
 
+        if (at_rule.has_object("custom-descriptors"sv)) {
+            at_rule_generator.append(R"~~~(
+        if (is_a_custom_property_name_string(string))
+            return DescriptorID::Custom;
+)~~~");
+        }
+
         auto const& descriptors = at_rule.get_object("descriptors"sv).value();
 
         descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
@@ -242,6 +250,8 @@ FlyString to_string(DescriptorID descriptor_id)
     }
 
     generator.append(R"~~~(
+    case DescriptorID::Custom:
+        VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
 }
@@ -270,6 +280,12 @@ bool at_rule_supports_descriptor(AtRuleID at_rule_id, DescriptorID descriptor_id
             descriptor_generator.set("descriptor:titlecase", title_casify(descriptor_name));
             descriptor_generator.appendln("        case DescriptorID::@descriptor:titlecase@:");
         });
+
+        if (at_rule.has_object("custom-descriptors"sv)) {
+            at_rule_generator.append(R"~~~(
+        case DescriptorID::Custom:
+)~~~");
+        }
 
         at_rule_generator.append(R"~~~(
             return true;
@@ -323,7 +339,7 @@ RefPtr<StyleValue const> descriptor_initial_value(AtRuleID at_rule_id, Descripto
                 descriptor_generator.set("initial_value_string", initial_value.value());
                 descriptor_generator.append(R"~~~(
         case DescriptorID::@descriptor:titlecase@: {
-            auto parsed_value = parse_css_descriptor(parsing_params, AtRuleID::@at_rule:titlecase@, DescriptorID::@descriptor:titlecase@, "@initial_value_string@"sv);
+            auto parsed_value = parse_css_descriptor(parsing_params, AtRuleID::@at_rule:titlecase@, DescriptorNameAndID::from_id(DescriptorID::@descriptor:titlecase@), "@initial_value_string@"sv);
             VERIFY(!parsed_value.is_null());
             auto initial_value = parsed_value.release_nonnull();
             initial_values[to_underlying(at_rule_id)][to_underlying(descriptor_id)] = initial_value;
@@ -365,19 +381,7 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
         switch (descriptor_id) {
 )~~~");
 
-        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
-        descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
-            auto const& descriptor = descriptor_value.as_object();
-            if (is_legacy_alias(descriptor))
-                return;
-
-            auto descriptor_generator = at_rule_generator.fork();
-            descriptor_generator.set("descriptor:titlecase", title_casify(descriptor_name));
-            descriptor_generator.append(R"~~~(
-        case DescriptorID::@descriptor:titlecase@: {
-            DescriptorMetadata metadata;
-)~~~");
-            auto const& syntax = descriptor.get_array("syntax"sv).value();
+        auto const generate_syntax_list = [&](SourceGenerator& descriptor_generator, JsonArray const& syntax) {
             for (auto const& entry : syntax.values()) {
                 auto option_generator = descriptor_generator.fork();
                 auto const& syntax_string = entry.as_string();
@@ -446,11 +450,45 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
 )~~~");
                 }
             }
+        };
+
+        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
+            auto const& descriptor = descriptor_value.as_object();
+            if (is_legacy_alias(descriptor))
+                return;
+
+            auto descriptor_generator = at_rule_generator.fork();
+            descriptor_generator.set("descriptor:titlecase", title_casify(descriptor_name));
+            descriptor_generator.append(R"~~~(
+        case DescriptorID::@descriptor:titlecase@: {
+            DescriptorMetadata metadata;
+)~~~");
+            auto const& syntax = descriptor.get_array("syntax"sv).value();
+
+            generate_syntax_list(descriptor_generator, syntax);
+
             descriptor_generator.append(R"~~~(
             return metadata;
         }
 )~~~");
         });
+
+        if (at_rule.has_object("custom-descriptors"sv)) {
+            auto const& custom_descriptors = at_rule.get_object("custom-descriptors"sv).value();
+
+            auto custom_descriptor_generator = at_rule_generator.fork();
+            custom_descriptor_generator.append(R"~~~(
+        case DescriptorID::Custom: {
+            DescriptorMetadata metadata;
+)~~~");
+            auto const& syntax = custom_descriptors.get_array("syntax"sv).value();
+            generate_syntax_list(custom_descriptor_generator, syntax);
+            custom_descriptor_generator.append(R"~~~(
+            return metadata;
+        }
+)~~~");
+        }
 
         at_rule_generator.append(R"~~~(
         default:

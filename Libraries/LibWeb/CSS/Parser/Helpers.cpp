@@ -89,11 +89,11 @@ RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& c
     return CSS::Parser::Parser::create(context, string).parse_as_type(value_type);
 }
 
-RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorID descriptor_id, StringView string)
+RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorNameAndID const& descriptor_name_and_id, StringView string)
 {
     if (string.is_empty())
         return nullptr;
-    return CSS::Parser::Parser::create(parsing_params, string).parse_as_descriptor_value(at_rule_id, descriptor_id);
+    return CSS::Parser::Parser::create(parsing_params, string).parse_as_descriptor_value(at_rule_id, descriptor_name_and_id);
 }
 
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const& context, StringView css_text)

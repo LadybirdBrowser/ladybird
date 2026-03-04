@@ -685,7 +685,7 @@ void dump_descriptors(StringBuilder& builder, CSS::CSSDescriptors const& descrip
     builder.appendff("Declarations ({}):\n", descriptors.length());
     for (auto const& descriptor : descriptors.descriptors()) {
         dump_indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", CSS::to_string(descriptor.descriptor_id), descriptor.value->to_string(CSS::SerializationMode::Normal));
+        builder.appendff("  {}: '{}'", descriptor.descriptor_name_and_id.name(), descriptor.value->to_string(CSS::SerializationMode::Normal));
         builder.append('\n');
     }
 }

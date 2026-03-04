@@ -56,8 +56,8 @@ public:
 
     void append(Descriptor&& descriptor)
     {
-        if (is_shorthand(m_at_rule, descriptor.descriptor_id)) {
-            for_each_expanded_longhand(m_at_rule, descriptor.descriptor_id, descriptor.value, [this](auto longhand_id, auto longhand_value) {
+        if (is_shorthand(m_at_rule, descriptor.descriptor_name_and_id)) {
+            for_each_expanded_longhand(m_at_rule, descriptor.descriptor_name_and_id, descriptor.value, [this](auto longhand_id, auto longhand_value) {
                 append_internal(Descriptor { longhand_id, longhand_value.release_nonnull() });
             });
             return;
@@ -74,19 +74,19 @@ public:
 private:
     void append_internal(Descriptor&& descriptor)
     {
-        if (m_seen_descriptor_ids.contains(descriptor.descriptor_id)) {
+        if (m_seen_descriptor_ids.contains(descriptor.descriptor_name_and_id)) {
             m_descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
-                return existing.descriptor_id == descriptor.descriptor_id;
+                return existing.descriptor_name_and_id == descriptor.descriptor_name_and_id;
             });
         } else {
-            m_seen_descriptor_ids.set(descriptor.descriptor_id);
+            m_seen_descriptor_ids.set(descriptor.descriptor_name_and_id);
         }
         m_descriptors.append(move(descriptor));
     }
 
     AtRuleID m_at_rule;
     Vector<Descriptor> m_descriptors;
-    HashTable<DescriptorID> m_seen_descriptor_ids;
+    HashTable<DescriptorNameAndID> m_seen_descriptor_ids;
 };
 
 GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
@@ -756,12 +756,12 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     rule.for_each_as_declaration_list([&](auto& declaration) {
         if (auto descriptor = convert_to_descriptor(AtRuleID::Property, declaration); descriptor.has_value()) {
-            if (descriptor->descriptor_id == DescriptorID::Syntax) {
+            if (descriptor->descriptor_name_and_id.id() == DescriptorID::Syntax) {
                 if (descriptor->value->is_string())
                     syntax_maybe = descriptor->value->as_string().string_value();
                 return;
             }
-            if (descriptor->descriptor_id == DescriptorID::Inherits) {
+            if (descriptor->descriptor_name_and_id.id() == DescriptorID::Inherits) {
                 switch (descriptor->value->to_keyword()) {
                 case Keyword::True:
                     inherits_maybe = true;
@@ -774,7 +774,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
                 }
                 return;
             }
-            if (descriptor->descriptor_id == DescriptorID::InitialValue) {
+            if (descriptor->descriptor_name_and_id.id() == DescriptorID::InitialValue) {
                 initial_value_maybe = *descriptor->value;
                 return;
             }
@@ -893,7 +893,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
         if (!descriptor.has_value())
             return;
 
-        switch (descriptor->descriptor_id) {
+        switch (descriptor->descriptor_name_and_id.id()) {
         case DescriptorID::System:
             system = descriptor->value;
             break;

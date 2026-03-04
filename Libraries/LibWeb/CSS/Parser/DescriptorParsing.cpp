@@ -22,17 +22,17 @@
 
 namespace Web::CSS::Parser {
 
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id, TokenStream<ComponentValue>& unprocessed_tokens)
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorNameAndID const& descriptor_name_and_id, TokenStream<ComponentValue>& unprocessed_tokens)
 {
-    if (!at_rule_supports_descriptor(at_rule_id, descriptor_id)) {
+    if (!at_rule_supports_descriptor(at_rule_id, descriptor_name_and_id.id())) {
         ErrorReporter::the().report(UnknownPropertyError {
             .rule_name = to_string(at_rule_id),
-            .property_name = to_string(descriptor_id),
+            .property_name = descriptor_name_and_id.name(),
         });
         return ParseError::SyntaxError;
     }
 
-    auto context_guard = push_temporary_value_parsing_context(DescriptorContext { at_rule_id, descriptor_id });
+    auto context_guard = push_temporary_value_parsing_context(DescriptorContext { at_rule_id, descriptor_name_and_id.id() });
 
     Vector<ComponentValue> component_values;
     while (unprocessed_tokens.has_next_token()) {
@@ -48,7 +48,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
         : Optional<ComputationContext> {};
 
     TokenStream tokens { component_values };
-    auto metadata = get_descriptor_metadata(at_rule_id, descriptor_id);
+    auto metadata = get_descriptor_metadata(at_rule_id, descriptor_name_and_id.id());
     for (auto const& option : metadata.syntax) {
         auto transaction = tokens.begin_transaction();
         auto parsed_style_value = option.visit(
@@ -415,7 +415,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
     ErrorReporter::the().report(InvalidPropertyError {
         .rule_name = to_string(at_rule_id),
-        .property_name = to_string(descriptor_id),
+        .property_name = descriptor_name_and_id.name(),
         .value_string = tokens.dump_string(),
         .description = "Failed to parse."_string,
     });
@@ -425,16 +425,16 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
 Optional<Descriptor> Parser::convert_to_descriptor(AtRuleID at_rule_id, Declaration const& declaration)
 {
-    auto descriptor_id = descriptor_id_from_string(at_rule_id, declaration.name);
-    if (!descriptor_id.has_value())
+    auto descriptor_name_and_id = DescriptorNameAndID::from_name(at_rule_id, declaration.name);
+    if (!descriptor_name_and_id.has_value())
         return {};
 
     auto value_token_stream = TokenStream(declaration.value);
-    auto value = parse_descriptor_value(at_rule_id, descriptor_id.value(), value_token_stream);
+    auto value = parse_descriptor_value(at_rule_id, descriptor_name_and_id.value(), value_token_stream);
     if (value.is_error())
         return {};
 
-    return Descriptor { *descriptor_id, value.release_value() };
+    return Descriptor { descriptor_name_and_id.value(), value.release_value() };
 }
 
 }

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <LibWeb/CSS/DescriptorID.h>
+#include <LibWeb/CSS/DescriptorNameAndID.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -15,7 +15,7 @@ namespace Web::CSS {
 struct Descriptor {
     ~Descriptor();
 
-    DescriptorID descriptor_id;
+    DescriptorNameAndID descriptor_name_and_id;
     NonnullRefPtr<StyleValue const> value;
 };
 
