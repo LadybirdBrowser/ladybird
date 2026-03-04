@@ -30,4 +30,3 @@ JS bytecode executable "f"
 [ 170]       Jump target:@c0
 [ 178]    9: IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
 [ 190]       Jump target:@160
-

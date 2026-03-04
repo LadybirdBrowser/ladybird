@@ -10,7 +10,7 @@ JS bytecode executable "test"
 [   8]       GetByValue dst:reg5, base:arg0, property:Int32(3), base_identifier:c
 [  20]       Mov dst:reg6, src:Int32(3)
 [  30]       PostfixIncrement dst:reg7, src:reg5
-[  40]       PutNormalByValue base:arg0, property:reg6, src:reg5
+[  40]       PutByValue base:arg0, property:reg6, src:reg5, kind:Normal
 [  58]       GetGlobal dst:reg6, identifier:foo
 [  68]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[arg0]
 [  90]       End value:Undefined

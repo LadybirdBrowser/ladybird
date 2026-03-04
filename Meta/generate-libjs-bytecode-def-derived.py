@@ -538,6 +538,11 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
             lines.append("")
             continue
 
+        if t == "PutKind":
+            lines.append(f'    append_piece(ByteString::formatted("{label}:{{}}", put_kind_to_string({f.name})));')
+            lines.append("")
+            continue
+
         # other types (enums, refs, etc.) skipped
 
     lines.append("    return builder.to_byte_string();")
@@ -585,6 +590,7 @@ def generate_op_h(ops: List[OpDef]) -> str:
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Operand.h>
+#include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Bytecode/RegexTable.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Bytecode/ScopedOperand.h>

@@ -162,7 +162,7 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
     Strict strict = Strict::No;
     if (auto function = vm().running_execution_context().function; function && function->is_strict_mode())
         strict = Strict::Yes;
-    return Bytecode::put_by_property_key<Bytecode::PutKind::Normal>(vm(), this, this, value, {}, property_key, strict, &cache);
+    return Bytecode::put_by_property_key(vm(), this, this, value, {}, property_key, Bytecode::PutKind::Normal, strict, &cache);
 }
 
 // 7.3.5 CreateDataProperty ( O, P, V ), https://tc39.es/ecma262/#sec-createdataproperty

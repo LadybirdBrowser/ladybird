@@ -140,6 +140,7 @@ fn field_type_info(ty: &str) -> FieldType {
         "Completion::Type" => ("u32", 4, 4, "u32"),
         "IteratorHint" => ("u32", 4, 4, "u32"),
         "EnvironmentMode" => ("u32", 4, 4, "u32"),
+        "PutKind" => ("u32", 4, 4, "u32"),
         "ArgumentsKind" => ("u32", 4, 4, "u32"),
         "Value" => ("u64", 8, 8, "u64"),
         _ => unreachable!("Unknown field type: {ty}"),

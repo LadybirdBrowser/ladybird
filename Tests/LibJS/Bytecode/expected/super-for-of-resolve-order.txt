@@ -20,17 +20,17 @@ JS bytecode executable "C"
 [  78]    3: Catch dst:reg9
 [  80]       SetLexicalEnvironment environment:reg4
 [  88]       Mov dst:reg5, src:Int32(1)
-[  98]    4: JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@e0, false_target:@100
+[  98]    4: JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@e8, false_target:@108
 [  b0]    5: ResolveThisBinding
 [  b8]       ResolveSuperBase dst:reg12
-[  c0]       PutNormalByIdWithThis base:reg12, this_value:this, property:prop, src:reg10
-[  d8]       Jump target:@50
-[  e0]    6: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-[  f8]       Throw src:reg9
-[ 100]    7: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-[ 118]       JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@130, false_target:@138
-[ 130]    8: Return value:reg9
-[ 138]    9: Throw src:reg9
+[  c0]       PutByIdWithThis base:reg12, this_value:this, property:prop, src:reg10, kind:Normal
+[  e0]       Jump target:@50
+[  e8]    6: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+[ 100]       Throw src:reg9
+[ 108]    7: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+[ 120]       JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@138, false_target:@140
+[ 138]    8: Return value:reg9
+[ 140]    9: Throw src:reg9
 
 Exception handlers:
-    from   b0 to   e0 handler   78
+    from   b0 to   e8 handler   78

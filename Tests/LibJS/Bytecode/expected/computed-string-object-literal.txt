@@ -27,5 +27,5 @@ JS bytecode executable "dynamic"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       NewObject dst:reg5
 [  18]       ToPrimitiveWithStringHint dst:arg0, value:arg0
-[  28]       PutOwnByValue base:reg5, property:arg0, src:Int32(1)
+[  28]       PutByValue base:reg5, property:arg0, src:Int32(1), kind:Own
 [  40]       Return value:reg5

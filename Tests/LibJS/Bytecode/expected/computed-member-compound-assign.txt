@@ -15,7 +15,7 @@ JS bytecode executable "compound_computed"
 [   8]       GetByValue dst:reg5, base:arg0, property:arg1, base_identifier:obj
 [  20]       Mov dst:reg6, src:arg1
 [  30]       Add dst:reg7, lhs:reg5, rhs:Int32(1)
-[  40]       PutNormalByValue base:arg0, property:reg6, src:reg7
+[  40]       PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
 [  58]       End value:Undefined
 
 JS bytecode executable "compound_then_assign"
@@ -23,6 +23,6 @@ JS bytecode executable "compound_then_assign"
 [   8]       GetByValue dst:reg5, base:arg0, property:arg1, base_identifier:imag
 [  20]       Mov dst:reg6, src:arg1
 [  30]       Add dst:reg7, lhs:reg5, rhs:Int32(0)
-[  40]       PutNormalByValue base:arg0, property:reg6, src:reg7
-[  58]       PutNormalByValue base:arg0, property:arg1, src:arg1, base_identifier:imag
+[  40]       PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+[  58]       PutByValue base:arg0, property:arg1, src:arg1, kind:Normal, base_identifier:imag
 [  70]       End value:Undefined

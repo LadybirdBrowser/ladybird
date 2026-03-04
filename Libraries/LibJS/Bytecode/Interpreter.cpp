@@ -485,15 +485,10 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(PostfixDecrement);
             HANDLE_INSTRUCTION(PostfixIncrement);
 
-#define HANDLE_PUT_KIND_BY_ID(kind) HANDLE_INSTRUCTION(Put##kind##ById);
-#define HANDLE_PUT_KIND_BY_VALUE(kind) HANDLE_INSTRUCTION(Put##kind##ByValue);
-#define HANDLE_PUT_KIND_BY_VALUE_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByValueWithThis);
-#define HANDLE_PUT_KIND_BY_ID_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByIdWithThis);
-
-            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_ID)
-            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_ID_WITH_THIS)
-            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_VALUE)
-            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_VALUE_WITH_THIS)
+            HANDLE_INSTRUCTION(PutById);
+            HANDLE_INSTRUCTION(PutByIdWithThis);
+            HANDLE_INSTRUCTION(PutByValue);
+            HANDLE_INSTRUCTION(PutByValueWithThis);
 
             HANDLE_INSTRUCTION(PutBySpread);
             HANDLE_INSTRUCTION(PutPrivateById);
@@ -926,8 +921,7 @@ inline Value new_function(Interpreter& interpreter, u32 shared_function_data_ind
     return function;
 }
 
-template<PutKind kind>
-inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const base_identifier, Value property_key_value, Value value, Strict strict)
+inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const base_identifier, Value property_key_value, Value value, PutKind kind, Strict strict)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
     if (kind == PutKind::Normal
@@ -1039,7 +1033,7 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16Fl
     }
 
     auto property_key = TRY(property_key_value.to_property_key(vm));
-    TRY(put_by_property_key<kind>(vm, base, base, value, base_identifier, property_key, strict));
+    TRY(put_by_property_key(vm, base, base, value, base_identifier, property_key, kind, strict));
     return {};
 }
 
@@ -2349,34 +2343,28 @@ ThrowCompletionOr<void> PutBySpread::execute_impl(Bytecode::Interpreter& interpr
     return {};
 }
 
-#define DEFINE_PUT_KIND_BY_ID(kind)                                                                                      \
-    ThrowCompletionOr<void> Put##kind##ById::execute_impl(Bytecode::Interpreter& interpreter) const                      \
-    {                                                                                                                    \
-        auto& vm = interpreter.vm();                                                                                     \
-        auto value = interpreter.get(m_src);                                                                             \
-        auto base = interpreter.get(m_base);                                                                             \
-        auto const& base_identifier = interpreter.get_identifier(m_base_identifier);                                     \
-        auto const& property_key = interpreter.get_property_key(m_property);                                             \
-        auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];                     \
-        TRY(put_by_property_key<PutKind::kind>(vm, base, base, value, base_identifier, property_key, strict(), &cache)); \
-        return {};                                                                                                       \
-    }
+ThrowCompletionOr<void> PutById::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto value = interpreter.get(m_src);
+    auto base = interpreter.get(m_base);
+    auto const& base_identifier = interpreter.get_identifier(m_base_identifier);
+    auto const& property_key = interpreter.get_property_key(m_property);
+    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
+    TRY(put_by_property_key(vm, base, base, value, base_identifier, property_key, m_kind, strict(), &cache));
+    return {};
+}
 
-JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_ID)
-
-#define DEFINE_PUT_KIND_BY_ID_WITH_THIS(kind)                                                                                \
-    ThrowCompletionOr<void> Put##kind##ByIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const                  \
-    {                                                                                                                        \
-        auto& vm = interpreter.vm();                                                                                         \
-        auto value = interpreter.get(m_src);                                                                                 \
-        auto base = interpreter.get(m_base);                                                                                 \
-        auto const& name = interpreter.get_property_key(m_property);                                                         \
-        auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];                         \
-        TRY(put_by_property_key<PutKind::kind>(vm, base, interpreter.get(m_this_value), value, {}, name, strict(), &cache)); \
-        return {};                                                                                                           \
-    }
-
-JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_ID_WITH_THIS)
+ThrowCompletionOr<void> PutByIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto value = interpreter.get(m_src);
+    auto base = interpreter.get(m_base);
+    auto const& name = interpreter.get_property_key(m_property);
+    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
+    TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, name, m_kind, strict(), &cache));
+    return {};
+}
 
 ThrowCompletionOr<void> PutPrivateById::execute_impl(Bytecode::Interpreter& interpreter) const
 {
@@ -2498,7 +2486,7 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
 }
 
 template<CallType call_type>
-static ThrowCompletionOr<void> execute_call(
+NEVER_INLINE static ThrowCompletionOr<void> execute_call(
     Bytecode::Interpreter& interpreter,
     Value callee,
     Value this_value,
@@ -2568,7 +2556,7 @@ ThrowCompletionOr<void> CallBuiltin::execute_impl(Bytecode::Interpreter& interpr
 }
 
 template<CallType call_type>
-static ThrowCompletionOr<void> call_with_argument_array(
+NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(
     Bytecode::Interpreter& interpreter,
     Value callee,
     Value this_value,
@@ -2878,33 +2866,27 @@ ThrowCompletionOr<void> GetByValueWithThis::execute_impl(Bytecode::Interpreter& 
     return {};
 }
 
-#define DEFINE_PUT_KIND_BY_VALUE(kind)                                                                 \
-    ThrowCompletionOr<void> Put##kind##ByValue::execute_impl(Bytecode::Interpreter& interpreter) const \
-    {                                                                                                  \
-        auto& vm = interpreter.vm();                                                                   \
-        auto value = interpreter.get(m_src);                                                           \
-        auto base = interpreter.get(m_base);                                                           \
-        auto const& base_identifier = interpreter.get_identifier(m_base_identifier);                   \
-        auto property = interpreter.get(m_property);                                                   \
-        TRY(put_by_value<PutKind::kind>(vm, base, base_identifier, property, value, strict()));        \
-        return {};                                                                                     \
-    }
+ThrowCompletionOr<void> PutByValue::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto value = interpreter.get(m_src);
+    auto base = interpreter.get(m_base);
+    auto const& base_identifier = interpreter.get_identifier(m_base_identifier);
+    auto property = interpreter.get(m_property);
+    TRY(put_by_value(vm, base, base_identifier, property, value, m_kind, strict()));
+    return {};
+}
 
-JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_VALUE)
-
-#define DEFINE_PUT_KIND_BY_VALUE_WITH_THIS(kind)                                                               \
-    ThrowCompletionOr<void> Put##kind##ByValueWithThis::execute_impl(Bytecode::Interpreter& interpreter) const \
-    {                                                                                                          \
-        auto& vm = interpreter.vm();                                                                           \
-        auto value = interpreter.get(m_src);                                                                   \
-        auto base = interpreter.get(m_base);                                                                   \
-        auto this_value = interpreter.get(m_this_value);                                                       \
-        auto property_key = TRY(interpreter.get(m_property).to_property_key(vm));                              \
-        TRY(put_by_property_key<PutKind::kind>(vm, base, this_value, value, {}, property_key, strict()));      \
-        return {};                                                                                             \
-    }
-
-JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_VALUE_WITH_THIS)
+ThrowCompletionOr<void> PutByValueWithThis::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto value = interpreter.get(m_src);
+    auto base = interpreter.get(m_base);
+    auto this_value = interpreter.get(m_this_value);
+    auto property_key = TRY(interpreter.get(m_property).to_property_key(vm));
+    TRY(put_by_property_key(vm, base, this_value, value, {}, property_key, m_kind, strict()));
+    return {};
+}
 
 COLD ThrowCompletionOr<void> DeleteByValue::execute_impl(Bytecode::Interpreter& interpreter) const
 {

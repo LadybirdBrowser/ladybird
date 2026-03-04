@@ -197,8 +197,7 @@ COLD Completion throw_null_or_undefined_property_access(VM& vm, Value base_value
     return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefined);
 }
 
-template<PutKind kind>
-ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const base_identifier, PropertyKey const& name, Strict strict, PropertyLookupCache* caches = nullptr)
+inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const base_identifier, PropertyKey const& name, PutKind kind, Strict strict, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (strict == Strict::Yes && base.is_nullish()) [[unlikely]]
@@ -210,7 +209,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
         return throw_null_or_undefined_property_access(vm, base, base_identifier, name);
     auto object = maybe_object.release_value();
 
-    if constexpr (kind == PutKind::Getter || kind == PutKind::Setter) {
+    if (kind == PutKind::Getter || kind == PutKind::Setter) {
         // The generator should only pass us functions for getters and setters.
         VERIFY(value.is_function());
     }

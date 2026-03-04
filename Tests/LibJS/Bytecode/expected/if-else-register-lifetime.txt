@@ -28,12 +28,12 @@ JS bytecode executable "test"
 [ 138]    9: Mov dst:reg6, src:j~2
 [ 148]       Add dst:reg7, lhs:i~1, rhs:j~2
 [ 158]       GetByValue dst:reg8, base:arg0, property:reg7, base_identifier:x
-[ 170]       PutNormalByValue base:arg0, property:reg6, src:reg8, base_identifier:x
+[ 170]       PutByValue base:arg0, property:reg6, src:reg8, kind:Normal, base_identifier:x
 [ 188]       Jump target:@218
 [ 190]   10: Mov dst:reg6, src:j~2
 [ 1a0]       GetGlobal dst:reg8, identifier:parseInt
 [ 1b0]       Sub dst:reg9, lhs:j~2, rhs:Int32(3)
 [ 1c0]       GetByValue dst:reg10, base:arg0, property:reg9, base_identifier:x
 [ 1d8]       Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg10, Int32(1)]
-[ 200]       PutNormalByValue base:arg0, property:reg6, src:reg7, base_identifier:x
+[ 200]       PutByValue base:arg0, property:reg6, src:reg7, kind:Normal, base_identifier:x
 [ 218]   11: Jump target:@108

@@ -730,83 +730,21 @@ op PostfixIncrement < Instruction
     m_src: Operand
 endop
 
-op PutNormalById < Instruction
+op PutById < Instruction
     m_base: Operand
     m_property: PropertyKeyTableIndex
     m_src: Operand
+    m_kind: PutKind
     m_cache_index: u32
     m_base_identifier: Optional<IdentifierTableIndex>
 endop
 
-op PutOwnById < Instruction
-    m_base: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutGetterById < Instruction
-    m_base: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutSetterById < Instruction
-    m_base: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutPrototypeById < Instruction
-    m_base: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutNormalByIdWithThis < Instruction
+op PutByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
     m_property: PropertyKeyTableIndex
     m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutOwnByIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutGetterByIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutSetterByIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutPrototypeByIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: PropertyKeyTableIndex
-    m_src: Operand
+    m_kind: PutKind
     m_cache_index: u32
 endop
 
@@ -815,74 +753,20 @@ op PutBySpread < Instruction
     m_src: Operand
 endop
 
-op PutNormalByValue < Instruction
+op PutByValue < Instruction
     m_base: Operand
     m_property: Operand
     m_src: Operand
+    m_kind: PutKind
     m_base_identifier: Optional<IdentifierTableIndex>
 endop
 
-op PutOwnByValue < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_src: Operand
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutGetterByValue < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_src: Operand
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutSetterByValue < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_src: Operand
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutPrototypeByValue < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_src: Operand
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutNormalByValueWithThis < Instruction
+op PutByValueWithThis < Instruction
     m_base: Operand
     m_property: Operand
     m_this_value: Operand
     m_src: Operand
-endop
-
-op PutOwnByValueWithThis < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_this_value: Operand
-    m_src: Operand
-endop
-
-op PutGetterByValueWithThis < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_this_value: Operand
-    m_src: Operand
-endop
-
-op PutSetterByValueWithThis < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_this_value: Operand
-    m_src: Operand
-endop
-
-op PutPrototypeByValueWithThis < Instruction
-    m_base: Operand
-    m_property: Operand
-    m_this_value: Operand
-    m_src: Operand
+    m_kind: PutKind
 endop
 
 op PutPrivateById < Instruction

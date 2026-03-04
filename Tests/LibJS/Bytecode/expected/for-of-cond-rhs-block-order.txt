@@ -51,4 +51,3 @@ JS bytecode executable "f"
 
 Exception handlers:
     from  140 to  258 handler  108
-

@@ -27,8 +27,8 @@ JS bytecode executable "get_from_this"
 
 JS bytecode executable "set_on_this"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       PutNormalById base:this, property:bar, src:Int32(1), base_identifier:this
-[  20]       End value:Undefined
+[   8]       PutById base:this, property:bar, src:Int32(1), kind:Normal, base_identifier:this
+[  28]       End value:Undefined
 
 JS bytecode executable "chained_this_access"
 [   0]    0: GetLexicalEnvironment dst:reg4

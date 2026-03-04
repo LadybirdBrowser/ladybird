@@ -10,8 +10,8 @@ JS bytecode executable ""
 [  90]       JumpFalse condition:reg6, target:@b8
 [  a0]    1: Mov dst:reg11, src:Undefined
 [  b0]       Jump target:@b8
-[  b8]    2: PutNormalById base:reg10, property:y, src:reg11
-[  d0]       JumpFalse condition:reg6, target:@e8
-[  e0]    3: End value:reg5
-[  e8]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-[ 100]       End value:reg5
+[  b8]    2: PutById base:reg10, property:y, src:reg11, kind:Normal
+[  d8]       JumpFalse condition:reg6, target:@f0
+[  e8]    3: End value:reg5
+[  f0]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+[ 108]       End value:reg5
