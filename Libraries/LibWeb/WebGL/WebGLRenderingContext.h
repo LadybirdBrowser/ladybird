@@ -39,9 +39,6 @@ public:
     void set_size(Gfx::IntSize const&);
     void reset_to_default_state();
 
-    Optional<Vector<String>> get_supported_extensions();
-    JS::Object* get_extension(String const& name);
-
     WebIDL::Long drawing_buffer_width() const;
     WebIDL::Long drawing_buffer_height() const;
 
@@ -51,12 +48,6 @@ private:
     WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
-
-    virtual bool ext_texture_filter_anisotropic_extension_enabled() const override;
-    virtual bool angle_instanced_arrays_extension_enabled() const override;
-    virtual bool oes_standard_derivatives_extension_enabled() const override;
-    virtual bool webgl_draw_buffers_extension_enabled() const override;
-    virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const override;
 
     GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
 
@@ -71,20 +62,6 @@ private:
     // https://www.khronos.org/registry/webgl/specs/latest/1.0/#webgl-context-lost-flag
     // Each WebGLRenderingContext has a webgl context lost flag, which is initially unset.
     bool m_context_lost { false };
-
-    Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
-
-    // Extensions
-    // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
-    GC::Ptr<Extensions::ANGLEInstancedArrays> m_angle_instanced_arrays_extension;
-    GC::Ptr<Extensions::EXTBlendMinMax> m_ext_blend_min_max_extension;
-    GC::Ptr<Extensions::EXTTextureFilterAnisotropic> m_ext_texture_filter_anisotropic;
-    GC::Ptr<Extensions::OESElementIndexUint> m_oes_element_index_uint_object_extension;
-    GC::Ptr<Extensions::OESStandardDerivatives> m_oes_standard_derivatives_object_extension;
-    GC::Ptr<Extensions::OESVertexArrayObject> m_oes_vertex_array_object_extension;
-    GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
-    GC::Ptr<Extensions::WebGLCompressedTextureS3tcSrgb> m_webgl_compressed_texture_s3tc_srgb_extension;
-    GC::Ptr<Extensions::WebGLDrawBuffers> m_webgl_draw_buffers_extension;
 };
 
 void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type);

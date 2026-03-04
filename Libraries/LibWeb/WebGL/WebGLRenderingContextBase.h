@@ -9,6 +9,7 @@
 #include <LibGfx/BitmapExportResult.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -46,14 +47,19 @@ public:
 
     virtual OpenGLContext& context() = 0;
 
+    Optional<Vector<String>> get_supported_extensions();
+    JS::Object* get_extension(String const& name);
+
 protected:
     WebGLRenderingContextBase(JS::Realm&);
 
-    virtual bool ext_texture_filter_anisotropic_extension_enabled() const = 0;
-    virtual bool angle_instanced_arrays_extension_enabled() const = 0;
-    virtual bool oes_standard_derivatives_extension_enabled() const = 0;
-    virtual bool webgl_draw_buffers_extension_enabled() const = 0;
-    virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const = 0;
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    bool ext_texture_filter_anisotropic_extension_enabled() const;
+    bool angle_instanced_arrays_extension_enabled() const;
+    bool oes_standard_derivatives_extension_enabled() const;
+    bool webgl_draw_buffers_extension_enabled() const;
+    ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const;
 
     template<typename T>
     static ErrorOr<Span<T>> get_offset_span(Span<T> src_span, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override = 0)
@@ -165,6 +171,23 @@ protected:
 
 private:
     GLenum m_error { 0 };
+
+    Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
+
+    // Extensions
+    // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
+    GC::Ptr<Extensions::ANGLEInstancedArrays> m_angle_instanced_arrays_extension;
+    GC::Ptr<Extensions::EXTBlendMinMax> m_ext_blend_min_max_extension;
+    GC::Ptr<Extensions::EXTColorBufferFloat> m_ext_color_buffer_float_extension;
+    GC::Ptr<Extensions::EXTRenderSnorm> m_ext_render_snorm;
+    GC::Ptr<Extensions::EXTTextureFilterAnisotropic> m_ext_texture_filter_anisotropic;
+    GC::Ptr<Extensions::EXTTextureNorm16> m_ext_texture_norm16;
+    GC::Ptr<Extensions::OESElementIndexUint> m_oes_element_index_uint_object_extension;
+    GC::Ptr<Extensions::OESStandardDerivatives> m_oes_standard_derivatives_object_extension;
+    GC::Ptr<Extensions::OESVertexArrayObject> m_oes_vertex_array_object_extension;
+    GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
+    GC::Ptr<Extensions::WebGLCompressedTextureS3tcSrgb> m_webgl_compressed_texture_s3tc_srgb_extension;
+    GC::Ptr<Extensions::WebGLDrawBuffers> m_webgl_draw_buffers_extension;
 };
 
 }
