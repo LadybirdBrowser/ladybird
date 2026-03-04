@@ -121,6 +121,7 @@ public:
     bool allocates_function_environment() const { return shared_data().m_function_environment_needed; }
 
     friend class Bytecode::Generator;
+    friend class Bytecode::Interpreter;
 
 private:
     ECMAScriptFunctionObject(
