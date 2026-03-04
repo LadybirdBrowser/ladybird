@@ -24,7 +24,7 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::create_uninitialized(StorageType
         ? sizeof(Utf16StringData) + (sizeof(char) * code_unit_length)
         : sizeof(Utf16StringData) + (sizeof(char16_t) * code_unit_length);
 
-    void* slot = malloc(allocation_size);
+    void* slot = kmalloc(allocation_size);
     VERIFY(slot);
 
     return adopt_ref(*new (slot) Utf16StringData(storage_type, code_unit_length));

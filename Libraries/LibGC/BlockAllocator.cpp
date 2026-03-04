@@ -8,6 +8,7 @@
 #include <AK/Assertions.h>
 #include <AK/Platform.h>
 #include <AK/Random.h>
+#include <AK/Tracy.h>
 #include <AK/Vector.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/HeapBlock.h>
@@ -34,6 +35,7 @@ BlockAllocator::~BlockAllocator()
 {
     for (auto* block : m_blocks) {
         ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::BLOCK_SIZE);
+        TRACY_FREED_MEMORY_NAMED(block, "GC Blocks");
 #if defined(AK_OS_MACOS)
         kern_return_t kr = mach_vm_deallocate(mach_task_self(), reinterpret_cast<mach_vm_address_t>(block), HeapBlock::BLOCK_SIZE);
         VERIFY(kr == KERN_SUCCESS);
@@ -56,6 +58,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
         auto* block = m_blocks.unstable_take(random_index);
         ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::BLOCK_SIZE);
         LSAN_REGISTER_ROOT_REGION(block, HeapBlock::BLOCK_SIZE);
+        TRACY_ALLOCATED_MEMORY_NAMED(block, HeapBlock::BLOCK_SIZE, "GC Blocks");
 #if defined(MADV_FREE_REUSE) && defined(MADV_FREE_REUSABLE)
         if (madvise(block, HeapBlock::BLOCK_SIZE, MADV_FREE_REUSE) < 0) {
             perror("madvise(MADV_FREE_REUSE)");
@@ -90,6 +93,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
     VERIFY(rc == 0);
 #endif
     LSAN_REGISTER_ROOT_REGION(block, HeapBlock::BLOCK_SIZE);
+    TRACY_ALLOCATED_MEMORY_NAMED(block, HeapBlock::BLOCK_SIZE, "GC Blocks");
     return block;
 }
 
@@ -122,6 +126,7 @@ void BlockAllocator::deallocate_block(void* block)
 
     ASAN_POISON_MEMORY_REGION(block, HeapBlock::BLOCK_SIZE);
     LSAN_UNREGISTER_ROOT_REGION(block, HeapBlock::BLOCK_SIZE);
+    TRACY_FREED_MEMORY_NAMED(block, "GC Blocks");
     m_blocks.append(block);
 }
 

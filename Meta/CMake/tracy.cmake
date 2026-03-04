@@ -1,0 +1,18 @@
+if (ENABLE_TRACY OR ENABLE_TRACY_MEMORY)
+    find_package(Tracy CONFIG REQUIRED)
+    add_compile_definitions(TRACY_ENABLE)
+    if (ENABLE_TRACY_MEMORY)
+        add_compile_definitions(TRACY_ENABLE_MEMORY)
+    endif()
+    if (TRACY_CALLSTACK_DEPTH GREATER 0)
+        add_compile_definitions(TRACY_CALLSTACK=${TRACY_CALLSTACK_DEPTH})
+    endif()
+    add_cxx_compile_options(-fno-omit-frame-pointer)
+    # Tracy needs full debug info to resolve call stack symbols.
+    add_cxx_compile_options(-g2)
+    if (NOT APPLE)
+        # Export symbols from executables so Tracy can resolve call stack addresses.
+        add_link_options(-rdynamic)
+    endif()
+    link_libraries(Tracy::TracyClient)
+endif()

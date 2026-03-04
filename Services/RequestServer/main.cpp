@@ -8,6 +8,7 @@
 #include <AK/ByteString.h>
 #include <AK/Format.h>
 #include <AK/StringView.h>
+#include <AK/Tracy.h>
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
@@ -40,6 +41,7 @@ static void handle_signal(int signal)
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+    TRACY_SET_PROGRAM_NAME("RequestServer");
     AK::set_rich_debug_enabled(true);
 
     Vector<ByteString> certificates;

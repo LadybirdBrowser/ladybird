@@ -7,6 +7,7 @@
  */
 
 #include <AK/Badge.h>
+#include <AK/Tracy.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventLoopImplementation.h>
@@ -108,6 +109,7 @@ void EventLoop::spin_until(Function<bool()> goal_condition)
 
 size_t EventLoop::pump(WaitMode mode)
 {
+    TRACY_ZONE_SCOPED_NAMED("EventLoop::pump");
     return m_impl->pump(mode == WaitMode::WaitForEvents ? EventLoopImplementation::PumpMode::WaitForEvents : EventLoopImplementation::PumpMode::DontWaitForEvents);
 }
 

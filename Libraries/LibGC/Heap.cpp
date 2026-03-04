@@ -17,6 +17,7 @@
 #include <AK/StackInfo.h>
 #include <AK/StackUnwinder.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Tracy.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
@@ -75,6 +76,11 @@ void Heap::will_allocate(size_t size)
     }
 
     m_allocated_bytes_since_last_gc += size;
+
+#if defined(TRACY_ENABLE_MEMORY)
+    m_live_heap_size += size;
+    TRACY_PLOT("Live GC Heap Size", static_cast<i64>(m_live_heap_size));
+#endif
 }
 
 static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr min_block_address, FlatPtr max_block_address)
@@ -295,6 +301,7 @@ AK::JsonObject Heap::dump_graph()
 
 void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
+    TRACY_ZONE_SCOPED_NAMED("GC::Heap::collect_garbage");
     VERIFY(!m_collecting_garbage);
 
     {
@@ -407,6 +414,7 @@ void Heap::enqueue_post_gc_task(AK::Function<void()> task)
 
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
 {
+    TRACY_ZONE_SCOPED_NAMED("GC::Heap::gather_roots");
     for_each_block([&](auto& block) {
         all_live_heap_blocks.set(&block);
 
@@ -670,6 +678,7 @@ private:
 
 void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots, HashTable<HeapBlock*> const& all_live_heap_blocks)
 {
+    TRACY_ZONE_SCOPED_NAMED("GC::Heap::mark_live_cells");
     dbgln_if(HEAP_DEBUG, "mark_live_cells:");
 
     MarkingVisitor visitor(*this, roots, all_live_heap_blocks);
@@ -712,6 +721,7 @@ void Heap::sweep_weak_blocks()
 
 void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measurement_timer)
 {
+    TRACY_ZONE_SCOPED_NAMED("GC::Heap::sweep_dead_cells");
     dbgln_if(HEAP_DEBUG, "sweep_dead_cells:");
     Vector<HeapBlock*, 32> empty_blocks;
     Vector<HeapBlock*, 32> full_blocks_that_became_usable;
@@ -765,6 +775,11 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     }
 
     m_gc_bytes_threshold = live_cell_bytes > GC_MIN_BYTES_THRESHOLD ? live_cell_bytes : GC_MIN_BYTES_THRESHOLD;
+
+#if defined(TRACY_ENABLE_MEMORY)
+    m_live_heap_size = live_cell_bytes;
+    TRACY_PLOT("Live GC Heap Size", static_cast<i64>(m_live_heap_size));
+#endif
 
     if (print_report) {
         AK::Duration const time_spent = measurement_timer.elapsed_time();

@@ -157,6 +157,10 @@ private:
     size_t m_gc_bytes_threshold { GC_MIN_BYTES_THRESHOLD };
     size_t m_allocated_bytes_since_last_gc { 0 };
 
+#if defined(TRACY_ENABLE_MEMORY)
+    size_t m_live_heap_size { 0 };
+#endif
+
     bool m_should_collect_on_every_allocation { false };
 
     Vector<NonnullOwnPtr<CellAllocator>> m_size_based_cell_allocators;

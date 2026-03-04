@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/HashTable.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Tracy.h>
 #include <LibGC/RootHashMap.h>
 #include <LibJS/AST.h>
 #include <LibJS/Bytecode/BasicBlock.h>
@@ -232,13 +233,26 @@ Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_
 
 void Interpreter::run_bytecode(size_t entry_point)
 {
+    auto& executable = current_executable();
+    TRACY_ZONE_SCOPED();
+
+#if defined(TRACY_ENABLE)
+    if (executable.name.is_ascii()) {
+        auto name_view = executable.name.view();
+        auto name_span = name_view.ascii_span();
+        TRACY_SET_ZONE_NAME(name_span.data(), name_span.size());
+    } else {
+        constexpr auto FunctionName = "JS::Interpreter::run_bytecode()"sv;
+        TRACY_SET_ZONE_NAME(FunctionName.characters_without_null_termination(), FunctionName.length());
+    }
+#endif
+
     if (vm().did_reach_stack_space_limit()) [[unlikely]] {
         reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
         return;
     }
 
     auto& running_execution_context = this->running_execution_context();
-    auto& executable = current_executable();
     auto const* bytecode = executable.bytecode.data();
 
     u32& program_counter = running_execution_context.program_counter;
