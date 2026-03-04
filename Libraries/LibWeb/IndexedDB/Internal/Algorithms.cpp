@@ -858,6 +858,11 @@ WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm& target_realm, JS::Value
     // 2. Set transaction’s state to inactive.
     transaction->set_state(IDBTransaction::TransactionState::Inactive);
 
+    // AD-HOC: Always reset the transaction state to active. Otherwise, passing an unserializable value to put()
+    //         will prevent any further requests on the transaction.
+    //         https://github.com/w3c/IndexedDB/issues/490
+    ScopeGuard reset_state([&] { transaction->set_state(IDBTransaction::TransactionState::Active); });
+
     // 3. Let serialized be ? StructuredSerializeForStorage(value).
     auto serialized = TRY(HTML::structured_serialize_for_storage(vm, value));
 
@@ -865,7 +870,7 @@ WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm& target_realm, JS::Value
     auto clone = TRY(HTML::structured_deserialize(vm, serialized, target_realm));
 
     // 5. Set transaction’s state to active.
-    transaction->set_state(IDBTransaction::TransactionState::Active);
+    // NB: This is handled by the scope guard after step 2.
 
     // 6. Return clone.
     return clone;
@@ -2175,6 +2180,7 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
                     has_matching_event_loop = true;
 
                     // 1. Set transaction’s state to inactive.
+                    VERIFY(transaction->state() == IDBTransaction::TransactionState::Active);
                     transaction->set_state(IDBTransaction::TransactionState::Inactive);
 
                     // 2. Clear transaction’s cleanup event loop.
