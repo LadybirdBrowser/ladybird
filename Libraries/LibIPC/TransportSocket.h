@@ -19,7 +19,7 @@ namespace IPC {
 
 class SendQueue : public AtomicRefCounted<SendQueue> {
 public:
-    void enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds);
+    void enqueue_message(ReadonlyBytes header, ReadonlyBytes payload, Vector<int>&& fds);
     struct BytesAndFds {
         Vector<u8> bytes;
         Vector<int> fds;

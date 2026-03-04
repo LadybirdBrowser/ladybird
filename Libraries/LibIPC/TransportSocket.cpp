@@ -16,10 +16,11 @@
 
 namespace IPC {
 
-void SendQueue::enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds)
+void SendQueue::enqueue_message(ReadonlyBytes header, ReadonlyBytes payload, Vector<int>&& fds)
 {
     Threading::MutexLocker locker(m_mutex);
-    VERIFY(MUST(m_stream.write_some(bytes.span())) == bytes.size());
+    VERIFY(MUST(m_stream.write_some(header)) == header.size());
+    VERIFY(MUST(m_stream.write_some(payload)) == payload.size());
     m_fds.append(fds.data(), fds.size());
 }
 
@@ -221,28 +222,17 @@ struct MessageHeader {
     Type type { Type::Payload };
     u32 payload_size { 0 };
     u32 fd_count { 0 };
-
-    static Vector<u8> encode_with_payload(MessageHeader header, ReadonlyBytes payload)
-    {
-        Vector<u8> message_buffer;
-        message_buffer.resize(sizeof(MessageHeader) + payload.size());
-        memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
-        memcpy(message_buffer.data() + sizeof(MessageHeader), payload.data(), payload.size());
-        return message_buffer;
-    }
 };
 
 void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const& fds)
 {
     auto num_fds_to_transfer = fds.size();
 
-    auto message_buffer = MessageHeader::encode_with_payload(
-        {
-            .type = MessageHeader::Type::Payload,
-            .payload_size = static_cast<u32>(bytes_to_write.size()),
-            .fd_count = static_cast<u32>(num_fds_to_transfer),
-        },
-        bytes_to_write);
+    MessageHeader header {
+        .type = MessageHeader::Type::Payload,
+        .payload_size = static_cast<u32>(bytes_to_write.size()),
+        .fd_count = static_cast<u32>(num_fds_to_transfer),
+    };
 
     {
         Threading::MutexLocker locker(m_fds_retained_until_received_by_peer_mutex);
@@ -258,7 +248,7 @@ void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<Nonn
         }
     }
 
-    m_send_queue->enqueue_message(move(message_buffer), move(raw_fds));
+    m_send_queue->enqueue_message({ reinterpret_cast<u8 const*>(&header), sizeof(header) }, bytes_to_write, move(raw_fds));
     wake_io_thread();
 }
 
@@ -441,14 +431,12 @@ void TransportSocket::read_incoming_messages()
     }
 
     if (received_fd_count > 0u) {
-        Vector<u8> message_buffer;
-        message_buffer.resize(sizeof(MessageHeader));
-        MessageHeader header;
-        header.payload_size = 0;
-        header.fd_count = received_fd_count.value();
-        header.type = MessageHeader::Type::FileDescriptorAcknowledgement;
-        memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
-        m_send_queue->enqueue_message(move(message_buffer), {});
+        MessageHeader header {
+            .type = MessageHeader::Type::FileDescriptorAcknowledgement,
+            .payload_size = 0,
+            .fd_count = received_fd_count.value(),
+        };
+        m_send_queue->enqueue_message({ reinterpret_cast<u8 const*>(&header), sizeof(header) }, {}, {});
         wake_io_thread();
     }
 
