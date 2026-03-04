@@ -1,0 +1,55 @@
+Harness status: OK
+
+Found 49 tests
+
+10 Pass
+39 Fail
+Pass	#1 Reinitialize the default imports
+Fail	#2 Test that WebAssembly compilation succeeds (call_ref.wast:1)
+Fail	#3 Test that WebAssembly compilation succeeds (call_ref.wast:129)
+Fail	#4 Test that WebAssembly compilation succeeds (call_ref.wast:138)
+Fail	#5 Test that WebAssembly compilation succeeds (call_ref.wast:151)
+Pass	#6 Test that WebAssembly compilation fails (call_ref.wast:167)
+Pass	#7 Test that WebAssembly compilation fails (call_ref.wast:183)
+Pass	#8 Test that WebAssembly compilation fails (call_ref.wast:200)
+Pass	#9 Test that WebAssembly compilation fails (call_ref.wast:210)
+Pass	#10 Reinitialize the default imports
+Fail	#11 Test that WebAssembly compilation succeeds (call_ref.wast:1)
+Fail	#12 Test that WebAssembly instantiation succeeds
+Fail	#13 Test that a WebAssembly code returns a specific result (call_ref.wast:94)
+Fail	#14 Test that a WebAssembly code returns a specific result (call_ref.wast:95)
+Fail	#15 Test that a WebAssembly code traps (call_ref.wast:97)
+Fail	#16 Test that a WebAssembly code returns a specific result (call_ref.wast:99)
+Fail	#17 Test that a WebAssembly code returns a specific result (call_ref.wast:100)
+Fail	#18 Test that a WebAssembly code returns a specific result (call_ref.wast:101)
+Fail	#19 Test that a WebAssembly code returns a specific result (call_ref.wast:102)
+Fail	#20 Test that a WebAssembly code returns a specific result (call_ref.wast:103)
+Fail	#21 Test that a WebAssembly code returns a specific result (call_ref.wast:104)
+Fail	#22 Test that a WebAssembly code returns a specific result (call_ref.wast:105)
+Fail	#23 Test that a WebAssembly code returns a specific result (call_ref.wast:106)
+Fail	#24 Test that a WebAssembly code returns a specific result (call_ref.wast:111)
+Fail	#25 Test that a WebAssembly code returns a specific result (call_ref.wast:112)
+Fail	#26 Test that a WebAssembly code returns a specific result (call_ref.wast:113)
+Fail	#27 Test that a WebAssembly code returns a specific result (call_ref.wast:114)
+Fail	#28 Test that a WebAssembly code returns a specific result (call_ref.wast:115)
+Fail	#29 Test that a WebAssembly code returns a specific result (call_ref.wast:117)
+Fail	#30 Test that a WebAssembly code returns a specific result (call_ref.wast:118)
+Fail	#31 Test that a WebAssembly code returns a specific result (call_ref.wast:119)
+Fail	#32 Test that a WebAssembly code returns a specific result (call_ref.wast:120)
+Fail	#33 Test that a WebAssembly code returns a specific result (call_ref.wast:121)
+Fail	#34 Test that a WebAssembly code returns a specific result (call_ref.wast:122)
+Fail	#35 Test that a WebAssembly code returns a specific result (call_ref.wast:123)
+Fail	#36 Test that a WebAssembly code returns a specific result (call_ref.wast:124)
+Fail	#37 Test that WebAssembly compilation succeeds (call_ref.wast:129)
+Fail	#38 Test that WebAssembly instantiation succeeds
+Fail	#39 Test that a WebAssembly code traps (call_ref.wast:136)
+Fail	#40 Test that WebAssembly compilation succeeds (call_ref.wast:138)
+Fail	#41 Test that WebAssembly instantiation succeeds
+Fail	#42 Test that a WebAssembly code traps (call_ref.wast:149)
+Fail	#43 Test that WebAssembly compilation succeeds (call_ref.wast:151)
+Fail	#44 Test that WebAssembly instantiation succeeds
+Fail	#45 Test that a WebAssembly code traps (call_ref.wast:165)
+Pass	#46 Test that WebAssembly compilation fails (call_ref.wast:167)
+Pass	#47 Test that WebAssembly compilation fails (call_ref.wast:183)
+Pass	#48 Test that WebAssembly compilation fails (call_ref.wast:200)
+Pass	#49 Test that WebAssembly compilation fails (call_ref.wast:210)
