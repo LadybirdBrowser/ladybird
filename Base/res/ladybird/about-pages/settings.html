@@ -696,15 +696,31 @@
         <script src="resource://ladybird/about-pages/settings/search.js" type="module"></script>
 
         <script type="module">
+            function switchTab(name) {
+                const button = document.querySelector(`.tab-button[data-tab="${name}"]`);
+                const panel = document.getElementById(`tab-${name}`);
+                if (!button || !panel) {
+                    return;
+                }
+
+                document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+                document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+
+                button.classList.add("active");
+                panel.classList.add("active");
+            }
+
             document.querySelectorAll(".tab-button").forEach(button => {
                 button.addEventListener("click", () => {
-                    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
-                    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
-
-                    button.classList.add("active");
-                    document.getElementById(`tab-${button.dataset.tab}`).classList.add("active");
+                    switchTab(button.dataset.tab);
+                    history.replaceState(null, "", `#${button.dataset.tab}`);
                 });
             });
+
+            const hash = location.hash.slice(1);
+            if (hash) {
+                switchTab(hash);
+            }
 
             document.querySelectorAll("dialog").forEach(dialog => {
                 dialog.addEventListener("click", event => {
