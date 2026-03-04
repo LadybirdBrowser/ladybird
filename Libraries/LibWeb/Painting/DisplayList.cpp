@@ -108,6 +108,14 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                 if (!offset.is_zero())
                     translate({ .delta = offset.to_type<int>() });
             },
+            [&](InverseViewportScrollData const& inverse_scroll) {
+                save({});
+                auto own_offset = scroll_state.own_offset_for_frame_with_id(inverse_scroll.scroll_frame_id);
+                if (!own_offset.is_zero()) {
+                    auto scroll_offset = (-own_offset).to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
+                    translate({ .delta = scroll_offset });
+                }
+            },
             [&](TransformData const& transform) {
                 save({});
                 apply_transform(transform.origin, transform.matrix);

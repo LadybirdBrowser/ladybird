@@ -76,6 +76,11 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContext::transform_point_for_hit_test
             [&](EffectsData const&) -> Optional<Gfx::FloatPoint> {
                 // Effects don't affect coordinate transforms
                 return point;
+            },
+            [&](InverseViewportScrollData const& inverse_scroll) -> Optional<CSSPixelPoint> {
+                auto offset = scroll_state.own_offset_for_frame_with_id(inverse_scroll.scroll_frame_id);
+                point.translate_by(offset);
+                return point;
             });
 
         if (!result.has_value())
@@ -138,7 +143,11 @@ Gfx::FloatRect AccumulatedVisualContext::transform_rect_to_viewport(Gfx::FloatRe
             },
             [&](ClipData const&) { /* clips don't affect rect coordinates */ },
             [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
-            [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
+            [&](EffectsData const&) { /* effects don't affect rect coordinates */ },
+            [&](InverseViewportScrollData const& inverse_scroll) {
+                auto offset = scroll_state.own_offset_for_frame_with_id(inverse_scroll.scroll_frame_id);
+                rect.translate_by((-offset).to_type<float>());
+            });
     }
 
     return rect;
@@ -193,6 +202,9 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
                 has_content = true;
             }
             builder.append("]"sv);
+        },
+        [&](InverseViewportScrollData const& inverse_scroll) {
+            builder.appendff("inverse_viewport_scroll(frame_id={})", inverse_scroll.scroll_frame_id);
         });
 }
 
