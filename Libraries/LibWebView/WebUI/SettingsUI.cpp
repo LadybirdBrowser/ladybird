@@ -17,9 +17,6 @@ void SettingsUI::register_interfaces()
     register_interface("loadCurrentSettings"sv, [this](auto const&) {
         load_current_settings();
     });
-    register_interface("restoreDefaultSettings"sv, [this](auto const&) {
-        restore_default_settings();
-    });
 
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
@@ -85,12 +82,6 @@ void SettingsUI::load_current_settings()
 {
     auto settings = WebView::Application::settings().serialize_json();
     async_send_message("loadSettings"sv, settings);
-}
-
-void SettingsUI::restore_default_settings()
-{
-    WebView::Application::settings().restore_defaults();
-    load_current_settings();
 }
 
 void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)

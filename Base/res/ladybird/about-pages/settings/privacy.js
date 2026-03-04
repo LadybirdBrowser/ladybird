@@ -33,9 +33,8 @@ function loadSettings(settings) {
 
     globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
 
-    if (browsingDataSettingsDialog.open) {
-        showBrowsingDataSettings();
-    }
+    showBrowsingDataSettings();
+    estimateBrowsingDataSizes();
 }
 
 function updateBrowsingDataSizes(sizes) {
@@ -113,15 +112,11 @@ function showBrowsingDataSettings() {
     const { value, unit } = formatDiskCacheSize(maxDiskCacheSize);
     browsingDataSettingsMaxDiskCacheSize.value = value;
     browsingDataSettingsMaxDiskCacheUnit.value = unit;
-
-    if (!browsingDataSettingsDialog.open) {
-        browsingDataSettingsDialog.showModal();
-    }
 }
 
 browsingDataSettings.addEventListener("click", () => {
     estimateBrowsingDataSizes();
-    showBrowsingDataSettings();
+    browsingDataSettingsDialog.showModal();
 });
 
 browsingDataSettingsClose.addEventListener("click", () => {
