@@ -148,8 +148,12 @@ ThrowCompletionOr<GC::Ref<Promise>> SyntheticModule::evaluate(VM& vm)
 
     // 1. Let moduleContext be a new ECMAScript code execution context.
     // 2. Set the Function of moduleContext to null.
-    ExecutionContext* module_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, 0, 0, 0);
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* module_context = stack.allocate(0, 0, 0);
+    if (!module_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
     // 3. Set the Realm of moduleContext to module.[[Realm]].
     module_context->realm = &realm;

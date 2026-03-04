@@ -140,29 +140,6 @@ private:
 
 static_assert(IsTriviallyDestructible<ExecutionContext>);
 
-#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context, \
-    registers_and_locals_count,                                                             \
-    constants_count,                                                                        \
-    arguments_count)                                                                        \
-    auto execution_context_size = sizeof(JS::ExecutionContext)                              \
-        + (((registers_and_locals_count) + (constants_count) + (arguments_count))           \
-            * sizeof(JS::Value));                                                           \
-                                                                                            \
-    void* execution_context_memory = alloca(execution_context_size);                        \
-                                                                                            \
-    execution_context = new (execution_context_memory)                                      \
-        JS::ExecutionContext((registers_and_locals_count), (constants_count), (arguments_count));
-
-#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(execution_context, registers_and_locals_count, \
-    constants_count, arguments_count)                                                             \
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context,           \
-        registers_and_locals_count, constants_count, arguments_count);                            \
-    do {                                                                                          \
-        for (size_t i = 0; i < execution_context->arguments.size(); i++) {                        \
-            execution_context->arguments[i] = JS::js_undefined();                                 \
-        }                                                                                         \
-    } while (0)
-
 struct StackTraceElement {
     ExecutionContext* execution_context { nullptr };
     GC::Ptr<CachedSourceRange> source_range;

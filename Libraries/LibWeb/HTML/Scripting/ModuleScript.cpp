@@ -103,8 +103,10 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         VERIFY(record);
 
         // NON-STANDARD: To ensure that LibJS can find the module on the stack, we push a new execution context.
-        JS::ExecutionContext* module_execution_context = nullptr;
-        ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_execution_context, 0, 0, 0);
+        auto& stack = vm().interpreter_stack();
+        auto* stack_mark = stack.top();
+        auto* module_execution_context = stack.allocate(0, 0, 0);
+        VERIFY(module_execution_context);
         module_execution_context->realm = &realm;
         module_execution_context->script_or_module = GC::Ref<JS::Module> { *record };
         vm().push_execution_context(*module_execution_context);
@@ -126,6 +128,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
 
         // NON-STANDARD: Pop the execution context mentioned above.
         vm().pop_execution_context();
+        stack.deallocate(stack_mark);
     }
 
     // FIXME: 7. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.

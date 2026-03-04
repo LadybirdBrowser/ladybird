@@ -63,23 +63,30 @@ ThrowCompletionOr<Value> call_impl(VM& vm, Value function, Value this_value, Rea
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, function);
 
     // 3. Return ? F.[[Call]](V, argumentsList).
-    ExecutionContext* callee_context = nullptr;
     auto& function_object = function.as_function();
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
     function_object.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
+
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, argument_count);
+    if (!callee_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
     auto* argument_values = callee_context->arguments.data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
         argument_values[i] = arguments_list[i];
+    for (size_t i = arguments_list.size(); i < argument_count; ++i)
+        argument_values[i] = js_undefined();
     callee_context->passed_argument_count = arguments_list.size();
 
     return function_object.internal_call(*callee_context, this_value);
 }
 
-ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments_list)
+ThrowCompletionOr<Value> call_impl(VM& vm, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments_list)
 {
     // 1. If argumentsList is not present, set argumentsList to a new empty List.
 
@@ -87,23 +94,30 @@ ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_val
     // Note: Called with a FunctionObject ref
 
     // 3. Return ? F.[[Call]](V, argumentsList).
-    ExecutionContext* callee_context = nullptr;
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
     function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
+
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, argument_count);
+    if (!callee_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
     auto* argument_values = callee_context->arguments.data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
         argument_values[i] = arguments_list[i];
+    for (size_t i = arguments_list.size(); i < argument_count; ++i)
+        argument_values[i] = js_undefined();
     callee_context->passed_argument_count = arguments_list.size();
 
     return function.internal_call(*callee_context, this_value);
 }
 
 // 7.3.15 Construct ( F [ , argumentsList [ , newTarget ] ] ), https://tc39.es/ecma262/#sec-construct
-ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject& function, ReadonlySpan<Value> arguments_list, FunctionObject* new_target)
+ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM& vm, FunctionObject& function, ReadonlySpan<Value> arguments_list, FunctionObject* new_target)
 {
     // 1. If newTarget is not present, set newTarget to F.
     if (!new_target)
@@ -112,16 +126,23 @@ ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject& function,
     // 2. If argumentsList is not present, set argumentsList to a new empty List.
 
     // 3. Return ? F.[[Construct]](argumentsList, newTarget).
-    ExecutionContext* callee_context = nullptr;
     size_t registers_and_locals_count = 0;
     size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
     function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
+
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, argument_count);
+    if (!callee_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
     auto* argument_values = callee_context->arguments.data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
         argument_values[i] = arguments_list[i];
+    for (size_t i = arguments_list.size(); i < argument_count; ++i)
+        argument_values[i] = js_undefined();
     callee_context->passed_argument_count = arguments_list.size();
 
     return function.internal_construct(*callee_context, *new_target);
@@ -759,8 +780,11 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         executable->dump();
 
     // 22. Let evalContext be a new ECMAScript code execution context.
-    ExecutionContext* eval_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(eval_context, executable->registers_and_locals_count, executable->constants.size(), 0);
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* eval_context = stack.allocate(executable->registers_and_locals_count, executable->constants.size(), 0);
+    if (!eval_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
 
     // 23. Set evalContext's Function to null.
     // NOTE: This was done in the construction of eval_context.
@@ -788,6 +812,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         // 33. Suspend evalContext and remove it from the execution context stack.
         // 34. Resume the context that is now on the top of the execution context stack as the running execution context.
         vm.pop_execution_context();
+        stack.deallocate(stack_mark);
     };
 
     Optional<Value> eval_result;

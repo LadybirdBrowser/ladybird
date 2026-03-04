@@ -765,8 +765,12 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     }
 
     // 1. Let moduleContext be a new ECMAScript code execution context.
-    ExecutionContext* module_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, registers_and_locals_count, constants_count, 0);
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* module_context = stack.allocate(registers_and_locals_count, constants_count, 0);
+    if (!module_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
     // 2. Set the Function of moduleContext to null.
 
