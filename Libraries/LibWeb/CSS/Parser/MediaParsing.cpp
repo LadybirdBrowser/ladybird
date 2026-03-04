@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CalculatedOr.h>
@@ -635,5 +636,6 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
 }
 
 template GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule<CSSNestedDeclarations>(AtRule const&, Parser::Nested);
+template GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule<CSSFunctionDeclarations>(AtRule const&, Parser::Nested);
 
 }

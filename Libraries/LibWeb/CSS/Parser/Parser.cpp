@@ -16,6 +16,7 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
+#include <LibWeb/CSS/CSSFunctionDescriptors.h>
 #include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>

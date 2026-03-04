@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
+#include <LibWeb/CSS/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
@@ -1202,10 +1203,27 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
     return CSSMarginRule::create(realm(), rule.name, style);
 }
 
+template<typename Descriptors>
+GC::Ref<Descriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<Declaration> const& declarations)
+{
+    DescriptorList descriptor_list { at_rule_id };
+
+    for (auto const& declaration : declarations) {
+        if (auto descriptor = convert_to_descriptor(at_rule_id, declaration); descriptor.has_value())
+            descriptor_list.append(descriptor.release_value());
+    }
+
+    return Descriptors::create(realm(), descriptor_list.release_descriptors());
+}
+
+template GC::Ref<CSSFunctionDescriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<Declaration> const& declarations);
+
 template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSNestedDeclarations>(Rule const&, Parser::Nested);
+template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSFunctionDeclarations>(Rule const&, Parser::Nested);
 
 template GC::Ptr<CSSRule> Parser::convert_to_layer_rule<CSSNestedDeclarations>(AtRule const& rule, Parser::Nested);
 
 template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSNestedDeclarations>(AtRule const&, Parser::Nested);
+template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSFunctionDeclarations>(AtRule const&, Parser::Nested);
 
 }

@@ -179,6 +179,9 @@ public:
     RefPtr<TreeCountingFunctionStyleValue const> parse_tree_counting_function(TokenStream<ComponentValue>&, TreeCountingFunctionStyleValue::ComputedType);
 
     OwnPtr<BooleanExpression> parse_if_condition(TokenStream<ComponentValue>&);
+
+    template<typename Descriptors>
+    GC::Ref<Descriptors> convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations);
     GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
 
 private:

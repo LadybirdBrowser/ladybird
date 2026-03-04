@@ -221,6 +221,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
         case CSSRule::Type::FontFace:
         case CSSRule::Type::FontFeatureValues:
         case CSSRule::Type::Function:
+        case CSSRule::Type::FunctionDeclarations:
         case CSSRule::Type::Keyframe:
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:
@@ -281,6 +282,7 @@ bool CSSRuleList::evaluate_media_queries(DOM::Document const& document)
         case CSSRule::Type::CounterStyle:
         case CSSRule::Type::FontFace:
         case CSSRule::Type::FontFeatureValues:
+        case CSSRule::Type::FunctionDeclarations:
         case CSSRule::Type::Keyframe:
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:

@@ -117,6 +117,7 @@ set(SOURCES
     CSS/CSSFontFaceRule.cpp
     CSS/CSSFontFeatureValuesMap.cpp
     CSS/CSSFontFeatureValuesRule.cpp
+    CSS/CSSFunctionDeclarations.cpp
     CSS/CSSFunctionDescriptors.cpp
     CSS/CSSFunctionRule.cpp
     CSS/CSSGroupingRule.cpp
