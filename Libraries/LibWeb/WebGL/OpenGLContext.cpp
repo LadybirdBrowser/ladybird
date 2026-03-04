@@ -51,10 +51,11 @@ struct OpenGLContext::Impl {
 #endif
 };
 
-OpenGLContext::OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, Impl impl, WebGLVersion webgl_version)
+OpenGLContext::OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, Impl impl, WebGLVersion webgl_version, DrawingBufferOptions drawing_buffer_options)
     : m_skia_backend_context(move(skia_backend_context))
     , m_impl(make<Impl>(impl))
     , m_webgl_version(webgl_version)
+    , m_drawing_buffer_options(drawing_buffer_options)
 {
 }
 
@@ -129,7 +130,7 @@ static EGLConfig get_egl_config(EGLDisplay display)
 }
 #endif
 
-OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version)
+OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version, [[maybe_unused]] DrawingBufferOptions drawing_buffer_options)
 {
 #ifdef ENABLE_WEBGL
     EGLAttrib display_attributes[] = {
@@ -219,7 +220,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
                                                          },
 #    endif
                                                      },
-        webgl_version);
+        webgl_version, drawing_buffer_options);
 #else
     (void)skia_backend_context;
     (void)webgl_version;
@@ -403,12 +404,23 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     glBindFramebuffer(GL_FRAMEBUFFER, m_impl->framebuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer, 0);
 
-    // NOTE: ANGLE doesn't allocate depth buffer for us, so we need to do it manually
-    // FIXME: Depth buffer only needs to be allocated if it's configured in WebGL context attributes
-    glGenRenderbuffers(1, &m_impl->depth_buffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, m_impl->depth_buffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_size.width(), m_size.height());
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
+    if (m_drawing_buffer_options.depth || m_drawing_buffer_options.stencil) {
+        glGenRenderbuffers(1, &m_impl->depth_buffer);
+        glBindRenderbuffer(GL_RENDERBUFFER, m_impl->depth_buffer);
+
+        if (m_drawing_buffer_options.depth && m_drawing_buffer_options.stencil) {
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_size.width(), m_size.height());
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
+        } else if (m_drawing_buffer_options.depth) {
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_size.width(), m_size.height());
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
+        } else {
+            VERIFY(m_drawing_buffer_options.stencil);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, m_size.width(), m_size.height());
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
+        }
+    }
+
     VERIFY(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 #endif
 }
