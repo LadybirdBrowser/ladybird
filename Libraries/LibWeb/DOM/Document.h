@@ -895,8 +895,13 @@ public:
     GC::Ptr<HTML::Navigable> cached_navigable();
     void set_cached_navigable(GC::Ptr<HTML::Navigable>);
 
-    void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
-    void set_needs_display(CSSPixelRect const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
+    template<OneOf<Painting::Paintable, HTML::Navigable, CSS::VisualViewport, Web::EventHandler> T>
+    void set_needs_repaint(Badge<T>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::Yes)
+    {
+        set_needs_repaint(should_invalidate_display_list);
+    }
+
+    void notify_css_background_image_loaded();
 
     RefPtr<Painting::DisplayList> cached_display_list() const;
     RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
@@ -1031,6 +1036,8 @@ protected:
     Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
 
 private:
+    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
+
     // ^JS::Object
     virtual bool is_dom_document() const final { return true; }
 

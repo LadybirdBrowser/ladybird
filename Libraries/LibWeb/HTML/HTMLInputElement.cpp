@@ -212,7 +212,7 @@ void HTMLInputElement::set_checked(bool checked)
         },
         {});
 
-    set_needs_display();
+    set_needs_repaint();
 }
 
 void HTMLInputElement::set_checked_binding(bool checked)

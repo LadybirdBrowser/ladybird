@@ -115,7 +115,7 @@ void Range::update_associated_selection()
     // NB: Called during selection update after range change.
     if (auto* viewport = document.unsafe_paintable()) {
         viewport->recompute_selection_states(*this);
-        viewport->set_needs_display();
+        viewport->set_needs_repaint();
     }
 
     // https://w3c.github.io/selection-api/#selectionchange-event

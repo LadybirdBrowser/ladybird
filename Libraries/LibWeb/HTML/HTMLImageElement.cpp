@@ -1392,7 +1392,7 @@ void HTMLImageElement::animate()
         }
     }
 
-    set_needs_display();
+    set_needs_repaint();
 }
 
 bool HTMLImageElement::allows_auto_sizes() const

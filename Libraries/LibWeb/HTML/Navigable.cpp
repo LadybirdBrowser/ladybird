@@ -2621,7 +2621,7 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     }
 
     if (auto document = active_document()) {
-        document->set_needs_display(invalidate_display_list);
+        document->set_needs_repaint(Badge<HTML::Navigable> {}, invalidate_display_list);
 
         document->inform_all_viewport_clients_about_the_current_viewport_rect();
 
@@ -2660,7 +2660,7 @@ void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_posit
         scroll_offset_did_change();
 
         if (auto document = active_document()) {
-            document->set_needs_display(InvalidateDisplayList::No);
+            document->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::No);
             document->set_needs_to_refresh_scroll_state(true);
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
         }
@@ -3001,9 +3001,9 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     vv->scroll_by({ visual_dx, visual_dy });
     if (visual_dx != 0.0 || visual_dy != 0.0) {
         doc->set_needs_accumulated_visual_contexts_update(true);
-        doc->set_needs_display(InvalidateDisplayList::Yes);
+        doc->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::Yes);
     } else {
-        doc->set_needs_display(InvalidateDisplayList::No);
+        doc->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::No);
     }
 
     // 16. Let scrollPromise be a new Promise.

@@ -960,7 +960,7 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
     } else {
         text_paintable->set_selection_state(Painting::Paintable::SelectionState::StartAndEnd);
     }
-    text_paintable->set_needs_display();
+    text_paintable->set_needs_repaint();
 
     // AD-HOC: Only scroll the cursor into view for UI-driven selection changes (like keyboard input). Programmatic
     //         changes (input.value, setSelectionRange) do not cause the cursor to scroll into view. This matches the

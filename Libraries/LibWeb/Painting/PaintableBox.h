@@ -144,8 +144,6 @@ public:
 
     void set_overflow_data(OverflowData data) { m_overflow_data = move(data); }
 
-    virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
-
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
 

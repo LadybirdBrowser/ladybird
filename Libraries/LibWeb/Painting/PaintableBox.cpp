@@ -196,7 +196,7 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
     // 4. Append (element, "scroll") to doc’s pending scroll events.
     document.pending_scroll_events().append({ *event_target, HTML::EventNames::scroll });
 
-    set_needs_display(InvalidateDisplayList::No);
+    set_needs_repaint(InvalidateDisplayList::No);
     return ScrollHandled::Yes;
 }
 
@@ -874,12 +874,12 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
     auto previous_draw_enlarged_horizontal_scrollbar = m_draw_enlarged_horizontal_scrollbar;
     m_draw_enlarged_horizontal_scrollbar = scrollbar_contains(ScrollDirection::Horizontal, position, metrics);
     if (previous_draw_enlarged_horizontal_scrollbar != m_draw_enlarged_horizontal_scrollbar)
-        set_needs_display();
+        set_needs_repaint();
 
     auto previous_draw_enlarged_vertical_scrollbar = m_draw_enlarged_vertical_scrollbar;
     m_draw_enlarged_vertical_scrollbar = scrollbar_contains(ScrollDirection::Vertical, position, metrics);
     if (previous_draw_enlarged_vertical_scrollbar != m_draw_enlarged_vertical_scrollbar)
-        set_needs_display();
+        set_needs_repaint();
 
     if (m_draw_enlarged_horizontal_scrollbar || m_draw_enlarged_vertical_scrollbar)
         return Paintable::DispatchEventOfSameName::No;
@@ -897,12 +897,12 @@ void PaintableBox::handle_mouseleave(Badge<EventHandler>)
     auto previous_draw_enlarged_horizontal_scrollbar = m_draw_enlarged_horizontal_scrollbar;
     m_draw_enlarged_horizontal_scrollbar = false;
     if (previous_draw_enlarged_horizontal_scrollbar != m_draw_enlarged_horizontal_scrollbar)
-        set_needs_display();
+        set_needs_repaint();
 
     auto previous_draw_enlarged_vertical_scrollbar = m_draw_enlarged_vertical_scrollbar;
     m_draw_enlarged_vertical_scrollbar = false;
     if (previous_draw_enlarged_vertical_scrollbar != m_draw_enlarged_vertical_scrollbar)
-        set_needs_display();
+        set_needs_repaint();
 }
 
 bool PaintableBox::scrollbar_contains(ScrollDirection direction, CSSPixelPoint adjusted_position, ChromeMetrics const& metrics) const
@@ -989,14 +989,14 @@ TraversalDecision PaintableBox::hit_test_chrome(CSSPixelPoint adjusted_position,
 
     if (m_draw_enlarged_horizontal_scrollbar) {
         m_draw_enlarged_horizontal_scrollbar = false;
-        result.paintable->set_needs_display();
+        result.paintable->set_needs_repaint();
     }
     if (scrollbar_contains(ScrollDirection::Vertical, adjusted_position, metrics))
         return callback(result);
 
     if (m_draw_enlarged_vertical_scrollbar) {
         m_draw_enlarged_vertical_scrollbar = false;
-        result.paintable->set_needs_display();
+        result.paintable->set_needs_repaint();
     }
 
     return TraversalDecision::Continue;
@@ -1116,11 +1116,6 @@ TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTes
             return TraversalDecision::Break;
     }
     return TraversalDecision::Continue;
-}
-
-void PaintableBox::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
-{
-    document().set_needs_display(absolute_rect(), should_invalidate_display_list);
 }
 
 // https://www.w3.org/TR/css-transforms-1/#reference-box

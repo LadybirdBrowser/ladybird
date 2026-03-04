@@ -213,7 +213,7 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
 {
     // FIXME: Make use of the rect to reduce the invalidated area when possible.
     canvas_element().set_canvas_content_dirty();
-    canvas_element().set_needs_display(InvalidateDisplayList::No);
+    canvas_element().set_needs_repaint(InvalidateDisplayList::No);
 }
 
 Gfx::Painter* CanvasRenderingContext2D::painter()

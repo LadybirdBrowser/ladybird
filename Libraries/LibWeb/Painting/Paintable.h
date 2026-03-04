@@ -111,7 +111,7 @@ public:
 
     GC::Ptr<HTML::Navigable> navigable() const;
 
-    virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_paint_only_properties_update(bool);
     [[nodiscard]] bool needs_paint_only_properties_update() const { return m_needs_paint_only_properties_update; }
 

@@ -205,20 +205,9 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
     display_list_recorder.set_accumulated_visual_context({});
 }
 
-void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
+void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
-    auto& document = this->document();
-    if (should_invalidate_display_list == InvalidateDisplayList::Yes)
-        document.invalidate_display_list();
-
-    auto* containing_block = this->containing_block();
-    if (!containing_block)
-        return;
-
-    if (!is<PaintableWithLines>(*containing_block))
-        return;
-    for (auto const& fragment : as<PaintableWithLines>(*containing_block).fragments())
-        document.set_needs_display(fragment.absolute_rect(), InvalidateDisplayList::No);
+    document().set_needs_repaint(Badge<Painting::Paintable> {}, should_invalidate_display_list);
 }
 
 CSSPixelPoint Paintable::box_type_agnostic_position() const

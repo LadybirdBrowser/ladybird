@@ -283,7 +283,7 @@ void SVGImageElement::animate()
     }
 
     if (paintable())
-        paintable()->set_needs_display();
+        paintable()->set_needs_repaint();
 }
 
 GC::Ptr<HTML::DecodedImageData> SVGImageElement::decoded_image_data() const
