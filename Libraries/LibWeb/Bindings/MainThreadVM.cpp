@@ -625,8 +625,10 @@ void initialize_main_thread_vm(AgentType type)
             // 5. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
             // NON-STANDARD: To ensure that LibJS can find the module on the stack, we push a new execution context.
 
-            JS::ExecutionContext* module_execution_context = nullptr;
-            ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_execution_context, 0, 0, 0);
+            auto& stack = vm.interpreter_stack();
+            auto* stack_mark = stack.top();
+            auto* module_execution_context = stack.allocate(0, 0, 0);
+            VERIFY(module_execution_context);
             module_execution_context->realm = realm;
             if (module)
                 module_execution_context->script_or_module = GC::Ref { *module };
@@ -635,6 +637,7 @@ void initialize_main_thread_vm(AgentType type)
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
             vm.pop_execution_context();
+            stack.deallocate(stack_mark);
         });
 
         // 16. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, moduleMapRealm, fetchReferrer,
