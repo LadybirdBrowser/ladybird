@@ -223,15 +223,224 @@ ThrowCompletionOr<Value> Interpreter::run(SourceTextModule& module)
     return js_undefined();
 }
 
-Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_counter, Value exception)
+Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32 program_counter, Value exception)
 {
-    reg(Register::exception()) = exception;
-    auto handlers = current_executable().exception_handlers_for_offset(program_counter);
-    if (!handlers.has_value()) {
+    for (;;) {
+        auto handlers = current_executable().exception_handlers_for_offset(program_counter);
+        if (handlers.has_value()) {
+            reg(Register::exception()) = exception;
+            m_running_execution_context->program_counter = handlers->handler_offset;
+            return HandleExceptionResponse::ContinueInThisExecutable;
+        }
+
+        // If we're in an inline frame, unwind to the caller and try its handlers.
+        if (m_running_execution_context->caller_frame) {
+            auto* callee_frame = m_running_execution_context;
+            auto* caller_frame = callee_frame->caller_frame;
+            auto caller_pc = callee_frame->caller_return_pc;
+
+            auto& ec_stack = vm().execution_context_stack();
+            ec_stack.resize(ec_stack.size() - 1);
+            vm().interpreter_stack().deallocate(callee_frame);
+
+            m_running_execution_context = caller_frame;
+
+            // NB: caller_pc is the return address (one past the Call instruction).
+            //     For handler lookup we need a PC inside the Call instruction,
+            //     since the exception occurred during that call, not after it.
+            //     Exception handler ranges use an exclusive end offset, so using
+            //     caller_pc directly would miss a handler ending right at that address.
+            program_counter = caller_pc - 1;
+            continue;
+        }
+
+        reg(Register::exception()) = exception;
         return HandleExceptionResponse::ExitFromExecutable;
     }
-    program_counter = handlers->handler_offset;
-    return HandleExceptionResponse::ContinueInThisExecutable;
+}
+
+ExecutionContext* Interpreter::push_inline_frame(
+    ECMAScriptFunctionObject& callee_function,
+    Executable& callee_executable,
+    ReadonlySpan<Operand> arguments,
+    u32 return_pc,
+    u32 dst_raw,
+    Value this_value,
+    Object* new_target,
+    bool is_construct)
+{
+    auto& stack = vm().interpreter_stack();
+
+    u32 insn_argument_count = arguments.size();
+    size_t registers_and_locals_count = callee_executable.registers_and_locals_count;
+    size_t constants_count = callee_executable.constants.size();
+    size_t argument_count = max(insn_argument_count, static_cast<u32>(callee_function.formal_parameter_count()));
+
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, argument_count);
+    if (!callee_context) [[unlikely]]
+        return nullptr;
+
+    // Copy arguments from caller's registers into callee's argument slots.
+    auto* callee_argument_values = callee_context->arguments.data();
+    for (u32 i = 0; i < insn_argument_count; ++i)
+        callee_argument_values[i] = get(arguments[i]);
+    for (size_t i = insn_argument_count; i < argument_count; ++i)
+        callee_argument_values[i] = js_undefined();
+    callee_context->passed_argument_count = insn_argument_count;
+
+    // Set up caller linkage so Return can restore the caller frame.
+    callee_context->caller_frame = m_running_execution_context;
+    callee_context->caller_executable = m_running_execution_context->executable;
+    callee_context->caller_dst_raw = dst_raw;
+    callee_context->caller_return_pc = return_pc;
+    callee_context->caller_is_construct = is_construct;
+
+    // Inlined PrepareForOrdinaryCall (avoids function call overhead on hot path).
+    callee_context->function = &callee_function;
+    callee_context->realm = callee_function.realm();
+    callee_context->script_or_module = callee_function.m_script_or_module;
+    if (callee_function.function_environment_needed()) {
+        auto local_environment = new_function_environment(callee_function, new_target);
+        local_environment->ensure_capacity(callee_function.shared_data().m_function_environment_bindings_count);
+        callee_context->lexical_environment = local_environment;
+        callee_context->variable_environment = local_environment;
+    } else {
+        callee_context->lexical_environment = callee_function.environment();
+        callee_context->variable_environment = callee_function.environment();
+    }
+    callee_context->private_environment = callee_function.m_private_environment;
+
+    // Fast-path push onto execution context stack (avoids Vector::append growth check preventing inlining).
+    auto& ec_stack = vm().execution_context_stack();
+    if (ec_stack.size() < ec_stack.capacity()) [[likely]]
+        ec_stack.unchecked_append(callee_context);
+    else
+        ec_stack.append(callee_context);
+
+    // Bind this if the function uses it.
+    if (callee_function.uses_this())
+        callee_function.ordinary_call_bind_this(vm(), *callee_context, this_value);
+
+    // Set up execution context fields that run_executable normally does.
+    // NB: We must use the callee's realm (not the caller's) for global_object
+    //     and global_declarative_environment, since the caller's realm may differ
+    //     in cross-realm calls (e.g. iframe <-> parent).
+    callee_context->executable = callee_executable;
+    auto& callee_realm = *callee_context->realm;
+    callee_context->global_object = callee_realm.global_object();
+    callee_context->global_declarative_environment = callee_realm.global_environment().declarative_record();
+    callee_context->identifier_table = callee_executable.identifier_table->identifiers().data();
+    callee_context->property_key_table = callee_executable.property_key_table->property_keys().data();
+
+    // Copy constants (memcpy avoids aliasing issues with the scalar loop).
+    auto* values = callee_context->registers_and_constants_and_locals_and_arguments();
+    if (auto count = callee_executable.constants.size())
+        memcpy(values + callee_executable.registers_and_locals_count,
+            callee_executable.constants.data(),
+            count * sizeof(Value));
+
+    // Set this value register.
+    values[Register::this_value().index()] = callee_context->this_value.value_or(js_special_empty_value());
+
+    return callee_context;
+}
+
+NEVER_INLINE bool Interpreter::try_inline_call(Instruction const& insn, u32 current_pc)
+{
+    auto& instruction = static_cast<Op::Call const&>(insn);
+    auto callee = get(instruction.callee());
+    if (!callee.is_object())
+        return false;
+    auto& callee_object = callee.as_object();
+    if (!is<ECMAScriptFunctionObject>(callee_object))
+        return false;
+    auto& callee_function = static_cast<ECMAScriptFunctionObject&>(callee_object);
+    if (callee_function.kind() != FunctionKind::Normal
+        || callee_function.is_class_constructor()
+        || !callee_function.bytecode_executable())
+        return false;
+
+    u32 return_pc = current_pc + instruction.length();
+
+    auto* callee_context = push_inline_frame(
+        callee_function, *callee_function.bytecode_executable(),
+        instruction.arguments(), return_pc, instruction.dst().raw(),
+        get(instruction.this_value()), nullptr, false);
+
+    if (!callee_context) [[unlikely]]
+        return false;
+
+    m_running_execution_context = callee_context;
+    return true;
+}
+
+NEVER_INLINE bool Interpreter::try_inline_call_construct(Instruction const& insn, u32 current_pc)
+{
+    auto& instruction = static_cast<Op::CallConstruct const&>(insn);
+    auto callee = get(instruction.callee());
+    if (!callee.is_object())
+        return false;
+    auto& callee_object = callee.as_object();
+    if (!is<ECMAScriptFunctionObject>(callee_object))
+        return false;
+    auto& callee_function = static_cast<ECMAScriptFunctionObject&>(callee_object);
+    if (!callee_function.has_constructor()
+        || callee_function.constructor_kind() != ConstructorKind::Base
+        || !callee_function.bytecode_executable())
+        return false;
+
+    // OrdinaryCreateFromConstructor: create the this object.
+    auto prototype_or_error = get_prototype_from_constructor(vm(), callee_function, &Intrinsics::object_prototype);
+    if (prototype_or_error.is_error()) [[unlikely]]
+        return false;
+    auto this_argument = Object::create(realm(), prototype_or_error.release_value());
+
+    u32 return_pc = current_pc + instruction.length();
+
+    auto* callee_context = push_inline_frame(
+        callee_function, *callee_function.bytecode_executable(),
+        instruction.arguments(), return_pc, instruction.dst().raw(),
+        this_argument, &callee_function, true);
+
+    if (!callee_context) [[unlikely]]
+        return false;
+
+    // Ensure this_value is set for construct return semantics.
+    if (!callee_context->this_value.has_value())
+        callee_context->this_value = Value(this_argument);
+
+    // InitializeInstanceElements (can throw).
+    auto init_result = this_argument->initialize_instance_elements(callee_function);
+    if (init_result.is_throw_completion()) [[unlikely]] {
+        vm().pop_execution_context();
+        vm().interpreter_stack().deallocate(callee_context);
+        return false;
+    }
+
+    m_running_execution_context = callee_context;
+    return true;
+}
+
+NEVER_INLINE void Interpreter::pop_inline_frame(Value return_value)
+{
+    auto* callee_frame = m_running_execution_context;
+    auto* caller_frame = callee_frame->caller_frame;
+    auto caller_dst_raw = callee_frame->caller_dst_raw;
+    auto caller_pc = callee_frame->caller_return_pc;
+
+    // For base constructor calls, apply construct return semantics.
+    if (callee_frame->caller_is_construct && !return_value.is_object())
+        return_value = callee_frame->this_value.value();
+
+    auto& ec_stack = vm().execution_context_stack();
+    ec_stack.resize(ec_stack.size() - 1);
+    vm().interpreter_stack().deallocate(callee_frame);
+
+    m_running_execution_context = caller_frame;
+    caller_frame->program_counter = caller_pc;
+    caller_frame->registers_and_constants_and_locals_and_arguments()[caller_dst_raw] = return_value;
+
+    vm().finish_execution_generation();
 }
 
 void Interpreter::run_bytecode(size_t entry_point)
@@ -241,12 +450,8 @@ void Interpreter::run_bytecode(size_t entry_point)
         return;
     }
 
-    auto& running_execution_context = this->running_execution_context();
-    auto& executable = current_executable();
-    auto const* bytecode = executable.bytecode.data();
-
-    u32& program_counter = running_execution_context.program_counter;
-    program_counter = entry_point;
+    u8 const* bytecode;
+    u32 program_counter;
 
     // Declare a lookup table for computed goto with each of the `handle_*` labels
     // to avoid the overhead of a switch statement.
@@ -264,12 +469,27 @@ void Interpreter::run_bytecode(size_t entry_point)
             program_counter += instruction.length();                                                \
         else                                                                                        \
             program_counter += sizeof(Op::name);                                                    \
+        m_running_execution_context->program_counter = program_counter;                             \
         auto& next_instruction = *reinterpret_cast<Instruction const*>(&bytecode[program_counter]); \
         goto* bytecode_dispatch_table[static_cast<size_t>(next_instruction.type())];                \
     } while (0)
 
+// Reload bytecode and program_counter from the execution context after
+// operations that may have changed the current executable (handle_exception
+// unwinding inline frames, try_inline_call, pop_inline_frame).
+#define RELOAD_AND_GOTO_START()                                              \
+    do {                                                                     \
+        bytecode = m_running_execution_context->executable->bytecode.data(); \
+        program_counter = m_running_execution_context->program_counter;      \
+        goto start;                                                          \
+    } while (0)
+
+    bytecode = current_executable().bytecode.data();
+    program_counter = entry_point;
+
     for (;;) {
     start:
+        m_running_execution_context->program_counter = program_counter;
         for (;;) {
             goto* bytecode_dispatch_table[static_cast<size_t>((*reinterpret_cast<Instruction const*>(&bytecode[program_counter])).type())];
 
@@ -284,6 +504,10 @@ void Interpreter::run_bytecode(size_t entry_point)
             auto value = get(instruction.value());
             if (value.is_special_empty_value())
                 value = js_undefined();
+            if (m_running_execution_context->caller_frame) {
+                pop_inline_frame(value);
+                RELOAD_AND_GOTO_START();
+            }
             reg(Register::return_value()) = value;
             return;
         }
@@ -350,7 +574,7 @@ void Interpreter::run_bytecode(size_t entry_point)
         if (result.is_error()) [[unlikely]] {                                                                           \
             if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable) \
                 return;                                                                                                 \
-            goto start;                                                                                                 \
+            RELOAD_AND_GOTO_START();                                                                                    \
         }                                                                                                               \
         if (result.value())                                                                                             \
             program_counter = instruction.true_target().address();                                                      \
@@ -380,7 +604,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             if (result.is_error()) [[unlikely]] {                                                                           \
                 if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable) \
                     return;                                                                                                 \
-                goto start;                                                                                                 \
+                RELOAD_AND_GOTO_START();                                                                                    \
             }                                                                                                               \
         }                                                                                                                   \
         DISPATCH_NEXT(name);                                                                                                \
@@ -404,9 +628,34 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ToString);
             HANDLE_INSTRUCTION(ToPrimitiveWithStringHint);
             HANDLE_INSTRUCTION(BitwiseXor);
-            HANDLE_INSTRUCTION(Call);
+        handle_Call: {
+            auto& instruction = *reinterpret_cast<Op::Call const*>(&bytecode[program_counter]);
+            if (try_inline_call(instruction, program_counter))
+                RELOAD_AND_GOTO_START();
+            auto result = instruction.execute_impl(*this);
+            if (result.is_error()) [[unlikely]] {
+                if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable)
+                    return;
+                RELOAD_AND_GOTO_START();
+            }
+            DISPATCH_NEXT(Call);
+        }
+
             HANDLE_INSTRUCTION(CallBuiltin);
-            HANDLE_INSTRUCTION(CallConstruct);
+
+        handle_CallConstruct: {
+            auto& instruction = *reinterpret_cast<Op::CallConstruct const*>(&bytecode[program_counter]);
+            if (try_inline_call_construct(instruction, program_counter))
+                RELOAD_AND_GOTO_START();
+            auto result = instruction.execute_impl(*this);
+            if (result.is_error()) [[unlikely]] {
+                if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable)
+                    return;
+                RELOAD_AND_GOTO_START();
+            }
+            DISPATCH_NEXT(CallConstruct);
+        }
+
             HANDLE_INSTRUCTION(CallConstructWithArgumentArray);
             HANDLE_INSTRUCTION(CallDirectEval);
             HANDLE_INSTRUCTION(CallDirectEvalWithArgumentArray);
@@ -526,7 +775,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             auto result = instruction.execute_impl(*this);
             if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable)
                 return;
-            goto start;
+            RELOAD_AND_GOTO_START();
         }
 
         handle_Await: {
@@ -537,7 +786,15 @@ void Interpreter::run_bytecode(size_t entry_point)
 
         handle_Return: {
             auto& instruction = *reinterpret_cast<Op::Return const*>(&bytecode[program_counter]);
-            instruction.execute_impl(*this);
+            auto return_value = get(instruction.value());
+            if (return_value.is_special_empty_value())
+                return_value = js_undefined();
+            if (m_running_execution_context->caller_frame) {
+                pop_inline_frame(return_value);
+                RELOAD_AND_GOTO_START();
+            }
+            reg(Register::return_value()) = return_value;
+            reg(Register::exception()) = js_special_empty_value();
             return;
         }
 
@@ -585,9 +842,10 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
 
     // NB: Layout is [registers | locals | constants | arguments], so constants start after registers+locals.
     auto* values = context.registers_and_constants_and_locals_and_arguments();
-    for (size_t i = 0; i < executable.constants.size(); ++i) {
-        values[executable.registers_and_locals_count + i] = executable.constants.data()[i];
-    }
+    if (auto count = executable.constants.size())
+        memcpy(values + executable.registers_and_locals_count,
+            executable.constants.data(),
+            count * sizeof(Value));
 
     run_bytecode(entry_point.value_or(0));
 

@@ -88,7 +88,21 @@ private:
         ExitFromExecutable,
         ContinueInThisExecutable,
     };
-    [[nodiscard]] COLD HandleExceptionResponse handle_exception(u32& program_counter, Value exception);
+    [[nodiscard]] COLD HandleExceptionResponse handle_exception(u32 program_counter, Value exception);
+
+    [[nodiscard]] NEVER_INLINE bool try_inline_call(Instruction const&, u32 current_pc);
+    [[nodiscard]] NEVER_INLINE bool try_inline_call_construct(Instruction const&, u32 current_pc);
+    NEVER_INLINE void pop_inline_frame(Value return_value);
+
+    ExecutionContext* push_inline_frame(
+        ECMAScriptFunctionObject& callee_function,
+        Executable& callee_executable,
+        ReadonlySpan<Operand> arguments,
+        u32 return_pc,
+        u32 dst_raw,
+        Value this_value,
+        Object* new_target,
+        bool is_construct);
 
     ExecutionContext* m_running_execution_context { nullptr };
 };
