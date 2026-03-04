@@ -45,7 +45,12 @@ JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::c
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGL2RenderingContext> { nullptr };
     }
-    auto context = OpenGLContext::create(*skia_backend_context, OpenGLContext::WebGLVersion::WebGL2);
+    OpenGLContext::DrawingBufferOptions context_options {
+        .depth = context_attributes.depth,
+        .stencil = context_attributes.stencil,
+        .antialias = context_attributes.antialias,
+    };
+    auto context = OpenGLContext::create(*skia_backend_context, OpenGLContext::WebGLVersion::WebGL2, context_options);
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGL2RenderingContext> { nullptr };

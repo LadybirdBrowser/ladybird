@@ -23,14 +23,20 @@ public:
         WebGL2,
     };
 
-    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, WebGLVersion);
+    struct DrawingBufferOptions {
+        bool depth;
+        bool stencil;
+        bool antialias;
+    };
+
+    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, WebGLVersion, DrawingBufferOptions);
 
     void notify_content_will_change();
     void clear_buffer_to_default_values();
     void allocate_painting_surface_if_needed();
 
     struct Impl;
-    OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext>, Impl, WebGLVersion);
+    OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext>, Impl, WebGLVersion, DrawingBufferOptions);
 
     ~OpenGLContext();
 
@@ -57,6 +63,7 @@ private:
     NonnullOwnPtr<Impl> m_impl;
     Optional<Vector<String>> m_requestable_extensions;
     WebGLVersion m_webgl_version;
+    [[maybe_unused]] DrawingBufferOptions m_drawing_buffer_options;
 
     void free_surface_resources();
 #if defined(AK_OS_MACOS)
