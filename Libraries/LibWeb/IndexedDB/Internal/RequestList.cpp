@@ -29,6 +29,8 @@ void RequestList::maybe_process_next_request()
             continue;
         if (request->processed())
             continue;
+        if (request->aborted())
+            continue;
 
         // If the steps are null here, the request is still executing, so we should wait until it is finished.
         if (!steps)
@@ -61,6 +63,11 @@ void RequestList::set_on_all_processed(GC::Ref<GC::Function<void()>> callback)
 {
     m_on_all_processed = callback;
     check_all_processed();
+}
+
+void RequestList::clear_on_all_processed()
+{
+    m_on_all_processed = nullptr;
 }
 
 void RequestList::check_all_processed()

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-abort-in-success-with-queued-requests.html");
+
+        const dbName = "test-abort-queued-" + Date.now() + Math.random();
+
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = (e) => {
+            e.target.result.createObjectStore("store");
+        };
+        setupReq.onsuccess = (e) => {
+            const db = e.target.result;
+            const tx = db.transaction("store", "readwrite");
+            const store = tx.objectStore("store");
+
+            const putA = store.put("a", "keyA");
+            const putB = store.put("b", "keyB");
+            const putC = store.put("c", "keyC");
+
+            putA.onsuccess = () => {
+                println("putA.success");
+                tx.abort();
+                println("tx.abort() called");
+            };
+            putB.onsuccess = () => { println("putB.success (unexpected)"); };
+            putC.onsuccess = () => { println("putC.success (unexpected)"); };
+
+            putB.onerror = (e) => {
+                e.preventDefault();
+                println("putB.error: " + e.target.error.name);
+            };
+            putC.onerror = (e) => {
+                e.preventDefault();
+                println("putC.error: " + e.target.error.name);
+            };
+
+            tx.onabort = () => {
+                println("tx.abort");
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+        };
+    }, 0);
+});
+</script>

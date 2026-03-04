@@ -32,6 +32,7 @@ public:
     void unblock_execution();
 
     void set_on_all_processed(GC::Ref<GC::Function<void()>> callback);
+    void clear_on_all_processed();
     void check_all_processed();
     void maybe_process_next_request();
 
