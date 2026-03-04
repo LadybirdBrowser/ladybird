@@ -984,7 +984,7 @@ void Generator::emit_store_to_reference(JS::ASTNode const& node, ScopedOperand v
             } else {
                 // 3. Let propertyKey be StringValue of IdentifierName.
                 auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
-                emit<Bytecode::Op::PutNormalByIdWithThis>(*super_reference.base, *super_reference.this_value, property_key_table_index, value, next_property_lookup_cache());
+                emit<Bytecode::Op::PutByIdWithThis>(*super_reference.base, *super_reference.this_value, property_key_table_index, value, Bytecode::PutKind::Normal, next_property_lookup_cache());
             }
         } else {
             auto object = expression.object().generate_bytecode(*this).value();
@@ -1025,7 +1025,7 @@ void Generator::emit_store_to_reference(ReferenceOperands const& reference, Scop
         if (reference.base == reference.this_value)
             emit_put_by_id(*reference.base, *reference.referenced_identifier, value, Bytecode::PutKind::Normal, next_property_lookup_cache());
         else
-            emit<Bytecode::Op::PutNormalByIdWithThis>(*reference.base, *reference.this_value, *reference.referenced_identifier, value, next_property_lookup_cache());
+            emit<Bytecode::Op::PutByIdWithThis>(*reference.base, *reference.this_value, *reference.referenced_identifier, value, Bytecode::PutKind::Normal, next_property_lookup_cache());
         return;
     }
     if (reference.base == reference.this_value)
@@ -1442,16 +1442,7 @@ void Generator::emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand bas
 
 void Generator::emit_put_by_id(Operand base, PropertyKeyTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier)
 {
-#define EMIT_PUT_BY_ID(kind)                                                                \
-    case PutKind::kind:                                                                     \
-        emit<Op::Put##kind##ById>(base, property, src, cache_index, move(base_identifier)); \
-        break;
-    switch (kind) {
-        JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_ID)
-    default:
-        VERIFY_NOT_REACHED();
-    }
-#undef EMIT_PUT_BY_ID
+    emit<Op::PutById>(base, property, src, kind, cache_index, move(base_identifier));
 }
 
 void Generator::emit_put_by_value(ScopedOperand base, ScopedOperand property, ScopedOperand src, Bytecode::PutKind kind, Optional<IdentifierTableIndex> base_identifier)
@@ -1463,16 +1454,7 @@ void Generator::emit_put_by_value(ScopedOperand base, ScopedOperand property, Sc
             return;
         }
     }
-#define EMIT_PUT_BY_VALUE(kind)                                                   \
-    case PutKind::kind:                                                           \
-        emit<Op::Put##kind##ByValue>(base, property, src, move(base_identifier)); \
-        break;
-    switch (kind) {
-        JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_VALUE)
-    default:
-        VERIFY_NOT_REACHED();
-    }
-#undef EMIT_PUT_BY_VALUE
+    emit<Op::PutByValue>(base, property, src, kind, move(base_identifier));
 }
 
 void Generator::emit_put_by_value_with_this(ScopedOperand base, ScopedOperand property, ScopedOperand this_value, ScopedOperand src, Bytecode::PutKind kind)
@@ -1480,29 +1462,11 @@ void Generator::emit_put_by_value_with_this(ScopedOperand base, ScopedOperand pr
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
         if (property_key.is_string()) {
-#define EMIT_PUT_BY_ID_WITH_THIS(kind)                                                                                               \
-    case PutKind::kind:                                                                                                              \
-        emit<Op::Put##kind##ByIdWithThis>(base, this_value, intern_property_key(property_key), src, m_next_property_lookup_cache++); \
-        break;
-            switch (kind) {
-                JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_ID_WITH_THIS)
-            default:
-                VERIFY_NOT_REACHED();
-            }
-#undef EMIT_PUT_BY_ID_WITH_THIS
+            emit<Op::PutByIdWithThis>(base, this_value, intern_property_key(property_key), src, kind, m_next_property_lookup_cache++);
             return;
         }
     }
-#define EMIT_PUT_BY_VALUE_WITH_THIS(kind)                                      \
-    case PutKind::kind:                                                        \
-        emit<Op::Put##kind##ByValueWithThis>(base, property, this_value, src); \
-        break;
-    switch (kind) {
-        JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_VALUE_WITH_THIS)
-    default:
-        VERIFY_NOT_REACHED();
-    }
-#undef EMIT_PUT_BY_VALUE_WITH_THIS
+    emit<Op::PutByValueWithThis>(base, property, this_value, src, kind);
 }
 
 void Generator::emit_iterator_value(ScopedOperand dst, ScopedOperand result)

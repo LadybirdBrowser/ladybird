@@ -4,8 +4,8 @@ JS bytecode executable ""
 [  18]       SetGlobal identifier:x, src:reg5
 [  28]       GetGlobal dst:reg5, identifier:x
 [  38]       NewObject dst:reg6
-[  48]       PutNormalByValue base:reg5, property:Double(1.1e-32), src:reg6, base_identifier:x
+[  48]       PutByValue base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal, base_identifier:x
 [  60]       GetGlobal dst:reg5, identifier:x
 [  70]       GetByValue dst:reg7, base:reg5, property:Double(1.1e-32), base_identifier:x
-[  88]       PutNormalById base:reg7, property:foo, src:Int32(42), base_identifier:x[1.1e-32]
-[  a0]       End value:Int32(42)
+[  88]       PutById base:reg7, property:foo, src:Int32(42), kind:Normal, base_identifier:x[1.1e-32]
+[  a8]       End value:Int32(42)

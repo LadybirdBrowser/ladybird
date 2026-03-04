@@ -16,5 +16,5 @@ JS bytecode executable "C"
 [  18]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
 [  28]       ResolveThisBinding
 [  30]       ResolveSuperBase dst:reg5
-[  38]       PutNormalByIdWithThis base:reg5, this_value:this, property:foo, src:Int32(1)
-[  50]       End value:Undefined
+[  38]       PutByIdWithThis base:reg5, this_value:this, property:foo, src:Int32(1), kind:Normal
+[  58]       End value:Undefined

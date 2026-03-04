@@ -12,5 +12,5 @@ JS bytecode executable "assign_nested"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Sub dst:reg5, lhs:arg1, rhs:Int32(1)
 [  18]       GetByValue dst:reg6, base:arg0, property:reg5, base_identifier:arr
-[  30]       PutNormalById base:reg6, property:shader, src:Int32(0), base_identifier:arr
-[  48]       End value:Undefined
+[  30]       PutById base:reg6, property:shader, src:Int32(0), kind:Normal, base_identifier:arr
+[  50]       End value:Undefined

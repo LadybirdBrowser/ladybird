@@ -24,4 +24,16 @@ enum class PutKind {
 #undef __JS_ENUMERATE_PUT_KIND
 };
 
+inline char const* put_kind_to_string(PutKind kind)
+{
+    switch (kind) {
+#define __JS_PUT_KIND_TO_STRING(name) \
+    case PutKind::name:               \
+        return #name;
+        JS_ENUMERATE_PUT_KINDS(__JS_PUT_KIND_TO_STRING)
+#undef __JS_PUT_KIND_TO_STRING
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }

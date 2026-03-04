@@ -12,12 +12,12 @@ JS bytecode executable "postfix_increment"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetById dst:reg5, base:arg0, property:count, base_identifier:obj
 [  20]       PostfixIncrement dst:reg6, src:reg5
-[  30]       PutNormalById base:arg0, property:count, src:reg5
-[  48]       End value:Undefined
+[  30]       PutById base:arg0, property:count, src:reg5, kind:Normal
+[  50]       End value:Undefined
 
 JS bytecode executable "prefix_decrement"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetById dst:reg5, base:arg0, property:count, base_identifier:obj
 [  20]       Decrement dst:reg5
-[  28]       PutNormalById base:arg0, property:count, src:reg5
-[  40]       End value:Undefined
+[  28]       PutById base:arg0, property:count, src:reg5, kind:Normal
+[  48]       End value:Undefined

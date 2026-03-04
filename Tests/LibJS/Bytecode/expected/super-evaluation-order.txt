@@ -40,8 +40,8 @@ JS bytecode executable "write"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       ResolveThisBinding
 [  10]       ResolveSuperBase dst:reg5
-[  18]       PutNormalByIdWithThis base:reg5, this_value:this, property:x, src:Int32(42)
-[  30]       End value:Undefined
+[  18]       PutByIdWithThis base:reg5, this_value:this, property:x, src:Int32(42), kind:Normal
+[  38]       End value:Undefined
 
 JS bytecode executable "update"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -49,5 +49,5 @@ JS bytecode executable "update"
 [  10]       ResolveSuperBase dst:reg5
 [  18]       GetByIdWithThis dst:reg6, base:reg5, property:x, this_value:this
 [  30]       PostfixIncrement dst:reg7, src:reg6
-[  40]       PutNormalByIdWithThis base:reg5, this_value:this, property:x, src:reg6
-[  58]       End value:Undefined
+[  40]       PutByIdWithThis base:reg5, this_value:this, property:x, src:reg6, kind:Normal
+[  60]       End value:Undefined
