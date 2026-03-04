@@ -1,0 +1,5 @@
+color: rgb(0, 0, 255)
+opacity: 0.5
+font-weight: 900
+inherited color: rgb(0, 128, 0)
+nested color: rgb(0, 0, 255)

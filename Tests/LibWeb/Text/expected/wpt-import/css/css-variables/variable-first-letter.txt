@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	color
+Pass	font-size
+Pass	font-weight
+Pass	position
+Pass	nested color
+Pass	abspos

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-variables-1/#defining-variables">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#placeholder-pseudo">
+<style>
+    #input1::placeholder {
+        color: var(--my-color);
+        --my-color: rgb(0, 0, 255);
+    }
+
+    #input2::placeholder {
+        opacity: var(--my-opacity);
+        --my-opacity: 0.5;
+    }
+
+    #input3::placeholder {
+        font-weight: var(--my-font-weight);
+        --my-font-weight: 900;
+    }
+
+    #input4 {
+        --my-color: rgb(0, 128, 0);
+    }
+    #input4::placeholder {
+        color: var(--my-color);
+    }
+
+    #input5::placeholder {
+        color: var(--my-color1);
+        --my-color1: var(--my-color2);
+        --my-color2: rgb(0, 0, 255);
+    }
+</style>
+<input id="input1" placeholder="test">
+<input id="input2" placeholder="test">
+<input id="input3" placeholder="test">
+<input id="input4" placeholder="test">
+<input id="input5" placeholder="test">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const s1 = getComputedStyle(document.getElementById("input1"), "::placeholder");
+        println(`color: ${s1.color}`);
+
+        const s2 = getComputedStyle(document.getElementById("input2"), "::placeholder");
+        println(`opacity: ${s2.opacity}`);
+
+        const s3 = getComputedStyle(document.getElementById("input3"), "::placeholder");
+        println(`font-weight: ${s3.fontWeight}`);
+
+        const s4 = getComputedStyle(document.getElementById("input4"), "::placeholder");
+        println(`inherited color: ${s4.color}`);
+
+        const s5 = getComputedStyle(document.getElementById("input5"), "::placeholder");
+        println(`nested color: ${s5.color}`);
+    });
+</script>

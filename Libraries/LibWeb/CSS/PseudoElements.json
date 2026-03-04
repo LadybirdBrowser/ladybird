@@ -57,7 +57,8 @@
       "#margin-properties",
       "#padding-properties",
       "#border-properties",
-      "box-shadow"
+      "box-shadow",
+      "#custom-properties"
     ]
   },
   "first-line": {
@@ -69,6 +70,7 @@
       "#background-properties",
       "#inline-typesetting-properties",
       "#text-decoration-properties",
+      "#custom-properties",
       "FIXME: ruby-position",
       "#inline-layout-properties"
     ]
@@ -90,6 +92,7 @@
       "#background-properties",
       "#inline-typesetting-properties",
       "#text-decoration-properties",
+      "#custom-properties",
       "FIXME: ruby-position"
     ]
   },

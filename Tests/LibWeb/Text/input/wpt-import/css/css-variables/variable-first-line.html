@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Variables with ::first-line pseudo-element.</title>
+
+    <meta rel="author" title="Kevin Babbitt">
+    <meta rel="author" title="Greg Whitworth">
+    <link rel="author" title="Microsoft Corporation" href="http://microsoft.com" />
+    <!-- This is not directly specified in the spec but should work -->
+    <link rel="help" href="http://www.w3.org/TR/css-variables-1/#defining-variables">
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+        div {
+            width: 500px;
+        }
+
+        #div1::first-line {
+            color: var(--my-color);
+            --my-color: rgb(0, 0, 255);
+        }
+
+        #div2::first-line {
+            font-size: var(--my-font-size);
+            --my-font-size: 25px;
+        }
+
+        #div3::first-line {
+            font-weight: var(--my-font-weight);
+            --my-font-weight: 900;
+        }
+
+        #div4::first-line {
+            position: var(--my-position);
+            --my-position: absolute;
+        }
+
+        #div5::first-line {
+            color: var(--my-color1);
+            --my-color1: var(--my-color2);
+            --my-color2: rgb(0, 0, 255);
+        }
+
+        #div6::first-line {
+            position: var(--my-position1);
+            --my-position1: var(--my-position2);
+            --my-position2: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div id="div1">CSS variable defining 'color' property should be applied to ::first-line and its color should be blue.</div>
+    <br />
+    <div id="div2">CSS variable defining 'font-size' property should be applied to ::first-line and its font-size should be 25px.</div>
+    <br />
+    <div id="div3">CSS variable defining 'font-weight' property should be applied to ::first-line and its font-weight should be 900.</div>
+    <br />
+    <div id="div4">CSS variable defining 'position' property should not be applied to ::first-line and its position should be static.</div>
+    <br />
+    <div id="div5">CSS variable referencing another CSS variable that defines 'color' property should be applied to ::first-line and its color should be blue.</div>
+    <br />
+    <div id="div6">CSS variable referencing another CSS variable that defines 'position' property should not be applied to ::first-line and its position should be static.</div>
+
+    <script>
+        "use strict";
+
+        let templates = [
+            { elementId: "div1", property: "color", expectedValue: "rgb(0, 0, 255)", testName: "color" },
+            { elementId: "div2", property: "font-size", expectedValue: "25px", testName: "font-size" },
+            { elementId: "div3", property: "font-weight", expectedValue: "900", testName: "font-weight" },
+            { elementId: "div4", property: "position", expectedValue: "static", testName: "position" },
+            { elementId: "div5", property: "color", expectedValue: "rgb(0, 0, 255)", testName: "nested color" },
+            { elementId: "div6", property: "position", expectedValue: "static", testName: "abspos" },
+        ];
+
+        templates.forEach(function (template) {
+            test( function () {
+                var elem = document.getElementById(template.elementId);
+                var actualValue = window.getComputedStyle(elem, ':first-line').getPropertyValue(template.property);
+                assert_equals(template.expectedValue, actualValue);
+            }, template.testName);
+        });
+    </script>
+</body>
+</html>
+
