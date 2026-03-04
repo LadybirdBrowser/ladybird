@@ -43,6 +43,7 @@ CSSFontFaceDescriptors
 CSSFontFaceRule
 CSSFontFeatureValuesMap
 CSSFontFeatureValuesRule
+CSSFunctionRule
 CSSGroupingRule
 CSSImageValue
 CSSImportRule

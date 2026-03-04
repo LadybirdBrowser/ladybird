@@ -253,6 +253,7 @@ class CSSFontFaceDescriptors;
 class CSSFontFaceRule;
 class CSSFontFeatureValuesMap;
 class CSSFontFeatureValuesRule;
+class CSSFunctionRule;
 class CSSGroupingRule;
 class CSSImageValue;
 class CSSImportRule;

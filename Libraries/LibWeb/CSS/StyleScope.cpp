@@ -429,6 +429,7 @@ void StyleScope::build_qualified_layer_names_cache()
             case CSSRule::Type::CounterStyle:
             case CSSRule::Type::FontFace:
             case CSSRule::Type::FontFeatureValues:
+            case CSSRule::Type::Function:
             case CSSRule::Type::Keyframes:
             case CSSRule::Type::Keyframe:
             case CSSRule::Type::Margin:

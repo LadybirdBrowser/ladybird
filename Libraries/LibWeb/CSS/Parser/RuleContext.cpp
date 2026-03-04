@@ -23,6 +23,8 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
         return RuleContext::AtFontFace;
     case CSSRule::Type::FontFeatureValues:
         return RuleContext::AtFontFeatureValues;
+    case CSSRule::Type::Function:
+        TODO();
     case CSSRule::Type::Keyframes:
         return RuleContext::AtKeyframes;
     case CSSRule::Type::Keyframe:
