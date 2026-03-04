@@ -339,6 +339,22 @@ void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> tran
 
     transaction->request_list().block_execution();
     wait_for_transactions_to_finish(blocking, GC::create_function(realm().heap(), [transaction] {
+        VERIFY(transaction->state() != IDBTransaction::TransactionState::Active);
+        if (transaction->request_list().is_empty()) {
+            // https://w3c.github.io/IndexedDB/#transaction-commit
+            // The implementation must attempt to commit an inactive transaction when all requests placed
+            // against the transaction have completed and their returned results handled, no new requests have
+            // been placed against the transaction, and the transaction has not been aborted
+
+            // If we were blocked, that means that the JS task has had its chance to make requests. If the request
+            // list is empty, then the cleanup in the microtask checkpoint already ran, but skipped auto-committing.
+            // We have to do it here instead.
+
+            // FIXME: Update if this becomes explicit:
+            //        https://github.com/w3c/IndexedDB/issues/489#issuecomment-3994928473
+            commit_a_transaction(transaction->realm(), transaction);
+            return;
+        }
         transaction->request_list().unblock_execution();
     }));
 }

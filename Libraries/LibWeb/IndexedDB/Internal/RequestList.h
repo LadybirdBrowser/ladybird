@@ -28,6 +28,7 @@ public:
     bool is_empty() const;
 
     void block_execution() { m_blocked = true; }
+    bool execution_is_blocked() const { return m_blocked; }
     void unblock_execution();
 
     void set_on_all_processed(GC::Ref<GC::Function<void()>> callback);
