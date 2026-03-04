@@ -28,6 +28,7 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/ErrorTypes.h>
 #include <LibJS/Runtime/ExecutionContext.h>
+#include <LibJS/Runtime/InterpreterStack.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -192,6 +193,8 @@ public:
 
     StackInfo const& stack_info() const { return m_stack_info; }
 
+    InterpreterStack& interpreter_stack() { return m_interpreter_stack; }
+
     HashMap<Utf16String, GC::Ref<Symbol>> const& global_symbol_registry() const { return m_global_symbol_registry; }
     HashMap<Utf16String, GC::Ref<Symbol>>& global_symbol_registry() { return m_global_symbol_registry; }
 
@@ -333,6 +336,8 @@ private:
     Vector<Vector<ExecutionContext*>> m_saved_execution_context_stacks;
 
     StackInfo m_stack_info;
+
+    InterpreterStack m_interpreter_stack;
 
     // GlobalSymbolRegistry, https://tc39.es/ecma262/#table-globalsymbolregistry-record-fields
     HashMap<Utf16String, GC::Ref<Symbol>> m_global_symbol_registry;
