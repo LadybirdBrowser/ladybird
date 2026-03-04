@@ -407,7 +407,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     // FIXME: Depth buffer only needs to be allocated if it's configured in WebGL context attributes
     glGenRenderbuffers(1, &m_impl->depth_buffer);
     glBindRenderbuffer(GL_RENDERBUFFER, m_impl->depth_buffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, m_size.width(), m_size.height());
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_size.width(), m_size.height());
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
     VERIFY(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 #endif
