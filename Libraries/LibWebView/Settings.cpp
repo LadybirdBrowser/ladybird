@@ -258,34 +258,6 @@ JsonValue Settings::serialize_json() const
     return settings;
 }
 
-void Settings::restore_defaults()
-{
-    m_new_tab_page_url = URL::about_newtab();
-    m_default_zoom_level_factor = initial_zoom_level_factor;
-    m_languages = { default_language };
-    m_search_engine.clear();
-    m_custom_search_engines.clear();
-    m_autocomplete_engine.clear();
-    m_autoplay = SiteSetting {};
-    m_browsing_data_settings = {};
-    m_global_privacy_control = GlobalPrivacyControl::No;
-    m_dns_settings = SystemDNS {};
-
-    persist_settings();
-
-    for (auto& observer : m_observers) {
-        observer.new_tab_page_url_changed();
-        observer.default_zoom_level_factor_changed();
-        observer.languages_changed();
-        observer.search_engine_changed();
-        observer.autocomplete_engine_changed();
-        observer.autoplay_settings_changed();
-        observer.browsing_data_settings_changed();
-        observer.global_privacy_control_changed();
-        observer.dns_settings_changed();
-    }
-}
-
 void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)
 {
     m_new_tab_page_url = move(new_tab_page_url);

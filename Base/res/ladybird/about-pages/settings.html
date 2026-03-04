@@ -6,7 +6,7 @@
         <style>
             @media (prefers-color-scheme: light) {
                 :root {
-                    --card-background-color: #f9f9f9;
+                    --card-background-color: #f5f5f5;
                     --card-header-background-color: #f0f2f5;
 
                     --input-background-color: white;
@@ -17,7 +17,7 @@
 
             @media (prefers-color-scheme: dark) {
                 :root {
-                    --card-background-color: #2c2c2c;
+                    --card-background-color: #242424;
                     --card-header-background-color: #252525;
 
                     --border-color: #3d3d3d;
@@ -58,25 +58,21 @@
                 border: none;
             }
 
+            .card-title {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+
+                font-size: 16px;
+                font-weight: 500;
+                margin: 0 0 8px 4px;
+            }
+
             .card {
                 background-color: var(--card-background-color);
 
                 border-radius: 8px;
                 margin-bottom: 20px;
-
-                overflow: hidden;
-            }
-
-            .card-header {
-                background-color: var(--card-header-background-color);
-
-                border-bottom: 1px solid var(--border-color);
-                padding: 15px 20px;
-            }
-
-            .inner-header {
-                font-size: 16px;
-                font-weight: 500;
             }
 
             .card-body {
@@ -100,6 +96,13 @@
                 align-items: center;
                 justify-content: space-between;
                 gap: 10px;
+            }
+
+            .inline-container input[type="number"],
+            .inline-container input[type="text"],
+            .inline-container input[type="url"],
+            .inline-container select {
+                width: 50%;
             }
 
             .button-container {
@@ -314,6 +317,46 @@
             dialog .dialog-controls select {
                 flex-grow: 1;
             }
+
+            .tab-bar {
+                display: flex;
+                gap: 4px;
+
+                margin-bottom: 20px;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .tab-button {
+                background: none;
+                border: none;
+                border-bottom: 3px solid transparent;
+
+                padding: 10px 16px;
+
+                font-size: 14px;
+                font-weight: 500;
+                color: inherit;
+                opacity: 0.6;
+
+                cursor: pointer;
+            }
+
+            .tab-button:hover {
+                opacity: 0.8;
+            }
+
+            .tab-button.active {
+                border-bottom-color: var(--violet-100);
+                opacity: 1;
+            }
+
+            .tab-panel {
+                display: none;
+            }
+
+            .tab-panel.active {
+                display: block;
+            }
         </style>
     </head>
     <body>
@@ -325,135 +368,173 @@
             <h1>Ladybird Settings</h1>
         </header>
 
-        <div class="card">
-            <div class="card-header">General</div>
-            <div class="card-body">
-                <div class="card-group">
-                    <label for="new-tab-page-url">New Tab Page URL</label>
-                    <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
-                </div>
-
-                <div class="card-group">
-                    <label for="default-zoom-level">Default Zoom Level</label>
-                    <select id="default-zoom-level"></select>
-                </div>
-
-                <hr />
-
-                <div class="card-group inline-container">
-                    <span>Languages</span>
-                    <button id="languages-settings" class="secondary-button">Settings...</button>
-                </div>
-            </div>
+        <div class="tab-bar">
+            <button class="tab-button active" data-tab="general">General</button>
+            <button class="tab-button" data-tab="search">Search</button>
+            <button class="tab-button" data-tab="permissions">Permissions</button>
+            <button class="tab-button" data-tab="privacy">Privacy</button>
+            <button class="tab-button" data-tab="network">Network</button>
         </div>
 
-        <div class="card">
-            <div class="card-header">Search</div>
-            <div class="card-body">
-                <div class="card-group">
-                    <div class="inline-container">
-                        <label for="search-engine">Default Search Engine</label>
-                        <button id="search-settings" class="secondary-button">Settings...</button>
+        <div class="tab-panel active" id="tab-general">
+            <div class="card">
+                <div class="card-body">
+                    <div class="card-group inline-container">
+                        <label for="new-tab-page-url">New Tab Page URL</label>
+                        <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
                     </div>
-                    <p class="description">Select the search engine to use in the address bar.</p>
-                    <select id="search-engine">
-                        <option value="">Disable search</option>
-                        <hr />
-                    </select>
-                </div>
 
-                <hr />
-
-                <div class="card-group">
-                    <label for="autocomplete-engine">Search Suggestions</label>
-                    <p class="description">Select the engine that will provide search suggestions.</p>
-                    <select id="autocomplete-engine">
-                        <option value="">Disable search suggestions</option>
-                        <hr />
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">Permissions</div>
-            <div class="card-body">
-                <div class="card-group inline-container">
-                    <span>Autoplay</span>
-                    <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
-                        This setting is controlled via the command line
-                    </span>
-                    <button id="autoplay-settings" class="secondary-button">Settings...</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">Privacy</div>
-            <div class="card-body">
-                <div class="card-group inline-container">
-                    <span>Browsing Data</span>
-                    <button id="browsing-data-settings" class="secondary-button">Settings...</button>
-                </div>
-
-                <hr />
-
-                <div class="card-group">
-                    <div class="inline-container">
-                        <label for="global-privacy-control-toggle">Enable Global Privacy Control</label>
-                        <input id="global-privacy-control-toggle" type="checkbox" switch />
+                    <div class="card-group inline-container">
+                        <label for="default-zoom-level">Default Zoom Level</label>
+                        <select id="default-zoom-level"></select>
                     </div>
-                    <p class="description">Tell websites not to sell or share your data.</p>
+
+                    <div class="card-group inline-container">
+                        <label for="languages-settings">Languages</label>
+                        <button id="languages-settings" class="secondary-button">Settings...</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header">Network</div>
-            <div class="card-body">
-                <div class="card-group">
-                    <div class="card-header inner-header inline-container">
-                        <span>DNS Settings</span>
-                        <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
+        <div class="tab-panel" id="tab-search">
+            <div class="card">
+                <div class="card-body">
+                    <p class="card-group">Default Search Engine</p>
+                    <div class="card-group">
+                        <p class="description">Select the search engine to use in the address bar.</p>
+
+                        <div class="inline-container">
+                            <select id="search-engine" style="width: 100%">
+                                <option value="">Disable search</option>
+                                <hr />
+                            </select>
+                            <button id="search-settings" class="secondary-button">Settings...</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <p class="card-group">Search Suggestions</p>
+                    <div class="card-group">
+                        <p class="description">Select the engine that will provide search suggestions.</p>
+                        <select id="autocomplete-engine">
+                            <option value="">Disable search suggestions</option>
+                            <hr />
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-permissions">
+            <div class="card">
+                <div class="card-body">
+                    <div class="card-group inline-container">
+                        <span>Autoplay</span>
+                        <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
                             This setting is controlled via the command line
                         </span>
-                    </div>
-                    <div id="dns-settings-container" class="card-body">
-                        <div class="card-group">
-                            <label for="dns-upstream">DNS Upstream</label>
-                            <select id="dns-upstream">
-                                <option value="system">System DNS</option>
-                                <option value="custom">Custom DNS Server</option>
-                            </select>
-                        </div>
-                        <div id="custom-dns-settings" class="hidden">
-                            <div class="card-group">
-                                <label for="dns-type">Type</label>
-                                <select id="dns-type">
-                                    <option value="udp">UDP</option>
-                                    <option value="tls">TLS</option>
-                                </select>
-                            </div>
-                            <div class="card-group">
-                                <label for="dnssec-toggle">Validate DNSSEC Locally</label>
-                                <input id="dnssec-toggle" type="checkbox" switch />
-                            </div>
-                            <div class="card-group">
-                                <label for="dns-server">DNS Server (IP or hostname)</label>
-                                <input id="dns-server" type="text" />
-                            </div>
-                            <div class="card-group">
-                                <label for="dns-port">Port</label>
-                                <input id="dns-port" type="text" placeholder="53" />
-                            </div>
-                        </div>
+                        <button id="autoplay-settings" class="secondary-button">Settings...</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="button-container">
-            <button id="restore-defaults" class="primary-button">Restore&nbsp;Defaults</button>
+        <div class="tab-panel" id="tab-privacy">
+            <h3 class="card-title">Browsing Data</h3>
+            <div class="card">
+                <div class="card-body">
+                    <p id="browsing-data-total-size" class="card-group"></p>
+
+                    <div class="card-group">
+                        <div class="inline-container">
+                            <div>
+                                <label for="browsing-data-settings-max-disk-cache-size">
+                                    Maximum disk cache size
+                                </label>
+                                <p class="description">Limit the space used for the HTTP disk cache.</p>
+                            </div>
+                            <div class="input-field-container">
+                                <input
+                                    id="browsing-data-settings-max-disk-cache-size"
+                                    type="number"
+                                    min="1"
+                                    style="width: 150px"
+                                />
+                                <select id="browsing-data-settings-max-disk-cache-unit" style="width: 80px">
+                                    <option value="MiB">MiB</option>
+                                    <option value="GiB">GiB</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="card-group inline-container">
+                        <span>Clear Browsing Data</span>
+                        <button id="browsing-data-settings" class="secondary-button">Clear...</button>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="card-title">Privacy</h3>
+            <div class="card">
+                <div class="card-body">
+                    <div class="card-group">
+                        <div class="inline-container">
+                            <label for="global-privacy-control-toggle">Global Privacy Control</label>
+                            <input id="global-privacy-control-toggle" type="checkbox" switch />
+                        </div>
+                        <p class="description">Tell websites not to sell or share your data.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-network">
+            <h3 class="card-title">DNS Settings</h3>
+            <div class="card">
+                <div class="card-body">
+                    <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
+                        This setting is controlled via the command line
+                    </span>
+
+                    <div class="card-group inline-container" id="dns-settings-container">
+                        <label for="dns-upstream">DNS Upstream</label>
+                        <select id="dns-upstream">
+                            <option value="system">System DNS</option>
+                            <option value="custom">Custom DNS Server</option>
+                        </select>
+                    </div>
+                    <div id="custom-dns-settings" class="hidden">
+                        <div class="card-group inline-container">
+                            <label for="dns-type">Type</label>
+                            <select id="dns-type">
+                                <option value="udp">UDP</option>
+                                <option value="tls">TLS</option>
+                            </select>
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="dnssec-toggle">Validate DNSSEC Locally</label>
+                            <input id="dnssec-toggle" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="dns-server">DNS Server (IP or hostname)</label>
+                            <input id="dns-server" type="text" />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="dns-port">Port</label>
+                            <input id="dns-port" type="text" placeholder="53" />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <dialog id="languages-dialog">
@@ -523,30 +604,10 @@
 
         <dialog id="browsing-data-settings-dialog">
             <div class="dialog-header">
-                <h3 class="dialog-title">Browsing Data Settings</h3>
+                <h3 class="dialog-title">Clear Browsing Data</h3>
                 <button id="browsing-data-settings-close" class="close-button dialog-button">&times;</button>
             </div>
-            <div class="dialog-body">
-                <p id="browsing-data-total-size" class="description"></p>
-                <hr />
-
-                <div class="input-field-container">
-                    <label for="browsing-data-settings-max-disk-cache-size">
-                        Maximum&nbsp;disk&nbsp;cache&nbsp;size:
-                    </label>
-                    <input id="browsing-data-settings-max-disk-cache-size" type="number" min="1" />
-                    <select id="browsing-data-settings-max-disk-cache-unit">
-                        <option value="MiB">MiB</option>
-                        <option value="GiB">GiB</option>
-                    </select>
-                </div>
-                <p class="description" style="margin-top: 10px">
-                    Limit the amount of space used for the HTTP disk cache. This may be further limited by the browser,
-                    depending on the amount of disk space available.
-                </p>
-
-                <hr />
-
+            <div class="dialog-body" style="height: auto">
                 <div class="input-field-container">
                     <p>Remove&nbsp;browsing&nbsp;data&nbsp;from:</p>
                     <select id="clear-browsing-data-time-range">
@@ -598,10 +659,14 @@
         <script src="resource://ladybird/about-pages/settings/search.js" type="module"></script>
 
         <script type="module">
-            const restoreDefaults = document.querySelector("#restore-defaults");
+            document.querySelectorAll(".tab-button").forEach(button => {
+                button.addEventListener("click", () => {
+                    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+                    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
 
-            restoreDefaults.addEventListener("click", () => {
-                ladybird.sendMessage("restoreDefaultSettings");
+                    button.classList.add("active");
+                    document.getElementById(`tab-${button.dataset.tab}`).classList.add("active");
+                });
             });
 
             document.querySelectorAll("dialog").forEach(dialog => {

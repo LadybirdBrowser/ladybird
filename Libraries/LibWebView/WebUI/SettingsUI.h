@@ -18,7 +18,6 @@ private:
     virtual void register_interfaces() override;
 
     void load_current_settings();
-    void restore_default_settings();
 
     void set_new_tab_page_url(JsonValue const&);
     void set_default_zoom_level_factor(JsonValue const&);

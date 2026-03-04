@@ -57,8 +57,6 @@ public:
 
     JsonValue serialize_json() const;
 
-    void restore_defaults();
-
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
 
