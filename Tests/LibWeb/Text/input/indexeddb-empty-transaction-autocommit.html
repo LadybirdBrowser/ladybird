@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-empty-transaction-autocommit.html");
+
+        // Test that an empty transaction (no requests issued) auto-commits.
+        // The spec says cleanup_indexed_database_transactions sets the state
+        // to inactive, and then auto-commit should fire if the request list
+        // is empty.
+
+        const dbName = "test-empty-autocommit-" + Date.now() + Math.random();
+
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = (e) => {
+            e.target.result.createObjectStore("store");
+        };
+        setupReq.onsuccess = (e) => {
+            const db = e.target.result;
+
+            // Create a transaction but issue no requests.
+            const tx = db.transaction("store", "readonly");
+            println("tx created");
+
+            tx.oncomplete = () => {
+                println("tx.complete");
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+            tx.onabort = () => {
+                println("tx.abort: " + tx.error.name);
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+            tx.onerror = (e) => {
+                println("tx.error: " + e.target.error.name);
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+        };
+        setupReq.onerror = (e) => {
+            println("setup.error: " + e.target.error.name);
+            println("DONE");
+            done();
+        };
+    }, 0);
+});
+</script>

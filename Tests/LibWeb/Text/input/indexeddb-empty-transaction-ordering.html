@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/empty-txn-ordering.html");
+
+        const dbName = "test-empty-txn-ordering";
+        const delReq = indexedDB.deleteDatabase(dbName);
+        delReq.onsuccess = function() {
+            const openReq = indexedDB.open(dbName, 1);
+            openReq.onupgradeneeded = function(e) {
+                e.target.result.createObjectStore('store', {keyPath: 'key'});
+            };
+            openReq.onsuccess = function(e) {
+                const db = e.target.result;
+                let completed = 0;
+                const totalTxns = 4;
+
+                const originalPrintln = println;
+                println = (str) => {
+                    console.log(str);
+                    originalPrintln(str);
+                };
+
+                function onAllComplete() {
+                    clearTimeout(timeout);
+                    db.close();
+                    indexedDB.deleteDatabase(dbName);
+                    done();
+                }
+
+                function txComplete() {
+                    completed++;
+                    if (completed === totalTxns)
+                        onAllComplete();
+                }
+
+                // tx1: readwrite with a put
+                println("tx1 readwrite");
+                const tx1 = db.transaction('store', 'readwrite');
+                const store1 = tx1.objectStore('store');
+                store1.put({key: 'a', val: 1});
+
+                // tx2: readwrite, blocked by tx1, also has a put
+                // This exercises: blocked + has requests + cleanup sets it inactive.
+                // When tx1 finishes and tx2 unblocks, its request should still execute.
+                println("tx2 readwrite with request");
+                const tx2 = db.transaction('store', 'readwrite');
+                const store2 = tx2.objectStore('store');
+                store2.put({key: 'a', val: 2});
+                const getRq = store2.get('a');
+                getRq.onsuccess = () => println("tx2 get: val=" + getRq.result.val);
+
+                // tx3: readwrite, empty, blocked by tx1 and tx2
+                println("tx3 readwrite empty");
+                const tx3 = db.transaction('store', 'readwrite');
+
+                // tx4: readonly, empty, blocked by tx1/tx2/tx3
+                println("tx4 readonly empty");
+                const tx4 = db.transaction('store', 'readonly');
+
+                tx1.oncomplete = () => { println("tx1.oncomplete"); txComplete(); };
+                tx1.onabort = () => { println("tx1.onabort"); txComplete(); };
+                tx2.oncomplete = () => { println("tx2.oncomplete"); txComplete(); };
+                tx2.onabort = () => { println("tx2.onabort"); txComplete(); };
+                tx3.oncomplete = () => { println("tx3.oncomplete (empty readwrite)"); txComplete(); };
+                tx3.onabort = () => { println("tx3.onabort (empty readwrite)"); txComplete(); };
+                tx4.oncomplete = () => { println("tx4.oncomplete (empty readonly)"); txComplete(); };
+                tx4.onabort = () => { println("tx4.onabort (empty readonly)"); txComplete(); };
+
+                const timeout = setTimeout(() => {
+                    println("TIMEOUT");
+                    db.close();
+                    done();
+                }, 3000);
+            };
+        };
+    }, 0);
+});
+</script>

@@ -458,11 +458,10 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
             if (did_throw)
                 abort_a_transaction(transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_utf16));
 
-            // AD-HOC:
-            // The implementation must attempt to commit a transaction when all requests placed against the transaction have completed
-            // and their returned results handled,
-            // no new requests have been placed against the transaction,
-            // and the transaction has not been aborted.
+            // https://w3c.github.io/IndexedDB/#transaction-commit
+            // The implementation must attempt to commit an inactive transaction when all requests placed
+            // against the transaction have completed and their returned results handled, no new requests have
+            // been placed against the transaction, and the transaction has not been aborted
             if (transaction->state() == IDBTransaction::TransactionState::Inactive && transaction->request_list().is_empty() && !transaction->aborted())
                 commit_a_transaction(realm, transaction);
         }
@@ -2182,6 +2181,17 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
                     // 1. Set transaction’s state to inactive.
                     VERIFY(transaction->state() == IDBTransaction::TransactionState::Active);
                     transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+                    // https://w3c.github.io/IndexedDB/#transaction-commit
+                    // The implementation must attempt to commit an inactive transaction when all requests placed
+                    // against the transaction have completed and their returned results handled, no new requests have
+                    // been placed against the transaction, and the transaction has not been aborted
+
+                    // FIXME: We skip committing if the transaction is waiting for prior writes.
+                    //        Update the steps here text if this becomes explicit in the spec:
+                    //         https://github.com/w3c/IndexedDB/issues/489#issuecomment-3994928473
+                    if (!transaction->request_list().execution_is_blocked() && transaction->request_list().is_empty())
+                        commit_a_transaction(transaction->realm(), transaction);
 
                     // 2. Clear transaction’s cleanup event loop.
                     transaction->set_cleanup_event_loop(nullptr);

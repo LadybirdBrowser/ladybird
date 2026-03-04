@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+15 Pass
+6 Fail
+Pass	Returns an IDBIndex and the properties are set correctly
+Fail	Attempt to create an index that requires unique values on an object store already contains duplicates
+Pass	The index is usable right after being made
+Fail	Event ordering for a later deleted index
+Pass	Empty keyPath
+Fail	Event order when unique constraint is triggered
+Fail	Event ordering for ConstraintError on request
+Pass	Index can be valid keys
+Pass	IDBObjectStore.createIndex() - empty name
+Pass	If an index with the name name already exists in this object store, the implementation must throw a DOMException of type ConstraintError
+Fail	If keyPath is not a valid key path, the implementation must throw a DOMException of type SyntaxError
+Pass	If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError
+Pass	Operate out versionchange throw InvalidStateError
+Pass	InvalidStateError(Incorrect mode) vs. TransactionInactiveError. Mode check should precede state check of the transaction.
+Pass	InvalidStateError(Deleted ObjectStore) vs. TransactionInactiveError. Deletion check should precede transaction-state check.
+Pass	TransactionInactiveError vs. ConstraintError. Transaction-state check should precede index name check.
+Pass	ConstraintError vs. SyntaxError. Index name check should precede syntax check of the key path
+Fail	SyntaxError vs. InvalidAccessError. Syntax check should precede multiEntry check of the key path.
+Pass	Explicit Primary Key
+Pass	Auto-Increment Primary Key
+Pass	Auto-Increment Primary Key - invalid key values elsewhere

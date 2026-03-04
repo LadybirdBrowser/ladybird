@@ -1,0 +1,9 @@
+tx1 readwrite
+tx2 readwrite with request
+tx3 readwrite empty
+tx4 readonly empty
+tx1.oncomplete
+tx2 get: val=2
+tx2.oncomplete
+tx3.oncomplete (empty readwrite)
+tx4.oncomplete (empty readonly)
