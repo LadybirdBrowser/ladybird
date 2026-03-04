@@ -1,0 +1,10 @@
+setup.upgradeneeded
+setup.success
+second.success
+connA.versionchange
+connA.close() called
+connB.versionchange
+connB.close() called
+upgrade.upgradeneeded
+upgrade.success
+DONE

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-abort-and-cleanup.html");
+
+        // Test that aborting a transaction immediately and then allowing it to
+        // hit the cleanup steps doesn't cause a crash, nor allow further edits.
+
+        const dbName = "test-abort-in-success-" + Date.now() + Math.random();
+
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = (e) => {
+            e.target.result.createObjectStore("store");
+        };
+        setupReq.onsuccess = (e) => {
+            const db = e.target.result;
+            const tx = db.transaction("store", "readwrite");
+            const store = tx.objectStore("store");
+
+            const put = store.put("foo", "bar");
+            tx.abort();
+            println("tx.abort() called");
+
+            put.onsuccess = () => {
+                println("put.success");
+            };
+            put.onerror = (e) => {
+                e.preventDefault();
+                println("put.error: " + e.target.error.name);
+
+                try {
+                    store.put("lorem", "ipsum");
+                    println("second put succeeded");
+                } catch (e) {
+                    println("second put failed: " + e);
+                }
+            };
+
+            tx.onabort = () => {
+                println("tx.abort");
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+        };
+    }, 0);
+});
+</script>

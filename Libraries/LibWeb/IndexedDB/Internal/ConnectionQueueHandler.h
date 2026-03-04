@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
+#include <AK/Vector.h>
 #include <LibWeb/IndexedDB/Internal/RequestList.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 

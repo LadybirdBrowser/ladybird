@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        // We need to do this spoofing later in the event loop so that we don't end up
+        // telling the test runner the wrong URL in page_did_finish_loading.
+        spoofCurrentURL("https://example.com/indexeddb-concurrent-open-event-ordering.html");
+
+        // Test that two concurrent indexedDB.open() calls to a new database
+        // produce events in the correct order: the first request's upgradeneeded
+        // event must fire before the second request's success event.
+        //
+        // Regression test for a bug where set_processed(true) in upgrade_a_database
+        // step 9 triggered a synchronous observer chain that caused the second
+        // request's success event to be queued before the first request's
+        // upgradeneeded event.
+
+        const dbName = "test-concurrent-open-" + Date.now() + Math.random();
+        let req1Done = false;
+        let req2Done = false;
+
+        const deleteReq = indexedDB.deleteDatabase(dbName);
+
+        deleteReq.onsuccess = deleteReq.onerror = () => {
+            const req1 = indexedDB.open(dbName, 1);
+            const req2 = indexedDB.open(dbName, 1);
+
+            req1.onupgradeneeded = (e) => {
+                println("req1.upgradeneeded");
+            };
+
+            req1.onsuccess = (e) => {
+                println("req1.success");
+                e.target.result.close();
+                req1Done = true;
+                checkResults();
+            };
+
+            req1.onerror = (e) => {
+                println("req1.error: " + e.target.error.name);
+                req1Done = true;
+                checkResults();
+            };
+
+            req2.onupgradeneeded = (e) => {
+                println("req2.upgradeneeded");
+            };
+
+            req2.onsuccess = (e) => {
+                println("req2.success");
+                e.target.result.close();
+                req2Done = true;
+                checkResults();
+            };
+
+            req2.onerror = (e) => {
+                println("req2.error: " + e.target.error.name);
+                req2Done = true;
+                checkResults();
+            };
+
+            function checkResults() {
+                if (!req1Done || !req2Done)
+                    return;
+
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            }
+        };
+    }, 0);
+});
+</script>

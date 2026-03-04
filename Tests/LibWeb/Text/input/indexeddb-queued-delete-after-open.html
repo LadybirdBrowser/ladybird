@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-queued-delete-after-open.html");
+
+        // Test that a deleteDatabase request queued after an open request
+        // waits for the open to fully complete before proceeding. This
+        // exercises ConnectionQueue serialization across operation types.
+
+        const dbName = "test-queued-delete-" + Date.now() + Math.random();
+
+        // Issue an open (with upgrade to v1) and a deleteDatabase back-to-back.
+        // The delete must wait for the open to finish.
+        const openReq = indexedDB.open(dbName, 1);
+        openReq.onupgradeneeded = () => {
+            println("open.upgradeneeded");
+        };
+        openReq.onsuccess = (e) => {
+            println("open.success");
+            const conn = e.target.result;
+
+            // When the delete sends versionchange, close so it can proceed.
+            conn.onversionchange = () => {
+                println("conn.versionchange");
+                conn.close();
+                println("conn.close() called");
+            };
+        };
+        openReq.onerror = (e) => {
+            println("open.error: " + e.target.error.name);
+        };
+
+        // Queue deleteDatabase immediately after the open.
+        const deleteReq = indexedDB.deleteDatabase(dbName);
+        deleteReq.onsuccess = () => {
+            println("delete.success");
+            println("DONE");
+            done();
+        };
+        deleteReq.onerror = (e) => {
+            println("delete.error: " + e.target.error.name);
+            println("DONE");
+            done();
+        };
+    }, 0);
+});
+</script>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-delete-close-event-ordering.html");
+
+        // Test that deleteDatabase waits for an existing connection to close
+        // (via versionchange) before proceeding with the deletion. This
+        // exercises wait_for_connections_to_close through the delete path.
+
+        const dbName = "test-delete-close-ordering-" + Date.now() + Math.random();
+
+        // Step 1: Create the database at version 1 and keep it open.
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = () => {
+            println("setup.upgradeneeded");
+        };
+        setupReq.onsuccess = (e) => {
+            println("setup.success");
+            const conn = e.target.result;
+
+            conn.onversionchange = () => {
+                println("conn.versionchange");
+                conn.close();
+                println("conn.close() called");
+            };
+
+            // Step 2: Delete the database. This should send versionchange
+            // to the existing connection, wait for it to close, then
+            // proceed with deletion.
+            const deleteReq = indexedDB.deleteDatabase(dbName);
+            deleteReq.onsuccess = () => {
+                println("delete.success");
+                println("DONE");
+                done();
+            };
+            deleteReq.onerror = (e) => {
+                println("delete.error: " + e.target.error.name);
+                println("DONE");
+                done();
+            };
+        };
+        setupReq.onerror = (e) => {
+            println("setup.error: " + e.target.error.name);
+            println("DONE");
+            done();
+        };
+    }, 0);
+});
+</script>

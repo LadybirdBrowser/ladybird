@@ -78,35 +78,12 @@ public:
     void set_onerror(WebIDL::CallbackType*);
     WebIDL::CallbackType* onerror();
 
-    void register_transaction_observer(Badge<IDBTransactionObserver>, IDBTransactionObserver&);
-    void unregister_transaction_observer(Badge<IDBTransactionObserver>, IDBTransactionObserver&);
-
 protected:
     explicit IDBTransaction(JS::Realm&, GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
-    template<typename GetNotifier, typename... Args>
-    void notify_each_transaction_observer(GetNotifier&& get_notifier, Args&&... args)
-    {
-        ScopeGuard guard { [&]() { m_transaction_observers_being_notified.clear_with_capacity(); } };
-        m_transaction_observers_being_notified.ensure_capacity(m_transaction_observers.size());
-
-        for (auto observer : m_transaction_observers)
-            m_transaction_observers_being_notified.unchecked_append(observer);
-
-        for (auto transaction_observer : m_transaction_observers) {
-            if (auto notifier = get_notifier(*transaction_observer))
-                notifier->function()(forward<Args>(args)...);
-        }
-    }
-
-    // IDBTransaction should not visit IDBTransactionObserver to avoid leaks.
-    // It's responsibility of object that requires IDBTransactionObserver to keep it alive.
-    HashTable<GC::RawRef<IDBTransactionObserver>> m_transaction_observers;
-    Vector<GC::Ref<IDBTransactionObserver>> m_transaction_observers_being_notified;
-
     // AD-HOC: The transaction has a connection
     GC::Ref<IDBDatabase> m_connection;
 

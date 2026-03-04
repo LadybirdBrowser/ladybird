@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-commit-prevents-new-requests.html");
+
+        // Test that after calling transaction.commit(), pending request
+        // success handlers cannot issue new requests on the transaction.
+        // The transaction should be in the "committing" state, not "active".
+
+        const dbName = "test-commit-prevents-" + Date.now() + Math.random();
+
+        const setupReq = indexedDB.open(dbName, 1);
+        setupReq.onupgradeneeded = (e) => {
+            e.target.result.createObjectStore("store");
+        };
+        setupReq.onsuccess = (e) => {
+            const db = e.target.result;
+
+            const tx = db.transaction("store", "readwrite");
+            const store = tx.objectStore("store");
+
+            const putReq = store.put("value1", "key1");
+
+            // Commit while the put is still in flight.
+            tx.commit();
+
+            putReq.onsuccess = () => {
+                println("put.success");
+
+                // The transaction has been committed. Issuing a new request
+                // should throw TransactionInactiveError.
+                try {
+                    store.put("value2", "key2");
+                    println("second put did not throw");
+                } catch (e) {
+                    println("second put threw: " + e.name);
+                }
+            };
+
+            tx.oncomplete = () => {
+                println("tx.complete");
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+            tx.onerror = (e) => {
+                println("tx.error: " + e.target.error.name);
+                db.close();
+                indexedDB.deleteDatabase(dbName);
+                println("DONE");
+                done();
+            };
+        };
+        setupReq.onerror = (e) => {
+            println("setup.error: " + e.target.error.name);
+            println("DONE");
+            done();
+        };
+    }, 0);
+});
+</script>

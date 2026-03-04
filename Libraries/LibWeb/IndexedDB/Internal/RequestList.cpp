@@ -6,103 +6,92 @@
  */
 
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
-#include <LibWeb/IndexedDB/Internal/IDBRequestObserver.h>
 #include <LibWeb/IndexedDB/Internal/RequestList.h>
 
 namespace Web::IndexedDB {
 
-GC_DEFINE_ALLOCATOR(RequestList::PendingRequestProcess);
-
-void RequestList::all_requests_processed(GC::Heap& heap, GC::Ref<GC::Function<void()>> on_complete)
+void RequestList::enqueue(GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void()>> steps)
 {
-    GC::Ptr<PendingRequestProcess> pending_request_process;
+    m_entries.append({ request, steps });
+    maybe_process_next_request();
+}
 
-    remove_all_matching([](auto const& entry) { return !entry; });
-    for (auto const& entry : *this) {
-        if (!entry->processed()) {
-            if (!pending_request_process) {
-                pending_request_process = heap.allocate<PendingRequestProcess>();
-            }
+void RequestList::maybe_process_next_request()
+{
+    while (!m_entries.is_empty() && !m_entries.first().request)
+        m_entries.remove(0);
 
-            pending_request_process->add_request_to_observe(*entry);
-        }
-    }
+    for (auto& [request, steps] : m_entries) {
+        if (!request)
+            continue;
+        if (request->processed())
+            continue;
 
-    if (pending_request_process) {
-        pending_request_process->after_all = GC::create_function(heap, [this, pending_request_process, on_complete] {
-            VERIFY(!m_pending_request_queue.is_empty());
-            bool was_removed = m_pending_request_queue.remove_first_matching([pending_request_process](GC::Root<PendingRequestProcess> const& stored_pending_connection_process) {
-                return stored_pending_connection_process.ptr() == pending_request_process.ptr();
-            });
-            VERIFY(was_removed);
-            queue_a_database_task(on_complete);
-        });
-        m_pending_request_queue.append(pending_request_process);
-    } else {
-        queue_a_database_task(on_complete);
+        // If the steps are null here, the request is still executing, so we should wait until it is finished.
+        if (!steps)
+            return;
+
+        queue_a_database_task(*steps);
+        steps = nullptr;
+        return;
     }
 }
 
-void RequestList::all_previous_requests_processed(GC::Heap& heap, GC::Ref<IDBRequest> const& request, GC::Ref<GC::Function<void()>> on_complete)
+void RequestList::on_request_processed()
 {
-    GC::Ptr<PendingRequestProcess> pending_request_process;
-
-    remove_all_matching([](auto const& entry) { return !entry; });
-    for (auto const& entry : *this) {
-        if (entry == request)
-            break;
-
-        if (!entry->processed()) {
-            if (!pending_request_process) {
-                pending_request_process = heap.allocate<PendingRequestProcess>();
-            }
-
-            pending_request_process->add_request_to_observe(*entry);
-        }
-    }
-
-    if (pending_request_process) {
-        pending_request_process->after_all = GC::create_function(heap, [this, pending_request_process, on_complete] {
-            VERIFY(!m_pending_request_queue.is_empty());
-            bool was_removed = m_pending_request_queue.remove_first_matching([pending_request_process](GC::Root<PendingRequestProcess> const& stored_pending_connection_process) {
-                return stored_pending_connection_process.ptr() == pending_request_process.ptr();
-            });
-            VERIFY(was_removed);
-            on_complete->function()();
-        });
-        m_pending_request_queue.append(*pending_request_process);
-    } else {
-        on_complete->function()();
-    }
+    maybe_process_next_request();
 }
 
-void RequestList::PendingRequestProcess::visit_edges(Cell::Visitor& visitor)
+void RequestList::remove(GC::Ref<IDBRequest> request)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(requests_waiting_on);
-    visitor.visit(after_all);
+    m_entries.remove_first_matching([&request](auto const& entry) {
+        return entry.request.ptr() == request.ptr();
+    });
 }
 
-void RequestList::PendingRequestProcess::add_request_to_observe(GC::Ref<IDBRequest> request)
+bool RequestList::is_empty() const
 {
-    auto request_observer = heap().allocate<IDBRequestObserver>(request);
-    request_observer->set_request_processed_changed_observer(GC::create_function(heap(), [this] {
-        VERIFY(!requests_waiting_on.is_empty());
-        requests_waiting_on.remove_all_matching([](GC::Ref<IDBRequestObserver> const& pending_request) {
-            if (pending_request->request()->processed()) {
-                pending_request->unobserve();
-                return true;
-            }
+    return m_entries.is_empty();
+}
 
-            return false;
-        });
+void RequestList::set_on_all_processed(GC::Ref<GC::Function<void()>> callback)
+{
+    m_on_all_processed = callback;
+    check_all_processed();
+}
 
-        if (requests_waiting_on.is_empty()) {
-            after_all.as_nonnull()->function()();
-        }
-    }));
+void RequestList::check_all_processed()
+{
+    if (!m_on_all_processed)
+        return;
 
-    requests_waiting_on.append(request_observer);
+    m_entries.remove_all_matching([](auto const& entry) { return !entry.request; });
+
+    for (auto const& entry : m_entries) {
+        if (!entry.request->processed())
+            return;
+    }
+
+    auto callback = move(m_on_all_processed);
+    callback->function()();
+}
+
+GC::Ref<IDBRequest> RequestList::RequestIterator::operator*() const
+{
+    return *m_entries[m_index].request;
+}
+
+RequestList::RequestIterator& RequestList::RequestIterator::operator++()
+{
+    ++m_index;
+    skip_null();
+    return *this;
+}
+
+void RequestList::RequestIterator::skip_null()
+{
+    while (m_index < m_entries.size() && !m_entries[m_index].request)
+        ++m_index;
 }
 
 }

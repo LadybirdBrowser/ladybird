@@ -80,10 +80,8 @@ public:
     void set_onversionchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onversionchange();
 
-    void register_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
-    void unregister_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
-
     void wait_for_transactions_to_finish(ReadonlySpan<GC::Ref<IDBTransaction>>, GC::Ref<GC::Function<void()>> on_complete);
+    void check_pending_transaction_waits();
 
 protected:
     explicit IDBDatabase(JS::Realm&, Database&);
@@ -92,39 +90,12 @@ protected:
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
-    template<typename GetNotifier, typename... Args>
-    void notify_each_database_observer(GetNotifier&& get_notifier, Args&&... args)
-    {
-        ScopeGuard guard { [&]() { m_database_observers_being_notified.clear_with_capacity(); } };
-        m_database_observers_being_notified.ensure_capacity(m_database_observers.size());
-
-        for (auto observer : m_database_observers)
-            m_database_observers_being_notified.unchecked_append(observer);
-
-        for (auto database_observer : m_database_observers_being_notified) {
-            if (auto notifier = get_notifier(*database_observer))
-                notifier->function()(forward<Args>(args)...);
-        }
-    }
-
-    // IDBDatabase should not visit IDBDatabaseObserver to avoid leaks.
-    // It's responsibility of object that requires IDBDatabaseObserver to keep it alive.
-    HashTable<GC::RawRef<IDBDatabaseObserver>> m_database_observers;
-    Vector<GC::Ref<IDBDatabaseObserver>> m_database_observers_being_notified;
-
-    struct TransactionFinishState final : public GC::Cell {
-        GC_CELL(TransactionFinishState, GC::Cell);
-        GC_DECLARE_ALLOCATOR(TransactionFinishState);
-
-        virtual void visit_edges(Visitor& visitor) override;
-
-        void add_transaction_to_observe(GC::Ref<IDBTransaction> transaction);
-
-        Vector<GC::Ref<IDBTransactionObserver>> transaction_observers;
-        GC::Ptr<GC::Function<void()>> after_all;
+    struct PendingTransactionWait {
+        Vector<GC::Ref<IDBTransaction>> transactions;
+        GC::Ref<GC::Function<void()>> callback;
     };
 
-    Vector<GC::Ref<TransactionFinishState>> m_transaction_finish_queue;
+    Vector<PendingTransactionWait> m_pending_transaction_waits;
 
     u64 m_version { 0 };
     String m_name;

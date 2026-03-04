@@ -51,6 +51,7 @@ public:
     virtual ~Database();
 
     void wait_for_connections_to_close(ReadonlySpan<GC::Ref<IDBDatabase>> connections, GC::Ref<GC::Function<void()>> after_all);
+    void check_pending_connection_wait();
 
 protected:
     explicit Database(IDBDatabase& database);
@@ -64,20 +65,13 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    struct ConnectionCloseState final : public GC::Cell {
-        GC_CELL(ConnectionCloseState, GC::Cell);
-        GC_DECLARE_ALLOCATOR(ConnectionCloseState);
-
-        virtual void visit_edges(Visitor& visitor) override;
-
-        void add_connection_to_observe(GC::Ref<IDBDatabase> database);
-
-        Vector<GC::Ref<IDBDatabaseObserver>> database_observers;
-        GC::Ptr<GC::Function<void()>> after_all;
+    struct PendingConnectionWait {
+        Vector<GC::Ref<IDBDatabase>> connections;
+        GC::Ref<GC::Function<void()>> callback;
     };
 
     Vector<GC::Ref<IDBDatabase>> m_associated_connections;
-    Vector<GC::Ref<ConnectionCloseState>> m_pending_connection_close_queue;
+    Optional<PendingConnectionWait> m_pending_connection_wait;
 
     // A database has a name which identifies it within a specific storage key.
     String m_name;
