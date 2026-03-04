@@ -1472,6 +1472,8 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
         switch (at_rule_id) {
         case AtRuleID::FontFace:
             return RuleContext::AtFontFace;
+        case AtRuleID::Function:
+            TODO();
         case AtRuleID::Page:
             return RuleContext::AtPage;
         case AtRuleID::Property:

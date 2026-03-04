@@ -1,0 +1,7 @@
+#import <CSS/CSSStyleDeclaration.idl>
+
+// https://drafts.csswg.org/css-mixins-1/#cssfunctiondescriptors
+[Exposed=Window]
+interface CSSFunctionDescriptors : CSSStyleDeclaration {
+    [LegacyNullToEmptyString] attribute CSSOMString result;
+};
