@@ -90,6 +90,7 @@ set(SOURCES
     Runtime/ErrorPrototype.cpp
     Runtime/ErrorTypes.cpp
     Runtime/ExecutionContext.cpp
+    Runtime/InterpreterStack.cpp
     Runtime/FinalizationRegistry.cpp
     Runtime/FinalizationRegistryConstructor.cpp
     Runtime/FinalizationRegistryPrototype.cpp
