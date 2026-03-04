@@ -453,13 +453,9 @@ void TransportSocket::read_incoming_messages()
     }
 
     if (index < m_unprocessed_bytes.size()) {
-        auto remaining_bytes_or_error = ByteBuffer::copy(m_unprocessed_bytes.span().slice(index));
-        if (remaining_bytes_or_error.is_error()) {
-            dbgln("TransportSocket: Failed to copy remaining bytes");
-            m_peer_eof = true;
-        } else {
-            m_unprocessed_bytes = remaining_bytes_or_error.release_value();
-        }
+        auto remaining = m_unprocessed_bytes.size() - index;
+        m_unprocessed_bytes.overwrite(0, m_unprocessed_bytes.data() + index, remaining);
+        m_unprocessed_bytes.resize(remaining);
     } else {
         m_unprocessed_bytes.clear();
     }
