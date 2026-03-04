@@ -2675,10 +2675,10 @@ void Node::clear_paintable()
     m_paintable = nullptr;
 }
 
-void Node::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
+void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
     if (auto* p = unsafe_paintable())
-        p->set_needs_display(should_invalidate_display_list);
+        p->set_needs_repaint(should_invalidate_display_list);
 }
 
 void Node::set_needs_paint_only_properties_update()

@@ -940,7 +940,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         unsafe_layout_node()->apply_style(*m_computed_properties);
         if (invalidation.repaint) {
             set_needs_paint_only_properties_update();
-            set_needs_display();
+            set_needs_repaint();
         }
 
         // Do the same for pseudo-elements.
@@ -958,7 +958,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
                 node_with_style->apply_style(*pseudo_element_style);
                 if (invalidation.repaint && node_with_style->first_paintable()) {
                     node_with_style->first_paintable()->set_needs_paint_only_properties_update(true);
-                    node_with_style->first_paintable()->set_needs_display();
+                    node_with_style->first_paintable()->set_needs_repaint();
                 }
             }
         }

@@ -527,7 +527,7 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
                 set_user_selection(*focus_node, focus_index, *focus_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
             }
 
-            document.set_needs_display();
+            document.set_needs_repaint(Badge<EventHandler> {});
         }
     }
 }

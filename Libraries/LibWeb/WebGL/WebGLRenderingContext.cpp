@@ -121,7 +121,7 @@ void WebGLRenderingContext::needs_to_present()
 {
     m_canvas_element->set_canvas_content_dirty();
 
-    m_canvas_element->set_needs_display();
+    m_canvas_element->set_needs_repaint();
 }
 
 bool WebGLRenderingContext::is_context_lost() const

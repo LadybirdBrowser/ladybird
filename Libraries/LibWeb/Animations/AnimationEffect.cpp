@@ -855,7 +855,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
             if (invalidation.rebuild_accumulated_visual_contexts)
                 element.document().set_needs_accumulated_visual_contexts_update(true);
 
-            element.document().set_needs_display();
+            target->set_needs_repaint();
         }
         if (invalidation.rebuild_stacking_context_tree)
             element.document().invalidate_stacking_context_tree();

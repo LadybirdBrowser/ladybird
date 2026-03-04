@@ -525,7 +525,7 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
         auto node = cursor_position->node();
         if (node->unsafe_paintable()) {
             m_cursor_blink_state = !m_cursor_blink_state;
-            node->set_needs_display();
+            node->set_needs_repaint();
         }
     });
 
@@ -1494,7 +1494,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         set_needs_to_resolve_paint_only_properties();
         set_needs_accumulated_visual_contexts_update(true);
         update_paint_and_hit_testing_properties_if_needed();
-        m_document->set_needs_display();
+        m_document->set_needs_repaint();
         return;
     }
 
@@ -1586,7 +1586,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     // Broadcast the current viewport rect to any new paintables, so they know whether they're visible or not.
     inform_all_viewport_clients_about_the_current_viewport_rect();
 
-    m_document->set_needs_display();
+    m_document->set_needs_repaint();
     set_needs_to_resolve_paint_only_properties();
 
     // NB: Called during layout update.
@@ -1995,13 +1995,13 @@ void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElem
         return;
 
     if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->first_paintable())
-        layout_node->first_paintable()->set_needs_display();
+        layout_node->first_paintable()->set_needs_repaint();
 
     m_highlighted_node = node;
     m_highlighted_pseudo_element = pseudo_element;
 
     if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->first_paintable())
-        layout_node->first_paintable()->set_needs_display();
+        layout_node->first_paintable()->set_needs_repaint();
 }
 
 GC::Ptr<Layout::Node> Document::highlighted_layout_node()
@@ -2789,7 +2789,7 @@ void Document::set_focused_area(GC::Ptr<Node> node)
 
     reset_cursor_blink_cycle();
 
-    set_needs_display();
+    set_needs_repaint();
 
     // Scroll the viewport if necessary to make the newly focused element visible.
     if (new_focused_element) {
@@ -2838,7 +2838,7 @@ void Document::set_active_element(GC::Ptr<Element> element)
 
     m_active_element = element;
 
-    set_needs_display();
+    set_needs_repaint();
 }
 
 void Document::set_target_element(GC::Ptr<Element> element)
@@ -2869,7 +2869,7 @@ void Document::set_target_element(GC::Ptr<Element> element)
 
     m_target_element = element;
 
-    set_needs_display();
+    set_needs_repaint();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
@@ -7265,19 +7265,17 @@ void Document::set_cached_navigable(GC::Ptr<HTML::Navigable> navigable)
     m_cached_navigable = navigable.ptr();
 }
 
-void Document::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
+void Document::notify_css_background_image_loaded()
 {
-    set_needs_display(viewport_rect(), should_invalidate_display_list);
+    set_needs_paint_only_properties_update();
+    set_needs_repaint();
 }
 
-void Document::set_needs_display(CSSPixelRect const&, InvalidateDisplayList should_invalidate_display_list)
+void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
-    // FIXME: Ignore updates outside the visible viewport rect.
-    //        This requires accounting for fixed-position elements in the input rect, which we don't do yet.
-
     auto navigable = this->navigable();
 
-    // OPTIMIZATION: Ignore set_needs_display() inside navigable containers (i.e frames) with visibility: hidden.
+    // OPTIMIZATION: Ignore set_needs_repaint() inside navigable containers (i.e frames) with visibility: hidden.
     if (navigable && navigable->has_inclusive_ancestor_with_visibility_hidden())
         return;
 
@@ -7295,7 +7293,7 @@ void Document::set_needs_display(CSSPixelRect const&, InvalidateDisplayList shou
     }
 
     if (auto container = navigable->container()) {
-        container->document().set_needs_display(should_invalidate_display_list);
+        container->document().set_needs_repaint(should_invalidate_display_list);
     }
 }
 

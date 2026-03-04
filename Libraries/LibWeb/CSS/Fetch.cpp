@@ -162,11 +162,7 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
                 return;
 
             if (auto navigable = document.navigable()) {
-                // Once the image has loaded, we need to re-resolve CSS properties that depend on the image's dimensions.
-                document.set_needs_paint_only_properties_update();
-
-                // FIXME: Do less than a full repaint if possible?
-                document.set_needs_display();
+                document.notify_css_background_image_loaded();
             }
         },
         nullptr);

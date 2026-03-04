@@ -38,7 +38,7 @@ void LabelablePaintable::set_being_pressed(bool being_pressed)
     if (m_being_pressed == being_pressed)
         return;
     m_being_pressed = being_pressed;
-    set_needs_display();
+    set_needs_repaint();
 }
 
 Layout::FormAssociatedLabelableNode const& LabelablePaintable::layout_box() const
