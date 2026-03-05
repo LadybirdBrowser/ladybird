@@ -1,0 +1,3 @@
+before rename: store=original_store index=original_index
+after rename: store=renamed_store index=renamed_index
+after abort: store=original_store index=original_index

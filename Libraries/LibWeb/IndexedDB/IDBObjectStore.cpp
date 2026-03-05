@@ -91,6 +91,9 @@ WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
     if (store->database()->object_store_with_name(name))
         return WebIDL::ConstraintError::create(realm, "Object store with the given name already exists"_utf16);
 
+    // AD-HOC: Log the rename for potential revert on abort.
+    store->mutation_log()->note_object_store_renamed(store->name());
+
     // 9. Set store’s name to name.
     store->set_name(name);
 
@@ -191,6 +194,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
     // 12. Add index to this's index set.
     this->index_set().set(name, index);
 
+    // AD-HOC: Log the creation for potential revert on abort.
+    store->mutation_log()->note_index_created(index);
+
     // 13. Return a new index handle associated with index and this.
     return IDBIndex::create(realm, index, *this);
 }
@@ -254,6 +260,9 @@ WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
 
     // AD-HOC: Mark the index as deleted so that stale handles throw InvalidStateError.
     index.value()->set_deleted(true);
+
+    // AD-HOC: Log the deletion for potential revert on abort.
+    store->mutation_log()->note_index_deleted(*index.value());
 
     // 8. Destroy index.
     store->index_set().remove(name);

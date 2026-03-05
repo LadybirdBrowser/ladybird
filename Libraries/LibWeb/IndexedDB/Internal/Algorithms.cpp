@@ -422,6 +422,10 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     // 7. Let old version be db’s version.
     auto old_version = db->version();
 
+    // AD-HOC: Set up per-store mutation logs. This also records the current database version
+    //         so it can be restored if the transaction is aborted.
+    transaction->set_up_mutation_logs();
+
     // 8. Set db’s version to version. This change is considered part of the transaction, and so if the transaction is aborted, this change is reverted.
     db->set_version(version);
 
@@ -571,6 +575,49 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
     }));
 }
 
+// https://w3c.github.io/IndexedDB/#abort-an-upgrade-transaction
+static void abort_an_upgrade_transaction(GC::Ref<IDBTransaction> transaction)
+{
+    // 1. Let connection be transaction’s connection.
+    auto connection = transaction->connection();
+
+    // 2. Let database be connection’s database.
+    auto database = connection->associated_database();
+
+    // 3. Set connection’s version to database’s version if database previously existed, or 0 (zero) if database was
+    //    newly created.
+    connection->set_version(database->version());
+
+    // 4. Set connection’s object store set to the set of object stores in database if database previously existed, or
+    //    the empty set if database was newly created.
+    // NB: MutationLog reverts all changes to the connection's object store set alongside the deletion/creation of the
+    //     underlying ObjectStore instances.
+    //     However, the transaction scope will still be outdated here. Upgrade transactions are always scoped to the
+    //     entire database, so this is easy.
+    transaction->set_scope(Vector(connection->object_store_set()));
+
+    // 5. For each object store handle handle associated with transaction, including those for object stores that were
+    //    created or deleted during transaction:
+    transaction->for_each_object_store_handle([&](auto const& handle) {
+        // 1. If handle’s object store was not newly created during transaction, set handle’s name to its object
+        //    store’s name.
+        if (database->object_stores().contains_slow(handle->store()))
+            handle->update_name();
+
+        // 2. Set handle’s index set to the set of indexes that reference its object store.
+        handle->update_index_set();
+        return IterationDecision::Continue;
+    });
+
+    // 6. For each index handle handle associated with transaction, including those for indexes that were created or
+    //    deleted during transaction:
+    for (auto const& handle : transaction->index_handles()) {
+        // 1. If handle’s index was not newly created during transaction, set handle’s name to its index’s name.
+        if (handle->index()->object_store()->index_set().contains(handle->index()->name()))
+            handle->update_name();
+    }
+}
+
 // https://w3c.github.io/IndexedDB/#abort-a-transaction
 void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DOMException> error)
 {
@@ -582,13 +629,15 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
     if (transaction->is_finished())
         return;
 
-    // FIXME: 2. All the changes made to the database by the transaction are reverted.
+    // 2. All the changes made to the database by the transaction are reverted.
     // For upgrade transactions this includes changes to the set of object stores and indexes, as well as the change to the version.
     // Any object stores and indexes which were created during the transaction are now considered deleted for the purposes of other algorithms.
+    transaction->revert_all_mutations();
+    transaction->discard_mutation_logs();
 
-    // FIXME: 3. If transaction is an upgrade transaction, run the steps to abort an upgrade transaction with transaction.
-    // if (transaction.is_upgrade_transaction())
-    //     abort_an_upgrade_transaction(transaction);
+    // 3. If transaction is an upgrade transaction, run the steps to abort an upgrade transaction with transaction.
+    if (transaction->is_upgrade_transaction())
+        abort_an_upgrade_transaction(transaction);
 
     // 4. Set transaction’s state to finished.
     transaction->set_state(IDBTransaction::TransactionState::Finished);
@@ -831,6 +880,9 @@ void commit_a_transaction(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
             // 1. If transaction is an upgrade transaction, then set transaction’s connection’s associated database’s upgrade transaction to null.
             if (transaction->is_upgrade_transaction())
                 transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
+
+            // AD-HOC: Discard mutation logs now that changes are permanent.
+            transaction->discard_mutation_logs();
 
             // 2. Set transaction’s state to finished.
             transaction->set_state(IDBTransaction::TransactionState::Finished);
@@ -1206,6 +1258,22 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
             return cursor->transaction();
         });
 
+    // AD-HOC: Determine the object store being operated on so that we can get the exact mutation log this
+    //         operation will be writing to.
+    auto store = source.visit(
+        [](Empty) -> GC::Ref<ObjectStore> {
+            VERIFY_NOT_REACHED();
+        },
+        [](GC::Ref<IDBObjectStore> object_store) -> GC::Ref<ObjectStore> {
+            return object_store->store();
+        },
+        [](GC::Ref<IDBIndex> index) -> GC::Ref<ObjectStore> {
+            return index->object_store()->store();
+        },
+        [](GC::Ref<IDBCursor> cursor) -> GC::Ref<ObjectStore> {
+            return cursor->effective_object_store();
+        });
+
     // 2. Assert: transaction’s state is active.
     VERIFY(transaction->state() == IDBTransaction::TransactionState::Active);
 
@@ -1219,13 +1287,16 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
     // 4. Add request to the end of transaction’s request list.
     // 5. Run these steps in parallel:
     //     1. Wait until request is the first item in transaction’s request list that is not processed.
-    transaction->request_list().enqueue(request, GC::create_function(realm.heap(), [&realm, transaction, operation, request]() {
+    transaction->request_list().enqueue(request, GC::create_function(realm.heap(), [&realm, transaction, store, operation, request]() {
         if (request->aborted()) {
             dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: executing request {} canceled due to abort", request->uuid());
             return;
         }
 
         dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.1: performing operation for request {}", request->uuid());
+
+        // AD-HOC: Determine where the mutation logs for this operation begin in case we need to revert.
+        auto log_position = store->mutation_log_position();
 
         // 2. Let result be the result of performing operation.
         auto result = operation->function()();
@@ -1237,7 +1308,9 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
             return;
         }
 
-        // FIXME: 4. If result is an error, then revert all changes made by operation.
+        // 4. If result is an error, then revert all changes made by operation.
+        if (result.is_error())
+            store->revert_mutations_from(log_position);
 
         // 5. Set request’s processed flag to true.
         request->set_processed(true);

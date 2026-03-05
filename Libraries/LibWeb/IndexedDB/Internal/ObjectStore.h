@@ -19,6 +19,7 @@
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/KeyGenerator.h>
+#include <LibWeb/IndexedDB/Internal/MutationLog.h>
 
 namespace Web::IndexedDB {
 
@@ -51,6 +52,7 @@ public:
     void remove_records_in_range(GC::Ref<IDBKeyRange> range);
     bool has_record_with_key(GC::Ref<Key> key);
     void store_a_record(ObjectStoreRecord const& record);
+    void remove_record_with_key(GC::Ref<Key> key);
     u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
     Optional<ObjectStoreRecord&> first_in_range(GC::Ref<IDBKeyRange> range);
     void clear_records();
@@ -61,6 +63,12 @@ public:
     ErrorOr<u64> generate_a_key();
     // https://w3c.github.io/IndexedDB/#possibly-update-the-key-generator
     void possibly_update_the_key_generator(GC::Ref<Key>);
+
+    // Mutation log access. The log is set externally by the readwrite transaction that owns it.
+    GC::Ptr<MutationLog> mutation_log() const { return m_mutation_log; }
+    void set_mutation_log(GC::Ptr<MutationLog> log) { m_mutation_log = log; }
+    [[nodiscard]] size_t mutation_log_position() const;
+    void revert_mutations_from(size_t position);
 
 protected:
     virtual void visit_edges(Visitor&) override;
@@ -87,6 +95,9 @@ private:
     Vector<ObjectStoreRecord> m_records;
 
     bool m_deleted { false };
+
+    // AD-HOC: Tracks mutations for revert on request failure or transaction abort.
+    GC::Ptr<MutationLog> m_mutation_log;
 };
 
 }

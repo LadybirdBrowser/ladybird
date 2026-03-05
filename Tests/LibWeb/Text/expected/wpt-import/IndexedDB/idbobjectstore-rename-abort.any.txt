@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	IndexedDB object store rename in aborted transaction
+Pass	IndexedDB object store creation and rename in an aborted transaction
