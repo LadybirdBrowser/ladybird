@@ -17,5 +17,6 @@ bool is_unknown_html_element(FlyString const& tag_name);
 
 // FIXME: The spec doesn't say what the default value of synchronous_custom_elements_flag should be.
 WEB_API WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document&, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix = {}, Optional<String> is = Optional<String> {}, bool synchronous_custom_elements_flag = false);
+GC::Ref<Element> create_element_internal(Document&, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, CustomElementState state, Optional<String> is_value);
 
 }

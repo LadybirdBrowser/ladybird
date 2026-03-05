@@ -606,17 +606,18 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
     // 1. Let result be null.
     // NOTE: We collapse this into just returning an element where necessary.
 
-    // 2. Let definition be the result of looking up a custom element definition given document, namespace, localName, and is.
+    // 2. If registry is "default", then set registry to the result of looking up a custom element registry given document.
+    // FIXME: Implement this.
+
+    // 3. Let definition be the result of looking up a custom element definition given registry, document, namespace, localName, and is.
     auto definition = document.lookup_custom_element_definition(namespace_, local_name, is_value);
 
-    // 3. If definition is non-null, and definition’s name is not equal to its local name (i.e., definition represents a customized built-in element), then:
+    // 4. If definition is non-null, and definition’s name is not equal to its local name (i.e., definition represents a customized built-in element), then:
     if (definition && definition->name() != definition->local_name()) {
         // 1. Let interface be the element interface for localName and the HTML namespace.
-        // 2. Set result to a new element that implements interface, with no attributes, namespace set to the HTML namespace,
-        //    namespace prefix set to prefix, local name set to localName, custom element state set to "undefined", custom element definition set to null,
-        //    is value set to is, and node document set to document.
-        auto element = create_html_element(realm, document, QualifiedName { local_name, prefix, Namespace::HTML });
-        element->set_is_value(is_value);
+        // 2. Set result to the result of creating an element internal given document, interface, localName, the HTML
+        //    namespace, prefix, "undefined", is, and registry.
+        auto element = create_element_internal(document, local_name, Namespace::HTML, prefix, CustomElementState::Undefined, is_value);
 
         // 3. If the synchronous custom elements flag is set, then run this step while catching any exceptions:
         if (synchronous_custom_elements_flag) {
@@ -642,15 +643,19 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         return element;
     }
 
-    // 4. Otherwise, if definition is non-null, then:
+    // 5. Otherwise, if definition is non-null, then:
     if (definition) {
-        // 1. If synchronousCustomElements is true, then run these steps while catching any exceptions:
+        // 1. If synchronousCustomElements is true:
         if (synchronous_custom_elements_flag) {
-            auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<GC::Ref<HTML::HTMLElement>> {
-                // 1. Let C be definition’s constructor.
-                auto& constructor = definition->constructor();
+            // 1. Let C be definition’s constructor.
+            auto& constructor = definition->constructor();
 
-                // 2. Set result to the result of constructing C, with no arguments.
+            // 2. Set the surrounding agent’s active custom element constructor map[C] to registry.
+            // FIXME: Implement this.
+
+            // 3. Run these steps while catching any exceptions:
+            auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<GC::Ref<HTML::HTMLElement>> {
+                // 1. Set result to the result of constructing C, with no arguments.
                 auto result = TRY(WebIDL::construct(constructor, {}));
 
                 // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
@@ -658,37 +663,41 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
                 if (!element)
                     return JS::throw_completion(JS::TypeError::create(realm, "Custom element constructor must return an object that implements HTMLElement"_string));
 
-                // FIXME: 3. Assert: result’s custom element state and custom element definition are initialized.
+                // FIXME: 2. Assert: result’s custom element state and custom element definition are initialized.
 
-                // 4. Assert: result’s namespace is the HTML namespace.
-                // Spec Note: IDL enforces that result is an HTMLElement object, which all use the HTML namespace.
+                // 3. Assert: result’s namespace is the HTML namespace.
+                // Note: IDL enforces that result is an HTMLElement object, which all use the HTML namespace.
                 VERIFY(element->namespace_uri() == Namespace::HTML);
 
-                // 5. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
+                // 4. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
                 if (element->has_attributes())
                     return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_utf16));
 
-                // 6. If result has children, then throw a "NotSupportedError" DOMException.
+                // 5. If result has children, then throw a "NotSupportedError" DOMException.
                 if (element->has_children())
                     return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_utf16));
 
-                // 7. If result’s parent is not null, then throw a "NotSupportedError" DOMException.
+                // 6. If result’s parent is not null, then throw a "NotSupportedError" DOMException.
                 if (element->parent())
                     return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_utf16));
 
-                // 8. If result’s node document is not document, then throw a "NotSupportedError" DOMException.
+                // 7. If result’s node document is not document, then throw a "NotSupportedError" DOMException.
                 if (&element->document() != &document)
                     return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_utf16));
 
-                // 9. If result’s local name is not equal to localName, then throw a "NotSupportedError" DOMException.
+                // 8. If result’s local name is not equal to localName, then throw a "NotSupportedError" DOMException.
                 if (element->local_name() != local_name)
                     return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_utf16));
 
-                // 10. Set result’s namespace prefix to prefix.
+                // 9. Set result’s namespace prefix to prefix.
                 element->set_prefix(prefix);
 
-                // 11. Set result’s is value to null.
+                // 10. Set result’s is value to null.
                 element->set_is_value(Optional<String> {});
+
+                // 11. Set result’s custom element registry to registry.
+                // FIXME: Implement this.
+
                 return *element;
             };
 
@@ -700,19 +709,22 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
                 auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(definition->constructor().callback));
                 window_or_worker.report_an_exception(result.error_value());
 
-                // 2. Set result to a new element that implements the HTMLUnknownElement interface, with no attributes, namespace set to the HTML namespace, namespace prefix set to prefix,
-                //    local name set to localName, custom element state set to "failed", custom element definition set to null, is value set to null, and node document set to document.
+                // 2. Set result to the result of creating an element internal given document, HTMLUnknownElement, localName, the HTML namespace, prefix, "failed", null, and registry.
+                // FIXME: Actually use create_element_internal here once it can take an interface.
                 GC::Ref<Element> element = realm.create<HTML::HTMLUnknownElement>(document, QualifiedName { local_name, prefix, Namespace::HTML });
                 element->set_custom_element_state(CustomElementState::Failed);
                 return element;
             }
 
+            // 4. Remove the surrounding agent’s active custom element constructor map[C].
+            // FIXME: Implement this.
+
             return result.release_value();
         }
 
         // 2. Otherwise:
-        // 1. Set result to a new element that implements the HTMLElement interface, with no attributes, namespace set to the HTML namespace, namespace prefix set to prefix,
-        //    local name set to localName, custom element state set to "undefined", custom element definition set to null, is value set to null, and node document set to document.
+        // 1. Set result to the result of creating an element internal given document, HTMLElement, localName, the HTML namespace, prefix, "undefined", null, and registry.
+        // FIXME: Actually use create_element_internal here once it can take an interface.
         auto element = realm.create<HTML::HTMLElement>(document, QualifiedName { local_name, prefix, Namespace::HTML });
         element->set_custom_element_state(CustomElementState::Undefined);
 
@@ -721,50 +733,53 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         return element;
     }
 
-    // 5. Otherwise:
+    // 6. Otherwise:
     //    1. Let interface be the element interface for localName and namespace.
-    //    2. Set result to a new element that implements interface, with no attributes, namespace set to namespace, namespace prefix set to prefix,
-    //       local name set to localName, custom element state set to "uncustomized", custom element definition set to null, is value set to is,
-    //       and node document set to document.
+    //    2. Set result to the result of creating an element internal given document, interface, localName, namespace,
+    //       prefix, "uncustomized", is, and registry.
+    auto element = create_element_internal(document, local_name, namespace_, prefix, CustomElementState::Uncustomized, is_value);
 
-    auto qualified_name = QualifiedName { local_name, prefix, namespace_ };
-
-    if (namespace_ == Namespace::HTML) {
-        auto element = create_html_element(realm, document, move(qualified_name));
-        element->set_is_value(is_value);
-        element->set_custom_element_state(CustomElementState::Uncustomized);
-
-        // 3. If namespace is the HTML namespace, and either localName is a valid custom element name or is is non-null,
-        //    then set result’s custom element state to "undefined".
-        if (HTML::is_valid_custom_element_name(local_name) || is_value.has_value())
-            element->set_custom_element_state(CustomElementState::Undefined);
-
-        return element;
+    //    3. If namespace is the HTML namespace, and either localName is a valid custom element name or is is non-null,
+    //       then set result’s custom element state to "undefined".
+    if (namespace_ == Namespace::HTML && (HTML::is_valid_custom_element_name(local_name) || is_value.has_value())) {
+        element->set_custom_element_state(CustomElementState::Undefined);
     }
 
-    if (namespace_ == Namespace::SVG) {
-        auto element = create_svg_element(realm, document, qualified_name);
-        element->set_is_value(is_value);
-        element->set_custom_element_state(CustomElementState::Uncustomized);
-        return element;
-    }
-
-    if (namespace_ == Namespace::MathML) {
-        auto element = create_mathml_element(realm, document, qualified_name);
-        element->set_is_value(is_value);
-        element->set_custom_element_state(CustomElementState::Uncustomized);
-        return element;
-    }
-
-    // 6. Return result.
-    // NOTE: See step 1.
-
-    // https://dom.spec.whatwg.org/#concept-element-interface
-    // The element interface for any name and namespace is Element, unless stated otherwise.
-    auto element = realm.create<DOM::Element>(document, move(qualified_name));
-    element->set_is_value(move(is_value));
-    element->set_custom_element_state(CustomElementState::Uncustomized);
     return element;
+    // 7. Return result.
+    // NOTE: See step 1.
+}
+
+// https://dom.spec.whatwg.org/#create-an-element-internal
+// FIXME: This needs to take interface and registry, like the spec says.
+GC::Ref<Element> create_element_internal(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, CustomElementState state, Optional<String> is_value)
+{
+    auto& realm = document.realm();
+
+    // 1. Let element be a new element that implements interface, with namespace set to namespace, namespace prefix set
+    //    to prefix, local name set to localName, custom element registry set to registry, custom element state set to
+    //    state, custom element definition set to null, is value set to is, and node document set to document.
+    GC::Ptr<Element> element;
+    auto qualified_name = QualifiedName { local_name, prefix, namespace_ };
+    if (namespace_ == Namespace::HTML) {
+        element = create_html_element(realm, document, move(qualified_name));
+    } else if (namespace_ == Namespace::SVG) {
+        element = create_svg_element(realm, document, move(qualified_name));
+    } else if (namespace_ == Namespace::MathML) {
+        element = create_mathml_element(realm, document, move(qualified_name));
+    } else {
+        // https://dom.spec.whatwg.org/#concept-element-interface
+        // The element interface for any name and namespace is Element, unless stated otherwise.
+        element = realm.create<DOM::Element>(document, move(qualified_name));
+    }
+    element->set_custom_element_state(state);
+    element->set_is_value(is_value);
+
+    // 2. Assert: element’s attribute list is empty.
+    VERIFY(!element->has_attributes());
+
+    // 3. Return element.
+    return GC::Ref { *element };
 }
 
 }
