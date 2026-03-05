@@ -1,0 +1,2 @@
+result type: IDBDatabase
+db.name: test-result-after-abort
