@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Unblock the version change transaction created by an open database request
+Pass	Unblock the delete database request.

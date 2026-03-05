@@ -159,12 +159,17 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
             auto after_all = GC::create_function(realm.heap(), [&realm, &queue, open_connections, db, version, connection, request, on_complete] {
                 // 4. If any of the connections in openConnections are still not closed,
                 //    queue a database task to fire a version change event named blocked at request with db’s version and version.
-                for (auto const& entry : open_connections->elements()) {
-                    if (entry->state() != ConnectionState::Closed) {
-                        queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
-                            fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
-                        }));
+                auto any_connection_is_not_closed = [&] {
+                    for (auto const& entry : open_connections->elements()) {
+                        if (entry->state() != ConnectionState::Closed)
+                            return true;
                     }
+                    return false;
+                }();
+                if (any_connection_is_not_closed) {
+                    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, db, version]() {
+                        fire_a_version_change_event(realm, HTML::EventNames::blocked, request, db->version(), version);
+                    }));
                 }
 
                 // 5. Wait until all connections in openConnections are closed.
@@ -482,7 +487,7 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
 
     // 2. Add request to queue.
     // 3. Wait until all previous requests in queue have been processed.
-    queue.enqueue(request, GC::create_function(realm.heap(), [&realm, &queue, storage_key = move(storage_key), name = move(name), on_complete] -> void {
+    queue.enqueue(request, GC::create_function(realm.heap(), [&realm, &queue, storage_key = move(storage_key), name = move(name), request, on_complete] -> void {
         static constexpr auto call_completion = [](auto& queue, auto completion, auto result) {
             completion->function()(move(result));
             queue.on_request_processed();
@@ -523,14 +528,20 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
             dbgln("remaining tasks: {}", task_counter_state ? task_counter_state->remaining_tasks : 0);
         }
 
-        auto after_all = GC::create_function(realm.heap(), [&realm, &queue, open_connections, db, storage_key, name, on_complete] {
-            // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a version change event named blocked at request with db’s version and null.
-            for (auto const& entry : open_connections->elements()) {
-                if (entry->state() != ConnectionState::Closed) {
-                    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
-                        fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), {});
-                    }));
+        auto after_all = GC::create_function(realm.heap(), [&realm, &queue, open_connections, db, storage_key, name, request, on_complete] {
+            // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a
+            //    version change event named blocked at request with db’s version and null.
+            auto any_connection_is_not_closed = [&] {
+                for (auto const& entry : open_connections->elements()) {
+                    if (entry->state() != ConnectionState::Closed)
+                        return true;
                 }
+                return false;
+            }();
+            if (any_connection_is_not_closed) {
+                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, db]() {
+                    fire_a_version_change_event(realm, HTML::EventNames::blocked, request, db->version(), {});
+                }));
             }
 
             // 9. Wait until all connections in openConnections are closed.
