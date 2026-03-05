@@ -24,7 +24,6 @@ EXTTextureNorm16::EXTTextureNorm16(JS::Realm& realm, GC::Ref<WebGLRenderingConte
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_EXT_texture_norm16");
 }
 
 void EXTTextureNorm16::initialize(JS::Realm& realm)

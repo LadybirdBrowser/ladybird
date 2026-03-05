@@ -24,7 +24,6 @@ EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(JS::Realm& realm, GC::R
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_EXT_texture_filter_anisotropic");
 }
 
 void EXTTextureFilterAnisotropic::initialize(JS::Realm& realm)

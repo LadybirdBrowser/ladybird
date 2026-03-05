@@ -27,8 +27,6 @@ WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(JS::Realm& realm,
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_EXT_texture_compression_s3tc_srgb");
-
     m_context->enable_compressed_texture_format(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);
     m_context->enable_compressed_texture_format(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT);
     m_context->enable_compressed_texture_format(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT);

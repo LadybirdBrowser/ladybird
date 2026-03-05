@@ -29,7 +29,6 @@ OESVertexArrayObject::OESVertexArrayObject(JS::Realm& realm, GC::Ref<WebGLRender
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_OES_vertex_array_object");
 }
 
 GC::Ref<WebGLVertexArrayObjectOES> OESVertexArrayObject::create_vertex_array_oes()

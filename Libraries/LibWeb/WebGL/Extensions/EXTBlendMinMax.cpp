@@ -24,7 +24,6 @@ EXTBlendMinMax::EXTBlendMinMax(JS::Realm& realm, GC::Ref<WebGLRenderingContextBa
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_EXT_blend_minmax");
 }
 
 void EXTBlendMinMax::initialize(JS::Realm& realm)

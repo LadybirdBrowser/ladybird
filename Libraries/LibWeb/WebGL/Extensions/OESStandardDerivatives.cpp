@@ -24,7 +24,6 @@ OESStandardDerivatives::OESStandardDerivatives(JS::Realm& realm, GC::Ref<WebGLRe
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_OES_standard_derivatives");
 }
 
 void OESStandardDerivatives::initialize(JS::Realm& realm)

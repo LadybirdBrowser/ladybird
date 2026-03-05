@@ -24,7 +24,6 @@ EXTColorBufferFloat::EXTColorBufferFloat(JS::Realm& realm, GC::Ref<WebGLRenderin
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_EXT_color_buffer_float");
 }
 
 void EXTColorBufferFloat::initialize(JS::Realm& realm)

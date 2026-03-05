@@ -24,7 +24,6 @@ EXTRenderSnorm::EXTRenderSnorm(JS::Realm& realm, GC::Ref<WebGLRenderingContextBa
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_EXT_render_snorm");
 }
 
 void EXTRenderSnorm::initialize(JS::Realm& realm)
