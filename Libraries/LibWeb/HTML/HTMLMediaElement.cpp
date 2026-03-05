@@ -197,6 +197,7 @@ void HTMLMediaElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 
 void HTMLMediaElement::cancel_the_fetching_process()
 {
+    m_current_fetch_generation++;
     m_fetch_data.clear();
 }
 
