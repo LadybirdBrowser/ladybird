@@ -28,7 +28,9 @@ IDBIndex::IDBIndex(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBObjectStor
 
 GC::Ref<IDBIndex> IDBIndex::create(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBObjectStore> object_store)
 {
-    return realm.create<IDBIndex>(realm, index, object_store);
+    auto handle = realm.create<IDBIndex>(realm, index, object_store);
+    object_store->transaction()->register_index_handle({}, handle);
+    return handle;
 }
 
 void IDBIndex::initialize(JS::Realm& realm)
@@ -77,6 +79,9 @@ WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
     // 8. If an index named name already exists in index’s object store, throw a "ConstraintError" DOMException.
     if (index->object_store()->index_set().contains(name))
         return WebIDL::ConstraintError::create(realm, "An index with the given name already exists"_utf16);
+
+    // AD-HOC: Log the rename for potential revert on abort.
+    m_object_store_handle->store()->mutation_log()->note_index_renamed(index, index->name());
 
     // 9. Set index’s name to name.
     index->set_name(name);

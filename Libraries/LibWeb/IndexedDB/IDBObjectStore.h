@@ -66,6 +66,9 @@ public:
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> add_or_put(GC::Ref<IDBObjectStore>, JS::Value, Optional<JS::Value> const&, bool);
     GC::Ref<ObjectStore> store() const { return m_store; }
 
+    void update_name() { m_name = m_store->name(); }
+    void update_index_set() { m_indexes = m_store->index_set(); }
+
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
     virtual void initialize(JS::Realm&) override;

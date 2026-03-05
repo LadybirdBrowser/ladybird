@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-abort-upgrade-reverts-handle-names.html");
+
+        // Steps 5-6 of "abort an upgrade transaction" require that object store
+        // and index handles revert their names when an upgrade is aborted, if the
+        // store/index existed before the transaction.
+
+        const dbName = "test-abort-revert-names-" + Date.now() + Math.random();
+
+        // Version 1: create a store with an index.
+        const req1 = indexedDB.open(dbName, 1);
+        req1.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            const store = db.createObjectStore("original_store");
+            store.createIndex("original_index", "key");
+        };
+        req1.onsuccess = (e) => {
+            e.target.result.close();
+
+            // Version 2: rename store and index, then abort.
+            let storeHandle, indexHandle;
+            const req2 = indexedDB.open(dbName, 2);
+            req2.onupgradeneeded = (e) => {
+                const tx = e.target.transaction;
+                storeHandle = tx.objectStore("original_store");
+                indexHandle = storeHandle.index("original_index");
+
+                println("before rename: store=" + storeHandle.name + " index=" + indexHandle.name);
+
+                storeHandle.name = "renamed_store";
+                indexHandle.name = "renamed_index";
+
+                println("after rename: store=" + storeHandle.name + " index=" + indexHandle.name);
+
+                tx.abort();
+            };
+            req2.onerror = (e) => {
+                println("after abort: store=" + storeHandle.name + " index=" + indexHandle.name);
+                indexedDB.deleteDatabase(dbName);
+                done();
+            };
+            req2.onsuccess = () => {
+                println("FAIL: expected error, got success");
+                indexedDB.deleteDatabase(dbName);
+                done();
+            };
+        };
+    }, 0);
+});
+</script>

@@ -721,6 +721,7 @@ set(SOURCES
     IndexedDB/Internal/Database.cpp
     IndexedDB/Internal/Index.cpp
     IndexedDB/Internal/Key.cpp
+    IndexedDB/Internal/MutationLog.cpp
     IndexedDB/Internal/ObjectStore.cpp
     IndexedDB/Internal/RequestList.cpp
     Infra/ByteSequences.cpp
