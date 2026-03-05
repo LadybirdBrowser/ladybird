@@ -1342,6 +1342,7 @@ class WebGLProgram;
 class WebGLQuery;
 class WebGLRenderbuffer;
 class WebGLRenderingContext;
+class WebGLRenderingContextBase;
 class WebGLSampler;
 class WebGLShader;
 class WebGLShaderPrecisionFormat;

@@ -16,16 +16,16 @@ class EXTTextureNorm16 : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(EXTTextureNorm16);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<EXTTextureNorm16>> create(JS::Realm&, GC::Ref<WebGL2RenderingContext>);
+    static JS::ThrowCompletionOr<GC::Ptr<EXTTextureNorm16>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void initialize(JS::Realm&) override;
     void visit_edges(Visitor&) override;
 
 private:
-    EXTTextureNorm16(JS::Realm&, GC::Ref<WebGL2RenderingContext>);
+    EXTTextureNorm16(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
-    GC::Ref<WebGL2RenderingContext> m_context;
+    GC::Ref<WebGLRenderingContextBase> m_context;
 };
 
 }

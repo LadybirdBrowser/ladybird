@@ -17,7 +17,7 @@ class WebGLDrawBuffers : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(WebGLDrawBuffers);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGLDrawBuffers>> create(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    static JS::ThrowCompletionOr<GC::Ptr<WebGLDrawBuffers>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
     void draw_buffers_webgl(Vector<GLenum> buffers);
 
@@ -26,9 +26,9 @@ protected:
     void visit_edges(Visitor&) override;
 
 private:
-    WebGLDrawBuffers(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    WebGLDrawBuffers(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
-    GC::Ref<WebGLRenderingContext> m_context;
+    GC::Ref<WebGLRenderingContextBase> m_context;
 };
 
 }

@@ -16,16 +16,16 @@ class OESElementIndexUint : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(OESElementIndexUint);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<OESElementIndexUint>> create(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    static JS::ThrowCompletionOr<GC::Ptr<OESElementIndexUint>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void initialize(JS::Realm&) override;
     void visit_edges(Visitor&) override;
 
 private:
-    OESElementIndexUint(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    OESElementIndexUint(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
-    GC::Ref<WebGLRenderingContext> m_context;
+    GC::Ref<WebGLRenderingContextBase> m_context;
 };
 
 }
