@@ -810,7 +810,7 @@ void WebGL2RenderingContextImpl::sampler_parameteri(GC::Root<WebGLSampler> sampl
     case GL_TEXTURE_WRAP_T:
         break;
     case GL_TEXTURE_MAX_ANISOTROPY_EXT: {
-        if (ext_texture_filter_anisotropic_extension_enabled())
+        if (extension_enabled("EXT_texture_filter_anisotropic"sv))
             break;
 
         set_error(GL_INVALID_ENUM);
@@ -850,7 +850,7 @@ void WebGL2RenderingContextImpl::sampler_parameterf(GC::Root<WebGLSampler> sampl
     case GL_TEXTURE_WRAP_T:
         break;
     case GL_TEXTURE_MAX_ANISOTROPY_EXT: {
-        if (ext_texture_filter_anisotropic_extension_enabled())
+        if (extension_enabled("EXT_texture_filter_anisotropic"sv))
             break;
 
         set_error(GL_INVALID_ENUM);

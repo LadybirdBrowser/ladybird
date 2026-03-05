@@ -1277,7 +1277,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     }
 
     case GL_FRAGMENT_SHADER_DERIVATIVE_HINT: { // NOTE: This has the same value as GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES
-        if (oes_standard_derivatives_extension_enabled() || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
+        if (extension_enabled("OES_standard_derivatives"sv) || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
             GLint result { 0 };
             glGetIntegervRobustANGLE(GL_FRAGMENT_SHADER_DERIVATIVE_HINT, 1, nullptr, &result);
             return JS::Value(result);
@@ -1287,7 +1287,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         return JS::js_null();
     }
     case GL_MAX_COLOR_ATTACHMENTS: { // NOTE: This has the same value as MAX_COLOR_ATTACHMENTS_WEBGL
-        if (webgl_draw_buffers_extension_enabled() || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
+        if (extension_enabled("WEBGL_draw_buffers"sv) || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
             GLint result { 0 };
             glGetIntegervRobustANGLE(GL_MAX_COLOR_ATTACHMENTS, 1, nullptr, &result);
             return JS::Value(result);
@@ -1307,7 +1307,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         return JS::js_null();
     }
     case GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: {
-        if (ext_texture_filter_anisotropic_extension_enabled()) {
+        if (extension_enabled("EXT_texture_filter_anisotropic"sv)) {
             GLfloat result { 0.0f };
             glGetFloatvRobustANGLE(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, 1, nullptr, &result);
             return JS::Value(result);
@@ -1778,7 +1778,7 @@ JS::Value WebGLRenderingContextImpl::get_tex_parameter(WebIDL::UnsignedLong targ
         return JS::Value(result);
     }
     case GL_TEXTURE_MAX_ANISOTROPY_EXT: {
-        if (ext_texture_filter_anisotropic_extension_enabled()) {
+        if (extension_enabled("EXT_texture_filter_anisotropic"sv)) {
             GLint result { 0 };
             glGetTexParameterivRobustANGLE(target, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1, nullptr, &result);
             return JS::Value(result);
@@ -1869,7 +1869,7 @@ JS::Value WebGLRenderingContextImpl::get_vertex_attrib(WebIDL::UnsignedLong inde
         return WebGLBuffer::create(realm(), *this, handle);
     }
     case GL_VERTEX_ATTRIB_ARRAY_DIVISOR: { // NOTE: This has the same value as GL_VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE
-        if (angle_instanced_arrays_extension_enabled() || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
+        if (extension_enabled("ANGLE_instanced_arrays"sv) || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
             GLint result { 0 };
             glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, 1, nullptr, &result);
             return JS::Value(result);
