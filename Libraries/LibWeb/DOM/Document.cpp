@@ -1462,6 +1462,12 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     overflow_origin_computed_values.set_overflow_y(CSS::Overflow::Visible);
 }
 
+void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
+{
+    if (node.is_connected())
+        update_layout(reason);
+}
+
 void Document::update_layout(UpdateLayoutReason reason)
 {
     auto navigable = this->navigable();
