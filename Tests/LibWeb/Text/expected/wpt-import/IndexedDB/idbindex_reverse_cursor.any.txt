@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Reverse cursor sees update from separate transactions.
+Pass	Reverse cursor sees in-transaction update.

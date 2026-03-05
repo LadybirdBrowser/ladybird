@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Any errors in callbacks that run after an explicit commit will not stop the commit from being processed.
