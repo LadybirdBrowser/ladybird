@@ -42,12 +42,6 @@
 
 namespace Web::IndexedDB {
 
-#if defined(AK_COMPILER_CLANG)
-#    define MAX_KEY_GENERATOR_VALUE AK::exp2(53.)
-#else
-constexpr double const MAX_KEY_GENERATOR_VALUE { __builtin_exp2(53) };
-#endif
-
 struct TaskCounterState final : public GC::Cell {
     GC_CELL(TaskCounterState, GC::Cell);
     GC_DECLARE_ALLOCATOR(TaskCounterState);
@@ -1301,51 +1295,6 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
     return request;
 }
 
-// https://w3c.github.io/IndexedDB/#generate-a-key
-ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore> store)
-{
-    // 1. Let generator be store’s key generator.
-    auto& generator = store->key_generator();
-
-    // 2. Let key be generator’s current number.
-    auto key = generator.current_number();
-
-    // 3. If key is greater than 2^53 (9007199254740992), then return failure.
-    if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
-        return Error::from_string_literal("Key is greater than 2^53 while trying to generate a key");
-
-    // 4. Increase generator’s current number by 1.
-    generator.increment(1);
-
-    // 5. Return key.
-    return key;
-}
-
-// https://w3c.github.io/IndexedDB/#possibly-update-the-key-generator
-void possibly_update_the_key_generator(GC::Ref<ObjectStore> store, GC::Ref<Key> key)
-{
-    // 1. If the type of key is not number, abort these steps.
-    if (key->type() != Key::KeyType::Number)
-        return;
-
-    // 2. Let value be the value of key.
-    auto value = key->value_as_double();
-
-    // 3. Set value to the minimum of value and 2^53 (9007199254740992).
-    value = min(value, MAX_KEY_GENERATOR_VALUE);
-
-    // 4. Set value to the largest integer not greater than value.
-    value = floor(value);
-
-    // 5. Let generator be store’s key generator.
-    auto& generator = store->key_generator();
-
-    // 6. If value is greater than or equal to generator’s current number, then set generator’s current number to value + 1.
-    if (value >= static_cast<double>(generator.current_number())) {
-        generator.set(static_cast<u64>(value + 1));
-    }
-}
-
 // https://w3c.github.io/IndexedDB/#inject-a-key-into-a-value-using-a-key-path
 void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value value, GC::Ref<Key> key, KeyPath const& key_path)
 {
@@ -1420,7 +1369,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
         // 1. If key is undefined, then:
         if (key == nullptr) {
             // 1. Let key be the result of generating a key for store.
-            auto maybe_key = generate_a_key(store);
+            auto maybe_key = store->generate_a_key();
 
             // 2. If key is failure, then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
             if (maybe_key.is_error())
@@ -1435,7 +1384,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
         // 2. Otherwise, run possibly update the key generator for store with key.
         else {
-            possibly_update_the_key_generator(store, GC::Ref(*key));
+            store->possibly_update_the_key_generator(GC::Ref(*key));
         }
     }
 

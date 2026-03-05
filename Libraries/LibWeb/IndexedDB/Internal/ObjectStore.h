@@ -57,6 +57,11 @@ public:
     GC::ConservativeVector<ObjectStoreRecord> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
     GC::ConservativeVector<ObjectStoreRecord> last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
 
+    // https://w3c.github.io/IndexedDB/#generate-a-key
+    ErrorOr<u64> generate_a_key();
+    // https://w3c.github.io/IndexedDB/#possibly-update-the-key-generator
+    void possibly_update_the_key_generator(GC::Ref<Key>);
+
 protected:
     virtual void visit_edges(Visitor&) override;
 

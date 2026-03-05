@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/QuickSort.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
@@ -87,6 +88,50 @@ Optional<ObjectStoreRecord&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> ra
 void ObjectStore::clear_records()
 {
     m_records.clear();
+}
+
+// https://w3c.github.io/IndexedDB/#generate-a-key
+ErrorOr<u64> ObjectStore::generate_a_key()
+{
+    // 1. Let generator be store's key generator.
+    auto& generator = key_generator();
+
+    // 2. Let key be generator's current number.
+    auto key = generator.current_number();
+
+    // 3. If key is greater than 2^53 (9007199254740992), then return failure.
+    if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
+        return Error::from_string_literal("Key is greater than 2^53 while trying to generate a key");
+
+    // 4. Increase generator's current number by 1.
+    generator.increment(1);
+
+    // 5. Return key.
+    return key;
+}
+
+// https://w3c.github.io/IndexedDB/#possibly-update-the-key-generator
+void ObjectStore::possibly_update_the_key_generator(GC::Ref<Key> key)
+{
+    // 1. If the type of key is not number, abort these steps.
+    if (key->type() != Key::KeyType::Number)
+        return;
+
+    // 2. Let value be the value of key.
+    auto value = key->value_as_double();
+
+    // 3. Set value to the minimum of value and 2^53 (9007199254740992).
+    value = min(value, MAX_KEY_GENERATOR_VALUE);
+
+    // 4. Set value to the largest integer not greater than value.
+    value = AK::floor(value);
+
+    // 5. Let generator be store's key generator.
+    auto& generator = key_generator();
+
+    // 6. If value is greater than or equal to generator's current number, then set generator's current number to value + 1.
+    if (value >= static_cast<double>(generator.current_number()))
+        generator.set(static_cast<u64>(value + 1));
 }
 
 GC::ConservativeVector<ObjectStoreRecord> ObjectStore::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
