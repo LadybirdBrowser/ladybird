@@ -1436,8 +1436,12 @@ bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const
     if (is<SVG::SVGForeignObjectElement>(parent()->dom_node()))
         return false;
 
-    // SVG related boxes should never be split.
-    if (is_svg_box() || is_svg_svg_box() || is_svg_foreign_object_box())
+    // Non-root SVG elements and foreign object boxes should never be split.
+    if (is_svg_box() || is_svg_foreign_object_box())
+        return false;
+
+    // Nested SVG roots should never be split, but a top-level SVG root inside an HTML inline element should be.
+    if (is_svg_svg_box() && (parent()->is_svg_box() || parent()->is_svg_svg_box()))
         return false;
 
     // Replaced boxes with children (e.g. media elements with shadow DOM controls)
