@@ -2,6 +2,9 @@
   "-moz-meter-bar": {
     "alias-for": "slider-fill"
   },
+  "-moz-placeholder": {
+    "alias-for": "placeholder"
+  },
   "-moz-progress-bar": {
     "alias-for": "slider-fill"
   },
@@ -13,6 +16,9 @@
   },
   "-moz-range-thumb": {
     "alias-for": "slider-thumb"
+  },
+  "-webkit-input-placeholder": {
+    "alias-for": "placeholder"
   },
   "-webkit-meter-bar": {
     "alias-for": "slider-track"
