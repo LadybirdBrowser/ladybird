@@ -239,8 +239,7 @@ Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32 program_c
             auto* caller_frame = callee_frame->caller_frame;
             auto caller_pc = callee_frame->caller_return_pc;
 
-            auto& ec_stack = vm().execution_context_stack();
-            ec_stack.resize(ec_stack.size() - 1);
+            vm().pop_execution_context();
             vm().interpreter_stack().deallocate(callee_frame);
 
             m_running_execution_context = caller_frame;
@@ -432,8 +431,7 @@ NEVER_INLINE void Interpreter::pop_inline_frame(Value return_value)
     if (callee_frame->caller_is_construct && !return_value.is_object())
         return_value = callee_frame->this_value.value();
 
-    auto& ec_stack = vm().execution_context_stack();
-    ec_stack.resize(ec_stack.size() - 1);
+    vm().pop_execution_context();
     vm().interpreter_stack().deallocate(callee_frame);
 
     m_running_execution_context = caller_frame;
