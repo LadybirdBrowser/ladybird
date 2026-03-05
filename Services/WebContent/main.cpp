@@ -177,13 +177,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
 #if defined(AK_OS_MACOS)
     if (!mach_server_name.is_empty()) {
-        [[maybe_unused]] auto server_port = Core::Platform::register_with_mach_server(mach_server_name);
-
-        // FIXME: For some reason, our implementation of IOSurface does not work on Intel macOS. Remove this conditional
-        //        compilation when that is resolved.
-#    if ARCH(AARCH64)
+        auto server_port = Core::Platform::register_with_mach_server(mach_server_name);
         Web::Painting::BackingStoreManager::set_browser_mach_port(move(server_port));
-#    endif
     }
 #endif
 
