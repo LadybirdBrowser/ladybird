@@ -229,24 +229,9 @@ void WebGLRenderingContextBase::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_enabled_extensions);
 }
 
-bool WebGLRenderingContextBase::ext_texture_filter_anisotropic_extension_enabled() const
+bool WebGLRenderingContextBase::extension_enabled(StringView extension) const
 {
-    return m_enabled_extensions.contains("EXT_texture_filter_anisotropic"_string);
-}
-
-bool WebGLRenderingContextBase::angle_instanced_arrays_extension_enabled() const
-{
-    return m_enabled_extensions.contains("ANGLE_instanced_arrays"_string);
-}
-
-bool WebGLRenderingContextBase::oes_standard_derivatives_extension_enabled() const
-{
-    return m_enabled_extensions.contains("OES_standard_derivatives"_string);
-}
-
-bool WebGLRenderingContextBase::webgl_draw_buffers_extension_enabled() const
-{
-    return m_enabled_extensions.contains("WEBGL_draw_buffers"_string);
+    return m_enabled_extensions.contains(MUST(String::from_utf8(extension)));
 }
 
 ReadonlySpan<WebIDL::UnsignedLong> WebGLRenderingContextBase::enabled_compressed_texture_formats() const

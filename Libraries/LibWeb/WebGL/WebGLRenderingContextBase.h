@@ -57,10 +57,8 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    bool ext_texture_filter_anisotropic_extension_enabled() const;
-    bool angle_instanced_arrays_extension_enabled() const;
-    bool oes_standard_derivatives_extension_enabled() const;
-    bool webgl_draw_buffers_extension_enabled() const;
+    // FIXME: Make this and any another instance of extension names a FlyString, similarly to HTML::TagNames
+    bool extension_enabled(StringView extension) const;
     ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const;
 
     template<typename T>
