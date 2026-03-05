@@ -215,7 +215,7 @@
         {
           "type": "git",
           "url": "https://github.com/unicode-org/icu.git",
-          "tag": "release-78.1"
+          "tag": "release-78.2"
         }
       ],
       "subdir": "icu4c/source/",
