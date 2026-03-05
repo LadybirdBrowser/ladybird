@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/txn-scheduling.html");
+
+        const dbName = "test-txn-scheduling";
+        const delReq = indexedDB.deleteDatabase(dbName);
+        delReq.onsuccess = function() {
+            const openReq = indexedDB.open(dbName, 1);
+            openReq.onupgradeneeded = function(e) {
+                e.target.result.createObjectStore('store', {keyPath: 'key'});
+            };
+            openReq.onsuccess = function(e) {
+                const db = e.target.result;
+                let log = [];
+                const print = (msg) => { log.push(msg); };
+
+                // Case 1: readwrite then readwrite (overlapping scope)
+                // txn2 must not start until txn1 finishes.
+                const txn1 = db.transaction('store', 'readwrite');
+                txn1.objectStore('store').put({key: 'a', val: 1});
+                txn1.objectStore('store').put({key: 'a', val: 2});
+
+                const txn2 = db.transaction('store', 'readwrite');
+                // This get runs AFTER txn1 commits, so it must see val:2.
+                const getReq = txn2.objectStore('store').get('a');
+                getReq.onsuccess = () => print("rw+rw: val=" + getReq.result.val);
+                txn2.objectStore('store').put({key: 'a', val: 3});
+
+                // Case 2: readwrite then readonly (overlapping scope)
+                // txn3 must not start until txn2 finishes.
+                const txn3 = db.transaction('store', 'readonly');
+                const getReq2 = txn3.objectStore('store').get('a');
+                getReq2.onsuccess = () => print("rw+ro: val=" + getReq2.result.val);
+
+                // Case 3: readonly then readwrite (overlapping scope)
+                // txn4 must not start until txn3 finishes (though txn3 is readonly,
+                // a subsequent readwrite cannot overlap with it).
+                const txn4 = db.transaction('store', 'readwrite');
+                txn4.objectStore('store').put({key: 'a', val: 4});
+                const getReq3 = txn4.objectStore('store').get('a');
+                getReq3.onsuccess = () => print("ro+rw: val=" + getReq3.result.val);
+
+                txn1.oncomplete = () => print("txn1 complete");
+                txn2.oncomplete = () => print("txn2 complete");
+                txn3.oncomplete = () => print("txn3 complete");
+                txn4.oncomplete = () => {
+                    print("txn4 complete");
+                    for (const msg of log)
+                        println(msg);
+                    db.close();
+                    indexedDB.deleteDatabase(dbName);
+                    done();
+                };
+            };
+        };
+    }, 0);
+});
+</script>

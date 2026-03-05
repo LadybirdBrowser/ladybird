@@ -18,6 +18,9 @@ void RequestList::enqueue(GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void
 
 void RequestList::maybe_process_next_request()
 {
+    if (m_blocked)
+        return;
+
     while (!m_entries.is_empty() && !m_entries.first().request)
         m_entries.remove(0);
 
@@ -74,6 +77,12 @@ void RequestList::check_all_processed()
 
     auto callback = move(m_on_all_processed);
     callback->function()();
+}
+
+void RequestList::unblock_execution()
+{
+    m_blocked = false;
+    maybe_process_next_request();
 }
 
 GC::Ref<IDBRequest> RequestList::RequestIterator::operator*() const

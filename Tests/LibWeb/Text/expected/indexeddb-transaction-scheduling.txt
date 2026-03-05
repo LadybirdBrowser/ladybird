@@ -1,0 +1,7 @@
+txn1 complete
+rw+rw: val=2
+txn2 complete
+rw+ro: val=3
+txn3 complete
+ro+rw: val=4
+txn4 complete

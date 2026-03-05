@@ -82,6 +82,7 @@ public:
 
     void wait_for_transactions_to_finish(ReadonlySpan<GC::Ref<IDBTransaction>>, GC::Ref<GC::Function<void()>> on_complete);
     void check_pending_transaction_waits();
+    void block_on_conflicting_transactions(GC::Ref<IDBTransaction>);
 
 protected:
     explicit IDBDatabase(JS::Realm&, Database&);
