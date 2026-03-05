@@ -89,6 +89,7 @@ private:
     HashTable<DescriptorNameAndID> m_seen_descriptor_ids;
 };
 
+template<typename NestedDeclarationsRule>
 GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
     return rule.visit(
@@ -114,13 +115,13 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
                 return convert_to_import_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("layer"sv))
-                return convert_to_layer_rule(at_rule, nested);
+                return convert_to_layer_rule<NestedDeclarationsRule>(at_rule, nested);
 
             if (is_margin_rule_name(at_rule.name))
                 return convert_to_margin_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("media"sv))
-                return convert_to_media_rule(at_rule, nested);
+                return convert_to_media_rule<NestedDeclarationsRule>(at_rule, nested);
 
             if (at_rule.name.equals_ignoring_ascii_case("namespace"sv))
                 return convert_to_namespace_rule(at_rule);
@@ -132,7 +133,7 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
                 return convert_to_property_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
-                return convert_to_supports_rule(at_rule, nested);
+                return convert_to_supports_rule<NestedDeclarationsRule>(at_rule, nested);
 
             // FIXME: More at rules!
             ErrorReporter::the().report(UnknownRuleError { .rule_name = MUST(String::formatted("@{}", at_rule.name)) });
@@ -183,7 +184,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 // "In addition to nested style rules, this specification allows nested group rules inside of style rules:
                 // any at-rule whose body contains style rules can be nested inside of a style rule as well."
                 // https://drafts.csswg.org/css-nesting-1/#nested-group-rules
-                if (auto converted_rule = convert_to_rule(rule, Nested::Yes)) {
+                if (auto converted_rule = convert_to_rule<CSSNestedDeclarations>(rule, Nested::Yes)) {
                     if (is<CSSGroupingRule>(*converted_rule)) {
                         child_rules.append(*converted_rule);
                     } else {
@@ -195,7 +196,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 }
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
+                child_rules.append(CSSNestedDeclarations::create(realm(), *this, declarations));
             });
     }
     auto nested_rules = CSSRuleList::create(realm(), child_rules);
@@ -341,6 +342,7 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
     return builder.to_fly_string_without_validation();
 }
 
+template<typename NestedDeclarationsRule>
 GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-cascade-5/#at-layer
@@ -379,11 +381,11 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         for (auto const& child : rule.child_rules_and_lists_of_declarations) {
             child.visit(
                 [&](Rule const& rule) {
-                    if (auto child_rule = convert_to_rule(rule, nested))
+                    if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
                         child_rules.append(*child_rule);
                 },
                 [&](Vector<Declaration> const& declarations) {
-                    child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
+                    child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
                 });
         }
         auto rule_list = CSSRuleList::create(realm(), child_rules);
@@ -640,6 +642,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
     return CSSNamespaceRule::create(realm(), prefix, namespace_uri);
 }
 
+template<typename NestedDeclarationsRule>
 GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-conditional-3/#at-supports
@@ -679,11 +682,11 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {
-                if (auto child_rule = convert_to_rule(rule, nested))
+                if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
                     child_rules.append(*child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
+                child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
             });
     }
 
@@ -1141,7 +1144,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
     DescriptorList descriptors { AtRuleID::Page };
     page_rule.for_each_as_declaration_rule_list(
         [&](auto& at_rule) {
-            if (auto converted_rule = convert_to_rule(at_rule, Nested::No)) {
+            if (auto converted_rule = convert_to_rule<CSSNestedDeclarations>(at_rule, Nested::No)) {
                 if (is<CSSMarginRule>(*converted_rule)) {
                     child_rules.append(*converted_rule);
                 } else {
@@ -1198,5 +1201,11 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
     auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
     return CSSMarginRule::create(realm(), rule.name, style);
 }
+
+template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSNestedDeclarations>(Rule const&, Parser::Nested);
+
+template GC::Ptr<CSSRule> Parser::convert_to_layer_rule<CSSNestedDeclarations>(AtRule const& rule, Parser::Nested);
+
+template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSNestedDeclarations>(AtRule const&, Parser::Nested);
 
 }

@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/CSS/Parser/Types.h>
 
 namespace Web::CSS {
 
@@ -16,6 +17,7 @@ class CSSNestedDeclarations final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSNestedDeclarations);
 
 public:
+    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(JS::Realm&, Parser::Parser&, Vector<Parser::Declaration> const&);
     [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(JS::Realm&, CSSStyleProperties&);
 
     virtual ~CSSNestedDeclarations() override = default;

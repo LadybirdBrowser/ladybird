@@ -599,6 +599,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     return {};
 }
 
+template<typename NestedDeclarationsRule>
 GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-conditional-3/#at-media
@@ -622,15 +623,17 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {
-                if (auto child_rule = convert_to_rule(rule, nested))
+                if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
                     child_rules.append(*child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
+                child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
             });
     }
     auto rule_list = CSSRuleList::create(realm(), child_rules);
     return CSSMediaRule::create(realm(), media_list, rule_list);
 }
+
+template GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule<CSSNestedDeclarations>(AtRule const&, Parser::Nested);
 
 }

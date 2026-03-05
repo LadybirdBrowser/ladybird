@@ -8,11 +8,17 @@
 #include <LibWeb/Bindings/CSSNestedDeclarationsPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNestedDeclarations);
+
+GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
+{
+    return realm.create<CSSNestedDeclarations>(realm, parser.convert_to_style_declaration(declarations));
+}
 
 GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, CSSStyleProperties& declaration)
 {

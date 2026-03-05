@@ -124,7 +124,7 @@ GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_r
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
     for (auto const& raw_rule : raw_rules) {
-        auto rule = convert_to_rule(raw_rule, Nested::No);
+        auto rule = convert_to_rule<CSSNestedDeclarations>(raw_rule, Nested::No);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
         // Discard that rule.
         if (!rule) {
@@ -1248,7 +1248,7 @@ void Parser::consume_the_remnants_of_a_bad_declaration(TokenStream<T>& input, Ne
 CSSRule* Parser::parse_as_css_rule()
 {
     if (auto maybe_rule = parse_a_rule(m_token_stream); maybe_rule.has_value())
-        return convert_to_rule(maybe_rule.value(), Nested::No);
+        return convert_to_rule<CSSNestedDeclarations>(maybe_rule.value(), Nested::No);
     return {};
 }
 

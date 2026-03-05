@@ -179,6 +179,7 @@ public:
     RefPtr<TreeCountingFunctionStyleValue const> parse_tree_counting_function(TokenStream<ComponentValue>&, TreeCountingFunctionStyleValue::ComputedType);
 
     OwnPtr<BooleanExpression> parse_if_condition(TokenStream<ComponentValue>&);
+    GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
 
 private:
     Parser(ParsingParams const&, Vector<Token>);
@@ -291,6 +292,8 @@ private:
     bool is_valid_in_the_current_context(Declaration const&) const;
     bool is_valid_in_the_current_context(AtRule const&) const;
     bool is_valid_in_the_current_context(QualifiedRule const&) const;
+
+    template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
     GC::Ptr<CSSCounterStyleRule> convert_to_counter_style_rule(AtRule const&);
@@ -298,15 +301,20 @@ private:
     GC::Ptr<CSSFontFeatureValuesRule> convert_to_font_feature_values_rule(AtRule const&);
     GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
     GC::Ptr<CSSImportRule> convert_to_import_rule(AtRule const&);
+
+    template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_layer_rule(AtRule const&, Nested);
     GC::Ptr<CSSMarginRule> convert_to_margin_rule(AtRule const&);
+
+    template<typename NestedDeclarationsRule>
     GC::Ptr<CSSMediaRule> convert_to_media_rule(AtRule const&, Nested);
     GC::Ptr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
     GC::Ptr<CSSPageRule> convert_to_page_rule(AtRule const& rule);
     GC::Ptr<CSSPropertyRule> convert_to_property_rule(AtRule const& rule);
+
+    template<typename NestedDeclarationsRule>
     GC::Ptr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
 
-    GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StylePropertyAndName> convert_to_style_property(Declaration const&);
 
     Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
