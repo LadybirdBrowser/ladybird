@@ -100,68 +100,68 @@ WebGLRenderingContextBase::WebGLRenderingContextBase(JS::Realm& realm)
 }
 
 struct Extension {
-    String webgl_extension_name;
     Vector<StringView> required_angle_extensions;
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> (*factory)(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
     Optional<OpenGLContext::WebGLVersion> only_for_webgl_version { OptionalNone {} };
 };
 
-Vector<Extension> s_available_webgl_extensions {
+static HashMap<String, Extension, AK::ASCIICaseInsensitiveStringTraits> s_available_webgl_extensions {
     // Khronos ratified WebGL Extensions
-    { "ANGLE_instanced_arrays"_string, { "GL_ANGLE_instanced_arrays"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "EXT_blend_minmax"_string, { "GL_EXT_blend_minmax"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "EXT_frag_depth"_string, { "GL_EXT_frag_depth"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "EXT_shader_texture_lod"_string, { "GL_EXT_shader_texture_lod"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "EXT_texture_filter_anisotropic"_string, { "GL_EXT_texture_filter_anisotropic"sv } },
-    { "OES_element_index_uint"_string, { "GL_OES_element_index_uint"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "OES_standard_derivatives"_string, { "GL_OES_standard_derivatives"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "OES_texture_float"_string, { "GL_OES_texture_float"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "OES_texture_float_linear"_string, { "GL_OES_texture_float_linear"sv } },
-    { "OES_texture_half_float"_string, { "GL_OES_texture_half_float"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "OES_texture_half_float_linear"_string, { "GL_OES_texture_half_float_linear"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "OES_vertex_array_object"_string, { "GL_OES_vertex_array_object"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "WEBGL_compressed_texture_s3tc"_string, { "GL_EXT_texture_compression_dxt1"sv, "GL_ANGLE_texture_compression_dxt3"sv, "GL_ANGLE_texture_compression_dxt5"sv } },
-    { "WEBGL_debug_renderer_info"_string, {} },
-    { "WEBGL_debug_shaders"_string, {} },
-    { "WEBGL_depth_texture"_string, { "GL_ANGLE_depth_texture"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "WEBGL_draw_buffers"_string, { "GL_EXT_draw_buffers"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "WEBGL_lose_context"_string, {} },
+    { "ANGLE_instanced_arrays"_string, { { "GL_ANGLE_instanced_arrays"sv }, Extensions::ANGLEInstancedArrays::create, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "EXT_blend_minmax"_string, { { "GL_EXT_blend_minmax"sv }, Extensions::EXTBlendMinMax::create, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "EXT_frag_depth"_string, { { "GL_EXT_frag_depth"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "EXT_shader_texture_lod"_string, { { "GL_EXT_shader_texture_lod"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "EXT_texture_filter_anisotropic"_string, { { "GL_EXT_texture_filter_anisotropic"sv }, Extensions::EXTTextureFilterAnisotropic::create } },
+    { "OES_element_index_uint"_string, { { "GL_OES_element_index_uint"sv }, Extensions::OESElementIndexUint::create, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "OES_standard_derivatives"_string, { { "GL_OES_standard_derivatives"sv }, Extensions::OESStandardDerivatives::create, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "OES_texture_float"_string, { { "GL_OES_texture_float"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "OES_texture_float_linear"_string, { { "GL_OES_texture_float_linear"sv }, nullptr } },
+    { "OES_texture_half_float"_string, { { "GL_OES_texture_half_float"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "OES_texture_half_float_linear"_string, { { "GL_OES_texture_half_float_linear"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "OES_vertex_array_object"_string, { { "GL_OES_vertex_array_object"sv }, Extensions::OESVertexArrayObject::create, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "WEBGL_compressed_texture_s3tc"_string, { { "GL_EXT_texture_compression_dxt1"sv, "GL_ANGLE_texture_compression_dxt3"sv, "GL_ANGLE_texture_compression_dxt5"sv }, Extensions::WebGLCompressedTextureS3tc::create } },
+    { "WEBGL_debug_renderer_info"_string, { {}, nullptr } },
+    { "WEBGL_debug_shaders"_string, { {}, nullptr } },
+    { "WEBGL_depth_texture"_string, { { "GL_ANGLE_depth_texture"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "WEBGL_draw_buffers"_string, { { "GL_EXT_draw_buffers"sv }, Extensions::WebGLDrawBuffers::create, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "WEBGL_lose_context"_string, { {}, nullptr } },
 
     // Community approved WebGL Extensions
-    { "EXT_clip_control"_string, { "GL_EXT_clip_control"sv } },
-    { "EXT_color_buffer_float"_string, { "GL_EXT_color_buffer_float"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "EXT_color_buffer_half_float"_string, { "GL_EXT_color_buffer_half_float"sv } },
-    { "EXT_conservative_depth"_string, { "GL_EXT_conservative_depth"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "EXT_depth_clamp"_string, { "GL_EXT_depth_clamp"sv } },
-    { "EXT_disjoint_timer_query"_string, { "GL_EXT_disjoint_timer_query"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "EXT_disjoint_timer_query_webgl2"_string, { "GL_EXT_disjoint_timer_query"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "EXT_float_blend"_string, { "GL_EXT_float_blend"sv } },
-    { "EXT_polygon_offset_clamp"_string, { "GL_EXT_polygon_offset_clamp"sv } },
-    { "EXT_render_snorm"_string, { "GL_EXT_render_snorm"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "EXT_sRGB"_string, { "GL_EXT_sRGB"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "EXT_texture_compression_bptc"_string, { "GL_EXT_texture_compression_bptc"sv } },
-    { "EXT_texture_compression_rgtc"_string, { "GL_EXT_texture_compression_rgtc"sv } },
-    { "EXT_texture_mirror_clamp_to_edge"_string, { "GL_EXT_texture_mirror_clamp_to_edge"sv } },
-    { "EXT_texture_norm16"_string, { "GL_EXT_texture_norm16"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "KHR_parallel_shader_compile"_string, { "GL_KHR_parallel_shader_compile"sv } },
-    { "NV_shader_noperspective_interpolation"_string, { "GL_NV_shader_noperspective_interpolation"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "OES_draw_buffers_indexed"_string, { "GL_OES_draw_buffers_indexed"sv } },
-    { "OES_fbo_render_mipmap"_string, { "GL_OES_fbo_render_mipmap"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "OES_sample_variables"_string, { "GL_OES_sample_variables"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "OES_shader_multisample_interpolation"_string, { "GL_OES_shader_multisample_interpolation"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "OVR_multiview2"_string, { "GL_OVR_multiview2"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "WEBGL_blend_func_extended"_string, { "GL_EXT_blend_func_extended"sv } },
-    { "WEBGL_clip_cull_distance"_string, { "GL_EXT_clip_cull_distance"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "WEBGL_color_buffer_float"_string, { "EXT_color_buffer_half_float"sv, "OES_texture_float"sv }, OpenGLContext::WebGLVersion::WebGL1 },
-    { "WEBGL_compressed_texture_astc"_string, { "KHR_texture_compression_astc_hdr"sv, "KHR_texture_compression_astc_ldr"sv } },
-    { "WEBGL_compressed_texture_etc"_string, { "GL_ANGLE_compressed_texture_etc"sv } },
-    { "WEBGL_compressed_texture_etc1"_string, { "GL_OES_compressed_ETC1_RGB8_texture"sv } },
-    { "WEBGL_compressed_texture_pvrtc"_string, { "GL_IMG_texture_compression_pvrtc"sv } },
-    { "WEBGL_compressed_texture_s3tc_srgb"_string, { "GL_EXT_texture_compression_s3tc_srgb"sv } },
-    { "WEBGL_multi_draw"_string, { "GL_ANGLE_multi_draw"sv } },
-    { "WEBGL_polygon_mode"_string, { "GL_ANGLE_polygon_mode"sv } },
-    { "WEBGL_provoking_vertex"_string, { "GL_ANGLE_provoking_vertex"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "WEBGL_render_shared_exponent"_string, { "GL_QCOM_render_shared_exponent"sv }, OpenGLContext::WebGLVersion::WebGL2 },
-    { "WEBGL_stencil_texturing"_string, { "GL_ANGLE_stencil_texturing"sv }, OpenGLContext::WebGLVersion::WebGL2 },
+    { "EXT_clip_control"_string, { { "GL_EXT_clip_control"sv }, nullptr } },
+    { "EXT_color_buffer_float"_string, { { "GL_EXT_color_buffer_float"sv }, Extensions::EXTColorBufferFloat::create, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "EXT_color_buffer_half_float"_string, { { "GL_EXT_color_buffer_half_float"sv }, nullptr } },
+    { "EXT_conservative_depth"_string, { { "GL_EXT_conservative_depth"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "EXT_depth_clamp"_string, { { "GL_EXT_depth_clamp"sv }, nullptr } },
+    { "EXT_disjoint_timer_query"_string, { { "GL_EXT_disjoint_timer_query"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "EXT_disjoint_timer_query_webgl2"_string, { { "GL_EXT_disjoint_timer_query"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "EXT_float_blend"_string, { { "GL_EXT_float_blend"sv }, nullptr } },
+    { "EXT_polygon_offset_clamp"_string, { { "GL_EXT_polygon_offset_clamp"sv }, nullptr } },
+    { "EXT_render_snorm"_string, { { "GL_EXT_render_snorm"sv }, Extensions::EXTRenderSnorm::create, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "EXT_sRGB"_string, { { "GL_EXT_sRGB"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "EXT_texture_compression_bptc"_string, { { "GL_EXT_texture_compression_bptc"sv }, nullptr } },
+    { "EXT_texture_compression_rgtc"_string, { { "GL_EXT_texture_compression_rgtc"sv }, nullptr } },
+    { "EXT_texture_mirror_clamp_to_edge"_string, { { "GL_EXT_texture_mirror_clamp_to_edge"sv }, nullptr } },
+    { "EXT_texture_norm16"_string, { { "GL_EXT_texture_norm16"sv }, Extensions::EXTTextureNorm16::create, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "KHR_parallel_shader_compile"_string, { { "GL_KHR_parallel_shader_compile"sv }, nullptr } },
+    { "NV_shader_noperspective_interpolation"_string, { { "GL_NV_shader_noperspective_interpolation"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "OES_draw_buffers_indexed"_string, { { "GL_OES_draw_buffers_indexed"sv }, nullptr } },
+    { "OES_fbo_render_mipmap"_string, { { "GL_OES_fbo_render_mipmap"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "OES_sample_variables"_string, { { "GL_OES_sample_variables"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "OES_shader_multisample_interpolation"_string, { { "GL_OES_shader_multisample_interpolation"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "OVR_multiview2"_string, { { "GL_OVR_multiview2"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "WEBGL_blend_func_extended"_string, { { "GL_EXT_blend_func_extended"sv }, nullptr } },
+    { "WEBGL_clip_cull_distance"_string, { { "GL_EXT_clip_cull_distance"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "WEBGL_color_buffer_float"_string, { { "EXT_color_buffer_half_float"sv, "OES_texture_float"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
+    { "WEBGL_compressed_texture_astc"_string, { { "KHR_texture_compression_astc_hdr"sv, "KHR_texture_compression_astc_ldr"sv }, nullptr } },
+    { "WEBGL_compressed_texture_etc"_string, { { "GL_ANGLE_compressed_texture_etc"sv }, nullptr } },
+    { "WEBGL_compressed_texture_etc1"_string, { { "GL_OES_compressed_ETC1_RGB8_texture"sv }, nullptr } },
+    { "WEBGL_compressed_texture_pvrtc"_string, { { "GL_IMG_texture_compression_pvrtc"sv }, nullptr } },
+    { "WEBGL_compressed_texture_s3tc_srgb"_string, { { "GL_EXT_texture_compression_s3tc_srgb"sv }, Extensions::WebGLCompressedTextureS3tcSrgb::create } },
+    { "WEBGL_multi_draw"_string, { { "GL_ANGLE_multi_draw"sv }, nullptr } },
+    { "WEBGL_polygon_mode"_string, { { "GL_ANGLE_polygon_mode"sv }, nullptr } },
+    { "WEBGL_provoking_vertex"_string, { { "GL_ANGLE_provoking_vertex"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "WEBGL_render_shared_exponent"_string, { { "GL_QCOM_render_shared_exponent"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
+    { "WEBGL_stencil_texturing"_string, { { "GL_ANGLE_stencil_texturing"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL2 } },
 };
 
 Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
@@ -169,12 +169,12 @@ Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
     auto opengl_extensions = context().get_supported_opengl_extensions();
     Vector<String> webgl_extensions;
 
-    for (auto const& available_extension : s_available_webgl_extensions) {
-        bool supported = !available_extension.only_for_webgl_version.has_value()
-            || context().webgl_version() == available_extension.only_for_webgl_version;
+    for (auto const& [available_extension_name, available_extension_info] : s_available_webgl_extensions) {
+        bool supported = !available_extension_info.only_for_webgl_version.has_value()
+            || context().webgl_version() == available_extension_info.only_for_webgl_version;
 
         if (supported) {
-            for (auto const& required_extension : available_extension.required_angle_extensions) {
+            for (auto const& required_extension : available_extension_info.required_angle_extensions) {
                 if (!opengl_extensions.contains_slow(required_extension)) {
                     supported = false;
                     break;
@@ -183,7 +183,7 @@ Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
         }
 
         if (supported)
-            webgl_extensions.append(available_extension.webgl_extension_name);
+            webgl_extensions.append(available_extension_name);
     }
 
     return webgl_extensions;
@@ -203,115 +203,19 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
     if (supported_extension_iterator == supported_extensions->end())
         return nullptr;
 
-    if (name.equals_ignoring_ascii_case("ANGLE_instanced_arrays"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL1) {
-        if (!m_angle_instanced_arrays_extension) {
-            m_angle_instanced_arrays_extension = MUST(Extensions::ANGLEInstancedArrays::create(realm(), *this));
-        }
+    auto maybe_extension = m_enabled_extensions.get(name);
+    if (maybe_extension.has_value())
+        return maybe_extension.release_value();
 
-        VERIFY(m_angle_instanced_arrays_extension);
-        return m_angle_instanced_arrays_extension;
-    }
+    // If we pass the check above this will always return a value
+    auto const& extension_info = s_available_webgl_extensions.get(name).release_value();
 
-    if (name.equals_ignoring_ascii_case("EXT_blend_minmax"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL1) {
-        if (!m_ext_blend_min_max_extension) {
-            m_ext_blend_min_max_extension = MUST(Extensions::EXTBlendMinMax::create(realm(), *this));
-        }
+    if (!extension_info.factory)
+        return nullptr;
 
-        VERIFY(m_ext_blend_min_max_extension);
-        return m_ext_blend_min_max_extension;
-    }
-
-    if (name.equals_ignoring_ascii_case("EXT_color_buffer_float"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
-        if (!m_ext_color_buffer_float_extension) {
-            m_ext_color_buffer_float_extension = MUST(Extensions::EXTColorBufferFloat::create(realm(), *this));
-        }
-
-        VERIFY(m_ext_color_buffer_float_extension);
-        return m_ext_color_buffer_float_extension;
-    }
-
-    if (name.equals_ignoring_ascii_case("EXT_render_snorm"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
-        if (!m_ext_render_snorm) {
-            m_ext_render_snorm = MUST(Extensions::EXTRenderSnorm::create(realm(), *this));
-        }
-
-        VERIFY(m_ext_render_snorm);
-        return m_ext_render_snorm;
-    }
-
-    if (name.equals_ignoring_ascii_case("EXT_texture_filter_anisotropic"sv)) {
-        if (!m_ext_texture_filter_anisotropic) {
-            m_ext_texture_filter_anisotropic = MUST(Extensions::EXTTextureFilterAnisotropic::create(realm(), *this));
-        }
-
-        VERIFY(m_ext_texture_filter_anisotropic);
-        return m_ext_texture_filter_anisotropic;
-    }
-
-    if (name.equals_ignoring_ascii_case("EXT_texture_norm16"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
-        if (!m_ext_texture_norm16) {
-            m_ext_texture_norm16 = MUST(Extensions::EXTTextureNorm16::create(realm(), *this));
-        }
-
-        VERIFY(m_ext_texture_norm16);
-        return m_ext_texture_norm16;
-    }
-
-    if (name.equals_ignoring_ascii_case("OES_element_index_uint"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL1) {
-        if (!m_oes_element_index_uint_object_extension) {
-            m_oes_element_index_uint_object_extension = MUST(Extensions::OESElementIndexUint::create(realm(), *this));
-        }
-
-        VERIFY(m_oes_element_index_uint_object_extension);
-        return m_oes_element_index_uint_object_extension;
-    }
-
-    if (name.equals_ignoring_ascii_case("OES_standard_derivatives"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL1) {
-        if (!m_oes_standard_derivatives_object_extension) {
-            m_oes_standard_derivatives_object_extension = MUST(Extensions::OESStandardDerivatives::create(realm(), *this));
-        }
-
-        VERIFY(m_oes_standard_derivatives_object_extension);
-        return m_oes_standard_derivatives_object_extension;
-    }
-
-    if (name.equals_ignoring_ascii_case("OES_vertex_array_object"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL1) {
-        if (!m_oes_vertex_array_object_extension) {
-            m_oes_vertex_array_object_extension = MUST(Extensions::OESVertexArrayObject::create(realm(), *this));
-        }
-
-        VERIFY(m_oes_vertex_array_object_extension);
-        return m_oes_vertex_array_object_extension;
-    }
-
-    if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc"sv)) {
-        if (!m_webgl_compressed_texture_s3tc_extension) {
-            m_webgl_compressed_texture_s3tc_extension = MUST(Extensions::WebGLCompressedTextureS3tc::create(realm(), *this));
-        }
-
-        VERIFY(m_webgl_compressed_texture_s3tc_extension);
-        return m_webgl_compressed_texture_s3tc_extension;
-    }
-
-    if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc_srgb"sv)) {
-        if (!m_webgl_compressed_texture_s3tc_srgb_extension) {
-            m_webgl_compressed_texture_s3tc_srgb_extension = MUST(Extensions::WebGLCompressedTextureS3tcSrgb::create(realm(), *this));
-        }
-
-        VERIFY(m_webgl_compressed_texture_s3tc_srgb_extension);
-        return m_webgl_compressed_texture_s3tc_srgb_extension;
-    }
-
-    if (name.equals_ignoring_ascii_case("WEBGL_draw_buffers"sv) && context().webgl_version() == OpenGLContext::WebGLVersion::WebGL1) {
-        if (!m_webgl_draw_buffers_extension) {
-            m_webgl_draw_buffers_extension = MUST(Extensions::WebGLDrawBuffers::create(realm(), *this));
-        }
-
-        VERIFY(m_webgl_draw_buffers_extension);
-        return m_webgl_draw_buffers_extension;
-    }
-
-    return nullptr;
+    auto extension = MUST(extension_info.factory(realm(), *this));
+    m_enabled_extensions.set(name, extension);
+    return extension;
 }
 
 void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::UnsignedLong format)
@@ -322,38 +226,27 @@ void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::Unsigne
 void WebGLRenderingContextBase::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_angle_instanced_arrays_extension);
-    visitor.visit(m_ext_blend_min_max_extension);
-    visitor.visit(m_ext_color_buffer_float_extension);
-    visitor.visit(m_ext_render_snorm);
-    visitor.visit(m_ext_texture_filter_anisotropic);
-    visitor.visit(m_ext_texture_norm16);
-    visitor.visit(m_oes_element_index_uint_object_extension);
-    visitor.visit(m_oes_standard_derivatives_object_extension);
-    visitor.visit(m_oes_vertex_array_object_extension);
-    visitor.visit(m_webgl_compressed_texture_s3tc_extension);
-    visitor.visit(m_webgl_compressed_texture_s3tc_srgb_extension);
-    visitor.visit(m_webgl_draw_buffers_extension);
+    visitor.visit(m_enabled_extensions);
 }
 
 bool WebGLRenderingContextBase::ext_texture_filter_anisotropic_extension_enabled() const
 {
-    return !!m_ext_texture_filter_anisotropic;
+    return m_enabled_extensions.contains("EXT_texture_filter_anisotropic"_string);
 }
 
 bool WebGLRenderingContextBase::angle_instanced_arrays_extension_enabled() const
 {
-    return !!m_angle_instanced_arrays_extension;
+    return m_enabled_extensions.contains("ANGLE_instanced_arrays"_string);
 }
 
 bool WebGLRenderingContextBase::oes_standard_derivatives_extension_enabled() const
 {
-    return !!m_oes_standard_derivatives_object_extension;
+    return m_enabled_extensions.contains("OES_standard_derivatives"_string);
 }
 
 bool WebGLRenderingContextBase::webgl_draw_buffers_extension_enabled() const
 {
-    return !!m_webgl_draw_buffers_extension;
+    return m_enabled_extensions.contains("WEBGL_draw_buffers"_string);
 }
 
 ReadonlySpan<WebIDL::UnsignedLong> WebGLRenderingContextBase::enabled_compressed_texture_formats() const
