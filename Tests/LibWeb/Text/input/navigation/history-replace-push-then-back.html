@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- Regression test for https://github.com/LadybirdBrowser/ladybird/issues/8269 -->
+<iframe src="../../data/iframe-replace-push-then-back.html"></iframe>
+<script>
+    asyncTest(done => {
+        window.addEventListener("message", event => {
+            println(event.data);
+            done();
+        });
+    });
+</script>

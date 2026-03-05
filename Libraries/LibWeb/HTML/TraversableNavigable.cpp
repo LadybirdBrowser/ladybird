@@ -1484,7 +1484,16 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
     // FIXME: 1. Assert: this is running on traversable's session history traversal queue.
 
     // 2. If targetNavigable's active session history entry is not targetEntry, then return.
+    // FIXME: This is a workaround for a spec issue where the early return loses replace entries.
+    //        Revisit when https://github.com/whatwg/html/issues/10232 is resolved.
     if (target_navigable->active_session_history_entry() != target_entry) {
+        if (entry_to_replace) {
+            auto& target_entries = target_navigable->get_session_history_entries();
+            if (auto it = target_entries.find(*entry_to_replace); it != target_entries.end()) {
+                target_entry->set_step(entry_to_replace->step());
+                *it = target_entry;
+            }
+        }
         return;
     }
 
