@@ -213,6 +213,10 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
     if (!extension_info.factory)
         return nullptr;
 
+    for (auto const& required_extension : extension_info.required_angle_extensions) {
+        context().request_extension(null_terminated_string(required_extension).data());
+    }
+
     auto extension = MUST(extension_info.factory(realm(), *this));
     m_enabled_extensions.set(name, extension);
     return extension;

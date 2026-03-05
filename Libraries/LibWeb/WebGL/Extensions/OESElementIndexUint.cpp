@@ -24,7 +24,6 @@ OESElementIndexUint::OESElementIndexUint(JS::Realm& realm, GC::Ref<WebGLRenderin
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_OES_element_index_uint");
 }
 
 void OESElementIndexUint::initialize(JS::Realm& realm)

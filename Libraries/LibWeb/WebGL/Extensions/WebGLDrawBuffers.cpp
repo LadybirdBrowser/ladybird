@@ -28,7 +28,6 @@ WebGLDrawBuffers::WebGLDrawBuffers(JS::Realm& realm, GC::Ref<WebGLRenderingConte
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_EXT_draw_buffers");
 }
 
 void WebGLDrawBuffers::draw_buffers_webgl(Vector<GLenum> buffers)

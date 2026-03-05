@@ -28,7 +28,6 @@ ANGLEInstancedArrays::ANGLEInstancedArrays(JS::Realm& realm, GC::Ref<WebGLRender
     : PlatformObject(realm)
     , m_context(context)
 {
-    m_context->context().request_extension("GL_ANGLE_instanced_arrays");
 }
 
 void ANGLEInstancedArrays::vertex_attrib_divisor_angle(GLuint index, GLuint divisor)
