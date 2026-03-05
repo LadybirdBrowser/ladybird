@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-result-after-abort.html");
+
+        const dbName = "test-result-after-abort";
+
+        const req = indexedDB.open(dbName, 1);
+        req.onupgradeneeded = () => {
+            req.transaction.abort();
+
+            // After aborting, request.result should still be the IDBDatabase.
+            // The spec resets done/result in a queued task (abort step 7),
+            // so synchronous access should still work.
+            try {
+                const db = req.result;
+                println("result type: " + (db instanceof IDBDatabase ? "IDBDatabase" : typeof db));
+                println("db.name: " + db.name);
+            } catch (e) {
+                println("error: " + e.name + ": " + e.message);
+            }
+        };
+        req.onerror = () => {
+            indexedDB.deleteDatabase(dbName);
+            done();
+        };
+    }, 0);
+});
+</script>
