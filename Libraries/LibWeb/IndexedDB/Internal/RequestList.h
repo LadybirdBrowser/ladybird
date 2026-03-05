@@ -27,8 +27,12 @@ public:
 
     bool is_empty() const;
 
+    void block_execution() { m_blocked = true; }
+    void unblock_execution();
+
     void set_on_all_processed(GC::Ref<GC::Function<void()>> callback);
     void check_all_processed();
+    void maybe_process_next_request();
 
 private:
     struct Entry {
@@ -36,10 +40,9 @@ private:
         GC::Root<GC::Function<void()>> steps;
     };
 
-    void maybe_process_next_request();
-
     Vector<Entry> m_entries;
     GC::Root<GC::Function<void()>> m_on_all_processed;
+    bool m_blocked { false };
 
 public:
     class RequestIterator {

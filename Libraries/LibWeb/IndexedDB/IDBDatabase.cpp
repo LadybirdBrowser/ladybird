@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <LibWeb/Bindings/IDBDatabasePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
@@ -247,6 +248,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
     // 8. Set transaction’s cleanup event loop to the current event loop.
     transaction->set_cleanup_event_loop(HTML::main_thread_event_loop());
 
+    block_on_conflicting_transactions(transaction);
+
     // 9. Return an IDBTransaction object representing transaction.
     return transaction;
 }
@@ -297,6 +300,47 @@ void IDBDatabase::check_pending_transaction_waits()
 
         i++;
     }
+}
+
+// https://w3c.github.io/IndexedDB/#transaction-scheduling
+void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> transaction)
+{
+    // The following constraints define when a transaction can be started:
+
+    // - A read-only transactions tx can start when there are no read/write transactions which:
+    // - A read/write transaction tx can start when there are no transactions which:
+
+    Vector<GC::Ref<IDBTransaction>> blocking;
+    for (auto const& other : m_transactions) {
+        // - Were created before tx; and
+        if (other.ptr() == transaction.ptr())
+            break;
+
+        // NB: According to the above conditions, we only block on transactions if one is read/write.
+        if (transaction->is_readonly() && other->is_readonly())
+            continue;
+
+        // - have overlapping scopes with tx; and
+        bool have_overlapping_scopes = any_of(transaction->scope(), [&](auto const& store) {
+            return other->scope().contains_slow(store);
+        });
+        if (!have_overlapping_scopes)
+            continue;
+
+        // - are not finished.
+        if (other->is_finished())
+            continue;
+
+        blocking.append(other);
+    }
+
+    if (blocking.is_empty())
+        return;
+
+    transaction->request_list().block_execution();
+    wait_for_transactions_to_finish(blocking, GC::create_function(realm().heap(), [transaction] {
+        transaction->request_list().unblock_execution();
+    }));
 }
 
 }
