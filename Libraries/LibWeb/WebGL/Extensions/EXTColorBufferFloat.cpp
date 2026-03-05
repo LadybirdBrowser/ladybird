@@ -15,7 +15,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(EXTColorBufferFloat);
 
-JS::ThrowCompletionOr<GC::Ptr<EXTColorBufferFloat>> EXTColorBufferFloat::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTColorBufferFloat::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<EXTColorBufferFloat>(realm, context);
 }

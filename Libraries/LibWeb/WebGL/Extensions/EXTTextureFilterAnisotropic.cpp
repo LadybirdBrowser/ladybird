@@ -15,7 +15,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(EXTTextureFilterAnisotropic);
 
-JS::ThrowCompletionOr<GC::Ptr<EXTTextureFilterAnisotropic>> EXTTextureFilterAnisotropic::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTTextureFilterAnisotropic::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<EXTTextureFilterAnisotropic>(realm, context);
 }

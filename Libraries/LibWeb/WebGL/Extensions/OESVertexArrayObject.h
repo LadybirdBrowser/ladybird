@@ -17,7 +17,7 @@ class OESVertexArrayObject : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(OESVertexArrayObject);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<OESVertexArrayObject>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLVertexArrayObjectOES> create_vertex_array_oes();
     void delete_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);

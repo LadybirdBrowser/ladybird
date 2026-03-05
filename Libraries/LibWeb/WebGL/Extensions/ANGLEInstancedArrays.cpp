@@ -19,7 +19,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(ANGLEInstancedArrays);
 
-JS::ThrowCompletionOr<GC::Ptr<ANGLEInstancedArrays>> ANGLEInstancedArrays::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> ANGLEInstancedArrays::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<ANGLEInstancedArrays>(realm, context);
 }

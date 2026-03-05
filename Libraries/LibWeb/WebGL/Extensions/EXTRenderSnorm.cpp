@@ -15,7 +15,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(EXTRenderSnorm);
 
-JS::ThrowCompletionOr<GC::Ptr<EXTRenderSnorm>> EXTRenderSnorm::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTRenderSnorm::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<EXTRenderSnorm>(realm, context);
 }

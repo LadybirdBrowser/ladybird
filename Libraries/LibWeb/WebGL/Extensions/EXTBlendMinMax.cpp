@@ -15,7 +15,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(EXTBlendMinMax);
 
-JS::ThrowCompletionOr<GC::Ptr<EXTBlendMinMax>> EXTBlendMinMax::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTBlendMinMax::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<EXTBlendMinMax>(realm, context);
 }
