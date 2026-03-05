@@ -51,7 +51,7 @@ public:
     u32 default_framebuffer() const;
     u32 default_renderbuffer() const;
 
-    Vector<String> get_supported_extensions();
+    Vector<String> get_supported_opengl_extensions();
     void request_extension(char const* extension_name);
 
     WebGLVersion webgl_version() const { return m_webgl_version; }
