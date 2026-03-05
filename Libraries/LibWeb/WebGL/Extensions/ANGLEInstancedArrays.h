@@ -17,7 +17,7 @@ class ANGLEInstancedArrays : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(ANGLEInstancedArrays);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<ANGLEInstancedArrays>> create(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    static JS::ThrowCompletionOr<GC::Ptr<ANGLEInstancedArrays>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
     void draw_arrays_instanced_angle(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
     void draw_elements_instanced_angle(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei primcount);
@@ -28,9 +28,9 @@ protected:
     void visit_edges(Visitor&) override;
 
 private:
-    ANGLEInstancedArrays(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    ANGLEInstancedArrays(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
-    GC::Ref<WebGLRenderingContext> m_context;
+    GC::Ref<WebGLRenderingContextBase> m_context;
 };
 
 }

@@ -16,16 +16,16 @@ class EXTRenderSnorm : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(EXTRenderSnorm);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<EXTRenderSnorm>> create(JS::Realm&, GC::Ref<WebGL2RenderingContext>);
+    static JS::ThrowCompletionOr<GC::Ptr<EXTRenderSnorm>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void initialize(JS::Realm&) override;
     void visit_edges(Visitor&) override;
 
 private:
-    EXTRenderSnorm(JS::Realm&, GC::Ref<WebGL2RenderingContext>);
+    EXTRenderSnorm(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
-    GC::Ref<WebGL2RenderingContext> m_context;
+    GC::Ref<WebGLRenderingContextBase> m_context;
 };
 
 }

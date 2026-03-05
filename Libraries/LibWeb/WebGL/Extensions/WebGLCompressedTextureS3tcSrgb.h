@@ -8,7 +8,6 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL::Extensions {
 

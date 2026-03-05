@@ -17,7 +17,7 @@ class OESVertexArrayObject : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(OESVertexArrayObject);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<OESVertexArrayObject>> create(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    static JS::ThrowCompletionOr<GC::Ptr<OESVertexArrayObject>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLVertexArrayObjectOES> create_vertex_array_oes();
     void delete_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);
@@ -29,9 +29,9 @@ protected:
     void visit_edges(Visitor&) override;
 
 private:
-    OESVertexArrayObject(JS::Realm&, GC::Ref<WebGLRenderingContext>);
+    OESVertexArrayObject(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
-    GC::Ref<WebGLRenderingContext> m_context;
+    GC::Ref<WebGLRenderingContextBase> m_context;
 };
 
 }
