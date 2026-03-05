@@ -19,6 +19,7 @@ extern "C" {
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
 #include <LibWeb/WebGL/Extensions/EXTColorBufferFloat.h>
@@ -172,6 +173,10 @@ Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
     for (auto const& [available_extension_name, available_extension_info] : s_available_webgl_extensions) {
         bool supported = !available_extension_info.only_for_webgl_version.has_value()
             || context().webgl_version() == available_extension_info.only_for_webgl_version;
+
+        if (!available_extension_info.factory && !HTML::UniversalGlobalScopeMixin::expose_experimental_interfaces()) {
+            supported = false;
+        }
 
         if (supported) {
             for (auto const& required_extension : available_extension_info.required_angle_extensions) {
