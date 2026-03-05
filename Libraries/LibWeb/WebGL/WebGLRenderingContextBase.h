@@ -178,18 +178,7 @@ private:
 
     // Extensions
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
-    GC::Ptr<JS::Object> m_angle_instanced_arrays_extension;
-    GC::Ptr<JS::Object> m_ext_blend_min_max_extension;
-    GC::Ptr<JS::Object> m_ext_color_buffer_float_extension;
-    GC::Ptr<JS::Object> m_ext_render_snorm;
-    GC::Ptr<JS::Object> m_ext_texture_filter_anisotropic;
-    GC::Ptr<JS::Object> m_ext_texture_norm16;
-    GC::Ptr<JS::Object> m_oes_element_index_uint_object_extension;
-    GC::Ptr<JS::Object> m_oes_standard_derivatives_object_extension;
-    GC::Ptr<JS::Object> m_oes_vertex_array_object_extension;
-    GC::Ptr<JS::Object> m_webgl_compressed_texture_s3tc_extension;
-    GC::Ptr<JS::Object> m_webgl_compressed_texture_s3tc_srgb_extension;
-    GC::Ptr<JS::Object> m_webgl_draw_buffers_extension;
+    HashMap<String, GC::Ref<JS::Object>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
 };
 
 }
