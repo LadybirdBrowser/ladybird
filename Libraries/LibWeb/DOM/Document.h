@@ -369,6 +369,7 @@ public:
     void update_style_if_needed_for_element(AbstractElement const&);
     [[nodiscard]] bool element_needs_style_update(AbstractElement const&) const;
     void update_layout(UpdateLayoutReason);
+    void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
     [[nodiscard]] bool layout_is_up_to_date() const;
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
