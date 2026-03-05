@@ -433,6 +433,7 @@ NEVER_INLINE void Interpreter::pop_inline_frame(Value return_value)
         return_value = callee_frame->this_value.value();
 
     auto& ec_stack = vm().execution_context_stack();
+    VERIFY(!ec_stack.is_empty());
     ec_stack.resize(ec_stack.size() - 1);
     vm().interpreter_stack().deallocate(callee_frame);
 
