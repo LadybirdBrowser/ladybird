@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script>
+    history.replaceState({ info: "replaced" }, "");
+    history.pushState({ info: "pushed" }, "", "/details");
+
+    window.addEventListener('popstate', () => {
+        parent.postMessage("PASS", '*');
+    });
+
+    history.back();
+</script>
