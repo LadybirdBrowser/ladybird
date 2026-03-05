@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 29 tests
 
-27 Pass
-2 Fail
+28 Pass
+1 Fail
 Pass	IDBFactory.open() - request has no source
 Pass	IDBFactory.open() - database 'name' and 'version' are correctly set
 Pass	IDBFactory.open() - no version opens current database
@@ -31,5 +31,5 @@ Pass	Calling open() with version argument 1.5 should not throw.
 Pass	Calling open() with version argument 9007199254740991 should not throw.
 Pass	Calling open() with version argument undefined should not throw.
 Fail	IDBFactory.open() - error in upgradeneeded resets db
-Fail	IDBFactory.open() - second open's transaction is available to get objectStores
+Pass	IDBFactory.open() - second open's transaction is available to get objectStores
 Pass	IDBFactory.open() - upgradeneeded gets VersionChangeEvent
