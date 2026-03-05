@@ -19,7 +19,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(WebGLDrawBuffers);
 
-JS::ThrowCompletionOr<GC::Ptr<WebGLDrawBuffers>> WebGLDrawBuffers::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> WebGLDrawBuffers::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<WebGLDrawBuffers>(realm, context);
 }

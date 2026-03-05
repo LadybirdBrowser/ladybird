@@ -17,7 +17,7 @@ class ANGLEInstancedArrays : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(ANGLEInstancedArrays);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<ANGLEInstancedArrays>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
     void draw_arrays_instanced_angle(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
     void draw_elements_instanced_angle(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei primcount);

@@ -18,7 +18,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
-JS::ThrowCompletionOr<GC::Ptr<WebGLCompressedTextureS3tcSrgb>> WebGLCompressedTextureS3tcSrgb::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> WebGLCompressedTextureS3tcSrgb::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<WebGLCompressedTextureS3tcSrgb>(realm, context);
 }

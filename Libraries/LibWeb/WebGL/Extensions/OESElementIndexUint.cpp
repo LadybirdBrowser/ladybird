@@ -15,7 +15,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(OESElementIndexUint);
 
-JS::ThrowCompletionOr<GC::Ptr<OESElementIndexUint>> OESElementIndexUint::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESElementIndexUint::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<OESElementIndexUint>(realm, context);
 }

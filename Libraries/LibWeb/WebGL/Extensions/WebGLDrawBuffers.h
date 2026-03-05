@@ -17,7 +17,7 @@ class WebGLDrawBuffers : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(WebGLDrawBuffers);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGLDrawBuffers>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
     void draw_buffers_webgl(Vector<GLenum> buffers);
 

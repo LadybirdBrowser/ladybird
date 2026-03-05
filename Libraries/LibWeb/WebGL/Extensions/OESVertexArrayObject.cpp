@@ -20,7 +20,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(OESVertexArrayObject);
 
-JS::ThrowCompletionOr<GC::Ptr<OESVertexArrayObject>> OESVertexArrayObject::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESVertexArrayObject::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<OESVertexArrayObject>(realm, context);
 }

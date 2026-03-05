@@ -15,7 +15,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(EXTTextureNorm16);
 
-JS::ThrowCompletionOr<GC::Ptr<EXTTextureNorm16>> EXTTextureNorm16::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTTextureNorm16::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<EXTTextureNorm16>(realm, context);
 }

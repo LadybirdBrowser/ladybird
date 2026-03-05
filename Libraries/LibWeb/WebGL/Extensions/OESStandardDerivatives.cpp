@@ -15,7 +15,7 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(OESStandardDerivatives);
 
-JS::ThrowCompletionOr<GC::Ptr<OESStandardDerivatives>> OESStandardDerivatives::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESStandardDerivatives::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<OESStandardDerivatives>(realm, context);
 }

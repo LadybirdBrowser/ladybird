@@ -16,7 +16,7 @@ class OESElementIndexUint : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(OESElementIndexUint);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<OESElementIndexUint>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void initialize(JS::Realm&) override;

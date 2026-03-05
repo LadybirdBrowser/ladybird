@@ -16,7 +16,7 @@ class WebGLCompressedTextureS3tcSrgb : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGLCompressedTextureS3tcSrgb>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void initialize(JS::Realm&) override;

@@ -16,7 +16,7 @@ class EXTColorBufferFloat : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(EXTColorBufferFloat);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<EXTColorBufferFloat>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void initialize(JS::Realm&) override;

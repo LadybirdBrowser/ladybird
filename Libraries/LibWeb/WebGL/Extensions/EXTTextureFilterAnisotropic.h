@@ -16,7 +16,7 @@ class EXTTextureFilterAnisotropic : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(EXTTextureFilterAnisotropic);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<EXTTextureFilterAnisotropic>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void initialize(JS::Realm&) override;
