@@ -751,16 +751,18 @@ int main(int argc, char** argv)
 
         bool passed = true;
 
-        if (metadata.strict_mode != StrictMode::OnlyStrict) {
-            result_object.set("strict_mode"sv, false);
+        auto run_test_with_strict_mode = [&](bool strict_mode) {
+            result_object.set("strict_mode"sv, strict_mode);
 
             ARM_TIMER();
-            auto result = run_test(original_contents, path, metadata);
+            auto result = run_test(strict_mode ? with_strict : original_contents, path, metadata);
             DISARM_TIMER();
+
+            auto output_key = strict_mode ? "strict_output"sv : "output"sv;
 
             auto first_output = collect_output();
             if (first_output.has_value())
-                result_object.set("output"sv, String::from_utf8_with_replacement_character(*first_output));
+                result_object.set(output_key, String::from_utf8_with_replacement_character(*first_output));
 
             passed = verify_test(result, metadata, result_object);
             auto output = first_output.value_or("");
@@ -768,37 +770,17 @@ int main(int argc, char** argv)
                 if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
                     result_object.set("async_fail"sv, true);
                     if (!first_output.has_value())
-                        result_object.set("output"sv, JsonValue {});
+                        result_object.set(output_key, JsonValue {});
 
                     passed = false;
                 }
             }
-        }
+        };
 
-        if (passed && metadata.strict_mode != StrictMode::NoStrict) {
-            result_object.set("strict_mode"sv, true);
-
-            ARM_TIMER();
-            auto result = run_test(with_strict, path, metadata);
-            DISARM_TIMER();
-
-            auto first_output = collect_output();
-            if (first_output.has_value())
-                result_object.set("strict_output"sv, String::from_utf8_with_replacement_character(*first_output));
-
-            passed = verify_test(result, metadata, result_object);
-            auto output = first_output.value_or("");
-
-            if (metadata.is_async && !s_parse_only) {
-                if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
-                    result_object.set("async_fail"sv, true);
-                    if (!first_output.has_value())
-                        result_object.set("output"sv, JsonValue {});
-
-                    passed = false;
-                }
-            }
-        }
+        if (metadata.strict_mode != StrictMode::OnlyStrict)
+            run_test_with_strict_mode(false);
+        if (passed && metadata.strict_mode != StrictMode::NoStrict)
+            run_test_with_strict_mode(true);
 
         if (passed)
             result_object.remove("strict_mode"sv);
