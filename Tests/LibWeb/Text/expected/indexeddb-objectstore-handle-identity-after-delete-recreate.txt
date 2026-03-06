@@ -1,0 +1,13 @@
+createHandle === txHandle1: true
+txHandle1 === txHandle2: true
+txHandle1.name: foo
+txHandle1.indexNames: ["by_name"]
+after delete, createHandle.name: foo
+after delete, createHandle.get(): InvalidStateError
+recreateHandle === txHandle3: true
+txHandle3 === txHandle1: false
+txHandle3.name: foo
+txHandle3.indexNames: ["by_value"]
+txHandle3.keyPath: key
+txHandle1.keyPath: id
+txHandle1.indexNames: []

@@ -48,6 +48,8 @@ void IDBTransaction::visit_edges(Visitor& visitor)
     visitor.visit(m_associated_request);
     visitor.visit(m_scope);
     visitor.visit(m_cleanup_event_loop);
+    for (auto& [store, handle] : m_object_store_handles)
+        visitor.visit(handle);
 }
 
 void IDBTransaction::set_onabort(WebIDL::CallbackType* event_handler)
@@ -144,7 +146,32 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(String
         return WebIDL::NotFoundError::create(realm, "Object store not found in transactions scope"_utf16);
 
     // 3. Return an object store handle associated with store and this.
-    return IDBObjectStore::create(realm, *store, *this);
+
+    // https://w3c.github.io/IndexedDB/#object-store-handle-construct
+    // Multiple handles may be associated with the same object store in different transactions,
+    // but there must be only one object store handle associated with a particular object store
+    // within a transaction.
+    return get_or_create_object_store_handle(*store);
+}
+
+GC::Ref<IDBObjectStore> IDBTransaction::get_or_create_object_store_handle(GC::Ref<ObjectStore> store)
+{
+    // NOTE: We have to do two lookups here. If we use ensure() with a constructor callback, the garbage collector
+    //       may run when we construct the handle, and then we visit the HashMap in an invalid state.
+    if (auto handle = m_object_store_handles.get(store); handle.has_value())
+        return handle.value();
+
+    auto handle = IDBObjectStore::create(realm(), store, *this);
+    m_object_store_handles.set(store, handle);
+    return handle;
+}
+
+GC::Ptr<IDBObjectStore> IDBTransaction::object_store_handle_for(GC::Ref<ObjectStore> store)
+{
+    auto maybe_handle = m_object_store_handles.find(store);
+    if (maybe_handle == m_object_store_handles.end())
+        return nullptr;
+    return maybe_handle->value;
 }
 
 void IDBTransaction::set_state(TransactionState state)
