@@ -18,6 +18,8 @@
 
 namespace JS::Temporal {
 
+extern String ISO8601_CALENDAR;
+
 // 12.2 Month Codes, https://tc39.es/proposal-temporal/#sec-temporal-month-codes
 struct MonthCode {
     u8 month_number { 0 };
@@ -109,10 +111,10 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM&, Value argument);
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, StringView month_code);
 String create_month_code(u8 month_number, bool is_leap_month);
 
-ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM&, StringView calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names);
-ThrowCompletionOr<ISODate> calendar_date_from_fields(VM&, StringView calendar, CalendarFields&, Overflow);
-ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM&, StringView calendar, CalendarFields&, Overflow);
-ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM&, StringView calendar, CalendarFields&, Overflow);
+ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM&, String const& calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names);
+ThrowCompletionOr<ISODate> calendar_date_from_fields(VM&, String const& calendar, CalendarFields&, Overflow);
+ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM&, String const& calendar, CalendarFields&, Overflow);
+ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM&, String const& calendar, CalendarFields&, Overflow);
 String format_calendar_annotation(StringView id, ShowCalendar);
 bool calendar_equals(StringView one, StringView two);
 u8 iso_days_in_month(double year, double month);
@@ -120,23 +122,23 @@ YearWeek iso_week_of_year(ISODate);
 u16 iso_day_of_year(ISODate);
 u8 iso_day_of_week(ISODate);
 Vector<CalendarField> calendar_field_keys_present(CalendarFields const&);
-CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& fields, CalendarFields const& additional_fields);
-ThrowCompletionOr<ISODate> non_iso_date_add(VM&, StringView calendar, ISODate, DateDuration const&, Overflow);
-ThrowCompletionOr<ISODate> calendar_date_add(VM&, StringView calendar, ISODate, DateDuration const&, Overflow);
-DateDuration non_iso_date_until(VM&, StringView calendar, ISODate, ISODate, Unit largest_unit);
-DateDuration calendar_date_until(VM&, StringView calendar, ISODate, ISODate, Unit largest_unit);
+CalendarFields calendar_merge_fields(String const& calendar, CalendarFields const& fields, CalendarFields const& additional_fields);
+ThrowCompletionOr<ISODate> non_iso_date_add(VM&, String const& calendar, ISODate, DateDuration const&, Overflow);
+ThrowCompletionOr<ISODate> calendar_date_add(VM&, String const& calendar, ISODate, DateDuration const&, Overflow);
+DateDuration non_iso_date_until(VM&, String const& calendar, ISODate, ISODate, Unit largest_unit);
+DateDuration calendar_date_until(VM&, String const& calendar, ISODate, ISODate, Unit largest_unit);
 ThrowCompletionOr<String> to_temporal_calendar_identifier(VM&, Value temporal_calendar_like);
 ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM&, Object const& item);
-ThrowCompletionOr<ISODate> non_iso_calendar_date_to_iso(VM&, StringView calendar, CalendarFields const&, Overflow);
-ThrowCompletionOr<ISODate> calendar_date_to_iso(VM&, StringView calendar, CalendarFields const&, Overflow);
-ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM&, StringView calendar, CalendarFields const&, Overflow);
-ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM&, StringView calendar, CalendarFields const&, Overflow);
-CalendarDate non_iso_calendar_iso_to_date(StringView calendar, ISODate);
-CalendarDate calendar_iso_to_date(StringView calendar, ISODate);
-Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldList);
-Vector<CalendarField> non_iso_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField>);
-Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField>);
-ThrowCompletionOr<void> non_iso_resolve_fields(VM&, StringView calendar, CalendarFields&, DateType);
-ThrowCompletionOr<void> calendar_resolve_fields(VM&, StringView calendar, CalendarFields&, DateType);
+ThrowCompletionOr<ISODate> non_iso_calendar_date_to_iso(VM&, String const& calendar, CalendarFields const&, Overflow);
+ThrowCompletionOr<ISODate> calendar_date_to_iso(VM&, String const& calendar, CalendarFields const&, Overflow);
+ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM&, String const& calendar, CalendarFields const&, Overflow);
+ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM&, String const& calendar, CalendarFields const&, Overflow);
+CalendarDate non_iso_calendar_iso_to_date(String const& calendar, ISODate);
+CalendarDate calendar_iso_to_date(String const& calendar, ISODate);
+Vector<CalendarField> calendar_extra_fields(String const& calendar, CalendarFieldList);
+Vector<CalendarField> non_iso_field_keys_to_ignore(String const& calendar, ReadonlySpan<CalendarField>);
+Vector<CalendarField> calendar_field_keys_to_ignore(String const& calendar, ReadonlySpan<CalendarField>);
+ThrowCompletionOr<void> non_iso_resolve_fields(VM&, String const& calendar, CalendarFields&, DateType);
+ThrowCompletionOr<void> calendar_resolve_fields(VM&, String const& calendar, CalendarFields&, DateType);
 
 }
