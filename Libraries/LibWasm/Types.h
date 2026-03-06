@@ -678,6 +678,7 @@ private:
         TableIndex,
         TableTableArgs,
         TryTableArgs,
+        TypeIndex,
         ValueType,
         Vector<ValueType>,
         double,
