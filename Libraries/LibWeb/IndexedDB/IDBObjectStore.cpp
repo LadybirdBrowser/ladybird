@@ -27,8 +27,6 @@ IDBObjectStore::IDBObjectStore(JS::Realm& realm, GC::Ref<ObjectStore> store, GC:
     , m_transaction(transaction)
     , m_name(store->name())
 {
-    transaction->add_to_scope(store);
-
     // An object store handle has an index set, which is initialized to the set of indexes that reference the associated object store when the object store handle is created.
     m_indexes = MUST(store->index_set().clone());
 }

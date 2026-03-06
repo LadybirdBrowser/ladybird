@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/IDBDatabasePrototype.h>
@@ -19,6 +20,8 @@
 #include <LibWeb/IndexedDB/Internal/RequestList.h>
 
 namespace Web::IndexedDB {
+
+class IDBObjectStore;
 
 // https://w3c.github.io/IndexedDB/#transaction
 class IDBTransaction : public DOM::EventTarget {
@@ -66,6 +69,10 @@ public:
 
     GC::Ptr<ObjectStore> object_store_named(String const& name) const;
     void add_to_scope(GC::Ref<ObjectStore> object_store) { m_scope.append(object_store); }
+    void remove_from_scope(GC::Ref<ObjectStore> object_store) { m_scope.remove_first_matching([&](auto& other) { return object_store == other; }); }
+
+    GC::Ref<IDBObjectStore> get_or_create_object_store_handle(GC::Ref<ObjectStore>);
+    GC::Ptr<IDBObjectStore> object_store_handle_for(GC::Ref<ObjectStore>);
 
     WebIDL::ExceptionOr<void> abort();
     WebIDL::ExceptionOr<void> commit();
@@ -113,6 +120,8 @@ private:
 
     // A transaction optionally has a cleanup event loop which is an event loop.
     GC::Ptr<HTML::EventLoop> m_cleanup_event_loop;
+
+    HashMap<GC::RawPtr<ObjectStore>, GC::Ref<IDBObjectStore>> m_object_store_handles;
 
     // NOTE: Used for debug purposes
     String m_uuid;

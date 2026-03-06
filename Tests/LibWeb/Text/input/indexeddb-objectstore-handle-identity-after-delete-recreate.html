@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-objectstore-handle-identity-after-delete-recreate.html");
+
+        const dbName = "test-handle-identity-" + Date.now() + Math.random();
+
+        const req = indexedDB.open(dbName, 1);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            const tx = e.target.transaction;
+
+            // Create "foo" and get a handle via createObjectStore.
+            const createHandle = db.createObjectStore("foo", { keyPath: "id" });
+            createHandle.createIndex("by_name", "name");
+            createHandle.put({ id: 1, name: "one" });
+
+            // Get a handle via tx.objectStore() — spec says same name should
+            // return the same handle instance.
+            const txHandle1 = tx.objectStore("foo");
+            const txHandle2 = tx.objectStore("foo");
+
+            println("createHandle === txHandle1: " + (createHandle === txHandle1));
+            println("txHandle1 === txHandle2: " + (txHandle1 === txHandle2));
+            println("txHandle1.name: " + txHandle1.name);
+            println("txHandle1.indexNames: " + JSON.stringify(Array.from(txHandle1.indexNames)));
+
+            // Delete the object store.
+            db.deleteObjectStore("foo");
+
+            println("after delete, createHandle.name: " + createHandle.name);
+
+            // Try to access the deleted handle.
+            try {
+                createHandle.get(1);
+                println("after delete, createHandle.get(): no error");
+            } catch (ex) {
+                println("after delete, createHandle.get(): " + ex.name);
+            }
+
+            // Recreate "foo" with different schema.
+            const recreateHandle = db.createObjectStore("foo", { keyPath: "key" });
+            recreateHandle.createIndex("by_value", "value");
+
+            // Get handle via tx.objectStore() again.
+            const txHandle3 = tx.objectStore("foo");
+
+            println("recreateHandle === txHandle3: " + (recreateHandle === txHandle3));
+            println("txHandle3 === txHandle1: " + (txHandle3 === txHandle1));
+            println("txHandle3.name: " + txHandle3.name);
+            println("txHandle3.indexNames: " + JSON.stringify(Array.from(txHandle3.indexNames)));
+            println("txHandle3.keyPath: " + txHandle3.keyPath);
+
+            // Check the old handle still reflects old schema.
+            println("txHandle1.keyPath: " + txHandle1.keyPath);
+            println("txHandle1.indexNames: " + JSON.stringify(Array.from(txHandle1.indexNames)));
+        };
+        req.onsuccess = (e) => {
+            e.target.result.close();
+            indexedDB.deleteDatabase(dbName);
+            done();
+        };
+        req.onerror = (e) => {
+            println("error: " + e.target.error.name);
+            indexedDB.deleteDatabase(dbName);
+            done();
+        };
+    }, 0);
+});
+</script>

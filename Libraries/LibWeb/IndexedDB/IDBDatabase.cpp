@@ -147,7 +147,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     add_to_object_store_set(object_store);
 
     // 10. Return a new object store handle associated with store and transaction.
-    return IDBObjectStore::create(realm, object_store, *transaction);
+    transaction->add_to_scope(object_store);
+    return transaction->get_or_create_object_store_handle(object_store);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-objectstorenames
@@ -187,7 +188,13 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
     // 5. Remove store from this's object store set.
     this->remove_from_object_store_set(*store);
 
-    // FIXME: 6. If there is an object store handle associated with store and transaction, remove all entries from its index set.
+    // NB: Upgrade transactions' scope is always the entire database. Since we removed this store from the database,
+    //     it no longer belongs in the scope.
+    transaction->remove_from_scope(*store);
+
+    // 6. If there is an object store handle associated with store and transaction, remove all entries from its index set.
+    if (auto handle = transaction->object_store_handle_for(*store))
+        handle->index_set().clear();
 
     // AD-HOC: Mark the store and its indexes as deleted so that stale handles throw InvalidStateError.
     store->set_deleted(true);
