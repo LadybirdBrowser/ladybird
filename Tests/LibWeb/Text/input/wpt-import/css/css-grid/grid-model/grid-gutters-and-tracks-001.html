@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<title>CSS Grid: grid gutters and tracks.</title>
+<link rel="author" title="Sergio Villar" href="mailto:svillar@igalia.com"/>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#gutters"/>
+<meta name="assert" content="Check that gutters contribute to the size of the grid containers and spanning items, and do not alter grid items positioning, margin computation and track sizing."/>
+<link rel="stylesheet" href="../../../css/support/grid.css"/>
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css"/>
+<link rel="stylesheet" href="../../../fonts/ahem.css" type="text/css"/>
+<style>
+body { margin: 0px; }
+
+.grid { padding: 3px 7px 5px 1px; border: solid yellow 1px; }
+
+.normalGap { grid-gap: normal; }
+
+.gridGap { grid-gap: 16px; }
+
+.gridRowColumnGaps {
+    grid-row-gap: 12px;
+    grid-column-gap: 23px;
+}
+
+.gridMultipleCols { grid-template-columns: 30px minmax(10px, 50px) 80px; }
+.gridMultipleRows { grid-template-rows: 90px 70px min-content; }
+.gridAutoAuto { grid-template: auto auto / auto auto; }
+.gridMultipleFixed { grid-template: [first] 37px [foo] 57px [bar] 77px [last] / [first] 15px [foo] 25px [bar] 35px [last]; }
+.gridFixed100 { grid-template: repeat(2, 100px) / repeat(2, 100px); }
+.gridWithPercent { grid-template-columns: 10px 20% repeat(2, 30px); }
+.gridWithDoublePercent { grid-template-columns: 60% 40%; }
+.gridWithRowPercent { grid-template: 10px 20% 30px / 20px; }
+.gridWithRowDoublePercent { grid-template: 60% 40% / 20px; }
+
+.width220 { width: 220px; }
+.height100 { height: 100px; }
+.gridAutoRows20 { grid-auto-rows: 20px; }
+
+.thirdRowThirdColumn { grid-area: 3 / 3; }
+.firstRowThirdColumn { grid-area: 1 / 3; }
+
+div.grid > div { font: 10px/1 Ahem; }
+
+.gridItemMargins {
+    margin: 20px 30px 40px 50px;
+    width: 20px;
+    height: 40px;
+}
+
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+    setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<!-- Check that gutters contribute to the size of the grid containers. -->
+
+<div style="position: relative;">
+    <div class="grid normalGap gridMultipleCols fit-content" data-expected-width="170" data-expected-height="10"></div>
+    <div class="grid normalGap gridMultipleRows" style="width: 400px" data-expected-width="410" data-expected-height="170"></div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridRowColumnGaps fit-content" data-expected-width="103" data-expected-height="62">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="20" data-expected-height="10">XX</div>
+        <div class="secondRowSecondColumn" data-offset-x="45" data-offset-y="26" data-expected-width="50" data-expected-height="30">XX<br>X<br>XX XX</div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridMultipleCols gridRowColumnGaps fit-content" data-expected-width="216" data-expected-height="94">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="30" data-expected-height="10">XX</div>
+        <div class="secondRowSecondColumn" data-offset-x="55" data-offset-y="26" data-expected-width="50" data-expected-height="20">XX<br>XX XX</div>
+        <div class="thirdRowThirdColumn" data-offset-x="128" data-offset-y="58" data-expected-width="80" data-expected-height="30">XXXX XX<br>X<br>XX XX</div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridMultipleRows gridRowColumnGaps fit-content" data-expected-width="196" data-expected-height="224">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="20" data-expected-height="90">XX</div>
+        <div class="secondRowSecondColumn" data-offset-x="45" data-offset-y="106" data-expected-width="50" data-expected-height="70">XX<br>XX XX</div>
+        <div class="thirdRowThirdColumn" data-offset-x="118" data-offset-y="188" data-expected-width="70" data-expected-height="30">XXXX XX<br>X<br>XX XX</div>
+    </div>
+</div>
+
+<!-- Check that gutters do not alter grid items positioning. -->
+<div style="position: relative">
+    <div class="grid gridMultipleFixed gridRowColumnGaps">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="15" data-expected-height="37">X X X</div>
+        <div class="secondRowSecondColumn" data-offset-x="40" data-offset-y="53" data-expected-width="25" data-expected-height="57">X X</div>
+        <div class="thirdRowThirdColumn" data-offset-x="88" data-offset-y="122" data-expected-width="35" data-expected-height="77">XXX XX X XX XX</div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridMultipleFixed gridRowColumnGaps">
+        <div style="grid-row: 2; grid-column: -2 / -1;" data-offset-x="88" data-offset-y="53" data-expected-width="35" data-expected-height="57">X X X</div>
+        <div style="grid-row: 1 / bar; grid-column: bar" data-offset-x="88" data-offset-y="4" data-expected-width="35" data-expected-height="106">X XX X XX XX XX X</div>
+        <div style="grid-row: -2; grid-column-end: foo" data-offset-x="2" data-offset-y="122" data-expected-width="15" data-expected-height="77">X X</div>
+    </div>
+</div>
+
+<!-- Check that gutters do not alter track sizing. -->
+<div style="position: relative">
+    <div class="grid gridRowColumnGaps fit-content" data-expected-width="166" data-expected-height="94">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="20" data-expected-height="10">XX</div>
+        <div class="secondRowSecondColumn" data-offset-x="45" data-offset-y="26" data-expected-width="30" data-expected-height="20">X X<br>X X</div>
+        <div class="thirdRowThirdColumn" data-offset-x="98" data-offset-y="58" data-expected-width="60" data-expected-height="30">XXX XX<br>X<br>XX XX</div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridRowColumnGaps gridMultipleCols gridMultipleRows fit-content" data-expected-width="216" data-expected-height="224">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="30" data-expected-height="90">XX</div>
+        <div class="secondRowSecondColumn" data-offset-x="55" data-offset-y="106" data-expected-width="50" data-expected-height="70">X X<br>X X</div>
+        <div class="thirdRowThirdColumn" data-offset-x="128" data-offset-y="188" data-expected-width="80" data-expected-height="30">XXX XX<br>X<br>XX XX</div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridWithPercent width220 gridRowColumnGaps gridAutoRows20" data-expected-width="230" data-expected-height="94">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="10" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="35" data-offset-y="36" data-expected-width="44" data-expected-height="20"></div>
+        <div class="thirdRowThirdColumn" data-offset-x="102" data-offset-y="68" data-expected-width="30" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridWithRowPercent gridRowColumnGaps width220 height100" data-expected-width="230" data-expected-height="110">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="20" data-expected-height="10"></div>
+        <div class="secondRowFirstColumn" data-offset-x="2" data-offset-y="26" data-expected-width="20" data-expected-height="20"></div>
+        <div class="thirdRowAutoColumn" data-offset-x="2" data-offset-y="58" data-expected-width="20" data-expected-height="30"></div>
+    </div>
+</div>
+
+<!-- Check that gutters contribute to the size of spanning items. -->
+<div style="position: relative">
+    <div class="grid gridGap gridAutoAuto constrainedContainer">
+        <div class="secondRowBothColumn" data-offset-x="2" data-offset-y="30" data-expected-width="50" data-expected-height="10">XXXXX</div>
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="17" data-expected-height="10">X</div>
+        <div class="firstRowSecondColumn" data-offset-x="35" data-offset-y="4" data-expected-width="17" data-expected-height="10">X</div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridMultipleFixed gridRowColumnGaps">
+        <div style="grid-row: 2; grid-column: 1 / -1;" data-offset-x="2" data-offset-y="53" data-expected-width="121" data-expected-height="57">XXXX X XXXX</div>
+        <div style="grid-row: first / last; grid-column-start: 2" data-offset-x="40" data-offset-y="4" data-expected-width="25" data-expected-height="195">X XX X XX X</div>
+        <div style="grid-row: 1 / 3; grid-column: first / bar" data-offset-x="2" data-offset-y="4" data-expected-width="63" data-expected-height="106">XXX XX<br>XX<br>XXXXX</div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridWithDoublePercent width220 gridRowColumnGaps gridAutoRows20" data-expected-width="230" data-expected-height="62">
+        <div class="firstRowFirstColumn sizedToGridArea" data-offset-x="2" data-offset-y="4" data-expected-width="132" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn sizedToGridArea" data-offset-x="157" data-offset-y="36" data-expected-width="88" data-expected-height="20"></div>
+        <div class="secondRowBothColumn sizedToGridArea" data-offset-x="2" data-offset-y="36" data-expected-width="243" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridWithRowDoublePercent gridRowColumnGaps width220 height100" data-expected-width="230" data-expected-height="110">
+        <div class="firstRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="20" data-expected-height="60"></div>
+        <div class="secondRowFirstColumn" data-offset-x="2" data-offset-y="76" data-expected-width="20" data-expected-height="40"></div>
+        <div class="bothRowFirstColumn" data-offset-x="2" data-offset-y="4" data-expected-width="20" data-expected-height="112"></div>
+    </div>
+</div>
+
+<!-- Check that gutters do not interfere with margins computation. -->
+<div style="position: relative">
+    <div class="grid gridFixed100 gridGap">
+        <div class="gridItemMargins firstRowFirstColumn" data-offset-x="52" data-offset-y="24" data-expected-width="20" data-expected-height="40"></div>
+        <div class="gridItemMargins firstRowSecondColumn" data-offset-x="168" data-offset-y="24" data-expected-width="20" data-expected-height="40"></div>
+        <div class="gridItemMargins secondRowFirstColumn" data-offset-x="52" data-offset-y="140" data-expected-width="20" data-expected-height="40"></div>
+        <div class="gridItemMargins secondRowSecondColumn" data-offset-x="168" data-offset-y="140" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridFixed100 verticalRL directionRTL gridGap">
+        <div class="gridItemMargins firstRowFirstColumn" data-offset-x="168" data-offset-y="140" data-expected-width="20" data-expected-height="40"></div>
+        <div class="gridItemMargins firstRowSecondColumn" data-offset-x="168" data-offset-y="24" data-expected-width="20" data-expected-height="40"></div>
+        <div class="gridItemMargins secondRowFirstColumn" data-offset-x="52" data-offset-y="140" data-expected-width="20" data-expected-height="40"></div>
+        <div class="gridItemMargins secondRowSecondColumn" data-offset-x="52" data-offset-y="24" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+</body>

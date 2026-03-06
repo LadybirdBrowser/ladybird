@@ -7,10 +7,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div.item-left> at [8,8] [0+0+0 100 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.item-right> at [108.03125,8] [0+0+0 683.96875 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 77, rect: [108.03125,8 625.953125x18] baseline: 13.796875
+        BlockContainer <div.item-right> at [108,8] [0+0+0 684 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 77, rect: [108,8 625.953125x18] baseline: 13.796875
               "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut iaculis venenatis"
-          frag 1 from TextNode start: 78, length: 39, rect: [108.03125,26 304.0625x18] baseline: 13.796875
+          frag 1 from TextNode start: 78, length: 39, rect: [108,26 304.0625x18] baseline: 13.796875
               "purus, eget blandit velit venenatis at."
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -23,7 +23,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
       PaintableBox (Box<DIV>.container) [8,8 784x36]
         PaintableWithLines (BlockContainer<DIV>.item-left) [8,8 100x36]
-        PaintableWithLines (BlockContainer<DIV>.item-right) [108.03125,8 683.96875x36]
+        PaintableWithLines (BlockContainer<DIV>.item-right) [108,8 684x36]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
 

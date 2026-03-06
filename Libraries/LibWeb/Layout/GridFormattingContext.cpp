@@ -1144,13 +1144,25 @@ void GridFormattingContext::maximize_tracks_using_available_size(AvailableSpace 
 
     // If the free space is positive, distribute it equally to the base sizes of all tracks, freezing
     // tracks as they reach their growth limits (and continuing to grow the unfrozen tracks as needed).
-    while (free_space_px > 0) {
-        auto free_space_to_distribute_per_track = free_space_px / tracks.size();
+    size_t growable_track_count = 0;
+    for (auto& track : tracks) {
+        if (track.base_size_frozen)
+            continue;
+        VERIFY(track.growth_limit.has_value());
+        if (track.base_size < track.growth_limit.value())
+            growable_track_count++;
+    }
+    while (free_space_px > 0 && growable_track_count > 0) {
+        auto free_space_to_distribute_per_track = free_space_px / growable_track_count;
         for (auto& track : tracks) {
             if (track.base_size_frozen)
                 continue;
-            VERIFY(track.growth_limit.has_value());
-            track.base_size = min(track.growth_limit.value(), track.base_size + free_space_to_distribute_per_track);
+            if (track.base_size >= track.growth_limit.value())
+                continue;
+            auto new_base_size = min(track.growth_limit.value(), track.base_size + free_space_to_distribute_per_track);
+            if (new_base_size >= track.growth_limit.value())
+                --growable_track_count;
+            track.base_size = new_base_size;
         }
         if (get_free_space_px() == free_space_px)
             break;
