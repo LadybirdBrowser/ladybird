@@ -108,8 +108,6 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     for (auto& tag : module.tag_section().tags())
         m_context.tags.append(TagType(tag.type(), tag.flags()));
 
-    m_context.current_module = &module;
-
     // We need to build the set of declared functions to check that `ref.func` uses a specific set of predetermined functions, found in:
     // - Element initializer expressions
     // - Global initializer expressions
