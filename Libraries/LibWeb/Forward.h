@@ -483,6 +483,7 @@ struct BackgroundLayerData;
 struct CalculationContext;
 struct CalculationResolutionContext;
 struct CSSStyleSheetInit;
+struct FunctionParameterInternal;
 struct GridRepeatParams;
 struct LogicalAliasMappingContext;
 struct RandomCachingKey;

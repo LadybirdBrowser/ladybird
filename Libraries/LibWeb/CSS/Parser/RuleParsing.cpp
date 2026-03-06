@@ -12,10 +12,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/HeapVector.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSFunctionDeclarations.h>
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
@@ -44,6 +46,7 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS::Parser {
 
@@ -111,6 +114,9 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 
             if (at_rule.name.equals_ignoring_ascii_case("font-feature-values"sv))
                 return convert_to_font_feature_values_rule(at_rule);
+
+            if (at_rule.name.equals_ignoring_ascii_case("function"sv))
+                return convert_to_function_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("import"sv))
                 return convert_to_import_rule(at_rule);
@@ -1121,6 +1127,210 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
         });
 
     return font_feature_values_rule;
+}
+
+static OwnPtr<SyntaxNode> parse_css_type(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-mixins-1/#function-rule
+    // <css-type> = <syntax-component> | <type()>
+    // <type()> = type( <syntax> )
+
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    // <syntax-component>
+    if (auto maybe_syntax_component = parse_syntax_component(tokens)) {
+        transaction.commit();
+        return maybe_syntax_component;
+    }
+
+    // <type()>
+    auto maybe_type_function_token = tokens.consume_a_token();
+
+    if (!maybe_type_function_token.is_function("type"sv))
+        return nullptr;
+
+    if (auto maybe_type_function_syntax = parse_as_syntax(maybe_type_function_token.function().value)) {
+        transaction.commit();
+        return maybe_type_function_syntax;
+    }
+
+    return nullptr;
+}
+
+Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-mixins-1/#function-rule
+    // <function-token> <function-parameter>#? ) [ returns <css-type> ]?
+    // <function-parameter> = <custom-property-name> <css-type>? [ : <default-value> ]?
+    // <default-value> = <declaration-value>
+    auto transaction = tokens.begin_transaction();
+
+    tokens.discard_whitespace();
+
+    auto const& function_token = tokens.consume_a_token();
+
+    if (!function_token.is_function()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@function"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Prelude must start with a function token."_string,
+        });
+        return {};
+    }
+
+    auto function_name = function_token.function().name;
+
+    // The <function-token> production must start with two dashes (U+002D HYPHEN-MINUS), similar to <dashed-ident>, or
+    // else the definition is invalid.
+    if (!function_name.starts_with_bytes("--"sv)) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@function"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Function name must start with two dashes."_string,
+        });
+        return {};
+    }
+
+    Vector<FunctionParameterInternal> parsed_parameters;
+
+    TokenStream parameters_tokens { function_token.function().value };
+    parameters_tokens.discard_whitespace();
+    auto parameters_component_values = parse_a_comma_separated_list_of_component_values(parameters_tokens);
+
+    // <function-parameter>#?
+    for (auto const& parameter_component_values : parameters_component_values) {
+        TokenStream parameter_tokens { parameter_component_values };
+        parameter_tokens.discard_whitespace();
+
+        // <custom-property-name>
+        auto maybe_name = parse_dashed_ident(parameter_tokens);
+        if (!maybe_name.has_value() || !is_a_custom_property_name_string(maybe_name.value())) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@function"_fly_string,
+                .prelude = parameter_tokens.dump_string(),
+                .description = "Parameter must have a name."_string,
+            });
+            return {};
+        }
+
+        // <css-type>?
+        NonnullOwnPtr<SyntaxNode> type = UniversalSyntaxNode::create();
+        if (auto maybe_type = parse_css_type(parameter_tokens))
+            type = maybe_type.release_nonnull();
+
+        parameter_tokens.discard_whitespace();
+
+        // [ : <default-value> ]?
+        Optional<Vector<ComponentValue>> default_value;
+        if (parameter_tokens.peek_token().is(Token::Type::Colon)) {
+            parameter_tokens.discard_a_token(); // :
+            parameter_tokens.discard_whitespace();
+
+            auto maybe_default_value = parse_declaration_value(parameter_tokens);
+
+            if (!maybe_default_value.has_value()) {
+                ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                    .rule_name = "@function"_fly_string,
+                    .prelude = parameter_tokens.dump_string(),
+                    .description = "Expected default value after ':' in parameter"_string,
+                });
+                return {};
+            }
+
+            // If a default value and a parameter type are both provided, then the default value must parse successfully
+            // according to that parameter type’s syntax. Otherwise, the @function rule is invalid.
+            TokenStream default_value_token_stream { maybe_default_value.value() };
+            if (!parse_according_to_syntax_node(default_value_token_stream, *type) || !default_value_token_stream.is_empty())
+                return {};
+
+            default_value = maybe_default_value;
+        }
+
+        parameter_tokens.discard_whitespace();
+
+        if (!parameter_tokens.is_empty()) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@function"_fly_string,
+                .prelude = parameter_tokens.dump_string(),
+                .description = "Trailing tokens after parameter"_string,
+            });
+            return {};
+        }
+
+        parsed_parameters.append({ maybe_name.release_value(), move(type), move(default_value) });
+    }
+
+    tokens.discard_whitespace();
+
+    NonnullOwnPtr<SyntaxNode> return_type = UniversalSyntaxNode::create();
+    if (tokens.peek_token().is_ident("returns"sv)) {
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+
+        auto maybe_return_type = parse_css_type(tokens);
+
+        if (!maybe_return_type) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@function"_fly_string,
+                .prelude = tokens.dump_string(),
+                .description = "Expected return type after 'returns' in prelude."_string,
+            });
+            return {};
+        }
+
+        return_type = maybe_return_type.release_nonnull();
+    }
+
+    tokens.discard_whitespace();
+
+    if (tokens.has_next_token()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@function"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Trailing tokens in prelude."_string,
+        });
+        return {};
+    }
+
+    transaction.commit();
+    return FunctionPrelude { move(function_name), move(parsed_parameters), move(return_type) };
+}
+
+GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function_rule)
+{
+    // https://drafts.csswg.org/css-mixins-1/#function-rule
+    TokenStream prelude_stream { function_rule.prelude };
+
+    if (!function_rule.is_block_rule) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@function"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
+        return nullptr;
+    }
+
+    auto prelude = parse_function_prelude(prelude_stream);
+
+    if (!prelude.has_value())
+        return nullptr;
+
+    Vector<GC::Ref<CSSRule>> child_rules {};
+
+    // https://drafts.csswg.org/css-mixins-1/#function-body
+    for (auto const& child : function_rule.child_rules_and_lists_of_declarations) {
+        child.visit(
+            [&](Rule const& rule) {
+                if (auto child_rule = convert_to_rule<CSSFunctionDeclarations>(rule, Nested::Yes))
+                    child_rules.append(*child_rule);
+            },
+            [&](Vector<Declaration> const& declarations) {
+                child_rules.append(CSSFunctionDeclarations::create(realm(), *this, declarations));
+            });
+    }
+
+    return CSSFunctionRule::create(realm(), CSSRuleList::create(realm(), child_rules), move(prelude->name), move(prelude->parameters), move(prelude->return_type));
 }
 
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)

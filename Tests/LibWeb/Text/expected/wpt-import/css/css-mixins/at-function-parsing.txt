@@ -2,58 +2,57 @@ Harness status: OK
 
 Found 86 tests
 
-38 Pass
-48 Fail
-Fail	@function --foo() is valid
-Fail	@function --foo( ) is valid
-Fail	@function --foo(--x) is valid
-Fail	@function --foo( --x ) is valid
+86 Pass
+Pass	@function --foo() is valid
+Pass	@function --foo( ) is valid
+Pass	@function --foo(--x) is valid
+Pass	@function --foo( --x ) is valid
 Pass	@function --foo () is invalid
 Pass	@function --foo (--x) is invalid
-Fail	@function --foo(--x auto) is valid
-Fail	@function --foo(--x <angle>) is valid
-Fail	@function --foo(--x <color>) is valid
-Fail	@function --foo(--x <custom-ident>) is valid
-Fail	@function --foo(--x <image>) is valid
-Fail	@function --foo(--x <integer>) is valid
-Fail	@function --foo(--x <length>) is valid
-Fail	@function --foo(--x <length-percentage>) is valid
-Fail	@function --foo(--x <number>) is valid
-Fail	@function --foo(--x <percentage>) is valid
-Fail	@function --foo(--x <resolution>) is valid
-Fail	@function --foo(--x <string>) is valid
-Fail	@function --foo(--x <time>) is valid
-Fail	@function --foo(--x <url>) is valid
-Fail	@function --foo(--x <transform-function>) is valid
-Fail	@function --foo(--x <transform-list>) is valid
-Fail	@function --foo(--x type(auto)) is valid
-Fail	@function --foo(--x type(<length>)) is valid
-Fail	@function --foo(--x type(<length> | auto)) is valid
-Fail	@function --foo(--x type(none | auto)) is valid
-Fail	@function --foo(--x type(*)) is valid
-Fail	@function --foo(--x, --y) is valid
-Fail	@function --foo(--x, --y, --z) is valid
-Fail	@function --foo(--x <length>, --y, --z) is valid
-Fail	@function --foo(--x, --y <number>, --z <angle>) is valid
-Fail	@function --foo(--x : 10px) is valid
-Fail	@function --foo(--x type(*): 10px) is valid
-Fail	@function --foo(--x <length>: 10px) is valid
-Fail	@function --foo(--x <length>: 10px, --y) is valid
-Fail	@function --foo(--x, --y <length>: 10px) is valid
-Fail	@function --foo(--x type(<length> | auto): auto) is valid
-Fail	@function --foo(--x type(<length> | auto) : auto) is valid
-Fail	@function --foo(--x:1px, --y, --z:2px) is valid
+Pass	@function --foo(--x auto) is valid
+Pass	@function --foo(--x <angle>) is valid
+Pass	@function --foo(--x <color>) is valid
+Pass	@function --foo(--x <custom-ident>) is valid
+Pass	@function --foo(--x <image>) is valid
+Pass	@function --foo(--x <integer>) is valid
+Pass	@function --foo(--x <length>) is valid
+Pass	@function --foo(--x <length-percentage>) is valid
+Pass	@function --foo(--x <number>) is valid
+Pass	@function --foo(--x <percentage>) is valid
+Pass	@function --foo(--x <resolution>) is valid
+Pass	@function --foo(--x <string>) is valid
+Pass	@function --foo(--x <time>) is valid
+Pass	@function --foo(--x <url>) is valid
+Pass	@function --foo(--x <transform-function>) is valid
+Pass	@function --foo(--x <transform-list>) is valid
+Pass	@function --foo(--x type(auto)) is valid
+Pass	@function --foo(--x type(<length>)) is valid
+Pass	@function --foo(--x type(<length> | auto)) is valid
+Pass	@function --foo(--x type(none | auto)) is valid
+Pass	@function --foo(--x type(*)) is valid
+Pass	@function --foo(--x, --y) is valid
+Pass	@function --foo(--x, --y, --z) is valid
+Pass	@function --foo(--x <length>, --y, --z) is valid
+Pass	@function --foo(--x, --y <number>, --z <angle>) is valid
+Pass	@function --foo(--x : 10px) is valid
+Pass	@function --foo(--x type(*): 10px) is valid
+Pass	@function --foo(--x <length>: 10px) is valid
+Pass	@function --foo(--x <length>: 10px, --y) is valid
+Pass	@function --foo(--x, --y <length>: 10px) is valid
+Pass	@function --foo(--x type(<length> | auto): auto) is valid
+Pass	@function --foo(--x type(<length> | auto) : auto) is valid
+Pass	@function --foo(--x:1px, --y, --z:2px) is valid
 Pass	@function --foo(--x: 10px !important) is invalid
 Pass	@function --foo(--x <length>: 10deg) is invalid
 Pass	@function --foo(--x <angle>: 10px) is invalid
 Pass	@function --foo(--x <color>: 10px) is invalid
 Pass	@function --foo(--x type(<color>+): red 5) is invalid
 Pass	@function --foo(--x type(auto | none): thing) is invalid
-Fail	@function --foo(--x <length>#) is valid
-Fail	@function --foo(--x <length>+) is valid
-Fail	@function --foo(--x type(<length>+)) is valid
-Fail	@function --foo(--x <transform-function>#) is valid
-Fail	@function --foo(--x <transform-function>+) is valid
+Pass	@function --foo(--x <length>#) is valid
+Pass	@function --foo(--x <length>+) is valid
+Pass	@function --foo(--x type(<length>+)) is valid
+Pass	@function --foo(--x <transform-function>#) is valid
+Pass	@function --foo(--x <transform-function>+) is valid
 Pass	@function --foo(--x <transform-list>#) is invalid
 Pass	@function --foo(--x <transform-list>+) is invalid
 Pass	@function --foo(--x *) is invalid
@@ -71,12 +70,12 @@ Pass	@function --foo(--x, ;) is invalid
 Pass	@function --foo(;) is invalid
 Pass	@function --foo(]) is invalid
 Pass	@function --foo(, --x]) is invalid
-Fail	@function --foo(--x) returns type(*) is valid
-Fail	@function --foo(--x) returns <length> is valid
-Fail	@function --foo(--x) returns <length>+ is valid
-Fail	@function --foo(--x) returns type(<length>) is valid
-Fail	@function --foo(--x) returns type(<length> | auto) is valid
-Fail	@function --foo(--x) returns type(foo | bar) is valid
+Pass	@function --foo(--x) returns type(*) is valid
+Pass	@function --foo(--x) returns <length> is valid
+Pass	@function --foo(--x) returns <length>+ is valid
+Pass	@function --foo(--x) returns type(<length>) is valid
+Pass	@function --foo(--x) returns type(<length> | auto) is valid
+Pass	@function --foo(--x) returns type(foo | bar) is valid
 Pass	@function --foo(--x) ! is invalid
 Pass	@function --foo(--x) ! <length> is invalid
 Pass	@function --foo(--x) returns <length>! is invalid

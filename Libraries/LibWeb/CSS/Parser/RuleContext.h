@@ -19,6 +19,7 @@ enum class RuleContext : u8 {
     AtFontFace,
     AtFontFeatureValues,
     FontFeatureValue,
+    AtFunction,
     AtKeyframes,
     Keyframe,
     AtSupports,

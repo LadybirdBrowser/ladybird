@@ -259,6 +259,17 @@
   },
   "function": {
     "spec": "https://drafts.csswg.org/css-mixins-1/#function-rule",
-    "descriptors": {}
+    "descriptors": {
+      "result": {
+        "syntax": [
+          "<declaration-value>?"
+        ]
+      }
+    },
+    "custom-descriptors": {
+      "syntax": [
+        "<declaration-value>?"
+      ]
+    }
   }
 }

@@ -16,7 +16,7 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSFunctionDescriptors.h>
+#include <LibWeb/CSS/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -1474,7 +1474,7 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
         case AtRuleID::FontFace:
             return RuleContext::AtFontFace;
         case AtRuleID::Function:
-            TODO();
+            return RuleContext::AtFunction;
         case AtRuleID::Page:
             return RuleContext::AtPage;
         case AtRuleID::Property:
@@ -1536,11 +1536,15 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
     case RuleContext::AtLayer:
     case RuleContext::AtMedia:
     case RuleContext::AtSupports:
-        // Grouping rules can contain declarations if they are themselves inside a style rule
-        return m_rule_context.contains_slow(RuleContext::Style);
+        // Grouping rules can contain declarations if they are themselves inside a style or function rule
+        return m_rule_context.contains([](auto const& context) { return context == RuleContext::Style || context == RuleContext::AtFunction; });
 
     case RuleContext::FontFeatureValue:
         // Each feature value block accepts a list of declarations
+        return true;
+
+    case RuleContext::AtFunction:
+        // @function rules contain descriptor declarations
         return true;
 
     case RuleContext::AtCounterStyle:
@@ -1573,6 +1577,12 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
     // Only grouping rules can be nested within style rules
     if (m_rule_context.contains_slow(RuleContext::Style))
         return first_is_one_of(at_rule.name, "layer", "media", "supports");
+
+    if (m_rule_context.contains_slow(RuleContext::AtFunction)) {
+        // https://drafts.csswg.org/css-mixins-1/#function-body
+        // The body of a @function rule accepts conditional group rules
+        return first_is_one_of(at_rule.name, "media", "supports");
+    }
 
     switch (m_rule_context.last()) {
     case RuleContext::Unknown:
@@ -1608,6 +1618,9 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
         return false;
     case RuleContext::AtFontFeatureValues:
         return CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(at_rule.name);
+    case RuleContext::AtFunction:
+        // Already handled above
+        VERIFY_NOT_REACHED();
     }
 
     VERIFY_NOT_REACHED();
@@ -1648,6 +1661,7 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
     case RuleContext::AtFontFace:
     case RuleContext::AtFontFeatureValues:
     case RuleContext::FontFeatureValue:
+    case RuleContext::AtFunction:
     case RuleContext::AtPage:
     case RuleContext::AtProperty:
     case RuleContext::Keyframe:

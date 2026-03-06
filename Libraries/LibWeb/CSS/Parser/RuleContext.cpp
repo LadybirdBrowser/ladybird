@@ -24,9 +24,7 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
     case CSSRule::Type::FontFeatureValues:
         return RuleContext::AtFontFeatureValues;
     case CSSRule::Type::Function:
-        TODO();
-    case CSSRule::Type::FunctionDeclarations:
-        TODO();
+        return RuleContext::AtFunction;
     case CSSRule::Type::Keyframes:
         return RuleContext::AtKeyframes;
     case CSSRule::Type::Keyframe:
@@ -47,6 +45,7 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
     case CSSRule::Type::Import:
     case CSSRule::Type::LayerStatement:
     case CSSRule::Type::Namespace:
+    case CSSRule::Type::FunctionDeclarations:
         break;
     }
     VERIFY_NOT_REACHED();
@@ -64,6 +63,8 @@ RuleContext rule_context_type_for_at_rule(FlyString const& name)
         return RuleContext::AtKeyframes;
     if (name.equals_ignoring_ascii_case("font-feature-values"sv))
         return RuleContext::AtFontFeatureValues;
+    if (name.equals_ignoring_ascii_case("function"sv))
+        return RuleContext::AtFunction;
     if (CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(name))
         return RuleContext::FontFeatureValue;
     if (name.equals_ignoring_ascii_case("supports"sv))
