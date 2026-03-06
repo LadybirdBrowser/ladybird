@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]] static Vector<GC::Weak<Database>> for_key(StorageAPI::StorageKey const&);
     [[nodiscard]] static Optional<Database&> for_key_and_name(StorageAPI::StorageKey const&, String const&);
-    [[nodiscard]] static ErrorOr<GC::Root<Database>> create_for_key_and_name(JS::Realm&, StorageAPI::StorageKey const&, String const&);
+    [[nodiscard]] static ErrorOr<GC::Ref<Database>> create_for_key_and_name(JS::Realm&, StorageAPI::StorageKey const&, String const&);
     [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey const&, String const&);
 
     static void for_each_database(AK::Function<void(Database&)> const& visitor);

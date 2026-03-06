@@ -12,7 +12,7 @@
 
 namespace Web::IndexedDB {
 
-using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Weak<Database>>>;
+using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Root<Database>>>;
 static IDBDatabaseMapping m_databases;
 
 void Database::for_each_database(AK::Function<void(Database&)> const& visitor)
@@ -62,7 +62,7 @@ Vector<GC::Weak<Database>> Database::for_key(StorageAPI::StorageKey const& key)
 {
     Vector<GC::Weak<Database>> databases;
     for (auto const& database_mapping : m_databases.get(key).value_or({})) {
-        databases.append(database_mapping.value);
+        databases.append(*database_mapping.value);
     }
 
     return databases;
@@ -85,20 +85,16 @@ RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey con
 
 Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
-    auto database_mapping = m_databases.ensure(key, [] { return HashMap<String, GC::Weak<Database>>(); });
-    if (auto maybe_database = database_mapping.get(name); maybe_database.has_value()) {
-        if (auto database = maybe_database.value().ptr())
-            return *database;
-        database_mapping.remove(name);
-        m_databases.set(key, database_mapping);
-    }
+    auto database_mapping = m_databases.ensure(key, [] { return HashMap<String, GC::Root<Database>>(); });
+    if (auto maybe_database = database_mapping.get(name); maybe_database.has_value())
+        return *maybe_database.value();
     return {};
 }
 
-ErrorOr<GC::Root<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey const& key, String const& name)
+ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey const& key, String const& name)
 {
     auto database_mapping = TRY(m_databases.try_ensure(key, [] {
-        return HashMap<String, GC::Weak<Database>>();
+        return HashMap<String, GC::Root<Database>>();
     }));
 
     auto value = Database::create(realm, name);
