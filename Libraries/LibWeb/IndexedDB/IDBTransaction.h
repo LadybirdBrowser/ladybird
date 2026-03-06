@@ -15,16 +15,16 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/IndexedDB/IDBDatabase.h>
-#include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/Internal/MutationLog.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/RequestList.h>
 
 namespace Web::IndexedDB {
 
+class IDBDatabase;
 class IDBIndex;
 class IDBObjectStore;
+class IDBRequest;
 
 // https://w3c.github.io/IndexedDB/#transaction
 class IDBTransaction : public DOM::EventTarget {
