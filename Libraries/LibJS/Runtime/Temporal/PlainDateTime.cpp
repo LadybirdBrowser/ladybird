@@ -79,7 +79,7 @@ bool iso_date_time_within_limits(ISODateTime const& iso_date_time)
 }
 
 // 5.5.5 InterpretTemporalDateTimeFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-interprettemporaldatetimefields
-ThrowCompletionOr<ISODateTime> interpret_temporal_date_time_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
+ThrowCompletionOr<ISODateTime> interpret_temporal_date_time_fields(VM& vm, String const& calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
     auto iso_date = TRY(calendar_date_from_fields(vm, calendar, fields, overflow));
@@ -230,7 +230,7 @@ ThrowCompletionOr<GC::Ref<PlainDateTime>> create_temporal_date_time(VM& vm, ISOD
 }
 
 // 5.5.9 ISODateTimeToString ( isoDateTime, calendar, precision, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetimetostring
-String iso_date_time_to_string(ISODateTime const& iso_date_time, StringView calendar, SecondsStringPrecision::Precision precision, ShowCalendar show_calendar)
+String iso_date_time_to_string(ISODateTime const& iso_date_time, String const& calendar, SecondsStringPrecision::Precision precision, ShowCalendar show_calendar)
 {
     // 1. Let yearString be PadISOYear(isoDateTime.[[ISODate]].[[Year]]).
     auto year_string = pad_iso_year(iso_date_time.iso_date.year);
@@ -286,7 +286,7 @@ ISODateTime round_iso_date_time(ISODateTime const& iso_date_time, u64 increment,
 }
 
 // 5.5.12 DifferenceISODateTime ( isoDateTime1, isoDateTime2, calendar, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
-InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit largest_unit)
+InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, String const& calendar, Unit largest_unit)
 {
     // 1. Assert: ISODateTimeWithinLimits(isoDateTime1) is true.
     VERIFY(iso_date_time_within_limits(iso_date_time1));
@@ -335,7 +335,7 @@ InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_ti
 }
 
 // 5.5.13 DifferencePlainDateTimeWithRounding ( isoDateTime1, isoDateTime2, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithrounding
-ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode rounding_mode)
+ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, String const& calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode rounding_mode)
 {
     // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
     if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0)
@@ -364,7 +364,7 @@ ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&
 }
 
 // 5.5.14 DifferencePlainDateTimeWithTotal ( isoDateTime1, isoDateTime2, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithtotal
-ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit unit)
+ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, String const& calendar, Unit unit)
 {
     // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, return 0.
     if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0)

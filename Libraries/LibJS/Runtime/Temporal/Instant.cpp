@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/InstantConstructor.h>
@@ -212,7 +213,7 @@ String temporal_instant_to_string(Instant const& instant, Optional<String const&
     auto iso_date_time = get_iso_date_time_for(output_time_zone, epoch_nanoseconds);
 
     // 5. Let dateTimeString be ISODateTimeToString(isoDateTime, "iso8601", precision, NEVER).
-    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"sv, precision, ShowCalendar::Never);
+    auto date_time_string = iso_date_time_to_string(iso_date_time, ISO8601_CALENDAR, precision, ShowCalendar::Never);
 
     String time_zone_string;
 

@@ -352,7 +352,7 @@ String temporal_zoned_date_time_to_string(ZonedDateTime const& zoned_date_time, 
     auto iso_date_time = get_iso_date_time_for(time_zone, epoch_nanoseconds);
 
     // 9. Let dateTimeString be ISODateTimeToString(isoDateTime, "iso8601", precision, NEVER).
-    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"sv, precision, ShowCalendar::Never);
+    auto date_time_string = iso_date_time_to_string(iso_date_time, ISO8601_CALENDAR, precision, ShowCalendar::Never);
 
     String offset_string;
     String time_zone_string;
@@ -389,7 +389,7 @@ String temporal_zoned_date_time_to_string(ZonedDateTime const& zoned_date_time, 
 }
 
 // 6.5.5 AddZonedDateTime ( epochNanoseconds, timeZone, calendar, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-addzoneddatetime
-ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM& vm, Crypto::SignedBigInteger const& epoch_nanoseconds, String const& time_zone, StringView calendar, InternalDuration const& duration, Overflow overflow)
+ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM& vm, Crypto::SignedBigInteger const& epoch_nanoseconds, String const& time_zone, String const& calendar, InternalDuration const& duration, Overflow overflow)
 {
     // 1. If DateDurationSign(duration.[[Date]]) = 0, return ? AddInstant(epochNanoseconds, duration.[[Time]]).
     if (date_duration_sign(duration.date) == 0)
@@ -416,7 +416,7 @@ ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM& vm, Crypto::
 }
 
 // 6.5.6 DifferenceZonedDateTime ( ns1, ns2, timeZone, calendar, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetime
-ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, StringView calendar, Unit largest_unit)
+ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, String const& calendar, Unit largest_unit)
 {
     // 1. If ns1 = ns2, return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
     if (nanoseconds1 == nanoseconds2)
@@ -499,7 +499,7 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
 }
 
 // 6.5.7 DifferenceZonedDateTimeWithRounding ( ns1, ns2, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithrounding
-ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode rounding_mode)
+ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, String const& calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode rounding_mode)
 {
     // 1. If TemporalUnitCategory(largestUnit) is TIME, return DifferenceInstant(ns1, ns2, roundingIncrement, smallestUnit, roundingMode).
     if (temporal_unit_category(largest_unit) == UnitCategory::Time)
@@ -520,7 +520,7 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM&
 }
 
 // 6.5.8 DifferenceZonedDateTimeWithTotal ( ns1, ns2, timeZone, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithtotal
-ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, StringView calendar, Unit unit)
+ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, String const& calendar, Unit unit)
 {
     // 1. If TemporalUnitCategory(unit) is TIME, then
     if (temporal_unit_category(unit) == UnitCategory::Time) {

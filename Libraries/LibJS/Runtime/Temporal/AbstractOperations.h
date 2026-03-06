@@ -196,7 +196,7 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, String const&);
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);
 ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
 ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
-CalendarFields iso_date_to_fields(StringView calendar, ISODate, DateType);
+CalendarFields iso_date_to_fields(String const& calendar, ISODate, DateType);
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
 
 // 13.40 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation

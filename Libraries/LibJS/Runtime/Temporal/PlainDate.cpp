@@ -203,10 +203,10 @@ bool compare_surpasses(i8 sign, i32 year, Variant<u8, String> const& month_or_co
 bool iso_date_surpasses(VM& vm, i8 sign, ISODate base_date, ISODate iso_date2, double years, double months, double weeks, double days)
 {
     // 1. Let parts be CalendarISOToDate("iso8601", baseDate).
-    auto parts = calendar_iso_to_date("iso8601"sv, base_date);
+    auto parts = calendar_iso_to_date(ISO8601_CALENDAR, base_date);
 
     // 2. Let target be CalendarISOToDate("iso8601", isoDate2).
-    auto target = calendar_iso_to_date("iso8601"sv, iso_date2);
+    auto target = calendar_iso_to_date(ISO8601_CALENDAR, iso_date2);
 
     // 3. Let y0 be parts.[[Year]] + years.
     auto year0 = parts.year + years;

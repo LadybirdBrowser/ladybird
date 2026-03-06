@@ -808,7 +808,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_locale_string)
     auto date_time_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All, zoned_date_time->time_zone()));
 
     // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is false, throw a RangeError exception.
-    if (zoned_date_time->calendar() != "iso8601"sv && !calendar_equals(zoned_date_time->calendar(), date_time_format->calendar()))
+    if (zoned_date_time->calendar() != ISO8601_CALENDAR && !calendar_equals(zoned_date_time->calendar(), date_time_format->calendar()))
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.ZonedDateTime"sv, zoned_date_time->calendar(), date_time_format->calendar());
 
     // 5. Let instant be ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
