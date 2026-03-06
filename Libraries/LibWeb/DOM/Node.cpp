@@ -481,16 +481,30 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     // When invalidating style for a node, we actually invalidate:
     // - the node itself
     // - all of its descendants
-    // - all of its preceding siblings and their descendants (only on DOM insert/remove)
-    // - all of its subsequent siblings and their descendants
+    // - preceding siblings that depend on following-sibling counts (only on DOM insert/remove)
+    // - subsequent siblings that depend on previous siblings or sibling combinators
     // FIXME: This is a lot of invalidation and we should implement more sophisticated invalidation to do less work!
 
-    set_entire_subtree_needs_style_update(true);
+    auto mark_entire_subtree_for_style_update = [](Node& node_to_mark) {
+        node_to_mark.set_entire_subtree_needs_style_update(true);
+    };
+
+    mark_entire_subtree_for_style_update(*this);
+
+    auto previous_sibling_needs_structural_invalidation = [](Element const& element) {
+        return element.affected_by_backward_structural_changes();
+    };
+
+    auto next_sibling_needs_structural_invalidation = [](Element const& element, size_t current_sibling_distance) {
+        if (element.affected_by_indirect_sibling_combinator() || element.affected_by_first_child_pseudo_class() || element.affected_by_forward_positional_pseudo_class())
+            return true;
+        return element.affected_by_direct_sibling_combinator() && current_sibling_distance <= element.sibling_invalidation_distance();
+    };
 
     if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
         for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
-            if (auto* element = as_if<Element>(sibling); element && element->style_affected_by_structural_changes())
-                element->set_entire_subtree_needs_style_update(true);
+            if (auto* element = as_if<Element>(sibling); element && previous_sibling_needs_structural_invalidation(*element))
+                mark_entire_subtree_for_style_update(*element);
         }
     }
 
@@ -499,15 +513,14 @@ void Node::invalidate_style(StyleInvalidationReason reason)
         if (auto* element = as_if<Element>(sibling)) {
             bool needs_to_invalidate = false;
             if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
-                needs_to_invalidate = element->style_affected_by_structural_changes();
-            } else if (element->affected_by_indirect_sibling_combinator() || element->affected_by_nth_child_pseudo_class()) {
+                needs_to_invalidate = next_sibling_needs_structural_invalidation(*element, current_sibling_distance);
+            } else if (element->affected_by_indirect_sibling_combinator() || element->affected_by_forward_positional_pseudo_class()) {
                 needs_to_invalidate = true;
             } else if (element->affected_by_direct_sibling_combinator() && current_sibling_distance <= element->sibling_invalidation_distance()) {
                 needs_to_invalidate = true;
             }
-            if (needs_to_invalidate) {
-                element->set_entire_subtree_needs_style_update(true);
-            }
+            if (needs_to_invalidate)
+                mark_entire_subtree_for_style_update(*element);
             current_sibling_distance++;
         }
     }
@@ -1293,7 +1306,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     if (old_parent->is_connected()) {
         // Since the tree structure is about to change, we need to invalidate both style and layout.
         // In the future, we should find a way to only invalidate the parts that actually need it.
-        old_parent->invalidate_style(StyleInvalidationReason::NodeRemove);
+        invalidate_style(StyleInvalidationReason::NodeRemove);
 
         // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
         //       after we’ve been removed from the DOM.
@@ -1366,7 +1379,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         new_parent.insert_before_impl(*this, child);
     }
 
-    new_parent.invalidate_style(StyleInvalidationReason::NodeInsertBefore);
+    invalidate_style(StyleInvalidationReason::NodeInsertBefore);
     if (is_connected()) {
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
