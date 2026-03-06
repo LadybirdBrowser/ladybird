@@ -13,3 +13,6 @@ unicode-ident = "1.0"
 num-bigint = "0.4"
 num-traits = "0.2"
 num-integer = "0.1"
+
+[build-dependencies]
+bytecode_def = { path = "../BytecodeDef" }

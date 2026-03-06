@@ -10,143 +10,13 @@
 //! code instead of C++. The generated code lives in $OUT_DIR/instruction_generated.rs
 //! and is included! from src/bytecode/instruction.rs.
 
+use bytecode_def::{
+    Field, OpDef, STRUCT_ALIGN, field_type_info, find_m_length_offset, round_up, user_fields,
+};
 use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-
-// ---------------------------------------------------------------------------
-// .def file parser (mirrors Meta/libjs_bytecode_def.py)
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone)]
-struct Field {
-    name: String,
-    ty: String,
-    is_array: bool,
-}
-
-#[derive(Debug)]
-struct OpDef {
-    name: String,
-    fields: Vec<Field>,
-    is_terminator: bool,
-}
-
-fn parse_bytecode_def(path: &std::path::Path) -> Vec<OpDef> {
-    let content = fs::read_to_string(path).expect("Failed to read Bytecode.def");
-    let mut ops = Vec::new();
-    let mut current: Option<OpDef> = None;
-    let mut in_op = false;
-
-    for raw_line in content.lines() {
-        let stripped = raw_line.trim();
-        if stripped.is_empty() || stripped.starts_with("//") || stripped.starts_with('#') {
-            continue;
-        }
-
-        if stripped.starts_with("op ") {
-            assert!(!in_op, "Nested op blocks");
-            in_op = true;
-            let rest = stripped.strip_prefix("op ").unwrap().trim();
-            let name = if let Some(idx) = rest.find('<') {
-                rest[..idx].trim().to_string()
-            } else {
-                rest.to_string()
-            };
-            current = Some(OpDef {
-                name,
-                fields: Vec::new(),
-                is_terminator: false,
-            });
-            continue;
-        }
-
-        if stripped == "endop" {
-            assert!(in_op && current.is_some(), "endop without op");
-            ops.push(current.take().unwrap());
-            in_op = false;
-            continue;
-        }
-
-        if !in_op {
-            continue;
-        }
-
-        if stripped.starts_with('@') {
-            if stripped == "@terminator" {
-                current.as_mut().unwrap().is_terminator = true;
-            }
-            // @nothrow is C++-only, ignore
-            continue;
-        }
-
-        let (lhs, rhs) = stripped.split_once(':').expect("Malformed field line");
-        let field_name = lhs.trim().to_string();
-        let mut field_type = rhs.trim().to_string();
-        let is_array = field_type.ends_with("[]");
-        if is_array {
-            field_type = field_type[..field_type.len() - 2].trim().to_string();
-        }
-        current.as_mut().unwrap().fields.push(Field {
-            name: field_name,
-            ty: field_type,
-            is_array,
-        });
-    }
-    assert!(!in_op, "Unclosed op block");
-
-    // Remove the base "Instruction" definition (not an actual opcode).
-    ops.retain(|op| op.name != "Instruction");
-    ops
-}
-
-struct FieldType {
-    r_type: &'static str,
-    align: usize,
-    size: usize,
-    kind: &'static str,
-}
-
-impl From<(&'static str, usize, usize, &'static str)> for FieldType {
-    fn from(v: (&'static str, usize, usize, &'static str)) -> Self {
-        Self {
-            r_type: v.0,
-            align: v.1,
-            size: v.2,
-            kind: v.3,
-        }
-    }
-}
-
-fn field_type_info(ty: &str) -> FieldType {
-    match ty {
-        "bool" => ("bool", 1, 1, "bool"),
-        "u32" => ("u32", 4, 4, "u32"),
-        "Operand" => ("Operand", 4, 4, "operand"),
-        "Optional<Operand>" => ("Option<Operand>", 4, 4, "optional_operand"),
-        "Label" => ("Label", 4, 4, "label"),
-        "Optional<Label>" => ("Option<Label>", 4, 8, "optional_label"),
-        "IdentifierTableIndex" => ("IdentifierTableIndex", 4, 4, "u32_newtype"),
-        "Optional<IdentifierTableIndex>" => {
-            ("Option<IdentifierTableIndex>", 4, 4, "optional_u32_newtype")
-        }
-        "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 4, 4, "u32_newtype"),
-        "StringTableIndex" => ("StringTableIndex", 4, 4, "u32_newtype"),
-        "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 4, 4, "optional_u32_newtype"),
-        "RegexTableIndex" => ("RegexTableIndex", 4, 4, "u32_newtype"),
-        "EnvironmentCoordinate" => ("EnvironmentCoordinate", 4, 8, "env_coord"),
-        "Builtin" => ("u8", 1, 1, "u8"),
-        "Completion::Type" => ("u32", 4, 4, "u32"),
-        "IteratorHint" => ("u32", 4, 4, "u32"),
-        "EnvironmentMode" => ("u32", 4, 4, "u32"),
-        "PutKind" => ("u32", 4, 4, "u32"),
-        "ArgumentsKind" => ("u32", 4, 4, "u32"),
-        "Value" => ("u64", 8, 8, "u64"),
-        _ => unreachable!("Unknown field type: {ty}"),
-    }
-    .into()
-}
 
 fn rust_field_name(name: &str) -> String {
     if let Some(stripped) = name.strip_prefix("m_") {
@@ -154,35 +24,6 @@ fn rust_field_name(name: &str) -> String {
     } else {
         name.to_string()
     }
-}
-
-fn round_up(value: usize, align: usize) -> usize {
-    assert!(align.is_power_of_two());
-    (value + align - 1) & !(align - 1)
-}
-
-/// The alignment of the C++ Instruction base class (`alignas(void*)`).
-/// On 64-bit: alignof(void*) = 8.
-const STRUCT_ALIGN: usize = 8;
-
-/// Compute the byte offset of the m_length field within the C++ struct.
-fn find_m_length_offset(fields: &[Field]) -> usize {
-    let mut offset: usize = 2; // after m_type + m_strict
-    for f in fields {
-        if f.is_array {
-            continue;
-        }
-        if f.name == "m_type" || f.name == "m_strict" {
-            continue;
-        }
-        let FieldType { align, size, .. } = field_type_info(&f.ty);
-        offset = round_up(offset, align);
-        if f.name == "m_length" {
-            return offset;
-        }
-        offset += size;
-    }
-    panic!("m_length field not found");
 }
 
 fn generate_rust_code(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
@@ -249,12 +90,12 @@ fn generate_instruction_enum(
         } else {
             writeln!(w, "    {} {{", op.name)?;
             for f in &fields {
-                let FieldType { r_type, .. } = field_type_info(&f.ty);
+                let info = field_type_info(&f.ty);
                 let r_name = rust_field_name(&f.name);
                 if f.is_array {
-                    writeln!(w, "        {}: Vec<{}>,", r_name, r_type)?;
+                    writeln!(w, "        {}: Vec<{}>,", r_name, info.rust_type)?;
                 } else {
-                    writeln!(w, "        {}: {},", r_name, r_type)?;
+                    writeln!(w, "        {}: {},", r_name, info.rust_type)?;
                 }
             }
             writeln!(w, "    }},")?;
@@ -264,14 +105,6 @@ fn generate_instruction_enum(
     writeln!(w)?;
 
     Ok(())
-}
-
-/// Returns the user-visible fields (excludes m_type, m_strict, m_length).
-fn user_fields(op: &OpDef) -> Vec<&Field> {
-    op.fields
-        .iter()
-        .filter(|f| f.name != "m_type" && f.name != "m_strict" && f.name != "m_length")
-        .collect()
 }
 
 fn generate_instruction_impl(
@@ -363,9 +196,9 @@ fn generate_encoded_size_method(
                 if f.is_array || f.name == "m_type" || f.name == "m_strict" {
                     continue;
                 }
-                let FieldType { align, size, .. } = field_type_info(&f.ty);
-                offset = round_up(offset, align);
-                offset += size;
+                let info = field_type_info(&f.ty);
+                offset = round_up(offset, info.align);
+                offset += info.size;
             }
             let final_size = round_up(offset, 8);
             let pat = if fields.is_empty() {
@@ -382,16 +215,16 @@ fn generate_encoded_size_method(
                 if f.is_array || f.name == "m_type" || f.name == "m_strict" {
                     continue;
                 }
-                let FieldType { align, size, .. } = field_type_info(&f.ty);
-                fixed_offset = round_up(fixed_offset, align);
-                fixed_offset += size;
+                let info = field_type_info(&f.ty);
+                fixed_offset = round_up(fixed_offset, info.align);
+                fixed_offset += info.size;
             }
 
             // Find the array field and its element size
             let Some(array_field) = op.fields.iter().find(|f| f.is_array) else {
                 continue;
             };
-            let FieldType { size, .. } = field_type_info(&array_field.ty);
+            let info = field_type_info(&array_field.ty);
             let arr_name = rust_field_name(&array_field.name);
             // C++ computes m_length as:
             //   round_up(alignof(void*), sizeof(*this) + sizeof(elem) * count)
@@ -419,7 +252,7 @@ fn generate_encoded_size_method(
             writeln!(
                 w,
                 "                let base = {} + {}.len() * {};",
-                sizeof_this, arr_name, size
+                sizeof_this, arr_name, info.size
             )?;
             writeln!(w, "                (base + 7) & !7 // round up to 8")?;
             writeln!(w, "            }}")?;
@@ -485,12 +318,10 @@ fn generate_encode_method(
                 continue;
             }
 
-            let FieldType {
-                align, size, kind, ..
-            } = field_type_info(&f.ty);
+            let info = field_type_info(&f.ty);
 
             // Pad to alignment
-            let aligned_offset = round_up(offset, align);
+            let aligned_offset = round_up(offset, info.align);
             let pad = aligned_offset - offset;
             if pad > 0 {
                 writeln!(w, "                buf.extend_from_slice(&[0u8; {}]);", pad)?;
@@ -505,9 +336,9 @@ fn generate_encode_method(
                 )?;
             } else {
                 let rname = rust_field_name(&f.name);
-                emit_field_write(&mut w, &rname, kind, false)?;
+                emit_field_write(&mut w, &rname, info.kind, false)?;
             }
-            offset += size;
+            offset += info.size;
         }
 
         // Write trailing array elements
@@ -519,20 +350,18 @@ fn generate_encode_method(
                 if !f.is_array {
                     continue;
                 }
-                let FieldType {
-                    align, size, kind, ..
-                } = field_type_info(&f.ty);
+                let info = field_type_info(&f.ty);
                 let rname = rust_field_name(&f.name);
 
                 // Pad before first element if needed
-                let aligned_offset = round_up(offset, align);
+                let aligned_offset = round_up(offset, info.align);
                 let pad = aligned_offset - offset;
                 if pad > 0 {
                     writeln!(w, "                buf.extend_from_slice(&[0u8; {}]);", pad)?;
                 }
 
                 writeln!(w, "                for item in {} {{", rname)?;
-                emit_field_write(&mut w, "item", kind, true)?;
+                emit_field_write(&mut w, "item", info.kind, true)?;
                 writeln!(w, "                }}")?;
 
                 // Compute target size matching C++:
@@ -540,7 +369,7 @@ fn generate_encode_method(
                 writeln!(
                     w,
                     "                let target = ({} + {}.len() * {} + 7) & !7;",
-                    sizeof_this, rname, size
+                    sizeof_this, rname, info.size
                 )?;
                 writeln!(
                     w,
@@ -881,6 +710,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .create(true)
         .truncate(true) // empties contents of the file
         .open(out_dir.join("instruction_generated.rs"))?;
-    let ops = parse_bytecode_def(&def_path);
+    let content = fs::read_to_string(&def_path).expect("Failed to read Bytecode.def");
+    let ops = bytecode_def::parse_bytecode_def(&content);
     generate_rust_code(file, &ops)
 }
