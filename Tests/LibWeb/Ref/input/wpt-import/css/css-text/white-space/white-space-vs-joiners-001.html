@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+
+<title>CSS Text Test: join controls do not disrupt white-space processing</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#white-space-rules">
+<!-- NB: The spec doesn't explicitly discuss join controls in this context,
+     but it is self-evident that they should not have any effect on the white-space processing.
+     Their only effect should be on the shaping (if any) of the adjacent characters. -->
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/white-space-vs-joiners-001-ref.html">
+<meta name="assert" content="The presence of join controls (ZWJ/ZWNJ) at word edges should not affect white-space processing">
+
+<style>
+p {
+  width: fit-content;
+  border: 2px solid green;
+  font: 24px monospace;
+}
+</style>
+
+<body>
+</body>
+
+<script>
+for (i = 0x200b; i <= 0x200f; ++i) {
+  txt = "  "
+    + String.fromCharCode(i)
+    + "This should have no leading or trailing ["
+    + i.toString(16)
+    + "]"
+    + String.fromCharCode(i)
+    + "  ";
+  p = document.createElement("p");
+  p.textContent = txt;
+  document.body.appendChild(p);
+}
+</script>

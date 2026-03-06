@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+
+<title>CSS Text reference</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+
+<style>
+p {
+  width: fit-content;
+  border: 2px solid green;
+  font: 24px monospace;
+}
+</style>
+
+<body>
+</body>
+
+<script>
+for (i = 0x200b; i <= 0x200f; ++i) {
+  txt = "This should have no leading or trailing ["
+    + i.toString(16)
+    + "]";
+  p = document.createElement("p");
+  p.textContent = txt;
+  document.body.appendChild(p);
+}
+</script>
