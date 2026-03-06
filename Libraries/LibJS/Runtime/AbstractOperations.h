@@ -352,12 +352,6 @@ auto remainder(Crypto::BigInteger auto const& x, Crypto::BigInteger auto const& 
     return x.divided_by(y).remainder;
 }
 
-// 14.3 The Year-Week Record Specification Type, https://tc39.es/proposal-temporal/#sec-year-week-record-specification-type
-struct YearWeek {
-    Optional<u8> week;
-    Optional<i32> year;
-};
-
 // 14.5.1.1 ToIntegerIfIntegral ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerifintegral
 template<typename... Args>
 ThrowCompletionOr<double> to_integer_if_integral(VM& vm, Value argument, ErrorType const& error_type, Args&&... args)
