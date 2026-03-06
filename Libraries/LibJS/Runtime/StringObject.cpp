@@ -117,7 +117,7 @@ ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey c
     // 2. If stringDesc is not undefined, then
     if (string_descriptor.has_value()) {
         // a. Let extensible be S.[[Extensible]].
-        auto extensible = m_is_extensible;
+        auto extensible = this->extensible();
 
         // b. Return IsCompatiblePropertyDescriptor(extensible, Desc, stringDesc).
         return is_compatible_property_descriptor(extensible, property_descriptor, string_descriptor);

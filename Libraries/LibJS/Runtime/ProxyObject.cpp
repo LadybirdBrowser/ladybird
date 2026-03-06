@@ -46,6 +46,10 @@ ProxyObject::ProxyObject(Object& target, Object& handler, Object& prototype)
     , m_target(target)
     , m_handler(handler)
 {
+    // A Proxy is callable iff its target is callable.
+    if (!target.is_function())
+        clear_is_function();
+
     if (target.is_array_exotic_object()) {
         auto& array = static_cast<Array&>(target);
         array.set_is_proxy_target(true);

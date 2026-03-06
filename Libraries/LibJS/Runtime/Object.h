@@ -172,7 +172,17 @@ public:
     //       to customize access to indexed properties (properties where the name is a positive integer)
     //       must return true for this, to opt out of optimizations that rely on assumptions that
     //       might not hold when property access behaves differently.
-    bool may_interfere_with_indexed_property_access() const { return m_may_interfere_with_indexed_property_access; }
+    [[nodiscard]] bool extensible() const { return m_flags & Flag::IsExtensible; }
+    void set_extensible(bool value)
+    {
+        if (value)
+            m_flags |= Flag::IsExtensible;
+        else
+            m_flags &= ~Flag::IsExtensible;
+    }
+
+    [[nodiscard]] bool may_interfere_with_indexed_property_access() const { return m_flags & Flag::MayInterfereWithIndexedPropertyAccess; }
+    void set_may_interfere_with_indexed_property_access() { m_flags |= Flag::MayInterfereWithIndexedPropertyAccess; }
 
     ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
 
@@ -222,7 +232,7 @@ public:
     virtual bool is_html_location() const { return false; }
     virtual bool is_canvas_rendering_context_2d() const { return false; }
 
-    virtual bool is_function() const { return false; }
+    [[nodiscard]] bool is_function() const { return m_flags & Flag::IsFunction; }
     virtual bool is_bound_function() const { return false; }
     virtual bool is_promise() const { return false; }
     virtual bool is_error_object() const { return false; }
@@ -237,7 +247,10 @@ public:
     virtual bool is_global_object() const { return false; }
     virtual bool is_proxy_object() const { return false; }
     virtual bool is_native_function() const { return false; }
-    virtual bool is_ecmascript_function_object() const { return false; }
+    [[nodiscard]] bool is_ecmascript_function_object() const { return m_flags & Flag::IsECMAScriptFunctionObject; }
+    void set_is_ecmascript_function_object() { m_flags |= Flag::IsECMAScriptFunctionObject; }
+    void set_is_function() { m_flags |= Flag::IsFunction; }
+    void clear_is_function() { m_flags &= ~Flag::IsFunction; }
     virtual bool is_array_iterator() const { return false; }
     virtual bool is_raw_json_object() const { return false; }
     virtual bool is_set_object() const { return false; }
@@ -262,8 +275,8 @@ public:
     // B.3.7 The [[IsHTMLDDA]] Internal Slot, https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
     virtual bool is_htmldda() const { return false; }
 
-    bool has_parameter_map() const { return m_has_parameter_map; }
-    void set_has_parameter_map() { m_has_parameter_map = true; }
+    bool has_parameter_map() const { return m_flags & Flag::HasParameterMap; }
+    void set_has_parameter_map() { m_flags |= Flag::HasParameterMap; }
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -285,10 +298,14 @@ public:
 
     void set_prototype(Object*);
 
-    [[nodiscard]] bool has_magical_length_property() const { return m_has_magical_length_property; }
+    [[nodiscard]] bool has_magical_length_property() const { return m_flags & Flag::HasMagicalLengthProperty; }
+    void set_has_magical_length_property() { m_flags |= Flag::HasMagicalLengthProperty; }
 
-    [[nodiscard]] bool is_typed_array() const { return m_is_typed_array; }
-    void set_is_typed_array() { m_is_typed_array = true; }
+    [[nodiscard]] bool is_typed_array() const { return m_flags & Flag::IsTypedArray; }
+    void set_is_typed_array() { m_flags |= Flag::IsTypedArray; }
+
+    [[nodiscard]] bool has_intrinsic_accessors() const { return m_flags & Flag::HasIntrinsicAccessors; }
+    void set_has_intrinsic_accessors() { m_flags |= Flag::HasIntrinsicAccessors; }
 
     Object const* prototype() const { return shape().prototype(); }
 
@@ -303,25 +320,22 @@ protected:
     Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
-    // [[Extensible]]
-    bool m_is_extensible : 1 { true };
-
-    // [[ParameterMap]]
-    bool m_has_parameter_map : 1 { false };
-
-    bool m_has_magical_length_property : 1 { false };
-
-    bool m_is_typed_array : 1 { false };
-
 private:
+    struct Flag {
+        static constexpr u8 IsExtensible = 1 << 0;
+        static constexpr u8 HasParameterMap = 1 << 1;
+        static constexpr u8 HasMagicalLengthProperty = 1 << 2;
+        static constexpr u8 IsTypedArray = 1 << 3;
+        static constexpr u8 MayInterfereWithIndexedPropertyAccess = 1 << 4;
+        static constexpr u8 HasIntrinsicAccessors = 1 << 5;
+        static constexpr u8 IsECMAScriptFunctionObject = 1 << 6;
+        static constexpr u8 IsFunction = 1 << 7;
+    };
+
+    u8 m_flags { Flag::IsExtensible };
     void set_shape(Shape& shape) { m_shape = &shape; }
 
     Object* prototype() { return shape().prototype(); }
-
-    bool m_may_interfere_with_indexed_property_access : 1 { false };
-
-    // True if this object has lazily allocated intrinsic properties.
-    bool m_has_intrinsic_accessors : 1 { false };
 
     GC::Ptr<Shape> m_shape;
     Vector<Value> m_storage;

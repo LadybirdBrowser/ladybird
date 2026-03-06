@@ -68,7 +68,7 @@ Array::Array(Realm& realm, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_realm(realm)
 {
-    m_has_magical_length_property = true;
+    set_has_magical_length_property();
 }
 
 void Array::visit_edges(Cell::Visitor& visitor)
@@ -397,7 +397,7 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
         auto attributes = property_descriptor.attributes();
         // OPTIMIZATION: Fast path for arrays with simple indexed properties storage.
         if (property_descriptor.is_data_descriptor() && attributes == default_attributes && storage && storage->is_simple_storage()) {
-            if (!m_is_extensible) {
+            if (!extensible()) {
                 auto existing_descriptor = TRY(internal_get_own_property(property_key));
                 if (!existing_descriptor.has_value())
                     return false;
