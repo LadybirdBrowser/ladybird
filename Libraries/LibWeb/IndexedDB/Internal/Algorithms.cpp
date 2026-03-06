@@ -1315,9 +1315,6 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
         // 5. Set request’s processed flag to true.
         request->set_processed(true);
 
-        // Allow the next operation in the queue to proceed.
-        transaction->request_list().on_request_processed();
-
         // 6. Queue a database task to run these steps:
         dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: request finished without error, queuing task to finish up");
         queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
@@ -1362,6 +1359,11 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
             //     be fired before the transaction can be committed.
             transaction->request_list().check_all_processed();
         }));
+
+        // Allow the next operation in the queue to proceed. This runs after the above task to ensure that if another
+        // request is ready, it will run after the success or failure events are fired. Otherwise, the next request may
+        // throw an error and clobber the result of this request.
+        transaction->request_list().on_request_processed();
     }));
 
     // 6. Return request.
