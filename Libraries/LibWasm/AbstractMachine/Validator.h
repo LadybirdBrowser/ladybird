@@ -24,6 +24,7 @@ struct Context {
 
     COWVector<TypeSection::Type> types;
     COWVector<FunctionType> functions;
+    COWVector<Optional<TypeIndex>> function_type_indices;
     COWVector<StructType> structs;
     COWVector<ArrayType> arrays;
     COWVector<TableType> tables;
