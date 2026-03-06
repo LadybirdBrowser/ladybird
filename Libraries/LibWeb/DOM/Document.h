@@ -888,7 +888,7 @@ public:
     InputEventsTarget* active_input_events_target(DOM::Node const* for_node = nullptr);
     GC::Ptr<DOM::Position> cursor_position() const;
 
-    bool cursor_blink_state() const { return m_cursor_blink_state; }
+    bool cursor_blink_state() const { return m_cursor_blink_node; }
 
     // Cached pointer to the last known node navigable.
     // If this document is currently the "active document" of the cached navigable, the cache is still valid.
@@ -1388,7 +1388,7 @@ private:
     GC::Ptr<JS::ConsoleClient> m_console_client;
 
     RefPtr<Core::Timer> m_cursor_blink_timer;
-    bool m_cursor_blink_state { false };
+    GC::Ptr<Node> m_cursor_blink_node;
 
     // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
     GC::Weak<HTML::Navigable> m_cached_navigable;

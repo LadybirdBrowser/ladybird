@@ -515,18 +515,18 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
     };
 
     m_cursor_blink_timer = Core::Timer::create_repeating(500, [this] {
-        auto cursor_position = this->cursor_position();
-        if (!cursor_position)
-            return;
-
         auto navigable = this->navigable();
         if (!navigable || !navigable->is_focused())
             return;
 
-        auto node = cursor_position->node();
-        if (node->unsafe_paintable()) {
-            m_cursor_blink_state = !m_cursor_blink_state;
-            node->set_needs_repaint();
+        if (m_cursor_blink_node) {
+            if (auto* paintable = m_cursor_blink_node->unsafe_paintable())
+                paintable->set_needs_repaint();
+            m_cursor_blink_node = nullptr;
+        } else if (auto pos = cursor_position()) {
+            m_cursor_blink_node = pos->node();
+            if (auto* paintable = m_cursor_blink_node->unsafe_paintable())
+                paintable->set_needs_repaint();
         }
     });
 
@@ -673,6 +673,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_open_dialogs_list);
     visitor.visit(m_dialog_pointerdown_target);
     visitor.visit(m_console_client);
+    visitor.visit(m_cursor_blink_node);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
@@ -7235,11 +7236,25 @@ GC::Ptr<DOM::Position> Document::cursor_position() const
 
 void Document::reset_cursor_blink_cycle()
 {
-    m_cursor_blink_state = true;
-
     // In testing mode, disable timed blinking so we can deterministically generate display lists.
-    if (!HTML::Window::in_test_mode())
+
+    if (!HTML::Window::in_test_mode() && m_cursor_blink_node) {
+        if (auto* paintable = m_cursor_blink_node->unsafe_paintable())
+            paintable->set_needs_repaint();
+    }
+
+    if (auto position = cursor_position())
+        m_cursor_blink_node = position->node();
+    else
+        m_cursor_blink_node = nullptr;
+
+    if (!HTML::Window::in_test_mode()) {
+        if (m_cursor_blink_node) {
+            if (auto* paintable = m_cursor_blink_node->unsafe_paintable())
+                paintable->set_needs_repaint();
+        }
         m_cursor_blink_timer->restart();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document
