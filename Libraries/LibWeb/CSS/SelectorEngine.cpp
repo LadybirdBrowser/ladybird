@@ -563,17 +563,18 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     }
     case CSS::PseudoClass::FirstChild:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_first_child_pseudo_class(true);
         }
         return !element.previous_element_sibling();
     case CSS::PseudoClass::LastChild:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_last_child_pseudo_class(true);
         }
         return !element.next_element_sibling();
     case CSS::PseudoClass::OnlyChild:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_first_child_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_last_child_pseudo_class(true);
         }
         return !(element.previous_element_sibling() || element.next_element_sibling());
     case CSS::PseudoClass::Empty: {
@@ -601,17 +602,18 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return scope ? &element == scope : is<HTML::HTMLHtmlElement>(element);
     case CSS::PseudoClass::FirstOfType:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_forward_positional_pseudo_class(true);
         }
         return !previous_sibling_with_same_tag_name(element);
     case CSS::PseudoClass::LastOfType:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_backward_positional_pseudo_class(true);
         }
         return !next_sibling_with_same_tag_name(element);
     case CSS::PseudoClass::OnlyOfType:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_forward_positional_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_backward_positional_pseudo_class(true);
         }
         return !previous_sibling_with_same_tag_name(element) && !next_sibling_with_same_tag_name(element);
     case CSS::PseudoClass::Lang:
@@ -681,7 +683,19 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             return false;
 
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_nth_child_pseudo_class(true);
+            auto& mutable_element = const_cast<DOM::Element&>(element);
+            switch (pseudo_class.type) {
+            case CSS::PseudoClass::NthChild:
+            case CSS::PseudoClass::NthOfType:
+                mutable_element.set_affected_by_forward_positional_pseudo_class(true);
+                break;
+            case CSS::PseudoClass::NthLastChild:
+            case CSS::PseudoClass::NthLastOfType:
+                mutable_element.set_affected_by_backward_positional_pseudo_class(true);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
         }
 
         auto matches_selector_list = [&context, shadow_host](CSS::SelectorList const& list, DOM::Element const& element) {
