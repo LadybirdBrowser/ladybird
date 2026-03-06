@@ -406,6 +406,8 @@ class Time;
 class TimeOrCalculated;
 class TimePercentage;
 class TimeStyleValue;
+template<typename T>
+class TokenStream;
 class TransformationStyleValue;
 class TreeCountingFunctionStyleValue;
 class TupleStyleValue;
