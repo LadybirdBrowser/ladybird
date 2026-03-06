@@ -52,8 +52,14 @@ public:
         return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[r.index()];
     }
 
-    [[nodiscard]] Value get(Operand) const;
-    void set(Operand, Value);
+    ALWAYS_INLINE Value get(Operand op) const
+    {
+        return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[op.raw()];
+    }
+    ALWAYS_INLINE void set(Operand op, Value value)
+    {
+        m_running_execution_context->registers_and_constants_and_locals_and_arguments_span().data()[op.raw()] = value;
+    }
 
     Value do_yield(Value value, Optional<Label> continuation);
     void do_return(Value value)
@@ -70,6 +76,7 @@ public:
     Executable const& current_executable() const { return *m_running_execution_context->executable; }
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
+    void set_running_execution_context(ExecutionContext* ctx) { m_running_execution_context = ctx; }
 
     [[nodiscard]] Utf16FlyString const& get_identifier(IdentifierTableIndex) const;
     [[nodiscard]] Optional<Utf16FlyString const&> get_identifier(Optional<IdentifierTableIndex> index) const
@@ -80,9 +87,6 @@ public:
     }
 
     [[nodiscard]] PropertyKey const& get_property_key(PropertyKeyTableIndex) const;
-
-private:
-    void run_bytecode(size_t entry_point);
 
     enum class HandleExceptionResponse {
         ExitFromExecutable,
@@ -103,6 +107,9 @@ private:
         Value this_value,
         Object* new_target,
         bool is_construct);
+
+private:
+    void run_bytecode(size_t entry_point);
 
     ExecutionContext* m_running_execution_context { nullptr };
 };

@@ -92,16 +92,6 @@ Interpreter::Interpreter() = default;
 
 Interpreter::~Interpreter() = default;
 
-ALWAYS_INLINE Value Interpreter::get(Operand op) const
-{
-    return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[op.raw()];
-}
-
-ALWAYS_INLINE void Interpreter::set(Operand op, Value value)
-{
-    m_running_execution_context->registers_and_constants_and_locals_and_arguments()[op.raw()] = value;
-}
-
 ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuation)
 {
     // FIXME: If we get a pointer, which is not accurately representable as a double
