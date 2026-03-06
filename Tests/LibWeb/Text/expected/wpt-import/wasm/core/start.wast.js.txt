@@ -1,32 +1,44 @@
 Harness status: OK
 
-Found 27 tests
+Found 39 tests
 
-27 Pass
+39 Pass
 Pass	#1 Reinitialize the default imports
-Pass	#2 Test that WebAssembly compilation fails
-Pass	#3 Test that WebAssembly compilation fails
-Pass	#4 Test that WebAssembly compilation fails
-Pass	#5 Test that WebAssembly compilation fails
-Pass	#6 Reinitialize the default imports
-Pass	#7 Test that WebAssembly compilation fails
-Pass	#8 Test that WebAssembly compilation fails
-Pass	#9 Test that WebAssembly compilation fails
-Pass	#10 Test that WebAssembly instantiation succeeds
-Pass	#11 Test that a WebAssembly code returns a specific result
-Pass	#12 Run a WebAssembly test without special assertions
-Pass	#13 Test that a WebAssembly code returns a specific result
-Pass	#14 Run a WebAssembly test without special assertions
-Pass	#15 Test that a WebAssembly code returns a specific result
-Pass	#16 Test that WebAssembly instantiation succeeds
-Pass	#17 Test that a WebAssembly code returns a specific result
-Pass	#18 Run a WebAssembly test without special assertions
-Pass	#19 Test that a WebAssembly code returns a specific result
-Pass	#20 Run a WebAssembly test without special assertions
-Pass	#21 Test that a WebAssembly code returns a specific result
-Pass	#22 Test that WebAssembly instantiation succeeds
-Pass	#23 Test that WebAssembly instantiation succeeds
-Pass	#24 Test that WebAssembly instantiation succeeds
-Pass	#25 Test that WebAssembly instantiation fails
-Pass	#26 Test that a WebAssembly module is uninstantiable
-Pass	#27 Test that WebAssembly compilation fails
+Pass	#2 Test that WebAssembly compilation fails (start.wast:1)
+Pass	#3 Test that WebAssembly compilation fails (start.wast:6)
+Pass	#4 Test that WebAssembly compilation fails (start.wast:13)
+Pass	#5 Test that WebAssembly compilation succeeds (start.wast:21)
+Pass	#6 Test that WebAssembly compilation succeeds (start.wast:51)
+Pass	#7 Test that WebAssembly compilation succeeds (start.wast:80)
+Pass	#8 Test that WebAssembly compilation succeeds (start.wast:86)
+Pass	#9 Test that WebAssembly compilation succeeds (start.wast:92)
+Pass	#10 Test that WebAssembly compilation succeeds (start.wast:98)
+Pass	#11 Test that WebAssembly compilation fails (start.wast:102)
+Pass	#12 Reinitialize the default imports
+Pass	#13 Test that WebAssembly compilation fails (start.wast:1)
+Pass	#14 Test that WebAssembly compilation fails (start.wast:6)
+Pass	#15 Test that WebAssembly compilation fails (start.wast:13)
+Pass	#16 Test that WebAssembly compilation succeeds (start.wast:21)
+Pass	#17 Test that WebAssembly instantiation succeeds (start.wast:21)
+Pass	#18 Test that a WebAssembly code returns a specific result (start.wast:45)
+Pass	#19 Run a WebAssembly test without special assertions (start.wast:46)
+Pass	#20 Test that a WebAssembly code returns a specific result (start.wast:47)
+Pass	#21 Run a WebAssembly test without special assertions (start.wast:48)
+Pass	#22 Test that a WebAssembly code returns a specific result (start.wast:49)
+Pass	#23 Test that WebAssembly compilation succeeds (start.wast:51)
+Pass	#24 Test that WebAssembly instantiation succeeds (start.wast:51)
+Pass	#25 Test that a WebAssembly code returns a specific result (start.wast:74)
+Pass	#26 Run a WebAssembly test without special assertions (start.wast:75)
+Pass	#27 Test that a WebAssembly code returns a specific result (start.wast:76)
+Pass	#28 Run a WebAssembly test without special assertions (start.wast:77)
+Pass	#29 Test that a WebAssembly code returns a specific result (start.wast:78)
+Pass	#30 Test that WebAssembly compilation succeeds (start.wast:80)
+Pass	#31 Test that WebAssembly instantiation succeeds (start.wast:80)
+Pass	#32 Test that WebAssembly compilation succeeds (start.wast:86)
+Pass	#33 Test that WebAssembly instantiation succeeds (start.wast:86)
+Pass	#34 Test that WebAssembly compilation succeeds (start.wast:92)
+Pass	#35 Test that WebAssembly instantiation succeeds (start.wast:92)
+Pass	#36 Test that WebAssembly compilation succeeds (start.wast:98)
+Pass	#37 Test that WebAssembly instantiation fails (start.wast:98)
+Pass	#38 Test that a WebAssembly module is uninstantiable
+Pass	#39 Test that WebAssembly compilation fails (start.wast:102)
