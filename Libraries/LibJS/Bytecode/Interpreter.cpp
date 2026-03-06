@@ -10,6 +10,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibGC/RootHashMap.h>
 #include <LibJS/AST.h>
+#include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/FormatOperand.h>
 #include <LibJS/Bytecode/Generator.h>
@@ -435,6 +436,16 @@ void Interpreter::run_bytecode(size_t entry_point)
 {
     if (vm().interpreter_stack().is_exhausted() || vm().did_reach_stack_space_limit()) [[unlikely]] {
         reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
+        return;
+    }
+
+    static bool const use_cpp_interpreter = []() {
+        auto const* env = getenv("LIBJS_USE_CPP_INTERPRETER");
+        return env && env[0] == '1';
+    }();
+
+    if (!use_cpp_interpreter && AsmInterpreter::is_available()) {
+        AsmInterpreter::run(*this, entry_point);
         return;
     }
 

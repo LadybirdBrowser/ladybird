@@ -3,6 +3,7 @@ include(libjs_generators)
 set(SOURCES
     AST.cpp
     ASTDump.cpp
+    Bytecode/AsmInterpreter/AsmInterpreter.cpp
     Bytecode/ASTCodegen.cpp
     Bytecode/BasicBlock.cpp
     Bytecode/Builtins.cpp
@@ -326,6 +327,91 @@ if (ENABLE_RUST)
         )
         file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp)
     endif()
+endif()
+
+# AsmInterpreter: generate platform-specific assembly from DSL
+# NB: Win64 uses a different ABI (shadow space, different arg registers)
+#     from SysV AMD64, and the x86_64 backend only supports SysV for now.
+if (NOT WIN32 AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64"))
+    set(ASMINT_ARCH "x86_64")
+elseif ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "arm64")
+    set(ASMINT_ARCH "aarch64")
+endif()
+
+if (DEFINED ASMINT_ARCH)
+    enable_language(ASM)
+    set(ASMINTGEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/AsmIntGen")
+    set(ASMINTGEN_BIN "${ASMINTGEN_DIR}/target/release/asmintgen")
+    set(ASMINT_DSL "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/AsmInterpreter/asmint.asm")
+    set(ASMINT_GENERATED_S "${CMAKE_CURRENT_BINARY_DIR}/Bytecode/AsmInterpreter/asmint_${ASMINT_ARCH}.S")
+    set(ASM_OFFSETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/Bytecode/AsmInterpreter/asm_offsets.conf")
+
+    # Build-time offset generator: compiles a small C++ program that uses
+    # offsetof() to emit struct field offsets as DSL constants.
+    add_executable(gen_asm_offsets "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/AsmInterpreter/gen_asm_offsets.cpp")
+    target_link_libraries(gen_asm_offsets PRIVATE AK)
+    target_compile_definitions(gen_asm_offsets PRIVATE private=public protected=public)
+    # NB: Strip fuzzer sanitizer flags so gen_asm_offsets can define its own main().
+    if (ENABLE_FUZZERS_LIBFUZZER)
+        target_compile_options(gen_asm_offsets PRIVATE -fno-sanitize=fuzzer)
+        target_link_options(gen_asm_offsets PRIVATE -fno-sanitize=fuzzer)
+    endif()
+    # NB: gen_asm_offsets no longer depends on Op.h since opcode field
+    # offsets are now computed from Bytecode.def by asmintgen directly.
+
+    add_custom_command(
+        OUTPUT "${ASM_OFFSETS_FILE}"
+        COMMAND "$<TARGET_FILE:gen_asm_offsets>" > "${ASM_OFFSETS_FILE}"
+        DEPENDS gen_asm_offsets
+        COMMENT "Generating asm struct offsets"
+    )
+
+    file(GLOB ASMINTGEN_SOURCES "${ASMINTGEN_DIR}/src/*.rs" "${ASMINTGEN_DIR}/Cargo.toml")
+    # NB: Clear linker-related env vars so cargo uses the default host
+    # linker. The CI may set CC/CXX or CARGO_TARGET_*_LINKER to a
+    # compiler that isn't available in all build configurations (e.g.
+    # clang-21 in GNU builds). asmintgen is a pure Rust host tool.
+    add_custom_command(
+        OUTPUT "${ASMINTGEN_BIN}"
+        COMMAND ${CMAKE_COMMAND} -E env
+            --unset=CC
+            --unset=CXX
+            --unset=CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
+            --unset=CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER
+            cargo build --release
+        WORKING_DIRECTORY "${ASMINTGEN_DIR}"
+        DEPENDS ${ASMINTGEN_SOURCES}
+        COMMENT "Building asmintgen"
+    )
+
+    set(BYTECODE_DEF "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/Bytecode.def")
+
+    if (APPLE)
+        set(ASMINT_OBJ_FORMAT "macho")
+    else()
+        set(ASMINT_OBJ_FORMAT "elf")
+    endif()
+
+    set(ASMINT_EXTRA_FLAGS "")
+    # All Apple Silicon chips are ARMv8.5+ which includes FEAT_JSCVT.
+    if ("${ASMINT_ARCH}" STREQUAL "aarch64" AND APPLE)
+        list(APPEND ASMINT_EXTRA_FLAGS "--has-jscvt")
+    endif()
+
+    add_custom_command(
+        OUTPUT "${ASMINT_GENERATED_S}"
+        COMMAND "${ASMINTGEN_BIN}" --arch ${ASMINT_ARCH}
+            --object-format ${ASMINT_OBJ_FORMAT}
+            --constants "${ASM_OFFSETS_FILE}"
+            --bytecode-def "${BYTECODE_DEF}"
+            --input "${ASMINT_DSL}"
+            --output "${ASMINT_GENERATED_S}"
+            ${ASMINT_EXTRA_FLAGS}
+        DEPENDS "${ASMINTGEN_BIN}" "${ASMINT_DSL}" "${ASM_OFFSETS_FILE}" "${BYTECODE_DEF}"
+        COMMENT "Generating asmint_${ASMINT_ARCH}.S from DSL"
+    )
+
+    target_sources(LibJS PRIVATE "${ASMINT_GENERATED_S}")
 endif()
 
 if (WIN32 AND ENABLE_ADDRESS_SANITIZER)
