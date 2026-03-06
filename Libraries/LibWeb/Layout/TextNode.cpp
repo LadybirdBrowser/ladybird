@@ -727,10 +727,11 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
             while (m_current_index < m_view.length_in_code_units() && is_collapsible(current_code_point()))
                 m_current_index = next_grapheme_boundary();
-            can_break_at_current_position = is_at_line_break_opportunity();
 
             if (result.has_value())
                 return result.release_value();
+
+            return next_without_peek();
         }
 
         if (m_should_wrap_lines) {

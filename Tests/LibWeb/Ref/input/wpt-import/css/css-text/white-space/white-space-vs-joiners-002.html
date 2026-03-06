@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+
+<title>CSS Text Test: join controls do not disrupt white-space processing</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#white-space-rules">
+<!-- NB: The spec doesn't explicitly discuss join controls in this context,
+     but it is self-evident that they should not have any effect on the white-space processing.
+     Their only effect should be on the shaping (if any) of the adjacent characters. -->
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/white-space-vs-joiners-002-ref.html">
+<meta name="assert" content="The presence of join controls (ZWJ/ZWNJ) at word edges should not affect white-space processing">
+
+<style>
+p {
+  width: min-content;
+  border: 2px solid green;
+  font: 24px monospace;
+}
+</style>
+
+<body>
+  <p>
+    &#x200d;This&#x200d;
+    &#x200d;is&#x200d;
+    &#x200d;a&#x200d;
+    &#x200d;simple&#x200d;
+    &#x200d;test&#x200d;
+  </p>
+</body>
