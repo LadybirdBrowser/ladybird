@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -243,8 +244,10 @@ bool CSSRuleList::evaluate_media_queries(DOM::Document const& document)
 
     for (auto& rule : m_rules) {
         switch (rule->type()) {
-        case CSSRule::Type::Function:
-            TODO();
+        case CSSRule::Type::Function: {
+            any_media_queries_changed_match_state |= as<CSSFunctionRule>(*rule).css_rules().evaluate_media_queries(document);
+            break;
+        }
         case CSSRule::Type::Import: {
             auto& import_rule = as<CSSImportRule>(*rule);
             if (import_rule.loaded_style_sheet() && import_rule.loaded_style_sheet()->evaluate_media_queries(document))
