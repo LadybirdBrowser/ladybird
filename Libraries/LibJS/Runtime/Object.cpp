@@ -57,21 +57,24 @@ GC::Ref<Object> Object::create_with_premade_shape(Shape& shape)
 }
 
 Object::Object(GlobalObjectTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
 {
+    if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
+        set_may_interfere_with_indexed_property_access();
     // This is the global object
     m_shape = heap().allocate<Shape>(realm);
 }
 
 Object::Object(ConstructWithoutPrototypeTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
 {
+    if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
+        set_may_interfere_with_indexed_property_access();
     m_shape = heap().allocate<Shape>(realm);
 }
 
 Object::Object(Realm& realm, Object* prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
 {
+    if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
+        set_may_interfere_with_indexed_property_access();
     m_shape = realm.intrinsics().empty_object_shape();
     VERIFY(m_shape);
     if (prototype != nullptr)
@@ -79,23 +82,25 @@ Object::Object(Realm& realm, Object* prototype, MayInterfereWithIndexedPropertyA
 }
 
 Object::Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
 {
+    if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
+        set_may_interfere_with_indexed_property_access();
     m_shape = prototype.shape().realm().intrinsics().empty_object_shape();
     VERIFY(m_shape);
     set_prototype(&prototype);
 }
 
 Object::Object(Shape& shape, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
-    , m_shape(&shape)
+    : m_shape(&shape)
 {
+    if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
+        set_may_interfere_with_indexed_property_access();
     m_storage.resize_with_default_value(shape.property_count(), Value());
 }
 
 Object::~Object()
 {
-    if (m_has_intrinsic_accessors)
+    if (has_intrinsic_accessors())
         s_intrinsics.remove(this);
 }
 
@@ -773,7 +778,7 @@ ThrowCompletionOr<bool> Object::internal_set_prototype_of(Object* new_prototype)
 
     // 3. Let extensible be O.[[Extensible]].
     // 4. If extensible is false, return false.
-    if (!m_is_extensible)
+    if (!extensible())
         return false;
 
     // 5. Let p be V.
@@ -811,14 +816,14 @@ ThrowCompletionOr<bool> Object::internal_set_prototype_of(Object* new_prototype)
 ThrowCompletionOr<bool> Object::internal_is_extensible() const
 {
     // 1. Return O.[[Extensible]].
-    return m_is_extensible;
+    return extensible();
 }
 
 // 10.1.4 [[PreventExtensions]] ( ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
 ThrowCompletionOr<bool> Object::internal_prevent_extensions()
 {
     // 1. Set O.[[Extensible]] to false.
-    m_is_extensible = false;
+    set_extensible(false);
 
     // 2. Return true.
     return true;
@@ -1237,7 +1242,7 @@ Optional<ValueAndAttributes> Object::storage_get(PropertyKey const& property_key
         if (!metadata.has_value())
             return {};
 
-        if (m_has_intrinsic_accessors) {
+        if (has_intrinsic_accessors()) {
             if (auto accessor = find_intrinsic_accessor(this, property_key); accessor.has_value())
                 const_cast<Object&>(*this).m_storage[metadata->offset] = (*accessor)(shape().realm());
         }
@@ -1267,7 +1272,7 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
         return {};
     }
 
-    if (m_has_intrinsic_accessors && property_key.is_string()) {
+    if (has_intrinsic_accessors() && property_key.is_string()) {
         if (auto intrinsics = s_intrinsics.find(this); intrinsics != s_intrinsics.end())
             intrinsics->value.remove(property_key.as_string());
     }
@@ -1305,7 +1310,7 @@ void Object::storage_delete(PropertyKey const& property_key)
     if (property_key.is_number())
         return m_indexed_properties.remove(property_key.as_number());
 
-    if (m_has_intrinsic_accessors && property_key.is_string()) {
+    if (has_intrinsic_accessors() && property_key.is_string()) {
         if (auto intrinsics = s_intrinsics.find(this); intrinsics != s_intrinsics.end())
             intrinsics->value.remove(property_key.as_string());
     }
@@ -1361,7 +1366,7 @@ void Object::define_intrinsic_accessor(PropertyKey const& property_key, Property
 
     (void)storage_set(property_key, { {}, attributes });
 
-    m_has_intrinsic_accessors = true;
+    set_has_intrinsic_accessors();
     auto& intrinsics = s_intrinsics.ensure(this);
     intrinsics.set(property_key.as_string(), move(accessor));
 }

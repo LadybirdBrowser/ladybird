@@ -57,9 +57,6 @@ protected:
     [[nodiscard]] GC::Ref<PrimitiveString> make_function_name(Variant<PropertyKey, PrivateName> const&, Optional<StringView> const& prefix);
 
     Optional<Bytecode::Builtin> m_builtin;
-
-private:
-    virtual bool is_function() const override { return true; }
 };
 
 template<>

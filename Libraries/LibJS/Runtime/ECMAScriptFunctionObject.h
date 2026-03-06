@@ -139,7 +139,6 @@ private:
     [[nodiscard]] bool function_environment_needed() const { return shared_data().m_function_environment_needed; }
     SharedFunctionInstanceData const& shared_data() const { return m_shared_data; }
 
-    virtual bool is_ecmascript_function_object() const override { return true; }
     virtual void visit_edges(Visitor&) override;
 
     void prepare_for_ordinary_call(VM&, ExecutionContext& callee_context, Object* new_target);

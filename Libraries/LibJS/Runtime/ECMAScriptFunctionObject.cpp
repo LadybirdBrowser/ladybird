@@ -162,6 +162,7 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(
     , m_environment(parent_environment)
     , m_private_environment(private_environment)
 {
+    set_is_ecmascript_function_object();
     if (!is_arrow_function() && kind() == FunctionKind::Normal)
         unsafe_set_shape(realm()->intrinsics().normal_function_shape());
 
