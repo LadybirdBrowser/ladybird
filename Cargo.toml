@@ -2,6 +2,9 @@
 members = [
     "Libraries/LibJS/Rust",
 ]
+exclude = [
+    "Libraries/LibJS/AsmIntGen",
+]
 resolver = "2"
 
 [profile.release]
