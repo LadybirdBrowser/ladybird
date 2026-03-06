@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 17 tests
 
-7 Pass
-10 Fail
+17 Pass
 Pass	Exception in error event handler on request
 Pass	Exception in error event handler on request, with preventDefault
 Pass	Exception in error event listener on request
@@ -11,13 +10,13 @@ Pass	Exception in error event listener ("handleEvent" lookup) on request
 Pass	Exception in error event listener (non-callable "handleEvent") on request
 Pass	Exception in second error event listener on request
 Pass	Exception in first error event listener on request, transaction active in second
-Fail	Exception in error event handler on transaction
-Fail	Exception in error event handler on transaction, with preventDefault
-Fail	Exception in error event listener on transaction
-Fail	Exception in second error event listener on transaction
-Fail	Exception in first error event listener on transaction, transaction active in second
-Fail	Exception in error event handler on connection
-Fail	Exception in error event handler on connection, with preventDefault
-Fail	Exception in error event listener on connection
-Fail	Exception in second error event listener on connection
-Fail	Exception in first error event listener on connection, transaction active in second
+Pass	Exception in error event handler on transaction
+Pass	Exception in error event handler on transaction, with preventDefault
+Pass	Exception in error event listener on transaction
+Pass	Exception in second error event listener on transaction
+Pass	Exception in first error event listener on transaction, transaction active in second
+Pass	Exception in error event handler on connection
+Pass	Exception in error event handler on connection, with preventDefault
+Pass	Exception in error event listener on connection
+Pass	Exception in second error event listener on connection
+Pass	Exception in first error event listener on connection, transaction active in second

@@ -57,6 +57,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
+    virtual EventTarget* get_parent(DOM::Event const&) override;
 
 private:
     // A request has a processed flag which is initially false.

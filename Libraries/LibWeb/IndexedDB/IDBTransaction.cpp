@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
@@ -58,6 +59,13 @@ void IDBTransaction::visit_edges(Visitor& visitor)
         visitor.visit(entry.store);
         visitor.visit(entry.log);
     }
+}
+
+DOM::EventTarget* IDBTransaction::get_parent(DOM::Event const&)
+{
+    // https://w3c.github.io/IndexedDB/#transaction-construct
+    // A transaction’s get the parent algorithm returns the transaction’s connection.
+    return m_connection.ptr();
 }
 
 void IDBTransaction::set_onabort(WebIDL::CallbackType* event_handler)
