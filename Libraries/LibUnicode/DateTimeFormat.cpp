@@ -627,16 +627,7 @@ static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::
     auto* calendar = icu::Calendar::createInstance(time_zone_data->time_zone(), locale, status);
     verify_icu_success(status);
 
-    if (calendar->getDynamicClassID() == icu::GregorianCalendar::getStaticClassID()) {
-        // https://tc39.es/ecma262/#sec-time-values-and-time-range
-        // A time value supports a slightly smaller range of -8,640,000,000,000,000 to 8,640,000,000,000,000 milliseconds.
-        static constexpr double ECMA_262_MINIMUM_TIME = -8.64E15;
-
-        auto* gregorian_calendar = static_cast<icu::GregorianCalendar*>(calendar);
-        gregorian_calendar->setGregorianChange(ECMA_262_MINIMUM_TIME, status);
-        verify_icu_success(status);
-    }
-
+    CalendarData::adjust_time_range_for_proleptic_calendar(*calendar);
     formatter.adoptCalendar(calendar);
 }
 
