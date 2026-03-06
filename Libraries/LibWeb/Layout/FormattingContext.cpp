@@ -1618,9 +1618,22 @@ void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
+    // NOTE: Percentage heights resolve against the containing block's used height. If the containing block's height is
+    //       indefinite, percentage insets behave as auto.
+    auto treat_percentage_as_auto = [&](CSS::LengthPercentageOrAuto const& value) -> CSS::LengthPercentageOrAuto {
+        if (value.contains_percentage()) {
+            auto containing_block = box.containing_block();
+            while (containing_block && containing_block->is_anonymous())
+                containing_block = containing_block->containing_block();
+            if (containing_block && !m_state.get(*containing_block).has_definite_height())
+                return CSS::LengthPercentageOrAuto::make_auto();
+        }
+        return value;
+    };
+
     // FIXME: Respect the containing block's writing-mode.
     resolve_two_opposing_insets(computed_values.inset().left(), computed_values.inset().right(), box_state.inset_left, box_state.inset_right, containing_block_size.width());
-    resolve_two_opposing_insets(computed_values.inset().top(), computed_values.inset().bottom(), box_state.inset_top, box_state.inset_bottom, containing_block_size.height());
+    resolve_two_opposing_insets(treat_percentage_as_auto(computed_values.inset().top()), treat_percentage_as_auto(computed_values.inset().bottom()), box_state.inset_top, box_state.inset_bottom, containing_block_size.height());
 }
 
 // https://drafts.csswg.org/css-sizing-3/#fit-content-size
