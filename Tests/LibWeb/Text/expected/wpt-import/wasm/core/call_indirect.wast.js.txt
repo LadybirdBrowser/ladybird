@@ -1,291 +1,356 @@
 Harness status: OK
 
-Found 286 tests
+Found 350 tests
 
-286 Pass
+349 Pass
+1 Fail
 Pass	#1 Reinitialize the default imports
-Pass	#2 Test that WebAssembly compilation fails
-Pass	#3 Test that WebAssembly compilation fails
-Pass	#4 Test that WebAssembly compilation fails
-Pass	#5 Test that WebAssembly compilation fails
-Pass	#6 Test that WebAssembly compilation fails
-Pass	#7 Test that WebAssembly compilation fails
-Pass	#8 Test that WebAssembly compilation fails
-Pass	#9 Test that WebAssembly compilation fails
-Pass	#10 Test that WebAssembly compilation fails
-Pass	#11 Test that WebAssembly compilation fails
-Pass	#12 Test that WebAssembly compilation fails
-Pass	#13 Test that WebAssembly compilation fails
-Pass	#14 Test that WebAssembly compilation fails
-Pass	#15 Test that WebAssembly compilation fails
-Pass	#16 Test that WebAssembly compilation fails
-Pass	#17 Test that WebAssembly compilation fails
-Pass	#18 Test that WebAssembly compilation fails
-Pass	#19 Test that WebAssembly compilation fails
-Pass	#20 Test that WebAssembly compilation fails
-Pass	#21 Test that WebAssembly compilation fails
-Pass	#22 Test that WebAssembly compilation fails
-Pass	#23 Test that WebAssembly compilation fails
-Pass	#24 Test that WebAssembly compilation fails
-Pass	#25 Test that WebAssembly compilation fails
-Pass	#26 Test that WebAssembly compilation fails
-Pass	#27 Test that WebAssembly compilation fails
-Pass	#28 Test that WebAssembly compilation fails
-Pass	#29 Test that WebAssembly compilation fails
-Pass	#30 Test that WebAssembly compilation fails
-Pass	#31 Test that WebAssembly compilation fails
-Pass	#32 Test that WebAssembly compilation fails
-Pass	#33 Test that WebAssembly compilation fails
-Pass	#34 Test that WebAssembly compilation fails
-Pass	#35 Test that WebAssembly compilation fails
-Pass	#36 Test that WebAssembly compilation fails
-Pass	#37 Reinitialize the default imports
-Pass	#38 Test that WebAssembly instantiation succeeds
-Pass	#39 Test that a WebAssembly code returns a specific result
-Pass	#40 Test that WebAssembly instantiation succeeds
-Pass	#41 Run a WebAssembly test without special assertions
-Pass	#42 Test that WebAssembly instantiation succeeds
-Pass	#43 Run a WebAssembly test without special assertions
-Pass	#44 Test that WebAssembly instantiation succeeds
-Pass	#45 Run a WebAssembly test without special assertions
-Pass	#46 Test that WebAssembly instantiation succeeds
-Pass	#47 Run a WebAssembly test without special assertions
-Pass	#48 Test that WebAssembly instantiation succeeds
-Pass	#49 Run a WebAssembly test without special assertions
-Pass	#50 Test that a WebAssembly code returns a specific result
-Pass	#51 Test that WebAssembly instantiation succeeds
-Pass	#52 Run a WebAssembly test without special assertions
-Pass	#53 Test that WebAssembly instantiation succeeds
-Pass	#54 Run a WebAssembly test without special assertions
-Pass	#55 Test that WebAssembly instantiation succeeds
-Pass	#56 Run a WebAssembly test without special assertions
-Pass	#57 Test that a WebAssembly code returns a specific result
-Pass	#58 Test that WebAssembly instantiation succeeds
-Pass	#59 Run a WebAssembly test without special assertions
-Pass	#60 Test that WebAssembly instantiation succeeds
-Pass	#61 Run a WebAssembly test without special assertions
-Pass	#62 Test that WebAssembly instantiation succeeds
-Pass	#63 Run a WebAssembly test without special assertions
-Pass	#64 Test that WebAssembly instantiation succeeds
-Pass	#65 Run a WebAssembly test without special assertions
-Pass	#66 Test that WebAssembly instantiation succeeds
-Pass	#67 Run a WebAssembly test without special assertions
-Pass	#68 Test that WebAssembly instantiation succeeds
-Pass	#69 Run a WebAssembly test without special assertions
-Pass	#70 Test that WebAssembly instantiation succeeds
-Pass	#71 Run a WebAssembly test without special assertions
-Pass	#72 Test that WebAssembly instantiation succeeds
-Pass	#73 Run a WebAssembly test without special assertions
-Pass	#74 Test that WebAssembly instantiation succeeds
-Pass	#75 Run a WebAssembly test without special assertions
-Pass	#76 Test that WebAssembly instantiation succeeds
-Pass	#77 Run a WebAssembly test without special assertions
-Pass	#78 Test that WebAssembly instantiation succeeds
-Pass	#79 Run a WebAssembly test without special assertions
-Pass	#80 Test that WebAssembly instantiation succeeds
-Pass	#81 Test that a WebAssembly code traps
-Pass	#82 Test that WebAssembly instantiation succeeds
-Pass	#83 Test that a WebAssembly code traps
-Pass	#84 Test that WebAssembly instantiation succeeds
-Pass	#85 Test that a WebAssembly code traps
-Pass	#86 Test that WebAssembly instantiation succeeds
-Pass	#87 Test that a WebAssembly code traps
-Pass	#88 Test that WebAssembly instantiation succeeds
-Pass	#89 Test that a WebAssembly code traps
-Pass	#90 Test that WebAssembly instantiation succeeds
-Pass	#91 Run a WebAssembly test without special assertions
-Pass	#92 Test that WebAssembly instantiation succeeds
-Pass	#93 Run a WebAssembly test without special assertions
-Pass	#94 Test that WebAssembly instantiation succeeds
-Pass	#95 Run a WebAssembly test without special assertions
-Pass	#96 Test that WebAssembly instantiation succeeds
-Pass	#97 Run a WebAssembly test without special assertions
-Pass	#98 Test that WebAssembly instantiation succeeds
-Pass	#99 Test that a WebAssembly code traps
-Pass	#100 Test that WebAssembly instantiation succeeds
-Pass	#101 Test that a WebAssembly code traps
-Pass	#102 Test that a WebAssembly code returns a specific result
-Pass	#103 Test that a WebAssembly code returns a specific result
-Pass	#104 Test that a WebAssembly code returns a specific result
-Pass	#105 Test that a WebAssembly code returns a specific result
-Pass	#106 Test that a WebAssembly code traps
-Pass	#107 Test that a WebAssembly code traps
-Pass	#108 Test that WebAssembly instantiation succeeds
-Pass	#109 Run a WebAssembly test without special assertions
-Pass	#110 Test that WebAssembly instantiation succeeds
-Pass	#111 Run a WebAssembly test without special assertions
-Pass	#112 Test that WebAssembly instantiation succeeds
-Pass	#113 Run a WebAssembly test without special assertions
-Pass	#114 Test that WebAssembly instantiation succeeds
-Pass	#115 Run a WebAssembly test without special assertions
-Pass	#116 Test that WebAssembly instantiation succeeds
-Pass	#117 Test that a WebAssembly code traps
-Pass	#118 Test that WebAssembly instantiation succeeds
-Pass	#119 Test that a WebAssembly code traps
-Pass	#120 Test that WebAssembly instantiation succeeds
-Pass	#121 Run a WebAssembly test without special assertions
-Pass	#122 Test that WebAssembly instantiation succeeds
-Pass	#123 Run a WebAssembly test without special assertions
-Pass	#124 Test that WebAssembly instantiation succeeds
-Pass	#125 Run a WebAssembly test without special assertions
-Pass	#126 Test that WebAssembly instantiation succeeds
-Pass	#127 Run a WebAssembly test without special assertions
-Pass	#128 Test that WebAssembly instantiation succeeds
-Pass	#129 Test that a WebAssembly code traps
-Pass	#130 Test that WebAssembly instantiation succeeds
-Pass	#131 Test that a WebAssembly code traps
-Pass	#132 Test that WebAssembly instantiation succeeds
-Pass	#133 Run a WebAssembly test without special assertions
-Pass	#134 Test that WebAssembly instantiation succeeds
-Pass	#135 Run a WebAssembly test without special assertions
-Pass	#136 Test that WebAssembly instantiation succeeds
-Pass	#137 Run a WebAssembly test without special assertions
-Pass	#138 Test that WebAssembly instantiation succeeds
-Pass	#139 Run a WebAssembly test without special assertions
-Pass	#140 Test that a WebAssembly code returns a specific result
-Pass	#141 Test that a WebAssembly code returns a specific result
-Pass	#142 Test that a WebAssembly code returns a specific result
-Pass	#143 Test that a WebAssembly code returns a specific result
-Pass	#144 Test that WebAssembly instantiation succeeds
-Pass	#145 Run a WebAssembly test without special assertions
-Pass	#146 Test that WebAssembly instantiation succeeds
-Pass	#147 Run a WebAssembly test without special assertions
-Pass	#148 Test that WebAssembly instantiation succeeds
-Pass	#149 Run a WebAssembly test without special assertions
-Pass	#150 Test that WebAssembly instantiation succeeds
-Pass	#151 Run a WebAssembly test without special assertions
-Pass	#152 Test that WebAssembly instantiation succeeds
-Pass	#153 Run a WebAssembly test without special assertions
-Pass	#154 Test that WebAssembly instantiation succeeds
-Pass	#155 Run a WebAssembly test without special assertions
-Pass	#156 Test that WebAssembly instantiation succeeds
-Pass	#157 Run a WebAssembly test without special assertions
-Pass	#158 Test that WebAssembly instantiation succeeds
-Pass	#159 Run a WebAssembly test without special assertions
-Pass	#160 Test that WebAssembly instantiation succeeds
-Pass	#161 Run a WebAssembly test without special assertions
-Pass	#162 Test that WebAssembly instantiation succeeds
-Pass	#163 Run a WebAssembly test without special assertions
-Pass	#164 Test that WebAssembly instantiation succeeds
-Pass	#165 Run a WebAssembly test without special assertions
-Pass	#166 Test that WebAssembly instantiation succeeds
-Pass	#167 Run a WebAssembly test without special assertions
-Pass	#168 Test that WebAssembly instantiation succeeds
-Pass	#169 Run a WebAssembly test without special assertions
-Pass	#170 Test that a WebAssembly code returns a specific result
-Pass	#171 Test that a WebAssembly code returns a specific result
-Pass	#172 Test that a WebAssembly code returns a specific result
-Pass	#173 Test that a WebAssembly code returns a specific result
-Pass	#174 Test that a WebAssembly code returns a specific result
-Pass	#175 Test that WebAssembly instantiation succeeds
-Pass	#176 Run a WebAssembly test without special assertions
-Pass	#177 Test that WebAssembly instantiation succeeds
-Pass	#178 Run a WebAssembly test without special assertions
-Pass	#179 Test that WebAssembly instantiation succeeds
-Pass	#180 Run a WebAssembly test without special assertions
-Pass	#181 Test that WebAssembly instantiation succeeds
-Pass	#182 Run a WebAssembly test without special assertions
-Pass	#183 Test that WebAssembly instantiation succeeds
-Pass	#184 Run a WebAssembly test without special assertions
-Pass	#185 Test that WebAssembly instantiation succeeds
-Pass	#186 Run a WebAssembly test without special assertions
-Pass	#187 Test that WebAssembly instantiation succeeds
-Pass	#188 Run a WebAssembly test without special assertions
-Pass	#189 Test that WebAssembly instantiation succeeds
-Pass	#190 Run a WebAssembly test without special assertions
-Pass	#191 Test that WebAssembly instantiation succeeds
-Pass	#192 Run a WebAssembly test without special assertions
-Pass	#193 Test that WebAssembly instantiation succeeds
-Pass	#194 Run a WebAssembly test without special assertions
-Pass	#195 Test that a WebAssembly code returns a specific result
-Pass	#196 Test that a WebAssembly code returns a specific result
-Pass	#197 Test that a WebAssembly code returns a specific result
-Pass	#198 Test that a WebAssembly code returns a specific result
-Pass	#199 Test that a WebAssembly code returns a specific result
-Pass	#200 Test that a WebAssembly code returns a specific result
-Pass	#201 Test that a WebAssembly code returns a specific result
-Pass	#202 Test that a WebAssembly code returns a specific result
-Pass	#203 Test that a WebAssembly code exhauts the stack space
-Pass	#204 Test that a WebAssembly code exhauts the stack space
-Pass	#205 Test that a WebAssembly code returns a specific result
-Pass	#206 Test that a WebAssembly code returns a specific result
-Pass	#207 Test that a WebAssembly code returns a specific result
-Pass	#208 Test that a WebAssembly code returns a specific result
-Pass	#209 Test that WebAssembly instantiation succeeds
-Pass	#210 Run a WebAssembly test without special assertions
-Pass	#211 Test that a WebAssembly code returns a specific result
-Pass	#212 Test that WebAssembly instantiation succeeds
-Pass	#213 Run a WebAssembly test without special assertions
-Pass	#214 Test that a WebAssembly code returns a specific result
-Pass	#215 Test that a WebAssembly code returns a specific result
-Pass	#216 Test that a WebAssembly code returns a specific result
-Pass	#217 Test that a WebAssembly code returns a specific result
-Pass	#218 Test that a WebAssembly code returns a specific result
-Pass	#219 Test that a WebAssembly code returns a specific result
-Pass	#220 Test that WebAssembly instantiation succeeds
-Pass	#221 Run a WebAssembly test without special assertions
-Pass	#222 Test that WebAssembly instantiation succeeds
-Pass	#223 Run a WebAssembly test without special assertions
-Pass	#224 Test that WebAssembly instantiation succeeds
-Pass	#225 Run a WebAssembly test without special assertions
-Pass	#226 Test that WebAssembly instantiation succeeds
-Pass	#227 Run a WebAssembly test without special assertions
-Pass	#228 Test that a WebAssembly code returns a specific result
-Pass	#229 Test that WebAssembly instantiation succeeds
-Pass	#230 Run a WebAssembly test without special assertions
-Pass	#231 Test that a WebAssembly code returns a specific result
-Pass	#232 Test that a WebAssembly code returns a specific result
-Pass	#233 Test that a WebAssembly code returns a specific result
-Pass	#234 Test that a WebAssembly code returns a specific result
-Pass	#235 Test that a WebAssembly code returns a specific result
-Pass	#236 Test that WebAssembly instantiation succeeds
-Pass	#237 Run a WebAssembly test without special assertions
-Pass	#238 Test that WebAssembly instantiation succeeds
-Pass	#239 Test that a WebAssembly code returns a specific result
-Pass	#240 Test that a WebAssembly code returns a specific result
-Pass	#241 Test that a WebAssembly code traps
-Pass	#242 Test that a WebAssembly code returns a specific result
-Pass	#243 Test that a WebAssembly code returns a specific result
-Pass	#244 Test that a WebAssembly code returns a specific result
-Pass	#245 Test that a WebAssembly code traps
-Pass	#246 Test that a WebAssembly code returns a specific result
-Pass	#247 Test that a WebAssembly code returns a specific result
-Pass	#248 Test that a WebAssembly code traps
-Pass	#249 Test that a WebAssembly code traps
-Pass	#250 Test that a WebAssembly code traps
-Pass	#251 Test that WebAssembly compilation fails
-Pass	#252 Test that WebAssembly compilation fails
-Pass	#253 Test that WebAssembly compilation fails
-Pass	#254 Test that WebAssembly compilation fails
-Pass	#255 Test that WebAssembly compilation fails
-Pass	#256 Test that WebAssembly compilation fails
-Pass	#257 Test that WebAssembly compilation fails
-Pass	#258 Test that WebAssembly compilation fails
-Pass	#259 Test that WebAssembly compilation fails
-Pass	#260 Test that WebAssembly compilation fails
-Pass	#261 Test that WebAssembly compilation fails
-Pass	#262 Test that WebAssembly compilation fails
-Pass	#263 Test that WebAssembly compilation fails
-Pass	#264 Test that WebAssembly compilation fails
-Pass	#265 Test that WebAssembly compilation fails
-Pass	#266 Test that WebAssembly compilation fails
-Pass	#267 Test that WebAssembly compilation fails
-Pass	#268 Test that WebAssembly compilation fails
-Pass	#269 Test that WebAssembly compilation fails
-Pass	#270 Test that WebAssembly compilation fails
-Pass	#271 Test that WebAssembly compilation fails
-Pass	#272 Test that WebAssembly compilation fails
-Pass	#273 Test that WebAssembly compilation fails
-Pass	#274 Test that WebAssembly compilation fails
-Pass	#275 Test that WebAssembly compilation fails
-Pass	#276 Test that WebAssembly compilation fails
-Pass	#277 Test that WebAssembly compilation fails
-Pass	#278 Test that WebAssembly compilation fails
-Pass	#279 Test that WebAssembly compilation fails
-Pass	#280 Test that WebAssembly compilation fails
-Pass	#281 Test that WebAssembly compilation fails
-Pass	#282 Test that WebAssembly compilation fails
-Pass	#283 Test that WebAssembly compilation fails
-Pass	#284 Test that WebAssembly compilation fails
-Pass	#285 Test that WebAssembly compilation fails
-Pass	#286 Test that WebAssembly instantiation succeeds
+Pass	#2 Test that WebAssembly compilation succeeds (call_indirect.wast:3)
+Pass	#3 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#4 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#5 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#6 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#7 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#8 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#9 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#10 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#11 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#12 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#13 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#14 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#15 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#16 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#17 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#18 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#19 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#20 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#21 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#22 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#23 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#24 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#25 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#26 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#27 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#28 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#29 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#30 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#31 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#32 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#33 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#34 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#35 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#36 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#37 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#38 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#39 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#40 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#41 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#42 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#43 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#44 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#45 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#46 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#47 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#48 Test that WebAssembly compilation succeeds (call_indirect.wast:623)
+Pass	#49 Test that WebAssembly compilation fails (call_indirect.wast:668)
+Pass	#50 Test that WebAssembly compilation fails (call_indirect.wast:680)
+Pass	#51 Test that WebAssembly compilation fails (call_indirect.wast:692)
+Pass	#52 Test that WebAssembly compilation fails (call_indirect.wast:704)
+Pass	#53 Test that WebAssembly compilation fails (call_indirect.wast:716)
+Pass	#54 Test that WebAssembly compilation fails (call_indirect.wast:728)
+Pass	#55 Test that WebAssembly compilation fails (call_indirect.wast:738)
+Pass	#56 Test that WebAssembly compilation fails (call_indirect.wast:745)
+Pass	#57 Test that WebAssembly compilation fails (call_indirect.wast:755)
+Pass	#58 Test that WebAssembly compilation fails (call_indirect.wast:765)
+Pass	#59 Test that WebAssembly compilation fails (call_indirect.wast:775)
+Pass	#60 Test that WebAssembly compilation fails (call_indirect.wast:790)
+Pass	#61 Test that WebAssembly compilation fails (call_indirect.wast:798)
+Pass	#62 Test that WebAssembly compilation fails (call_indirect.wast:806)
+Pass	#63 Test that WebAssembly compilation fails (call_indirect.wast:815)
+Pass	#64 Test that WebAssembly compilation fails (call_indirect.wast:823)
+Pass	#65 Test that WebAssembly compilation fails (call_indirect.wast:831)
+Pass	#66 Test that WebAssembly compilation fails (call_indirect.wast:839)
+Pass	#67 Test that WebAssembly compilation fails (call_indirect.wast:850)
+Pass	#68 Test that WebAssembly compilation fails (call_indirect.wast:858)
+Pass	#69 Test that WebAssembly compilation fails (call_indirect.wast:867)
+Pass	#70 Test that WebAssembly compilation fails (call_indirect.wast:877)
+Pass	#71 Test that WebAssembly compilation fails (call_indirect.wast:887)
+Pass	#72 Test that WebAssembly compilation fails (call_indirect.wast:897)
+Pass	#73 Test that WebAssembly compilation fails (call_indirect.wast:908)
+Pass	#74 Test that WebAssembly compilation fails (call_indirect.wast:921)
+Pass	#75 Test that WebAssembly compilation fails (call_indirect.wast:934)
+Pass	#76 Test that WebAssembly compilation fails (call_indirect.wast:947)
+Pass	#77 Test that WebAssembly compilation fails (call_indirect.wast:960)
+Pass	#78 Test that WebAssembly compilation fails (call_indirect.wast:976)
+Pass	#79 Test that WebAssembly compilation fails (call_indirect.wast:994)
+Pass	#80 Test that WebAssembly compilation fails (call_indirect.wast:1005)
+Pass	#81 Test that WebAssembly compilation fails (call_indirect.wast:1012)
+Pass	#82 Test that WebAssembly compilation fails (call_indirect.wast:1021)
+Pass	#83 Test that WebAssembly compilation fails (call_indirect.wast:1037)
+Pass	#84 Test that WebAssembly compilation succeeds (call_indirect.wast:1047)
+Pass	#85 Reinitialize the default imports
+Pass	#86 Test that WebAssembly compilation succeeds (call_indirect.wast:3)
+Pass	#87 Test that WebAssembly instantiation succeeds (call_indirect.wast:3)
+Pass	#88 Test that a WebAssembly code returns a specific result (call_indirect.wast:471)
+Pass	#89 Test that a WebAssembly code returns a specific result (call_indirect.wast:472)
+Pass	#90 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#91 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#92 Run a WebAssembly test without special assertions (call_indirect.wast:473)
+Pass	#93 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#94 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#95 Run a WebAssembly test without special assertions (call_indirect.wast:474)
+Pass	#96 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#97 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#98 Run a WebAssembly test without special assertions (call_indirect.wast:475)
+Pass	#99 Test that a WebAssembly code returns a specific result (call_indirect.wast:477)
+Pass	#100 Test that a WebAssembly code returns a specific result (call_indirect.wast:479)
+Pass	#101 Test that a WebAssembly code returns a specific result (call_indirect.wast:480)
+Pass	#102 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#103 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#104 Run a WebAssembly test without special assertions (call_indirect.wast:481)
+Pass	#105 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#106 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#107 Run a WebAssembly test without special assertions (call_indirect.wast:482)
+Pass	#108 Test that a WebAssembly code returns a specific result (call_indirect.wast:484)
+Pass	#109 Test that a WebAssembly code returns a specific result (call_indirect.wast:485)
+Pass	#110 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#111 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#112 Run a WebAssembly test without special assertions (call_indirect.wast:486)
+Pass	#113 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#114 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#115 Run a WebAssembly test without special assertions (call_indirect.wast:487)
+Pass	#116 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#117 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#118 Run a WebAssembly test without special assertions (call_indirect.wast:489)
+Pass	#119 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#120 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#121 Run a WebAssembly test without special assertions (call_indirect.wast:490)
+Fail	#122 Test that a WebAssembly code returns a specific result (call_indirect.wast:491)
+Pass	#123 Test that a WebAssembly code returns a specific result (call_indirect.wast:493)
+Pass	#124 Test that a WebAssembly code returns a specific result (call_indirect.wast:494)
+Pass	#125 Test that a WebAssembly code returns a specific result (call_indirect.wast:495)
+Pass	#126 Test that a WebAssembly code returns a specific result (call_indirect.wast:496)
+Pass	#127 Test that a WebAssembly code returns a specific result (call_indirect.wast:497)
+Pass	#128 Test that a WebAssembly code traps (call_indirect.wast:498)
+Pass	#129 Test that a WebAssembly code traps (call_indirect.wast:499)
+Pass	#130 Test that a WebAssembly code traps (call_indirect.wast:500)
+Pass	#131 Test that a WebAssembly code traps (call_indirect.wast:501)
+Pass	#132 Test that a WebAssembly code traps (call_indirect.wast:502)
+Pass	#133 Test that a WebAssembly code returns a specific result (call_indirect.wast:504)
+Pass	#134 Test that a WebAssembly code returns a specific result (call_indirect.wast:505)
+Pass	#135 Test that a WebAssembly code returns a specific result (call_indirect.wast:506)
+Pass	#136 Test that a WebAssembly code returns a specific result (call_indirect.wast:507)
+Pass	#137 Test that a WebAssembly code traps (call_indirect.wast:508)
+Pass	#138 Test that a WebAssembly code traps (call_indirect.wast:509)
+Pass	#139 Test that a WebAssembly code returns a specific result (call_indirect.wast:511)
+Pass	#140 Test that a WebAssembly code returns a specific result (call_indirect.wast:512)
+Pass	#141 Test that a WebAssembly code returns a specific result (call_indirect.wast:513)
+Pass	#142 Test that a WebAssembly code returns a specific result (call_indirect.wast:514)
+Pass	#143 Test that a WebAssembly code traps (call_indirect.wast:515)
+Pass	#144 Test that a WebAssembly code traps (call_indirect.wast:516)
+Pass	#145 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#146 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#147 Run a WebAssembly test without special assertions (call_indirect.wast:518)
+Pass	#148 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#149 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#150 Run a WebAssembly test without special assertions (call_indirect.wast:519)
+Pass	#151 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#152 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#153 Run a WebAssembly test without special assertions (call_indirect.wast:520)
+Pass	#154 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#155 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#156 Run a WebAssembly test without special assertions (call_indirect.wast:521)
+Pass	#157 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#158 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#159 Test that a WebAssembly code traps (call_indirect.wast:522)
+Pass	#160 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#161 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#162 Test that a WebAssembly code traps (call_indirect.wast:523)
+Pass	#163 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#164 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#165 Run a WebAssembly test without special assertions (call_indirect.wast:525)
+Pass	#166 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#167 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#168 Run a WebAssembly test without special assertions (call_indirect.wast:526)
+Pass	#169 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#170 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#171 Run a WebAssembly test without special assertions (call_indirect.wast:527)
+Pass	#172 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#173 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#174 Run a WebAssembly test without special assertions (call_indirect.wast:528)
+Pass	#175 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#176 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#177 Test that a WebAssembly code traps (call_indirect.wast:529)
+Pass	#178 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#179 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#180 Test that a WebAssembly code traps (call_indirect.wast:530)
+Pass	#181 Test that a WebAssembly code returns a specific result (call_indirect.wast:532)
+Pass	#182 Test that a WebAssembly code returns a specific result (call_indirect.wast:533)
+Pass	#183 Test that a WebAssembly code returns a specific result (call_indirect.wast:534)
+Pass	#184 Test that a WebAssembly code returns a specific result (call_indirect.wast:535)
+Pass	#185 Test that a WebAssembly code returns a specific result (call_indirect.wast:537)
+Pass	#186 Test that a WebAssembly code returns a specific result (call_indirect.wast:538)
+Pass	#187 Test that a WebAssembly code returns a specific result (call_indirect.wast:539)
+Pass	#188 Test that a WebAssembly code returns a specific result (call_indirect.wast:540)
+Pass	#189 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#190 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#191 Run a WebAssembly test without special assertions (call_indirect.wast:542)
+Pass	#192 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#193 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#194 Run a WebAssembly test without special assertions (call_indirect.wast:543)
+Pass	#195 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#196 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#197 Run a WebAssembly test without special assertions (call_indirect.wast:544)
+Pass	#198 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#199 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#200 Run a WebAssembly test without special assertions (call_indirect.wast:545)
+Pass	#201 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#202 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#203 Run a WebAssembly test without special assertions (call_indirect.wast:547)
+Pass	#204 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#205 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#206 Run a WebAssembly test without special assertions (call_indirect.wast:548)
+Pass	#207 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#208 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#209 Run a WebAssembly test without special assertions (call_indirect.wast:549)
+Pass	#210 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#211 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#212 Run a WebAssembly test without special assertions (call_indirect.wast:550)
+Pass	#213 Test that a WebAssembly code returns a specific result (call_indirect.wast:552)
+Pass	#214 Test that a WebAssembly code returns a specific result (call_indirect.wast:553)
+Pass	#215 Test that a WebAssembly code returns a specific result (call_indirect.wast:554)
+Pass	#216 Test that a WebAssembly code returns a specific result (call_indirect.wast:555)
+Pass	#217 Test that a WebAssembly code returns a specific result (call_indirect.wast:556)
+Pass	#218 Test that a WebAssembly code returns a specific result (call_indirect.wast:558)
+Pass	#219 Test that a WebAssembly code returns a specific result (call_indirect.wast:559)
+Pass	#220 Test that a WebAssembly code returns a specific result (call_indirect.wast:560)
+Pass	#221 Test that a WebAssembly code returns a specific result (call_indirect.wast:561)
+Pass	#222 Test that a WebAssembly code returns a specific result (call_indirect.wast:562)
+Pass	#223 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#224 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#225 Run a WebAssembly test without special assertions (call_indirect.wast:564)
+Pass	#226 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#227 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#228 Run a WebAssembly test without special assertions (call_indirect.wast:565)
+Pass	#229 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#230 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#231 Run a WebAssembly test without special assertions (call_indirect.wast:566)
+Pass	#232 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#233 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#234 Run a WebAssembly test without special assertions (call_indirect.wast:567)
+Pass	#235 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#236 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#237 Run a WebAssembly test without special assertions (call_indirect.wast:568)
+Pass	#238 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#239 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#240 Run a WebAssembly test without special assertions (call_indirect.wast:570)
+Pass	#241 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#242 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#243 Run a WebAssembly test without special assertions (call_indirect.wast:571)
+Pass	#244 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#245 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#246 Run a WebAssembly test without special assertions (call_indirect.wast:572)
+Pass	#247 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#248 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#249 Run a WebAssembly test without special assertions (call_indirect.wast:573)
+Pass	#250 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#251 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#252 Run a WebAssembly test without special assertions (call_indirect.wast:574)
+Pass	#253 Test that a WebAssembly code returns a specific result (call_indirect.wast:576)
+Pass	#254 Test that a WebAssembly code returns a specific result (call_indirect.wast:577)
+Pass	#255 Test that a WebAssembly code returns a specific result (call_indirect.wast:578)
+Pass	#256 Test that a WebAssembly code returns a specific result (call_indirect.wast:579)
+Pass	#257 Test that a WebAssembly code returns a specific result (call_indirect.wast:580)
+Pass	#258 Test that a WebAssembly code returns a specific result (call_indirect.wast:581)
+Pass	#259 Test that a WebAssembly code returns a specific result (call_indirect.wast:582)
+Pass	#260 Test that a WebAssembly code returns a specific result (call_indirect.wast:583)
+Pass	#261 Test that a WebAssembly code exhausts the stack space
+Pass	#262 Test that a WebAssembly code exhausts the stack space
+Pass	#263 Test that a WebAssembly code returns a specific result (call_indirect.wast:588)
+Pass	#264 Test that a WebAssembly code returns a specific result (call_indirect.wast:589)
+Pass	#265 Test that a WebAssembly code returns a specific result (call_indirect.wast:590)
+Pass	#266 Test that a WebAssembly code returns a specific result (call_indirect.wast:592)
+Pass	#267 Test that a WebAssembly code returns a specific result (call_indirect.wast:594)
+Pass	#268 Test that a WebAssembly code returns a specific result (call_indirect.wast:595)
+Pass	#269 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#270 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#271 Run a WebAssembly test without special assertions (call_indirect.wast:597)
+Pass	#272 Test that a WebAssembly code returns a specific result (call_indirect.wast:598)
+Pass	#273 Test that a WebAssembly code returns a specific result (call_indirect.wast:600)
+Pass	#274 Test that a WebAssembly code returns a specific result (call_indirect.wast:601)
+Pass	#275 Test that a WebAssembly code returns a specific result (call_indirect.wast:603)
+Pass	#276 Test that a WebAssembly code returns a specific result (call_indirect.wast:604)
+Pass	#277 Test that a WebAssembly code returns a specific result (call_indirect.wast:605)
+Pass	#278 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#279 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#280 Run a WebAssembly test without special assertions (call_indirect.wast:606)
+Pass	#281 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#282 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#283 Run a WebAssembly test without special assertions (call_indirect.wast:607)
+Pass	#284 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#285 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#286 Run a WebAssembly test without special assertions (call_indirect.wast:608)
+Pass	#287 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#288 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#289 Run a WebAssembly test without special assertions (call_indirect.wast:609)
+Pass	#290 Test that a WebAssembly code returns a specific result (call_indirect.wast:610)
+Pass	#291 Test that WebAssembly compilation succeeds (wrapper)
+Pass	#292 Test that WebAssembly instantiation succeeds (wrapper)
+Pass	#293 Run a WebAssembly test without special assertions (call_indirect.wast:612)
+Pass	#294 Test that a WebAssembly code returns a specific result (call_indirect.wast:613)
+Pass	#295 Test that a WebAssembly code returns a specific result (call_indirect.wast:614)
+Pass	#296 Test that a WebAssembly code returns a specific result (call_indirect.wast:615)
+Pass	#297 Test that a WebAssembly code returns a specific result (call_indirect.wast:616)
+Pass	#298 Test that a WebAssembly code returns a specific result (call_indirect.wast:617)
+Pass	#299 Test that a WebAssembly code returns a specific result (call_indirect.wast:618)
+Pass	#300 Test that WebAssembly compilation succeeds (call_indirect.wast:623)
+Pass	#301 Test that WebAssembly instantiation succeeds (call_indirect.wast:623)
+Pass	#302 Test that a WebAssembly code returns a specific result (call_indirect.wast:650)
+Pass	#303 Test that a WebAssembly code returns a specific result (call_indirect.wast:651)
+Pass	#304 Test that a WebAssembly code traps (call_indirect.wast:652)
+Pass	#305 Test that a WebAssembly code returns a specific result (call_indirect.wast:654)
+Pass	#306 Test that a WebAssembly code returns a specific result (call_indirect.wast:655)
+Pass	#307 Test that a WebAssembly code returns a specific result (call_indirect.wast:656)
+Pass	#308 Test that a WebAssembly code traps (call_indirect.wast:657)
+Pass	#309 Test that a WebAssembly code returns a specific result (call_indirect.wast:659)
+Pass	#310 Test that a WebAssembly code returns a specific result (call_indirect.wast:660)
+Pass	#311 Test that a WebAssembly code traps (call_indirect.wast:661)
+Pass	#312 Test that a WebAssembly code traps (call_indirect.wast:662)
+Pass	#313 Test that a WebAssembly code traps (call_indirect.wast:663)
+Pass	#314 Test that WebAssembly compilation fails (call_indirect.wast:668)
+Pass	#315 Test that WebAssembly compilation fails (call_indirect.wast:680)
+Pass	#316 Test that WebAssembly compilation fails (call_indirect.wast:692)
+Pass	#317 Test that WebAssembly compilation fails (call_indirect.wast:704)
+Pass	#318 Test that WebAssembly compilation fails (call_indirect.wast:716)
+Pass	#319 Test that WebAssembly compilation fails (call_indirect.wast:728)
+Pass	#320 Test that WebAssembly compilation fails (call_indirect.wast:738)
+Pass	#321 Test that WebAssembly compilation fails (call_indirect.wast:745)
+Pass	#322 Test that WebAssembly compilation fails (call_indirect.wast:755)
+Pass	#323 Test that WebAssembly compilation fails (call_indirect.wast:765)
+Pass	#324 Test that WebAssembly compilation fails (call_indirect.wast:775)
+Pass	#325 Test that WebAssembly compilation fails (call_indirect.wast:790)
+Pass	#326 Test that WebAssembly compilation fails (call_indirect.wast:798)
+Pass	#327 Test that WebAssembly compilation fails (call_indirect.wast:806)
+Pass	#328 Test that WebAssembly compilation fails (call_indirect.wast:815)
+Pass	#329 Test that WebAssembly compilation fails (call_indirect.wast:823)
+Pass	#330 Test that WebAssembly compilation fails (call_indirect.wast:831)
+Pass	#331 Test that WebAssembly compilation fails (call_indirect.wast:839)
+Pass	#332 Test that WebAssembly compilation fails (call_indirect.wast:850)
+Pass	#333 Test that WebAssembly compilation fails (call_indirect.wast:858)
+Pass	#334 Test that WebAssembly compilation fails (call_indirect.wast:867)
+Pass	#335 Test that WebAssembly compilation fails (call_indirect.wast:877)
+Pass	#336 Test that WebAssembly compilation fails (call_indirect.wast:887)
+Pass	#337 Test that WebAssembly compilation fails (call_indirect.wast:897)
+Pass	#338 Test that WebAssembly compilation fails (call_indirect.wast:908)
+Pass	#339 Test that WebAssembly compilation fails (call_indirect.wast:921)
+Pass	#340 Test that WebAssembly compilation fails (call_indirect.wast:934)
+Pass	#341 Test that WebAssembly compilation fails (call_indirect.wast:947)
+Pass	#342 Test that WebAssembly compilation fails (call_indirect.wast:960)
+Pass	#343 Test that WebAssembly compilation fails (call_indirect.wast:976)
+Pass	#344 Test that WebAssembly compilation fails (call_indirect.wast:994)
+Pass	#345 Test that WebAssembly compilation fails (call_indirect.wast:1005)
+Pass	#346 Test that WebAssembly compilation fails (call_indirect.wast:1012)
+Pass	#347 Test that WebAssembly compilation fails (call_indirect.wast:1021)
+Pass	#348 Test that WebAssembly compilation fails (call_indirect.wast:1037)
+Pass	#349 Test that WebAssembly compilation succeeds (call_indirect.wast:1047)
+Pass	#350 Test that WebAssembly instantiation succeeds (call_indirect.wast:1047)
