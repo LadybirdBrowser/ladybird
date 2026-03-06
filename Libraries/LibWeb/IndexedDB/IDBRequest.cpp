@@ -53,6 +53,13 @@ void IDBRequest::visit_edges(Visitor& visitor)
     visitor.visit(m_error);
 }
 
+DOM::EventTarget* IDBRequest::get_parent(DOM::Event const&)
+{
+    // https://w3c.github.io/IndexedDB/#request-construct
+    // A request’s get the parent algorithm returns the request’s transaction.
+    return m_transaction.ptr();
+}
+
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-onsuccess
 void IDBRequest::set_onsuccess(WebIDL::CallbackType* event_handler)
 {

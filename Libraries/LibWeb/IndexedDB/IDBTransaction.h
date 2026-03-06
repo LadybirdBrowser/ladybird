@@ -112,6 +112,7 @@ protected:
     explicit IDBTransaction(JS::Realm&, GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
+    virtual EventTarget* get_parent(DOM::Event const&) override;
 
 private:
     // AD-HOC: The transaction has a connection
