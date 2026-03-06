@@ -25,6 +25,7 @@
 #include <unicode/uversion.h>
 
 U_NAMESPACE_BEGIN
+class Calendar;
 class DateTimePatternGenerator;
 class LocaleDisplayNames;
 class NumberingSystem;
@@ -66,6 +67,20 @@ private:
     OwnPtr<icu::DateTimePatternGenerator> m_date_time_pattern_generator;
     OwnPtr<icu::TimeZoneNames> m_time_zone_names;
     Optional<DigitalFormat> m_digital_format;
+};
+
+class CalendarData {
+public:
+    static Optional<CalendarData&> for_calendar(String const& calendar);
+
+    static void adjust_time_range_for_proleptic_calendar(icu::Calendar&);
+
+    ALWAYS_INLINE icu::Calendar& calendar() { return *m_calendar; }
+
+private:
+    explicit CalendarData(NonnullOwnPtr<icu::Calendar>);
+
+    NonnullOwnPtr<icu::Calendar> m_calendar;
 };
 
 class TimeZoneData {
