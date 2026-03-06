@@ -313,11 +313,9 @@ JS_ENUMERATE_TEMPORAL_OBJECTS
 class Now;
 class Temporal;
 
-struct CalendarDate;
 struct CalendarFields;
 struct DateDuration;
 struct InternalDuration;
-struct ISODate;
 struct ISODateTime;
 struct ISOYearMonth;
 struct ParseResult;

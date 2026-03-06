@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,9 +14,11 @@ namespace Unicode {
 class NumberFormat;
 class Segmenter;
 
+struct CalendarDate;
 struct CalendarPattern;
 struct CurrencyCode;
 struct Emoji;
+struct ISODate;
 struct Keyword;
 struct LanguageID;
 struct ListFormatPart;

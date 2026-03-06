@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,15 +11,12 @@
 #include <AK/Types.h>
 #include <AK/Variant.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibUnicode/Calendar.h>
 
 namespace JS::Temporal {
 
 // 3.5.1 ISO Date Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-records
-struct ISODate {
-    i32 year { 0 };
-    u8 month { 0 };
-    u8 day { 0 };
-};
+using ISODate = Unicode::ISODate;
 
 // 4.5.1 Time Records, https://tc39.es/proposal-temporal/#sec-temporal-time-records
 struct Time {
