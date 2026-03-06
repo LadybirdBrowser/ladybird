@@ -119,8 +119,11 @@ static ParseResult<ValueType> parse_reference_type(Stream& stream, u8 tag)
         return ValueType(ValueType::UnsupportedHeapReference);
     case Constants::nullable_reference_tag_tag:
     case Constants::non_nullable_reference_tag_tag: {
+        bool nullable = (tag == Constants::nullable_reference_tag_tag);
         tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
-        return parse_reference_type(stream, tag);
+        auto type = TRY(parse_reference_type(stream, tag));
+        type.set_nullable(nullable);
+        return type;
     }
     default: {
         ReconsumableStream new_stream { stream };
