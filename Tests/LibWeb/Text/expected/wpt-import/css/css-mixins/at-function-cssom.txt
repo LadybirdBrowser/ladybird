@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 34 tests
+
+34 Fail
+Fail	Empty CSSFunctionRule
+Fail	Single CSSFunctionDeclarations
+Fail	CSSFunctionDescriptors (result)
+Fail	CSSFunctionDescriptors (result, repeated)
+Fail	CSSFunctionDescriptors (local variables)
+Fail	CSSFunctionDescriptors (local variables, repeated)
+Fail	CSSFunctionDescriptors (local variables and result)
+Fail	CSSFunctionDescriptors serialization
+Fail	Unknown descriptors
+Fail	Unknown descriptors (mutation)
+Fail	item()
+Fail	Indexed property getter
+Fail	@supports in body
+Fail	CSSFunctionRule.name
+Fail	CSSFunctionRule.getParameters()
+Fail	CSSFunctionRule.returnType
+Fail	CSSFunctionRule escapes
+Fail	CSSFunctionRule.cssText (--empty)
+Fail	CSSFunctionRule.cssText (--ret-length)
+Fail	CSSFunctionRule.cssText (--ret-length-auto)
+Fail	CSSFunctionRule.cssText (--param-single)
+Fail	CSSFunctionRule.cssText (--param-typed)
+Fail	CSSFunctionRule.cssText (--param-typed-default)
+Fail	CSSFunctionRule.cssText (--param-default)
+Fail	CSSFunctionRule.cssText (--param-multi)
+Fail	CSSFunctionRule.cssText (--param-multi-mixed)
+Fail	CSSFunctionRule.cssText (--body-result)
+Fail	CSSFunctionRule.cssText (--body-locals)
+Fail	CSSFunctionRule.cssText (--param-type-fn)
+Fail	CSSFunctionRule.cssText (--param-type-fn-uni)
+Fail	CSSFunctionRule.cssText (--ret-type-fn)
+Fail	CSSFunctionRule.cssText (--ret-type-fn-uni)
+Fail	CSSFunctionRule.cssText (--body-result-multi)
+Fail	CSSFunctionRule.cssText (--escaped-)

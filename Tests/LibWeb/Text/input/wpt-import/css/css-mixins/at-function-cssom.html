@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<title>CSS Custom Functions: CSSOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#cssom">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {}
+  `);
+  assert_equals(sheet.cssRules.length, 1);
+  let functionRule = sheet.cssRules[0];
+  assert_true(functionRule instanceof CSSFunctionRule);
+  assert_equals(functionRule.cssRules.length, 0);
+}, 'Empty CSSFunctionRule');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      result: 100px;
+    }
+  `);
+  assert_equals(sheet.cssRules.length, 1);
+  let functionRule = sheet.cssRules[0];
+  assert_true(functionRule instanceof CSSFunctionRule);
+  assert_equals(functionRule.cssRules.length, 1);
+  let declarationsRule = functionRule.cssRules[0];
+  assert_true(declarationsRule instanceof CSSFunctionDeclarations);
+  let descriptors = declarationsRule.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+}, 'Single CSSFunctionDeclarations');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      result: 100px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.result, '100px');
+}, 'CSSFunctionDescriptors (result)');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      result: 100px;
+      result: 101px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.result, '101px');
+}, 'CSSFunctionDescriptors (result, repeated)');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      --x: 1px;
+      --y: 2px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.getPropertyValue('--x'), '1px');
+  assert_equals(descriptors.getPropertyValue('--y'), '2px');
+  assert_equals(descriptors.getPropertyValue('--unknown'), '');
+  assert_equals(descriptors.result, '');
+}, 'CSSFunctionDescriptors (local variables)');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      --x: 1px;
+      --y: 2px;
+      --x: 3px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.getPropertyValue('--x'), '3px');
+  assert_equals(descriptors.getPropertyValue('--y'), '2px');
+  assert_equals(descriptors.getPropertyValue('--unknown'), '');
+  assert_equals(descriptors.result, '');
+}, 'CSSFunctionDescriptors (local variables, repeated)');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      --x: 1px;
+      --y: 2px;
+      result: 3px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.getPropertyValue('--x'), '1px');
+  assert_equals(descriptors.getPropertyValue('--y'), '2px');
+  assert_equals(descriptors.getPropertyValue('--unknown'), '');
+  assert_equals(descriptors.result, '3px');
+}, 'CSSFunctionDescriptors (local variables and result)');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      --x: 1px;
+      --y: 2px;
+      result: 3px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.cssText, '--x: 1px; --y: 2px; result: 3px;');
+}, 'CSSFunctionDescriptors serialization');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      --x: 1px;
+      syntax: "<length>";
+      --y: 2px;
+      color: red;
+      unknown: unknown;
+      result: 3px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.length, 3);
+  assert_equals(descriptors.cssText, '--x: 1px; --y: 2px; result: 3px;');
+}, 'Unknown descriptors');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      --x: 1px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.length, 1);
+  descriptors.cssText = '--x: 1px; color: red; result: 3px; --y: 2px;';
+  assert_equals(descriptors.length, 3);
+  assert_equals(descriptors.cssText, '--x: 1px; result: 3px; --y: 2px;');
+}, 'Unknown descriptors (mutation)');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+     --x: 1px;
+     result: 2px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.length, 2);
+  assert_equals(descriptors.item(0), '--x');
+  assert_equals(descriptors.item(1), 'result');
+}, 'item()');
+
+// https://webidl.spec.whatwg.org/#dfn-indexed-property-getter
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+     --x: 1px;
+     result: 2px;
+    }
+  `);
+  let descriptors = sheet.cssRules[0]?.cssRules[0]?.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_array_equals(Array.from(descriptors), ['--x', 'result']);;
+}, 'Indexed property getter');
+
+// Conditional rules
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {
+      @supports (width: 100px) {
+        result: 100px;
+      }
+      result: 200px;
+    }
+  `);
+  assert_equals(sheet.cssRules.length, 1);
+  let functionRule = sheet.cssRules[0];
+  assert_true(functionRule instanceof CSSFunctionRule);
+  assert_equals(functionRule.cssRules.length, 2);
+  let supportsRule = functionRule.cssRules[0];
+  assert_true(supportsRule instanceof CSSSupportsRule);
+  assert_true(supportsRule.cssRules[0] instanceof CSSFunctionDeclarations);
+  assert_equals(supportsRule.cssRules[0].style?.result, '100px');
+
+  let declarationsRule = functionRule.cssRules[1];
+  assert_true(declarationsRule instanceof CSSFunctionDeclarations);
+  let descriptors = declarationsRule.style;
+  assert_true(descriptors instanceof CSSFunctionDescriptors);
+  assert_equals(descriptors.result, '200px');
+}, '@supports in body');
+
+// CSSFunctionRule
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --foo() {}
+  `);
+  assert_equals(sheet.cssRules.length, 1);
+  let functionRule = sheet.cssRules[0];
+  assert_true(functionRule instanceof CSSFunctionRule);
+  assert_equals(functionRule.name, '--foo');
+}, 'CSSFunctionRule.name');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --f0() {}
+    @function --f1(--x) {}
+    @function --f2(--x <length>) {}
+    @function --f3(--x: 10px) {}
+    @function --f4(--x <length>: 10px) {}
+    @function --f5(--x type(<length> | auto): 10px, --y, --z: red) {}
+  `);
+  assert_equals(sheet.cssRules.length, 6);
+  assert_object_equals(sheet.cssRules[0].getParameters(), []);
+  assert_object_equals(sheet.cssRules[1].getParameters(), [
+    {name: '--x', type: '*'},
+  ]);
+  assert_object_equals(sheet.cssRules[2].getParameters(), [
+    {name: '--x', type: '<length>'},
+  ]);
+  assert_object_equals(sheet.cssRules[3].getParameters(), [
+    {name: '--x', type: '*', defaultValue: '10px'},
+  ]);
+  assert_object_equals(sheet.cssRules[4].getParameters(), [
+    {name: '--x', type: '<length>', defaultValue: '10px'},
+  ]);
+  assert_object_equals(sheet.cssRules[5].getParameters(), [
+    {name: '--x', type: '<length> | auto', defaultValue: '10px'},
+    {name: '--y', type: '*'},
+    {name: '--z', type: '*', defaultValue: 'red'},
+  ], '--f5');
+}, 'CSSFunctionRule.getParameters()');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    @function --f0() {}
+    @function --f1() returns <length> {}
+    @function --f2() returns <length>+ {}
+    @function --f3() returns type(*) {}
+    @function --f4() returns type(<length> | auto) {}
+  `);
+  assert_equals(sheet.cssRules.length, 5);
+  assert_equals(sheet.cssRules[0]?.returnType, '*');
+  assert_equals(sheet.cssRules[1]?.returnType, '<length>');
+  assert_equals(sheet.cssRules[2]?.returnType, '<length>+');
+  assert_equals(sheet.cssRules[3]?.returnType, '*');
+  assert_equals(sheet.cssRules[4]?.returnType, '<length> | auto');
+}, 'CSSFunctionRule.returnType');
+
+test(t => {
+  let sheet = new CSSStyleSheet();
+  // U+0009 CHARACTER TABULATION
+  sheet.replaceSync(`@function --escaped-\\9 -tab(--param-\\9 -tab) { --local-\\9 -tab: 1px; }`);
+  assert_equals(sheet.cssRules.length, 1);
+  let rule = sheet.cssRules[0];
+  assert_equals(rule.name, '--escaped-\t-tab');
+  assert_equals(rule.getParameters()[0]?.name, '--param-\t-tab');
+  assert_equals(rule.cssRules[0].style.getPropertyValue('--local-\t-tab'), '1px');
+}, 'CSSFunctionRule escapes');
+
+function test_cssText(actual, expected) {
+  expected ??= actual;
+  let name = actual.match(/@function (--[-\w]+)/)[1];
+  test(t => {
+    let sheet = new CSSStyleSheet();
+    sheet.replaceSync(actual);
+    assert_equals(sheet.cssRules[0]?.cssText, expected);
+  }, `CSSFunctionRule.cssText (${name})`);
+}
+
+// The function name is used by the test description; please make sure it's
+// unique among all test_cssText cases.
+test_cssText(`@function --empty() { }`);
+
+test_cssText(`@function --ret-length() returns <length> { }`);
+test_cssText(`@function --ret-length-auto() returns type(<length> | auto) { }`);
+
+test_cssText(`@function --param-single(--x) { }`);
+test_cssText(`@function --param-typed(--x <length>) { }`);
+test_cssText(`@function --param-typed-default(--x <length>: 10px) { }`);
+test_cssText(`@function --param-default(--x: 10px) { }`);
+test_cssText(`@function --param-multi(--x, --y) { }`);
+test_cssText(`@function --param-multi-mixed(--x: 10px, --y, --z <length>) { }`);
+
+test_cssText(`@function --body-result() { result: 10px; }`);
+test_cssText(`@function --body-locals() { --x: 1px; --y: 2px; result: 10px; }`);
+
+// Cases that don't round-trip as-is:
+test_cssText(`@function --param-type-fn(--x type(<length>)) { }`,
+             `@function --param-type-fn(--x <length>) { }`);
+test_cssText(`@function --param-type-fn-uni(--x type(*)) { }`,
+             `@function --param-type-fn-uni(--x) { }`);
+test_cssText(`@function --ret-type-fn() returns type(*) { }`,
+             `@function --ret-type-fn() { }`);
+test_cssText(`@function --ret-type-fn-uni() returns type(*) { }`,
+             `@function --ret-type-fn-uni() { }`);
+test_cssText(`@function --body-result-multi() { result: 10px; result: 20px; }`,
+             `@function --body-result-multi() { result: 20px; }`);
+
+// Escapes (U+0009 CHARACTER TABULATION):
+test_cssText(`@function --escaped-\\9 -tab(--param-\\9 -tab) { --local-\\9 -tab: 1px; }`);
+</script>

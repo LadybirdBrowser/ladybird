@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<title>Custom Functions: Prelude Parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#function-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  function test_valid_prelude(rule_without_block) {
+    test(() => {
+      let s = new CSSStyleSheet();
+      s.replaceSync(`${rule_without_block} {}`);
+      assert_equals(s.cssRules.length, 1);
+    }, `${rule_without_block} is valid`);
+  }
+
+  function test_invalid_prelude(rule_without_block) {
+    test(() => {
+      let s = new CSSStyleSheet();
+      s.replaceSync(`${rule_without_block} {}`);
+      assert_equals(s.cssRules.length, 0);
+    }, `${rule_without_block} is invalid`);
+  }
+
+  test_valid_prelude('@function --foo()');
+  test_valid_prelude('@function --foo( )');
+  test_valid_prelude('@function --foo(--x)');
+  test_valid_prelude('@function --foo( --x )');
+
+  test_invalid_prelude('@function --foo ()');
+  test_invalid_prelude('@function --foo (--x)');
+
+  // All single <syntax-component> types.
+  test_valid_prelude('@function --foo(--x auto)');
+  test_valid_prelude('@function --foo(--x <angle>)');
+  test_valid_prelude('@function --foo(--x <color>)');
+  test_valid_prelude('@function --foo(--x <custom-ident>)');
+  test_valid_prelude('@function --foo(--x <image>)');
+  test_valid_prelude('@function --foo(--x <integer>)');
+  test_valid_prelude('@function --foo(--x <length>)');
+  test_valid_prelude('@function --foo(--x <length-percentage>)');
+  test_valid_prelude('@function --foo(--x <number>)');
+  test_valid_prelude('@function --foo(--x <percentage>)');
+  test_valid_prelude('@function --foo(--x <resolution>)');
+  test_valid_prelude('@function --foo(--x <string>)');
+  test_valid_prelude('@function --foo(--x <time>)');
+  test_valid_prelude('@function --foo(--x <url>)');
+  test_valid_prelude('@function --foo(--x <transform-function>)');
+  test_valid_prelude('@function --foo(--x <transform-list>)');
+
+  test_valid_prelude('@function --foo(--x type(auto))');
+  test_valid_prelude('@function --foo(--x type(<length>))');
+  test_valid_prelude('@function --foo(--x type(<length> | auto))');
+  test_valid_prelude('@function --foo(--x type(none | auto))');
+  test_valid_prelude('@function --foo(--x type(*))');
+
+  // Multiple parameters.
+  test_valid_prelude('@function --foo(--x, --y)');
+  test_valid_prelude('@function --foo(--x, --y, --z)');
+  test_valid_prelude('@function --foo(--x <length>, --y, --z)');
+  test_valid_prelude('@function --foo(--x, --y <number>, --z <angle>)');
+
+  // Defaults.
+  test_valid_prelude('@function --foo(--x : 10px)');
+  test_valid_prelude('@function --foo(--x type(*): 10px)');
+  test_valid_prelude('@function --foo(--x <length>: 10px)');
+  test_valid_prelude('@function --foo(--x <length>: 10px, --y)');
+  test_valid_prelude('@function --foo(--x, --y <length>: 10px)');
+  test_valid_prelude('@function --foo(--x type(<length> | auto): auto)');
+  test_valid_prelude('@function --foo(--x type(<length> | auto) : auto)');
+  // A parameter without a default may appear after a parameter with
+  // a default, even though there's no way to actually call --foo()
+  // with just --y:
+  test_valid_prelude('@function --foo(--x:1px, --y, --z:2px)');
+
+  test_invalid_prelude('@function --foo(--x: 10px !important)');
+
+  // Default type mismatch.
+  test_invalid_prelude('@function --foo(--x <length>: 10deg)');
+  test_invalid_prelude('@function --foo(--x <angle>: 10px)');
+  test_invalid_prelude('@function --foo(--x <color>: 10px)');
+  test_invalid_prelude('@function --foo(--x type(<color>+): red 5)');
+  test_invalid_prelude('@function --foo(--x type(auto | none): thing)');
+
+  // Lists.
+  test_valid_prelude('@function --foo(--x <length>#)');
+  test_valid_prelude('@function --foo(--x <length>+)');
+  test_valid_prelude('@function --foo(--x type(<length>+))');
+  test_valid_prelude('@function --foo(--x <transform-function>#)');
+  test_valid_prelude('@function --foo(--x <transform-function>+)');
+  // <transform-list> is special: a multiplier cannot follow it.
+  test_invalid_prelude('@function --foo(--x <transform-list>#)');
+  test_invalid_prelude('@function --foo(--x <transform-list>+)');
+
+  test_invalid_prelude('@function --foo(--x *)');
+  test_invalid_prelude('@function --foo(--x !)');
+  test_invalid_prelude('@function --foo(--x 50px)');
+  test_invalid_prelude('@function --foo(--x <length> | auto)');
+  test_invalid_prelude('@function --foo(--x none | auto)');
+  test_invalid_prelude('@function --foo(--x <dino>)');
+  test_invalid_prelude('@function --foo(!)');
+  test_invalid_prelude('@function --foo(--x: !)');
+  test_invalid_prelude('@function --foo(--x type(!))');
+  test_invalid_prelude('@function --foo(,)');
+  test_invalid_prelude('@function --foo(,,,)');
+  test_invalid_prelude('@function --foo(--x, ;)');
+  test_invalid_prelude('@function --foo(;)');
+  test_invalid_prelude('@function --foo(])');
+  test_invalid_prelude('@function --foo(, --x])');
+
+  // Return value types.
+  test_valid_prelude('@function --foo(--x) returns type(*)');
+  test_valid_prelude('@function --foo(--x) returns <length>');
+  test_valid_prelude('@function --foo(--x) returns <length>+');
+  test_valid_prelude('@function --foo(--x) returns type(<length>)');
+  test_valid_prelude('@function --foo(--x) returns type(<length> | auto)');
+  test_valid_prelude('@function --foo(--x) returns type(foo | bar)');
+
+  test_invalid_prelude('@function --foo(--x) !');
+  test_invalid_prelude('@function --foo(--x) ! <length>');
+  test_invalid_prelude('@function --foo(--x) returns <length>!');
+  test_invalid_prelude('@function --foo(--x) length');
+  test_invalid_prelude('@function --foo(--x) returns');
+  test_invalid_prelude('@function --foo(--x) returns ');
+  test_invalid_prelude('@function --foo(--x) returns *');
+  test_invalid_prelude('@function --foo(--x) returns <transform-list>#');
+  test_invalid_prelude('@function --foo(--x) returns <transform-list>+');
+  test_invalid_prelude('@function --foo(--x) returns auto | none');
+  test_invalid_prelude('@function --foo(--x): <length>');
+  test_invalid_prelude('@function --foo(--x): length');
+  test_invalid_prelude('@function --foo(--x) returneth <length>');
+</script>
