@@ -991,26 +991,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn is_object_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Object(_))
-    }
-
-    fn is_array_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Array(_))
-    }
-
-    fn is_identifier(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Identifier(_))
-    }
-
-    fn is_member_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Member(_))
-    }
-
-    fn is_update_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Update(_))
-    }
-
     // === Main entry point ===
 
     pub fn parse_program(&mut self, starts_in_strict_mode: bool) -> Statement {

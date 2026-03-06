@@ -1008,7 +1008,7 @@ impl Parser<'_> {
         match init {
             LocalForInit::Declaration(declaration) => ForInOfLhs::Declaration(Box::new(declaration)),
             LocalForInit::Expression(expression) => {
-                if Self::is_array_expression(&expression) || Self::is_object_expression(&expression) {
+                if matches!(&expression.inner, ExpressionKind::Array(_) | ExpressionKind::Object(_)) {
                     let pattern = self.synthesize_binding_pattern(init_start);
 
                     let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();

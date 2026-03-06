@@ -1482,13 +1482,19 @@ impl Parser<'_> {
                         Associativity::Right,
                         ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                     );
-                    if Self::is_member_expression(&expression) {
-                        entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
-                    } else if Self::is_identifier(&expression) {
-                        entry_name = Some(BindingEntryName::Identifier(expression_into_identifier(expression)));
-                    } else {
-                        self.syntax_error("Invalid destructuring assignment target");
-                        break;
+
+                    match &expression.inner {
+                        ExpressionKind::Member { .. } => {
+                            entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
+                        }
+                        ExpressionKind::Identifier(_) => {
+                            entry_name = Some(BindingEntryName::Identifier(expression_into_identifier(expression)));
+                        }
+
+                        _ => {
+                            self.syntax_error("Invalid destructuring assignment target");
+                            break;
+                        }
                     }
                 } else {
                     let mut needs_alias = false;
@@ -1582,17 +1588,23 @@ impl Parser<'_> {
                                 Associativity::Right,
                                 ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                             );
-                            if Self::is_object_expression(&expression) || Self::is_array_expression(&expression) {
-                                let pattern = self.synthesize_binding_pattern(expression_start);
-                                entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
-                            } else if Self::is_member_expression(&expression) {
-                                entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
-                            } else if Self::is_identifier(&expression) {
-                                entry_alias =
-                                    Some(BindingEntryAlias::Identifier(expression_into_identifier(expression)));
-                            } else {
-                                self.syntax_error("Invalid destructuring assignment target");
-                                break;
+
+                            match &expression.inner {
+                                ExpressionKind::Object(_) | ExpressionKind::Array(_) => {
+                                    let pattern = self.synthesize_binding_pattern(expression_start);
+                                    entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
+                                }
+                                ExpressionKind::Member { .. } => {
+                                    entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
+                                }
+                                ExpressionKind::Identifier(_) => {
+                                    entry_alias =
+                                        Some(BindingEntryAlias::Identifier(expression_into_identifier(expression)));
+                                }
+                                _ => {
+                                    self.syntax_error("Invalid destructuring assignment target");
+                                    break;
+                                }
                             }
                         } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                             let nested = self.parse_binding_pattern();
@@ -1628,19 +1640,25 @@ impl Parser<'_> {
                     Associativity::Right,
                     ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                 );
-                if Self::is_object_expression(&expression) || Self::is_array_expression(&expression) {
-                    let pattern = self.synthesize_binding_pattern(expression_start);
-                    entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
-                } else if Self::is_member_expression(&expression) {
-                    entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
-                } else if Self::is_identifier(&expression) {
-                    let id = expression_into_identifier(expression);
-                    let name = self.arena.identifiers[id].name;
-                    self.pattern_bound_names.push((name, id));
-                    entry_alias = Some(BindingEntryAlias::Identifier(id));
-                } else {
-                    self.syntax_error("Invalid destructuring assignment target");
-                    break;
+
+                match &expression.inner {
+                    ExpressionKind::Object(_) | ExpressionKind::Array(_) => {
+                        let pattern = self.synthesize_binding_pattern(expression_start);
+                        entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
+                    }
+                    ExpressionKind::Member { .. } => {
+                        entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
+                    }
+                    ExpressionKind::Identifier(_) => {
+                        let id = expression_into_identifier(expression);
+                        let name = self.arena.identifiers[id].name;
+                        self.pattern_bound_names.push((name, id));
+                        entry_alias = Some(BindingEntryAlias::Identifier(id));
+                    }
+                    _ => {
+                        self.syntax_error("Invalid destructuring assignment target");
+                        break;
+                    }
                 }
             } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                 let nested = self.parse_binding_pattern();
