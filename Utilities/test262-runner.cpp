@@ -12,6 +12,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
 #include <LibJS/Bytecode/Interpreter.h>
@@ -754,11 +755,18 @@ int main(int argc, char** argv)
         auto run_test_with_strict_mode = [&](bool strict_mode) {
             result_object.set("strict_mode"sv, strict_mode);
 
+            auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
             ARM_TIMER();
             auto result = run_test(strict_mode ? with_strict : original_contents, path, metadata);
             DISARM_TIMER();
 
+            auto elapsed = timer.elapsed_milliseconds();
+
             auto output_key = strict_mode ? "strict_output"sv : "output"sv;
+            auto elapsed_key = strict_mode ? "strict_duration_ms"sv : "duration_ms"sv;
+
+            result_object.set(elapsed_key, elapsed);
 
             auto first_output = collect_output();
             if (first_output.has_value())
