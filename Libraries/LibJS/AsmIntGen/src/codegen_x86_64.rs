@@ -6,7 +6,7 @@
 
 use crate::parser::{AsmInstruction, Handler, Operand, Program};
 use crate::registers::{resolve_register, Arch};
-use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, w};
+use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, w, HandlerState};
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -229,10 +229,16 @@ fn generate_handler(out: &mut String, handler: &Handler, program: &Program) {
     w!(out, ".p2align 4");
     w!(out, "asm_handler_{}:", handler.name);
 
-    let mut label_counter: usize = 0;
+    let mut state = HandlerState::new();
+
     // Expand macros and emit instructions
     for insn in &handler.instructions {
-        emit_instruction(out, insn, handler, program, &mut label_counter);
+        emit_instruction(out, insn, handler, program, &mut state);
+    }
+
+    // Emit cold fixup blocks after the main handler body
+    if !state.cold_blocks.is_empty() {
+        out.push_str(&state.cold_blocks);
     }
 
     w!(out);
@@ -298,7 +304,7 @@ fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
     }
 }
 
-fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, program: &Program, label_counter: &mut usize) {
+fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, program: &Program, state: &mut HandlerState) {
     let m = &insn.mnemonic;
 
     match m.as_str() {
@@ -326,7 +332,7 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             // Expand macro body
             for body_insn in &mac.body {
                 let expanded = substitute_macro(body_insn, &param_map);
-                emit_instruction(out, &expanded, handler, program, label_counter);
+                emit_instruction(out, &expanded, handler, program, state);
             }
         }
 
@@ -537,7 +543,8 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
 
         // canonicalize_nan dst_gpr, src_fpr
         // If src is NaN, write CANON_NAN_BITS to dst. Otherwise bitwise-copy src to dst.
-        // Clobbers r11 as scratch.
+        // Uses a cold fixup block to keep the movabs off the hot path, since NaN
+        // results are extremely rare. The hot path is just: movq + ucomisd + jp.
         "canonicalize_nan" => {
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
@@ -547,10 +554,18 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
                     .get("CANON_NAN_BITS")
                     .copied()
                     .expect("CANON_NAN_BITS constant required for canonicalize_nan");
+                let id = state.unique_counter;
+                state.unique_counter += 1;
+                let fixup_label = format!(".Lasm_{}.canon_nan_{id}", handler.name);
+                let ret_label = format!(".Lasm_{}.canon_nan_{id}_ret", handler.name);
                 w!(out, "    movq {dst}, {src}");
                 w!(out, "    ucomisd {src}, {src}");
-                w!(out, "    movabs r11, {canon}");
-                w!(out, "    cmovp {dst}, r11");
+                w!(out, "    jp {fixup_label}");
+                w!(out, "{ret_label}:");
+                // Cold fixup block: only reached when result is NaN
+                w!(state.cold_blocks, "{fixup_label}:");
+                w!(state.cold_blocks, "    movabs {dst}, {canon}");
+                w!(state.cold_blocks, "    jmp {ret_label}");
             }
         }
 

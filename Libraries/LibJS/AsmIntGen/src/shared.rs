@@ -84,6 +84,23 @@ pub fn get_immediate_value(op: &Operand, program: &Program) -> Option<i64> {
     }
 }
 
+/// Mutable state accumulated during handler code generation.
+pub struct HandlerState {
+    /// Cold fixup blocks emitted after the main handler body (e.g. NaN canonicalization).
+    pub cold_blocks: String,
+    /// Counter for generating unique labels within a handler.
+    pub unique_counter: u32,
+}
+
+impl HandlerState {
+    pub fn new() -> Self {
+        Self {
+            cold_blocks: String::new(),
+            unique_counter: 0,
+        }
+    }
+}
+
 /// Resolve a field reference (m_*) to its byte offset within the handler's opcode.
 pub fn resolve_field_ref(s: &str, handler: &Handler, program: &Program) -> Option<usize> {
     if !s.starts_with("m_") {

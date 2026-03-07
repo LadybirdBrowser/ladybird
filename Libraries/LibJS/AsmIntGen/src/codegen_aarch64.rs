@@ -6,7 +6,7 @@
 
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{resolve_register, Arch};
-use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, w};
+use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, w, HandlerState};
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -237,8 +237,15 @@ fn generate_handler(out: &mut String, handler: &Handler, program: &Program) {
     w!(out, ".p2align 4");
     w!(out, "asm_handler_{}:", handler.name);
 
+    let mut state = HandlerState::new();
+
     for insn in &handler.instructions {
-        emit_instruction(out, insn, handler, program);
+        emit_instruction(out, insn, handler, program, &mut state);
+    }
+
+    // Emit cold fixup blocks after the main handler body
+    if !state.cold_blocks.is_empty() {
+        out.push_str(&state.cold_blocks);
     }
 
     w!(out);
@@ -707,6 +714,7 @@ fn emit_instruction(
     insn: &AsmInstruction,
     handler: &Handler,
     program: &Program,
+    state: &mut HandlerState,
 ) {
     let m = &insn.mnemonic;
 
@@ -732,7 +740,7 @@ fn emit_instruction(
             }
             for body_insn in &mac.body {
                 let expanded = substitute_macro(body_insn, &param_map);
-                emit_instruction(out, &expanded, handler, program);
+                emit_instruction(out, &expanded, handler, program, state);
             }
         }
 
@@ -904,8 +912,8 @@ fn emit_instruction(
 
         // canonicalize_nan dst_gpr, src_fpr
         // If src is NaN, write CANON_NAN_BITS to dst. Otherwise bitwise-copy src to dst.
-        // Uses x9 as scratch and d16 to hold the canonical NaN.
-        // NB: d16 is caller-saved, unlike d8-d15 which are callee-saved.
+        // Uses a cold fixup block to keep the constant load off the hot path, since NaN
+        // results are extremely rare. The hot path is just: fmov + fcmp + b.vs.
         "canonicalize_nan" => {
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
@@ -915,15 +923,19 @@ fn emit_instruction(
                     .get("CANON_NAN_BITS")
                     .copied()
                     .expect("CANON_NAN_BITS constant required for canonicalize_nan");
-                // Load canonical NaN bits and convert to FP for fcsel
-                emit_mov_imm(out, "x9", canon);
-                w!(out, "    fmov d16, x9");
-                // Compare src with itself: unordered (VS) if NaN
-                w!(out, "    fcmp {src}, {src}");
-                // Select: if ordered (VC), keep src; if unordered (VS), use canonical NaN
-                w!(out, "    fcsel {src}, {src}, d16, vc");
-                // Move result to integer register
+                let id = state.unique_counter;
+                state.unique_counter += 1;
+                let fixup_label = format!(".Lasm_{}.canon_nan_{id}", handler.name);
+                let ret_label = format!(".Lasm_{}.canon_nan_{id}_ret", handler.name);
+                // Hot path: move to GPR, check for NaN, branch to cold fixup if NaN
                 w!(out, "    fmov {dst}, {src}");
+                w!(out, "    fcmp {src}, {src}");
+                w!(out, "    b.vs {fixup_label}");
+                w!(out, "{ret_label}:");
+                // Cold fixup block: only reached when result is NaN
+                w!(state.cold_blocks, "{fixup_label}:");
+                emit_mov_imm(&mut state.cold_blocks, &dst, canon);
+                w!(state.cold_blocks, "    b {ret_label}");
             }
         }
 
