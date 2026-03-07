@@ -90,6 +90,8 @@ pub struct HandlerState {
     pub cold_blocks: String,
     /// Counter for generating unique labels within a handler.
     pub unique_counter: u32,
+    /// Last FP comparison operands, used to elide redundant ucomisd/fcmp instructions.
+    pub last_fp_compare: Option<(String, String)>,
 }
 
 impl HandlerState {
@@ -97,6 +99,7 @@ impl HandlerState {
         Self {
             cold_blocks: String::new(),
             unique_counter: 0,
+            last_fp_compare: None,
         }
     }
 }

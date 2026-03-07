@@ -951,6 +951,8 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
         }
 
         // Floating-point compare-and-branch operations.
+        // Consecutive branch_fp_* with the same operands share one ucomisd,
+        // since ucomisd sets all the flags these branches test.
         "branch_fp_unordered" | "branch_fp_equal" | "branch_fp_less"
         | "branch_fp_less_or_equal" | "branch_fp_greater"
         | "branch_fp_greater_or_equal" => {
@@ -958,35 +960,36 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
                 let a = resolve_op(&insn.operands[0], handler, program);
                 let b = resolve_op(&insn.operands[1], handler, program);
                 let label = resolve_label(&insn.operands[2], handler);
-                w!(out, "    ucomisd {a}, {b}");
-                if m == "branch_fp_equal" {
-                    // ucomisd sets both ZF=1 and PF=1 for unordered (NaN) operands.
-                    // A plain `je` would incorrectly branch on NaN since it only
-                    // checks ZF. Emit `jp` to skip over the `je` when unordered.
-                    let skip = *label_counter;
-                    *label_counter += 1;
-                    let handler_name = &handler.name;
-                    w!(out, "    jp .Lnan_skip_{handler_name}_{skip}");
-                    w!(out, "    je {label}");
-                    w!(out, ".Lnan_skip_{handler_name}_{skip}:");
-                } else {
-                    let cc = match m.as_str() {
-                        "branch_fp_unordered" => "jp",
-                        "branch_fp_less" => "jb",
-                        "branch_fp_less_or_equal" => "jbe",
-                        "branch_fp_greater" => "ja",
-                        "branch_fp_greater_or_equal" => "jae",
-                        _ => unreachable!(),
-                    };
-                    w!(out, "    {cc} {label}");
+                let cc = match m.as_str() {
+                    "branch_fp_unordered" => "jp",
+                    "branch_fp_equal" => "je",
+                    "branch_fp_less" => "jb",
+                    "branch_fp_less_or_equal" => "jbe",
+                    "branch_fp_greater" => "ja",
+                    "branch_fp_greater_or_equal" => "jae",
+                    _ => unreachable!(),
+                };
+                let need_compare = match &state.last_fp_compare {
+                    Some((prev_a, prev_b)) => *prev_a != a || *prev_b != b,
+                    None => true,
+                };
+                if need_compare {
+                    w!(out, "    ucomisd {a}, {b}");
+                    state.last_fp_compare = Some((a, b));
                 }
+                w!(out, "    {cc} {label}");
             }
+            return;
         }
 
         _ => {
             panic!("Unknown instruction '{m}' in handler '{}'", handler.name);
         }
     }
+
+    // Any non-branch_fp instruction may clobber flags, invalidating the
+    // cached FP comparison. branch_fp_* returns early above to skip this.
+    state.last_fp_compare = None;
 }
 
 /// Convert a 64-bit register name to its 8-bit counterpart.

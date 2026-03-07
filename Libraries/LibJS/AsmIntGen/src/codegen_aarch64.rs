@@ -1657,6 +1657,8 @@ fn emit_instruction(
         }
 
         // Floating-point compare-and-branch operations.
+        // Consecutive branch_fp_* with the same operands share one fcmp,
+        // since fcmp sets all the flags these branches test.
         "branch_fp_unordered" | "branch_fp_equal" | "branch_fp_less"
         | "branch_fp_less_or_equal" | "branch_fp_greater"
         | "branch_fp_greater_or_equal" => {
@@ -1673,15 +1675,27 @@ fn emit_instruction(
                     "branch_fp_greater_or_equal" => "b.ge",
                     _ => unreachable!(),
                 };
-                w!(out, "    fcmp {a}, {b}");
+                let need_compare = match &state.last_fp_compare {
+                    Some((prev_a, prev_b)) => *prev_a != a || *prev_b != b,
+                    None => true,
+                };
+                if need_compare {
+                    w!(out, "    fcmp {a}, {b}");
+                    state.last_fp_compare = Some((a, b));
+                }
                 w!(out, "    {cc} {label}");
             }
+            return;
         }
 
         _ => {
             panic!("Unknown instruction '{m}' in handler '{}'", handler.name);
         }
     }
+
+    // Any non-branch_fp instruction may clobber flags, invalidating the
+    // cached FP comparison. branch_fp_* returns early above to skip this.
+    state.last_fp_compare = None;
 }
 
 /// Emit a memory load with the appropriate ARM64 instruction based on size.
