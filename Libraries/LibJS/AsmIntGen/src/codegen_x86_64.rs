@@ -262,13 +262,17 @@ fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
             match (index, scale) {
                 (Some(idx), Some(sc)) => {
                     let idx_r = resolve_register(idx, Arch::X86_64).unwrap_or_else(|| idx.clone());
-                    // Try to parse scale as immediate
-                    let sc_val = program
-                        .constants
-                        .get(sc.as_str())
-                        .copied()
-                        .unwrap_or_else(|| sc.parse().unwrap_or(1));
-                    format!("[{base_r} + {idx_r} * {sc_val}]")
+                    // Check if 'sc' is a field reference (e.g. [pb, pc, m_cache]).
+                    if let Some(field_offset) = resolve_field_ref(sc, handler, program) {
+                        format!("[{base_r} + {idx_r} + {field_offset}]")
+                    } else {
+                        let sc_val = program
+                            .constants
+                            .get(sc.as_str())
+                            .copied()
+                            .unwrap_or_else(|| sc.parse().unwrap_or(1));
+                        format!("[{base_r} + {idx_r} * {sc_val}]")
+                    }
                 }
                 (Some(idx), None) => {
                     // idx could be a field ref, immediate offset, constant, or register

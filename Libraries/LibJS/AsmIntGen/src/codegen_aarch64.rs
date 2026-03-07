@@ -289,13 +289,22 @@ fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
             let base_r = resolve_register(base, Arch::Aarch64).unwrap_or_else(|| base.clone());
             match (index, scale) {
                 (Some(idx), Some(sc)) => {
-                    let idx_r = resolve_register(idx, Arch::Aarch64).unwrap_or_else(|| idx.clone());
-                    let sc_val = program
-                        .constants
-                        .get(sc.as_str())
-                        .copied()
-                        .unwrap_or_else(|| sc.parse().unwrap_or(1));
-                    format!("MEM:{base_r}:{idx_r}:{sc_val}")
+                    // Check if 'sc' is a field reference (e.g. [pb, pc, m_cache]).
+                    if let Some(field_offset) = resolve_field_ref(sc, handler, program) {
+                        let idx_r =
+                            resolve_register(idx, Arch::Aarch64).unwrap_or_else(|| idx.clone());
+                        // Encode as base + index + immediate offset.
+                        format!("MEM:{base_r}:{idx_r}:+{field_offset}")
+                    } else {
+                        let idx_r =
+                            resolve_register(idx, Arch::Aarch64).unwrap_or_else(|| idx.clone());
+                        let sc_val = program
+                            .constants
+                            .get(sc.as_str())
+                            .copied()
+                            .unwrap_or_else(|| sc.parse().unwrap_or(1));
+                        format!("MEM:{base_r}:{idx_r}:{sc_val}")
+                    }
                 }
                 (Some(idx), None) => {
                     if let Some(val) = resolve_field_ref(idx, handler, program) {
@@ -341,6 +350,7 @@ enum MemIndex {
     Imm(i64),
     Reg(String),
     RegScale(String, i64),
+    RegImm(String, i64),
 }
 
 fn parse_mem(s: &str) -> Option<MemOp> {
@@ -366,11 +376,19 @@ fn parse_mem(s: &str) -> Option<MemOp> {
             }
         }
         3 => {
-            let scale: i64 = parts[2].parse().unwrap_or(1);
-            Some(MemOp {
-                base,
-                index: MemIndex::RegScale(parts[1].to_string(), scale),
-            })
+            if let Some(offset) = parts[2].strip_prefix('+') {
+                let imm: i64 = offset.parse().unwrap_or(0);
+                Some(MemOp {
+                    base,
+                    index: MemIndex::RegImm(parts[1].to_string(), imm),
+                })
+            } else {
+                let scale: i64 = parts[2].parse().unwrap_or(1);
+                Some(MemOp {
+                    base,
+                    index: MemIndex::RegScale(parts[1].to_string(), scale),
+                })
+            }
         }
         _ => None,
     }
@@ -1536,6 +1554,14 @@ fn emit_instruction(
                                     .unwrap();
                             }
                         }
+                        MemIndex::RegImm(idx, offset) => {
+                            if mem.base == "x26" && idx == "x25" {
+                                emit_add_imm(out, &dst, "x21", *offset);
+                            } else {
+                                w!(out, "    add {dst}, {}, {idx}", mem.base);
+                                emit_add_imm(out, &dst, &dst, *offset);
+                            }
+                        }
                     }
                 }
             }
@@ -1885,6 +1911,37 @@ fn emit_mem_load(out: &mut String, dst: &str, mem: &MemOp, size: u32, sign_exten
                 w!(out, "    {instr} {dst}, [x9]");
             }
         }
+        MemIndex::RegImm(idx, offset) => {
+            // base + index + immediate. On aarch64, if base=pb and idx=pc,
+            // we can use x21 (= pb + pc) directly.
+            if mem.base == "x26" && idx == "x25" {
+                match (size, sign_extend) {
+                    (8, _) => emit_ldr64(out, dst, "x21", *offset),
+                    (4, false) => emit_ldr32(out, dst, "x21", *offset),
+                    (4, true) => {
+                        if *offset >= 0 && *offset < 16380 && *offset % 4 == 0 {
+                            w!(out, "    ldrsw {dst}, [x21, #{offset}]");
+                        } else {
+                            emit_mov_imm(out, "x9", *offset);
+                            w!(out, "    ldrsw {dst}, [x21, x9]");
+                        }
+                    }
+                    (2, false) => emit_ldrh(out, dst, "x21", *offset),
+                    (1, false) => emit_ldrb(out, dst, "x21", *offset),
+                    _ => emit_ldr64(out, dst, "x21", *offset),
+                }
+            } else {
+                // General case: compute base + index, then load at offset.
+                w!(out, "    add x9, {}, {idx}", mem.base);
+                match (size, sign_extend) {
+                    (8, _) => emit_ldr64(out, dst, "x9", *offset),
+                    (4, false) => emit_ldr32(out, dst, "x9", *offset),
+                    (2, false) => emit_ldrh(out, dst, "x9", *offset),
+                    (1, false) => emit_ldrb(out, dst, "x9", *offset),
+                    _ => emit_ldr64(out, dst, "x9", *offset),
+                }
+            }
+        }
     }
 }
 
@@ -1953,6 +2010,26 @@ fn emit_mem_store(out: &mut String, src: &str, mem: &MemOp, size: u32) {
                     _ => "str",
                 };
                 w!(out, "    {instr} {src}, [x9]");
+            }
+        }
+        MemIndex::RegImm(idx, offset) => {
+            if mem.base == "x26" && idx == "x25" {
+                match size {
+                    8 => emit_str64(out, src, "x21", *offset),
+                    4 => emit_str32(out, src, "x21", *offset),
+                    2 => emit_strh(out, src, "x21", *offset),
+                    1 => emit_strb(out, src, "x21", *offset),
+                    _ => {}
+                }
+            } else {
+                w!(out, "    add x9, {}, {idx}", mem.base);
+                match size {
+                    8 => emit_str64(out, src, "x9", *offset),
+                    4 => emit_str32(out, src, "x9", *offset),
+                    2 => emit_strh(out, src, "x9", *offset),
+                    1 => emit_strb(out, src, "x9", *offset),
+                    _ => {}
+                }
             }
         }
     }
