@@ -5190,6 +5190,20 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                     return {};
                 }
                 VERIFY_NOT_REACHED();
+            },
+            [](SyntaxParsingContext const& syntax_context) -> Optional<CalculationContext> {
+                switch (syntax_context.type) {
+                case ValueType::AnglePercentage:
+                    return CalculationContext { .percentages_resolve_as = ValueType::Angle };
+                case ValueType::FrequencyPercentage:
+                    return CalculationContext { .percentages_resolve_as = ValueType::Frequency };
+                case ValueType::LengthPercentage:
+                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
+                case ValueType::TimePercentage:
+                    return CalculationContext { .percentages_resolve_as = ValueType::Time };
+                default:
+                    return {};
+                }
             });
         if (maybe_context.has_value()) {
             context = maybe_context.release_value();

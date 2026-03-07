@@ -63,6 +63,9 @@ struct NegateNode {
 
 }
 
+struct SyntaxParsingContext {
+    ValueType type;
+};
 struct FunctionContext {
     StringView name;
 };
@@ -85,7 +88,7 @@ enum SpecialContext : u8 {
     TranslateZArgument,
 };
 // FIXME: Use PropertyNameAndID instead of PropertyID as the context, for registered custom properties.
-using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
+using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext, SyntaxParsingContext>;
 
 enum class ParsingMode {
     Normal,

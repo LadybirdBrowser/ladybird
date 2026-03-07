@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 239 tests
 
-209 Pass
-30 Fail
+210 Pass
+29 Fail
 Pass	syntax:'*', initialValue:'a' is valid
 Pass	syntax:' * ', initialValue:'b' is valid
 Pass	syntax:'<length>', initialValue:'2px' is valid
@@ -34,7 +34,7 @@ Pass	syntax:'<length>#', initialValue:'2px, 7px, calc(8px)' is valid
 Pass	syntax:'<percentage>', initialValue:'-9.3e3%' is valid
 Pass	syntax:'<length-percentage>', initialValue:'-54%' is valid
 Pass	syntax:'<length-percentage>', initialValue:'0' is valid
-Fail	syntax:'<length-percentage>', initialValue:'calc(-11px + 10.4%)' is valid
+Pass	syntax:'<length-percentage>', initialValue:'calc(-11px + 10.4%)' is valid
 Pass	syntax:'<length>', initialValue:'10vmin' is valid
 Pass	syntax:'<percentage> | <length>+', initialValue:'calc(100vh - 10px) 30px' is valid
 Pass	syntax:'<number>', initialValue:'-109' is valid

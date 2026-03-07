@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 106 tests
 
-99 Pass
-7 Fail
+100 Pass
+6 Fail
 Pass	Attribute 'syntax' returns expected value for ["<color>"]
 Pass	Attribute 'syntax' returns expected value for ["<color> | none"]
 Pass	Attribute 'syntax' returns expected value for ["<color># | <image> | none"]
@@ -61,7 +61,7 @@ Pass	Rule applied [<image>, url("http://a/"), false]
 Pass	Rule applied [<integer>, 5, false]
 Pass	Rule applied [<length-percentage>, 10px, false]
 Pass	Rule applied [<length-percentage>, 10%, false]
-Fail	Rule applied [<length-percentage>, calc(10% + 10px), false]
+Pass	Rule applied [<length-percentage>, calc(10% + 10px), false]
 Pass	Rule applied [<length>, 10px, false]
 Pass	Rule applied [<number>, 2.5, false]
 Pass	Rule applied [<percentage>, 10%, false]
