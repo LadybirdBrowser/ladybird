@@ -597,15 +597,21 @@ void Selection::move_offset_to_next_character(bool collapse_selection)
     if (!text_node)
         return;
 
-    if (auto offset = text_node->grapheme_segmenter().next_boundary(focus_offset()); offset.has_value()) {
+    // If there is a selection range, collapse to the end (max) of that range without moving forward
+    if (collapse_selection && !is_collapsed()) {
+        MUST(collapse(text_node, max(anchor_offset(), focus_offset())));
+        m_document->reset_cursor_blink_cycle();
+    }
+    // Otherwise, move forward if possible
+    else if (auto offset = text_node->grapheme_segmenter().next_boundary(focus_offset()); offset.has_value()) {
         if (collapse_selection) {
             MUST(collapse(text_node, *offset));
             m_document->reset_cursor_blink_cycle();
         } else {
             MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
         }
-        scroll_focus_into_view();
     }
+    scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_previous_character(bool collapse_selection)
@@ -614,15 +620,21 @@ void Selection::move_offset_to_previous_character(bool collapse_selection)
     if (!text_node)
         return;
 
-    if (auto offset = text_node->grapheme_segmenter().previous_boundary(focus_offset()); offset.has_value()) {
+    // If there is a selection range, collapse to the start (min) of that range without moving backward
+    if (collapse_selection && !is_collapsed()) {
+        MUST(collapse(text_node, min(anchor_offset(), focus_offset())));
+        m_document->reset_cursor_blink_cycle();
+    }
+    // Otherwise, move backward if possible
+    else if (auto offset = text_node->grapheme_segmenter().previous_boundary(focus_offset()); offset.has_value()) {
         if (collapse_selection) {
             MUST(collapse(text_node, *offset));
             m_document->reset_cursor_blink_cycle();
         } else {
             MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
         }
-        scroll_focus_into_view();
     }
+    scroll_focus_into_view();
 }
 
 void Selection::move_offset_to_next_word(bool collapse_selection)
@@ -637,13 +649,13 @@ void Selection::move_offset_to_next_word(bool collapse_selection)
             break;
 
         if (auto offset = text_node->word_segmenter().next_boundary(focus_offset); offset.has_value()) {
-            auto word = text_node->data().substring_view(focus_offset, *offset - focus_offset);
             if (collapse_selection) {
                 MUST(collapse(text_node, *offset));
                 m_document->reset_cursor_blink_cycle();
             } else {
                 MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
             }
+            auto word = text_node->data().substring_view(focus_offset, *offset - focus_offset);
             if (Unicode::Segmenter::should_continue_beyond_word(word))
                 continue;
         }
@@ -661,13 +673,13 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
     while (true) {
         auto focus_offset = this->focus_offset();
         if (auto offset = text_node->word_segmenter().previous_boundary(focus_offset); offset.has_value()) {
-            auto word = text_node->data().substring_view(*offset, focus_offset - *offset);
             if (collapse_selection) {
                 MUST(collapse(text_node, *offset));
                 m_document->reset_cursor_blink_cycle();
             } else {
                 MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *offset));
             }
+            auto word = text_node->data().substring_view(*offset, focus_offset - *offset);
             if (Unicode::Segmenter::should_continue_beyond_word(word))
                 continue;
         }

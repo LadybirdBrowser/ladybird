@@ -24,13 +24,101 @@
             return;
         }
 
+        selection.modify("extend", "backward", "word");
+        if (selection.toString() !== "Well ") {
+            println("FAIL: selection is not what we expected after extending by word");
+            return;
+        }
+
+        // backward by character on a non-collapsed selection
         selection.modify("move", "backward", "character");
         if (
-            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 9 ||
-            selection.focusNode !== a.firstChild || selection.focusOffset !== 9 ||
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 0 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 0 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving backward by character on non-collapsed selection");
+            return;
+        }
+
+        // forward by character on a non-collapsed selection
+        selection.setBaseAndExtent(a.firstChild, 0, a.firstChild, 10);
+        selection.modify("move", "forward", "character");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 10 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 10 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving forward by character on non-collapsed selection");
+            return;
+        }
+
+        // backward by word on a non-collapsed selection
+        selection.setBaseAndExtent(a.firstChild, 8, a.firstChild, 15);
+        selection.modify("move", "backward", "word");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 11 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 11 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving backward by word on non-collapsed selection");
+            return;
+        }
+
+        // forward by word on a non-collapsed selection
+        selection.setBaseAndExtent(a.firstChild, 0, a.firstChild, 10);
+        selection.modify("move", "forward", "word");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 18 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 18 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving forward by word on non-collapsed selection");
+            return;
+        }
+
+        // backward by character on a collapsed selection
+        selection.modify("move", "backward", "character");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 17 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 17 ||
             !selection.isCollapsed
         ) {
             println("FAIL: selection is not what we expected after moving backward by character");
+            return;
+        }
+
+        // forward by character on a collapsed selection
+        selection.modify("move", "forward", "character");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 18 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 18 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving forward by character");
+            return;
+        }
+
+        // backward by word (twice) on a collapsed selection
+        selection.modify("move", "backward", "word");
+        selection.modify("move", "backward", "word");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 5 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 5 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving backward by word");
+            return;
+        }
+
+        // forward by word on a collapsed selection
+        selection.modify("move", "forward", "word");
+        if (
+            selection.anchorNode !== a.firstChild || selection.anchorOffset !== 10 ||
+            selection.focusNode !== a.firstChild || selection.focusOffset !== 10 ||
+            !selection.isCollapsed
+        ) {
+            println("FAIL: selection is not what we expected after moving forward by word");
             return;
         }
 
