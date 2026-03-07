@@ -1034,7 +1034,12 @@ void FormAssociatedTextControlElement::increment_cursor_position_offset(Collapse
     auto const text_node = form_associated_element_to_text_node();
     if (!text_node)
         return;
-    if (auto offset = text_node->grapheme_segmenter().next_boundary(m_selection_end); offset.has_value()) {
+    // If there is a selection range, collapse to the end (max) of that range without moving forward
+    if (collapse == CollapseSelection::Yes && (m_selection_start != m_selection_end)) {
+        collapse_selection_to_offset(max(m_selection_start, m_selection_end));
+    }
+    // Otherwise, move forward if possible
+    else if (auto offset = text_node->grapheme_segmenter().next_boundary(m_selection_end); offset.has_value()) {
         if (collapse == CollapseSelection::Yes) {
             collapse_selection_to_offset(*offset);
         } else {
@@ -1049,7 +1054,12 @@ void FormAssociatedTextControlElement::decrement_cursor_position_offset(Collapse
     auto const text_node = form_associated_element_to_text_node();
     if (!text_node)
         return;
-    if (auto offset = text_node->grapheme_segmenter().previous_boundary(m_selection_end); offset.has_value()) {
+    // If there is a selection range, collapse to the start (min) of that range without moving backward
+    if (collapse == CollapseSelection::Yes && (m_selection_start != m_selection_end)) {
+        collapse_selection_to_offset(min(m_selection_start, m_selection_end));
+    }
+    // Otherwise, move backward if possible
+    else if (auto offset = text_node->grapheme_segmenter().previous_boundary(m_selection_end); offset.has_value()) {
         if (collapse == CollapseSelection::Yes) {
             collapse_selection_to_offset(*offset);
         } else {
