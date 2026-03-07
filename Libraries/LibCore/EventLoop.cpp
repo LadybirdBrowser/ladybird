@@ -180,7 +180,7 @@ StrongEventLoopReference::StrongEventLoopReference(WeakEventLoopReference& event
 
 StrongEventLoopReference::~StrongEventLoopReference()
 {
-    m_event_loop_weak->m_lock.unlock();
+    m_event_loop_weak->m_lock.unlock_read();
 }
 
 bool StrongEventLoopReference::is_alive() const
