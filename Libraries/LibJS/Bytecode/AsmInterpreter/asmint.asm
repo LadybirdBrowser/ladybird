@@ -1428,13 +1428,11 @@ handler GetById
     load32 t0, [t0, m_cache_index]
     mul t0, t0, PROPERTY_LOOKUP_CACHE_SIZE
     add t5, t0
-    # Check entry[0].shape matches Object's shape (via WeakImpl -> m_ptr)
+    # Check entry[0].shape matches Object's shape (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_ne t0, t4, .try_cache
     # Check entry[0].prototype (null = own property, non-null = prototype chain)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_nonzero t0, .proto
     # Check dictionary generation matches
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1451,9 +1449,8 @@ handler GetById
     dispatch_next
 .proto:
     # t0 = prototype Object*, t4 = object's shape, t5 = PLC base
-    # Check prototype chain validity
+    # Check prototype chain validity (direct pointer, null = invalid)
     load64 t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE_CHAIN_VALIDITY]
-    load64 t1, [t1, WEAK_IMPL_POINTER]
     branch_zero t1, .try_cache
     load8 t2, [t1, PROTOTYPE_CHAIN_VALIDITY_VALID]
     branch_zero t2, .try_cache
@@ -1497,13 +1494,11 @@ handler PutById
     load32 t0, [t0, m_cache_index]
     mul t0, t0, PROPERTY_LOOKUP_CACHE_SIZE
     add t5, t0
-    # Check entry[0].shape matches Object's shape (via WeakImpl -> m_ptr)
+    # Check entry[0].shape matches Object's shape (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_ne t0, t4, .try_cache
     # Check entry[0].prototype is null (own-property store only)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_nonzero t0, .try_cache
     # Check dictionary generation matches
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1698,13 +1693,11 @@ handler GetLength
     load32 t0, [t0, m_cache_index]
     mul t0, t0, PROPERTY_LOOKUP_CACHE_SIZE
     add t5, t0
-    # Check entry[0].shape matches
+    # Check entry[0].shape matches (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_ne t0, t4, .slow
     # Check entry[0].prototype is null (own-property only)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_nonzero t0, .slow
     # Check dictionary generation
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1766,7 +1759,6 @@ handler GetGlobal
     # (falls through to env binding path on shape mismatch)
     load64 t4, [t2, OBJECT_SHAPE]
     load64 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_ne t0, t4, .try_env_binding
     # Check dictionary generation
     load32 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1829,7 +1821,6 @@ handler SetGlobal
     # (falls through to env binding path on shape mismatch)
     load64 t4, [t2, OBJECT_SHAPE]
     load64 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    load64 t0, [t0, WEAK_IMPL_POINTER]
     branch_ne t0, t4, .try_env_binding
     # Check dictionary generation
     load32 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]

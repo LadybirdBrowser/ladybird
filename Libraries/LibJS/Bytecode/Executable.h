@@ -11,8 +11,8 @@
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <LibGC/CellAllocator.h>
-#include <LibGC/Weak.h>
-#include <LibGC/WeakInlines.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/WeakContainer.h>
 #include <LibJS/Bytecode/ClassBlueprint.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
@@ -42,10 +42,10 @@ struct PropertyLookupCache {
         };
         u32 property_offset { 0 };
         u32 shape_dictionary_generation { 0 };
-        GC::Weak<Shape> from_shape;
-        GC::Weak<Shape> shape;
-        GC::Weak<Object> prototype;
-        GC::Weak<PrototypeChainValidity> prototype_chain_validity;
+        GC::RawPtr<Shape> from_shape;
+        GC::RawPtr<Shape> shape;
+        GC::RawPtr<Object> prototype;
+        GC::RawPtr<PrototypeChainValidity> prototype_chain_validity;
     };
 
     void update(Entry::Type type, auto callback)
@@ -62,6 +62,13 @@ struct PropertyLookupCache {
 
     AK::Array<Entry::Type, max_number_of_shapes_to_remember> types;
     AK::Array<Entry, max_number_of_shapes_to_remember> entries;
+};
+
+// A PropertyLookupCache for use as a static local variable.
+// Registers itself for GC sweep since it's not owned by any Executable.
+struct StaticPropertyLookupCache : public PropertyLookupCache {
+    StaticPropertyLookupCache();
+    static void sweep_all();
 };
 
 struct GlobalVariableCache : public PropertyLookupCache {
@@ -84,7 +91,7 @@ struct TemplateObjectCache {
 // We also cache the property offsets so that subsequent property writes can bypass
 // shape lookups and write directly to the correct storage slot.
 struct ObjectShapeCache {
-    GC::Weak<Shape> shape;
+    GC::RawPtr<Shape> shape;
     Vector<u32> property_offsets;
 };
 
@@ -98,7 +105,9 @@ struct SourceMapEntry {
     SourceRecord source_record {};
 };
 
-class JS_API Executable final : public Cell {
+class JS_API Executable final
+    : public Cell
+    , public GC::WeakContainer {
     GC_CELL(Executable, Cell);
     GC_DECLARE_ALLOCATOR(Executable);
 
@@ -178,6 +187,8 @@ public:
     [[nodiscard]] String dump_to_string() const;
 
     [[nodiscard]] Operand original_operand_from_raw(u32) const;
+
+    virtual void remove_dead_cells(Badge<GC::Heap>) override;
 
 private:
     virtual void visit_edges(Visitor&) override;

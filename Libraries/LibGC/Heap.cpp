@@ -405,6 +405,11 @@ void Heap::enqueue_post_gc_task(AK::Function<void()> task)
     m_post_gc_tasks.append(move(task));
 }
 
+void Heap::register_sweep_callback(AK::Function<void()> callback)
+{
+    m_sweep_callbacks.append(move(callback));
+}
+
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
 {
     for_each_block([&](auto& block) {
@@ -746,6 +751,9 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 
     for (auto& weak_container : m_weak_containers)
         weak_container.remove_dead_cells({});
+
+    for (auto& callback : m_sweep_callbacks)
+        callback();
 
     for (auto* block : empty_blocks) {
         dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());

@@ -1563,11 +1563,11 @@ ThrowCompletionOr<Value> Object::ordinary_to_primitive(Value::PreferredType pref
         // a. Let method be ? Get(O, name).
         Value method;
         if (method_name == vm.names.toString) {
-            static Bytecode::PropertyLookupCache cache;
+            static Bytecode::StaticPropertyLookupCache cache;
             method = TRY(get(method_name, cache));
         } else {
             ASSERT(method_name == vm.names.valueOf);
-            static Bytecode::PropertyLookupCache cache;
+            static Bytecode::StaticPropertyLookupCache cache;
             method = TRY(get(method_name, cache));
         }
 

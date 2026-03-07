@@ -24,7 +24,7 @@ GC::Ref<AsyncGenerator> AsyncGenerator::create(Realm& realm, Value initial_value
     auto& vm = realm.vm();
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
     auto generating_function_prototype = MUST(generating_function.visit([&vm](auto function) {
-        static Bytecode::PropertyLookupCache cache;
+        static Bytecode::StaticPropertyLookupCache cache;
         return function->get(vm.names.prototype, cache);
     }));
     GC::Ptr<Object> generating_function_prototype_object = nullptr;

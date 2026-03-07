@@ -8,7 +8,6 @@
 // Compiled with the same flags as LibJS so layouts match exactly.
 
 #include <AK/Format.h>
-#include <LibGC/Weak.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
@@ -54,10 +53,6 @@ int main()
     EMIT_OFFSET(SHAPE_PROTOTYPE, Shape, m_prototype);
     EMIT_OFFSET(SHAPE_DICTIONARY_GENERATION, Shape, m_dictionary_generation);
     EMIT_SIZEOF(SHAPE_SIZE, Shape);
-
-    // WeakImpl layout
-    outln("\n# WeakImpl layout");
-    EMIT_OFFSET(WEAK_IMPL_POINTER, GC::WeakImpl, m_ptr);
 
     // PropertyLookupCache layout
     outln("\n# PropertyLookupCache layout");

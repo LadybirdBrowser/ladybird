@@ -32,7 +32,8 @@ Executable::Executable(
     size_t number_of_object_shape_caches,
     size_t number_of_registers,
     Strict strict)
-    : bytecode(move(bytecode))
+    : GC::WeakContainer(heap())
+    , bytecode(move(bytecode))
     , string_table(move(string_table))
     , identifier_table(move(identifier_table))
     , property_key_table(move(property_key_table))
@@ -146,6 +147,53 @@ void Executable::visit_edges(Visitor& visitor)
         }
     }
     property_key_table->visit_edges(visitor);
+}
+
+static Vector<PropertyLookupCache*>& static_property_lookup_caches()
+{
+    static Vector<PropertyLookupCache*> caches;
+    return caches;
+}
+
+StaticPropertyLookupCache::StaticPropertyLookupCache()
+{
+    static_property_lookup_caches().append(this);
+}
+
+static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
+{
+    if (entry.from_shape && entry.from_shape->state() != Cell::State::Live)
+        entry.from_shape = nullptr;
+    if (entry.shape && entry.shape->state() != Cell::State::Live)
+        entry.shape = nullptr;
+    if (entry.prototype && entry.prototype->state() != Cell::State::Live)
+        entry.prototype = nullptr;
+    if (entry.prototype_chain_validity && entry.prototype_chain_validity->state() != Cell::State::Live)
+        entry.prototype_chain_validity = nullptr;
+}
+
+void StaticPropertyLookupCache::sweep_all()
+{
+    for (auto* cache : static_property_lookup_caches()) {
+        for (auto& entry : cache->entries)
+            clear_cache_entry_if_dead(entry);
+    }
+}
+
+void Executable::remove_dead_cells(Badge<GC::Heap>)
+{
+    for (auto& cache : property_lookup_caches) {
+        for (auto& entry : cache.entries)
+            clear_cache_entry_if_dead(entry);
+    }
+    for (auto& cache : global_variable_caches) {
+        for (auto& entry : cache.entries)
+            clear_cache_entry_if_dead(entry);
+    }
+    for (auto& cache : object_shape_caches) {
+        if (cache.shape && cache.shape->state() != Cell::State::Live)
+            cache.shape = nullptr;
+    }
 }
 
 Optional<Executable::ExceptionHandlers const&> Executable::exception_handlers_for_offset(size_t offset) const

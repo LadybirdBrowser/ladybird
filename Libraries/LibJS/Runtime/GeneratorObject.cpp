@@ -36,9 +36,9 @@ GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Value initial_val
         // changed thus we hardcode the prototype.
         generating_function_prototype = realm.intrinsics().generator_prototype();
     } else {
-        static Bytecode::PropertyLookupCache cache;
+        static Bytecode::StaticPropertyLookupCache cache;
         generating_function_prototype = MUST(generating_function.visit([&vm](auto function) {
-            static Bytecode::PropertyLookupCache cache;
+            static Bytecode::StaticPropertyLookupCache cache;
             return function->get(vm.names.prototype, cache);
         }));
     }
