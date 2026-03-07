@@ -554,6 +554,43 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
+        // 32-bit arithmetic with overflow detection.
+        // These perform the operation on the low 32 bits and branch on signed overflow.
+        // On x86_64, writing a 32-bit register zeros the upper 32 bits.
+        "add32_overflow" | "sub32_overflow" | "mul32_overflow" => {
+            if insn.operands.len() == 3 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let dst32 = to_32bit_reg(&dst);
+                let label = resolve_label(&insn.operands[2], handler);
+                let x86_op = match m.as_str() {
+                    "add32_overflow" => "add",
+                    "sub32_overflow" => "sub",
+                    "mul32_overflow" => "imul",
+                    _ => unreachable!(),
+                };
+                if let Some(val) = get_immediate_value(&insn.operands[1], program) {
+                    w!(out, "    {x86_op} {dst32}, {val}");
+                } else {
+                    let src = resolve_op(&insn.operands[1], handler, program);
+                    let src32 = to_32bit_reg(&src);
+                    w!(out, "    {x86_op} {dst32}, {src32}");
+                }
+                w!(out, "    jo {label}");
+            }
+        }
+
+        // neg32_overflow dst, fail_label
+        // Negate the low 32 bits, branch on overflow (INT32_MIN).
+        "neg32_overflow" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let dst32 = to_32bit_reg(&dst);
+                let label = resolve_label(&insn.operands[1], handler);
+                w!(out, "    neg {dst32}");
+                w!(out, "    jo {label}");
+            }
+        }
+
         // mul: maps to x86 imul (2-operand: dst *= src, or 3-operand: dst = src * imm)
         "mul" => {
             let ops: Vec<String> = insn

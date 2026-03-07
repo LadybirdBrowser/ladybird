@@ -124,6 +124,19 @@
 //! - `divmod quot, rem, dividend, divisor` -- Signed integer divide.
 //!   `quot = dividend / divisor`, `rem = dividend % divisor`.
 //!
+//! ### 32-bit arithmetic with overflow detection
+//!
+//! These perform the operation on the low 32 bits and branch to `fail`
+//! if the result overflows signed int32. On x86_64, this uses the
+//! hardware overflow flag (`jo`). On aarch64, `adds`/`subs` w-register
+//! forms with `b.vs`, or `smull` + sign-extend check for multiply.
+//! After the operation, the upper 32 bits of `dst` are zeroed.
+//!
+//! - `add32_overflow dst, src, fail` -- `dst += src` (32-bit).
+//! - `sub32_overflow dst, src, fail` -- `dst -= src` (32-bit).
+//! - `mul32_overflow dst, src, fail` -- `dst *= src` (32-bit).
+//! - `neg32_overflow dst, fail` -- `dst = -dst` (32-bit).
+//!
 //! ### Bit manipulation
 //!
 //! - `toggle_bit dst, N` -- Flip bit N: `dst ^= (1 << N)`.

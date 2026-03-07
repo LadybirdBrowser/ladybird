@@ -1234,6 +1234,56 @@ fn emit_instruction(
             }
         }
 
+        // 32-bit arithmetic with overflow detection.
+        // These perform the operation on the low 32 bits and branch on signed overflow.
+        "add32_overflow" | "sub32_overflow" => {
+            if insn.operands.len() == 3 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let wdst = to_w_reg(&dst);
+                let label = resolve_label(&insn.operands[2], handler);
+                let op = if m == "add32_overflow" { "adds" } else { "subs" };
+                if let Some(val) = get_immediate_value(&insn.operands[1], program) {
+                    if val > 0 && val <= 4095 {
+                        w!(out, "    {op} {wdst}, {wdst}, #{val}");
+                    } else {
+                        emit_mov_imm(out, "w9", val);
+                        w!(out, "    {op} {wdst}, {wdst}, w9");
+                    }
+                } else {
+                    let src = resolve_op(&insn.operands[1], handler, program);
+                    let wsrc = to_w_reg(&src);
+                    w!(out, "    {op} {wdst}, {wdst}, {wsrc}");
+                }
+                w!(out, "    b.vs {label}");
+            }
+        }
+
+        "mul32_overflow" => {
+            if insn.operands.len() == 3 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let wdst = to_w_reg(&dst);
+                let label = resolve_label(&insn.operands[2], handler);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                let wsrc = to_w_reg(&src);
+                // ARM64 mul doesn't set overflow flag, so we use smull + check.
+                // smull gives full 64-bit result of 32x32 signed multiply.
+                w!(out, "    smull {dst}, {wdst}, {wsrc}");
+                w!(out, "    sxtw x9, {wdst}");
+                w!(out, "    cmp {dst}, x9");
+                w!(out, "    b.ne {label}");
+            }
+        }
+
+        "neg32_overflow" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let wdst = to_w_reg(&dst);
+                let label = resolve_label(&insn.operands[1], handler);
+                w!(out, "    negs {wdst}, {wdst}");
+                w!(out, "    b.vs {label}");
+            }
+        }
+
         // mul: 2-operand (dst *= src, with overflow detection) or 3-operand (dst = src * imm)
         "mul" => {
             if insn.operands.len() == 3 {
