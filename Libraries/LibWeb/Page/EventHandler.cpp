@@ -642,6 +642,16 @@ void EventHandler::update_hovered_chrome_widget(GC::Ptr<Painting::ChromeWidget> 
 
 EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
+    ScopeGuard clear_selection_mode([&] {
+        if (button == UIEvents::MouseButton::Primary) {
+            m_selection_mode = SelectionMode::None;
+            m_selection_origin = {};
+            m_mouse_selection_target = nullptr;
+
+            m_auto_scroll_handler = nullptr;
+        }
+    });
+
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
 
@@ -696,10 +706,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
             // The topmost event target MUST be the element highest in the rendering order which is capable of being an
             // event target.
             GC::Ptr<Layout::Node> layout_node;
-            if (!parent_element_for_event_dispatch(*paintable, node, layout_node)) {
-                // FIXME: This is pretty ugly but we need to bail out here.
-                goto after_node_use;
-            }
+            if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
+                return handled_event;
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
             auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
@@ -795,14 +803,6 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         }
     }
 
-after_node_use:
-    if (button == UIEvents::MouseButton::Primary) {
-        m_selection_mode = SelectionMode::None;
-        m_selection_origin = {};
-        m_mouse_selection_target = nullptr;
-
-        m_auto_scroll_handler = nullptr;
-    }
     return handled_event;
 }
 
