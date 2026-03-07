@@ -39,6 +39,7 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
                     m_context.types[index.value()].description().visit(
                         [&](FunctionType const& func) {
                             m_context.functions.append(func);
+                            m_context.function_type_indices.append(index);
                             m_context.imported_function_count++;
                         },
                         [&](StructType const& struct_) {
@@ -54,6 +55,7 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
             },
             [&](FunctionType const& type) -> ErrorOr<void, ValidationError> {
                 m_context.functions.append(type);
+                m_context.function_type_indices.append({});
                 m_context.imported_function_count++;
                 return {};
             },
@@ -80,11 +82,13 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         return Errors::invalid("FunctionSection"sv);
 
     m_context.functions.ensure_capacity(module.function_section().types().size() + m_context.functions.size());
-    for (auto& index : module.function_section().types())
-        if (m_context.types.size() > index.value() && m_context.types[index.value()].is_function())
-            m_context.functions.append(m_context.types[index.value()].function());
-        else
+    m_context.function_type_indices.ensure_capacity(module.function_section().types().size() + m_context.function_type_indices.size());
+    for (auto& index : module.function_section().types()) {
+        if (m_context.types.size() <= index.value() || !m_context.types[index.value()].is_function())
             return Errors::invalid("TypeIndex"sv);
+        m_context.functions.append(m_context.types[index.value()].function());
+        m_context.function_type_indices.append(index);
+    }
 
     m_context.tables.ensure_capacity(m_context.tables.size() + module.table_section().tables().size());
     for (auto& table : module.table_section().tables())
@@ -107,8 +111,6 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     m_context.tags.ensure_capacity(m_context.tags.size() + module.tag_section().tags().size());
     for (auto& tag : module.tag_section().tags())
         m_context.tags.append(TagType(tag.type(), tag.flags()));
-
-    m_context.current_module = &module;
 
     // We need to build the set of declared functions to check that `ref.func` uses a specific set of predetermined functions, found in:
     // - Element initializer expressions
@@ -1415,7 +1417,14 @@ VALIDATE_INSTRUCTION(ref_func)
         return Errors::invalid("function reference"sv);
 
     is_constant = true;
-    stack.append(ValueType(ValueType::FunctionReference));
+
+    // https://webassembly.github.io/gc/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-ref-mathsf-ref-func-x
+    // ref.func x : [] → [(ref dt)]
+    auto type_index = m_context.function_type_indices[index.value()];
+    auto ref_type = type_index.has_value() ? ValueType(ValueType::TypeUseReference, *type_index) : ValueType(ValueType::FunctionReference);
+    ref_type.set_nullable(false);
+    stack.append(ref_type);
+
     return {};
 }
 
@@ -2526,6 +2535,60 @@ VALIDATE_INSTRUCTION(return_call_indirect)
     auto& return_types = m_frames.first().type.results();
     if (return_types != func.results())
         return Errors::invalid("return_call_indirect target"sv, func.results(), return_types);
+
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(call_ref)
+{
+    auto type_index = instruction.arguments().get<TypeIndex>();
+    TRY(validate(type_index));
+
+    auto const& type = m_context.types[type_index.value()];
+    if (!type.is_function())
+        return Errors::invalid("type for call_ref"sv, "a function type"sv, type);
+
+    auto const& func = type.function();
+
+    TRY(stack.take(ValueType(ValueType::TypeUseReference, type_index)));
+
+    for (size_t i = 0; i < func.parameters().size(); ++i)
+        TRY(stack.take(func.parameters()[func.parameters().size() - i - 1]));
+
+    for (auto const& type : func.results())
+        stack.append(type);
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(return_call_ref)
+{
+    auto type_index = instruction.arguments().get<TypeIndex>();
+    TRY(validate(type_index));
+
+    auto const& type = m_context.types[type_index.value()];
+    if (!type.is_function())
+        return Errors::invalid("type for return_call_ref"sv, "a function type"sv, type);
+
+    auto const& func = type.function();
+
+    TRY(stack.take(ValueType(ValueType::TypeUseReference, type_index)));
+
+    for (size_t i = 0; i < func.parameters().size(); ++i)
+        TRY(stack.take(func.parameters()[func.parameters().size() - i - 1]));
+
+    auto const& return_types = m_frames.first().type.results();
+    auto const& callee_results = func.results();
+    if (return_types.size() != callee_results.size())
+        return Errors::invalid("return_call_ref target"sv, callee_results, return_types);
+    for (size_t i = 0; i < return_types.size(); ++i) {
+        StackEntry entry { callee_results[i] };
+        if (entry != return_types[i])
+            return Errors::invalid("return_call_ref target"sv, callee_results, return_types);
+    }
 
     m_frames.last().unreachable = true;
     stack.resize(m_frames.last().initial_size);

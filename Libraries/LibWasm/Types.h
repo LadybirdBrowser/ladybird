@@ -164,7 +164,7 @@ private:
 // https://webassembly.github.io/spec/core/bikeshed/#value-types%E2%91%A2
 class ValueType {
 public:
-    enum Kind {
+    enum Kind : u8 {
         I32,
         I64,
         F32,
@@ -191,6 +191,9 @@ public:
 
     bool operator==(ValueType const&) const = default;
 
+    bool is_nullable() const { return m_nullable; }
+    void set_nullable(bool nullable) { m_nullable = nullable; }
+
     auto is_reference() const { return m_kind == ExternReference || m_kind == FunctionReference || m_kind == TypeUseReference || m_kind == UnsupportedHeapReference; }
     auto is_vector() const { return m_kind == V128; }
     auto is_numeric() const { return !is_reference() && !is_vector(); }
@@ -215,13 +218,13 @@ public:
         case V128:
             return "v128";
         case FunctionReference:
-            return "funcref";
+            return m_nullable ? "funcref" : "ref func";
         case ExternReference:
-            return "externref";
+            return m_nullable ? "externref" : "ref extern";
         case ExceptionReference:
             return "exnref";
         case TypeUseReference:
-            return ByteString::formatted("ref null {}", unsafe_typeindex().value());
+            return ByteString::formatted("ref {} {}", m_nullable ? "null" : "", unsafe_typeindex().value());
         case UnsupportedHeapReference:
             return "todo.heapref";
         }
@@ -230,6 +233,7 @@ public:
 
 private:
     Kind m_kind;
+    bool m_nullable { true };
     Variant<TypeIndex, Empty> m_argument;
 };
 
@@ -674,6 +678,7 @@ private:
         TableIndex,
         TableTableArgs,
         TryTableArgs,
+        TypeIndex,
         ValueType,
         Vector<ValueType>,
         double,

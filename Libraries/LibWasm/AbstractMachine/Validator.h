@@ -24,6 +24,7 @@ struct Context {
 
     COWVector<TypeSection::Type> types;
     COWVector<FunctionType> functions;
+    COWVector<Optional<TypeIndex>> function_type_indices;
     COWVector<StructType> structs;
     COWVector<ArrayType> arrays;
     COWVector<TableType> tables;
@@ -37,7 +38,6 @@ struct Context {
     RefPtr<RefRBTree> references { make_ref_counted<RefRBTree>() };
     size_t imported_function_count { 0 };
     size_t current_function_parameter_count { 0 };
-    Module const* current_module { nullptr };
 };
 
 struct ValidationError : public Error {
@@ -195,18 +195,35 @@ public:
         bool is_numeric() const { return !is_known || concrete_type.is_numeric(); }
         bool is_reference() const { return !is_known || concrete_type.is_reference(); }
 
+        static bool is_subtype_of(ValueType const& concrete, ValueType const& expected)
+        {
+            if (concrete == expected)
+                return true;
+            // A typed function reference (ref [$null] $t) is a subtype of (ref [$null] func) when nullability is compatible.
+            if (expected.kind() == ValueType::FunctionReference && concrete.is_typeuse()
+                && (expected.is_nullable() || !concrete.is_nullable()))
+                return true;
+            // A non-nullable reference is a subtype of its nullable counterpart.
+            if (expected.is_nullable() && !concrete.is_nullable()) {
+                auto nullable_concrete = concrete;
+                nullable_concrete.set_nullable(true);
+                return nullable_concrete == expected;
+            }
+            return false;
+        }
+
         bool operator==(ValueType const& other) const
         {
-            if (is_known)
-                return concrete_type == other;
-            return true;
+            if (!is_known)
+                return true;
+            return is_subtype_of(concrete_type, other);
         }
 
         bool operator==(StackEntry const& other) const
         {
-            if (is_known && other.is_known)
-                return other.concrete_type == concrete_type;
-            return true;
+            if (!is_known || !other.is_known)
+                return true;
+            return is_subtype_of(concrete_type, other.concrete_type);
         }
 
         ValueType concrete_type;

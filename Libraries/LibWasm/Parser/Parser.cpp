@@ -119,8 +119,11 @@ static ParseResult<ValueType> parse_reference_type(Stream& stream, u8 tag)
         return ValueType(ValueType::UnsupportedHeapReference);
     case Constants::nullable_reference_tag_tag:
     case Constants::non_nullable_reference_tag_tag: {
+        bool nullable = tag == Constants::nullable_reference_tag_tag;
         tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
-        return parse_reference_type(stream, tag);
+        auto type = TRY(parse_reference_type(stream, tag));
+        type.set_nullable(nullable);
+        return type;
     }
     default: {
         ReconsumableStream new_stream { stream };
@@ -387,6 +390,11 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         auto type_index = TRY(GenericIndexParser<TypeIndex>::parse(stream));
         auto table_index = TRY(GenericIndexParser<TableIndex>::parse(stream));
         return Instruction { opcode, IndirectCallArgs { type_index, table_index } };
+    }
+    case Instructions::call_ref.value():
+    case Instructions::return_call_ref.value(): {
+        auto type_index = TRY(GenericIndexParser<TypeIndex>::parse(stream));
+        return Instruction { opcode, type_index };
     }
     case Instructions::i32_load.value():
     case Instructions::i64_load.value():

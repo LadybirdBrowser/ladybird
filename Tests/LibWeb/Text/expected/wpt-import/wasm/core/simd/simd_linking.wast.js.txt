@@ -1,9 +1,13 @@
 Harness status: OK
 
-Found 4 tests
+Found 8 tests
 
-4 Pass
+8 Pass
 Pass	#1 Reinitialize the default imports
-Pass	#2 Reinitialize the default imports
-Pass	#3 Test that WebAssembly instantiation succeeds
-Pass	#4 Test that WebAssembly instantiation succeeds
+Pass	#2 Test that WebAssembly compilation succeeds (simd_linking.wast:1)
+Pass	#3 Test that WebAssembly compilation succeeds (simd_linking.wast:7)
+Pass	#4 Reinitialize the default imports
+Pass	#5 Test that WebAssembly compilation succeeds (simd_linking.wast:1)
+Pass	#6 Test that WebAssembly instantiation succeeds (simd_linking.wast:1)
+Pass	#7 Test that WebAssembly compilation succeeds (simd_linking.wast:7)
+Pass	#8 Test that WebAssembly instantiation succeeds (simd_linking.wast:7)

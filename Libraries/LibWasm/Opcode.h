@@ -33,6 +33,8 @@ namespace Instructions {
     M(call_indirect, 0x11, -1, -1)            \
     M(return_call, 0x12, -1, -1)              \
     M(return_call_indirect, 0x13, -1, -1)     \
+    M(call_ref, 0x14, -1, -1)                 \
+    M(return_call_ref, 0x15, -1, -1)          \
     M(drop, 0x1a, 1, 0)                       \
     M(select, 0x1b, 3, 1)                     \
     M(select_typed, 0x1c, 3, 1)               \
