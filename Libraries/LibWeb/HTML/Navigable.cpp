@@ -1475,7 +1475,7 @@ void Navigable::populate_session_history_entry_document(
                 // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
                 auto error_message = received_navigation_params.has<NullOrError>() ? received_navigation_params.get<NullOrError>().value_or("Unknown error"_string) : "The request was denied."_string;
 
-                auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
+                auto error_html = load_error_page(entry->url().to_byte_string(), error_message).release_value_but_fixme_should_propagate_errors();
                 entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
                     auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
                     document.set_url(URL::about_error());

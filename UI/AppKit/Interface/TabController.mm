@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/URL.h>
@@ -147,6 +148,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [[self tab].web_view loadURL:url];
 }
 
+- (void)loadHTML:(StringView)html
+{
+    [[self tab].web_view loadHTML:html];
+}
+
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect
 {
     [self setLocationFieldText:url.serialize()];
@@ -251,6 +257,13 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value()) {
         [self loadURL:*url];
+    } else {
+        if (!WebView::Application::settings().search_engine().has_value()) {
+            auto errorPage = Web::load_error_page(location, "You can configure a search engine in the settings menu. Otherwise, the location bar will only accept URLs."sv);
+            if (!errorPage.is_error()) {
+                [self loadHTML:errorPage.value()];
+            }
+        }
     }
 
     [self.window makeFirstResponder:nil];
