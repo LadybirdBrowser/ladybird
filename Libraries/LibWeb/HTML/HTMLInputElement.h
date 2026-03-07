@@ -67,6 +67,7 @@ public:
 
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual void set_being_activated(bool) override;
 
     enum class TypeAttributeState {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(_, state) state,

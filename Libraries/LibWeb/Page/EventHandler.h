@@ -109,7 +109,7 @@ private:
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
     OwnPtr<ElementResizeAction> m_element_resize_in_progress;
 
-    GC::Weak<DOM::EventTarget> m_mousedown_target;
+    GC::Weak<DOM::Node> m_mousedown_target;
 
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
 

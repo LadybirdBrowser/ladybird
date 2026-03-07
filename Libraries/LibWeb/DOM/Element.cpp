@@ -1265,9 +1265,22 @@ bool Element::is_focused() const
     return document().focused_area() == this;
 }
 
-bool Element::is_active() const
+bool Element::is_the_active_element() const
 {
     return document().active_element() == this;
+}
+
+bool Element::is_being_activated() const
+{
+    return m_is_being_activated;
+}
+
+void Element::set_being_activated(bool active)
+{
+    if (m_is_being_activated == active)
+        return;
+    m_is_being_activated = active;
+    invalidate_style(StyleInvalidationReason::ElementSetActive);
 }
 
 bool Element::is_target() const

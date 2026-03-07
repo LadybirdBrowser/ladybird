@@ -121,6 +121,13 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_resource_request);
 }
 
+void HTMLInputElement::set_being_activated(bool activated)
+{
+    Base::set_being_activated(activated);
+    if (first_is_one_of(type_state(), TypeAttributeState::Checkbox, TypeAttributeState::RadioButton))
+        set_needs_repaint();
+}
+
 GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     if (type_state() == TypeAttributeState::Hidden)

@@ -7,12 +7,12 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Layout/FormAssociatedLabelableNode.h>
+#include <LibWeb/Layout/ReplacedBox.h>
 
 namespace Web::Layout {
 
-class CheckBox final : public FormAssociatedLabelableNode {
-    GC_CELL(CheckBox, FormAssociatedLabelableNode);
+class CheckBox final : public ReplacedBox {
+    GC_CELL(CheckBox, ReplacedBox);
     GC_DECLARE_ALLOCATOR(CheckBox);
 
 public:

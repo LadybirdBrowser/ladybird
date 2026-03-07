@@ -530,6 +530,14 @@ static void light_dismiss_activities(UIEvents::PointerEvent const& event, GC::Pt
     HTML::HTMLDialogElement::light_dismiss_open_dialogs(event, target);
 }
 
+static void set_node_and_ancestors_being_activated(DOM::Node* node, bool activated)
+{
+    for (auto* ancestor = node; ancestor; ancestor = ancestor->parent()) {
+        if (auto* element = as_if<DOM::Element>(*ancestor))
+            element->set_being_activated(activated);
+    }
+}
+
 EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
     : m_navigable(navigable)
     , m_drag_and_drop_event_handler(make<DragAndDropEventHandler>())
@@ -638,6 +646,11 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
 
     if (!paint_root())
         return EventResult::Dropped;
+
+    if (button == UIEvents::MouseButton::Primary) {
+        if (auto mousedown_target = m_mousedown_target.ptr())
+            set_node_and_ancestors_being_activated(mousedown_target, false);
+    }
 
     if (m_element_resize_in_progress) {
         set_mouse_event_tracking_paintable(nullptr);
@@ -858,6 +871,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
             return EventResult::Dropped;
 
         m_mousedown_target = node.ptr();
+        if (button == UIEvents::MouseButton::Primary)
+            set_node_and_ancestors_being_activated(node.ptr(), true);
         auto page_offset = compute_mouse_event_page_offset(viewport_position);
         auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
         auto scroll_offset = document->navigable()->viewport_scroll_offset();

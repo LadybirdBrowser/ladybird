@@ -23,7 +23,7 @@ GC::Ref<RadioButtonPaintable> RadioButtonPaintable::create(Layout::RadioButton c
 }
 
 RadioButtonPaintable::RadioButtonPaintable(Layout::RadioButton const& layout_box)
-    : LabelablePaintable(layout_box)
+    : PaintableBox(layout_box)
 {
 }
 
@@ -47,9 +47,9 @@ void RadioButtonPaintable::paint(DisplayListRecordingContext& context, PaintPhas
         return rect.shrunken(amount, amount, amount, amount);
     };
 
-    auto const& radio_button = static_cast<HTML::HTMLInputElement const&>(layout_box().dom_node());
+    auto const& radio_button = static_cast<HTML::HTMLInputElement const&>(*dom_node());
 
-    bool enabled = layout_box().dom_node().enabled();
+    bool enabled = radio_button.enabled();
     auto input_colors = compute_input_colors(computed_values().color_scheme(), computed_values().accent_color());
 
     auto background_color = input_colors.background_color(enabled);
@@ -69,7 +69,8 @@ void RadioButtonPaintable::paint(DisplayListRecordingContext& context, PaintPhas
         if (!enabled)
             return input_colors.mid_gray;
         auto color = radio_color();
-        if (being_pressed())
+        // FIXME: Make this only take effect while this element or its labels are hovered.
+        if (radio_button.is_being_activated())
             color = InputColors::get_shade(color, 0.3f, computed_values().color_scheme());
         return color;
     }();

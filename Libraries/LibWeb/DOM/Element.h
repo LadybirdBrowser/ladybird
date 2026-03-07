@@ -284,7 +284,11 @@ public:
     WebIDL::ExceptionOr<void> set_outer_html(TrustedTypes::TrustedHTMLOrString const&);
 
     bool is_focused() const;
-    bool is_active() const;
+    bool is_the_active_element() const;
+
+    bool is_being_activated() const;
+    virtual void set_being_activated(bool);
+
     bool is_target() const;
     bool is_document_element() const;
 
@@ -682,6 +686,7 @@ private:
 
     CSSPixelPoint m_scroll_offset;
 
+    bool m_is_being_activated : 1 { false };
     bool m_in_top_layer : 1 { false };
     bool m_rendered_in_top_layer : 1 { false };
     bool m_style_uses_attr_css_function : 1 { false };

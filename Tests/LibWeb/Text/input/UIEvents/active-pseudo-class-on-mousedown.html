@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 200px;
+    height: 200px;
+}
+
+#outer {
+    width: 100px;
+    height: 100px;
+    background-color: yellowgreen;
+}
+
+#inner {
+    width: 50px;
+    height: 50px;
+    background-color: magenta;
+}
+</style>
+<body>
+<div id="outer"><div id="inner"></div></div>
+<input type="checkbox" id="checkbox"><label id="label" for="checkbox">Label text</label>
+</body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(":active before click:");
+        println(`  inner: ${inner.matches(':active')}`);
+        println(`  outer: ${outer.matches(':active')}`);
+
+        internals.clickAndHold(25, 25);
+        println(":active during mousedown on #inner:");
+        println(`  inner: ${inner.matches(':active')}`);
+        println(`  outer: ${outer.matches(':active')}`);
+        println(`  body: ${document.body.matches(':active')}`);
+
+        internals.mouseUp(25, 25);
+        println(":active after mouseup:");
+        println(`  inner: ${inner.matches(':active')}`);
+        println(`  outer: ${outer.matches(':active')}`);
+
+        // Test :active propagation from label to its control.
+        internals.clickAndHold(6, 110);
+        println(":active during mousedown on #checkbox:");
+        println(`  label: ${label.matches(':active')}`);
+        println(`  checkbox: ${checkbox.matches(':active')}`);
+    
+        internals.mouseUp(6, 110);
+        println(":active after mouseup on #label:");
+        println(`  label: ${label.matches(':active')}`);
+        println(`  checkbox: ${checkbox.matches(':active')}`);
+
+        internals.clickAndHold(24, 110);
+        println(":active during mousedown on #label:");
+        println(`  label: ${label.matches(':active')}`);
+        println(`  checkbox: ${checkbox.matches(':active')}`);
+    
+        internals.mouseUp(24, 110);
+        println(":active after mouseup on #label:");
+        println(`  label: ${label.matches(':active')}`);
+        println(`  checkbox: ${checkbox.matches(':active')}`);
+
+    });
+</script>

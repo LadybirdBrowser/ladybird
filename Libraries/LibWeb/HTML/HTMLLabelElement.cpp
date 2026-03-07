@@ -32,6 +32,13 @@ void HTMLLabelElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void HTMLLabelElement::set_being_activated(bool activated)
+{
+    Base::set_being_activated(activated);
+    if (auto labeled_control = control())
+        labeled_control->set_being_activated(activated);
+}
+
 bool HTMLLabelElement::has_activation_behavior() const
 {
     return true;

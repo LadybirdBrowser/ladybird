@@ -2829,26 +2829,6 @@ void Document::set_active_element(GC::Ptr<Element> element)
     if (m_active_element.ptr() == element)
         return;
 
-    auto old_active_element = move(m_active_element);
-    auto* common_ancestor = find_common_ancestor(old_active_element, element);
-
-    GC::Ptr<Node> old_active_node_root = nullptr;
-    GC::Ptr<Node> new_active_node_root = nullptr;
-    if (old_active_element)
-        old_active_node_root = old_active_element->root();
-    if (element)
-        new_active_node_root = element->root();
-    if (old_active_node_root != new_active_node_root) {
-        if (old_active_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, m_active_element, *old_active_node_root, element);
-        }
-        if (new_active_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, m_active_element, *new_active_node_root, element);
-        }
-    } else {
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, m_active_element, *common_ancestor, element);
-    }
-
     m_active_element = element;
 
     set_needs_repaint();

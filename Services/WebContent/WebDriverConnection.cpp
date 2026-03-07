@@ -1910,7 +1910,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is not keyboard-interactable"sv);
 
         // 7. If element is not the active element run the focusing steps for the element.
-        if (!element->is_active())
+        if (!element->is_the_active_element())
             Web::HTML::run_focusing_steps(element);
     }
 

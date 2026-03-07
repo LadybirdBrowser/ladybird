@@ -7,12 +7,12 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/LabelablePaintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
 
-class RadioButtonPaintable final : public LabelablePaintable {
-    GC_CELL(RadioButtonPaintable, LabelablePaintable);
+class RadioButtonPaintable final : public PaintableBox {
+    GC_CELL(RadioButtonPaintable, PaintableBox);
     GC_DECLARE_ALLOCATOR(RadioButtonPaintable);
 
 public:
