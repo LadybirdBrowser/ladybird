@@ -6,6 +6,7 @@
 
 #include <AK/Function.h>
 #include <AK/GenericLexer.h>
+#include <AK/HashTable.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
@@ -66,6 +67,7 @@ ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value val
                 auto& replacer_object = replacer.as_object();
                 auto replacer_length = TRY(length_of_array_like(vm, replacer_object));
                 Vector<Utf16String> list;
+                HashTable<Utf16String> seen_items;
                 for (size_t i = 0; i < replacer_length; ++i) {
                     auto replacer_value = TRY(replacer_object.get(i));
                     Optional<Utf16String> item;
@@ -78,7 +80,7 @@ ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value val
                         if (is<StringObject>(value_object) || is<NumberObject>(value_object))
                             item = TRY(replacer_value.to_utf16_string(vm));
                     }
-                    if (item.has_value() && !list.contains_slow(*item)) {
+                    if (item.has_value() && seen_items.set(*item) == AK::HashSetResult::InsertedNewEntry) {
                         list.append(*item);
                     }
                 }
