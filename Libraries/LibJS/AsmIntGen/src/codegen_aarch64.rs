@@ -106,19 +106,26 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     // Save callee-saved registers and link register.
     // Pinned: x19(dispatch), x20(interp), x25(pc), x26(pb), x27(values), x28(exec_ctx)
     // Also save x21-x24 (callee-saved, not used by us, but must be preserved).
-    w!(out, "    stp x29, x30, [sp, #-96]!");
+    // d8 is pinned to hold CANON_NAN_BITS (callee-saved FP register).
+    w!(out, "    stp x29, x30, [sp, #-112]!");
     w!(out, "    mov x29, sp");
     w!(out, "    stp x25, x26, [sp, #16]");
     w!(out, "    stp x27, x28, [sp, #32]");
     w!(out, "    stp x19, x20, [sp, #48]");
     w!(out, "    stp x21, x22, [sp, #64]");
     w!(out, "    stp x23, x24, [sp, #80]");
+    w!(out, "    str d8, [sp, #96]");
 
     // Set up pinned registers
     // x0=bytecode (pb), w1=entry_point (pc), x2=values, x3=interp
     let interp_ctx = program
         .constants
         .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
+        .copied()
+        .unwrap_or(0);
+    let canon_nan = program
+        .constants
+        .get("CANON_NAN_BITS")
         .copied()
         .unwrap_or(0);
     w!(out, "    mov x26, x0              // pb = bytecode base");
@@ -130,6 +137,10 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     w!(out, "    // x28 = exec_ctx");
     emit_symbol_addr(out, "x19", "asm_dispatch_table", program.object_format);
     w!(out, "    // x19 = dispatch table");
+    // Pin canonical NaN bits in d8 (callee-saved FP register).
+    // Used by canonicalize_nan to avoid materializing the constant each time.
+    emit_mov_imm(out, "x9", canon_nan);
+    w!(out, "    fmov d8, x9              // d8 = CANON_NAN_BITS");
 
     // Dispatch to first instruction
     w!(out, "    add x9, x26, x25         // x9 = pb + pc");
@@ -162,7 +173,8 @@ fn generate_fallback_handler(out: &mut String, program: &Program) {
     w!(out, "    ldp x19, x20, [sp, #48]");
     w!(out, "    ldp x21, x22, [sp, #64]");
     w!(out, "    ldp x23, x24, [sp, #80]");
-    w!(out, "    ldp x29, x30, [sp], #96");
+    w!(out, "    ldr d8, [sp, #96]");
+    w!(out, "    ldp x29, x30, [sp], #112");
     w!(out, "    ret");
     w!(out);
 }
@@ -914,15 +926,11 @@ fn emit_instruction(
         // If src is NaN, write CANON_NAN_BITS to dst. Otherwise bitwise-copy src to dst.
         // Uses a cold fixup block to keep the constant load off the hot path, since NaN
         // results are extremely rare. The hot path is just: fmov + fcmp + b.vs.
+        // d8 holds CANON_NAN_BITS (pinned at entry), so the cold block is just fmov + b.
         "canonicalize_nan" => {
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
-                let canon = program
-                    .constants
-                    .get("CANON_NAN_BITS")
-                    .copied()
-                    .expect("CANON_NAN_BITS constant required for canonicalize_nan");
                 let id = state.unique_counter;
                 state.unique_counter += 1;
                 let fixup_label = format!(".Lasm_{}.canon_nan_{id}", handler.name);
@@ -932,9 +940,9 @@ fn emit_instruction(
                 w!(out, "    fcmp {src}, {src}");
                 w!(out, "    b.vs {fixup_label}");
                 w!(out, "{ret_label}:");
-                // Cold fixup block: only reached when result is NaN
+                // Cold fixup block: d8 holds CANON_NAN_BITS (pinned at entry)
                 w!(state.cold_blocks, "{fixup_label}:");
-                emit_mov_imm(&mut state.cold_blocks, &dst, canon);
+                w!(state.cold_blocks, "    fmov {dst}, d8");
                 w!(state.cold_blocks, "    b {ret_label}");
             }
         }
