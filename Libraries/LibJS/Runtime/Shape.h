@@ -12,6 +12,7 @@
 #include <AK/StringView.h>
 #include <AK/Weakable.h>
 #include <LibGC/Weak.h>
+#include <LibGC/WeakInlines.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>

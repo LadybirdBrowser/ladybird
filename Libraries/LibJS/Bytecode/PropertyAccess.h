@@ -163,8 +163,8 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             auto& entry = get_cache_slot();
             entry.shape = &base_obj->shape();
             entry.property_offset = cacheable_metadata.property_offset.value();
-            entry.prototype = *cacheable_metadata.prototype;
-            entry.prototype_chain_validity = *prototype_chain_validity;
+            entry.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
+            entry.prototype_chain_validity = prototype_chain_validity;
 
             if (shape.is_dictionary()) {
                 entry.shape_dictionary_generation = shape.dictionary_generation();
@@ -329,7 +329,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                 cache.property_offset = cacheable_metadata.property_offset.value();
                 cache.shape = &object->shape();
                 if (cacheable_metadata.prototype) {
-                    cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+                    cache.prototype_chain_validity = cacheable_metadata.prototype->shape().prototype_chain_validity();
                 }
                 if (object->shape().is_dictionary()) {
                     cache.shape_dictionary_generation = object->shape().dictionary_generation();
@@ -348,7 +348,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                 break;
             case CacheableSetPropertyMetadata::Type::ChangeOwnProperty:
                 caches->update(PropertyLookupCache::Entry::Type::ChangeOwnProperty, [&](auto& cache) {
-                    cache.shape = object->shape();
+                    cache.shape = &object->shape();
                     cache.property_offset = cacheable_metadata.property_offset.value();
 
                     if (object->shape().is_dictionary()) {
@@ -358,10 +358,10 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                 break;
             case CacheableSetPropertyMetadata::Type::ChangePropertyInPrototypeChain:
                 caches->update(PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain, [&](auto& cache) {
-                    cache.shape = object->shape();
+                    cache.shape = &object->shape();
                     cache.property_offset = cacheable_metadata.property_offset.value();
-                    cache.prototype = *cacheable_metadata.prototype;
-                    cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+                    cache.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
+                    cache.prototype_chain_validity = cacheable_metadata.prototype->shape().prototype_chain_validity();
 
                     if (object->shape().is_dictionary()) {
                         cache.shape_dictionary_generation = object->shape().dictionary_generation();

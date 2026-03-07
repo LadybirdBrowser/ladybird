@@ -51,7 +51,7 @@ void IteratorRecord::visit_edges(Cell::Visitor& visitor)
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM& vm, Object& object)
 {
     // 1. Let nextMethod be ? Get(obj, "next").
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     auto next_method = TRY(object.get(vm.names.next, cache));
 
     // 2. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]: nextMethod, [[Done]]: false }.
@@ -70,7 +70,7 @@ ThrowCompletionOr<IteratorRecordImpl> get_iterator_from_method_impl(VM& vm, Valu
         return vm.throw_completion<TypeError>(ErrorType::NotIterable, object);
 
     // 3. Let nextMethod be ? Get(iterator, "next").
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     auto next_method = TRY(iterator.get(vm, vm.names.next, cache));
 
     // 4. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
@@ -99,7 +99,7 @@ ThrowCompletionOr<IteratorRecordImpl> get_iterator_impl(VM& vm, Value object, It
         // b. If method is undefined, then
         if (!method) {
             // i. Let syncMethod be ? GetMethod(obj, @@iterator).
-            static Bytecode::PropertyLookupCache cache;
+            static Bytecode::StaticPropertyLookupCache cache;
             auto sync_method = TRY(object.get_method(vm, vm.well_known_symbol_iterator(), cache));
 
             // ii. If syncMethod is undefined, throw a TypeError exception.
@@ -116,7 +116,7 @@ ThrowCompletionOr<IteratorRecordImpl> get_iterator_impl(VM& vm, Value object, It
     // 2. Else,
     else {
         // a. Let method be ? GetMethod(obj, @@iterator).
-        static Bytecode::PropertyLookupCache cache;
+        static Bytecode::StaticPropertyLookupCache cache;
         method = TRY(object.get_method(vm, vm.well_known_symbol_iterator(), cache));
     }
 
@@ -152,7 +152,7 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM& vm, Valu
     }
 
     // 2. Let method be ? GetMethod(obj, %Symbol.iterator%).
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     auto method = TRY(object.get_method(vm, vm.well_known_symbol_iterator(), cache));
 
     Value iterator;
@@ -221,7 +221,7 @@ ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM& vm, IteratorRecordImpl& ite
 ThrowCompletionOr<bool> iterator_complete(VM& vm, Object& iterator_result)
 {
     // 1. Return ToBoolean(? Get(iterResult, "done")).
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     return TRY(iterator_result.get(vm.names.done, cache)).to_boolean();
 }
 
@@ -229,7 +229,7 @@ ThrowCompletionOr<bool> iterator_complete(VM& vm, Object& iterator_result)
 ThrowCompletionOr<Value> iterator_value(VM& vm, Object& iterator_result)
 {
     // 1. Return ? Get(iterResult, "value").
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     return TRY(iterator_result.get(vm.names.value, cache));
 }
 
@@ -251,7 +251,7 @@ ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecordImp
     auto result = TRY(iterator_next(vm, iterator_record));
 
     // 2. Let done be Completion(IteratorComplete(result)).
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     auto done = result->get(vm.names.done, cache);
 
     // 3. If done is a throw completion, then
@@ -276,7 +276,7 @@ ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecordImp
     }
 
     // 6. Return result.
-    static Bytecode::PropertyLookupCache cache2;
+    static Bytecode::StaticPropertyLookupCache cache2;
     return ThrowCompletionOr<IterationResultOrDone> { IterationResult { done_value, result->get(vm.names.value, cache2) } };
 }
 

@@ -79,6 +79,8 @@ public:
     void did_create_weak_container(Badge<WeakContainer>, WeakContainer&);
     void did_destroy_weak_container(Badge<WeakContainer>, WeakContainer&);
 
+    void register_sweep_callback(AK::Function<void()>);
+
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
 
     void uproot_cell(Cell* cell);
@@ -178,6 +180,7 @@ private:
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
 
     Vector<AK::Function<void()>> m_post_gc_tasks;
+    Vector<AK::Function<void()>> m_sweep_callbacks;
 
     WeakBlock::List m_usable_weak_blocks;
     WeakBlock::List m_full_weak_blocks;

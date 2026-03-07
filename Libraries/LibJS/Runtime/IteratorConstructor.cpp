@@ -170,7 +170,7 @@ GC_DEFINE_ALLOCATOR(ConcatIterator);
 // 27.1.3.2.1 Iterator.concat ( ...items ), https://tc39.es/ecma262/#sec-iterator.concat
 JS_DEFINE_NATIVE_FUNCTION(IteratorConstructor::concat)
 {
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     auto& realm = *vm.current_realm();
 
     // 1. Let iterables be a new empty List.

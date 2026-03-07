@@ -14,6 +14,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -78,6 +79,10 @@ VM::VM(ErrorMessages error_messages)
 {
     s_the = this;
     m_bytecode_interpreter = make<Bytecode::Interpreter>();
+
+    m_heap.register_sweep_callback([] {
+        Bytecode::StaticPropertyLookupCache::sweep_all();
+    });
 
     m_empty_string = m_heap.allocate<PrimitiveString>(String {});
 

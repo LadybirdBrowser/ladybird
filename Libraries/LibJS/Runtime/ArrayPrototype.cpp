@@ -119,7 +119,7 @@ static ThrowCompletionOr<Object*> array_species_create(VM& vm, Object& original_
     if (!is_array)
         return TRY(Array::create(realm, length)).ptr();
 
-    static Bytecode::PropertyLookupCache cache;
+    static Bytecode::StaticPropertyLookupCache cache;
     auto constructor = TRY(original_array.get(vm.names.constructor, cache));
     if (constructor.is_constructor()) {
         auto& constructor_function = constructor.as_function();
@@ -132,7 +132,7 @@ static ThrowCompletionOr<Object*> array_species_create(VM& vm, Object& original_
     }
 
     if (constructor.is_object()) {
-        static Bytecode::PropertyLookupCache cache2;
+        static Bytecode::StaticPropertyLookupCache cache2;
         constructor = TRY(constructor.as_object().get(vm.well_known_symbol_species(), cache2));
         if (constructor.is_null())
             constructor = js_undefined();
