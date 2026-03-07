@@ -1135,6 +1135,74 @@ fn emit_instruction(
             }
         }
 
+        // extract_tag dst, src -- Extract upper 16-bit NaN-boxing tag.
+        // On aarch64: single `lsr xD, xS, #48`.
+        "extract_tag" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                w!(out, "    lsr {dst}, {src}, #48");
+            }
+        }
+
+        // unbox_int32 dst, src -- Sign-extend low 32 bits to 64.
+        "unbox_int32" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                let wsrc = to_w_reg(&src);
+                w!(out, "    sxtw {dst}, {wsrc}");
+            }
+        }
+
+        // unbox_object dst, src -- Zero-extend lower 48 bits (extract pointer).
+        // On aarch64: single `and` with 48-bit logical immediate.
+        "unbox_object" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                w!(out, "    and {dst}, {src}, #0xffffffffffff");
+            }
+        }
+
+        // box_int32 dst, src -- NaN-box a raw int32 (mask low 32 bits, set tag).
+        // On aarch64: `mov wD, wS` (zero-extends) + `movk xD, #tag, lsl #48`.
+        "box_int32" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                let wdst = to_w_reg(&dst);
+                let wsrc = to_w_reg(&src);
+                let tag = program
+                    .constants
+                    .get("INT32_TAG")
+                    .copied()
+                    .expect("INT32_TAG constant required for box_int32");
+                // NB: The mov wD is always emitted even when dst == src, because
+                // writing a 32-bit register zeros the upper 32 bits.
+                w!(out, "    mov {wdst}, {wsrc}");
+                w!(out, "    movk {dst}, #0x{tag:x}, lsl #48");
+            }
+        }
+
+        // box_int32_clean dst, src -- NaN-box an already zero-extended int32.
+        // Upper 32 bits are known zero, so just set the tag.
+        "box_int32_clean" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                let tag = program
+                    .constants
+                    .get("INT32_TAG")
+                    .copied()
+                    .expect("INT32_TAG constant required for box_int32_clean");
+                if dst != src {
+                    w!(out, "    mov {dst}, {src}");
+                }
+                w!(out, "    movk {dst}, #0x{tag:x}, lsl #48");
+            }
+        }
+
         // and
         "and" => {
             if insn.operands.len() == 2 {

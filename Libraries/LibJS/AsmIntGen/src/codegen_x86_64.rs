@@ -808,6 +808,83 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
+        // extract_tag dst, src -- Extract upper 16-bit NaN-boxing tag.
+        // On x86_64: mov + shr (2 instructions, same as the old macro).
+        "extract_tag" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                if dst != src {
+                    w!(out, "    mov {dst}, {src}");
+                }
+                w!(out, "    shr {dst}, 48");
+            }
+        }
+
+        // unbox_int32 dst, src -- Sign-extend low 32 bits to 64.
+        "unbox_int32" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                let src32 = to_32bit_reg(&src);
+                w!(out, "    movsxd {dst}, {src32}");
+            }
+        }
+
+        // unbox_object dst, src -- Zero-extend lower 48 bits (extract pointer).
+        // On x86_64: mov + shl + shr (3 instructions, same as the old macro).
+        "unbox_object" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                if dst != src {
+                    w!(out, "    mov {dst}, {src}");
+                }
+                w!(out, "    shl {dst}, 16");
+                w!(out, "    shr {dst}, 16");
+            }
+        }
+
+        // box_int32 dst, src -- NaN-box a raw int32 (mask low 32, set tag).
+        // On x86_64: mov r32 (zero-extends) + movabs tag + or.
+        "box_int32" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                let dst32 = to_32bit_reg(&dst);
+                let src32 = to_32bit_reg(&src);
+                let tag_shifted = program
+                    .constants
+                    .get("INT32_TAG_SHIFTED")
+                    .copied()
+                    .expect("INT32_TAG_SHIFTED constant required for box_int32");
+                // NB: The mov r32 is always emitted even when dst == src, because
+                // writing a 32-bit register zeros the upper 32 bits.
+                w!(out, "    mov {dst32}, {src32}");
+                w!(out, "    movabs rax, {tag_shifted}");
+                w!(out, "    or {dst}, rax");
+            }
+        }
+
+        // box_int32_clean dst, src -- NaN-box an already zero-extended int32.
+        // On x86_64: same as box_int32 but skip the zero-extension.
+        "box_int32_clean" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                let tag_shifted = program
+                    .constants
+                    .get("INT32_TAG_SHIFTED")
+                    .copied()
+                    .expect("INT32_TAG_SHIFTED constant required for box_int32_clean");
+                if dst != src {
+                    w!(out, "    mov {dst}, {src}");
+                }
+                w!(out, "    movabs rax, {tag_shifted}");
+                w!(out, "    or {dst}, rax");
+            }
+        }
+
         // and with 0xFFFFFFFF needs special handling on x86_64
         // (imm32 gets sign-extended to 64 bits, making it a no-op)
         "and" => {
