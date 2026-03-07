@@ -323,7 +323,7 @@ void CSSStyleSheet::for_each_effective_keyframes_at_rule(Function<void(CSSKeyfra
     });
 }
 
-void CSSStyleSheet::for_each_counter_style_at_rule(Function<void(CSSCounterStyleRule const&)> const& callback) const
+void CSSStyleSheet::for_each_effective_counter_style_at_rule(Function<void(CSSCounterStyleRule const&)> const& callback) const
 {
     for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
         if (rule.type() == CSSRule::Type::CounterStyle)
