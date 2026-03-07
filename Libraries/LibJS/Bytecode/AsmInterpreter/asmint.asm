@@ -1786,7 +1786,23 @@ handler GetGlobal
     # Check if cache has an environment binding index (global let/const)
     load8 t0, [t3, GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING]
     branch_zero t0, .slow
-    # Use C++ helper for the env binding path (handles TDZ + module envs)
+    # Bail to C++ for module environments (rare)
+    load8 t0, [t3, GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT]
+    branch_nonzero t0, .slow_env
+    # Inline env binding: index into global_declarative_environment bindings
+    # t1 = global_declarative_environment (loaded at handler entry)
+    load32 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
+    load64 t4, [t1, BINDINGS_DATA_PTR]
+    mul t0, t0, SIZEOF_BINDING
+    add t4, t0
+    # Check binding is initialized (TDZ)
+    load8 t0, [t4, BINDING_INITIALIZED]
+    branch_zero t0, .slow
+    # Load binding value
+    load64 t0, [t4, BINDING_VALUE]
+    store_operand m_dst, t0
+    dispatch_next
+.slow_env:
     call_interp asm_try_get_global_env_binding
     branch_nonzero t0, .slow
     dispatch_next
@@ -1835,7 +1851,25 @@ handler SetGlobal
     # Check if cache has an environment binding index (global let/const)
     load8 t0, [t3, GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING]
     branch_zero t0, .slow
-    # Use C++ helper for the env binding path (handles module envs + strict)
+    # Bail to C++ for module environments (rare)
+    load8 t0, [t3, GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT]
+    branch_nonzero t0, .slow_env
+    # Inline env binding: index into global_declarative_environment bindings
+    # t1 = global_declarative_environment (loaded at handler entry)
+    load32 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
+    load64 t4, [t1, BINDINGS_DATA_PTR]
+    mul t0, t0, SIZEOF_BINDING
+    add t4, t0
+    # Check binding is initialized (TDZ) and mutable
+    load8 t0, [t4, BINDING_INITIALIZED]
+    branch_zero t0, .slow
+    load8 t0, [t4, BINDING_MUTABLE]
+    branch_zero t0, .slow
+    # Store value into binding
+    load_operand t0, m_src
+    store64 [t4, BINDING_VALUE], t0
+    dispatch_next
+.slow_env:
     call_interp asm_try_set_global_env_binding
     branch_nonzero t0, .slow
     dispatch_next

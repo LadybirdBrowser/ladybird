@@ -146,6 +146,7 @@ int main()
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL, GlobalVariableCache, environment_serial_number);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX, GlobalVariableCache, environment_binding_index);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING, GlobalVariableCache, has_environment_binding_index);
+    EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT, GlobalVariableCache, in_module_environment);
     EMIT_SIZEOF(GLOBAL_VARIABLE_CACHE_SIZE, GlobalVariableCache);
 
     // Builtin enum values
