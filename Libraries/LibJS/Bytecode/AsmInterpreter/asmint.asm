@@ -1136,7 +1136,7 @@ handler UnsignedRightShift
     shr t3, t4
     # If result > INT32_MAX, store as double
     branch_bit_set t3, 31, .as_double
-    box_int32 t3, t3
+    box_int32_clean t3, t3
     store_operand m_dst, t3
     dispatch_next
 .as_double:
@@ -1696,7 +1696,7 @@ handler GetByValue
     store_operand m_dst, t0
     dispatch_next
 .ta_box_int32:
-    box_int32 t3, t0
+    box_int32_clean t3, t0
     store_operand m_dst, t3
     dispatch_next
 .try_typed_array_slow:
