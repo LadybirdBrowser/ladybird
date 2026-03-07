@@ -32,7 +32,8 @@ public:
     void lock_read();
     void lock_write();
 
-    void unlock();
+    void unlock_read();
+    void unlock_write();
 
 private:
     pthread_rwlock_t m_rwlock;
@@ -63,7 +64,10 @@ public:
 
     ALWAYS_INLINE void unlock()
     {
-        m_lock.unlock();
+        if constexpr (mode == LockMode::Read)
+            m_lock.unlock_read();
+        else
+            m_lock.unlock_write();
     }
 
     ALWAYS_INLINE void lock()
@@ -96,13 +100,19 @@ ALWAYS_INLINE void RWLock::lock_write()
     m_write_locked = true;
 }
 
-ALWAYS_INLINE void RWLock::unlock()
+ALWAYS_INLINE void RWLock::unlock_read()
+{
+    if (m_read_locked_with_write_lock) {
+        m_read_locked_with_write_lock = false;
+        return;
+    }
+    pthread_rwlock_unlock(&m_rwlock);
+}
+
+ALWAYS_INLINE void RWLock::unlock_write()
 {
     m_write_locked = false;
-    auto needs_unlock = !m_read_locked_with_write_lock;
-    m_read_locked_with_write_lock = false;
-    if (needs_unlock)
-        pthread_rwlock_unlock(&m_rwlock);
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 }
