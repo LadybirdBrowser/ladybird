@@ -53,13 +53,7 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
     int wheel_delta_x = 0;
     int wheel_delta_y = 0;
 
-    if (type == Web::MouseEvent::Type::MouseDown) {
-        if (event.clickCount % 3 == 0) {
-            type = Web::MouseEvent::Type::TripleClick;
-        } else if (event.clickCount % 2 == 0) {
-            type = Web::MouseEvent::Type::DoubleClick;
-        }
-    } else if (type == Web::MouseEvent::Type::MouseWheel) {
+    if (type == Web::MouseEvent::Type::MouseWheel) {
         CGFloat delta_x = -[event scrollingDeltaX];
         CGFloat delta_y = -[event scrollingDeltaY];
 
@@ -74,7 +68,11 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
         wheel_delta_y = static_cast<int>(delta_y);
     }
 
-    return { type, device_position, device_screen_position, button, button, modifiers, wheel_delta_x, wheel_delta_y, nullptr };
+    int click_count = 0;
+    if (type == Web::MouseEvent::Type::MouseDown || type == Web::MouseEvent::Type::MouseUp)
+        click_count = static_cast<int>(event.clickCount);
+
+    return { type, device_position, device_screen_position, button, button, modifiers, wheel_delta_x, wheel_delta_y, click_count, nullptr };
 }
 
 struct DragData : public Web::BrowserInputData {

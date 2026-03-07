@@ -24,7 +24,7 @@ struct BrowserInputData {
 };
 
 struct WEB_API KeyEvent {
-    enum class Type {
+    enum class Type : u8 {
         KeyDown,
         KeyUp,
     };
@@ -41,14 +41,12 @@ struct WEB_API KeyEvent {
 };
 
 struct WEB_API MouseEvent {
-    enum class Type {
+    enum class Type : u8 {
         MouseDown,
         MouseUp,
         MouseMove,
         MouseLeave,
         MouseWheel,
-        DoubleClick,
-        TripleClick,
     };
 
     MouseEvent clone_without_browser_data() const;
@@ -61,12 +59,13 @@ struct WEB_API MouseEvent {
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     int wheel_delta_x { 0 };
     int wheel_delta_y { 0 };
+    int click_count { 0 };
 
     OwnPtr<BrowserInputData> browser_data;
 };
 
 struct WEB_API DragEvent {
-    enum class Type {
+    enum class Type : u8 {
         DragStart,
         DragMove,
         DragEnd,

@@ -272,11 +272,11 @@ UIEvents::MouseButton Internals::button_from_unsigned_short(WebIDL::UnsignedShor
     }
 }
 
-void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
+void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
 {
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mousedown(position, position, button_from_unsigned_short(button), 0, modifiers);
+    page.handle_mousedown(position, position, button_from_unsigned_short(button), 0, modifiers, click_count);
 }
 
 void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
@@ -304,18 +304,7 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     auto mouse_button = button_from_unsigned_short(button);
-
-    switch (click_count) {
-    case 2:
-        page.handle_doubleclick(position, position, mouse_button, 0, modifiers);
-        break;
-    case 3:
-        page.handle_tripleclick(position, position, mouse_button, 0, modifiers);
-        break;
-    default:
-        page.handle_mousedown(position, position, mouse_button, 0, modifiers);
-        break;
-    }
+    page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
 }
 
 void Internals::wheel(double x, double y, double delta_x, double delta_y)

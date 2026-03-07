@@ -5,11 +5,15 @@ pointerup target=#target button=0 detail=0
 mouseup target=#target button=0 detail=0
 click target=#target button=0 detail=0
 > double left click
-dblclick target=#target button=0 detail=0
+pointerdown target=#target button=0 detail=0
+mousedown target=#target button=0 detail=0
 pointerup target=#target button=0 detail=0
 mouseup target=#target button=0 detail=0
 click target=#target button=0 detail=0
+dblclick target=#target button=0 detail=0
 > triple left click
+pointerdown target=#target button=0 detail=0
+mousedown target=#target button=0 detail=0
 pointerup target=#target button=0 detail=0
 mouseup target=#target button=0 detail=0
 click target=#target button=0 detail=0
