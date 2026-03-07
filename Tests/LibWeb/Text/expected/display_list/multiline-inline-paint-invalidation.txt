@@ -1,0 +1,32 @@
+Before:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  DrawGlyphRun@1 rect=[8,8 70x18] translation=[8,21.796875] color=rgb(0, 0, 255)
+  DrawLine@1 from=[8,24] to=[78,24] color=rgb(0, 0, 255) thickness=2
+  DrawGlyphRun@1 rect=[8,26 48x18] translation=[8,39.796875] color=rgb(0, 0, 255)
+  DrawLine@1 from=[8,42] to=[55,42] color=rgb(0, 0, 255) thickness=2
+  DrawGlyphRun@1 rect=[8,44 60x18] translation=[8,57.796875] color=rgb(0, 0, 255)
+  DrawLine@1 from=[8,60] to=[68,60] color=rgb(0, 0, 255) thickness=2
+  DrawGlyphRun@1 rect=[8,62 37x18] translation=[8,75.796875] color=rgb(0, 0, 255)
+  DrawLine@1 from=[8,78] to=[44,78] color=rgb(0, 0, 255) thickness=2
+Restore@0
+
+After:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  DrawGlyphRun@1 rect=[8,8 70x18] translation=[8,21.796875] color=rgb(255, 0, 0)
+  DrawLine@1 from=[8,24] to=[78,24] color=rgb(255, 0, 0) thickness=2
+  DrawGlyphRun@1 rect=[8,26 48x18] translation=[8,39.796875] color=rgb(255, 0, 0)
+  DrawLine@1 from=[8,42] to=[55,42] color=rgb(255, 0, 0) thickness=2
+  DrawGlyphRun@1 rect=[8,44 60x18] translation=[8,57.796875] color=rgb(255, 0, 0)
+  DrawLine@1 from=[8,60] to=[68,60] color=rgb(255, 0, 0) thickness=2
+  DrawGlyphRun@1 rect=[8,62 37x18] translation=[8,75.796875] color=rgb(255, 0, 0)
+  DrawLine@1 from=[8,78] to=[44,78] color=rgb(255, 0, 0) thickness=2
+Restore@0
+

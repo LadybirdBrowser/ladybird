@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        font-size: 16px;
+    }
+    a {
+        color: blue;
+    }
+</style>
+<div>
+    <a id="link" href="#">This link spans multiple lines</a>
+</div>
+<script>
+    test(() => {
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("link").style.color = "red";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before:");
+        println(displayListBefore);
+        println("After:");
+        println(displayListAfter);
+    });
+</script>
