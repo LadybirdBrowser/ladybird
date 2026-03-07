@@ -136,6 +136,7 @@
 //! - `sub32_overflow dst, src, fail` -- `dst -= src` (32-bit).
 //! - `mul32_overflow dst, src, fail` -- `dst *= src` (32-bit).
 //! - `neg32_overflow dst, fail` -- `dst = -dst` (32-bit).
+//! - `not32 dst` -- `dst = ~dst` (32-bit, upper bits zeroed).
 //!
 //! ### Bit manipulation
 //!
