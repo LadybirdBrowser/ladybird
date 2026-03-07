@@ -527,6 +527,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     m_response_object = {};
     // Spec Note: Override MIME type is not overridden here as the overrideMimeType() method can be invoked before the open() method.
 
+    // AD-HOC: Reset the request body so a previous body doesn't leak into this request.
+    // https://github.com/whatwg/xhr/pull/404
+    m_request_body = nullptr;
+
     // 12. If this’s state is not opened, then:
     if (m_state != State::Opened) {
         // 1. Set this’s state to opened.
