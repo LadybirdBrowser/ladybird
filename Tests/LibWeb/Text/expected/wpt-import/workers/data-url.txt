@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	application/javascript MIME allowed
+Pass	text/plain MIME allowed
+Pass	empty MIME allowed
+Pass	communication goes both ways
+Pass	indexedDB is present
+Pass	indexedDB is inaccessible
+Pass	cross-origin worker
+Pass	worker has opaque origin
+Pass	invalid javascript produces error

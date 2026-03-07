@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <WebWorker/PageHost.h>
 #include <WebWorker/WorkerHost.h>
 
 namespace WebWorker {
@@ -199,13 +200,13 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inside_settings->heap(), move(perform_fetch_function));
 
     // In both cases, let onComplete given script be the following steps:
-    auto on_complete_function = [inside_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url, is_shared](GC::Ptr<Web::HTML::Script> script) mutable {
+    auto on_complete_function = [page, inside_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url, is_shared](GC::Ptr<Web::HTML::Script> script) mutable {
         auto& realm = inside_settings->realm();
 
         // 1. If script is null or if script's error to rethrow is non-null, then:
         if (!script || !script->error_to_rethrow().is_null()) {
-            // FIXME: 1. Queue a global task on the DOM manipulation task source given worker's relevant global object to fire an event named error at worker.
-            // FIXME: Notify Worker parent through IPC to fire an error event at Worker
+            // 1. Queue a global task on the DOM manipulation task source given worker's relevant global object to fire an event named error at worker.
+            as<WebWorker::PageHost>(page->client()).did_fail_loading_worker_script();
 
             // 2. Run the environment discarding steps for inside settings.
             inside_settings->discard_environment();
