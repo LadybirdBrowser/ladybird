@@ -1,11 +1,11 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:console
-[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  30]       GetGlobal dst:reg9, identifier:sequentialTryCatch
-[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
-[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  88]       End value:reg5
+[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  40]       GetGlobal dst:reg9, identifier:sequentialTryCatch
+[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
+[  78]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  a0]       End value:reg5
 
 JS bytecode executable "sequentialTryCatch"
 [   0]    0: GetLexicalEnvironment dst:reg4

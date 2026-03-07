@@ -1099,6 +1099,8 @@ extern "C" void* rust_create_executable(
         delete bp;
     }
 
+    executable->fixup_cache_pointers();
+
     return executable.ptr();
 }
 

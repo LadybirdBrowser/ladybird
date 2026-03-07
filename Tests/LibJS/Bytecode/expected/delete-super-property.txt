@@ -11,33 +11,33 @@ JS bytecode executable ""
 [  88]       Mov dst:e~0, src:reg5
 [  98]       Mov dst:reg6, src:Undefined
 [  a8]       Mov dst:reg7, src:reg6
-[  b8]    2: Jump target:@1a0
+[  b8]    2: Jump target:@1b0
 [  c0]    3: Mov dst:reg5, src:Undefined
 [  d0]       GetGlobal dst:reg9, identifier:A
-[  e0]       CallConstruct dst:reg8, callee:reg9, A
-[  f8]       GetById dst:reg9, base:reg8, property:foo
-[ 110]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.foo
-[ 130]       Mov dst:reg5, src:reg6
-[ 140]       Mov dst:reg6, src:reg5
-[ 150]       Jump target:@b8
-[ 158]    4: Catch dst:reg5
-[ 160]       SetLexicalEnvironment environment:reg4
-[ 168]       Mov dst:e~1, src:reg5
-[ 178]       Mov dst:reg7, src:Undefined
-[ 188]       Mov dst:reg8, src:reg7
-[ 198]    5: End value:reg7
-[ 1a0]    6: Mov dst:reg5, src:Undefined
-[ 1b0]       GetGlobal dst:reg10, identifier:A
-[ 1c0]       CallConstruct dst:reg9, callee:reg10, A
-[ 1d8]       GetById dst:reg10, base:reg9, property:baz
-[ 1f0]       Call dst:reg7, callee:reg10, this_value:reg9, <object>.baz
-[ 210]       Mov dst:reg5, src:reg7
-[ 220]       Mov dst:reg7, src:reg5
-[ 230]       End value:reg7
+[  e8]       CallConstruct dst:reg8, callee:reg9, A
+[ 100]       GetById dst:reg9, base:reg8, property:foo
+[ 120]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.foo
+[ 140]       Mov dst:reg5, src:reg6
+[ 150]       Mov dst:reg6, src:reg5
+[ 160]       Jump target:@b8
+[ 168]    4: Catch dst:reg5
+[ 170]       SetLexicalEnvironment environment:reg4
+[ 178]       Mov dst:e~1, src:reg5
+[ 188]       Mov dst:reg7, src:Undefined
+[ 198]       Mov dst:reg8, src:reg7
+[ 1a8]    5: End value:reg7
+[ 1b0]    6: Mov dst:reg5, src:Undefined
+[ 1c0]       GetGlobal dst:reg10, identifier:A
+[ 1d8]       CallConstruct dst:reg9, callee:reg10, A
+[ 1f0]       GetById dst:reg10, base:reg9, property:baz
+[ 210]       Call dst:reg7, callee:reg10, this_value:reg9, <object>.baz
+[ 230]       Mov dst:reg5, src:reg7
+[ 240]       Mov dst:reg7, src:reg5
+[ 250]       End value:reg7
 
 Exception handlers:
-    from   c0 to  158 handler   78
-    from  1a0 to  238 handler  158
+    from   c0 to  168 handler   78
+    from  1b0 to  258 handler  168
 
 JS bytecode executable "A"
 [   0]    0: GetLexicalEnvironment dst:reg4

@@ -120,10 +120,6 @@ int main()
         outln("const OBJECT_STORAGE_SIZE = {}", offsetof(Object, m_storage) + vec_size);
         // Composite offsets for SimpleIndexedPropertyStorage.m_packed_elements data pointer
         outln("const SIMPLE_INDEXED_PROPERTY_STORAGE_PACKED_DATA = {}", offsetof(SimpleIndexedPropertyStorage, m_packed_elements) + vec_data);
-        // Composite offset for Executable.property_lookup_caches data pointer
-        outln("const EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA = {}", offsetof(Executable, property_lookup_caches) + vec_data);
-        // Composite offset for Executable.global_variable_caches data pointer
-        outln("const EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA = {}", offsetof(Executable, global_variable_caches) + vec_data);
         // Composite offset for Executable.bytecode data pointer
         outln("const EXECUTABLE_BYTECODE_DATA = {}", offsetof(Executable, bytecode) + vec_data);
     }

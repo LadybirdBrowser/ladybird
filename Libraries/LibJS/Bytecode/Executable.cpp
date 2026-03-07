@@ -8,6 +8,7 @@
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Instruction.h>
+#include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/RegexTable.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
@@ -50,6 +51,18 @@ Executable::Executable(
 }
 
 Executable::~Executable() = default;
+
+void Executable::fixup_cache_pointers()
+{
+    for (auto it = InstructionStreamIterator(bytecode); !it.at_end(); ++it) {
+        fixup_instruction_cache(
+            const_cast<Instruction&>(*it),
+            property_lookup_caches.span(),
+            global_variable_caches.span(),
+            template_object_caches.span(),
+            object_shape_caches.span());
+    }
+}
 
 void Executable::dump() const
 {

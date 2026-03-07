@@ -5,11 +5,11 @@ JS bytecode executable ""
 [  30]       InitObjectLiteralProperty object:reg5, property:f, src:reg6, shape_cache_index:0, property_slot:0
 [  48]       CacheObjectShape object:reg5
 [  58]       SetGlobal identifier:obj, src:reg5
-[  68]       GetGlobal dst:reg5, identifier:obj
-[  78]       GetById dst:reg6, base:reg5, property:f, base_identifier:obj
-[  90]       GetTemplateObject dst:reg7, strings:[String(""), String("")]
-[  b0]       Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
-[  d8]       End value:reg8
+[  70]       GetGlobal dst:reg5, identifier:obj
+[  88]       GetById dst:reg6, base:reg5, property:f, base_identifier:obj
+[  a8]       GetTemplateObject dst:reg7, strings:[String(""), String("")]
+[  c8]       Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
+[  f0]       End value:reg8
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4

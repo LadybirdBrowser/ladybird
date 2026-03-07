@@ -8,14 +8,14 @@ JS bytecode executable ""
 [  70]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  80]       CreateVariable identifier:Foo, is_immutable:true, is_global:false, is_strict:false
 [  90]       GetGlobal dst:reg6, identifier:Base
-[  a0]       SetLexicalEnvironment environment:reg4
-[  a8]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("method")]
-[  d0]       InitializeLexicalBinding identifier:Foo, src:reg7
-[  e8]       GetGlobal dst:reg7, identifier:Foo
-[  f8]       CallConstruct dst:reg6, callee:reg7, Foo
-[ 110]       GetById dst:reg7, base:reg6, property:method
-[ 128]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-[ 148]       End value:reg5
+[  a8]       SetLexicalEnvironment environment:reg4
+[  b0]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("method")]
+[  d8]       InitializeLexicalBinding identifier:Foo, src:reg7
+[  f0]       GetGlobal dst:reg7, identifier:Foo
+[ 108]       CallConstruct dst:reg6, callee:reg7, Foo
+[ 120]       GetById dst:reg7, base:reg6, property:method
+[ 140]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
+[ 160]       End value:reg5
 
 JS bytecode executable "Foo"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -36,15 +36,15 @@ JS bytecode executable "method"
 [  18]       ResolveThisBinding
 [  20]       ResolveSuperBase dst:reg7
 [  28]       GetByIdWithThis dst:reg8, base:reg7, property:method, this_value:this
-[  40]       Mov dst:reg5, src:this
-[  50]       Mov dst:reg6, src:reg8
-[  60]       JumpNullish condition:reg6, true_target:@70, false_target:@88
-[  70]    1: Mov dst:reg6, src:Undefined
-[  80]    2: Return value:reg6
-[  88]    3: NewArray dst:reg7
-[  98]       CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-[  b0]       Mov dst:reg5, src:Undefined
-[  c0]       Return value:reg6
+[  48]       Mov dst:reg5, src:this
+[  58]       Mov dst:reg6, src:reg8
+[  68]       JumpNullish condition:reg6, true_target:@78, false_target:@90
+[  78]    1: Mov dst:reg6, src:Undefined
+[  88]    2: Return value:reg6
+[  90]    3: NewArray dst:reg7
+[  a0]       CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+[  b8]       Mov dst:reg5, src:Undefined
+[  c8]       Return value:reg6
 
 JS bytecode executable "method"
 [   0]    0: GetLexicalEnvironment dst:reg4

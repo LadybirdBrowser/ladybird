@@ -1,12 +1,12 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:simple_computed
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
-[  38]       GetGlobal dst:reg7, identifier:mixed
-[  48]       Call dst:reg6, callee:reg7, this_value:Undefined, mixed
-[  68]       GetGlobal dst:reg7, identifier:dynamic
-[  78]       Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
-[  a0]       End value:reg5
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
+[  40]       GetGlobal dst:reg7, identifier:mixed
+[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, mixed
+[  78]       GetGlobal dst:reg7, identifier:dynamic
+[  90]       Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
+[  b8]       End value:reg5
 
 JS bytecode executable "simple_computed"
 [   0]    0: GetLexicalEnvironment dst:reg4

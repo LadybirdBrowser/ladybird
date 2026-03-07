@@ -1,11 +1,11 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:console
-[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  30]       GetGlobal dst:reg9, identifier:classWithName
-[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, classWithName
-[  60]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  88]       End value:reg5
+[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  40]       GetGlobal dst:reg9, identifier:classWithName
+[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, classWithName
+[  78]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  a0]       End value:reg5
 
 JS bytecode executable "classWithName"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -16,9 +16,9 @@ JS bytecode executable "classWithName"
 [  58]       Mov dst:reg7, src:C~0
 [  68]       CallConstruct dst:reg6, callee:reg7, C
 [  80]       GetById dst:reg7, base:reg6, property:method
-[  98]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-[  b8]       StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
-[  c8]       Return value:reg6
+[  a0]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
+[  c0]       StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
+[  d0]       Return value:reg6
 
 JS bytecode executable "Foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

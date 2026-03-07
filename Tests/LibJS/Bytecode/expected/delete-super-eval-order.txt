@@ -13,15 +13,15 @@ JS bytecode executable ""
 [  a8]    2: End value:reg6
 [  b0]    3: Mov dst:reg5, src:Undefined
 [  c0]       GetGlobal dst:reg9, identifier:A
-[  d0]       CallConstruct dst:reg8, callee:reg9, A
-[  e8]       GetById dst:reg9, base:reg8, property:m
-[ 100]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
-[ 128]       Mov dst:reg5, src:reg6
-[ 138]       Mov dst:reg6, src:reg5
-[ 148]       End value:reg6
+[  d8]       CallConstruct dst:reg8, callee:reg9, A
+[  f0]       GetById dst:reg9, base:reg8, property:m
+[ 110]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
+[ 138]       Mov dst:reg5, src:reg6
+[ 148]       Mov dst:reg6, src:reg5
+[ 158]       End value:reg6
 
 Exception handlers:
-    from   b0 to  150 handler   78
+    from   b0 to  160 handler   78
 
 JS bytecode executable "A"
 [   0]    0: GetLexicalEnvironment dst:reg4

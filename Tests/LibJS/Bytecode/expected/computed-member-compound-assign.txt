@@ -1,14 +1,14 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:compound_computed
-[  18]       NewObject dst:reg7
-[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
-[  50]       GetGlobal dst:reg7, identifier:compound_then_assign
-[  60]       NewObject dst:reg8
-[  70]       InitObjectLiteralProperty object:reg8, property:x, src:Int32(1), shape_cache_index:0, property_slot:0
-[  88]       CacheObjectShape object:reg8
-[  98]       Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
-[  c0]       End value:reg6
+[  20]       NewObject dst:reg7
+[  30]       Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
+[  58]       GetGlobal dst:reg7, identifier:compound_then_assign
+[  70]       NewObject dst:reg8
+[  80]       InitObjectLiteralProperty object:reg8, property:x, src:Int32(1), shape_cache_index:0, property_slot:0
+[  98]       CacheObjectShape object:reg8
+[  a8]       Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
+[  d0]       End value:reg6
 
 JS bytecode executable "compound_computed"
 [   0]    0: GetLexicalEnvironment dst:reg4

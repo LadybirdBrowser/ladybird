@@ -1,10 +1,10 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:subVector
-[  18]       NewPrimitiveArray dst:reg7, elements:[1, 2]
-[  38]       NewPrimitiveArray dst:reg8, elements:[3, 4]
-[  58]       Call dst:reg5, callee:reg6, this_value:Undefined, subVector, arguments:[reg7, reg8]
-[  80]       End value:reg5
+[  20]       NewPrimitiveArray dst:reg7, elements:[1, 2]
+[  40]       NewPrimitiveArray dst:reg8, elements:[3, 4]
+[  60]       Call dst:reg5, callee:reg6, this_value:Undefined, subVector, arguments:[reg7, reg8]
+[  88]       End value:reg5
 
 JS bytecode executable "subVector"
 [   0]    0: GetLexicalEnvironment dst:reg4

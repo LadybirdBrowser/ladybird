@@ -1873,7 +1873,7 @@ fn generate_identifier(
         generator.emit(Instruction::GetGlobal {
             dst: dst.operand(),
             identifier: id,
-            cache_index: cache,
+            cache: cache as u64,
         });
     } else if ident.declaration_kind.get() == Some(DeclarationKind::Var) {
         let id = generator.intern_identifier(&ident.name);
@@ -2846,7 +2846,7 @@ fn generate_variable_declaration(
                                 generator.emit(Instruction::SetGlobal {
                                     identifier: id,
                                     src: value.operand(),
-                                    cache_index: cache,
+                                    cache: cache as u64,
                                 });
                             } else {
                                 generator.emit(Instruction::SetLexicalBinding {
@@ -3505,7 +3505,7 @@ fn generate_update_expression(
                         base: base.operand(),
                         property: key,
                         src: value.operand(),
-                        cache_index: cache2,
+                        cache: cache2 as u64,
                         base_identifier: None,
                         kind: 0,
                     });
@@ -3840,7 +3840,7 @@ fn generate_assignment_expression(
                             base: base.operand(),
                             property: key,
                             src: dst.operand(),
-                            cache_index: cache2,
+                            cache: cache2 as u64,
                             base_identifier: None,
                             kind: 0,
                         });
@@ -3860,7 +3860,7 @@ fn generate_assignment_expression(
                         base: base.operand(),
                         property: key,
                         src: dst.operand(),
-                        cache_index: cache2,
+                        cache: cache2 as u64,
                         base_identifier: None,
                         kind: 0,
                     });
@@ -3996,7 +3996,7 @@ fn emit_super_put(
             this_value: this_value.operand(),
             property: key,
             src: value.operand(),
-            cache_index: cache,
+            cache: cache as u64,
             kind: 0,
         });
     }
@@ -4018,7 +4018,7 @@ fn emit_get_by_id(
             dst: dst.operand(),
             base: base.operand(),
             base_identifier,
-            cache_index: cache,
+            cache: cache as u64,
         });
     } else {
         let cache = generator.next_property_lookup_cache();
@@ -4027,7 +4027,7 @@ fn emit_get_by_id(
             base: base.operand(),
             property: key,
             base_identifier,
-            cache_index: cache,
+            cache: cache as u64,
         });
     }
 }
@@ -4049,7 +4049,7 @@ fn emit_get_by_id_with_this(
             dst: dst.operand(),
             base: base.operand(),
             this_value: this_value.operand(),
-            cache_index: cache,
+            cache: cache as u64,
         });
     } else {
         let cache = generator.next_property_lookup_cache();
@@ -4058,7 +4058,7 @@ fn emit_get_by_id_with_this(
             base: base.operand(),
             property: key,
             this_value: this_value.operand(),
-            cache_index: cache,
+            cache: cache as u64,
         });
     }
 }
@@ -4114,7 +4114,7 @@ fn emit_get_by_value(
                 dst: dst.operand(),
                 base: base.operand(),
                 base_identifier,
-                cache_index: cache,
+                cache: cache as u64,
             });
         } else {
             let cache = generator.next_property_lookup_cache();
@@ -4123,7 +4123,7 @@ fn emit_get_by_value(
                 base: base.operand(),
                 property: key,
                 base_identifier,
-                cache_index: cache,
+                cache: cache as u64,
             });
         }
         return;
@@ -4152,7 +4152,7 @@ fn emit_get_by_value_with_this(
                 dst: dst.operand(),
                 base: base.operand(),
                 this_value: this_value.operand(),
-                cache_index: cache,
+                cache: cache as u64,
             });
         } else {
             let cache = generator.next_property_lookup_cache();
@@ -4161,7 +4161,7 @@ fn emit_get_by_value_with_this(
                 base: base.operand(),
                 property: key,
                 this_value: this_value.operand(),
-                cache_index: cache,
+                cache: cache as u64,
             });
         }
         return;
@@ -4188,7 +4188,7 @@ fn emit_put_normal_by_value(
             base: base.operand(),
             property: key,
             src: src.operand(),
-            cache_index: cache,
+            cache: cache as u64,
             base_identifier,
             kind: 0,
         });
@@ -4218,7 +4218,7 @@ fn emit_put_normal_by_value_with_this(
             this_value: this_value.operand(),
             property: key,
             src: src.operand(),
-            cache_index: cache,
+            cache: cache as u64,
             kind: 0,
         });
         return;
@@ -4254,7 +4254,7 @@ fn emit_put_by_value(
                     base: base.operand(),
                     property: key,
                     src: src.operand(),
-                    cache_index: cache,
+                    cache: cache as u64,
                     base_identifier: None,
                     kind: 4,
                 });
@@ -4264,7 +4264,7 @@ fn emit_put_by_value(
                     base: base.operand(),
                     property: key,
                     src: src.operand(),
-                    cache_index: cache,
+                    cache: cache as u64,
                     base_identifier: None,
                     kind: 1,
                 });
@@ -4274,7 +4274,7 @@ fn emit_put_by_value(
                     base: base.operand(),
                     property: key,
                     src: src.operand(),
-                    cache_index: cache,
+                    cache: cache as u64,
                     base_identifier: None,
                     kind: 2,
                 });
@@ -4368,7 +4368,7 @@ fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &Scop
         generator.emit(Instruction::SetGlobal {
             identifier: id,
             src: value.operand(),
-            cache_index: cache,
+            cache: cache as u64,
         });
     } else {
         // Non-local, non-global: use SetLexicalBinding which searches
@@ -4401,7 +4401,7 @@ fn emit_put_to_member(
             base: base.operand(),
             property: key,
             src: value.operand(),
-            cache_index: cache,
+            cache: cache as u64,
             base_identifier: base_id,
             kind: 0,
         });
@@ -4652,7 +4652,7 @@ fn emit_store_to_evaluated_reference(
                 base: base.operand(),
                 property: *property,
                 src: value.operand(),
-                cache_index: *cache,
+                cache: *cache as u64,
                 base_identifier: *base_identifier,
                 kind: 0,
             });
@@ -4682,7 +4682,7 @@ fn emit_store_to_evaluated_reference(
                 this_value: this_value.operand(),
                 property: *property,
                 src: value.operand(),
-                cache_index: *cache,
+                cache: *cache as u64,
                 kind: 0,
             });
         }
@@ -5014,7 +5014,7 @@ fn generate_tagged_template_literal(
     generator.emit(Instruction::GetTemplateObject {
         dst: strings_array.operand(),
         strings_count: u32_from_usize(string_ops.len()),
-        cache_index,
+        cache: cache_index as u64,
         strings: string_ops,
     });
 
@@ -5283,7 +5283,7 @@ fn generate_object_expression(
     };
     generator.emit(Instruction::NewObject {
         dst: dst.operand(),
-        cache_index,
+        cache: cache_index as u64,
     });
 
     if properties.is_empty() {
@@ -5410,7 +5410,7 @@ fn generate_object_expression(
                         base: dst.operand(),
                         property: property_key,
                         src: value.operand(),
-                        cache_index: cache,
+                        cache: cache as u64,
                         base_identifier: None,
                         kind: 4,
                     });
@@ -5451,7 +5451,7 @@ fn generate_object_expression(
                     base: dst.operand(),
                     property: key,
                     src: value.operand(),
-                    cache_index: cache,
+                    cache: cache as u64,
                     base_identifier: None,
                     kind: 3,
                 });
@@ -5462,7 +5462,7 @@ fn generate_object_expression(
     if is_simple {
         generator.emit(Instruction::CacheObjectShape {
             object: dst.operand(),
-            cache_index,
+            cache: cache_index as u64,
         });
     }
 
@@ -5552,7 +5552,7 @@ fn emit_object_accessor_by_key(
                 base: object.operand(),
                 property: property_key,
                 src: value.operand(),
-                cache_index: cache,
+                cache: cache as u64,
                 base_identifier: None,
                 kind: 1,
             });
@@ -5561,7 +5561,7 @@ fn emit_object_accessor_by_key(
                 base: object.operand(),
                 property: property_key,
                 src: value.operand(),
-                cache_index: cache,
+                cache: cache as u64,
                 base_identifier: None,
                 kind: 2,
             });
@@ -7240,7 +7240,7 @@ fn emit_set_variable_with_mode(
                     generator.emit(Instruction::SetGlobal {
                         identifier: id,
                         src: value.operand(),
-                        cache_index: cache,
+                        cache: cache as u64,
                     });
                 } else {
                     generator.emit(Instruction::SetLexicalBinding {

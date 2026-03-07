@@ -259,7 +259,7 @@ op GetById < Instruction
     m_base: Operand
     m_property: PropertyKeyTableIndex
     m_base_identifier: Optional<IdentifierTableIndex>
-    m_cache_index: u32
+    m_cache: PropertyLookupCache*
 endop
 
 op GetByIdWithThis < Instruction
@@ -267,7 +267,7 @@ op GetByIdWithThis < Instruction
     m_base: Operand
     m_property: PropertyKeyTableIndex
     m_this_value: Operand
-    m_cache_index: u32
+    m_cache: PropertyLookupCache*
 endop
 
 op GetByValue < Instruction
@@ -301,7 +301,7 @@ endop
 op GetGlobal < Instruction
     m_dst: Operand
     m_identifier: IdentifierTableIndex
-    m_cache_index: u32
+    m_cache: GlobalVariableCache*
 endop
 
 op GetImportMeta < Instruction
@@ -326,14 +326,14 @@ op GetLength < Instruction
     m_dst: Operand
     m_base: Operand
     m_base_identifier: Optional<IdentifierTableIndex>
-    m_cache_index: u32
+    m_cache: PropertyLookupCache*
 endop
 
 op GetLengthWithThis < Instruction
     m_dst: Operand
     m_base: Operand
     m_this_value: Operand
-    m_cache_index: u32
+    m_cache: PropertyLookupCache*
 endop
 
 op GetMethod < Instruction
@@ -365,7 +365,7 @@ op GetTemplateObject < Instruction
     m_length: u32
     m_dst: Operand
     m_strings_count: u32
-    m_cache_index: u32
+    m_cache: TemplateObjectCache*
     m_strings: Operand[]
 endop
 
@@ -678,7 +678,7 @@ endop
 op NewObject < Instruction
     @nothrow
     m_dst: Operand
-    m_cache_index: u32
+    m_cache: ObjectShapeCache*
 endop
 
 op NewObjectWithNoPrototype < Instruction
@@ -735,7 +735,7 @@ op PutById < Instruction
     m_property: PropertyKeyTableIndex
     m_src: Operand
     m_kind: PutKind
-    m_cache_index: u32
+    m_cache: PropertyLookupCache*
     m_base_identifier: Optional<IdentifierTableIndex>
 endop
 
@@ -745,7 +745,7 @@ op PutByIdWithThis < Instruction
     m_property: PropertyKeyTableIndex
     m_src: Operand
     m_kind: PutKind
-    m_cache_index: u32
+    m_cache: PropertyLookupCache*
 endop
 
 op PutBySpread < Instruction
@@ -803,7 +803,7 @@ endop
 op SetGlobal < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
-    m_cache_index: u32
+    m_cache: GlobalVariableCache*
 endop
 
 op SetLexicalEnvironment < Instruction
@@ -921,7 +921,7 @@ endop
 op CacheObjectShape < Instruction
     @nothrow
     m_object: Operand
-    m_cache_index: u32
+    m_cache: ObjectShapeCache*
 endop
 
 op InitObjectLiteralProperty < Instruction

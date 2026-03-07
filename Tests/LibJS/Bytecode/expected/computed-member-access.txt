@@ -1,12 +1,12 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:computed_read
-[  18]       NewPrimitiveArray dst:reg7, elements:[1]
-[  30]       Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
-[  58]       GetGlobal dst:reg7, identifier:computed_read_expression
-[  68]       NewPrimitiveArray dst:reg8, elements:[1]
-[  80]       Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
-[  a8]       End value:reg6
+[  20]       NewPrimitiveArray dst:reg7, elements:[1]
+[  38]       Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
+[  60]       GetGlobal dst:reg7, identifier:computed_read_expression
+[  78]       NewPrimitiveArray dst:reg8, elements:[1]
+[  90]       Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
+[  b8]       End value:reg6
 
 JS bytecode executable "computed_read"
 [   0]    0: GetLexicalEnvironment dst:reg4

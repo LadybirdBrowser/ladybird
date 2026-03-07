@@ -3,22 +3,22 @@ JS bytecode executable ""
 [   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  18]       CreateVariable identifier:A, is_immutable:true, is_global:false, is_strict:false
 [  28]       GetGlobal dst:reg6, identifier:Object
-[  38]       SetLexicalEnvironment environment:reg4
-[  40]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
-[  70]       InitializeLexicalBinding identifier:A, src:reg7
-[  88]       GetGlobal dst:reg7, identifier:A
-[  98]       CallConstruct dst:reg6, callee:reg7, A
-[  b0]       GetById dst:reg7, base:reg6, property:read
-[  c8]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.read
-[  e8]       GetGlobal dst:reg8, identifier:A
-[  f8]       CallConstruct dst:reg7, callee:reg8, A
-[ 110]       GetById dst:reg8, base:reg7, property:write
-[ 128]       Call dst:reg6, callee:reg8, this_value:reg7, <object>.write
-[ 148]       GetGlobal dst:reg8, identifier:A
-[ 158]       CallConstruct dst:reg7, callee:reg8, A
-[ 170]       GetById dst:reg8, base:reg7, property:update
-[ 188]       Call dst:reg5, callee:reg8, this_value:reg7, <object>.update
-[ 1a8]       End value:reg5
+[  40]       SetLexicalEnvironment environment:reg4
+[  48]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
+[  78]       InitializeLexicalBinding identifier:A, src:reg7
+[  90]       GetGlobal dst:reg7, identifier:A
+[  a8]       CallConstruct dst:reg6, callee:reg7, A
+[  c0]       GetById dst:reg7, base:reg6, property:read
+[  e0]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.read
+[ 100]       GetGlobal dst:reg8, identifier:A
+[ 118]       CallConstruct dst:reg7, callee:reg8, A
+[ 130]       GetById dst:reg8, base:reg7, property:write
+[ 150]       Call dst:reg6, callee:reg8, this_value:reg7, <object>.write
+[ 170]       GetGlobal dst:reg8, identifier:A
+[ 188]       CallConstruct dst:reg7, callee:reg8, A
+[ 1a0]       GetById dst:reg8, base:reg7, property:update
+[ 1c0]       Call dst:reg5, callee:reg8, this_value:reg7, <object>.update
+[ 1e0]       End value:reg5
 
 JS bytecode executable "A"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -34,7 +34,7 @@ JS bytecode executable "read"
 [   8]       ResolveThisBinding
 [  10]       ResolveSuperBase dst:reg5
 [  18]       GetByIdWithThis dst:reg6, base:reg5, property:x, this_value:this
-[  30]       Return value:reg6
+[  38]       Return value:reg6
 
 JS bytecode executable "write"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -48,6 +48,6 @@ JS bytecode executable "update"
 [   8]       ResolveThisBinding
 [  10]       ResolveSuperBase dst:reg5
 [  18]       GetByIdWithThis dst:reg6, base:reg5, property:x, this_value:this
-[  30]       PostfixIncrement dst:reg7, src:reg6
-[  40]       PutByIdWithThis base:reg5, this_value:this, property:x, src:reg6, kind:Normal
-[  60]       End value:Undefined
+[  38]       PostfixIncrement dst:reg7, src:reg6
+[  48]       PutByIdWithThis base:reg5, this_value:this, property:x, src:reg6, kind:Normal
+[  68]       End value:Undefined

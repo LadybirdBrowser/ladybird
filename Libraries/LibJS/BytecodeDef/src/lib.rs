@@ -118,6 +118,7 @@ pub fn field_type_info(ty: &str) -> FieldType {
     match ty {
         "bool" => ("bool", 1, 1, "bool"),
         "u32" => ("u32", 4, 4, "u32"),
+        "u64" => ("u64", 8, 8, "u64"),
         "Operand" => ("Operand", 4, 4, "operand"),
         "Optional<Operand>" => ("Option<Operand>", 4, 4, "optional_operand"),
         "Label" => ("Label", 4, 4, "label"),
@@ -138,6 +139,11 @@ pub fn field_type_info(ty: &str) -> FieldType {
         "PutKind" => ("u32", 4, 4, "u32"),
         "ArgumentsKind" => ("u32", 4, 4, "u32"),
         "Value" => ("u64", 8, 8, "u64"),
+        // Cache pointer types: stored as u64, fixup pass replaces indices with pointers.
+        "PropertyLookupCache*"
+        | "GlobalVariableCache*"
+        | "TemplateObjectCache*"
+        | "ObjectShapeCache*" => ("u64", 8, 8, "u64"),
         _ => unreachable!("Unknown field type: {ty}"),
     }
     .into()

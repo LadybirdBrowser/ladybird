@@ -8,14 +8,14 @@ JS bytecode executable ""
 [  40]    2: End value:reg6
 [  48]    3: Mov dst:reg5, src:Undefined
 [  58]       GetGlobal dst:reg8, identifier:f
-[  68]       NewFunction dst:reg9, shared_function_data_index:0
-[  80]       Call dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
-[  a8]       Mov dst:reg5, src:reg6
-[  b8]       Mov dst:reg6, src:reg5
-[  c8]       End value:reg6
+[  70]       NewFunction dst:reg9, shared_function_data_index:0
+[  88]       Call dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
+[  b0]       Mov dst:reg5, src:reg6
+[  c0]       Mov dst:reg6, src:reg5
+[  d0]       End value:reg6
 
 Exception handlers:
-    from   48 to   d0 handler   10
+    from   48 to   d8 handler   10
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4

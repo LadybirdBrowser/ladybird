@@ -14,7 +14,7 @@ JS bytecode executable ""
 [  b8]       NewClass dst:reg12, class_environment:reg11, class_blueprint_index:0
 [  d8]       Mov dst:reg10, src:reg12
 [  e8]    4: SetGlobal identifier:C, src:reg10
-[  f8]       JumpFalse condition:reg6, target:@110
-[ 108]    5: End value:Undefined
-[ 110]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-[ 128]       Jump target:@108
+[ 100]       JumpFalse condition:reg6, target:@118
+[ 110]    5: End value:Undefined
+[ 118]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+[ 130]       Jump target:@110

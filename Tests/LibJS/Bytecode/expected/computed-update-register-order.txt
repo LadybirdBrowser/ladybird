@@ -1,9 +1,9 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:test
-[  18]       NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
-[  48]       Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
-[  70]       End value:reg5
+[  20]       NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
+[  50]       Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
+[  78]       End value:reg5
 
 JS bytecode executable "test"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -12,8 +12,8 @@ JS bytecode executable "test"
 [  30]       PostfixIncrement dst:reg7, src:reg5
 [  40]       PutByValue base:arg0, property:reg6, src:reg5, kind:Normal
 [  58]       GetGlobal dst:reg6, identifier:foo
-[  68]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[arg0]
-[  90]       End value:Undefined
+[  70]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[arg0]
+[  98]       End value:Undefined
 
 JS bytecode executable "foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

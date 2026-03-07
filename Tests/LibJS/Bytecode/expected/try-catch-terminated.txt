@@ -1,8 +1,8 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:try_return
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, try_return
-[  38]       End value:reg5
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, try_return
+[  40]       End value:reg5
 
 JS bytecode executable "try_return"
 [   0]    0: GetLexicalEnvironment dst:reg4

@@ -1,11 +1,11 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       SetGlobal identifier:shadow, src:String("outer")
-[  18]       GetGlobal dst:reg6, identifier:shadow_in_default
-[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
-[  48]       GetGlobal dst:reg7, identifier:no_conflict
-[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
-[  78]       End value:reg6
+[  20]       GetGlobal dst:reg6, identifier:shadow_in_default
+[  38]       Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
+[  58]       GetGlobal dst:reg7, identifier:no_conflict
+[  70]       Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
+[  90]       End value:reg6
 
 JS bytecode executable "shadow_in_default"
 [   0]    0: GetLexicalEnvironment dst:reg4

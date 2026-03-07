@@ -556,6 +556,8 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
     VERIFY(number_of_locals == executable->local_variable_names.size());
     VERIFY(number_of_constants == executable->constants.size());
 
+    executable->fixup_cache_pointers();
+
     generator.m_finished = true;
 
     return executable;

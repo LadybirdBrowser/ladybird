@@ -1977,7 +1977,7 @@ void NewPrimitiveArray::execute_impl(Bytecode::Interpreter& interpreter) const
 void GetTemplateObject::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& cache = interpreter.current_executable().template_object_caches[m_cache_index];
+    auto& cache = *bit_cast<TemplateObjectCache*>(m_cache);
 
     // 1. Let realm be the current Realm Record.
     auto& realm = *vm.current_realm();
@@ -2099,8 +2099,8 @@ void NewObject::execute_impl(Bytecode::Interpreter& interpreter) const
     auto& vm = interpreter.vm();
     auto& realm = *vm.current_realm();
 
-    if (m_cache_index != NumericLimits<u32>::max()) {
-        auto& cache = interpreter.current_executable().object_shape_caches[m_cache_index];
+    if (m_cache) {
+        auto& cache = *bit_cast<ObjectShapeCache*>(m_cache);
         auto cached_shape = cache.shape.ptr();
         if (cached_shape) {
             interpreter.set(dst(), Object::create_with_premade_shape(*cached_shape));
@@ -2120,7 +2120,7 @@ void NewObjectWithNoPrototype::execute_impl(Bytecode::Interpreter& interpreter) 
 
 void CacheObjectShape::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& cache = interpreter.current_executable().object_shape_caches[m_cache_index];
+    auto& cache = *bit_cast<ObjectShapeCache*>(m_cache);
     if (!cache.shape) {
         auto& object = interpreter.get(m_object).as_object();
         cache.shape = &object.shape();
@@ -2277,7 +2277,7 @@ ThrowCompletionOr<void> GetCalleeAndThisFromEnvironment::execute_impl(Bytecode::
 
 ThrowCompletionOr<void> GetGlobal::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), TRY(get_global(interpreter, m_identifier, strict(), interpreter.current_executable().global_variable_caches.data()[m_cache_index])));
+    interpreter.set(dst(), TRY(get_global(interpreter, m_identifier, strict(), *bit_cast<GlobalVariableCache*>(m_cache))));
     return {};
 }
 
@@ -2287,7 +2287,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     auto& binding_object = interpreter.global_object();
     auto& declarative_record = interpreter.global_declarative_environment();
 
-    auto& cache = interpreter.current_executable().global_variable_caches.data()[m_cache_index];
+    auto& cache = *bit_cast<GlobalVariableCache*>(m_cache);
     auto& shape = binding_object.shape();
     auto src = interpreter.get(m_src);
 
@@ -2531,7 +2531,7 @@ ThrowCompletionOr<void> SetVariableBinding::execute_impl(Bytecode::Interpreter& 
 ThrowCompletionOr<void> GetById::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto base_value = interpreter.get(base());
-    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
+    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
 
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Normal>(interpreter.vm(), [&] { return interpreter.get_identifier(m_base_identifier); }, [&] -> PropertyKey const& { return interpreter.get_property_key(m_property); }, base_value, base_value, cache)));
     return {};
@@ -2541,7 +2541,7 @@ ThrowCompletionOr<void> GetByIdWithThis::execute_impl(Bytecode::Interpreter& int
 {
     auto base_value = interpreter.get(m_base);
     auto this_value = interpreter.get(m_this_value);
-    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
+    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Normal>(interpreter.vm(), [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return interpreter.get_property_key(m_property); }, base_value, this_value, cache)));
     return {};
 }
@@ -2550,7 +2550,7 @@ ThrowCompletionOr<void> GetLength::execute_impl(Bytecode::Interpreter& interpret
 {
     auto base_value = interpreter.get(base());
     auto& executable = interpreter.current_executable();
-    auto& cache = executable.property_lookup_caches.data()[m_cache_index];
+    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), [&] { return interpreter.get_identifier(m_base_identifier); }, [&] { return executable.get_property_key(*executable.length_identifier); }, base_value, base_value, cache)));
     return {};
 }
@@ -2560,7 +2560,7 @@ ThrowCompletionOr<void> GetLengthWithThis::execute_impl(Bytecode::Interpreter& i
     auto base_value = interpreter.get(m_base);
     auto this_value = interpreter.get(m_this_value);
     auto& executable = interpreter.current_executable();
-    auto& cache = executable.property_lookup_caches.data()[m_cache_index];
+    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return executable.get_property_key(*executable.length_identifier); }, base_value, this_value, cache)));
     return {};
 }
@@ -2611,7 +2611,7 @@ ThrowCompletionOr<void> PutById::execute_impl(Bytecode::Interpreter& interpreter
     auto base = interpreter.get(m_base);
     auto const& base_identifier = interpreter.get_identifier(m_base_identifier);
     auto const& property_key = interpreter.get_property_key(m_property);
-    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
+    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
     TRY(put_by_property_key(vm, base, base, value, base_identifier, property_key, m_kind, strict(), &cache));
     return {};
 }
@@ -2622,7 +2622,7 @@ ThrowCompletionOr<void> PutByIdWithThis::execute_impl(Bytecode::Interpreter& int
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
     auto const& name = interpreter.get_property_key(m_property);
-    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
+    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
     TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, name, m_kind, strict(), &cache));
     return {};
 }

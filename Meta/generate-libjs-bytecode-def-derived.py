@@ -217,7 +217,7 @@ def generate_class(op: OpDef) -> str:
         if f.name == "m_length":
             # synthesized, don't take as parameter
             continue
-        ctor_params.append(f"{f.type} {mname_to_param(f.name)}")
+        ctor_params.append(f"{cpp_type_for_field(f.type)} {mname_to_param(f.name)}")
 
     span_param_for_array: dict[str, str] = {}
     for af in arrays:
@@ -310,16 +310,22 @@ def generate_class(op: OpDef) -> str:
         lines.append("")
         lines.extend(getters)
 
+    # Emit set_cache() for ops that have a cache pointer field.
+    has_cache = any(f.name == "m_cache" and is_cache_pointer_type(f.type) for f in op.fields)
+    if has_cache:
+        lines.append("    void set_cache(u64 value) { m_cache = value; }")
+
     lines.append("")
     lines.append("private:")
     for f in op.fields:
+        cpp_t = cpp_type_for_field(f.type)
         if f.is_array:
-            lines.append(f"    {f.type} {f.name}[];")
+            lines.append(f"    {cpp_t} {f.name}[];")
         else:
             if f.type.strip() == "EnvironmentCoordinate":
-                lines.append(f"    mutable {f.type} {f.name};")
+                lines.append(f"    mutable {cpp_t} {f.name};")
             else:
-                lines.append(f"    {f.type} {f.name};")
+                lines.append(f"    {cpp_t} {f.name};")
 
     lines.append("};")
     lines.append(f"static_assert(IsTriviallyDestructible<{op.name}>);")
@@ -354,6 +360,26 @@ NUMERIC_TYPES = {
     "size_t",
 }
 
+# Cache pointer types stored as u64 in the instruction stream.
+# The Executable::fixup_cache_pointers() pass replaces indices with actual pointers.
+CACHE_POINTER_TYPES = {
+    "PropertyLookupCache*": "property_lookup_caches",
+    "GlobalVariableCache*": "global_variable_caches",
+    "TemplateObjectCache*": "template_object_caches",
+    "ObjectShapeCache*": "object_shape_caches",
+}
+
+
+def is_cache_pointer_type(t: str) -> bool:
+    return t.strip() in CACHE_POINTER_TYPES
+
+
+def cpp_type_for_field(t: str) -> str:
+    """Return the C++ storage type for a Bytecode.def field type."""
+    if is_cache_pointer_type(t):
+        return "u64"
+    return t
+
 
 def generate_to_byte_string_impl(op: OpDef) -> str:
     if op.name == "Instruction":
@@ -384,7 +410,7 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
     count_fields = set(array_to_count.values())
 
     for f in op.fields:
-        if f.name == "m_length" or f.name == "m_cache_index":
+        if f.name == "m_length" or f.name == "m_cache":
             continue
 
         t = f.type.strip()
@@ -551,6 +577,48 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
     return "\n".join(lines)
 
 
+def generate_fixup_cache_function(ops: List[OpDef]) -> str:
+    """Generate fixup_instruction_cache() that replaces cache indices with pointers."""
+    lines: List[str] = []
+    lines.append("void fixup_instruction_cache(")
+    lines.append("    Instruction& insn,")
+    lines.append("    Span<PropertyLookupCache> property_lookup_caches,")
+    lines.append("    Span<GlobalVariableCache> global_variable_caches,")
+    lines.append("    Span<TemplateObjectCache> template_object_caches,")
+    lines.append("    Span<ObjectShapeCache> object_shape_caches)")
+    lines.append("{")
+    lines.append('    // Sentinel value used to indicate "no cache" (originally u32::MAX).')
+    lines.append("    static constexpr u64 NO_CACHE = NumericLimits<u32>::max();")
+    lines.append("    switch (insn.type()) {")
+
+    for op in ops:
+        cache_field = None
+        for f in op.fields:
+            if f.name == "m_cache" and is_cache_pointer_type(f.type):
+                cache_field = f
+                break
+        if cache_field is None:
+            continue
+
+        vector_name = CACHE_POINTER_TYPES[cache_field.type.strip()]
+        lines.append(f"    case Instruction::Type::{op.name}: {{")
+        lines.append(f"        auto& op = static_cast<Op::{op.name}&>(insn);")
+        lines.append("        auto index = op.cache();")
+        lines.append("        if (index != NO_CACHE)")
+        lines.append(f"            op.set_cache(bit_cast<u64>(&{vector_name}[index]));")
+        lines.append("        else")
+        lines.append("            op.set_cache(0);")
+        lines.append("        break;")
+        lines.append("    }")
+
+    lines.append("    default:")
+    lines.append("        break;")
+    lines.append("    }")
+    lines.append("}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def generate_op_cpp_body(ops: List[OpDef]) -> str:
     lines: List[str] = []
     lines.append("#include <AK/StringBuilder.h>")
@@ -567,6 +635,11 @@ def generate_op_cpp_body(ops: List[OpDef]) -> str:
             lines.append(impl)
 
     lines.append("} // namespace JS::Bytecode::Op")
+    lines.append("")
+    lines.append("namespace JS::Bytecode {")
+    lines.append("")
+    lines.append(generate_fixup_cache_function(ops))
+    lines.append("} // namespace JS::Bytecode")
     return "\n".join(lines)
 
 
@@ -601,7 +674,19 @@ def generate_op_h(ops: List[OpDef]) -> str:
 #include <LibJS/Runtime/Value.h>
 """
     body = generate_op_namespace_body(ops)
-    return includes + "\n" + body + "\n"
+    fixup_decl = """
+namespace JS::Bytecode {
+
+void fixup_instruction_cache(
+    Instruction& insn,
+    Span<PropertyLookupCache> property_lookup_caches,
+    Span<GlobalVariableCache> global_variable_caches,
+    Span<TemplateObjectCache> template_object_caches,
+    Span<ObjectShapeCache> object_shape_caches);
+
+} // namespace JS::Bytecode
+"""
+    return includes + "\n" + body + "\n" + fixup_decl
 
 
 def usage(prog: str) -> None:

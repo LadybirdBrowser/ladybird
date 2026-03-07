@@ -1,15 +1,15 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:multi_yield
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, multi_yield
-[  38]       SetGlobal identifier:g, src:reg5
-[  48]       GetGlobal dst:reg6, identifier:g
-[  58]       GetById dst:reg7, base:reg6, property:next, base_identifier:g
-[  70]       Call dst:reg5, callee:reg7, this_value:reg6, g.next
-[  90]       GetGlobal dst:reg7, identifier:g
-[  a0]       GetById dst:reg8, base:reg7, property:next, base_identifier:g
-[  b8]       Call dst:reg6, callee:reg8, this_value:reg7, g.next
-[  d8]       End value:reg6
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, multi_yield
+[  40]       SetGlobal identifier:g, src:reg5
+[  58]       GetGlobal dst:reg6, identifier:g
+[  70]       GetById dst:reg7, base:reg6, property:next, base_identifier:g
+[  90]       Call dst:reg5, callee:reg7, this_value:reg6, g.next
+[  b0]       GetGlobal dst:reg7, identifier:g
+[  c8]       GetById dst:reg8, base:reg7, property:next, base_identifier:g
+[  e8]       Call dst:reg6, callee:reg8, this_value:reg7, g.next
+[ 108]       End value:reg6
 
 JS bytecode executable "multi_yield"
 [   0]    0: GetLexicalEnvironment dst:reg4

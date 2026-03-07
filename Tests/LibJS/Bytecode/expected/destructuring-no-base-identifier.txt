@@ -2,16 +2,16 @@ JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       NewObject dst:reg5
 [  18]       SetGlobal identifier:x, src:reg5
-[  28]       NewPrimitiveArray dst:reg5, elements:[42]
-[  40]       Mov dst:reg6, src:Bool(false)
-[  50]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-[  68]       GetGlobal dst:reg10, identifier:x
-[  78]       IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-[  90]       JumpFalse condition:reg6, target:@b8
-[  a0]    1: Mov dst:reg11, src:Undefined
-[  b0]       Jump target:@b8
-[  b8]    2: PutById base:reg10, property:y, src:reg11, kind:Normal
-[  d8]       JumpFalse condition:reg6, target:@f0
-[  e8]    3: End value:reg5
-[  f0]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-[ 108]       End value:reg5
+[  30]       NewPrimitiveArray dst:reg5, elements:[42]
+[  48]       Mov dst:reg6, src:Bool(false)
+[  58]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+[  70]       GetGlobal dst:reg10, identifier:x
+[  88]       IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+[  a0]       JumpFalse condition:reg6, target:@c8
+[  b0]    1: Mov dst:reg11, src:Undefined
+[  c0]       Jump target:@c8
+[  c8]    2: PutById base:reg10, property:y, src:reg11, kind:Normal
+[  f0]       JumpFalse condition:reg6, target:@108
+[ 100]    3: End value:reg5
+[ 108]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+[ 120]       End value:reg5

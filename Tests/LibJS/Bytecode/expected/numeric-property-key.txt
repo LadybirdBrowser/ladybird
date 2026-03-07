@@ -4,4 +4,4 @@ JS bytecode executable ""
 [  18]       ToPrimitiveWithStringHint dst:Int32(20), value:Int32(20)
 [  28]       PutByValue base:reg5, property:Int32(20), src:Int32(3), kind:Own
 [  40]       SetGlobal identifier:obj, src:reg5
-[  50]       End value:Undefined
+[  58]       End value:Undefined
