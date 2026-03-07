@@ -1568,9 +1568,8 @@ handler GetByValue
     # Check value is not empty (sparse hole)
     mov t5, EMPTY_TAG_SHIFTED
     branch_eq t0, t5, .slow
-    # Check not accessor
-    extract_tag t5, t0
-    branch_eq t5, ACCESSOR_TAG, .slow
+    # NB: No accessor check needed -- SimpleIndexedPropertyStorage
+    #     can only hold default-attributed data properties.
     store_operand m_dst, t0
     dispatch_next
 .try_typed_array:
