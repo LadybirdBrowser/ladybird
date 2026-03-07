@@ -455,15 +455,19 @@ void StyleComputer::cascade_declarations(
     ReadonlySpan<PropertyID> properties_to_cascade) const
 {
     AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
+    AK::FixedBitmap<to_underlying(last_property_id) + 1> cascade_filter(false);
+    if (!properties_to_cascade.is_empty()) {
+        for (auto property_id : properties_to_cascade)
+            cascade_filter.set(to_underlying(property_id), true);
+    }
+
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
         seen_properties.fill(false);
         for (auto const& property : declaration.properties()) {
 
             // OPTIMIZATION: If we've been asked to only cascade a specific set of properties, skip the rest.
-            if (!properties_to_cascade.is_empty()) {
-                if (!properties_to_cascade.contains_slow(property.property_id))
-                    continue;
-            }
+            if (!properties_to_cascade.is_empty() && !cascade_filter.get(to_underlying(property.property_id)))
+                continue;
 
             if (important != property.important)
                 continue;

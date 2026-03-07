@@ -29,6 +29,20 @@ SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> i
         }
     }
 
+    auto has_allow_popups = tokens.contains_slow("allow-popups"sv);
+    auto has_allow_top_navigation = tokens.contains_slow("allow-top-navigation"sv);
+    auto has_allow_top_navigation_by_user_activation = tokens.contains_slow("allow-top-navigation-by-user-activation"sv);
+    auto has_allow_same_origin = tokens.contains_slow("allow-same-origin"sv);
+    auto has_allow_forms = tokens.contains_slow("allow-forms"sv);
+    auto has_allow_pointer_lock = tokens.contains_slow("allow-pointer-lock"sv);
+    auto has_allow_scripts = tokens.contains_slow("allow-scripts"sv);
+    auto has_allow_popups_to_escape_sandbox = tokens.contains_slow("allow-popups-to-escape-sandbox"sv);
+    auto has_allow_modals = tokens.contains_slow("allow-modals"sv);
+    auto has_allow_orientation_lock = tokens.contains_slow("allow-orientation-lock"sv);
+    auto has_allow_presentation = tokens.contains_slow("allow-presentation"sv);
+    auto has_allow_downloads = tokens.contains_slow("allow-downloads"sv);
+    auto has_allow_top_navigation_to_custom_protocols = tokens.contains_slow("allow-top-navigation-to-custom-protocols"sv);
+
     // 2. Let output be empty.
     SandboxingFlagSet output {};
 
@@ -37,19 +51,19 @@ SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> i
     output |= SandboxingFlagSet::SandboxedNavigation;
 
     // - The sandboxed auxiliary navigation browsing context flag, unless tokens contains the allow-popups keyword.
-    if (!tokens.contains_slow("allow-popups"sv))
+    if (!has_allow_popups)
         output |= SandboxingFlagSet::SandboxedAuxiliaryNavigation;
 
     // - The sandboxed top-level navigation without user activation browsing context flag, unless tokens contains the
     //   allow-top-navigation keyword.
-    if (!tokens.contains_slow("allow-top-navigation"sv))
+    if (!has_allow_top_navigation)
         output |= SandboxingFlagSet::SandboxedTopLevelNavigationWithoutUserActivation;
 
     // - The sandboxed top-level navigation with user activation browsing context flag, unless tokens contains either
     //   the allow-top-navigation-by-user-activation keyword or the allow-top-navigation keyword.
     // Spec Note: This means that if the allow-top-navigation is present, the allow-top-navigation-by-user-activation
     //            keyword will have no effect. For this reason, specifying both is a document conformance error.
-    if (!tokens.contains_slow("allow-top-navigation"sv) && !tokens.contains_slow("allow-top-navigation-by-user-activation"sv))
+    if (!has_allow_top_navigation && !has_allow_top_navigation_by_user_activation)
         output |= SandboxingFlagSet::SandboxedTopLevelNavigationWithUserActivation;
 
     // - The sandboxed origin browsing context flag, unless the tokens contains the allow-same-origin keyword.
@@ -61,15 +75,15 @@ SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> i
     //            Second, it can be used to embed content from a third-party site, sandboxed to prevent that site from
     //            opening popups, etc, without preventing the embedded page from communicating back to its originating
     //            site, using the database APIs to store data, etc.
-    if (!tokens.contains_slow("allow-same-origin"sv))
+    if (!has_allow_same_origin)
         output |= SandboxingFlagSet::SandboxedOrigin;
 
     // - The sandboxed forms browsing context flag, unless tokens contains the allow-forms keyword.
-    if (!tokens.contains_slow("allow-forms"sv))
+    if (!has_allow_forms)
         output |= SandboxingFlagSet::SandboxedForms;
 
     // - The sandboxed pointer lock browsing context flag, unless tokens contains the allow-pointer-lock keyword.
-    if (!tokens.contains_slow("allow-pointer-lock"sv))
+    if (!has_allow_pointer_lock)
         output |= SandboxingFlagSet::SandboxedPointerLock;
 
     // - The sandboxed scripts browsing context flag, unless tokens contains the allow-scripts keyword.
@@ -78,7 +92,7 @@ SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> i
     // Spec Note: This flag is relaxed by the same keyword as scripts, because when scripts are enabled these features
     //            are trivially possible anyway, and it would be unfortunate to force authors to use script to do them
     //            when sandboxed rather than allowing them to use the declarative features.
-    if (!tokens.contains_slow("allow-scripts"sv)) {
+    if (!has_allow_scripts) {
         output |= SandboxingFlagSet::SandboxedScripts;
         output |= SandboxingFlagSet::SandboxedAutomaticFeatures;
     }
@@ -88,30 +102,30 @@ SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> i
 
     // - The sandbox propagates to auxiliary browsing contexts flag, unless tokens contains the
     //   allow-popups-to-escape-sandbox keyword.
-    if (!tokens.contains_slow("allow-popups-to-escape-sandbox"sv))
+    if (!has_allow_popups_to_escape_sandbox)
         output |= SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts;
 
     // - The sandboxed modals flag, unless tokens contains the allow-modals keyword.
-    if (!tokens.contains_slow("allow-modals"sv))
+    if (!has_allow_modals)
         output |= SandboxingFlagSet::SandboxedModals;
 
     // - The sandboxed orientation lock browsing context flag, unless tokens contains the allow-orientation-lock
     //   keyword.
-    if (!tokens.contains_slow("allow-orientation-lock"sv))
+    if (!has_allow_orientation_lock)
         output |= SandboxingFlagSet::SandboxedOrientationLock;
 
     // - The sandboxed presentation browsing context flag, unless tokens contains the allow-presentation keyword.
-    if (!tokens.contains_slow("allow-presentation"sv))
+    if (!has_allow_presentation)
         output |= SandboxingFlagSet::SandboxedPresentation;
 
     // - The sandboxed downloads browsing context flag, unless tokens contains the allow-downloads keyword.
-    if (!tokens.contains_slow("allow-downloads"sv))
+    if (!has_allow_downloads)
         output |= SandboxingFlagSet::SandboxedDownloads;
 
     // - The sandboxed custom protocols navigation browsing context flag, unless tokens contains either the
     //   allow-top-navigation-to-custom-protocols keyword, the allow-popups keyword, or the allow-top-navigation
     //   keyword.
-    if (!tokens.contains_slow("allow-top-navigation-to-custom-protocols"sv) && !tokens.contains_slow("allow-popups"sv) && !tokens.contains_slow("allow-top-navigation"sv))
+    if (!has_allow_top_navigation_to_custom_protocols && !has_allow_popups && !has_allow_top_navigation)
         output |= SandboxingFlagSet::SandboxedCustomProtocols;
 
     return output;
