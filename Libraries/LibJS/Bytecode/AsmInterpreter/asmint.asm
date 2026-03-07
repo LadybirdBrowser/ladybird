@@ -1064,11 +1064,10 @@ handler BitwiseNot
     load_operand t1, m_src
     extract_tag t2, t1
     branch_ne t2, INT32_TAG, .slow
-    # Extract int32, NOT it, re-box
-    unbox_int32 t3, t1
-    not t3
-    and t3, 0xFFFFFFFF
-    box_int32 t3, t3
+    # NOT the low 32 bits (not32 zeros upper 32), then re-box
+    mov t3, t1
+    not32 t3
+    box_int32_clean t3, t3
     store_operand m_dst, t3
     dispatch_next
 .slow:

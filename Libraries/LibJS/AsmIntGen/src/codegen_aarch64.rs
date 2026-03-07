@@ -1296,6 +1296,15 @@ fn emit_instruction(
             }
         }
 
+        // not32 dst - Bitwise NOT on the low 32 bits, zeroing the upper 32.
+        "not32" => {
+            if insn.operands.len() == 1 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let wdst = to_w_reg(&dst);
+                w!(out, "    mvn {wdst}, {wdst}");
+            }
+        }
+
         // mul: 2-operand (dst *= src, with overflow detection) or 3-operand (dst = src * imm)
         "mul" => {
             if insn.operands.len() == 3 {

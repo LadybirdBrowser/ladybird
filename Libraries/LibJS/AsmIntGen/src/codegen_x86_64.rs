@@ -606,6 +606,15 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
+        // not32 dst - Bitwise NOT on the low 32 bits, zeroing the upper 32.
+        "not32" => {
+            if insn.operands.len() == 1 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let dst32 = to_32bit_reg(&dst);
+                w!(out, "    not {dst32}");
+            }
+        }
+
         // mul: maps to x86 imul (2-operand: dst *= src, or 3-operand: dst = src * imm)
         "mul" => {
             let ops: Vec<String> = insn
