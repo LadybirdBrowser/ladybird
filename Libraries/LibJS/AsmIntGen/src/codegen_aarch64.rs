@@ -105,7 +105,8 @@ fn generate_entry_point(out: &mut String, program: &Program) {
 
     // Save callee-saved registers and link register.
     // Pinned: x19(dispatch), x20(interp), x25(pc), x26(pb), x27(values), x28(exec_ctx)
-    // Also save x21-x24 (callee-saved, not used by us, but must be preserved).
+    // x21 = ip (instruction pointer = pb + pc), set at each handler entry, survives calls.
+    // Also save x22-x24 (callee-saved, not used by us, but must be preserved).
     // d8 is pinned to hold CANON_NAN_BITS (callee-saved FP register).
     w!(out, "    stp x29, x30, [sp, #-112]!");
     w!(out, "    mov x29, sp");
@@ -142,9 +143,9 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     emit_mov_imm(out, "x9", canon_nan);
     w!(out, "    fmov d8, x9              // d8 = CANON_NAN_BITS");
 
-    // Dispatch to first instruction
-    w!(out, "    add x9, x26, x25         // x9 = pb + pc");
-    w!(out, "    ldrb w9, [x9]            // w9 = opcode byte");
+    // Dispatch to first instruction (sets x21 = pb + pc for the handler)
+    w!(out, "    add x21, x26, x25        // x21 = pb + pc");
+    w!(out, "    ldrb w9, [x21]           // w9 = opcode byte");
     w!(out, "    ldr x10, [x19, x9, lsl #3]");
     w!(out, "    br x10");
     w!(out);
@@ -209,9 +210,10 @@ fn emit_state_reload(out: &mut String, program: &Program) {
 }
 
 /// Emit a dispatch sequence: load opcode from [pb + pc], look up in table, branch.
+/// Also updates x21 (cached instruction pointer) for the next handler.
 fn emit_dispatch(out: &mut String) {
-    w!(out, "    add x9, x26, x25"); // x9 = pb + pc
-    w!(out, "    ldrb w9, [x9]"); // w9 = opcode
+    w!(out, "    add x21, x26, x25"); // x21 = pb + pc
+    w!(out, "    ldrb w9, [x21]"); // w9 = opcode
     emit_dispatch_tail(out);
 }
 
@@ -222,8 +224,12 @@ fn emit_dispatch_tail(out: &mut String) {
 }
 
 fn emit_dispatch_with_size(out: &mut String, size: u32) {
+    // x21 = pb + old_pc (set during dispatch, callee-saved).
+    // Next opcode is at x21 + size; load it before advancing x21/pc.
+    w!(out, "    ldrb w9, [x21, #{size}]");
+    w!(out, "    add x21, x21, #{size}");
     emit_add_imm32(out, "w25", "w25", size as i64);
-    emit_dispatch(out);
+    emit_dispatch_tail(out);
 }
 
 /// Get the handler's instruction size: from explicit size= attribute, or from Bytecode.def.
@@ -248,6 +254,8 @@ fn handler_size(handler: &Handler, program: &Program) -> u32 {
 fn generate_handler(out: &mut String, handler: &Handler, program: &Program) {
     w!(out, ".p2align 4");
     w!(out, "asm_handler_{}:", handler.name);
+    // x21 = pb + pc is set by the dispatch sequence that branches here.
+    // It is callee-saved, so it survives C++ calls within the handler.
 
     let mut state = HandlerState::new();
 
@@ -741,6 +749,12 @@ fn emit_instruction(
             }
         }
 
+        // dispatch_current: dispatch the instruction at current pc (without advancing).
+        // Overrides the DSL macro to ensure x21 is set for the next handler.
+        "dispatch_current" => {
+            emit_dispatch(out);
+        }
+
         // Macro invocations
         _ if program.macros.contains_key(m) => {
             let mac = program.macros[m].clone();
@@ -1076,9 +1090,8 @@ fn emit_instruction(
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let offset = resolve_op(&insn.operands[1], handler, program);
                 let offset_val: i64 = offset.parse().unwrap_or(0);
-                // x9 = pb + pc + offset -> load w9 from there (operand index)
-                w!(out, "    add x9, x26, x25");
-                emit_ldr32(out, "w9", "x9", offset_val);
+                // x21 = pb + pc (pinned at handler entry); load operand index
+                emit_ldr32(out, "w9", "x21", offset_val);
                 // dst = values[w9] (scaled by 8)
                 w!(out, "    ldr {dst}, [x27, x9, lsl #3]");
             }
@@ -1090,9 +1103,8 @@ fn emit_instruction(
                 let offset = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
                 let offset_val: i64 = offset.parse().unwrap_or(0);
-                // x9 = pb + pc + offset -> load w9 from there (operand index)
-                w!(out, "    add x9, x26, x25");
-                emit_ldr32(out, "w9", "x9", offset_val);
+                // x21 = pb + pc (pinned at handler entry); load operand index
+                emit_ldr32(out, "w9", "x21", offset_val);
                 // values[w9] = src
                 w!(out, "    str {src}, [x27, x9, lsl #3]");
             }
@@ -1105,8 +1117,8 @@ fn emit_instruction(
                 let offset = resolve_op(&insn.operands[1], handler, program);
                 let offset_val: i64 = offset.parse().unwrap_or(0);
                 let wdst = to_w_reg(&dst);
-                w!(out, "    add x9, x26, x25");
-                emit_ldr32(out, &wdst, "x9", offset_val);
+                // x21 = pb + pc (pinned at handler entry)
+                emit_ldr32(out, &wdst, "x21", offset_val);
             }
         }
 
@@ -1496,6 +1508,9 @@ fn emit_instruction(
                                 // PC-relative address load
                                 let symbol = if mem.base == "rip" { idx } else { &mem.base };
                                 emit_symbol_addr(out, &dst, symbol, program.object_format);
+                            } else if mem.base == "x26" && idx == "x25" {
+                                // pb + pc is cached in x21 (set at handler entry)
+                                w!(out, "    mov {dst}, x21");
                             } else {
                                 w!(out, "    add {dst}, {}, {idx}", mem.base);
                             }
