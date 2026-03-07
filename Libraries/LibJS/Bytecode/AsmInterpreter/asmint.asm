@@ -64,6 +64,15 @@ macro box_int32(dst, src)
     or dst, t0
 end
 
+# Box a 32-bit integer that is already zero-extended (upper 32 bits known zero).
+# Use after 32-bit register operations (add32_overflow, mov r32, etc.) where
+# x86_64 guarantees the upper bits are clear. Clobbers t0. src must not be t0.
+macro box_int32_clean(dst, src)
+    mov dst, src
+    mov t0, INT32_TAG_SHIFTED
+    or dst, t0
+end
+
 # Sign-extend the low 32 bits of a NaN-boxed int32 value.
 macro unbox_int32(dst, src)
     movsxd dst, src
@@ -413,7 +422,7 @@ handler Add
     # t3=lhs (sign-extended), t4=rhs (sign-extended)
     # 32-bit add with hardware overflow detection
     add32_overflow t3, t4, .overflow
-    box_int32 t5, t3
+    box_int32_clean t5, t3
     store_operand m_dst, t5
     dispatch_next
 .overflow:
@@ -443,7 +452,7 @@ handler Sub
 .both_int:
     # t3=lhs (sign-extended), t4=rhs (sign-extended)
     sub32_overflow t3, t4, .overflow
-    box_int32 t5, t3
+    box_int32_clean t5, t3
     store_operand m_dst, t5
     dispatch_next
 .overflow:
@@ -479,7 +488,7 @@ handler Mul
     or t5, t4
     branch_negative t5, .negative_zero
 .store_int:
-    box_int32 t5, t3
+    box_int32_clean t5, t3
     store_operand m_dst, t5
     dispatch_next
 .negative_zero:
@@ -673,7 +682,7 @@ handler Increment
     branch_ne t2, INT32_TAG, .slow
     unbox_int32 t3, t1
     add32_overflow t3, 1, .overflow
-    box_int32 t4, t3
+    box_int32_clean t4, t3
     store_operand m_dst, t4
     dispatch_next
 .overflow:
@@ -696,7 +705,7 @@ handler Decrement
     branch_ne t2, INT32_TAG, .slow
     unbox_int32 t3, t1
     sub32_overflow t3, 1, .overflow
-    box_int32 t4, t3
+    box_int32_clean t4, t3
     store_operand m_dst, t4
     dispatch_next
 .overflow:
@@ -897,7 +906,7 @@ handler PostfixIncrement
     # Increment in-place: src = src + 1
     unbox_int32 t3, t1
     add32_overflow t3, 1, .overflow_after_store
-    box_int32 t4, t3
+    box_int32_clean t4, t3
     store_operand m_src, t4
     dispatch_next
 .overflow_after_store:
@@ -1228,7 +1237,7 @@ handler UnaryMinus
     branch_zero t3, .negative_zero
     # 32-bit negate with overflow detection (INT32_MIN)
     neg32_overflow t3, .overflow
-    box_int32 t4, t3
+    box_int32_clean t4, t3
     store_operand m_dst, t4
     dispatch_next
 .negative_zero:
@@ -1262,7 +1271,7 @@ handler PostfixDecrement
     # Decrement in-place: src = src - 1
     unbox_int32 t3, t1
     sub32_overflow t3, 1, .overflow_after_store
-    box_int32 t4, t3
+    box_int32_clean t4, t3
     store_operand m_src, t4
     dispatch_next
 .overflow_after_store:
@@ -1920,7 +1929,7 @@ handler CallBuiltin
     branch_not_negative t3, .abs_positive
     neg32_overflow t3, .abs_overflow
 .abs_positive:
-    box_int32 t4, t3
+    box_int32_clean t4, t3
     store_operand m_dst, t4
     dispatch_callbuiltin_size
 .abs_overflow:
