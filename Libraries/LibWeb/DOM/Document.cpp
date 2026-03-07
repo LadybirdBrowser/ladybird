@@ -8031,7 +8031,7 @@ void Document::build_counter_style_cache()
     };
 
     Function<void(CSS::CSSStyleSheet&)> const collect_counter_style_definitions = [&](CSS::CSSStyleSheet const& style_sheet) {
-        style_sheet.for_each_counter_style_at_rule([&](CSS::CSSCounterStyleRule const& counter_style_rule) {
+        style_sheet.for_each_effective_counter_style_at_rule([&](CSS::CSSCounterStyleRule const& counter_style_rule) {
             if (auto const& definition = CSS::CounterStyleDefinition::from_counter_style_rule(counter_style_rule, computation_context); definition.has_value())
                 counter_style_definitions.set(definition->name(), *definition);
         });
