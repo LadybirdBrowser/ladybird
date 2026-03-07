@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 29 tests
 
-12 Pass
-17 Fail
+13 Pass
+16 Fail
 Pass	Initial value for <length> correctly computed [calc(10px + 15px)]
 Pass	Initial value for <length> correctly computed [1in]
 Pass	Initial value for <length> correctly computed [2.54cm]
@@ -11,7 +11,7 @@ Pass	Initial value for <length> correctly computed [25.4mm]
 Pass	Initial value for <length> correctly computed [6pc]
 Pass	Initial value for <length> correctly computed [72pt]
 Pass	Initial value for <percentage> correctly computed [calc(10% + 20%)]
-Fail	Initial value for <length-percentage> correctly computed [calc(1in + 10% + 4px)]
+Pass	Initial value for <length-percentage> correctly computed [calc(1in + 10% + 4px)]
 Pass	Initial value for <color> correctly computed [pink, inherits]
 Pass	Initial value for <color> correctly computed [purple]
 Pass	Initial value for <transform-function> correctly computed [rotate(42deg)]
