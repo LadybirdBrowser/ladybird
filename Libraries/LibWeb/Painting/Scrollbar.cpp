@@ -8,7 +8,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseButton.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 
 namespace Web::Painting {
 
@@ -38,23 +40,24 @@ bool Scrollbar::contains(CSSPixelPoint position, ChromeMetrics const& metrics) c
     return false;
 }
 
-MouseAction Scrollbar::mouse_down(CSSPixelPoint position, unsigned button)
+MouseAction Scrollbar::handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
-    if (button != UIEvents::MouseButton::Primary)
+    if (type == UIEvents::EventNames::pointermove) {
+        if (!m_thumb_grab_position.has_value())
+            return MouseAction::None;
+    } else if (button != UIEvents::MouseButton::Primary) {
         return MouseAction::None;
+    }
 
-    position = m_paintable_box->transform_to_local_coordinates(position);
-    ChromeMetrics metrics = m_paintable_box->document().page().chrome_metrics();
-
-    auto scrollbar_data = m_paintable_box->compute_scrollbar_data(m_direction, metrics);
-    if (!scrollbar_data.has_value())
-        return MouseAction::None;
-
-    if (!scrollbar_data->gutter_rect.contains(position))
-        return MouseAction::None;
-
+    auto position = m_paintable_box->transform_to_local_coordinates(visual_viewport_position);
     scroll_to_mouse_position(position);
     m_paintable_box->set_needs_repaint();
+
+    if (type == UIEvents::EventNames::pointerup) {
+        m_thumb_grab_position.clear();
+        return MouseAction::None;
+    }
+
     return MouseAction::CaptureInput;
 }
 
@@ -103,6 +106,9 @@ void Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     auto offset_relative_to_gutter = (position - scrollbar_data->gutter_rect.location()).primary_offset_for_orientation(orientation);
     auto gutter_size = scrollbar_data->gutter_rect.primary_size_for_orientation(orientation);
     auto thumb_size = scrollbar_data->thumb_rect.primary_size_for_orientation(orientation);
+
+    if (gutter_size < thumb_size)
+        return;
 
     if (!m_thumb_grab_position.has_value()) {
         m_thumb_grab_position = scrollbar_data->thumb_rect.contains(position)

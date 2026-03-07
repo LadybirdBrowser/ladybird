@@ -26,9 +26,7 @@ class ChromeWidget : public JS::Cell {
     GC_CELL(ChromeWidget, JS::Cell);
 
 public:
-    virtual MouseAction mouse_down(CSSPixelPoint, unsigned button) = 0;
-    virtual MouseAction mouse_move(CSSPixelPoint) = 0;
-    virtual MouseAction mouse_up(CSSPixelPoint, unsigned button) = 0;
+    virtual MouseAction handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) = 0;
     virtual void mouse_enter() = 0;
     virtual void mouse_leave() = 0;
 

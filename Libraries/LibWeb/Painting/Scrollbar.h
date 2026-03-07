@@ -23,9 +23,7 @@ public:
 
     bool contains(CSSPixelPoint position, ChromeMetrics const&) const;
 
-    virtual MouseAction mouse_down(CSSPixelPoint, unsigned button) override;
-    virtual MouseAction mouse_move(CSSPixelPoint) override;
-    virtual MouseAction mouse_up(CSSPixelPoint, unsigned button) override;
+    virtual MouseAction handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) override;
     virtual void mouse_enter() override;
     virtual void mouse_leave() override;
 
@@ -34,6 +32,9 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    MouseAction mouse_down(CSSPixelPoint, unsigned button);
+    MouseAction mouse_move(CSSPixelPoint);
+    MouseAction mouse_up(CSSPixelPoint, unsigned button);
     void scroll_to_mouse_position(CSSPixelPoint);
 
     GC::Ref<PaintableBox> m_paintable_box;

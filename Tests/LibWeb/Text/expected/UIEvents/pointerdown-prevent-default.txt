@@ -1,0 +1,4 @@
+> click with pointerdown preventDefault
+pointerdown
+pointerup
+click

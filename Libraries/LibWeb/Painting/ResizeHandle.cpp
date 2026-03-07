@@ -8,7 +8,9 @@
 #include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResizeHandle.h>
+#include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseButton.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 
 namespace Web::Painting {
 
@@ -53,26 +55,26 @@ Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
     return CSS::CursorPredefined::EwResize;
 }
 
-MouseAction ResizeHandle::mouse_down(CSSPixelPoint position, unsigned button)
+MouseAction ResizeHandle::handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
-    if (button != UIEvents::MouseButton::Primary)
+    if (type == UIEvents::EventNames::pointermove) {
+        if (!m_resize_action)
+            return MouseAction::None;
+    } else if (button != UIEvents::MouseButton::Primary) {
         return MouseAction::None;
+    }
 
-    m_resize_action = make<ElementResizeAction>(m_element, position);
+    if (!m_resize_action)
+        m_resize_action = make<ElementResizeAction>(m_element, visual_viewport_position);
+    else
+        m_resize_action->handle_pointer_move(visual_viewport_position);
+
+    if (type == UIEvents::EventNames::pointerup) {
+        m_resize_action.clear();
+        return MouseAction::None;
+    }
+
     return MouseAction::CaptureInput;
-}
-
-MouseAction ResizeHandle::mouse_move(CSSPixelPoint position)
-{
-    if (m_resize_action)
-        m_resize_action->handle_pointer_move(position);
-    return MouseAction::None;
-}
-
-MouseAction ResizeHandle::mouse_up(CSSPixelPoint, unsigned)
-{
-    m_resize_action = nullptr;
-    return MouseAction::None;
 }
 
 }
