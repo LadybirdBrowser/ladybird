@@ -138,6 +138,25 @@
 //! - `neg32_overflow dst, fail` -- `dst = -dst` (32-bit).
 //! - `not32 dst` -- `dst = ~dst` (32-bit, upper bits zeroed).
 //!
+//! ### NaN-boxing operations
+//!
+//! These are codegen instructions (not macros), so each backend can emit
+//! optimal platform-specific code.
+//!
+//! - `extract_tag dst, src` -- Extract upper 16-bit NaN-boxing tag from
+//!   a 64-bit value: `dst = src >> 48`. On aarch64, emits a single
+//!   3-operand `lsr`. On x86_64, `mov` + `shr`.
+//! - `unbox_int32 dst, src` -- Sign-extend the low 32 bits of a NaN-boxed
+//!   int32 value to 64 bits.
+//! - `unbox_object dst, src` -- Zero-extend lower 48 bits to extract a
+//!   pointer from a NaN-boxed object/string/symbol/bigint value. On
+//!   aarch64, emits a single `and` with a 48-bit logical immediate.
+//! - `box_int32 dst, src` -- NaN-box a raw 32-bit integer. Masks the low
+//!   32 bits and sets the INT32_TAG in the upper 16 bits. On aarch64,
+//!   `mov wD, wS` + `movk xD, #tag, lsl #48` (2 instructions).
+//! - `box_int32_clean dst, src` -- Like `box_int32` but the source is
+//!   known to have its upper 32 bits already zeroed. Skips the masking.
+//!
 //! ### Bit manipulation
 //!
 //! - `toggle_bit dst, N` -- Flip bit N: `dst ^= (1 << N)`.

@@ -49,43 +49,15 @@
 #   call_helper and call_interp are NON-TERMINAL: the handler continues after.
 
 
-# Extract the NaN-boxing tag (upper 16 bits) from a value.
-macro extract_tag(dst, src)
-    mov dst, src
-    shr dst, 48
-end
-
-# Box a raw 32-bit integer into a NaN-boxed int32 Value.
-# Clobbers t0. src must not be t0.
-macro box_int32(dst, src)
-    mov dst, src
-    and dst, 0xFFFFFFFF
-    mov t0, INT32_TAG_SHIFTED
-    or dst, t0
-end
-
-# Box a 32-bit integer that is already zero-extended (upper 32 bits known zero).
-# Use after 32-bit register operations (add32_overflow, mov r32, etc.) where
-# x86_64 guarantees the upper bits are clear. Clobbers t0. src must not be t0.
-macro box_int32_clean(dst, src)
-    mov dst, src
-    mov t0, INT32_TAG_SHIFTED
-    or dst, t0
-end
-
-# Sign-extend the low 32 bits of a NaN-boxed int32 value.
-macro unbox_int32(dst, src)
-    movsxd dst, src
-end
-
-# Extract Object* from a NaN-boxed object value (zero-extend lower 48 bits).
-# NB: Use logical shift (shr), not arithmetic (sar), because aarch64
-# user-space addresses can have bit 47 set (e.g. under ASAN).
-macro unbox_object(dst, src)
-    mov dst, src
-    shl dst, 16
-    shr dst, 16
-end
+# NOTE: extract_tag, unbox_int32, unbox_object, box_int32, and
+# box_int32_clean are codegen instructions (not macros), allowing each
+# backend to emit optimal platform-specific code.
+#
+# extract_tag dst, src       -- Extract upper 16-bit NaN-boxing tag.
+# unbox_int32 dst, src       -- Sign-extend low 32 bits to 64.
+# unbox_object dst, src      -- Zero-extend lower 48 bits (extract pointer).
+# box_int32 dst, src         -- NaN-box a raw int32 (masks low 32, sets tag).
+# box_int32_clean dst, src   -- NaN-box an already zero-extended int32.
 
 # Check if a value is a double (not a NaN-boxed tagged value).
 # All tagged types have (tag & NAN_BASE_TAG) == NAN_BASE_TAG in their upper 16 bits.
