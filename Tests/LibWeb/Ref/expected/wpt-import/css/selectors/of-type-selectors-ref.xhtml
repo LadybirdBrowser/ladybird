@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html lang="en" xml:lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Selectors Level 4: :first-of-type</title>
+<link rel="author" title="Ms2ger" href="mailto:Ms2ger@gmail.com"/>
+<style type="text/css">
+div > *|* {
+  display: block;
+  color: black;
+  border: thin solid;
+  margin: 1em;
+}
+.yellow {
+  background: yellow;
+}
+.green {
+  background: lime;
+}
+</style>
+</head>
+<body>
+<div>
+<p class="green">This line should have a green background.</p>
+<p class="yellow">This line should have a yellow background.</p>
+<p class="yellow">This line should have a yellow background.</p>
+<p class="green">This line should have a green background.</p>
+<p class="green">This line should have a green background.</p>
+</div>
+<div>
+<p class="green">This line should have a green background.</p>
+<p class="yellow">This line should have a yellow background.</p>
+<p class="yellow">This line should have a yellow background.</p>
+<p class="green">This line should have a green background.</p>
+<p class="green">This line should have a green background.</p>
+</div>
+</body>
+</html>

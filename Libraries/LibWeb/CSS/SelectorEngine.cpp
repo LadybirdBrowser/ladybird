@@ -427,19 +427,19 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
     return found_matching_attribute;
 }
 
-static inline DOM::Element const* previous_sibling_with_same_tag_name(DOM::Element const& element)
+static inline DOM::Element const* previous_sibling_with_same_type(DOM::Element const& element)
 {
     for (auto const* sibling = element.previous_element_sibling(); sibling; sibling = sibling->previous_element_sibling()) {
-        if (sibling->tag_name() == element.tag_name())
+        if (sibling->local_name() == element.local_name() && sibling->namespace_uri() == element.namespace_uri())
             return sibling;
     }
     return nullptr;
 }
 
-static inline DOM::Element const* next_sibling_with_same_tag_name(DOM::Element const& element)
+static inline DOM::Element const* next_sibling_with_same_type(DOM::Element const& element)
 {
     for (auto const* sibling = element.next_element_sibling(); sibling; sibling = sibling->next_element_sibling()) {
-        if (sibling->tag_name() == element.tag_name())
+        if (sibling->local_name() == element.local_name() && sibling->namespace_uri() == element.namespace_uri())
             return sibling;
     }
     return nullptr;
@@ -604,18 +604,18 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         if (context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(element).set_affected_by_forward_positional_pseudo_class(true);
         }
-        return !previous_sibling_with_same_tag_name(element);
+        return !previous_sibling_with_same_type(element);
     case CSS::PseudoClass::LastOfType:
         if (context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(element).set_affected_by_backward_positional_pseudo_class(true);
         }
-        return !next_sibling_with_same_tag_name(element);
+        return !next_sibling_with_same_type(element);
     case CSS::PseudoClass::OnlyOfType:
         if (context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(element).set_affected_by_forward_positional_pseudo_class(true);
             const_cast<DOM::Element&>(element).set_affected_by_backward_positional_pseudo_class(true);
         }
-        return !previous_sibling_with_same_tag_name(element) && !next_sibling_with_same_tag_name(element);
+        return !previous_sibling_with_same_type(element) && !next_sibling_with_same_type(element);
     case CSS::PseudoClass::Lang:
         return matches_lang_pseudo_class(element, pseudo_class.languages);
     case CSS::PseudoClass::Disabled:
@@ -727,12 +727,12 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             break;
         }
         case CSS::PseudoClass::NthOfType: {
-            for (auto* child = previous_sibling_with_same_tag_name(element); child; child = previous_sibling_with_same_tag_name(*child))
+            for (auto* child = previous_sibling_with_same_type(element); child; child = previous_sibling_with_same_type(*child))
                 ++index;
             break;
         }
         case CSS::PseudoClass::NthLastOfType: {
-            for (auto* child = next_sibling_with_same_tag_name(element); child; child = next_sibling_with_same_tag_name(*child))
+            for (auto* child = next_sibling_with_same_type(element); child; child = next_sibling_with_same_type(*child))
                 ++index;
             break;
         }

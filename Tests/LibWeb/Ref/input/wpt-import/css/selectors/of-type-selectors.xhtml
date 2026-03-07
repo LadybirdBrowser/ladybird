@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html lang="en" xml:lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:html="http://www.w3.org/1999/xhtml">
+<head>
+<title>Selectors Level 4: :first-of-type</title>
+<meta name="flags" content="namespace nonHTML"/>
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact"/>
+<link rel="author" title="Ms2ger" href="mailto:Ms2ger@gmail.com"/>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-first-of-type-pseudo"/>
+<link rel="match" href="../../../../expected/wpt-import/css/selectors/of-type-selectors-ref.xhtml"/>
+<style type="text/css">
+div > *|* {
+  display: block;
+  color: black;
+  background: yellow;
+  border: thin solid;
+  margin: 1em;
+}
+.first-of-type > *|*:first-of-type {
+  background: lime;
+}
+.nth-of-type > *|*:nth-of-type(1) {
+  background: lime;
+}
+</style>
+</head>
+<body>
+<div class="first-of-type">
+<p>This line should have a green background.</p>
+<p>This line should have a yellow background.</p>
+<html:p>This line should have a yellow background.</html:p>
+<p xmlns="http://www.example.com/ns">This line should have a green background.</p>
+<p xmlns="">This line should have a green background.</p>
+</div>
+<div class="nth-of-type">
+<p>This line should have a green background.</p>
+<p>This line should have a yellow background.</p>
+<html:p>This line should have a yellow background.</html:p>
+<p xmlns="http://www.example.com/ns">This line should have a green background.</p>
+<p xmlns="">This line should have a green background.</p>
+</div>
+</body>
+</html>
