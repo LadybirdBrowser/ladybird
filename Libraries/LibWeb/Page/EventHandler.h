@@ -112,7 +112,7 @@ private:
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 
     GC::Weak<DOM::Node> m_mousedown_target;
-    u32 m_mousedown_click_count { 0 };
+    int m_mousedown_click_count { 0 };
 
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
 

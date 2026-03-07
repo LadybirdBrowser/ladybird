@@ -168,9 +168,10 @@ GC::Ref<MouseEvent> MouseEvent::clone() const
     return create(realm(), type(), init, m_page_x, m_page_y, m_offset_x, m_offset_y);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail)
 {
     MouseEventInit event_init {};
+    event_init.detail = detail;
     event_init.ctrl_key = modifiers & Mod_Ctrl;
     event_init.shift_key = modifiers & Mod_Shift;
     event_init.alt_key = modifiers & Mod_Alt;
