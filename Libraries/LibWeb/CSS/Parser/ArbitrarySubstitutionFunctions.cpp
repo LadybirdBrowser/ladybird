@@ -175,7 +175,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
         auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value.value());
         auto unsubstituted_values = parser.parse_as_list_of_component_values();
         auto syntax_node = TypeSyntaxNode::create("number"_fly_string);
-        auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, unsubstituted_values, *syntax_node, element);
+        auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, unsubstituted_values, *syntax_node);
         if (parsed_value->is_guaranteed_invalid())
             return {};
 
@@ -239,7 +239,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, unsubstituted_values,
         SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_string() });
 
-    auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullOwnPtr<SyntaxNode>>(), element);
+    auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullOwnPtr<SyntaxNode>>());
     if (parsed_value->is_guaranteed_invalid())
         return failure();
     return parsed_value->tokenize();

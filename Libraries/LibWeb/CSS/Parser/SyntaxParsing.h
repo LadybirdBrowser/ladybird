@@ -16,6 +16,6 @@ namespace Web::CSS::Parser {
 
 WEB_API OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const&);
 
-NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const&, Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element = {});
+NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const&, Vector<ComponentValue> const& input, SyntaxNode const& syntax);
 
 }
